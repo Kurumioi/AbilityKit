@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples</RootNamespace>
+    <AssemblyName>AbilityKit.Samples</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- NuGet Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- Reference AbilityKit Core packages -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
+  </ItemGroup>
+</Project>

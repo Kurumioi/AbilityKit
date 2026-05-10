@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Triggering</RootNamespace>
+    <AssemblyName>AbilityKit.Triggering</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- NuGet Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- Reference other AbilityKit packages -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
+    <ProjectReference Include="..\AbilityKit.Dataflow\AbilityKit.Dataflow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Attributes\AbilityKit.Attributes.csproj" />
+    <ProjectReference Include="..\AbilityKit.Behavior\AbilityKit.Behavior.csproj" />
+    <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
+  </ItemGroup>
+</Project>
