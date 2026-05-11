@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Network</RootNamespace>
+    <AssemblyName>AbilityKit.Network.Runtime</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- 排除 UnityMainThreadDispatcher (需要 Unity SynchronizationContext) -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.network.runtime/Runtime/**/*.cs" 
+             Exclude="
+               ../../Unity/Packages/com.abilitykit.network.runtime/Runtime/**/*.asmdef;
+               ../../Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Abstractions/UnityMainThreadDispatcher.cs
+             " />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Protocol/AbilityKit.Protocol.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,55 @@
+using System;
+using AbilityKit.Samples.Infrastructure;
+
+namespace AbilityKit.Samples.Samples.Flow
+{
+    /// <summary>
+    /// SequenceAndRace - Sequence ? Race ????
+    /// </summary>
+    public sealed class SequenceAndRace : SampleBase
+    {
+        public override string Title => "Sequence and Race";
+        public override string Description => "?? Flow ? Sequence ? Race ????";
+        public override SampleCategory Category => SampleCategory.Flow;
+
+        protected override void OnRun()
+        {
+            Log("Sequence ? Race ????");
+            Output.Divider();
+
+            Log("1. SequenceNode (????):");
+            Log("   ????:");
+            Log("   [Step1] -> [Step2] -> [Step3] -> Done");
+            Output.Bullet("???????????????");
+            Output.Bullet("????????? Sequence ??");
+
+            Output.Divider();
+
+            Log("2. RaceNode (????):");
+            Log("   ????:");
+            Log("   [A] ---win---> Done");
+            Log("   [B]");
+            Log("   [C]");
+            Output.Bullet("??????????");
+            Output.Bullet("???????????");
+            Output.Bullet("???????");
+
+            Output.Divider();
+
+            Log("3. ParallelAllNode (????):");
+            Log("   ????:");
+            Log("   [A] ---+");
+            Log("   [B] ---+----> Done");
+            Log("   [C] ---+");
+            Output.Bullet("????????");
+            Output.Bullet("??????????");
+
+            Output.Divider();
+
+            Log("??????:");
+            Output.Bullet("????: ???? -> ???? -> ???? -> ??");
+            Output.Bullet("????: ???? -> ??? -> ????");
+            Output.Bullet("???: ???? -> ???? -> ????");
+        }
+    }
+}
