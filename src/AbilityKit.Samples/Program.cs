@@ -1,16 +1,6 @@
 using System;
-using System.Linq;
 using AbilityKit.Samples.Infrastructure;
-using AbilityKit.Samples.Samples.Foundation;
-using AbilityKit.Samples.Samples.Triggering;
-using AbilityKit.Samples.Samples.Tags;
-using AbilityKit.Samples.Samples.Modifiers;
-using AbilityKit.Samples.Samples.Flow;
-using AbilityKit.Samples.Samples.Pipeline;
-using AbilityKit.Samples.Samples.StateMachine;
-using AbilityKit.Samples.Samples.Demo;
-using AbilityKit.Samples.Samples.Config;
-using SamplesNs_Tags = AbilityKit.Samples.Samples.Tags;
+using AbilityKit.Samples.Logic;
 
 namespace AbilityKit.Samples
 {

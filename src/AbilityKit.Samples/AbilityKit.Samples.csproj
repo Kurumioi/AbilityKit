@@ -9,32 +9,10 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- NuGet Dependencies -->
+  <!-- Reference Samples Projects -->
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
-
-  <!-- Copy Config files to output -->
-  <ItemGroup>
-    <None Update="Configs\PipelineConfig.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Configs\TagsConfig.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <!-- Reference AbilityKit packages -->
-  <ItemGroup>
-    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
-    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
-    <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
-    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
-    <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
-    <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
-    <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
-    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
-    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+    <ProjectReference Include="..\AbilityKit.Samples.Abstractions\AbilityKit.Samples.Abstractions.csproj" />
+    <ProjectReference Include="..\AbilityKit.Samples.Logic\AbilityKit.Samples.Logic.csproj" />
   </ItemGroup>
 
   <!-- Analyzer 约束检查 -->

@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Infrastructure
 {

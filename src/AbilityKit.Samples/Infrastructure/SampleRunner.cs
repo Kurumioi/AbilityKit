@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CommonLogger = AbilityKit.Samples.Common.Logger;
+using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Infrastructure
 {
     /// <summary>
-    /// 示例运行器
+    /// 示例运行器 - 控制台视图层
     /// </summary>
     public sealed class SampleRunner
     {
@@ -15,15 +15,6 @@ namespace AbilityKit.Samples.Infrastructure
 
         public IReadOnlyList<SampleInfo> AllSamples => _samples;
         public IReadOnlyDictionary<SampleCategory, List<SampleInfo>> Grouped => _grouped;
-
-        /// <summary>
-        /// 注册示例
-        /// </summary>
-        public void Register<T>() where T : ISample, new()
-        {
-            var sample = new T();
-            Register(sample);
-        }
 
         /// <summary>
         /// 注册示例
@@ -131,15 +122,5 @@ namespace AbilityKit.Samples.Infrastructure
         public string Description { get; init; } = string.Empty;
         public SampleCategory Category { get; init; }
         public Func<ISample> Factory { get; init; } = () => throw new InvalidOperationException();
-    }
-
-    /// <summary>
-    /// 内部日志器
-    /// </summary>
-    internal static class Logger
-    {
-        public static void Info(string message) => Console.WriteLine($"[INFO] {message}");
-        public static void Warn(string message) => Console.WriteLine($"[WARN] {message}");
-        public static void Error(string message) => Console.WriteLine($"[ERR] {message}");
     }
 }

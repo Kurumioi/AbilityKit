@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Samples.Logic</RootNamespace>
+    <AssemblyName>AbilityKit.Samples.Logic</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- 依赖 Abstractions -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Samples.Abstractions\AbilityKit.Samples.Abstractions.csproj" />
+  </ItemGroup>
+
+  <!-- 依赖 AbilityKit packages -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
+    <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
+    <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+  </ItemGroup>
+
+  <!-- NuGet Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

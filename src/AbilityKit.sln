@@ -65,6 +65,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.Targeting
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Samples", "AbilityKit.Samples\AbilityKit.Samples.csproj", "{A1000031-0031-0031-0031-000000000031}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Samples.Abstractions", "AbilityKit.Samples.Abstractions\AbilityKit.Samples.Abstractions.csproj", "{A1000047-0047-0047-0047-000000000047}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Samples.Logic", "AbilityKit.Samples.Logic\AbilityKit.Samples.Logic.csproj", "{A1000048-0048-0048-0048-000000000048}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.World.ECS", "AbilityKit.World.ECS\AbilityKit.World.ECS.csproj", "{A1000032-0032-0032-0032-000000000032}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.HotReload", "AbilityKit.HotReload\AbilityKit.HotReload.csproj", "{A1000033-0033-0033-0033-000000000033}"
@@ -193,6 +197,10 @@ Global
 		{A1000039-0039-0039-0039-000000000039}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1000046-0046-0046-0046-000000000046}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1000046-0046-0046-0046-000000000046}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1000047-0047-0047-0047-000000000047}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1000047-0047-0047-0047-000000000047}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1000048-0048-0048-0048-000000000048}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1000048-0048-0048-0048-000000000048}.Debug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
