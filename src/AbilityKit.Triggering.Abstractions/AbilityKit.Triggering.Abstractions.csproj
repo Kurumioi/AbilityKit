@@ -5,25 +5,19 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>AbilityKit.Triggering</RootNamespace>
-    <AssemblyName>AbilityKit.Triggering</AssemblyName>
+    <AssemblyName>AbilityKit.Triggering.Abstractions</AssemblyName>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.cs" 
-             Exclude="../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.asmdef" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Runtime/Abstractions/**/*.cs" 
+             Exclude="../../Unity/Packages/com.abilitykit.triggering/Runtime/Abstractions/**/*.asmdef" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Modifiers/AbilityKit.Modifiers.csproj" />
-    <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
-    <ProjectReference Include="../../src/AbilityKit.Triggering.Abstractions/AbilityKit.Triggering.Abstractions.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>
