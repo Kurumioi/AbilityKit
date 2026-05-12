@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Demo.Moba.Console</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Moba.Console</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- Project references -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Infrastructure\AbilityKit.Demo.Moba.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- NuGet Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>

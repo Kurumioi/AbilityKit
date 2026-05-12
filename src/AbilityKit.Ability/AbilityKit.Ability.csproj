@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit</RootNamespace>
+    <AssemblyName>AbilityKit.Ability</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- 引用 Unity/Packages 目录下的源码，排除 Unity 特定文件 -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.ability/Runtime/**/*.cs"
+             Exclude="
+                      ../../Unity/Packages/com.abilitykit.ability/Runtime/**/*.asmdef;
+                      ../../Unity/Packages/com.abilitykit.ability/Runtime/**/Builtins/*Factory.cs;
+                      ../../Unity/Packages/com.abilitykit.ability/Runtime/**/Effect/*EventSinkExtensions.cs" />
+  </ItemGroup>
+
+  <!-- 项目引用 -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.GameplayTags\AbilityKit.GameplayTags.csproj" />
+    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
+    <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Modifiers\AbilityKit.Modifiers.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Projectile\AbilityKit.Combat.Projectile.csproj" />
+  </ItemGroup>
+
+  <!-- NuGet Dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+</Project>
