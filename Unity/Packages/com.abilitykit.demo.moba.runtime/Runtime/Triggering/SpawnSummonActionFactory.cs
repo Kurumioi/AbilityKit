@@ -1,11 +1,9 @@
-﻿using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using UnityEngine.Scripting;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
-    [TriggerActionType("spawn_summon", "鍒涢€犲彫鍞ょ墿", "琛屼负/Combat", 0)]
-    [Preserve]
+    [TriggerActionType("spawn_summon", "生成召唤物", "行为/Combat", 0)]
     public sealed class SpawnSummonActionFactory : IActionFactory
     {
         public ITriggerAction Create(ActionDef def)

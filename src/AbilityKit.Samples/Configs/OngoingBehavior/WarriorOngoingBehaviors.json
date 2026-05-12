@@ -1,0 +1,79 @@
+{
+  "name": "WarriorOngoingBehaviors",
+  "version": "1.0.0",
+  "description": "战士持续行为配置 - Buff/Modifier 定义",
+  "targetFsm": "WarriorHFSM",
+  "behaviors": [
+    {
+      "id": "god_of_war_power",
+      "name": "战神之力",
+      "description": "恢复30点生命值并进入战斗状态",
+      "category": "Buff",
+      "duration": -1,
+      "stackPolicy": "Refresh",
+      "maxStacks": 1,
+      "effects": [
+        {
+          "type": "AddFloat",
+          "target": "Health",
+          "value": 30.0
+        },
+        {
+          "type": "SetBool",
+          "target": "IsCombat",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "rage_power",
+      "name": "狂暴之力",
+      "description": "激活狂暴模式",
+      "category": "Buff",
+      "duration": -1,
+      "stackPolicy": "Refresh",
+      "maxStacks": 1,
+      "effects": [
+        {
+          "type": "SetBool",
+          "target": "RageMode",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "poison_debuff",
+      "name": "中毒",
+      "description": "每秒损失10点生命值",
+      "category": "Debuff",
+      "duration": 5.0,
+      "tickInterval": 1.0,
+      "stackPolicy": "Refresh",
+      "maxStacks": 3,
+      "effects": [
+        {
+          "type": "AddFloat",
+          "target": "Health",
+          "value": -10.0
+        }
+      ]
+    },
+    {
+      "id": "healing_blessing",
+      "name": "治疗祝福",
+      "description": "持续恢复生命值",
+      "category": "Buff",
+      "duration": 10.0,
+      "tickInterval": 2.0,
+      "stackPolicy": "Stack",
+      "maxStacks": 5,
+      "effects": [
+        {
+          "type": "AddFloat",
+          "target": "Health",
+          "value": 20.0
+        }
+      ]
+    }
+  ]
+}

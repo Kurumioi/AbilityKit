@@ -25,7 +25,6 @@
         "AbilityKit.Combat.EntityManager",
         "AbilityKit.Combat.Targeting",
         "AbilityKit.Combat.Collision.Abstractions",
-        "AbilityKit.Combat.Collision.Unity",
         "AbilityKit.Triggering",
         "AbilityKit.Pipeline",
         "AbilityKit.Trace",

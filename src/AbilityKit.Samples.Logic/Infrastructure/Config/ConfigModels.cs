@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config
 {
@@ -67,6 +67,125 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config
         public string InitialState { get; set; }
         public List<StateConfig> States { get; set; } = new();
         public List<TransitionConfig> Transitions { get; set; } = new();
+    }
+
+    #endregion
+
+    #region HFSM 状态机配置
+
+    /// <summary>
+    /// HFSM 参数配置模型
+    /// </summary>
+    public class HFSMParameterConfig
+    {
+        public string Type { get; set; } = "Float";
+        public float DefaultValue { get; set; } = 0f;
+        public float MinValue { get; set; } = 0f;
+        public float MaxValue { get; set; } = 100f;
+    }
+
+    /// <summary>
+    /// HFSM 状态配置
+    /// </summary>
+    public class HFSMStateConfig
+    {
+        public string Id { get; set; }
+        public string Type { get; set; } = "State";
+        public string Description { get; set; }
+        public bool NeedsExitTime { get; set; } = false;
+        public HFSMActionConfig OnEnter { get; set; }
+        public HFSMActionConfig OnLogic { get; set; }
+        public HFSMActionConfig OnExit { get; set; }
+    }
+
+    /// <summary>
+    /// HFSM 转换条件配置
+    /// </summary>
+    public class HFSMConditionConfig
+    {
+        public string Type { get; set; }
+        public string ParameterName { get; set; }
+        public string Operator { get; set; } = "Equal";
+        public float Value { get; set; } = 0f;
+        public bool BoolValue { get; set; } = false;
+    }
+
+    /// <summary>
+    /// HFSM 转换配置
+    /// </summary>
+    public class HFSMTransitionConfig
+    {
+        public string From { get; set; }
+        public string To { get; set; }
+        public string Description { get; set; }
+        public bool ForceInstantly { get; set; } = false;
+        public HFSMConditionConfig Condition { get; set; }
+    }
+
+    /// <summary>
+    /// HFSM 状态回调配置
+    /// </summary>
+    public class HFSMActionConfig
+    {
+        public string Type { get; set; }
+        public string Message { get; set; }
+        public float Duration { get; set; } = 0f;
+    }
+
+    /// <summary>
+    /// HFSM 状态机配置
+    /// </summary>
+    public class HFSMConfig
+    {
+        public string Name { get; set; }
+        public string Version { get; set; }
+        public string Description { get; set; }
+        public string InitialState { get; set; }
+        public Dictionary<string, HFSMParameterConfig> Parameters { get; set; } = new();
+        public List<HFSMStateConfig> States { get; set; } = new();
+        public List<HFSMTransitionConfig> Transitions { get; set; } = new();
+    }
+
+    #endregion
+
+    #region 持续行为配置
+
+    /// <summary>
+    /// 持续行为效果配置
+    /// </summary>
+    public class OngoingEffectConfig
+    {
+        public string Type { get; set; }
+        public string Target { get; set; }
+        public float Value { get; set; } = 0f;
+    }
+
+    /// <summary>
+    /// 持续行为配置
+    /// </summary>
+    public class OngoingBehaviorConfig
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Category { get; set; }
+        public float Duration { get; set; } = -1f;
+        public float TickInterval { get; set; } = 0f;
+        public string StackPolicy { get; set; } = "Refresh";
+        public int MaxStacks { get; set; } = 1;
+        public List<OngoingEffectConfig> Effects { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 持续行为集合配置
+    /// </summary>
+    public class OngoingBehaviorSetConfig
+    {
+        public string Name { get; set; }
+        public string Version { get; set; }
+        public string Description { get; set; }
+        public string TargetFsm { get; set; }
+        public List<OngoingBehaviorConfig> Behaviors { get; set; } = new();
     }
 
     #endregion

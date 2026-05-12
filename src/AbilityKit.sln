@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.3.11527.330 d18.3
+VisualStudioVersion = 18.3.11527.330
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Core", "AbilityKit.Core\AbilityKit.Core.csproj", "{A1000001-0001-0001-0001-000000000001}"
 EndProject
@@ -108,6 +108,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.ActionSchema", "AbilityKit.ActionSchema\AbilityKit.ActionSchema.csproj", "{794811E6-1C0D-435A-8255-98344169403F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Ability", "AbilityKit.Ability\AbilityKit.Ability.csproj", "{10EFDB03-77DA-47E2-9AE8-2E9C2AA2A689}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BTCore", "AbilityKit.BTCore\AbilityKit.BTCore.csproj", "{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -755,6 +757,18 @@ Global
 		{10EFDB03-77DA-47E2-9AE8-2E9C2AA2A689}.Release|x64.Build.0 = Release|Any CPU
 		{10EFDB03-77DA-47E2-9AE8-2E9C2AA2A689}.Release|x86.ActiveCfg = Release|Any CPU
 		{10EFDB03-77DA-47E2-9AE8-2E9C2AA2A689}.Release|x86.Build.0 = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|x64.Build.0 = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Debug|x86.Build.0 = Debug|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x64.ActiveCfg = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x64.Build.0 = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x86.ActiveCfg = Release|Any CPU
+		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

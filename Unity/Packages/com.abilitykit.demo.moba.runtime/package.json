@@ -26,7 +26,6 @@
     "com.abilitykit.combat.damage": "0.0.1",
     "com.abilitykit.combat.targeting": "0.0.1",
     "com.abilitykit.combat.collision.abstractions": "0.0.1",
-    "com.abilitykit.combat.collision.unity": "0.0.1",
     "com.abilitykit.triggering": "0.0.1"
   }
 }

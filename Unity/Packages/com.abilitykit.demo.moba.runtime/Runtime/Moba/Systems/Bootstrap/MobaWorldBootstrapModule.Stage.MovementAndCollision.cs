@@ -1,4 +1,4 @@
-﻿using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -6,8 +6,8 @@ namespace AbilityKit.Demo.Moba.Systems
     {
         private static void RegisterMovementAndCollision(WorldContainerBuilder builder)
         {
-            builder.RegisterService<global::AbilityKit.Core.Math.CollisionService, global::AbilityKit.Core.Math.CollisionService>();
-            builder.RegisterServiceAlias<global::AbilityKit.Core.Math.ICollisionService, global::AbilityKit.Core.Math.CollisionService>();
+            // 注册碰撞服务
+            builder.RegisterService<global::AbilityKit.Core.Math.ICollisionService, global::AbilityKit.Core.Math.CollisionService>();
         }
     }
 }

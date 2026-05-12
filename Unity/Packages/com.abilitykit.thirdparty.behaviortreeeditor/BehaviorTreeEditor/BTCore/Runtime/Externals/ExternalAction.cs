@@ -1,4 +1,4 @@
-﻿//------------------------------------------------------------
+//------------------------------------------------------------
 //        File:  ExternalAction.cs
 //       Brief:  ExternalAction
 //
@@ -10,10 +10,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using BTCore.Runtime.Actions;
+using BTAction = BTCore.Runtime.Actions.Action;
 
 namespace BTCore.Runtime.Externals
 {
-    public class ExternalAction : Action, IExternalNode
+    public class ExternalAction : BTAction, IExternalNode
     {
         public string TypeName { get; set; }
 

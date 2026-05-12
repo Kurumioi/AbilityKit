@@ -1,0 +1,178 @@
+{
+  "name": "WarriorHFSM",
+  "version": "1.0.0",
+  "description": "战士角色 HFSM 配置",
+  "initialState": "Idle",
+  "parameters": {
+    "Health": {
+      "type": "Float",
+      "defaultValue": 100.0,
+      "minValue": 0.0,
+      "maxValue": 100.0
+    },
+    "IsCombat": {
+      "type": "Bool",
+      "defaultValue": false
+    },
+    "RageMode": {
+      "type": "Bool",
+      "defaultValue": false
+    },
+    "EnterRage": {
+      "type": "Trigger",
+      "defaultValue": false
+    }
+  },
+  "states": [
+    {
+      "id": "Idle",
+      "type": "State",
+      "description": "待机状态",
+      "needsExitTime": false,
+      "onEnter": {
+        "type": "Log",
+        "message": "[Idle] 进入待机状态"
+      },
+      "onLogic": {
+        "type": "Log",
+        "message": "[Idle] 待机中..."
+      }
+    },
+    {
+      "id": "Combat",
+      "type": "State",
+      "description": "战斗状态",
+      "needsExitTime": false,
+      "onEnter": {
+        "type": "Log",
+        "message": "[Combat] ★ 进入战斗状态 ★"
+      },
+      "onLogic": {
+        "type": "Log",
+        "message": "[Combat] 战斗进行中..."
+      }
+    },
+    {
+      "id": "Rage",
+      "type": "State",
+      "description": "狂暴状态",
+      "needsExitTime": false,
+      "onEnter": {
+        "type": "Log",
+        "message": "[Rage] ★★★ 进入狂暴状态 ★★★"
+      },
+      "onLogic": {
+        "type": "Log",
+        "message": "[Rage] 狂暴攻击中!"
+      }
+    },
+    {
+      "id": "Dead",
+      "type": "State",
+      "description": "死亡状态",
+      "needsExitTime": false,
+      "onEnter": {
+        "type": "Log",
+        "message": "[Dead] ═══ 死亡 ═══"
+      }
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Idle",
+      "to": "Combat",
+      "description": "Idle -> Combat",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterBool",
+        "parameterName": "IsCombat",
+        "operator": "Equal",
+        "value": true
+      }
+    },
+    {
+      "from": "Combat",
+      "to": "Idle",
+      "description": "Combat -> Idle",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterBool",
+        "parameterName": "IsCombat",
+        "operator": "Equal",
+        "value": false
+      }
+    },
+    {
+      "from": "Combat",
+      "to": "Rage",
+      "description": "Combat -> Rage",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterBool",
+        "parameterName": "RageMode",
+        "operator": "Equal",
+        "value": true
+      }
+    },
+    {
+      "from": "Rage",
+      "to": "Combat",
+      "description": "Rage -> Combat",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterBool",
+        "parameterName": "RageMode",
+        "operator": "Equal",
+        "value": false
+      }
+    },
+    {
+      "from": "Idle",
+      "to": "Dead",
+      "description": "Idle -> Dead",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterFloat",
+        "parameterName": "Health",
+        "operator": "LessOrEqual",
+        "value": 0
+      }
+    },
+    {
+      "from": "Combat",
+      "to": "Dead",
+      "description": "Combat -> Dead",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterFloat",
+        "parameterName": "Health",
+        "operator": "LessOrEqual",
+        "value": 0
+      }
+    },
+    {
+      "from": "Rage",
+      "to": "Dead",
+      "description": "Rage -> Dead",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterFloat",
+        "parameterName": "Health",
+        "operator": "LessOrEqual",
+        "value": 0
+      }
+    },
+    {
+      "from": "Dead",
+      "to": "Idle",
+      "description": "Dead -> Idle (复活)",
+      "forceInstantly": true,
+      "condition": {
+        "type": "ParameterFloat",
+        "parameterName": "Health",
+        "operator": "GreaterThan",
+        "value": 0
+      }
+    }
+  ]
+}

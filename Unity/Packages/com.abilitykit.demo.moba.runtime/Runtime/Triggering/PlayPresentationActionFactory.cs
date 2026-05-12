@@ -1,11 +1,9 @@
-﻿using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using UnityEngine.Scripting;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
-    [TriggerActionType("play_presentation", "琛ㄧ幇", "琛屼负/Presentation", 0)]
-    [Preserve]
+    [TriggerActionType("play_presentation", "表现", "行为/Presentation", 0)]
     public sealed class PlayPresentationActionFactory : IActionFactory
     {
         public ITriggerAction Create(ActionDef def)

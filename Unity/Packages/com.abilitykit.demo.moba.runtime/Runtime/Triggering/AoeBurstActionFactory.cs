@@ -1,11 +1,9 @@
-﻿using AbilityKit.Ability.Triggering.Definitions;
+using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using UnityEngine.Scripting;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
-    [TriggerActionType("aoe_burst", "鑼冨洿鐬彂(閲嶆煡鐩爣)", "琛屼负/Area", 0)]
-    [Preserve]
+    [TriggerActionType("aoe_burst", "范围爆发(重置目标)", "行为/Area", 0)]
     public sealed class AoeBurstActionFactory : IActionFactory
     {
         public ITriggerAction Create(ActionDef def)

@@ -1,28 +1,31 @@
-﻿using System;
-using UnityEngine;
+using System;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Triggering.Json;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
+    /// <summary>
+    /// Unity Resources 实现的 TextLoader。
+    /// 内部使用 ITextAssetLoader 加载资源，保持与逻辑层的解耦。
+    /// </summary>
     public sealed class UnityResourcesTextLoader : ITextLoader
     {
+        private readonly ITextAssetLoader _textAssetLoader;
+
+        public UnityResourcesTextLoader(ITextAssetLoader textAssetLoader)
+        {
+            _textAssetLoader = textAssetLoader ?? throw new ArgumentNullException(nameof(textAssetLoader));
+        }
+
         public bool TryLoad(string id, out string text)
         {
             text = null;
             if (string.IsNullOrEmpty(id)) return false;
 
-            try
+            if (_textAssetLoader.TryLoadText(id, out text))
             {
-                var textAsset = Resources.Load<TextAsset>(id);
-                if (textAsset != null)
-                {
-                    text = textAsset.text;
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[UnityResourcesTextLoader] Failed to load '{id}': {ex.Message}");
+                return !string.IsNullOrEmpty(text);
             }
 
             return false;

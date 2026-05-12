@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Core.Common.Log;
-using UnityEngine;
 using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
 using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;
 
@@ -12,10 +11,12 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
     public sealed class DefaultMobaConfigLoader
     {
         private readonly IMobaConfigTableRegistry _registry;
+        private readonly ITextAssetLoader _textAssetLoader;
 
-        public DefaultMobaConfigLoader(IMobaConfigTableRegistry registry)
+        public DefaultMobaConfigLoader(IMobaConfigTableRegistry registry, ITextAssetLoader textAssetLoader)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _textAssetLoader = textAssetLoader ?? throw new ArgumentNullException(nameof(textAssetLoader));
         }
 
         public void Load(MobaConfigDatabase db, IConfigSource source, string resourcesDir = null)
@@ -195,14 +196,13 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
         {
             // Explicitly add .json extension to avoid loading folder
             var pathWithExt = pathWithoutExt + ".json";
-            var asset = Resources.Load<TextAsset>(pathWithExt);
-            if (asset != null && !string.IsNullOrEmpty(asset.text))
+            if (_textAssetLoader.TryLoadText(pathWithExt, out var text) && !string.IsNullOrEmpty(text))
             {
-                var text = asset.text.TrimStart();
+                var trimmed = text.TrimStart();
                 // Must be an array format (merged JSON)
-                if (text.StartsWith("["))
+                if (trimmed.StartsWith("["))
                 {
-                    return asset.text;
+                    return text;
                 }
             }
             return null;
@@ -211,14 +211,13 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
         private string TryLoadMergedJson(string path)
         {
             // Fallback: try without extension
-            var asset = Resources.Load<TextAsset>(path);
-            if (asset != null && !string.IsNullOrEmpty(asset.text))
+            if (_textAssetLoader.TryLoadText(path, out var text) && !string.IsNullOrEmpty(text))
             {
-                var text = asset.text.TrimStart();
+                var trimmed = text.TrimStart();
                 // Check if it's a valid array format (starts with '[')
-                if (text.StartsWith("["))
+                if (trimmed.StartsWith("["))
                 {
-                    return asset.text;
+                    return text;
                 }
             }
             return null;

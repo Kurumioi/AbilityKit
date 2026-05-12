@@ -1,8 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
-using UnityEngine;
 using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
 using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;
 
@@ -11,10 +10,12 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
     public sealed class DefaultMobaConfigBytesLoader
     {
         private readonly IMobaConfigTableRegistry _registry;
+        private readonly ITextAssetLoader _textAssetLoader;
 
-        public DefaultMobaConfigBytesLoader(IMobaConfigTableRegistry registry)
+        public DefaultMobaConfigBytesLoader(IMobaConfigTableRegistry registry, ITextAssetLoader textAssetLoader)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _textAssetLoader = textAssetLoader ?? throw new ArgumentNullException(nameof(textAssetLoader));
         }
 
         public void Load(MobaConfigDatabase db, IConfigBytesSource source, string resourcesDir = null)
@@ -123,21 +124,18 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             {
                 var t = tables[i];
                 var path = string.IsNullOrEmpty(resourcesDir) ? t.FileWithoutExt : $"{resourcesDir}/{t.FileWithoutExt}";
-                var asset = Resources.Load<TextAsset>(path);
-                if (asset == null)
+
+                if (!_textAssetLoader.TryLoadBytes(path, out var bytes) || bytes == null || bytes.Length == 0)
                 {
-                    asset = Resources.Load<TextAsset>(t.FileWithoutExt);
+                    if (!_textAssetLoader.TryLoadBytes(t.FileWithoutExt, out bytes) || bytes == null || bytes.Length == 0)
+                    {
+                        if (strict) throw new InvalidOperationException($"Config bytes not found in Resources: {path}");
+                        hasFail = true;
+                        fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config bytes not found in Resources: {path}");
+                        return bytesByKey;
+                    }
                 }
 
-                if (asset == null)
-                {
-                    if (strict) throw new InvalidOperationException($"Config bytes not found in Resources: {path}");
-                    hasFail = true;
-                    fail = ConfigReloadResult.Fail("moba.config", db != null ? db.Version : 0, $"Config bytes not found in Resources: {path}");
-                    return bytesByKey;
-                }
-
-                var bytes = asset.bytes;
                 if (bytes == null || bytes.Length == 0)
                 {
                     if (strict) throw new InvalidOperationException($"Config bytes is empty: {path}");

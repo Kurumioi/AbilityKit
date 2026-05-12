@@ -1,4 +1,4 @@
-﻿//------------------------------------------------------------
+//------------------------------------------------------------
 //        File:  NodeData.cs
 //       Brief:  NodeData
 //
@@ -9,7 +9,9 @@
 
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+#if UNITY_EDITOR
 using BTCore.Runtime.OtherNodes;
+#endif
 
 namespace BTCore.Runtime
 {

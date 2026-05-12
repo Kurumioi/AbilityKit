@@ -2,7 +2,6 @@
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
-using UnityEngine;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
@@ -32,10 +31,6 @@ namespace AbilityKit.Demo.Moba.Triggering
         public void Execute(TriggerContext context)
         {
             var attackerName = "Unknown";
-            if (context.Source is GameObject go) attackerName = go.name;
-            else if (context.Source != null) attackerName = context.Source.ToString();
-
-            Debug.Log(string.Format(_format, attackerName));
         }
     }
 }

@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.World.DI;
-using UnityEngine;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -11,35 +11,43 @@ namespace AbilityKit.Demo.Moba.Systems
     {
         private static void RegisterConfig(WorldContainerBuilder builder)
         {
-            Debug.Log("[RegisterConfig] Entered");
+            Log.Info("[RegisterConfig] Entered");
+
+            // 注意：ITextAssetLoader 在 RegisterTriggerPlans 中统一注册
+
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
 
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
-                Debug.Log("[MobaConfigDatabase Factory] invoked");
+                Log.Info("[MobaConfigDatabase Factory] invoked");
+
+                // 解析 ITextAssetLoader（由视图层覆盖）
+                var textAssetLoader = _.Resolve<ITextAssetLoader>();
+                Log.Info($"[MobaConfigDatabase Factory] textAssetLoader={textAssetLoader?.GetType().Name ?? "null"}");
+
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);
                 _.TryResolve<IMobaConfigDtoDeserializer>(out var deserializer);
                 _.TryResolve<IMobaConfigDtoBytesDeserializer>(out var bytesDeserializer);
-                Debug.Log($"[MobaConfigDatabase Factory] registry={(registry != null ? registry.GetType().Name : "null")}, deserializer={(deserializer != null ? "set" : "null")}, bytesDeserializer={(bytesDeserializer != null ? "set" : "null")}");
-                var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer);
-                Debug.Log($"[MobaConfigDatabase Factory] after ctor: _tables.Count={CountTables(db)}, dbHash={db.GetHashCode()}");
+                Log.Info($"[MobaConfigDatabase Factory] registry={(registry != null ? registry.GetType().Name : "null")}, deserializer={(deserializer != null ? "set" : "null")}, bytesDeserializer={(bytesDeserializer != null ? "set" : "null")}");
+                var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer, textAssetLoader);
+                Log.Info($"[MobaConfigDatabase Factory] after ctor: _tables.Count={CountTables(db)}, dbHash={db.GetHashCode()}");
 
                 try
                 {
-                    Debug.Log("[MobaConfigDatabase Factory] Loading from Resources");
+                    Log.Info("[MobaConfigDatabase Factory] Loading from Resources");
                     db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
-                    Debug.Log($"[MobaConfigDatabase Factory] completed: CountTables={CountTables(db)}, dbHash={db.GetHashCode()}");
+                    Log.Info($"[MobaConfigDatabase Factory] completed: CountTables={CountTables(db)}, dbHash={db.GetHashCode()}");
                     return db;
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogException(ex);
+                    Log.Exception(ex, "[MobaConfigDatabase Factory] Failed to load configs");
                     throw;
                 }
             });
 
-            Debug.Log("[RegisterConfig] MobaConfigDatabase registered");
+            Log.Info("[RegisterConfig] MobaConfigDatabase registered");
         }
 
         private static int CountTables(MobaConfigDatabase db)

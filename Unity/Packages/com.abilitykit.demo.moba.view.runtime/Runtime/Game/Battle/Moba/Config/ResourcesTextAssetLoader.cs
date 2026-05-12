@@ -1,11 +1,18 @@
-﻿using UnityEngine;
+using UnityEngine;
 using AbilityKit.Ability.Config;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services.Attributes;
 
-namespace AbilityKit.Demo.Moba.Config.BattleDemo
+namespace AbilityKit.Demo.Moba.View.Config
 {
-    public sealed class UnityResourcesConfigSource : IConfigSource
+    /// <summary>
+    /// Unity Resources 实现的 TextAsset 加载器。
+    /// 这是 View 层实现，负责处理 Unity 平台的资源加载。
+    /// </summary>
+    [WorldService(typeof(ITextAssetLoader), WorldLifetime.Singleton)]
+    public sealed class ResourcesTextAssetLoader : ITextAssetLoader
     {
-        public bool TryGetText(string path, out string text)
+        public bool TryLoadText(string path, out string text)
         {
             text = null;
             if (string.IsNullOrEmpty(path)) return false;
@@ -17,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             return !string.IsNullOrEmpty(text);
         }
 
-        public bool TryGetBytes(string path, out byte[] bytes)
+        public bool TryLoadBytes(string path, out byte[] bytes)
         {
             bytes = null;
             if (string.IsNullOrEmpty(path)) return false;

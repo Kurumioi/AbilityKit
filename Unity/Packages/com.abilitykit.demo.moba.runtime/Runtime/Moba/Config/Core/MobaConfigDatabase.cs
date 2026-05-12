@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.HotReload;
@@ -37,17 +37,20 @@ namespace AbilityKit.Demo.Moba.Config.Core
         private readonly IMobaConfigTableRegistry _registry;
         private readonly IMobaConfigDtoDeserializer _deserializer;
         private readonly IMobaConfigDtoBytesDeserializer _bytesDeserializer;
+        private readonly ITextAssetLoader _textAssetLoader;
 
         public long Version => _innerDb.Version;
 
         public MobaConfigDatabase(
             IMobaConfigTableRegistry registry = null,
             IMobaConfigDtoDeserializer deserializer = null,
-            IMobaConfigDtoBytesDeserializer bytesDeserializer = null)
+            IMobaConfigDtoBytesDeserializer bytesDeserializer = null,
+            ITextAssetLoader textAssetLoader = null)
         {
             _registry = registry ?? BattleDemo.MobaConfigRegistry.Instance;
             _deserializer = deserializer ?? BattleDemo.JsonNetMobaConfigDtoDeserializer.Instance;
             _bytesDeserializer = bytesDeserializer;
+            _textAssetLoader = textAssetLoader ?? NullTextAssetLoader.Instance;
 
             // Create internal ConfigDatabase with MOBA-specific deserializer adapter
             var adapter = new MobaDeserializerAdapter(_deserializer, _bytesDeserializer);
@@ -58,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
-            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
+            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry, _textAssetLoader);
             loader.Load(this, new ConfigTextSinkAdapter(sink), resourcesDir);
         }
 
@@ -66,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (sink == null) throw new ArgumentNullException(nameof(sink));
 
-            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
+            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry, _textAssetLoader);
             return loader.Reload(this, new ConfigTextSinkAdapter(sink), resourcesDir);
         }
 
@@ -74,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
+            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry, _textAssetLoader);
             loader.LoadFromResources(this, resourcesDir);
         }
 
@@ -82,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
+            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry, _textAssetLoader);
             var result = loader.ReloadFromResources(this, resourcesDir, strict);
             if (!result.Succeeded)
             {
@@ -235,7 +238,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (string.IsNullOrEmpty(resourcesDir)) throw new ArgumentException(nameof(resourcesDir));
 
-            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry);
+            var loader = new BattleDemo.DefaultMobaConfigLoader(_registry, _textAssetLoader);
             return loader.ReloadFromResources(this, resourcesDir);
         }
 
