@@ -93,8 +93,21 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return configDir;
             }
 
+            // 尝试向上查找项目根目录
+            var current = new DirectoryInfo(exeDir);
+            while (current != null)
+            {
+                var testPath = Path.Combine(current.FullName, "Configs");
+                if (Directory.Exists(testPath))
+                {
+                    return testPath;
+                }
+                current = current.Parent;
+            }
+
+            // 最后尝试从项目目录结构查找
             var projectRoot = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", ".."));
-            return Path.Combine(projectRoot, "Configs");
+            return Path.Combine(projectRoot, "AbilityKit.Demo.Moba.Console", "Configs");
         }
     }
 }

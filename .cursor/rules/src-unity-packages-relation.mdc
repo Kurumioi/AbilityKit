@@ -121,3 +121,22 @@ Unity/Packages/com.abilitykit.core/Runtime/Core/Common/Marker/
 | 框架核心接口 | `Unity/Packages/com.abilitykit.core/Runtime/` |
 | 示例代码 | `src/AbilityKit.Samples/Samples/` |
 | 配置文件 | `src/AbilityKit.Samples/Configs/` |
+
+## Console Demo 入口
+
+```
+src/AbilityKit.Demo.Moba.Console/
+├── Configs/moba/           # 游戏配置（characters.json, skills.json 等）
+├── Platform/               # 平台抽象（日志、输入）
+├── Services/               # 业务服务（SkillExecutor, BattleServices）
+├── Battle/                # 战斗相关（ConsoleInputFeature 等）
+├── Flow/                  # 流程控制（PhaseHost, BattleFlow）
+├── AutoTest/              # 自动测试（AutoTestRunner）
+└── Bootstrap/            # 启动器（ConsoleBattleBootstrapper）
+```
+
+运行 Console Demo：
+```powershell
+cd src/AbilityKit.Demo.Moba.Console
+dotnet run
+```

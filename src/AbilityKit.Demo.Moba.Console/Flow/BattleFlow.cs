@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Demo.Moba.Console.Platform;
 
 namespace AbilityKit.Demo.Moba.Console.Flow
 {
@@ -26,6 +27,22 @@ namespace AbilityKit.Demo.Moba.Console.Flow
             _phaseHost.Register(new EndPhase());
 
             _context.Root = this;
+
+            // 订阅 PhaseHost 的事件
+            _phaseHost.PhaseEntered += OnPhaseEnteredFromHost;
+            _phaseHost.PhaseExited += OnPhaseExitedFromHost;
+        }
+
+        private void OnPhaseEnteredFromHost(string phaseName)
+        {
+            Platform.Log.Trace($"[TRACE] BattleFlow.OnPhaseEnteredFromHost({phaseName})");
+            _events.OnPhaseEntered(phaseName);
+        }
+
+        private void OnPhaseExitedFromHost(string phaseName)
+        {
+            Platform.Log.Trace($"[TRACE] BattleFlow.OnPhaseExitedFromHost({phaseName})");
+            _events.OnPhaseExited(phaseName);
         }
 
         public string CurrentPhase => _phaseHost.CurrentPhase;

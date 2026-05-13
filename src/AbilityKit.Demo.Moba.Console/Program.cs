@@ -7,145 +7,90 @@ namespace AbilityKit.Demo.Moba.Console
 {
     internal sealed class Program
     {
+        private static readonly ManualResetEvent _running = new(true);
+        private static ConsoleBattleBootstrapper _bootstrapper;
+
         private static void Main(string[] args)
         {
+            System.Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+            // ????????????????????
+            Log.SetMinLevel(Log.LogLevel.System);
+
             Log.System("========================================");
             Log.System("   AbilityKit MOBA Console Demo");
             Log.System("========================================");
 
-            using var bootstrapper = new ConsoleBattleBootstrapper();
-            bootstrapper.Initialize();
-            bootstrapper.Start();
-
-            Log.System("Type 'help' for commands, or 'quit' to exit.");
-
-            RunRepl(bootstrapper);
-
-            bootstrapper.Stop();
-            Log.System("Goodbye!");
-        }
-
-        private static void RunRepl(ConsoleBattleBootstrapper bootstrapper)
-        {
-            while (true)
+            try
             {
-                System.Console.Write("> ");
-                var line = System.Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(line)) continue;
+                _bootstrapper = new ConsoleBattleBootstrapper();
+                _bootstrapper.Initialize();
+                _bootstrapper.Start();
+                _bootstrapper.SetupBattle();
 
-                if (ProcessCommand(bootstrapper, line.Trim().ToLower()))
-                    break;
+                using var testRunner = new AutoTestRunner(_bootstrapper);
+                testRunner.OnTestCompleted += OnTestCompleted;
+
+                Log.System("");
+                Log.System("Starting automated tests...");
+                Log.System("");
+
+                testRunner.Start();
+
+                var gameThread = new Thread(GameLoop);
+                gameThread.IsBackground = true;
+                gameThread.Start();
+
+                testRunner.WaitForCompletion();
+
+                Log.System("");
+                Log.System("All tests completed. Press Enter to exit...");
+                System.Console.ReadLine();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Fatal error: {ex.Message}");
+                Log.Error(ex.StackTrace);
+                System.Console.ReadLine();
+            }
+            finally
+            {
+                _running.Reset();
+                _bootstrapper?.Stop();
+                Log.System("Goodbye!");
             }
         }
 
-        private static bool ProcessCommand(ConsoleBattleBootstrapper bootstrapper, string command)
+        private static void OnTestCompleted(AutoTestResult results)
         {
-            switch (command)
+            Log.System("");
+            if (results.HasUnexpectedError)
             {
-                case "help":
-                    ShowCommands();
-                    break;
-
-                case "setup":
-                    bootstrapper.SetupBattle();
-                    break;
-
-                case "hud":
-                    bootstrapper.ShowHud();
-                    break;
-
-                case "status":
-                    bootstrapper.PrintWorldStatus();
-                    break;
-
-                case "phase":
-                    Log.System($"Current phase: {bootstrapper.Flow.CurrentPhase}");
-                    break;
-
-                case "tick":
-                    bootstrapper.Tick();
-                    break;
-
-                case "ticks":
-                    for (int i = 0; i < 10; i++)
-                        bootstrapper.Tick();
-                    Log.System("Ticked 10 frames");
-                    break;
-
-                case "dmg":
-                    bootstrapper.SimulateDamage(1, 50);
-                    break;
-
-                case "proj":
-                    bootstrapper.CreateProjectile(1001, 1, 1);
-                    break;
-
-                case "clear":
-                    Log.Clear();
-                    break;
-
-                case "quit":
-                case "exit":
-                    return true;
-
-                default:
-                    if (command.StartsWith("dmg "))
-                    {
-                        var parts = command.Split(' ');
-                        if (parts.Length >= 3 && int.TryParse(parts[1], out var id) && float.TryParse(parts[2], out var dmg))
-                        {
-                            bootstrapper.SimulateDamage(id, dmg);
-                        }
-                        else
-                        {
-                            Log.Warn("Usage: dmg <actor_id> <damage>");
-                        }
-                    }
-                    else if (command.StartsWith("create "))
-                    {
-                        var parts = command.Split(' ');
-                        if (parts.Length >= 3)
-                        {
-                            if (int.TryParse(parts[1], out var id) && int.TryParse(parts[2], out var hp))
-                            {
-                                bootstrapper.CreateCharacter(id, $"Actor_{id}", 1001, hp, hp, id * 2, 0, 0);
-                            }
-                        }
-                    }
-                    else if (command.StartsWith("phase "))
-                    {
-                        var phaseName = command.Substring(6).Trim();
-                        bootstrapper.TransitionTo(phaseName);
-                    }
-                    else
-                    {
-                        Log.Warn($"Unknown command: {command}");
-                    }
-                    break;
+                Log.Error($"Test failed with unexpected error: {results.ErrorMessage}");
             }
-            return false;
+            else if (results.PassedCount == results.TotalCount)
+            {
+                Log.System("ALL TESTS PASSED!");
+            }
+            else
+            {
+                Log.System($"SOME TESTS FAILED: {results.PassedCount}/{results.TotalCount} passed");
+            }
         }
 
-        private static void ShowCommands()
+        private static void GameLoop()
         {
-            Log.System("========================================");
-            Log.System("   Available Commands");
-            Log.System("========================================");
-            Log.System("  setup    - Setup battle (enter InMatch)");
-            Log.System("  hud      - Show battle HUD");
-            Log.System("  status   - Show world status");
-            Log.System("  phase    - Show current phase");
-            Log.System("  tick     - Tick one frame");
-            Log.System("  ticks    - Tick 10 frames");
-            Log.System("  dmg      - Simulate damage to actor 1");
-            Log.System("  proj     - Create a projectile");
-            Log.System("  clear    - Clear screen");
-            Log.System("  quit     - Exit program");
-            Log.System("========================================");
-            Log.System("  dmg <id> <amount>  - Damage to actor");
-            Log.System("  create <id> <hp>   - Create character");
-            Log.System("  phase <name>       - Switch phase");
-            Log.System("========================================");
+            while (_running.WaitOne(33))
+            {
+                if (_bootstrapper == null) continue;
+                try
+                {
+                    _bootstrapper.Tick();
+                }
+                catch
+                {
+                }
+            }
         }
     }
 }

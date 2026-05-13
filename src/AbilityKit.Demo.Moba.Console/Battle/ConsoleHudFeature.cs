@@ -82,10 +82,13 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             var view = _battleView as ConsoleBattleView;
             if (view == null) return;
 
+            Log.System("");
             Log.System("========================================");
             Log.System($"           BATTLE HUD - Frame {_ctx.LastFrame}");
             Log.System("========================================");
-            Log.System("Commands: W/S/A/D=Move  J=Skill1  K=Skill2  L=Skill3  Q=Quit");
+            Log.System($"Phase: {_ctx.State} | LocalActorId: {_ctx.LocalActorId}");
+            Log.System("----------------------------------------");
+            Log.System("Commands: WASD/Arrows=Move  J=Skill1  K=Skill2  L=Skill3  SPACE=Stop");
             Log.System("----------------------------------------");
             Log.System($"{"ID",-8} {"Name",-15} {"Type",-10} {"HP",-15} {"Position",-20}");
             Log.System("----------------------------------------");
@@ -99,6 +102,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             }
 
             Log.System("========================================");
+            Log.System("");
         }
 
         public void ShowStatus(string message)

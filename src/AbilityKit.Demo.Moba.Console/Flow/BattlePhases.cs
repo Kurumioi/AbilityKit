@@ -3,7 +3,7 @@ using System;
 namespace AbilityKit.Demo.Moba.Console.Flow
 {
     /// <summary>
-    /// 空阶段（Idle�?
+    /// ?????Idle?
     /// </summary>
     public sealed class IdlePhase : IPhase
     {
@@ -12,6 +12,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[Idle] Entered Idle phase");
+            Platform.Log.Trace("[TRACE] IdlePhase.OnEnter");
         }
 
         public void OnTick(PhaseContext context, float deltaTime)
@@ -21,11 +22,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[Idle] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] IdlePhase.OnExit -> {nextPhase}");
         }
     }
 
     /// <summary>
-    /// 准备阶段
+    /// ????
     /// </summary>
     public sealed class PreparePhase : IPhase
     {
@@ -34,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[Prepare] Entered Prepare phase");
+            Platform.Log.Trace("[TRACE] PreparePhase.OnEnter");
         }
 
         public void OnTick(PhaseContext context, float deltaTime)
@@ -43,11 +46,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[Prepare] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] PreparePhase.OnExit -> {nextPhase}");
         }
     }
 
     /// <summary>
-    /// 连接阶段
+    /// ????
     /// </summary>
     public sealed class ConnectPhase : IPhase
     {
@@ -56,6 +60,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[Connect] Entered Connect phase");
+            Platform.Log.Trace("[TRACE] ConnectPhase.OnEnter");
         }
 
         public void OnTick(PhaseContext context, float deltaTime)
@@ -65,11 +70,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[Connect] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] ConnectPhase.OnExit -> {nextPhase}");
         }
     }
 
     /// <summary>
-    /// 创建或加入世界阶�?
+    /// ?????????
     /// </summary>
     public sealed class CreateOrJoinWorldPhase : IPhase
     {
@@ -78,6 +84,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[CreateOrJoinWorld] Entered CreateOrJoinWorld phase");
+            Platform.Log.Trace("[TRACE] CreateOrJoinWorldPhase.OnEnter");
         }
 
         public void OnTick(PhaseContext context, float deltaTime)
@@ -87,11 +94,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[CreateOrJoinWorld] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] CreateOrJoinWorldPhase.OnExit -> {nextPhase}");
         }
     }
 
     /// <summary>
-    /// 加载资源阶段
+    /// ??????
     /// </summary>
     public sealed class LoadAssetsPhase : IPhase
     {
@@ -100,6 +108,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[LoadAssets] Entered LoadAssets phase");
+            Platform.Log.Trace("[TRACE] LoadAssetsPhase.OnEnter");
         }
 
         public void OnTick(PhaseContext context, float deltaTime)
@@ -109,11 +118,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[LoadAssets] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] LoadAssetsPhase.OnExit -> {nextPhase}");
         }
     }
 
     /// <summary>
-    /// 战斗中阶�?
+    /// ?????
     /// </summary>
     public sealed class InMatchPhase : IPhase
     {
@@ -133,6 +143,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         {
             _battleTime = 0;
             Platform.Log.Phase("[InMatch] Entered InMatch phase - Battle started!");
+            Platform.Log.Trace("[TRACE] InMatchPhase.OnEnter - BATTLE STARTED");
             Platform.Log.Title("BATTLE STARTED");
             _events.BattleStarted?.Invoke();
         }
@@ -145,6 +156,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[InMatch] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] InMatchPhase.OnExit -> {nextPhase}");
             _events.BattleEnded?.Invoke();
         }
 
@@ -159,7 +171,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
     }
 
     /// <summary>
-    /// 结束阶段
+    /// ????
     /// </summary>
     public sealed class EndPhase : IPhase
     {
@@ -168,6 +180,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnEnter(PhaseContext context)
         {
             Platform.Log.Phase("[End] Entered End phase");
+            Platform.Log.Trace("[TRACE] EndPhase.OnEnter");
             Platform.Log.Title("BATTLE RESULTS");
         }
 
@@ -178,6 +191,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         public void OnExit(PhaseContext context, string nextPhase)
         {
             Platform.Log.Phase($"[End] Exiting to {nextPhase}");
+            Platform.Log.Trace($"[TRACE] EndPhase.OnExit -> {nextPhase}");
         }
     }
 }

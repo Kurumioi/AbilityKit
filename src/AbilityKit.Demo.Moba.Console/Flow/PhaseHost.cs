@@ -4,38 +4,38 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Console.Flow
 {
     /// <summary>
-    /// 阶段上下�?
+    /// ?????
     /// </summary>
     public sealed class PhaseContext
     {
         /// <summary>
-        /// 根上下文
+        /// ????
         /// </summary>
         public IModuleContext Root { get; set; }
 
         /// <summary>
-        /// 阶段名称
+        /// ????
         /// </summary>
         public string PhaseName { get; set; }
 
         /// <summary>
-        /// 上一阶段
+        /// ????
         /// </summary>
         public string PreviousPhase { get; set; }
 
         /// <summary>
-        /// 进入时间
+        /// ????
         /// </summary>
         public double EnterTime { get; set; }
 
         /// <summary>
-        /// 额外数据
+        /// ????
         /// </summary>
         public Dictionary<string, object> Data { get; } = new();
     }
 
     /// <summary>
-    /// 阶段接口
+    /// ????
     /// </summary>
     public interface IPhase
     {
@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
     }
 
     /// <summary>
-    /// 阶段主机
+    /// ????
     /// </summary>
     public sealed class PhaseHost : IDisposable
     {
@@ -57,7 +57,17 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         private bool _running;
 
         /// <summary>
-        /// 注册阶段
+        /// ??????
+        /// </summary>
+        public event Action<string>? PhaseEntered;
+
+        /// <summary>
+        /// ??????
+        /// </summary>
+        public event Action<string>? PhaseExited;
+
+        /// <summary>
+        /// ????
         /// </summary>
         public void Register(IPhase phase)
         {
@@ -70,7 +80,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         }
 
         /// <summary>
-        /// 设置初始阶段
+        /// ??????
         /// </summary>
         public void SetInitialPhase(string phaseName)
         {
@@ -83,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         }
 
         /// <summary>
-        /// 启动阶段主机
+        /// ??????
         /// </summary>
         public void Start(PhaseContext context)
         {
@@ -95,11 +105,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
             {
                 Platform.Log.Phase($"[PhaseHost] Starting with phase: {_currentPhase}");
                 phase.OnEnter(_context);
+                PhaseEntered?.Invoke(_currentPhase);
             }
         }
 
         /// <summary>
-        /// 切换阶段
+        /// ????
         /// </summary>
         public void TransitionTo(string phaseName)
         {
@@ -121,6 +132,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
             {
                 Platform.Log.Phase($"[PhaseHost] Exiting phase: {_currentPhase}");
                 current.OnExit(_context, phaseName);
+                PhaseExited?.Invoke(_currentPhase);
             }
 
             _currentPhase = phaseName;
@@ -131,11 +143,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
             {
                 Platform.Log.Phase($"[PhaseHost] Entering phase: {_currentPhase}");
                 next.OnEnter(_context);
+                PhaseEntered?.Invoke(_currentPhase);
             }
         }
 
         /// <summary>
-        /// Tick 当前阶段
+        /// Tick ????
         /// </summary>
         public void Tick(float deltaTime)
         {
@@ -148,7 +161,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         }
 
         /// <summary>
-        /// 停止阶段主机
+        /// ??????
         /// </summary>
         public void Stop()
         {
@@ -158,6 +171,7 @@ namespace AbilityKit.Demo.Moba.Console.Flow
             {
                 Platform.Log.Phase($"[PhaseHost] Stopping phase: {_currentPhase}");
                 current.OnExit(_context, null);
+                PhaseExited?.Invoke(_currentPhase);
             }
 
             _running = false;
@@ -165,12 +179,12 @@ namespace AbilityKit.Demo.Moba.Console.Flow
         }
 
         /// <summary>
-        /// 获取当前阶段名称
+        /// ????????
         /// </summary>
         public string CurrentPhase => _currentPhase;
 
         /// <summary>
-        /// 是否正在运行
+        /// ??????
         /// </summary>
         public bool IsRunning => _running;
 

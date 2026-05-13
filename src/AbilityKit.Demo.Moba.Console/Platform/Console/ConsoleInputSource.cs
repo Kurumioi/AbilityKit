@@ -10,47 +10,54 @@ namespace AbilityKit.Demo.Moba.Console.Platform.Console_
     {
         public bool HasInputAvailable()
         {
-            return System.Console.KeyAvailable;
+            try { return System.Console.KeyAvailable; }
+            catch { return false; }
         }
 
         public bool TryReadKey(out InputKey key)
         {
             key = InputKey.None;
-
-            if (!System.Console.KeyAvailable) return false;
-
-            var consoleKey = System.Console.ReadKey(true);
-            key = ConvertKey(consoleKey);
-            return key != InputKey.None;
+            try
+            {
+                if (!System.Console.KeyAvailable) return false;
+                var consoleKey = System.Console.ReadKey(true);
+                key = ConvertKey(consoleKey);
+                return key != InputKey.None;
+            }
+            catch { return false; }
         }
 
         public (float dx, float dz) GetMoveInput()
         {
-            if (!System.Console.KeyAvailable) return (0f, 0f);
-
-            var key = System.Console.KeyAvailable ? System.Console.ReadKey(true).Key : System.ConsoleKey.NoName;
-
-            return key switch
+            try
             {
-                System.ConsoleKey.W or System.ConsoleKey.UpArrow => (0f, -1f),
-                System.ConsoleKey.S or System.ConsoleKey.DownArrow => (0f, 1f),
-                System.ConsoleKey.A or System.ConsoleKey.LeftArrow => (-1f, 0f),
-                System.ConsoleKey.D or System.ConsoleKey.RightArrow => (1f, 0f),
-                _ => (0f, 0f)
-            };
+                if (!System.Console.KeyAvailable) return (0f, 0f);
+                var key = System.Console.ReadKey(true).Key;
+                return key switch
+                {
+                    System.ConsoleKey.W or System.ConsoleKey.UpArrow => (0f, -1f),
+                    System.ConsoleKey.S or System.ConsoleKey.DownArrow => (0f, 1f),
+                    System.ConsoleKey.A or System.ConsoleKey.LeftArrow => (-1f, 0f),
+                    System.ConsoleKey.D or System.ConsoleKey.RightArrow => (1f, 0f),
+                    _ => (0f, 0f)
+                };
+            }
+            catch { return (0f, 0f); }
         }
 
         public bool IsKeyDown(InputKey key)
         {
-            if (!System.Console.KeyAvailable) return false;
-
-            while (System.Console.KeyAvailable)
+            try
             {
-                var consoleKey = System.Console.ReadKey(true);
-                if (ConvertKey(consoleKey) == key) return true;
+                if (!System.Console.KeyAvailable) return false;
+                while (System.Console.KeyAvailable)
+                {
+                    var consoleKey = System.Console.ReadKey(true);
+                    if (ConvertKey(consoleKey) == key) return true;
+                }
+                return false;
             }
-
-            return false;
+            catch { return false; }
         }
 
         private static InputKey ConvertKey(System.ConsoleKeyInfo keyInfo)

@@ -20,7 +20,11 @@ namespace AbilityKit.Demo.Moba.Console.Platform
         Config,
         Debug,
         Warning,
-        Error
+        Error,
+        /// <summary>
+        /// 追踪日志 - 用于排查流程完整性问题
+        /// </summary>
+        Trace
     }
 
     /// <summary>

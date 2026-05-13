@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Console.MobaCore;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 
@@ -15,6 +19,11 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         /// ECS ??
         /// </summary>
         public EC.EntityWorld EcsWorld { get; private set; }
+
+        /// <summary>
+        /// moba.core ?????
+        /// </summary>
+        public MobaCoreContext MobaCore { get; private set; } = new();
 
         /// <summary>
         /// ?????
@@ -164,5 +173,31 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         LoadAssets = 4,
         InMatch = 5,
         End = 6
+    }
+
+    /// <summary>
+    /// Console ?????????? moba.core
+    /// </summary>
+    public sealed class MobaCoreContext
+    {
+        /// <summary>
+        /// moba.core World ?????
+        /// </summary>
+        public IWorldResolver WorldServices { get; set; }
+
+        /// <summary>
+        /// ?????
+        /// </summary>
+        public MobaActorRegistry ActorRegistry { get; set; }
+
+        /// <summary>
+        /// ?????
+        /// </summary>
+        public IMobaSkillPipelineLibrary SkillPipelineLibrary { get; set; }
+
+        /// <summary>
+        /// moba.core ?????
+        /// </summary>
+        public MobaCoreSkillExecutor SkillExecutor { get; set; }
     }
 }

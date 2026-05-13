@@ -43,13 +43,18 @@ namespace AbilityKit.Demo.Moba.Console.Services
     {
         public int ActorId { get; set; }
         public string Name { get; set; } = "";
+        public int CharacterId { get; set; }
         public float X { get; set; }
         public float Y { get; set; }
         public float Z { get; set; }
         public float Hp { get; set; }
         public float HpMax { get; set; }
-        public float Attack { get; set; }
-        public float Defense { get; set; }
+        public int AttributeTemplateId { get; set; }
+        public float PhysicsAttack { get; set; }
+        public float MagicAttack { get; set; }
+        public float PhysicsDefense { get; set; }
+        public float MagicDefense { get; set; }
+        public float MoveSpeed { get; set; }
         public int TeamId { get; set; }
 
         public ActorInfo() { }
@@ -73,6 +78,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
         public BattleServices(BattleViewServices viewServices)
         {
             _viewServices = viewServices ?? throw new ArgumentNullException(nameof(viewServices));
+            Log.Trace("[TRACE] BattleServices created");
         }
 
         /// <summary>
@@ -84,6 +90,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
             _actors[actor.ActorId] = actor;
             UpdatePositionIndex(actor);
             Log.Entity($"[BattleServices] Registered actor: #{actor.ActorId} {actor.Name}");
+            Log.Trace($"[TRACE] BattleServices.RegisterActor - Actor#{actor.ActorId} ({actor.Name}), HP:{actor.Hp:F0}/{actor.HpMax:F0}, ATK:{actor.PhysicsAttack}, DEF:{actor.PhysicsDefense}");
         }
 
         /// <summary>
@@ -96,6 +103,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
                 RemovePositionIndex(actor);
                 _actors.Remove(actorId);
                 Log.Entity($"[BattleServices] Unregistered actor: #{actorId}");
+                Log.Trace($"[TRACE] BattleServices.UnregisterActor - Actor#{actorId}");
             }
         }
 
@@ -134,7 +142,9 @@ namespace AbilityKit.Demo.Moba.Console.Services
         /// </summary>
         public ActorInfo? GetActor(int actorId)
         {
-            return _actors.TryGetValue(actorId, out var actor) ? actor : null;
+            var actor = _actors.TryGetValue(actorId, out var a) ? a : null;
+            Log.Trace($"[TRACE] BattleServices.GetActor({actorId}) -> {(actor != null ? $"{actor.Name}" : "null")}");
+            return actor;
         }
 
         /// <summary>
@@ -150,6 +160,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
         /// </summary>
         public int FindActorAtPosition(float x, float z, float range)
         {
+            Log.Trace($"[TRACE] BattleServices.FindActorAtPosition({x:F1}, {z:F1}, range={range:F1})");
             foreach (var actor in _actors.Values)
             {
                 var dx = actor.X - x;
@@ -157,9 +168,11 @@ namespace AbilityKit.Demo.Moba.Console.Services
                 var dist = (float)Math.Sqrt(dx * dx + dz * dz);
                 if (dist <= range)
                 {
+                    Log.Trace($"[TRACE] FindActorAtPosition - Found #{actor.ActorId} ({actor.Name}) at distance {dist:F2}");
                     return actor.ActorId;
                 }
             }
+            Log.Trace("[TRACE] FindActorAtPosition - No actor found");
             return 0;
         }
 
@@ -168,12 +181,15 @@ namespace AbilityKit.Demo.Moba.Console.Services
         /// </summary>
         public void ApplyDamage(int targetActorId, float damage, int sourceActorId, int skillId)
         {
+            Log.Trace($"[TRACE] BattleServices.ApplyDamage - Target:{targetActorId}, Damage:{damage:F1}, Source:{sourceActorId}, Skill:{skillId}");
             if (!_actors.TryGetValue(targetActorId, out var target)) return;
 
             var actualDamage = Math.Max(1f, damage); // 至少造成1点伤害
+            var oldHp = target.Hp;
             target.Hp = Math.Max(0f, target.Hp - actualDamage);
 
             Log.Damage($"[Damage] #{sourceActorId} dealt {actualDamage:F1} damage to #{targetActorId} (Skill:{skillId}). HP: {target.Hp:F0}/{target.HpMax:F0}");
+            Log.Trace($"[TRACE] ApplyDamage - Actor#{targetActorId} HP: {oldHp:F0} -> {target.Hp:F0}");
 
             // 通知视图层
             _viewServices?.ShowDamage(targetActorId, target.Hp, target.HpMax);
@@ -181,6 +197,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
             // 检查死亡
             if (target.Hp <= 0)
             {
+                Log.Trace($"[TRACE] ApplyDamage - Actor#{targetActorId} died");
                 OnActorDied(targetActorId, sourceActorId);
             }
         }
@@ -190,6 +207,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
         /// </summary>
         public void OnSkillCast(int casterActorId, int skillId, int slot)
         {
+            Log.Trace($"[TRACE] BattleServices.OnSkillCast - Caster:{casterActorId}, Skill:{skillId}, Slot:{slot}");
             if (!_actors.TryGetValue(casterActorId, out var caster)) return;
 
             Log.Skill($"[Skill] Actor #{casterActorId} casted skill {skillId} (slot {slot})");
@@ -239,6 +257,11 @@ namespace AbilityKit.Demo.Moba.Console.Services
             var key = ((int)Math.Round(actor.X), (int)Math.Round(actor.Z));
             _positionIndex.Remove(key);
         }
+
+        /// <summary>
+        /// 获取所有角色数量
+        /// </summary>
+        public int ActorCount => _actors.Count;
     }
 
     /// <summary>

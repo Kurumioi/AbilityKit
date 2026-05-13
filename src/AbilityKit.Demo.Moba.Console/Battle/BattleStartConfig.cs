@@ -127,17 +127,18 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         /// </summary>
         public static BattleStartConfig CreateDefault()
         {
+            // HeroId 需与 characters.json 中的 Id 对应
             var config = new BattleStartConfig
             {
                 Name = "Default",
                 Players = new List<PlayerConfig>
                 {
-                    new() { PlayerId = "player_1", TeamId = 1, HeroId = 1, Name = "Warrior" },
-                    new() { PlayerId = "player_2", TeamId = 1, HeroId = 2, Name = "Archer" },
-                    new() { PlayerId = "player_3", TeamId = 1, HeroId = 3, Name = "Mage" },
-                    new() { PlayerId = "ai_1", TeamId = 2, HeroId = 1, Name = "Enemy Warrior" },
-                    new() { PlayerId = "ai_2", TeamId = 2, HeroId = 2, Name = "Enemy Archer" },
-                    new() { PlayerId = "ai_3", TeamId = 2, HeroId = 3, Name = "Enemy Mage" },
+                    new() { PlayerId = "player_1", TeamId = 1, HeroId = 1001, Name = "廉颇", PositionX = 0, PositionZ = 0 },
+                    new() { PlayerId = "player_2", TeamId = 1, HeroId = 1002, Name = "小乔", PositionX = 10, PositionZ = 0 },
+                    new() { PlayerId = "player_3", TeamId = 1, HeroId = 1003, Name = "赵云", PositionX = -10, PositionZ = 0 },
+                    new() { PlayerId = "ai_1", TeamId = 2, HeroId = 1001, Name = "Enemy Warrior", PositionX = 0, PositionZ = 50 },
+                    new() { PlayerId = "ai_2", TeamId = 2, HeroId = 1002, Name = "Enemy Archer", PositionX = 10, PositionZ = 50 },
+                    new() { PlayerId = "ai_3", TeamId = 2, HeroId = 1003, Name = "Enemy Mage", PositionX = -10, PositionZ = 50 },
                 }
             };
             return config;

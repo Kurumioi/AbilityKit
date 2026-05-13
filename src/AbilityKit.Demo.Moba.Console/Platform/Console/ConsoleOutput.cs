@@ -30,7 +30,8 @@ namespace AbilityKit.Demo.Moba.Console.Platform.Console_
                 { OutputChannel.Config, ConsoleColor.DarkGreen },
                 { OutputChannel.Debug, ConsoleColor.DarkGray },
                 { OutputChannel.Warning, ConsoleColor.Yellow },
-                { OutputChannel.Error, ConsoleColor.Red }
+                { OutputChannel.Error, ConsoleColor.Red },
+                { OutputChannel.Trace, ConsoleColor.DarkMagenta }
             };
         }
 
@@ -97,6 +98,7 @@ namespace AbilityKit.Demo.Moba.Console.Platform.Console_
                 OutputChannel.Debug => "[DEBUG]",
                 OutputChannel.Warning => "[WARN]",
                 OutputChannel.Error => "[ERROR]",
+                OutputChannel.Trace => "[TRACE]",
                 _ => "[??]"
             };
         }

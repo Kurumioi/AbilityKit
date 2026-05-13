@@ -2,19 +2,23 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.View;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Console.MobaCore;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console
 {
     /// <summary>
-    /// Console ?????
-    /// ???? [WorldService] ?????????????
+    /// Console ???
+    /// ?? [WorldService] ??????????
     /// </summary>
     public sealed class ConsoleBattleBootstrapper : IBattleBootstrapper, IBattleStartConfigProvider
     {
@@ -29,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly BattleStartConfig _config;
         private readonly MobaConfigDatabase _mobaConfig;
         private readonly BattleServices _battleServices;
-        private readonly SkillExecutor _skillExecutor;
+        private readonly ConsoleSkillExecutor _skillExecutor;
 
         private bool _disposed;
         private bool _running;
@@ -39,7 +43,7 @@ namespace AbilityKit.Demo.Moba.Console
         public PlatformComponents Platform { get; }
 
         /// <summary>
-        /// ??????????? IBattleStartConfigProvider?
+        /// ?? IBattleStartConfigProvider? ???
         /// </summary>
         BattleStartConfig IBattleStartConfigProvider.Config => _config;
 
@@ -54,14 +58,14 @@ namespace AbilityKit.Demo.Moba.Console
 
         public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules)
         {
-            Log.System("Creating bootstrapper...");
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Entry");
 
             _modules = new List<IWorldModule>();
 
-            // ???? ConsoleConfigWorldModule?????????? [WorldService] ?????
+            // ?? ConsoleConfigWorldModule????? [WorldService] ??
             _modules.Add(new ConsoleConfigWorldModule());
 
-            // ???????
+            // ??????
             if (additionalModules != null)
             {
                 _modules.AddRange(additionalModules);
@@ -72,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             var loader = new ConsoleTextAssetLoader();
             _mobaConfig = mobaConfig ?? ConsoleConfigLoader.LoadMobaConfig(loader);
-            _mobaConfig.LoadFromResources(); // ???????????
+            _mobaConfig.LoadFromResources(); // ??????
 
             Platform = new PlatformComponents();
 
@@ -88,16 +92,16 @@ namespace AbilityKit.Demo.Moba.Console
                 new ConsoleProjectileDisplayService(),
                 Platform.Renderer);
 
-            // ?????????????
+            // ??????
             _battleServices = new BattleServices((BattleViewServices)_battleView);
-            _skillExecutor = new SkillExecutor(_mobaConfig, _battleServices);
+            _skillExecutor = new ConsoleSkillExecutor(_mobaConfig, _battleServices);
 
             _syncFeature = new ConsoleSyncFeature();
             _inputFeature = new ConsoleInputFeature();
             _hudFeature = new ConsoleHudFeature();
             _inputHandler = new ConsoleInputHandler(_inputFeature, _hudFeature, _flow, Platform.Input);
 
-            // ?????? InputFeature
+            // ????? InputFeature
             _inputFeature.SetServices(_skillExecutor, _battleServices);
 
             _hudFeature.SetBattleView(_battleView);
@@ -108,6 +112,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             Log.Config($"Config loaded: {_config.Name}, TickRate: {_config.TickRate}, SyncMode: {_config.SyncMode}");
             Log.Config($"MobaConfig: {_mobaConfig.CharacterCount} characters, {_mobaConfig.SkillCount} skills, {_mobaConfig.ProjectileCount} projectiles");
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Exit");
         }
 
         public IConsoleBattleView BattleView => _battleView;
@@ -117,12 +122,22 @@ namespace AbilityKit.Demo.Moba.Console
         public IReadOnlyList<IWorldModule> Modules => _modules;
 
         /// <summary>
-        /// ?????????
+        /// ?? Moba ??
         /// </summary>
         public MobaConfigDatabase MobaConfig => _mobaConfig;
 
         /// <summary>
-        /// ????????
+        /// ??????
+        /// </summary>
+        public BattleServices BattleServices => _battleServices;
+
+        /// <summary>
+        /// ???????
+        /// </summary>
+        public ConsoleSkillExecutor SkillExecutor => _skillExecutor;
+
+        /// <summary>
+        /// ??????
         /// </summary>
         public BattleStartPlan Build()
         {
@@ -130,23 +145,31 @@ namespace AbilityKit.Demo.Moba.Console
         }
 
         /// <summary>
-        /// ????????????? IBattleStartConfigProvider?
+        /// ?? IBattleStartConfigProvider? ???
         /// </summary>
         BattleStartPlan IBattleStartConfigProvider.BuildPlan() => Build();
 
         public void Initialize()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Initialize - Entry");
             Log.System($"Initializing... Plan: {_context.Plan}");
 
             ConfigureWorld();
             _context.InitializeEcsWorld();
 
             LogBattleConfig();
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Initialize - Exit");
         }
+
+        private IWorldResolver _worldResolver;
 
         private void ConfigureWorld()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.ConfigureWorld - Entry");
             var builder = new WorldContainerBuilder();
+
+            // ?? ITextAssetLoader
+            builder.Register<ITextAssetLoader>(WorldLifetime.Singleton, _ => new ConsoleTextAssetLoader());
 
             foreach (var module in _modules)
             {
@@ -155,8 +178,12 @@ namespace AbilityKit.Demo.Moba.Console
             }
 
             var container = builder.Build();
+            _worldResolver = container;
 
-            // ?? ITextAssetLoader ?????
+            // ??? moba.core ??
+            InitializeMobaCore();
+
+            // ?????
             var loader = container.Resolve<ITextAssetLoader>();
             if (loader != null)
             {
@@ -166,6 +193,88 @@ namespace AbilityKit.Demo.Moba.Console
             {
                 Log.Warn("No ITextAssetLoader registered");
             }
+
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.ConfigureWorld - Exit");
+        }
+
+        private void InitializeMobaCore()
+        {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.InitializeMobaCore - Entry");
+            Log.System("Initializing MobaCore...");
+
+            // ???? MobaActorRegistry????????????
+            MobaActorRegistry actorRegistry = null;
+            try
+            {
+                actorRegistry = _worldResolver.Resolve<MobaActorRegistry>();
+            }
+            catch (Exception ex)
+            {
+                Log.Trace($"[TRACE] MobaActorRegistry resolve failed (expected in standalone mode): {ex.Message}");
+            }
+
+            if (actorRegistry != null)
+            {
+                Log.System("MobaActorRegistry resolved");
+                Log.Trace("[TRACE] InitializeMobaCore - ActorRegistry found");
+                _context.MobaCore.ActorRegistry = actorRegistry;
+            }
+            else
+            {
+                Log.System("MobaActorRegistry not found (using ConsoleSkillExecutor instead)");
+                Log.Trace("[TRACE] InitializeMobaCore - ActorRegistry NOT found, using fallback");
+            }
+
+            // ???? SkillPipelineLibrary
+            IMobaSkillPipelineLibrary skillPipelineLib = null;
+            try
+            {
+                skillPipelineLib = _worldResolver.Resolve<IMobaSkillPipelineLibrary>();
+            }
+            catch (Exception ex)
+            {
+                Log.Trace($"[TRACE] IMobaSkillPipelineLibrary resolve failed: {ex.Message}");
+            }
+
+            if (skillPipelineLib != null)
+            {
+                Log.System("IMobaSkillPipelineLibrary resolved");
+                Log.Trace("[TRACE] InitializeMobaCore - SkillPipelineLibrary found");
+                _context.MobaCore.SkillPipelineLibrary = skillPipelineLib;
+            }
+            else
+            {
+                Log.System("IMobaSkillPipelineLibrary not found (using ConsoleSkillExecutor)");
+                Log.Trace("[TRACE] InitializeMobaCore - SkillPipelineLibrary NOT found");
+            }
+
+            _context.MobaCore.WorldServices = _worldResolver;
+
+            if (_context.MobaCore.ActorRegistry != null)
+            {
+                var mobaSkillExecutor = new MobaCoreSkillExecutor(_worldResolver, _context.MobaCore.ActorRegistry);
+                _context.MobaCore.SkillExecutor = mobaSkillExecutor;
+
+                mobaSkillExecutor.OnSkillCast += (actorId, skillId, slot, targetId) =>
+                {
+                    Log.Skill($"[MobaCore] Skill cast: Actor#{actorId} Skill#{skillId} Slot{slot} -> Target#{targetId}");
+                };
+
+                mobaSkillExecutor.OnDamageDealt += (sourceId, targetId, damage, skillId) =>
+                {
+                    Log.Damage($"[MobaCore] Damage: Actor#{sourceId} dealt {damage:F0} to Actor#{targetId} with Skill#{skillId}");
+                };
+
+                Log.System("MobaCoreSkillExecutor initialized");
+                Log.Trace("[TRACE] InitializeMobaCore - MobaCoreSkillExecutor initialized");
+            }
+            else
+            {
+                Log.System("MobaCoreSkillExecutor skipped (using ConsoleSkillExecutor instead)");
+            }
+
+            Log.System("MobaCore initialized (standalone mode)");
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.InitializeMobaCore - Exit");
         }
 
         private void LogBattleConfig()
@@ -182,7 +291,11 @@ namespace AbilityKit.Demo.Moba.Console
                 Log.Config("  Characters:");
                 foreach (var c in _mobaConfig.GetAllCharacters())
                 {
-                    Log.Config($"    - {c.Name} (HP:{c.BaseHp}, ATK:{c.BaseAttack}, DEF:{c.BaseDefense})");
+                    var attrs = _mobaConfig.GetCharacterAttributes(c);
+                    var hp = attrs?.Hp ?? 0;
+                    var atk = attrs?.PhysicsAttack ?? 0;
+                    var def = attrs?.PhysicsDefense ?? 0;
+                    Log.Config($"    - {c.Name} (HP:{hp:F0}, ATK:{atk:F0}, DEF:{def:F0}, TemplateId:{c.AttributeTemplateId})");
                 }
             }
 
@@ -191,6 +304,7 @@ namespace AbilityKit.Demo.Moba.Console
 
         public void Start()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Start - Entry");
             Log.System("Starting...");
 
             _syncFeature.OnAttach(_context);
@@ -201,17 +315,21 @@ namespace AbilityKit.Demo.Moba.Console
 
             _lastTick = DateTime.Now;
             _running = true;
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Start - Exit, Running=true");
         }
 
         public void Stop()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Stop - Entry");
             Log.System("Stopping...");
             _running = false;
             _flow.Stop();
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Stop - Exit");
         }
 
         public void Tick(float deltaTime = 0.033f)
         {
+            Log.Trace($"[TRACE] ConsoleBattleBootstrapper.Tick - Entry (Running:{_running})");
             if (!_running) return;
 
             var now = DateTime.Now;
@@ -222,51 +340,91 @@ namespace AbilityKit.Demo.Moba.Console
             _context.LogicTimeSeconds = _totalTime;
             _context.LastFrame++;
 
+            Log.Trace($"[TRACE] Tick - Frame:{_context.LastFrame}, Time:{_totalTime:F2}s");
+
             _flow.Tick((float)elapsed);
             _syncFeature.Tick(_context, (float)elapsed);
             _inputFeature.Tick(_context, (float)elapsed);
             _hudFeature.Tick(_context, (float)elapsed);
             _battleView.Tick((float)elapsed);
+
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Tick - Exit");
         }
 
         public void TransitionTo(string phaseName)
         {
+            Log.Trace($"[TRACE] ConsoleBattleBootstrapper.TransitionTo({phaseName})");
             Log.System($"Transitioning to: {phaseName}");
             _flow.TransitionTo(phaseName);
         }
 
         public void SetupBattle()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.SetupBattle - Entry");
+            Log.System("Setting up battle...");
+
             TransitionTo("Connect");
             TransitionTo("CreateOrJoinWorld");
             TransitionTo("LoadAssets");
             TransitionTo("InMatch");
+
+            Log.Trace("[TRACE] SetupBattle - Phases transitioned, registering entities...");
             RegisterEntitiesFromConfig();
+            RegisterLocalPlayer();
             _hudFeature.RenderHud();
+
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.SetupBattle - Exit");
+        }
+
+        private void RegisterLocalPlayer()
+        {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.RegisterLocalPlayer - Entry");
+            // Set local player to first player's actor ID
+            if (_config.Players != null && _config.Players.Count > 0)
+            {
+                var localPlayer = _config.Players[0];
+                _context.LocalActorId = HashPlayerId(localPlayer.PlayerId);
+                Log.Battle($"[Bootstrapper] LocalPlayer: {localPlayer.Name} (ActorId: {_context.LocalActorId})");
+                Log.Trace($"[TRACE] RegisterLocalPlayer - Player:{localPlayer.Name}, ActorId:{_context.LocalActorId}");
+            }
+            else
+            {
+                // Fallback to demo entity
+                _context.LocalActorId = 1;
+                Log.Battle($"[Bootstrapper] Using default LocalActorId: {_context.LocalActorId}");
+                Log.Trace("[TRACE] RegisterLocalPlayer - Using default ActorId:1");
+            }
+
+            Log.Battle($"[Bootstrapper] LocalActorId set to: {_context.LocalActorId}");
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.RegisterLocalPlayer - Exit");
         }
 
         private void RegisterEntitiesFromConfig()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.RegisterEntitiesFromConfig - Entry");
             Log.Battle($"Setting up battle with {_config.Players.Count} players...");
+            Log.Trace($"[TRACE] RegisterEntities - PlayerCount:{_config.Players.Count}");
 
+            int index = 0;
             foreach (var player in _config.Players)
             {
+                Log.Trace($"[TRACE] RegisterEntities - Creating character {++index}: {player.Name}");
                 CreateCharacterFromPlayer(player);
             }
 
             Log.Entity($"Registered entities: {_context.EcsWorld.AliveCount} total");
+            Log.Trace($"[TRACE] RegisterEntitiesFromConfig - Exit, ECS AliveCount:{_context.EcsWorld.AliveCount}");
         }
 
         private void CreateCharacterFromPlayer(PlayerConfig player)
         {
-            // ??????
             if (!_mobaConfig.TryGetCharacter(player.HeroId, out var charConfig))
             {
                 Log.Warn($"Character config not found for HeroId: {player.HeroId}, using defaults");
                 CreateCharacter(
                     actorId: HashPlayerId(player.PlayerId),
                     name: player.Name,
-                    entityCode: player.HeroId,
+                    characterId: player.HeroId,
                     hp: 500,
                     maxHp: 500,
                     x: player.PositionX,
@@ -275,12 +433,13 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
+            var attrs = _mobaConfig.GetCharacterAttributes(charConfig);
             CreateCharacter(
                 actorId: HashPlayerId(player.PlayerId),
                 name: charConfig.Name,
-                entityCode: charConfig.ModelId,
-                hp: charConfig.BaseHp,
-                maxHp: charConfig.BaseHp,
+                characterId: charConfig.Id,
+                hp: attrs?.Hp ?? 500,
+                maxHp: attrs?.MaxHp ?? 500,
                 x: player.PositionX,
                 y: player.PositionY,
                 z: player.PositionZ);
@@ -306,10 +465,11 @@ namespace AbilityKit.Demo.Moba.Console
             Log.Entity($"ECS World alive count: {_context.EcsWorld.AliveCount}");
         }
 
-        public void CreateCharacter(int actorId, string name, int entityCode, float hp, float maxHp, float x, float y, float z)
+        public void CreateCharacter(int actorId, string name, int characterId, float hp, float maxHp, float x, float y, float z)
         {
+            Log.Trace($"[TRACE] CreateCharacter - Actor#{actorId} ({name}), CharacterId:{characterId}, HP:{hp:F0}, Pos:({x:F1},{y:F1},{z:F1})");
             var netId = new BattleNetId(actorId);
-            var e = _context.EntityFactory.CreateCharacter(netId, entityCode);
+            var e = _context.EntityFactory.CreateCharacter(netId, characterId);
 
             if (e.TryGetRef(out BattleTransformComponent t))
             {
@@ -328,17 +488,19 @@ namespace AbilityKit.Demo.Moba.Console
             // ???????
             _battleServices.RegisterActor(new ActorInfo(actorId, name)
             {
+                CharacterId = characterId,
                 X = x,
                 Y = y,
                 Z = z,
                 Hp = hp,
                 HpMax = maxHp,
-                Attack = 50f,
-                Defense = 20f,
+                PhysicsAttack = 10f,
+                PhysicsDefense = 0f,
+                MoveSpeed = 5f,
                 TeamId = 1
             });
 
-            Log.Entity($"Created: #{actorId} {name}");
+            Log.Entity($"Created: #{actorId} {name} (CharId:{characterId})");
         }
 
         public void SimulateDamage(int targetId, float damage)
@@ -381,10 +543,12 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System($"  Alive entities: {world.AliveCount}");
             Log.System($"  Phase: {_flow.CurrentPhase}");
             Log.System($"  Frame: {_context.LastFrame}");
+            Log.System($"  ActorCount: {_battleServices.ActorCount}");
         }
 
         private void OnPhaseEntered(string phaseName)
         {
+            Log.Trace($"[TRACE] ConsoleBattleBootstrapper.OnPhaseEntered({phaseName})");
             Log.Debug($"Phase entered: {phaseName}");
 
             if (phaseName == "InMatch")
@@ -392,6 +556,7 @@ namespace AbilityKit.Demo.Moba.Console
                 _context.State = BattleState.InMatch;
                 _context.IsInitialized = true;
                 Log.Battle("Battle started!");
+                Log.Trace("[TRACE] OnPhaseEntered - Entered InMatch, Context updated");
                 PrintWorldStatus();
             }
             else if (phaseName == "End")
@@ -402,6 +567,7 @@ namespace AbilityKit.Demo.Moba.Console
 
         public void Dispose()
         {
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Dispose - Entry");
             if (_disposed) return;
             _disposed = true;
 
@@ -414,6 +580,7 @@ namespace AbilityKit.Demo.Moba.Console
             _battleView?.Dispose();
             _context?.Dispose();
             Log.System("Disposed.");
+            Log.Trace("[TRACE] ConsoleBattleBootstrapper.Dispose - Exit");
         }
     }
 
@@ -452,7 +619,7 @@ namespace AbilityKit.Demo.Moba.Console
 
     /// <summary>
     /// Console ?? Sink ??
-    /// ??????????????
+    /// ?????????
     /// </summary>
     public sealed class ConsoleLogSink : ILogSink
     {
