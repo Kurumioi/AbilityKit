@@ -59,6 +59,11 @@ namespace AbilityKit.Samples.Abstractions
         /// 逻辑世界
         /// </summary>
         World = 10,
+
+        /// <summary>
+        /// 持续行为系统
+        /// </summary>
+        Continuous = 11,
     }
 
     /// <summary>
@@ -84,6 +89,7 @@ namespace AbilityKit.Samples.Abstractions
                 SampleCategory.Abilities => "Abilities",
                 SampleCategory.World => "World",
                 SampleCategory.Demo => "Demo",
+                SampleCategory.Continuous => "Continuous",
                 _ => "Unknown"
             };
         }

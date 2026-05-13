@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Core.Generic;
 using AbilityKit.Core.Math;
 
@@ -12,9 +13,93 @@ namespace AbilityKit.Ability.Behavior
     /// 核心循环：Tick → Decision.Decide → Executor.Execute
     /// 
     /// 注意：完全独立于 Triggering 模块
+    /// 实现了 IContinuous 接口，可由 ContinuousManager 统一管理
     /// </summary>
-    public class BehaviorRuntime
+    public class BehaviorRuntime : IContinuous
     {
+        #region IContinuous Members
+
+        /// <inheritdoc />
+        IContinuousConfig IContinuous.Config => _continuousConfig;
+
+        private readonly BehaviorContinuousConfig _continuousConfig;
+
+        /// <summary>
+        /// 行为持续体配置
+        /// 实现了 IContinuousConfig 及扩展接口
+        /// </summary>
+        private class BehaviorContinuousConfig : IContinuousConfig,
+            IMutexConfig,
+            IDurationConfig
+        {
+            private readonly BehaviorRuntime _owner;
+
+            public BehaviorContinuousConfig(BehaviorRuntime owner)
+            {
+                _owner = owner;
+            }
+
+            public string Id => _owner.InstanceId.ToString();
+            public long OwnerId => _owner.OwnerId.Value;
+            public bool CanBeInterrupted => true;
+
+            // IMutexConfig
+            public string MutexGroup => _owner.BehaviorKind;
+            public int Priority => _owner.Priority;
+
+            // IDurationConfig
+            public float? DurationSeconds => _owner.DurationSeconds;
+        }
+
+        /// <inheritdoc />
+        ContinuousState IContinuous.State
+        {
+            get
+            {
+                return Phase switch
+                {
+                    BehaviorPhase.Created => ContinuousState.Inactive,
+                    BehaviorPhase.Running => ContinuousState.Active,
+                    BehaviorPhase.Paused => ContinuousState.Paused,
+                    BehaviorPhase.Completed => ContinuousState.Expired,
+                    BehaviorPhase.Interrupted => ContinuousState.Aborted,
+                    _ => ContinuousState.Inactive,
+                };
+            }
+        }
+
+        /// <inheritdoc />
+        bool IContinuous.IsActive => Phase == BehaviorPhase.Running;
+
+        /// <inheritdoc />
+        bool IContinuous.IsTerminated => Phase == BehaviorPhase.Completed || Phase == BehaviorPhase.Interrupted;
+
+        /// <inheritdoc />
+        bool IContinuous.IsPaused => Phase == BehaviorPhase.Paused;
+
+        /// <inheritdoc />
+        event Action<IContinuous, ContinuousEndReason> IContinuous.OnEnded
+        {
+            add => _onEnded += value;
+            remove => _onEnded -= value;
+        }
+
+        private event Action<IContinuous, ContinuousEndReason> _onEnded;
+
+        /// <inheritdoc />
+        void IContinuous.Activate() => Start();
+
+        /// <inheritdoc />
+        void IContinuous.Pause() => Pause();
+
+        /// <inheritdoc />
+        void IContinuous.Resume() => Resume();
+
+        /// <inheritdoc />
+        void IContinuous.Abort(string reason) => Interrupt(reason);
+
+        #endregion
+
         #region Properties
         
         public long InstanceId { get; }
@@ -78,7 +163,8 @@ namespace AbilityKit.Ability.Behavior
             Executor = executor ?? new DefaultExecutor();
             World = world;
             Config = config ?? EmptyConfig;
-            
+            _continuousConfig = new BehaviorContinuousConfig(this);
+
             State = new BehaviorState();
             Output = new BehaviorOutput();
             Phase = BehaviorPhase.Created;
@@ -97,7 +183,8 @@ namespace AbilityKit.Ability.Behavior
             Executor = config.Executor ?? new DefaultExecutor();
             World = config.World;
             Config = config.Config ?? EmptyConfig;
-            
+            _continuousConfig = new BehaviorContinuousConfig(this);
+
             State = new BehaviorState();
             Output = new BehaviorOutput();
             Phase = BehaviorPhase.Created;
@@ -205,6 +292,7 @@ namespace AbilityKit.Ability.Behavior
             if (Phase == BehaviorPhase.Completed || Phase == BehaviorPhase.Interrupted) return;
             Phase = BehaviorPhase.Completed;
             OnComplete?.Invoke(this);
+            _onEnded?.Invoke(this, ContinuousEndReason.Completed);
         }
         
         /// <summary>
@@ -215,6 +303,7 @@ namespace AbilityKit.Ability.Behavior
             if (Phase == BehaviorPhase.Completed || Phase == BehaviorPhase.Interrupted) return;
             Phase = BehaviorPhase.Interrupted;
             OnInterrupt?.Invoke(this, reason);
+            _onEnded?.Invoke(this, ContinuousEndReason.Interrupted);
         }
         
         /// <summary>

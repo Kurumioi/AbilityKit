@@ -179,3 +179,63 @@ public sealed class MyCustomType : IMyInterface
 - **零侵入**：扩展类型只需添加 Attribute，无需修改框架代码
 - **解耦**：扫描逻辑与注册逻辑分离
 - **统一**：全项目统一的注册模式
+
+---
+
+# 持续行为系统 (Continuous) 设计规范
+
+## 核心原则
+
+| 原则 | 说明 |
+|------|------|
+| **最小化核心** | Core 包只定义抽象，不包含具体业务逻辑 |
+| **接口组合优于继承** | 扩展点通过可选接口实现 |
+| **业务层定制** | 具体逻辑由业务层实现 |
+
+## 核心接口
+
+```
+Unity/Packages/com.abilitykit.core/Runtime/Core/Continuous/
+├── ContinuousState.cs        # 状态枚举
+├── ContinuousEndReason.cs   # 结束原因枚举
+├── IContinuous.cs           # 持续体接口（核心）
+├── IContinuousConfig.cs     # 配置接口 + 扩展接口
+└── IContinuousManager.cs   # 管理器接口（业务层实现）
+```
+
+## 配置接口设计
+
+### 核心接口（必须实现）
+
+```csharp
+public interface IContinuousConfig
+{
+    string Id { get; }
+    long OwnerId { get; }
+    bool CanBeInterrupted { get; }
+}
+```
+
+### 扩展接口（按需实现）
+
+| 接口 | 说明 |
+|------|------|
+| `ITagConfig` | 标签匹配 |
+| `IMutexConfig` | 互斥组管理 |
+| `IDurationConfig` | 时长配置 |
+| `IHierarchyConfig` | 嵌套层级 |
+| `IStackConfig` | 堆叠层数 |
+
+## Behavior vs Triggering 包定位
+
+| 维度 | Behavior 包 | Triggering 包 |
+|------|------------|---------------|
+| 核心问题 | "我应该做什么？" | "我应该如何执行？" |
+| 典型场景 | 巡逻、追击、逃跑 | 技能释放、BUFF叠加 |
+
+**保持独立**：两个包定位不同，可独立演进，通过 IContinuous 统一管理。
+
+## 禁止事项
+
+❌ **禁止**：在 Core 包中实现具体的管理逻辑（互斥、标签等）
+❌ **禁止**：在 Core 包中定义业务相关的配置类
