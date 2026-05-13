@@ -1,11 +1,12 @@
 using System;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
+using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
 
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities
 {
     /// <summary>
-    /// 实体工厂 - 创建各种类型的战斗实�?
+    /// ???? - ????????????
     /// </summary>
     public sealed class BattleEntityFactory
     {
@@ -21,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// 创建角色实体
+        /// ??????
         /// </summary>
         public EC.IEntity CreateCharacter(BattleNetId netId, int entityCode = 0)
         {
@@ -46,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// 创建投射物实�?
+        /// ????????
         /// </summary>
         public EC.IEntity CreateProjectile(BattleNetId netId, BattleNetId ownerNetId, int entityCode = 0)
         {
@@ -71,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// 创建 VFX 实体
+        /// ?? VFX ??
         /// </summary>
         public EC.IEntity CreateVfx(int vfxId, EC.IEntity parent)
         {
@@ -85,12 +86,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// 获取父实�?
+        /// ??????
         /// </summary>
         public EC.IEntity Parent => _parent;
 
         /// <summary>
-        /// 获取世界
+        /// ????
         /// </summary>
         public EC.IECWorld World => _world;
     }

@@ -1,8 +1,5 @@
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components
 {
-    /// <summary>
-    /// 角色组件（英雄、小兵等�?
-    /// </summary>
     public sealed class BattleCharacterComponent
     {
         public int TeamId;

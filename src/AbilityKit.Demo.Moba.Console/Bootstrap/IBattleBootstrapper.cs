@@ -1,22 +1,18 @@
+using System;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.View;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle;
 
 namespace AbilityKit.Demo.Moba.Console
 {
-    /// <summary>
-    /// Platform-agnostic bootstrapper interface
-    /// </summary>
     public interface IBattleBootstrapper : IDisposable
     {
         IConsoleBattleView BattleView { get; }
         IBattleFlow Flow { get; }
         bool IsRunning { get; }
 
-        /// <summary>
-        /// 构建战斗启动计划
-        /// </summary>
         BattleStartPlan Build();
 
         void Initialize();
@@ -29,5 +25,11 @@ namespace AbilityKit.Demo.Moba.Console
         void SimulateDamage(int targetId, float damage);
         void ShowHud();
         void PrintWorldStatus();
+    }
+
+    public interface IBattleStartConfigProvider
+    {
+        BattleStartConfig Config { get; }
+        BattleStartPlan BuildPlan();
     }
 }

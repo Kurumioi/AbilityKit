@@ -1,8 +1,5 @@
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components
 {
-    /// <summary>
-    /// 实体网络 ID
-    /// </summary>
     public readonly struct BattleNetId
     {
         public readonly int Value;

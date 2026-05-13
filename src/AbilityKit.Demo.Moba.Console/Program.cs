@@ -1,21 +1,35 @@
 using System;
+using System.IO;
 using System.Threading;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Platform;
+using AbilityKit.Demo.Moba.Console.Replay;
+using AbilityKit.Demo.Moba.Console.Services;
 
 namespace AbilityKit.Demo.Moba.Console
 {
     internal sealed class Program
     {
         private static readonly ManualResetEvent _running = new(true);
-        private static ConsoleBattleBootstrapper _bootstrapper;
+        private static ConsoleBattleBootstrapper _bootstrapper = null!;
+        private static ReplayController? _replayController;
+        private static RecordConfig _recordConfig = new();
+        private static bool _exitImmediately;
 
         private static void Main(string[] args)
         {
             System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // ????????????????????
+            // ???????
+            _exitImmediately = ParseArguments(args);
+
             Log.SetMinLevel(Log.LogLevel.System);
+
+            // ??? --list/--info/--help???????? ParseArguments ????
+            if (_exitImmediately)
+            {
+                return;
+            }
 
             Log.System("========================================");
             Log.System("   AbilityKit MOBA Console Demo");
@@ -23,29 +37,24 @@ namespace AbilityKit.Demo.Moba.Console
 
             try
             {
-                _bootstrapper = new ConsoleBattleBootstrapper();
+                _bootstrapper = new ConsoleBattleBootstrapper(_recordConfig);
                 _bootstrapper.Initialize();
                 _bootstrapper.Start();
                 _bootstrapper.SetupBattle();
 
-                using var testRunner = new AutoTestRunner(_bootstrapper);
-                testRunner.OnTestCompleted += OnTestCompleted;
-
-                Log.System("");
-                Log.System("Starting automated tests...");
-                Log.System("");
-
-                testRunner.Start();
-
-                var gameThread = new Thread(GameLoop);
-                gameThread.IsBackground = true;
-                gameThread.Start();
-
-                testRunner.WaitForCompletion();
-
-                Log.System("");
-                Log.System("All tests completed. Press Enter to exit...");
-                System.Console.ReadLine();
+                // ??????
+                switch (_recordConfig.Mode)
+                {
+                    case RecordMode.Recording:
+                        StartRecordingMode();
+                        break;
+                    case RecordMode.Replaying:
+                        StartReplayMode();
+                        break;
+                    default:
+                        StartTestMode();
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -57,7 +66,275 @@ namespace AbilityKit.Demo.Moba.Console
             {
                 _running.Reset();
                 _bootstrapper?.Stop();
+                _replayController?.Dispose();
                 Log.System("Goodbye!");
+            }
+        }
+
+        private static void StartTestMode()
+        {
+            using var testRunner = new AutoTestRunner(_bootstrapper);
+            testRunner.OnTestCompleted += OnTestCompleted;
+
+            Log.System("");
+            Log.System("Starting automated tests...");
+            Log.System("");
+
+            testRunner.Start();
+
+            var gameThread = new Thread(GameLoop);
+            gameThread.IsBackground = true;
+            gameThread.Start();
+
+            testRunner.WaitForCompletion();
+
+            Log.System("");
+            Log.System("All tests completed. Press Enter to exit...");
+            System.Console.ReadLine();
+        }
+
+        private static void StartRecordingMode()
+        {
+            _replayController = new ReplayController(_recordConfig);
+            _replayController.StartRecording();
+
+            Log.System("[Record] Recording mode active. Press Enter to stop recording and save.");
+            Log.System("");
+
+            var gameThread = new Thread(RecordingGameLoop);
+            gameThread.IsBackground = true;
+            gameThread.Start();
+
+            System.Console.ReadLine();
+
+            Log.System("");
+            Log.System("Stopping recording...");
+        }
+
+        private static void StartReplayMode()
+        {
+            _replayController = new ReplayController(_recordConfig);
+            
+            if (!_replayController.StartReplay(_recordConfig.InputFilePath))
+            {
+                Log.Error("[Replay] Failed to start replay mode");
+                return;
+            }
+
+            Log.System("[Replay] Replay mode active.");
+            Log.System("");
+
+            var gameThread = new Thread(ReplayGameLoop);
+            gameThread.IsBackground = true;
+            gameThread.Start();
+
+            System.Console.ReadLine();
+
+            Log.System("");
+            Log.System("Stopping replay...");
+        }
+
+        private static void RecordingGameLoop()
+        {
+            while (_running.WaitOne(33))
+            {
+                if (_bootstrapper == null) continue;
+                try
+                {
+                    _bootstrapper.Tick();
+
+                    // ??????????????
+                    if (_replayController?.IsRecording == true)
+                    {
+                        var ctx = _bootstrapper.Context;
+                        var frame = ctx.LastFrame;
+
+                        // ??????
+                        if (Math.Abs(ctx.HudMoveDx) > 0.01f || Math.Abs(ctx.HudMoveDz) > 0.01f)
+                        {
+                            var payload = SimpleMoveCodec.Serialize(ctx.HudMoveDx, ctx.HudMoveDz);
+                            _replayController.RecordCommand(ctx.LocalActorId, frame, 
+                                InputCommandType.Move, 1, payload);
+                        }
+
+                        // ??????
+                        var skillSlot = ctx.HudSkillClickSlot;
+                        if (skillSlot > 0)
+                        {
+                            _replayController.RecordCommand(ctx.LocalActorId, frame,
+                                InputCommandType.SkillPress, (byte)skillSlot, Array.Empty<byte>());
+                        }
+
+                        // ??????????
+                        if (frame % _recordConfig.SnapshotIntervalFrames == 0)
+                        {
+                            var actorCount = ctx.EcsWorld?.AliveCount ?? 0;
+                            _replayController.AddSnapshot(frame, actorCount);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private static void ReplayGameLoop()
+        {
+            while (_running.WaitOne(33))
+            {
+                if (_bootstrapper == null) continue;
+
+                var driver = _replayController?.GetReplayDriver<ConsoleReplayDriver>();
+                if (driver == null) continue;
+
+                try
+                {
+                    if (driver.IsPlaying && !driver.IsPaused)
+                    {
+                        var frame = driver.CurrentFrame;
+                        var commands = driver.GetCommandsAtFrame(frame);
+
+                        foreach (var cmd in commands)
+                        {
+                            // ??????????
+                            switch (cmd.Type)
+                            {
+                                case InputCommandType.Move:
+                                    var (dx, dz) = SimpleMoveCodec.Deserialize(cmd.Payload);
+                                    _bootstrapper.Context.HudMoveDx = dx;
+                                    _bootstrapper.Context.HudMoveDz = dz;
+                                    break;
+                                case InputCommandType.SkillPress:
+                                    _bootstrapper.Context.HudSkillClickSlot = cmd.OpCode;
+                                    break;
+                            }
+                        }
+
+                        driver.AdvanceFrame();
+
+                        // ????????
+                        if (driver.CurrentFrame >= driver.TotalFrames)
+                        {
+                            Log.System("[Replay] Replay finished");
+                            driver.Stop();
+                        }
+                    }
+
+                    _bootstrapper.Tick();
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private static bool ParseArguments(string[] args)
+        {
+            for (int i = 0; i < args.Length; i++)
+            {
+                var arg = args[i].ToLowerInvariant();
+
+                switch (arg)
+                {
+                    case "--record":
+                    case "-r":
+                        _recordConfig.Mode = RecordMode.Recording;
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                        {
+                            _recordConfig.OutputPath = args[++i];
+                        }
+                        break;
+
+                    case "--replay":
+                    case "--play":
+                    case "-p":
+                        _recordConfig.Mode = RecordMode.Replaying;
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                        {
+                            _recordConfig.InputFilePath = args[++i];
+                        }
+                        break;
+
+                    case "--list":
+                    case "-l":
+                        RecordFileManager.ListRecords("Records");
+                        return true;
+
+                    case "--info":
+                        if (i + 1 < args.Length)
+                        {
+                            PrintRecordInfo(args[++i]);
+                            return true;
+                        }
+                        break;
+
+                    case "--test":
+                    case "-t":
+                        _recordConfig.Mode = RecordMode.None;
+                        break;
+
+                    case "--help":
+                    case "-h":
+                    case "-?":
+                        PrintHelp();
+                        return true;
+
+                    default:
+                        if (arg.StartsWith("-"))
+                        {
+                            Log.Warn($"Unknown option: {args[i]}");
+                        }
+                        break;
+                }
+            }
+            return false;
+        }
+
+        private static void PrintHelp()
+        {
+            Log.System("");
+            Log.System("AbilityKit MOBA Console Demo");
+            Log.System("");
+            Log.System("Usage: AbilityKit.Demo.Moba.Console [options]");
+            Log.System("");
+            Log.System("Options:");
+            Log.System("  -r, --record [path]     Start recording mode (saves to Records/replay_*.akrec)");
+            Log.System("  -p, --replay <file>    Start replay mode from specified record file");
+            Log.System("  -l, --list             List all available record files");
+            Log.System("  --info <file>          Show info about a record file");
+            Log.System("  -t, --test             Run in test mode (default)");
+            Log.System("  -h, --help             Show this help message");
+            Log.System("");
+            Log.System("Examples:");
+            Log.System("  AbilityKit.Demo.Moba.Console                  # Run tests");
+            Log.System("  AbilityKit.Demo.Moba.Console --record          # Record a session");
+            Log.System("  AbilityKit.Demo.Moba.Console --replay Records/replay_xxx.akrec");
+            Log.System("  AbilityKit.Demo.Moba.Console --list            # List recordings");
+            Log.System("");
+        }
+
+        private static void PrintRecordInfo(string filePath)
+        {
+            try
+            {
+                using var stream = File.OpenRead(filePath);
+                var file = LockstepInputRecordFile.ReadFromStream(stream);
+                Log.System($"");
+                Log.System($"Record File: {Path.GetFileName(filePath)}");
+                Log.System($"  Recorded: {file.Header.RecordTime:yyyy-MM-dd HH:mm:ss}");
+                Log.System($"  Game Mode: {file.Header.GameMode}");
+                Log.System($"  Map: {file.Header.MapName}");
+                Log.System($"  Player: {file.Header.PlayerName}");
+                Log.System($"  Frames: {file.Header.StartFrame} - {file.Header.EndFrame}");
+                Log.System($"  Total Commands: {file.Header.TotalCommands}");
+                Log.System($"  Snapshots: {file.Snapshots.Count}");
+                Log.System($"  Duration: {file.Header.EndFrame / 30.0:F1} seconds (at 30 FPS)");
+                Log.System("");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to read record file: {ex.Message}");
             }
         }
 

@@ -74,12 +74,12 @@ namespace AbilityKit.Demo.Moba.Console.Platform
             Warning = 11, Error = 12
         }
 
-        private static LogLevel _minLevel = LogLevel.System;
+        private static LogLevel _minLevel = LogLevel.Battle;
 
         public static void SetMinLevel(LogLevel level) => _minLevel = level;
         public static LogLevel MinLevel => _minLevel;
         public static void EnableTrace() => _minLevel = LogLevel.Trace;
-        public static void DisableTrace() => _minLevel = LogLevel.System;
+        public static void DisableTrace() => _minLevel = LogLevel.Battle;
 
         private static bool ShouldLog(OutputChannel channel)
         {
@@ -90,8 +90,8 @@ namespace AbilityKit.Demo.Moba.Console.Platform
                 OutputChannel.Battle => LogLevel.Battle,
                 OutputChannel.Skill => LogLevel.Skill,
                 OutputChannel.Damage => LogLevel.Damage,
-                OutputChannel.Sync => LogLevel.Sync,
-                OutputChannel.Input => LogLevel.Input,
+                OutputChannel.Sync => LogLevel.Warning,      // ?????????Warning??????
+                OutputChannel.Input => LogLevel.Warning,      // ?????????Warning??????
                 OutputChannel.View => LogLevel.View,
                 OutputChannel.Buff => LogLevel.Skill,
                 OutputChannel.Projectile => LogLevel.Skill,

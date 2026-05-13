@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Platform;
@@ -81,7 +82,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
     {
         private readonly MobaConfigDatabase _config;
         private readonly BattleServices _battleServices;
-        private readonly Dictionary<int, int> _cooldownBySlot = new();
+        private readonly ConcurrentDictionary<int, int> _cooldownBySlot = new();
         private int _globalCooldownFrames;
 
         public bool AllowParallel { get; set; }
@@ -195,27 +196,22 @@ namespace AbilityKit.Demo.Moba.Console.Services
         {
             if (_globalCooldownFrames > 0)
             {
-                _globalCooldownFrames--;
+                Interlocked.Decrement(ref _globalCooldownFrames);
             }
 
             // 减少各槽位冷却
-            var toRemove = new List<int>();
             foreach (var kvp in _cooldownBySlot)
             {
-                if (kvp.Value > 0)
+                var newValue = kvp.Value - 1;
+                if (newValue <= 0)
                 {
-                    _cooldownBySlot[kvp.Key] = kvp.Value - 1;
-                    if (_cooldownBySlot[kvp.Key] <= 0)
-                    {
-                        toRemove.Add(kvp.Key);
-                    }
+                    _cooldownBySlot.TryRemove(kvp.Key, out _);
+                    Log.Skill($"[SkillExecutor] Skill slot {kvp.Key} cooldown ready");
                 }
-            }
-
-            foreach (var slot in toRemove)
-            {
-                _cooldownBySlot.Remove(slot);
-                Log.Skill($"[SkillExecutor] Skill slot {slot} cooldown ready");
+                else
+                {
+                    _cooldownBySlot.TryUpdate(kvp.Key, newValue, kvp.Value);
+                }
             }
         }
 
@@ -287,7 +283,7 @@ namespace AbilityKit.Demo.Moba.Console.Services
             if (cooldownFrames > 0)
             {
                 _cooldownBySlot[request.SkillSlot] = cooldownFrames;
-                _globalCooldownFrames = 3; // 0.1秒全局冷却
+                Interlocked.Exchange(ref _globalCooldownFrames, 3); // 0.1秒全局冷却
                 Log.Trace($"[TRACE] ExecuteSkill - Set cooldown: Slot{request.SkillSlot}={cooldownFrames} frames, GCD=3 frames");
             }
 

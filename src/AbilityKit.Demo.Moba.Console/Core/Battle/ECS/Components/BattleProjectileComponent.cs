@@ -1,8 +1,5 @@
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components
 {
-    /// <summary>
-    /// 投射物组�?
-    /// </summary>
     public sealed class BattleProjectileComponent
     {
         public BattleNetId OwnerNetId;

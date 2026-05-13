@@ -1,14 +1,10 @@
 using System;
 using System.Threading;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Platform;
 
 namespace AbilityKit.Demo.Moba.Console
 {
-    /// <summary>
-    /// 自动化测试模块
-    /// 启动后自动执行测试流程，验证系统完整性
-    /// </summary>
     public sealed class AutoTestRunner : IDisposable
     {
         private readonly ConsoleBattleBootstrapper _bootstrapper;
@@ -47,7 +43,6 @@ namespace AbilityKit.Demo.Moba.Console
 
         private void TestLoop()
         {
-            // 测试期间启用调试日志
             _savedLogLevel = Log.MinLevel;
             Log.SetMinLevel(Log.LogLevel.Debug);
 
@@ -75,7 +70,6 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System("   AUTO TEST STARTING");
             Log.System("========================================");
 
-            // 测试1: 初始化流程
             results.InitTest = TestInitialization();
             if (!results.InitTest.Passed)
             {
@@ -83,7 +77,6 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
-            // 测试2: Phase 切换
             results.PhaseTest = TestPhaseTransition();
             if (!results.PhaseTest.Passed)
             {
@@ -91,7 +84,6 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
-            // 测试3: 帧同步
             results.FrameSyncTest = TestFrameSync();
             if (!results.FrameSyncTest.Passed)
             {
@@ -99,7 +91,6 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
-            // 测试4: 技能释放
             results.SkillCastTest = TestSkillCast();
             if (!results.SkillCastTest.Passed)
             {
@@ -107,21 +98,18 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
-            // 测试5: 伤害计算
             results.DamageTest = TestDamageCalculation();
             if (!results.DamageTest.Passed)
             {
                 Log.System("[AUTO-TEST] Damage calculation failed");
             }
 
-            // 测试6: 冷却系统
             results.CooldownTest = TestCooldownSystem();
             if (!results.CooldownTest.Passed)
             {
                 Log.System("[AUTO-TEST] Cooldown system failed");
             }
 
-            // 测试7: 移动系统
             results.MoveTest = TestMoveSystem();
             if (!results.MoveTest.Passed)
             {
@@ -165,14 +153,12 @@ namespace AbilityKit.Demo.Moba.Console
 
             try
             {
-                // 检查 Bootstrapper
                 if (_bootstrapper == null)
                 {
                     result.Fail("Bootstrapper is null");
                     return result;
                 }
 
-                // 检查 Flow
                 var flow = _bootstrapper.Flow;
                 if (flow == null)
                 {
@@ -181,7 +167,6 @@ namespace AbilityKit.Demo.Moba.Console
                 }
                 Log.Trace("[TEST-1] Flow initialized");
 
-                // 检查 Context
                 var ctx = _bootstrapper.Context;
                 if (ctx == null)
                 {
@@ -190,7 +175,6 @@ namespace AbilityKit.Demo.Moba.Console
                 }
                 Log.Trace("[TEST-1] Context initialized");
 
-                // 检查 BattleServices
                 var battleServices = _bootstrapper.BattleServices;
                 if (battleServices == null)
                 {
@@ -199,7 +183,6 @@ namespace AbilityKit.Demo.Moba.Console
                 }
                 Log.Trace($"[TEST-1] BattleServices initialized, ActorCount={battleServices.ActorCount}");
 
-                // 检查 SkillExecutor
                 var skillExec = _bootstrapper.SkillExecutor;
                 if (skillExec == null)
                 {
@@ -208,7 +191,6 @@ namespace AbilityKit.Demo.Moba.Console
                 }
                 Log.Trace("[TEST-1] SkillExecutor initialized");
 
-                // 检查 ECS World
                 if (ctx.EcsWorld == null)
                 {
                     result.Fail("ECS World is null");
@@ -216,7 +198,6 @@ namespace AbilityKit.Demo.Moba.Console
                 }
                 Log.Trace($"[TEST-1] ECS World initialized, AliveCount={ctx.EcsWorld.AliveCount}");
 
-                // 检查 Phase
                 var phase = flow.CurrentPhase;
                 Log.Trace($"[TEST-1] Current phase: {phase}");
 
@@ -242,9 +223,8 @@ namespace AbilityKit.Demo.Moba.Console
                 var initialPhase = flow.CurrentPhase;
                 Log.Trace($"[TEST-2] Initial phase: {initialPhase}");
 
-                // 尝试切换到 InMatch
                 _bootstrapper.TransitionTo("InMatch");
-                Thread.Sleep(20); // 等待 Phase 处理
+                Thread.Sleep(20);
 
                 var afterPhase = flow.CurrentPhase;
                 Log.Trace($"[TEST-2] After transition: {afterPhase}");
@@ -255,7 +235,6 @@ namespace AbilityKit.Demo.Moba.Console
                     return result;
                 }
 
-                // 检查 Context.State
                 if (_bootstrapper.Context.State != BattleState.InMatch)
                 {
                     result.Fail($"Expected BattleState.InMatch, got {_bootstrapper.Context.State}");
@@ -283,13 +262,12 @@ namespace AbilityKit.Demo.Moba.Console
                 var initialFrame = _bootstrapper.Context.LastFrame;
                 Log.Trace($"[TEST-3] Initial frame: {initialFrame}");
 
-                // Tick 帧同步
                 for (int i = 0; i < 10; i++)
                 {
                     _bootstrapper.Tick();
                 }
 
-                Thread.Sleep(100); // 等待处理完成
+                Thread.Sleep(100);
 
                 var afterFrame = _bootstrapper.Context.LastFrame;
                 Log.Trace($"[TEST-3] After 10 ticks: {afterFrame}");
@@ -328,7 +306,6 @@ namespace AbilityKit.Demo.Moba.Console
                 var localActorId = ctx.LocalActorId;
                 Log.Trace($"[TEST-4] LocalActorId: {localActorId}");
 
-                // 获取 InputFeature
                 var inputFeature = GetInputFeature();
                 if (inputFeature == null)
                 {
@@ -336,19 +313,12 @@ namespace AbilityKit.Demo.Moba.Console
                     return result;
                 }
 
-                // 触发技能1
                 Log.Trace("[TEST-4] Clicking skill 1...");
                 inputFeature.ClickSkill(1);
 
-                // Tick 一帧处理
                 _bootstrapper.Tick();
                 Thread.Sleep(20);
 
-                // 检查技能是否执行
-                var skillExec = _bootstrapper.SkillExecutor;
-                Log.Trace($"[TEST-4] Skill cast completed");
-
-                // 再次点击技能2
                 Log.Trace("[TEST-4] Clicking skill 2...");
                 inputFeature.ClickSkill(2);
                 _bootstrapper.Tick();
@@ -376,22 +346,18 @@ namespace AbilityKit.Demo.Moba.Console
                 var battleServices = _bootstrapper.BattleServices;
                 var ctx = _bootstrapper.Context;
 
-                // 模拟伤害
                 Log.Trace("[TEST-5] Applying simulated damage...");
                 _bootstrapper.SimulateDamage(1, 100);
 
-                // Tick 处理
                 _bootstrapper.Tick();
                 Thread.Sleep(50);
 
-                // 检查角色是否还在
                 var actor = battleServices.GetActor(1);
                 Log.Trace($"[TEST-5] Actor1 HP after damage: {actor?.Hp ?? -1}");
 
                 if (actor == null)
                 {
                     Log.Trace("[TEST-5] Actor was removed (died), this is expected for large damage");
-                    // 死亡是预期行为，不算失败
                 }
 
                 result.Pass();
@@ -419,7 +385,6 @@ namespace AbilityKit.Demo.Moba.Console
                     return result;
                 }
 
-                // 连续点击技能（应该触发冷却）
                 Log.Trace("[TEST-6] Clicking skill 1 (should trigger cooldown)...");
                 inputFeature.ClickSkill(1);
                 _bootstrapper.Tick();
@@ -428,7 +393,6 @@ namespace AbilityKit.Demo.Moba.Console
                 inputFeature.ClickSkill(1);
                 _bootstrapper.Tick();
 
-                // 等待冷却
                 Log.Trace("[TEST-6] Waiting for cooldown...");
                 for (int i = 0; i < 10; i++)
                 {
@@ -473,11 +437,9 @@ namespace AbilityKit.Demo.Moba.Console
                 var initialZ = actor.Z;
                 Log.Trace($"[TEST-7] Initial position: ({initialX:F2}, {initialZ:F2})");
 
-                // 触发移动
                 Log.Trace("[TEST-7] Triggering move...");
                 inputFeature.SetMoveInput(1f, 0f);
 
-                // 多次 Tick
                 for (int i = 0; i < 10; i++)
                 {
                     _bootstrapper.Tick();
@@ -490,7 +452,6 @@ namespace AbilityKit.Demo.Moba.Console
                 var newZ = actor?.Z ?? initialZ;
                 Log.Trace($"[TEST-7] After move: ({newX:F2}, {newZ:F2})");
 
-                // 停止移动
                 inputFeature.SetMoveInput(0f, 0f);
 
                 result.Pass();
@@ -503,11 +464,16 @@ namespace AbilityKit.Demo.Moba.Console
             return result;
         }
 
-        private ConsoleInputFeature GetInputFeature()
+        private Core.Input.ConsoleInputFeature? GetInputFeature()
         {
             var field = typeof(ConsoleBattleBootstrapper).GetField("_inputFeature",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            return field?.GetValue(_bootstrapper) as ConsoleInputFeature;
+            return field?.GetValue(_bootstrapper) as Core.Input.ConsoleInputFeature;
+        }
+
+        private ConsoleBattleBootstrapper GetBootstrapper()
+        {
+            return _bootstrapper;
         }
 
         #endregion
@@ -520,9 +486,6 @@ namespace AbilityKit.Demo.Moba.Console
         }
     }
 
-    /// <summary>
-    /// 自动化测试配置
-    /// </summary>
     public class AutoTestConfig
     {
         public bool RunInitTest { get; set; } = true;
@@ -538,9 +501,6 @@ namespace AbilityKit.Demo.Moba.Console
         public static AutoTestConfig Default => new();
     }
 
-    /// <summary>
-    /// 测试结果
-    /// </summary>
     public class TestResult
     {
         public string Name { get; set; } = "";
@@ -549,9 +509,6 @@ namespace AbilityKit.Demo.Moba.Console
         public long ElapsedMs { get; set; }
     }
 
-    /// <summary>
-    /// 自动化测试结果
-    /// </summary>
     public class AutoTestResult
     {
         public DateTime StartTime { get; set; } = DateTime.Now;

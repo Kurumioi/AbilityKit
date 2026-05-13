@@ -1,8 +1,5 @@
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components
 {
-    /// <summary>
-    /// 实体种类
-    /// </summary>
     public enum BattleEntityKind
     {
         Unknown = 0,
@@ -11,9 +8,6 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         Vfx = 3
     }
 
-    /// <summary>
-    /// 实体元数据组�?
-    /// </summary>
     public sealed class BattleEntityMetaComponent
     {
         public BattleEntityKind Kind = BattleEntityKind.Unknown;

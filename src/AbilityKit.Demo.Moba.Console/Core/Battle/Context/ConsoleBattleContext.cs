@@ -4,10 +4,12 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.MobaCore;
+using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
 {
     /// <summary>
     /// ?????

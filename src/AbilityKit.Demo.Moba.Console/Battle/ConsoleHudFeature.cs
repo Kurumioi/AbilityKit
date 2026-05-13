@@ -1,9 +1,9 @@
 using System;
-using System.Text;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.View;
+using AbilityKit.Demo.Moba.Console.Events;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
@@ -21,11 +21,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle
     {
         private ConsoleBattleContext _ctx;
         private BattleHudConfig _config;
-        private ConsoleInputFeature _inputFeature;
-        private ConsoleSyncFeature _syncFeature;
         private IConsoleBattleView _battleView;
         private int _tickCount;
         private DateTime _lastRender;
+
+        private int _lastKnownFrame;
+        private int _lastKnownActorCount;
 
         public ConsoleHudFeature()
         {
@@ -35,16 +36,6 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         public void SetConfig(BattleHudConfig config)
         {
             _config = config ?? BattleHudConfig.Default;
-        }
-
-        public void SetInputFeature(ConsoleInputFeature inputFeature)
-        {
-            _inputFeature = inputFeature;
-        }
-
-        public void SetSyncFeature(ConsoleSyncFeature syncFeature)
-        {
-            _syncFeature = syncFeature;
         }
 
         public void SetBattleView(IConsoleBattleView battleView)
@@ -57,16 +48,76 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             _ctx = context ?? throw new ArgumentNullException(nameof(context));
             _tickCount = 0;
             _lastRender = DateTime.Now;
-            Log.System("[HUD] Attached");
+            _lastKnownFrame = context.LastFrame;
+            _lastKnownActorCount = context.EcsWorld?.AliveCount ?? 0;
+
+            SubscribeToEvents();
+            Log.System("[HUD] Attached (Event-based)");
         }
 
         public void OnDetach(ConsoleBattleContext context)
         {
+            UnsubscribeFromEvents();
             _ctx = null;
-            _inputFeature = null;
-            _syncFeature = null;
             _battleView = null;
             Log.System("[HUD] Detached");
+        }
+
+        private void SubscribeToEvents()
+        {
+            BattleEventBus.Subscribe<FrameSyncEvent>(OnFrameSync);
+            BattleEventBus.Subscribe<MoveInputProcessedEvent>(OnMoveInput);
+            BattleEventBus.Subscribe<SkillExecutedEvent>(OnSkillExecuted);
+            BattleEventBus.Subscribe<EntityCreatedEvent>(OnEntityCreated);
+            BattleEventBus.Subscribe<EntityUpdatedEvent>(OnEntityUpdated);
+        }
+
+        private void UnsubscribeFromEvents()
+        {
+            BattleEventBus.Unsubscribe<FrameSyncEvent>(OnFrameSync);
+            BattleEventBus.Unsubscribe<MoveInputProcessedEvent>(OnMoveInput);
+            BattleEventBus.Unsubscribe<SkillExecutedEvent>(OnSkillExecuted);
+            BattleEventBus.Unsubscribe<EntityCreatedEvent>(OnEntityCreated);
+            BattleEventBus.Unsubscribe<EntityUpdatedEvent>(OnEntityUpdated);
+        }
+
+        private void OnFrameSync(FrameSyncEvent evt)
+        {
+            _lastKnownFrame = evt.Frame;
+            _lastKnownActorCount = evt.ActorCount;
+        }
+
+        private void OnMoveInput(MoveInputProcessedEvent evt)
+        {
+            if (evt.ActorId == _ctx?.LocalActorId)
+            {
+                Log.Input($"[HUD] Local move: dx={evt.Dx:F2}, dz={evt.Dz:F2}");
+            }
+        }
+
+        private void OnSkillExecuted(SkillExecutedEvent evt)
+        {
+            if (evt.ActorId == _ctx?.LocalActorId)
+            {
+                if (evt.Success)
+                {
+                    Log.Skill($"[HUD] Local skill{evt.Slot} executed");
+                }
+                else
+                {
+                    Log.Skill($"[HUD] Local skill{evt.Slot} failed: {evt.FailReason}");
+                }
+            }
+        }
+
+        private void OnEntityCreated(EntityCreatedEvent evt)
+        {
+            Log.Entity($"[HUD] Entity created: #{evt.ActorId} {evt.Name}");
+        }
+
+        private void OnEntityUpdated(EntityUpdatedEvent evt)
+        {
+            _lastKnownActorCount = _ctx?.EcsWorld?.AliveCount ?? _lastKnownActorCount;
         }
 
         public void Tick(ConsoleBattleContext context, float deltaTime)
@@ -84,7 +135,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
 
             Log.System("");
             Log.System("========================================");
-            Log.System($"           BATTLE HUD - Frame {_ctx.LastFrame}");
+            Log.System($"           BATTLE HUD - Frame {_lastKnownFrame}");
             Log.System("========================================");
             Log.System($"Phase: {_ctx.State} | LocalActorId: {_ctx.LocalActorId}");
             Log.System("----------------------------------------");

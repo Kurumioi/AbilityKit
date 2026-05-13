@@ -4,12 +4,18 @@ using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Core.Input;
+using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
+using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
+using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.View;
+using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.MobaCore;
 using EC = AbilityKit.World.ECS;
@@ -34,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly MobaConfigDatabase _mobaConfig;
         private readonly BattleServices _battleServices;
         private readonly ConsoleSkillExecutor _skillExecutor;
+        private readonly RecordConfig _recordConfig;
 
         private bool _disposed;
         private bool _running;
@@ -47,18 +54,30 @@ namespace AbilityKit.Demo.Moba.Console
         /// </summary>
         BattleStartConfig IBattleStartConfigProvider.Config => _config;
 
-        public ConsoleBattleBootstrapper() : this(null, null)
+        public ConsoleBattleBootstrapper() : this(null, null, null, null)
+        {
+        }
+
+        public ConsoleBattleBootstrapper(RecordConfig? recordConfig)
+            : this(null, null, null, recordConfig)
         {
         }
 
         public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig)
-            : this(config, mobaConfig, null)
+            : this(config, mobaConfig, null, null)
         {
         }
 
         public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules)
+            : this(config, mobaConfig, additionalModules, null)
+        {
+        }
+
+        public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules, RecordConfig? recordConfig)
         {
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Entry");
+
+            _recordConfig = recordConfig ?? new RecordConfig();
 
             _modules = new List<IWorldModule>();
 
@@ -101,12 +120,11 @@ namespace AbilityKit.Demo.Moba.Console
             _hudFeature = new ConsoleHudFeature();
             _inputHandler = new ConsoleInputHandler(_inputFeature, _hudFeature, _flow, Platform.Input);
 
-            // ????? InputFeature
+            // SetServices ???????????????
             _inputFeature.SetServices(_skillExecutor, _battleServices);
 
+            // ???????????????????
             _hudFeature.SetBattleView(_battleView);
-            _hudFeature.SetInputFeature(_inputFeature);
-            _hudFeature.SetSyncFeature(_syncFeature);
 
             _flow.Events.PhaseEntered += OnPhaseEntered;
 
@@ -473,7 +491,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             if (e.TryGetRef(out BattleTransformComponent t))
             {
-                t.Position = new Core.Math.Vec3(x, y, z);
+                t.Position = new AbilityKit.Core.Math.Vec3(x, y, z);
             }
 
             if (e.TryGetRef(out BattleCharacterComponent c))

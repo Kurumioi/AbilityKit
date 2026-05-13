@@ -1,13 +1,14 @@
 using System;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Services;
+using AbilityKit.Demo.Moba.Console.Events;
 
-namespace AbilityKit.Demo.Moba.Console.Battle
+namespace AbilityKit.Demo.Moba.Console.Core.Input
 {
     /// <summary>
-    /// ??????
+    /// 玩家输入命令
     /// </summary>
     public readonly struct PlayerInputCommand
     {
@@ -31,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
     }
 
     /// <summary>
-    /// ????????
+    /// 本地玩家输入事件
     /// </summary>
     public readonly struct LocalPlayerInputEvent
     {
@@ -48,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
     }
 
     /// <summary>
-    /// ????????
+    /// 本地输入队列
     /// </summary>
     public sealed class BattleLocalInputQueue
     {
@@ -68,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
     }
 
     /// <summary>
-    /// ??????
+    /// 移动编码器
     /// </summary>
     public static class MobaMoveCodec
     {
@@ -102,9 +103,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle
     }
 
     /// <summary>
-    /// ???????
+    /// 输入特征模块
     /// </summary>
-    public sealed class ConsoleInputFeature : IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
+    public sealed class ConsoleInputFeature : IInputFeature, IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
     {
         private ConsoleBattleContext _ctx;
         private BattleLocalInputQueue _inputQueue;
@@ -115,6 +116,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         private float _lastMoveDx;
         private float _lastMoveDz;
         private bool _wasMoving;
+
+        public int LocalActorId => _ctx?.LocalActorId ?? 0;
 
         public void SetServices(ConsoleSkillExecutor skillExecutor, BattleServices battleServices)
         {
@@ -130,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             _inputQueue = new BattleLocalInputQueue();
             _initialized = true;
             Platform.Log.Trace($"[TRACE] ConsoleInputFeature.OnAttach - LocalActorId: {_ctx.LocalActorId}, State: {_ctx.State}");
-            Log.Input($"[Input] Attached - PlayerId: {_ctx.LocalActorId}");
+            Log.Input($"[Input] Attached (Event-based) - PlayerId: {_ctx.LocalActorId}");
         }
 
         public void OnDetach(ConsoleBattleContext context)
@@ -171,7 +174,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             ProcessMoveInput();
             ProcessSkillInput();
 
-            // ???????
+            // 执行技能系统
             _skillExecutor?.Step(_ctx.LocalActorId);
 
             _inputQueue.Flush();
@@ -189,8 +192,13 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                 var payload = MobaMoveCodec.Serialize(dx, dz);
                 _inputQueue.Enqueue(new LocalPlayerInputEvent(_ctx.LocalActorId, (int)MobaOpCode.Move, payload));
 
-                // ??????
-                _battleServices?.OnMoveInput(_ctx.LocalActorId, dx, dz);
+                // 通过事件通知移动输入
+                BattleEventBus.Publish(new MoveInputProcessedEvent
+                {
+                    ActorId = _ctx.LocalActorId,
+                    Dx = dx,
+                    Dz = dz
+                });
 
                 Log.Input($"[Input] Move: dx={dx:F2}, dz={dz:F2}");
             }
@@ -202,7 +210,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
 
         private void ProcessSkillInput()
         {
-            // ??????
+            // 处理技能点击
             var slot = _ctx.HudSkillClickSlot;
             if (slot > 0)
             {
@@ -215,12 +223,22 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                     _ => (int)MobaOpCode.SkillInput
                 };
 
-                // ?? SkillExecutor ??
+                // 通过 SkillExecutor 执行
                 if (_skillExecutor != null)
                 {
                     Platform.Log.Trace($"[TRACE] ProcessSkillInput - Calling SkillExecutor.CastBySlot for Actor#{_ctx.LocalActorId} Slot{slot}");
                     var result = _skillExecutor.CastBySlot(_ctx.LocalActorId, slot);
                     Platform.Log.Trace($"[TRACE] ProcessSkillInput - SkillExecutor result: Success={result.Success}, Reason={result.FailReason}");
+
+                    // 通过事件通知技能执行结果
+                    BattleEventBus.Publish(new SkillExecutedEvent
+                    {
+                        ActorId = _ctx.LocalActorId,
+                        Slot = slot,
+                        Success = result.Success,
+                        FailReason = result.FailReason
+                    });
+
                     if (result.Success)
                     {
                         Log.Skill($"[Input] Skill{slot} executed successfully");
@@ -232,18 +250,27 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                 }
                 else
                 {
-                    // ???????
+                    // 回退到队列
                     Platform.Log.Trace("[TRACE] ProcessSkillInput - SkillExecutor is null, using queue fallback");
                     var skillEvent = SkillInputEvent.CreatePress(slot);
                     var payload = SkillInputCodec.Serialize(in skillEvent);
                     _inputQueue.Enqueue(new LocalPlayerInputEvent(_ctx.LocalActorId, opCode, payload));
+
+                    // 发布失败事件
+                    BattleEventBus.Publish(new SkillExecutedEvent
+                    {
+                        ActorId = _ctx.LocalActorId,
+                        Slot = slot,
+                        Success = false,
+                        FailReason = "SkillExecutor not available"
+                    });
                 }
 
                 Log.Input($"[Input] Skill{slot} pressed");
                 _ctx.HudSkillClickSlot = 0;
             }
 
-            // ????????
+            // 处理技能瞄准释放
             if (_ctx.HudSkillAimSubmit && _ctx.HudSkillAimSubmitSlot > 0)
             {
                 Platform.Log.Trace($"[TRACE] ProcessSkillInput - Skill{_ctx.HudSkillAimSubmitSlot} aimed release");
@@ -252,7 +279,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                     _ctx.HudSkillAimSubmitDx,
                     _ctx.HudSkillAimSubmitDz);
 
-                // ?? SkillExecutor ??????
+                // 通过 SkillExecutor 执行
                 if (_skillExecutor != null)
                 {
                     var result = _skillExecutor.CastBySlot(
@@ -262,6 +289,16 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                         _ctx.HudSkillAimSubmitDz);
 
                     Platform.Log.Trace($"[TRACE] ProcessSkillInput - Aimed skill result: Success={result.Success}, Reason={result.FailReason}");
+
+                    // 通过事件通知
+                    BattleEventBus.Publish(new SkillExecutedEvent
+                    {
+                        ActorId = _ctx.LocalActorId,
+                        Slot = _ctx.HudSkillAimSubmitSlot,
+                        Success = result.Success,
+                        FailReason = result.FailReason
+                    });
+
                     if (result.Success)
                     {
                         Log.Skill($"[Input] Skill{_ctx.HudSkillAimSubmitSlot} (aimed) executed successfully");
@@ -275,6 +312,14 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                 {
                     var payload = SkillInputCodec.Serialize(in skillEvent);
                     _inputQueue.Enqueue(new LocalPlayerInputEvent(_ctx.LocalActorId, (int)MobaOpCode.SkillInput, payload));
+
+                    BattleEventBus.Publish(new SkillExecutedEvent
+                    {
+                        ActorId = _ctx.LocalActorId,
+                        Slot = _ctx.HudSkillAimSubmitSlot,
+                        Success = false,
+                        FailReason = "SkillExecutor not available"
+                    });
                 }
 
                 Log.Input($"[Input] Skill{_ctx.HudSkillAimSubmitSlot} aim released at ({_ctx.HudSkillAimSubmitDx:F1}, {_ctx.HudSkillAimSubmitDz:F1})");
