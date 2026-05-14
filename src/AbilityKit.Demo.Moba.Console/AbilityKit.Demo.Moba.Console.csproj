@@ -15,6 +15,7 @@
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Infrastructure\AbilityKit.Demo.Moba.Infrastructure.csproj" />
     <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
+    <ProjectReference Include="..\AbilityKit.Game.Battle.Transport.Runtime\AbilityKit.Game.Battle.Transport.Runtime.csproj" />
   </ItemGroup>
 
   <!-- NuGet Dependencies -->

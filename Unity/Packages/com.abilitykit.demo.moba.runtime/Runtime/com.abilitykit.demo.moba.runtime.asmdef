@@ -15,6 +15,7 @@
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
         "AbilityKit.World.FrameSync",
+        "AbilityKit.World.StateSync",
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Ability",

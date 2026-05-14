@@ -123,37 +123,37 @@ namespace AbilityKit.Ability.StateSync.Compression
 
             writer.Write(current.EntityId);
 
-            bool posChanged = previous == null || !current.position.ApproximatelyEquals(previous.Value.position);
+            bool posChanged = previous == null || !current.Position.ApproximatelyEquals(previous.Value.Position);
             writer.Write(posChanged);
             if (posChanged)
             {
-                writer.Write(current.position.X);
-                writer.Write(current.position.Y);
-                writer.Write(current.position.Z);
+                writer.Write(current.Position.X);
+                writer.Write(current.Position.Y);
+                writer.Write(current.Position.Z);
             }
 
-            bool rotChanged = previous == null || !current.rotation.ApproximatelyEquals(previous.Value.rotation);
+            bool rotChanged = previous == null || !current.Rotation.ApproximatelyEquals(previous.Value.Rotation);
             writer.Write(rotChanged);
             if (rotChanged)
             {
-                writer.Write(current.rotation.X);
-                writer.Write(current.rotation.Y);
-                writer.Write(current.rotation.Z);
-                writer.Write(current.rotation.W);
+                writer.Write(current.Rotation.X);
+                writer.Write(current.Rotation.Y);
+                writer.Write(current.Rotation.Z);
+                writer.Write(current.Rotation.W);
             }
 
-            bool velChanged = previous == null || !current.velocity.ApproximatelyEquals(previous.Value.velocity);
+            bool velChanged = previous == null || !current.Velocity.ApproximatelyEquals(previous.Value.Velocity);
             writer.Write(velChanged);
             if (velChanged)
             {
-                writer.Write(current.velocity.X);
-                writer.Write(current.velocity.Y);
-                writer.Write(current.velocity.Z);
+                writer.Write(current.Velocity.X);
+                writer.Write(current.Velocity.Y);
+                writer.Write(current.Velocity.Z);
             }
 
-            bool healthChanged = previous == null || current.healthPercent != previous.Value.healthPercent;
+            bool healthChanged = previous == null || current.HealthPercent != previous.Value.HealthPercent;
             writer.Write(healthChanged);
-            if (healthChanged) writer.Write(current.healthPercent);
+            if (healthChanged) writer.Write(current.HealthPercent);
 
             bool flagsChanged = previous == null || current.StateFlags != previous.Value.StateFlags;
             writer.Write(flagsChanged);
@@ -183,22 +183,22 @@ namespace AbilityKit.Ability.StateSync.Compression
 
             if (reader.ReadBoolean())
             {
-                result.position = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                result.Position = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
             }
 
             if (reader.ReadBoolean())
             {
-                result.rotation = new Snapshot.Quat(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                result.Rotation = new Snapshot.Quat(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
             }
 
             if (reader.ReadBoolean())
             {
-                result.velocity = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                result.Velocity = new Snapshot.Vec3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
             }
 
             if (reader.ReadBoolean())
             {
-                result.healthPercent = reader.ReadByte();
+                result.HealthPercent = reader.ReadByte();
             }
 
             if (reader.ReadBoolean())

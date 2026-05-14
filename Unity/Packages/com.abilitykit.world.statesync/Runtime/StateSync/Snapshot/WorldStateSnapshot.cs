@@ -1,16 +1,17 @@
 using System;
 using System.Collections.Generic;
+using MemoryPack;
 
 namespace AbilityKit.Ability.StateSync.Snapshot
 {
-    [Serializable]
-    public struct EntityStateSnapshot
+    [MemoryPackable]
+    public partial struct EntityStateSnapshot
     {
         public long EntityId;
-        public Vec3 position;
-        public Quat rotation;
-        public Vec3 velocity;
-        public byte healthPercent;
+        public Vec3 Position;
+        public Quat Rotation;
+        public Vec3 Velocity;
+        public byte HealthPercent;
         public uint StateFlags;
         public long ActiveAbilityMask;
         public Dictionary<int, float> Cooldowns;
@@ -21,10 +22,10 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         public EntityStateSnapshot(long entityId)
         {
             EntityId = entityId;
-            position = Vec3.Zero;
-            rotation = Quat.Identity;
-            velocity = Vec3.Zero;
-            healthPercent = 100;
+            Position = Vec3.Zero;
+            Rotation = Quat.Identity;
+            Velocity = Vec3.Zero;
+            HealthPercent = 100;
             StateFlags = 0;
             ActiveAbilityMask = 0;
             Cooldowns = new Dictionary<int, float>();
@@ -35,7 +36,7 @@ namespace AbilityKit.Ability.StateSync.Snapshot
 
         public bool HasStateFlag(uint flag) => (StateFlags & flag) != 0;
         public bool HasAbility(long abilityMask) => (ActiveAbilityMask & abilityMask) != 0;
-        public bool IsAlive => healthPercent > 0;
+        public bool IsAlive => HealthPercent > 0;
         public bool IsImmobile => (ControlFlags & (byte)EntityControlFlags.Immobile) != 0;
         public bool IsStunned => (ControlFlags & (byte)EntityControlFlags.Stunned) != 0;
         public bool IsInvulnerable => (ControlFlags & (byte)EntityControlFlags.Invulnerable) != 0;
@@ -55,8 +56,8 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         Sleeping = 1 << 7,
     }
 
-    [Serializable]
-    public struct Vec3
+    [MemoryPackable]
+    public partial struct Vec3
     {
         public float X, Y, Z;
 
@@ -72,7 +73,7 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         public static readonly Vec3 Up = new Vec3(0f, 1f, 0f);
 
         public float MagnitudeSquared() => X * X + Y * Y + Z * Z;
-        public float Magnitude() => (float)System.Math.Sqrt(MagnitudeSquared());
+        public float Magnitude() => (float)Math.Sqrt(MagnitudeSquared());
 
         public static Vec3 operator +(Vec3 a, Vec3 b) => new Vec3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         public static Vec3 operator -(Vec3 a, Vec3 b) => new Vec3(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
@@ -81,14 +82,14 @@ namespace AbilityKit.Ability.StateSync.Snapshot
 
         public bool ApproximatelyEquals(Vec3 other, float epsilon = 0.0001f)
         {
-            return System.Math.Abs(X - other.X) < epsilon &&
-                   System.Math.Abs(Y - other.Y) < epsilon &&
-                   System.Math.Abs(Z - other.Z) < epsilon;
+            return Math.Abs(X - other.X) < epsilon &&
+                   Math.Abs(Y - other.Y) < epsilon &&
+                   Math.Abs(Z - other.Z) < epsilon;
         }
     }
 
-    [Serializable]
-    public struct Quat
+    [MemoryPackable]
+    public partial struct Quat
     {
         public float X, Y, Z, W;
 
@@ -104,15 +105,15 @@ namespace AbilityKit.Ability.StateSync.Snapshot
 
         public bool ApproximatelyEquals(Quat other, float epsilon = 0.0001f)
         {
-            return System.Math.Abs(X - other.X) < epsilon &&
-                   System.Math.Abs(Y - other.Y) < epsilon &&
-                   System.Math.Abs(Z - other.Z) < epsilon &&
-                   System.Math.Abs(W - other.W) < epsilon;
+            return Math.Abs(X - other.X) < epsilon &&
+                   Math.Abs(Y - other.Y) < epsilon &&
+                   Math.Abs(Z - other.Z) < epsilon &&
+                   Math.Abs(W - other.W) < epsilon;
         }
     }
 
-    [Serializable]
-    public struct ProjectileStateSnapshot
+    [MemoryPackable]
+    public partial struct ProjectileStateSnapshot
     {
         public long ProjectileId;
         public long OwnerId;
@@ -125,8 +126,8 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         public byte State;
     }
 
-    [Serializable]
-    public struct AbilityStateSnapshot
+    [MemoryPackable]
+    public partial struct AbilityStateSnapshot
     {
         public long EntityId;
         public int AbilityId;
@@ -137,17 +138,19 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         public byte[] EffectData;
     }
 
-    [Serializable]
-    public class WorldStateSnapshot
+    [MemoryPackable]
+    public partial class WorldStateSnapshot
     {
-        public int Version;
-        public int Frame;
-        public long Timestamp;
-        public List<EntityStateSnapshot> Entities;
-        public List<ProjectileStateSnapshot> Projectiles;
-        public List<AbilityStateSnapshot> Abilities;
-        public uint WorldFlags;
-        public int ActiveTriggerCount;
+        public ulong WorldId { get; set; }
+        public int Version { get; set; }
+        public int Frame { get; set; }
+        public long Timestamp { get; set; }
+        public List<EntityStateSnapshot> Entities { get; set; }
+        public List<ProjectileStateSnapshot> Projectiles { get; set; }
+        public List<AbilityStateSnapshot> Abilities { get; set; }
+        public uint WorldFlags { get; set; }
+        public int ActiveTriggerCount { get; set; }
+        public bool IsFullSnapshot { get; set; } = true;
 
         public WorldStateSnapshot()
         {
@@ -159,14 +162,24 @@ namespace AbilityKit.Ability.StateSync.Snapshot
 
         public const int CurrentVersion = 1;
 
-        public byte[] ToBytes()
+        public static byte[] Serialize(WorldStateSnapshot snapshot)
         {
-            return BinarySerializer.Serialize(this);
+            return MemoryPackSerializer.Serialize(snapshot);
+        }
+
+        public static WorldStateSnapshot Deserialize(byte[] data)
+        {
+            return MemoryPackSerializer.Deserialize<WorldStateSnapshot>(data);
         }
 
         public static WorldStateSnapshot FromBytes(byte[] data)
         {
-            return BinarySerializer.Deserialize<WorldStateSnapshot>(data);
+            return Deserialize(data);
+        }
+
+        public byte[] ToBytes()
+        {
+            return Serialize(this);
         }
 
         public StateHash ComputeHash()
@@ -176,54 +189,8 @@ namespace AbilityKit.Ability.StateSync.Snapshot
 
         public WorldStateSnapshot Clone()
         {
-            var clone = new WorldStateSnapshot
-            {
-                Version = Version,
-                Frame = Frame,
-                Timestamp = Timestamp,
-                WorldFlags = WorldFlags,
-                ActiveTriggerCount = ActiveTriggerCount,
-                Entities = new List<EntityStateSnapshot>(Entities.Count),
-                Projectiles = new List<ProjectileStateSnapshot>(Projectiles.Count),
-                Abilities = new List<AbilityStateSnapshot>(Abilities.Count)
-            };
-
-            foreach (var entity in Entities)
-            {
-                clone.Entities.Add(new EntityStateSnapshot(entity.EntityId)
-                {
-                    position = entity.position,
-                    rotation = entity.rotation,
-                    velocity = entity.velocity,
-                    healthPercent = entity.healthPercent,
-                    StateFlags = entity.StateFlags,
-                    ActiveAbilityMask = entity.ActiveAbilityMask,
-                    Cooldowns = new Dictionary<int, float>(entity.Cooldowns),
-                    BuffTimers = new Dictionary<int, float>(entity.BuffTimers),
-                    TeamId = entity.TeamId,
-                    ControlFlags = entity.ControlFlags
-                });
-            }
-
-            foreach (var projectile in Projectiles)
-            {
-                clone.Projectiles.Add(projectile);
-            }
-
-            foreach (var ability in Abilities)
-            {
-                clone.Abilities.Add(new AbilityStateSnapshot
-                {
-                    EntityId = ability.EntityId,
-                    AbilityId = ability.AbilityId,
-                    BehaviorState = ability.BehaviorState,
-                    ElapsedMs = ability.ElapsedMs,
-                    CooldownRemaining = ability.CooldownRemaining,
-                    IsActive = ability.IsActive,
-                    EffectData = ability.EffectData != null ? (byte[])ability.EffectData.Clone() : null
-                });
-            }
-
+            var bytes = ToBytes();
+            var clone = FromBytes(bytes);
             return clone;
         }
     }

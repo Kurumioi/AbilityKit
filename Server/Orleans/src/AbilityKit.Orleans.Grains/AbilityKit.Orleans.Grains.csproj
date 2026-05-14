@@ -7,12 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.world.statesync\Runtime\**\*.cs"
+             Exclude="..\..\..\..\Unity\Packages\com.abilitykit.world.statesync\Runtime\**\*.asmdef" />
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Orleans.Runtime" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.0.0" PrivateAssets="all" />
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
   </ItemGroup>
 
 </Project>

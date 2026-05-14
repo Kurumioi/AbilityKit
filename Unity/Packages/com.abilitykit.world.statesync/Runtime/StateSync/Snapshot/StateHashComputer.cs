@@ -47,17 +47,17 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         private static ulong ComputeEntityHash(ulong hash, EntityStateSnapshot entity)
         {
             hash = HashCombine(hash, entity.EntityId);
-            hash = HashCombine(hash, entity.position.X);
-            hash = HashCombine(hash, entity.position.Y);
-            hash = HashCombine(hash, entity.position.Z);
-            hash = HashCombine(hash, entity.rotation.X);
-            hash = HashCombine(hash, entity.rotation.Y);
-            hash = HashCombine(hash, entity.rotation.Z);
-            hash = HashCombine(hash, entity.rotation.W);
-            hash = HashCombine(hash, entity.velocity.X);
-            hash = HashCombine(hash, entity.velocity.Y);
-            hash = HashCombine(hash, entity.velocity.Z);
-            hash = HashCombine(hash, entity.healthPercent);
+            hash = HashCombine(hash, entity.Position.X);
+            hash = HashCombine(hash, entity.Position.Y);
+            hash = HashCombine(hash, entity.Position.Z);
+            hash = HashCombine(hash, entity.Rotation.X);
+            hash = HashCombine(hash, entity.Rotation.Y);
+            hash = HashCombine(hash, entity.Rotation.Z);
+            hash = HashCombine(hash, entity.Rotation.W);
+            hash = HashCombine(hash, entity.Velocity.X);
+            hash = HashCombine(hash, entity.Velocity.Y);
+            hash = HashCombine(hash, entity.Velocity.Z);
+            hash = HashCombine(hash, entity.HealthPercent);
             hash = HashCombine(hash, entity.StateFlags);
             hash = HashCombine(hash, entity.ActiveAbilityMask);
             hash = HashCombine(hash, entity.TeamId);

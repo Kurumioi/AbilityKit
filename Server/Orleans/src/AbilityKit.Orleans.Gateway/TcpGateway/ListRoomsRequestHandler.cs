@@ -1,40 +1,55 @@
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Gateway.TcpGateway.Handler;
 using Microsoft.Extensions.Options;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
-public sealed class ListRoomsRequestHandler : ITcpGatewayRequestHandler
+[GatewayHandler(103)]
+public sealed class ListRoomsRequestHandler : RequestHandlerBase
 {
-    private sealed record WireRequest(string SessionToken, string Region, string ServerId, int Offset, int Limit, string? RoomType);
-
     private readonly IClusterClient _clusterClient;
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ITcpGatewaySessionRegistry _registry;
 
-    public ListRoomsRequestHandler(IClusterClient clusterClient, IOptions<TcpGatewayOptions> options, ITcpGatewaySessionRegistry registry)
+    public override uint OpCode => _options.Value.ListRoomsOpCode;
+
+    public ListRoomsRequestHandler(
+        IClusterClient clusterClient,
+        IOptions<TcpGatewayOptions> options,
+        ITcpGatewaySessionRegistry registry)
     {
         _clusterClient = clusterClient;
         _options = options;
         _registry = registry;
     }
 
-    public bool CanHandle(uint opCode) => opCode == _options.Value.ListRoomsOpCode;
-
-    public async Task<TcpGatewayResponseEnvelope> HandleAsync(TcpClientSessionContext context, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    public override async ValueTask<Messages.GatewayResponse> HandleAsync(
+        Messages.GatewayRequest request,
+        TcpClientSessionContext context,
+        CancellationToken cancellationToken)
     {
-        var wire = TcpGatewayJson.Deserialize<WireRequest>(payload.Span);
-        if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
+        ListRoomsWireRequest wire;
+        try
         {
-            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.BadRequest, ReadOnlyMemory<byte>.Empty);
+            wire = GatewaySerializer.Deserialize<ListRoomsWireRequest>(request.Payload);
+        }
+        catch
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
+        }
+
+        if (string.IsNullOrWhiteSpace(wire.SessionToken))
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
         }
 
         var session = _clusterClient.GetGrain<ISessionGrain>("global");
         var v = await session.ValidateAsync(new ValidateSessionRequest(wire.SessionToken));
         if (!v.IsValid || string.IsNullOrWhiteSpace(v.AccountId))
         {
-            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.BadRequest, ReadOnlyMemory<byte>.Empty);
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
         }
 
         _registry.BindToken(wire.SessionToken, context.ConnectionId);
@@ -44,6 +59,30 @@ public sealed class ListRoomsRequestHandler : ITcpGatewayRequestHandler
 
         var req = new ListRoomsRequest(v.AccountId, wire.Region, wire.ServerId, wire.Offset, wire.Limit, wire.RoomType);
         var resp = await directory.ListRoomsAsync(req);
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(resp));
+
+        var responsePayload = GatewaySerializer.Serialize(resp);
+        return Messages.GatewayResponse.Ok(request.Seq, responsePayload);
+    }
+}
+
+[MemoryPack.MemoryPackable]
+public readonly partial struct ListRoomsWireRequest
+{
+    [MemoryPack.MemoryPackOrder(0)] public readonly string SessionToken;
+    [MemoryPack.MemoryPackOrder(1)] public readonly string Region;
+    [MemoryPack.MemoryPackOrder(2)] public readonly string ServerId;
+    [MemoryPack.MemoryPackOrder(3)] public readonly int Offset;
+    [MemoryPack.MemoryPackOrder(4)] public readonly int Limit;
+    [MemoryPack.MemoryPackOrder(5)] public readonly string? RoomType;
+
+    [MemoryPack.MemoryPackConstructor]
+    public ListRoomsWireRequest(string sessionToken, string region, string serverId, int offset, int limit, string? roomType)
+    {
+        SessionToken = sessionToken;
+        Region = region;
+        ServerId = serverId;
+        Offset = offset;
+        Limit = limit;
+        RoomType = roomType;
     }
 }

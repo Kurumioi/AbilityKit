@@ -1,32 +1,47 @@
 using AbilityKit.Orleans.Contracts.Accounts;
+using AbilityKit.Orleans.Gateway.TcpGateway.Handler;
 using Microsoft.Extensions.Options;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
-public sealed class RenewSessionRequestHandler : ITcpGatewayRequestHandler
+[GatewayHandler(110)]
+public sealed class RenewSessionRequestHandler : RequestHandlerBase
 {
-    private sealed record WireRequest(string SessionToken, int ExtendSeconds, bool RotateToken);
-
     private readonly IClusterClient _clusterClient;
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ITcpGatewaySessionRegistry _registry;
 
-    public RenewSessionRequestHandler(IClusterClient clusterClient, IOptions<TcpGatewayOptions> options, ITcpGatewaySessionRegistry registry)
+    public override uint OpCode => _options.Value.RenewSessionOpCode;
+
+    public RenewSessionRequestHandler(
+        IClusterClient clusterClient,
+        IOptions<TcpGatewayOptions> options,
+        ITcpGatewaySessionRegistry registry)
     {
         _clusterClient = clusterClient;
         _options = options;
         _registry = registry;
     }
 
-    public bool CanHandle(uint opCode) => opCode == _options.Value.RenewSessionOpCode;
-
-    public async Task<TcpGatewayResponseEnvelope> HandleAsync(TcpClientSessionContext context, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    public override async ValueTask<Messages.GatewayResponse> HandleAsync(
+        Messages.GatewayRequest request,
+        TcpClientSessionContext context,
+        CancellationToken cancellationToken)
     {
-        var wire = TcpGatewayJson.Deserialize<WireRequest>(payload.Span);
-        if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
+        RenewSessionWireRequest wire;
+        try
         {
-            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.BadRequest, ReadOnlyMemory<byte>.Empty);
+            wire = GatewaySerializer.Deserialize<RenewSessionWireRequest>(request.Payload);
+        }
+        catch
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
+        }
+
+        if (string.IsNullOrWhiteSpace(wire.SessionToken))
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
         }
 
         var oldToken = wire.SessionToken;
@@ -57,6 +72,23 @@ public sealed class RenewSessionRequestHandler : ITcpGatewayRequestHandler
             }
         }
 
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(resp));
+        var responsePayload = GatewaySerializer.Serialize(resp);
+        return Messages.GatewayResponse.Ok(request.Seq, responsePayload);
+    }
+}
+
+[MemoryPack.MemoryPackable]
+public readonly partial struct RenewSessionWireRequest
+{
+    [MemoryPack.MemoryPackOrder(0)] public readonly string SessionToken;
+    [MemoryPack.MemoryPackOrder(1)] public readonly int ExtendSeconds;
+    [MemoryPack.MemoryPackOrder(2)] public readonly bool RotateToken;
+
+    [MemoryPack.MemoryPackConstructor]
+    public RenewSessionWireRequest(string sessionToken, int extendSeconds, bool rotateToken)
+    {
+        SessionToken = sessionToken;
+        ExtendSeconds = extendSeconds;
+        RotateToken = rotateToken;
     }
 }

@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 
+using AbilityKit.Game.Battle.Transport.Moba.Client;
+
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
     /// <summary>
     /// Console 战斗启动配置
     /// 对应 Unity 项目的 BattleStartConfig ScriptableObject
     /// </summary>
-    public sealed class BattleStartConfig : IBattleStartConfigProvider
+    public sealed class BattleStartConfig : IBattleStartConfigProvider, IBattleStartConfig
     {
         /// <summary>
         /// 配置名称
@@ -30,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         public string ClientId { get; set; } = "console_client";
 
         /// <summary>
-        /// 本地玩家 ID
+        /// 本地玩家 ID（字符串）
         /// </summary>
         public string PlayerId { get; set; } = "player_1";
 
@@ -98,6 +100,13 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         /// 获取配置（实现接口）
         /// </summary>
         BattleStartConfig IBattleStartConfigProvider.Config => this;
+
+        int IBattleStartConfig.LocalPlayerId => HashPlayerId(PlayerId);
+
+        private static int HashPlayerId(string playerId)
+        {
+            return playerId.GetHashCode() & 0xFFFF;
+        }
 
         /// <summary>
         /// 构建战斗启动计划

@@ -1,32 +1,47 @@
 using AbilityKit.Orleans.Contracts.Accounts;
+using AbilityKit.Orleans.Gateway.TcpGateway.Handler;
 using Microsoft.Extensions.Options;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
-public sealed class CreateSessionForAccountRequestHandler : ITcpGatewayRequestHandler
+[GatewayHandler(112)]
+public sealed class CreateSessionForAccountRequestHandler : RequestHandlerBase
 {
-    private sealed record WireRequest(string AccountId, int ExpireSeconds, bool KickExisting);
-
     private readonly IClusterClient _clusterClient;
     private readonly IOptions<TcpGatewayOptions> _options;
     private readonly ITcpGatewaySessionRegistry _registry;
 
-    public CreateSessionForAccountRequestHandler(IClusterClient clusterClient, IOptions<TcpGatewayOptions> options, ITcpGatewaySessionRegistry registry)
+    public override uint OpCode => _options.Value.CreateSessionForAccountOpCode;
+
+    public CreateSessionForAccountRequestHandler(
+        IClusterClient clusterClient,
+        IOptions<TcpGatewayOptions> options,
+        ITcpGatewaySessionRegistry registry)
     {
         _clusterClient = clusterClient;
         _options = options;
         _registry = registry;
     }
 
-    public bool CanHandle(uint opCode) => opCode == _options.Value.CreateSessionForAccountOpCode;
-
-    public async Task<TcpGatewayResponseEnvelope> HandleAsync(TcpClientSessionContext context, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    public override async ValueTask<Messages.GatewayResponse> HandleAsync(
+        Messages.GatewayRequest request,
+        TcpClientSessionContext context,
+        CancellationToken cancellationToken)
     {
-        var wire = TcpGatewayJson.Deserialize<WireRequest>(payload.Span);
-        if (wire is null || string.IsNullOrWhiteSpace(wire.AccountId))
+        CreateSessionWireRequest wire;
+        try
         {
-            return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.BadRequest, ReadOnlyMemory<byte>.Empty);
+            wire = GatewaySerializer.Deserialize<CreateSessionWireRequest>(request.Payload);
+        }
+        catch
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
+        }
+
+        if (string.IsNullOrWhiteSpace(wire.AccountId))
+        {
+            return Messages.GatewayResponse.Error(request.Seq, Messages.TcpGatewayStatusCode.BadRequest);
         }
 
         var session = _clusterClient.GetGrain<ISessionGrain>("global");
@@ -40,6 +55,23 @@ public sealed class CreateSessionForAccountRequestHandler : ITcpGatewayRequestHa
             _registry.UnbindToken(resp.KickedSessionToken);
         }
 
-        return new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Ok, TcpGatewayJson.Serialize(resp));
+        var responsePayload = GatewaySerializer.Serialize(resp);
+        return Messages.GatewayResponse.Ok(request.Seq, responsePayload);
+    }
+}
+
+[MemoryPack.MemoryPackable]
+public readonly partial struct CreateSessionWireRequest
+{
+    [MemoryPack.MemoryPackOrder(0)] public readonly string AccountId;
+    [MemoryPack.MemoryPackOrder(1)] public readonly int ExpireSeconds;
+    [MemoryPack.MemoryPackOrder(2)] public readonly bool KickExisting;
+
+    [MemoryPack.MemoryPackConstructor]
+    public CreateSessionWireRequest(string accountId, int expireSeconds, bool kickExisting)
+    {
+        AccountId = accountId;
+        ExpireSeconds = expireSeconds;
+        KickExisting = kickExisting;
     }
 }

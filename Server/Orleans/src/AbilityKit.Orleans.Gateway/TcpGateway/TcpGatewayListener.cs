@@ -5,6 +5,7 @@ using System.Threading;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using AbilityKit.Orleans.Gateway.TcpGateway.StateSync;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
@@ -14,16 +15,23 @@ public sealed class TcpGatewayListener : BackgroundService
     private readonly ILogger<TcpGatewayListener> _logger;
     private readonly TcpGatewayRequestRouter _router;
     private readonly ITcpGatewaySessionRegistry _registry;
+    private readonly IStateSyncHandler _stateSyncHandler;
     private TcpListener? _listener;
     private readonly ConcurrentDictionary<long, TcpClientSession> _sessions = new();
     private long _nextSessionId;
 
-    public TcpGatewayListener(IOptions<TcpGatewayOptions> options, TcpGatewayRequestRouter router, ITcpGatewaySessionRegistry registry, ILogger<TcpGatewayListener> logger)
+    public TcpGatewayListener(
+        IOptions<TcpGatewayOptions> options,
+        TcpGatewayRequestRouter router,
+        ITcpGatewaySessionRegistry registry,
+        ILogger<TcpGatewayListener> logger,
+        IStateSyncHandler stateSyncHandler)
     {
         _options = options;
         _router = router;
         _registry = registry;
         _logger = logger;
+        _stateSyncHandler = stateSyncHandler;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -53,14 +61,18 @@ public sealed class TcpGatewayListener : BackgroundService
                 _ = Task.Run(async () =>
                 {
                     var sessionLogger = _logger;
-                    var session = new TcpClientSession(sessionId, client, opts, _router, sessionLogger);
+                    var session = new TcpClientSession(sessionId, client, opts, _router, sessionLogger, _stateSyncHandler);
 
                     _sessions[sessionId] = session;
                     _registry.Register(sessionId, session);
+
+                    _stateSyncHandler.Subscribe(session.SessionId, session);
+
                     _logger.LogInformation("Tcp session {SessionId} accepted. ActiveSessions={Count}", sessionId, _sessions.Count);
 
                     await session.RunAsync(stoppingToken);
 
+                    _stateSyncHandler.Unsubscribe(session.SessionId);
                     _sessions.TryRemove(sessionId, out _);
                     _registry.Unregister(sessionId);
                     _logger.LogInformation("Tcp session {SessionId} ended. ActiveSessions={Count}", sessionId, _sessions.Count);

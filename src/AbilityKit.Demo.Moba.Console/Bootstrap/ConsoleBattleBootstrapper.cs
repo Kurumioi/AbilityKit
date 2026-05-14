@@ -11,6 +11,8 @@ using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
 using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Battle.Sync;
+using AbilityKit.Demo.Moba.Console.Battle.Sync.View;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Services;
@@ -42,12 +44,26 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly ConsoleSkillExecutor _skillExecutor;
         private readonly RecordConfig _recordConfig;
 
+        // 同步适配器（支持帧同步/状态同步切换）
+        private IBattleSyncAdapter? _syncAdapter;
+        private ConsoleViewBinder? _viewBinder;
+
         private bool _disposed;
         private bool _running;
         private DateTime _lastTick;
         private double _totalTime;
 
         public PlatformComponents Platform { get; }
+
+        /// <summary>
+        /// 同步适配器（帧同步/状态同步）
+        /// </summary>
+        public IBattleSyncAdapter? SyncAdapter => _syncAdapter;
+
+        /// <summary>
+        /// View 绑定器（用于视图插值）
+        /// </summary>
+        public ConsoleViewBinder? ViewBinder => _viewBinder;
 
         /// <summary>
         /// ?? IBattleStartConfigProvider? ???
@@ -127,6 +143,15 @@ namespace AbilityKit.Demo.Moba.Console
             _hudFeature.SetBattleView(_battleView);
 
             _flow.Events.PhaseEntered += OnPhaseEntered;
+
+            // 创建同步适配器（根据配置选择帧同步或状态同步）
+            _syncAdapter = SyncAdapterFactory.Create(_context, _config);
+            _syncAdapter.Initialize(_context, _config);
+
+            // 创建 View 绑定器
+            _viewBinder = new ConsoleViewBinder();
+            _viewBinder.TickRate = _config.TickRate;
+            _viewBinder.BackTimeSeconds = (float)(1.0 / _config.TickRate);
 
             Log.Config($"Config loaded: {_config.Name}, TickRate: {_config.TickRate}, SyncMode: {_config.SyncMode}");
             Log.Config($"MobaConfig: {_mobaConfig.CharacterCount} characters, {_mobaConfig.SkillCount} skills, {_mobaConfig.ProjectileCount} projectiles");
@@ -331,6 +356,17 @@ namespace AbilityKit.Demo.Moba.Console
             _inputHandler.Start();
             _flow.Start();
 
+            // 如果是状态同步模式，连接到服务器
+            if (_syncAdapter is StateSyncAdapter stateSync && _config.SyncMode == BattleSyncMode.SnapshotAuthority)
+            {
+                Log.Sync($"[Bootstrapper] Connecting to server in StateSync mode...");
+                stateSync.Connect(
+                    host: "localhost",
+                    port: 4000,
+                    roomId: _config.WorldId,
+                    playerId: _config.PlayerId);
+            }
+
             _lastTick = DateTime.Now;
             _running = true;
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.Start - Exit, Running=true");
@@ -365,6 +401,20 @@ namespace AbilityKit.Demo.Moba.Console
             _inputFeature.Tick(_context, (float)elapsed);
             _hudFeature.Tick(_context, (float)elapsed);
             _battleView.Tick((float)elapsed);
+
+            // 更新同步适配器
+            _syncAdapter?.Tick((float)elapsed);
+
+            // 更新 View 绑定器（用于状态同步模式下的视图插值）
+            if (_viewBinder != null)
+            {
+                var snapshots = _syncAdapter?.GetAllActorStates() ?? Array.Empty<ActorStateSnapshot>();
+                foreach (var snapshot in snapshots)
+                {
+                    _viewBinder.SyncActor(snapshot.ActorId, snapshot, _syncAdapter?.LogicTimeSeconds ?? _totalTime);
+                }
+                _viewBinder.TickRender((float)elapsed, _syncAdapter?.LogicTimeSeconds ?? _totalTime);
+            }
 
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.Tick - Exit");
         }
@@ -594,6 +644,8 @@ namespace AbilityKit.Demo.Moba.Console
             _hudFeature?.OnDetach(_context);
             _inputFeature?.OnDetach(_context);
             _syncFeature?.OnDetach(_context);
+            _viewBinder?.Dispose();
+            _syncAdapter?.Dispose();
             _flow?.Dispose();
             _battleView?.Dispose();
             _context?.Dispose();

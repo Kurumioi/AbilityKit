@@ -104,7 +104,7 @@ public sealed class TcpGatewaySessionRegistry : ITcpGatewaySessionRegistry
 
         try
         {
-            var payload = TcpGatewayJson.Serialize(new { sessionToken, reason });
+            var payload = GatewaySerializer.Serialize(new { sessionToken, reason });
             await session.SendServerPushAsync(_options.Value.KickPushOpCode, payload, cancellationToken);
             return true;
         }

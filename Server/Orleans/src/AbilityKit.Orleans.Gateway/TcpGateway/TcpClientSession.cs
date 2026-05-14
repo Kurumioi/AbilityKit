@@ -2,28 +2,44 @@ using System.Buffers;
 using System.Net.Sockets;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using AbilityKit.Orleans.Gateway.TcpGateway.StateSync;
+using AbilityKit.Ability.StateSync.Network;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Orleans.Gateway.TcpGateway;
 
-public sealed class TcpClientSession
+/// <summary>
+/// TCP 客户端会话
+/// </summary>
+public sealed class TcpClientSession : IStateSyncClient
 {
     private readonly long _connectionId;
     private readonly TcpClient _client;
     private readonly TcpGatewayOptions _options;
     private readonly TcpGatewayRequestRouter _router;
     private readonly ILogger _logger;
+    private readonly IStateSyncHandler? _stateSyncHandler;
 
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private NetworkStream? _stream;
     private readonly TcpClientSessionContext _context;
 
-    public TcpClientSession(long connectionId, TcpClient client, TcpGatewayOptions options, TcpGatewayRequestRouter router, ILogger logger)
+    public string SessionId => _context.SessionId;
+
+    public TcpClientSession(
+        long connectionId,
+        TcpClient client,
+        TcpGatewayOptions options,
+        TcpGatewayRequestRouter router,
+        ILogger logger,
+        IStateSyncHandler? stateSyncHandler = null)
     {
         _connectionId = connectionId;
         _client = client;
         _options = options;
         _router = router;
         _logger = logger;
+        _stateSyncHandler = stateSyncHandler;
         _context = new TcpClientSessionContext(connectionId);
     }
 
@@ -50,14 +66,17 @@ public sealed class TcpClientSession
                 var offset = 0;
                 while (true)
                 {
-                    if (!NetworkFrameCodec.TryParseFrame(new ReadOnlySpan<byte>(buffer, offset, buffered - offset), out var totalSize, out var header, out _)) break;
+                    if (!NetworkFrameCodec.TryParseFrame(
+                        new ReadOnlySpan<byte>(buffer, offset, buffered - offset),
+                        out var totalSize, out var header, out _))
+                        break;
 
                     if (totalSize > _options.MaxFrameLength)
                     {
                         throw new InvalidOperationException($"Frame too large: {totalSize}");
                     }
 
-                    var payloadOffset = offset + 4 + NetworkPacketHeader.Size;
+                    var payloadOffset = offset + NetworkFrameCodec.HeaderLength;
                     var payloadMemory = new ReadOnlyMemory<byte>(buffer, payloadOffset, (int)header.PayloadLength);
                     await HandlePacketAsync(stream, header, payloadMemory, cancellationToken);
 
@@ -89,10 +108,7 @@ public sealed class TcpClientSession
     public async Task SendServerPushAsync(uint opCode, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
     {
         var stream = _stream;
-        if (stream is null)
-        {
-            return;
-        }
+        if (stream is null) return;
 
         var header = new NetworkPacketHeader(NetworkPacketFlags.ServerPush, opCode, 0, (uint)payload.Length);
         await SendFrameAsync(stream, header, payload, cancellationToken);
@@ -100,7 +116,7 @@ public sealed class TcpClientSession
 
     private static byte[] EnsureCapacity(byte[] buffer, int buffered, int maxFrameLength)
     {
-        var maxAllowed = Math.Max(4 + NetworkPacketHeader.Size, maxFrameLength);
+        var maxAllowed = Math.Max(NetworkFrameCodec.HeaderLength, maxFrameLength);
 
         if (buffered < buffer.Length) return buffer;
         if (buffer.Length >= maxAllowed) throw new InvalidOperationException($"Receive buffer overflow. Max={maxAllowed}");
@@ -116,33 +132,33 @@ public sealed class TcpClientSession
     {
         if ((header.Flags & NetworkPacketFlags.Heartbeat) != 0)
         {
-            await SendFrameAsync(stream, new NetworkPacketHeader(NetworkPacketFlags.Heartbeat | NetworkPacketFlags.Response, header.OpCode, header.Seq, 0), ReadOnlyMemory<byte>.Empty, cancellationToken);
-
+            await SendFrameAsync(stream,
+                new NetworkPacketHeader(NetworkPacketFlags.Heartbeat | NetworkPacketFlags.Response, header.OpCode, header.Seq, 0),
+                ReadOnlyMemory<byte>.Empty, cancellationToken);
             return;
         }
 
         if ((header.Flags & NetworkPacketFlags.Request) != 0)
         {
-            TcpGatewayResponseEnvelope envelope;
+            Messages.GatewayResponse response;
             try
             {
-                envelope = await _router.RouteAsync(_context, header, payload, cancellationToken);
+                response = await _router.RouteAsync(_context, header, payload, cancellationToken);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "RouteAsync failed. OpCode={OpCode} Seq={Seq}", header.OpCode, header.Seq);
-                envelope = new TcpGatewayResponseEnvelope(TcpGatewayStatusCode.Exception, ReadOnlyMemory<byte>.Empty);
+                response = Messages.GatewayResponse.Error(header.Seq, Messages.TcpGatewayStatusCode.Exception);
             }
 
-            var responsePayload = TcpGatewayResponseCodec.Serialize(envelope);
-
+            var responsePayload = GatewaySerializer.Serialize(response);
             var respHeader = new NetworkPacketHeader(NetworkPacketFlags.Response, header.OpCode, header.Seq, (uint)responsePayload.Length);
             await SendFrameAsync(stream, respHeader, responsePayload, cancellationToken);
-
             return;
         }
 
-        _logger.LogInformation("Received packet: OpCode={OpCode} Seq={Seq} Flags={Flags} PayloadLength={PayloadLength}", header.OpCode, header.Seq, (ushort)header.Flags, header.PayloadLength);
+        _logger.LogInformation("Received packet: OpCode={OpCode} Seq={Seq} Flags={Flags} PayloadLength={PayloadLength}",
+            header.OpCode, header.Seq, (ushort)header.Flags, header.PayloadLength);
     }
 
     private async Task SendFrameAsync(NetworkStream stream, NetworkPacketHeader header, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
@@ -165,6 +181,21 @@ public sealed class TcpClientSession
         finally
         {
             _writeLock.Release();
+        }
+    }
+
+    // IStateSyncClient implementation
+    void IStateSyncClient.OnSnapshotReceived(SnapshotMessage notification)
+    {
+        try
+        {
+            var payload = notification.Pack();
+            _ = SendServerPushAsync(OpCodes.SnapshotPushed, payload, CancellationToken.None);
+            _logger.LogDebug("[TcpClientSession] Snapshot pushed: Frame={Frame}", notification.Frame);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[TcpClientSession] Failed to push snapshot");
         }
     }
 }

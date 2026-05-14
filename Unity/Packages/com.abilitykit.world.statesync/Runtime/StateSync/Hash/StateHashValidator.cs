@@ -97,16 +97,16 @@ namespace AbilityKit.Ability.StateSync.Hash
                 if (ce.EntityId != se.EntityId)
                     return DesyncType.Unknown;
 
-                if (!ce.position.ApproximatelyEquals(se.position, 0.01f))
+                if (!ce.Position.ApproximatelyEquals(se.Position, 0.01f))
                     return DesyncType.Position;
 
-                if (!ce.rotation.ApproximatelyEquals(se.rotation, 0.01f))
+                if (!ce.Rotation.ApproximatelyEquals(se.Rotation, 0.01f))
                     return DesyncType.Rotation;
 
-                if (!ce.velocity.ApproximatelyEquals(se.velocity, 0.01f))
+                if (!ce.Velocity.ApproximatelyEquals(se.Velocity, 0.01f))
                     return DesyncType.Velocity;
 
-                if (ce.healthPercent != se.healthPercent)
+                if (ce.HealthPercent != se.HealthPercent)
                     return DesyncType.Health;
 
                 if (ce.StateFlags != se.StateFlags)

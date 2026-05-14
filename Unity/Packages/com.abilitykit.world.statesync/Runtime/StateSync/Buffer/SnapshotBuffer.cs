@@ -229,10 +229,10 @@ namespace AbilityKit.Ability.StateSync.Buffer
         {
             return new EntityStateSnapshot(a.EntityId)
             {
-                position = LerpVec3(a.position, b.position, t),
-                rotation = LerpQuat(a.rotation, b.rotation, t),
-                velocity = LerpVec3(a.velocity, b.velocity, t),
-                healthPercent = (byte)(a.healthPercent + (b.healthPercent - a.healthPercent) * t),
+                Position = LerpVec3(a.Position, b.Position, t),
+                Rotation = LerpQuat(a.Rotation, b.Rotation, t),
+                Velocity = LerpVec3(a.Velocity, b.Velocity, t),
+                HealthPercent = (byte)(a.HealthPercent + (b.HealthPercent - a.HealthPercent) * t),
                 StateFlags = t < 0.5f ? a.StateFlags : b.StateFlags,
                 ActiveAbilityMask = t < 0.5f ? a.ActiveAbilityMask : b.ActiveAbilityMask,
                 Cooldowns = t < 0.5f ? a.Cooldowns : b.Cooldowns,

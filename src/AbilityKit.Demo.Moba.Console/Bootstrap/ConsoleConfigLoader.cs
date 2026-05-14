@@ -23,6 +23,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                     var config = Newtonsoft.Json.JsonConvert.DeserializeObject<BattleStartConfig>(json);
                     if (config != null)
                     {
+                        // 应用环境变量覆盖
+                        ApplyEnvironmentOverrides(config);
                         Log.System($"Loaded BattleStartConfig from: {configPath}");
                         return config;
                     }
@@ -34,7 +36,32 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             }
 
             Log.System("Using default BattleStartConfig");
-            return BattleStartConfig.CreateDefault();
+            var defaultConfig = BattleStartConfig.CreateDefault();
+            ApplyEnvironmentOverrides(defaultConfig);
+            return defaultConfig;
+        }
+
+        /// <summary>
+        /// 应用环境变量覆盖配置
+        /// 支持以下环境变量：
+        /// - SYNC_MODE: Lockstep, SnapshotAuthority, Hybrid
+        /// </summary>
+        private static void ApplyEnvironmentOverrides(BattleStartConfig config)
+        {
+            // 检查 SYNC_MODE 环境变量
+            var syncMode = Environment.GetEnvironmentVariable("SYNC_MODE");
+            if (!string.IsNullOrEmpty(syncMode))
+            {
+                if (Enum.TryParse<BattleSyncMode>(syncMode, ignoreCase: true, out var mode))
+                {
+                    config.SyncMode = mode;
+                    Log.System($"[ConfigOverride] SyncMode set to: {mode}");
+                }
+                else
+                {
+                    Log.Warn($"[ConfigOverride] Unknown SyncMode: {syncMode}, ignoring");
+                }
+            }
         }
 
         public static MobaConfigDatabase LoadMobaConfig(ITextAssetLoader? loader = null)

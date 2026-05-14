@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.StateSync.Buffer;
 using AbilityKit.Ability.StateSync.Diff;
 using AbilityKit.Ability.StateSync.Snapshot;
+using MemoryPack;
 
 namespace AbilityKit.Ability.StateSync
 {
@@ -158,12 +159,12 @@ namespace AbilityKit.Ability.StateSync
 
         private byte[] SerializeEntitySnapshot(EntityStateSnapshot snapshot)
         {
-            return BinarySerializer.SerializeObject(snapshot);
+            return MemoryPackSerializer.Serialize(snapshot);
         }
 
         private EntityStateSnapshot DeserializeEntitySnapshot(byte[] data)
         {
-            return (EntityStateSnapshot)BinarySerializer.DeserializeObject(data, typeof(EntityStateSnapshot));
+            return MemoryPackSerializer.Deserialize<EntityStateSnapshot>(data);
         }
     }
 }

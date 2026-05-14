@@ -28,6 +28,7 @@ public sealed class TcpGatewayOptions
 
     public uint SubmitFrameInputOpCode { get; set; } = 2001;
     public uint FramePushedOpCode { get; set; } = 9001;
+    public uint SnapshotPushedOpCode { get; set; } = 9002;
 
     public uint KickPushOpCode { get; set; } = 9000;
 
