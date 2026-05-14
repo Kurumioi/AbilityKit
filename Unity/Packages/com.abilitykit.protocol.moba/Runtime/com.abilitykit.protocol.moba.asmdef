@@ -5,6 +5,7 @@
     "AbilityKit.Core",
     "AbilityKit.Protocol",
     "AbilityKit.Host",
+    "AbilityKit.Ability",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.DI",
     "AbilityKit.World.Snapshot",

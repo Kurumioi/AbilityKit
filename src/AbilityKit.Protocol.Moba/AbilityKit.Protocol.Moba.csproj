@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Protocol/AbilityKit.Protocol.csproj" />

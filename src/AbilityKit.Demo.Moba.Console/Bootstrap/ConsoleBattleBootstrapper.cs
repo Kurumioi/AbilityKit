@@ -360,11 +360,19 @@ namespace AbilityKit.Demo.Moba.Console
             if (_syncAdapter is StateSyncAdapter stateSync && _config.SyncMode == BattleSyncMode.SnapshotAuthority)
             {
                 Log.Sync($"[Bootstrapper] Connecting to server in StateSync mode...");
-                stateSync.Connect(
-                    host: "localhost",
-                    port: 4000,
-                    roomId: _config.WorldId,
-                    playerId: _config.PlayerId);
+                if (_config.Network != null)
+                {
+                    stateSync.Connect();
+                }
+                else
+                {
+                    // 使用命令行参数或默认值
+                    stateSync.Connect(
+                        host: "localhost",
+                        port: 4000,
+                        roomId: _config.WorldId,
+                        playerId: _config.PlayerId);
+                }
             }
 
             _lastTick = DateTime.Now;
@@ -517,7 +525,7 @@ namespace AbilityKit.Demo.Moba.Console
 
         private static int HashPlayerId(string playerId)
         {
-            return playerId.GetHashCode() & 0xFFFF;
+            return DeterministicHash.StringToActorId(playerId);
         }
 
         public void RegisterDemoEntities()

@@ -1,22 +1,21 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Game.Battle.Transport.Moba;
+using AbilityKit.Protocol.Moba.FrameSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
 
 /// <summary>
 /// 状态同步适配器
-/// 连接 Orleans Server，接收状态快照并应用
+/// 连接网络服务器，接收状态快照并应用
 /// </summary>
 public sealed class StateSyncAdapter : IBattleSyncAdapter
 {
     private ConsoleBattleContext _context;
     private BattleStartConfig _config;
-    private OrleansGatewayClient? _gatewayClient;
+    private TcpNetworkClient? _gatewayClient;
     private bool _initialized;
     private bool _connected;
     private int _currentFrame;
@@ -25,14 +24,14 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
     private int _localActorId;
 
     private string _roomId = string.Empty;
+    private ulong _numericRoomId;
     private string _playerId = string.Empty;
-    private string _host = "localhost";
-    private int _port = 4000;
 
     private readonly List<ActorStateSnapshot> _actorStates = new();
     private readonly Dictionary<int, ActorStateSnapshot> _latestActorStates = new();
     private readonly object _statesLock = new();
-    private CancellationTokenSource? _syncCts;
+
+    private NetworkConfig _networkConfig = new();
 
     public SyncMode Mode => SyncMode.StateSync;
     public bool IsConnected => _connected && (_gatewayClient?.IsConnected ?? false);
@@ -54,8 +53,9 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
         _currentFrame = 0;
         _logicTimeSeconds = 0;
         _renderTimeSeconds = 0;
-        _localActorId = _config.Players?.Count > 0
-            ? HashPlayerId(_config.Players[0].PlayerId)
+        _networkConfig = config.Network ?? new NetworkConfig();
+        _localActorId = config.Players?.Count > 0
+            ? DeterministicHash.StringToActorId(_config.Players[0].PlayerId)
             : 1;
 
         Platform.Log.Sync($"[StateSync] Initialized - Mode: {Mode}, LocalActorId: {_localActorId}");
@@ -66,12 +66,10 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
         if (!_initialized)
             throw new InvalidOperationException("StateSyncAdapter not initialized. Call Initialize first.");
 
-        _host = host;
-        _port = port;
         _roomId = roomId;
         _playerId = playerId;
 
-        _gatewayClient = new OrleansGatewayClient();
+        _gatewayClient = new TcpNetworkClient();
         _gatewayClient.OnConnected += OnGatewayConnected;
         _gatewayClient.OnDisconnected += OnGatewayDisconnected;
         _gatewayClient.OnServerPush += OnServerPush;
@@ -81,18 +79,26 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
         _gatewayClient.Connect(host, port);
     }
 
+    /// <summary>
+    /// 使用配置连接
+    /// </summary>
+    public void Connect()
+    {
+        Connect(_networkConfig.Host, _networkConfig.Port, _roomId, _playerId);
+    }
+
     private async void OnGatewayConnected()
     {
-        Platform.Log.Sync("[StateSync] Connected to Gateway, logging in...");
+        Platform.Log.Sync("[StateSync] Connected to server, logging in...");
 
         try
         {
             // 1. Guest Login
-            var loginPayload = GatewayProtocol.EncodeGuestLoginReq(_playerId);
+            var loginPayload = NetworkProtocol.EncodeGuestLoginReq(_playerId);
             var loginResp = await _gatewayClient!.SendRequestAsync(
-                GatewayOpCodes.GuestLogin, loginPayload);
+                NetworkOpCodes.GuestLogin, loginPayload);
 
-            var loginResult = GatewayProtocol.DecodeGuestLoginResp(loginResp);
+            var loginResult = NetworkProtocol.DecodeGuestLoginResp(loginResp);
             if (!loginResult.Success)
             {
                 Platform.Log.Sync($"[StateSync] Login failed: {loginResult.Message}");
@@ -105,31 +111,44 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
             bool roomJoined = false;
             if (!string.IsNullOrEmpty(_roomId))
             {
-                // Try to join existing room
-                var joinPayload = GatewayProtocol.EncodeJoinRoomReq(_roomId, _roomId);
+                var joinPayload = NetworkProtocol.EncodeJoinRoomReq(_playerId, roomId: _roomId);
                 var joinResp = await _gatewayClient.SendRequestAsync(
-                    GatewayOpCodes.JoinRoom, joinPayload);
+                    NetworkOpCodes.JoinRoom, joinPayload);
 
-                var joinResult = GatewayProtocol.DecodeJoinRoomResp(joinResp);
+                var joinResult = NetworkProtocol.DecodeJoinRoomResp(joinResp);
                 if (joinResult.Success)
                 {
-                    Platform.Log.Sync($"[StateSync] Joined room: {_roomId}");
+                    _numericRoomId = joinResult.NumericRoomId;
+                    Platform.Log.Sync($"[StateSync] Joined room: {_roomId}, NumericId: {_numericRoomId}");
                     roomJoined = true;
                 }
             }
 
             if (!roomJoined)
             {
-                // Create new room
-                var createPayload = GatewayProtocol.EncodeCreateRoomReq(_roomId);
+                var createPayload = NetworkProtocol.EncodeCreateRoomReq(
+                    _playerId,
+                    title: _roomId);
                 var createResp = await _gatewayClient.SendRequestAsync(
-                    GatewayOpCodes.CreateRoom, createPayload);
+                    NetworkOpCodes.CreateRoom, createPayload);
 
-                var createResult = GatewayProtocol.DecodeCreateRoomResp(createResp);
+                var createResult = NetworkProtocol.DecodeCreateRoomResp(createResp);
                 if (createResult.Success)
                 {
                     _roomId = createResult.RoomId;
                     Platform.Log.Sync($"[StateSync] Created room: {_roomId}");
+
+                    // Join the created room to get numeric ID
+                    var rejoinPayload = NetworkProtocol.EncodeJoinRoomReq(_playerId, roomId: _roomId);
+                    var rejoinResp = await _gatewayClient.SendRequestAsync(
+                        NetworkOpCodes.JoinRoom, rejoinPayload);
+                    var rejoinResult = NetworkProtocol.DecodeJoinRoomResp(rejoinResp);
+                    if (rejoinResult.Success)
+                    {
+                        _numericRoomId = rejoinResult.NumericRoomId;
+                        Platform.Log.Sync($"[StateSync] Rejoined room, NumericId: {_numericRoomId}");
+                    }
+
                     roomJoined = true;
                 }
             }
@@ -137,11 +156,6 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
             if (roomJoined)
             {
                 _connected = true;
-                _syncCts = new CancellationTokenSource();
-
-                // Start sync loop
-                _ = SyncLoop(_syncCts.Token);
-
                 OnConnectionChanged?.Invoke(true);
             }
         }
@@ -156,23 +170,23 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
     {
         _connected = false;
         OnConnectionChanged?.Invoke(false);
-        Platform.Log.Sync($"[StateSync] Disconnected from Gateway: {reason}");
+        Platform.Log.Sync($"[StateSync] Disconnected from server: {reason}");
     }
 
     private void OnGatewayError(Exception ex)
     {
-        Platform.Log.Sync($"[StateSync] Gateway error: {ex.Message}");
+        Platform.Log.Sync($"[StateSync] Server error: {ex.Message}");
     }
 
     private void OnServerPush(uint opCode, byte[] payload)
     {
         switch (opCode)
         {
-            case GatewayOpCodes.FramePushed:
+            case NetworkOpCodes.FramePushed:
                 HandleFramePushed(payload);
                 break;
 
-            case GatewayOpCodes.SnapshotPushed:
+            case NetworkOpCodes.SnapshotPushed:
                 HandleSnapshotPushed(payload);
                 break;
 
@@ -234,7 +248,7 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
     {
         try
         {
-            var frameData = GatewayProtocol.DecodeFramePushed(payload);
+            var frameData = NetworkProtocol.DecodeFramePushed(payload);
 
             lock (_statesLock)
             {
@@ -242,7 +256,7 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
 
                 foreach (var input in frameData.Inputs)
                 {
-                    if (input.OpCode == MobaOpCode.Move && input.Payload != null && input.Payload.Length > 0)
+                    if (input.OpCode == InputOpCodes.Move && input.Payload != null && input.Payload.Length > 0)
                     {
                         Platform.Log.Sync($"[StateSync] Remote input - Frame:{frameData.Frame} OpCode:{input.OpCode}");
                     }
@@ -257,34 +271,8 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
         }
     }
 
-    private async Task SyncLoop(CancellationToken cancellationToken)
-    {
-        Platform.Log.Sync("[StateSync] Sync loop started");
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _connected)
-            {
-                await Task.Delay(33, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            Platform.Log.Sync($"[StateSync] Sync loop error: {ex.Message}");
-        }
-
-        Platform.Log.Sync("[StateSync] Sync loop ended");
-    }
-
     public void Disconnect()
     {
-        _syncCts?.Cancel();
-        _syncCts?.Dispose();
-        _syncCts = null;
-
         _gatewayClient?.Dispose();
         _gatewayClient = null;
 
@@ -297,15 +285,15 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
     {
         if (!_connected || _gatewayClient == null) return;
 
-        var payload = GatewayProtocol.EncodeSubmitFrameInput(
-            _roomId,
+        var payload = NetworkProtocol.EncodeSubmitFrameInput(
+            _numericRoomId,
             worldId: 0,
             frame: _currentFrame,
             playerId: (uint)LocalActorId,
-            inputOpCode: (uint)input.OpCode,
+            inputOpCode: (int)input.OpCode,
             inputPayload: input.Payload);
 
-        _ = _gatewayClient.SendServerPushAsync(GatewayOpCodes.SubmitFrameInput, payload);
+        _ = _gatewayClient.SendServerPushAsync(NetworkOpCodes.SubmitFrameInput, payload);
     }
 
     public void Tick(float deltaTime)
@@ -335,11 +323,6 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
         {
             _latestActorStates[snapshot.ActorId] = snapshot;
         }
-    }
-
-    private static int HashPlayerId(string playerId)
-    {
-        return playerId.GetHashCode() & 0xFFFF;
     }
 
     public void Dispose()

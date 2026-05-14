@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using AbilityKit.Game.Battle.Transport;
 
 namespace AbilityKit.Game.Battle.Transport.Moba.Client
 {
@@ -72,7 +73,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
     /// </summary>
     public sealed class StateSyncAdapter : IStateSyncAdapter
     {
-        private readonly GatewaySession _session;
+        private NetworkSession _session;
         private readonly SnapshotPushHandler _snapshotHandler;
         private readonly FrameInputPushHandler _frameInputHandler;
 
@@ -82,6 +83,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
         private int _currentFrame;
         private int _localActorId;
         private string _roomId = string.Empty;
+        private ulong _numericRoomId;
         private string _playerId = string.Empty;
         private CancellationTokenSource _syncCts;
 
@@ -90,16 +92,35 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
         public int CurrentFrame => _currentFrame;
         public int LocalActorId => _localActorId;
 
+        private INetworkClient _gatewayClient;
+        public INetworkClient GatewayClient
+        {
+            get => _gatewayClient;
+            set
+            {
+                _gatewayClient = value;
+                if (_gatewayClient != null && _session == null)
+                {
+                    CreateSession();
+                }
+            }
+        }
+
         public event Action<bool> OnConnectionChanged;
         public event Action<int> OnFrameAdvanced;
         public event Action<IWorldSnapshot> OnSnapshotReceived;
 
         public StateSyncAdapter()
         {
-            _session = new GatewaySession();
             _snapshotHandler = new SnapshotPushHandler(HandleSnapshot);
             _frameInputHandler = new FrameInputPushHandler(HandleFrameInput);
+        }
 
+        private void CreateSession()
+        {
+            if (_gatewayClient == null) return;
+
+            _session = new NetworkSession(_gatewayClient);
             _session.OnStateChanged += OnSessionStateChanged;
             _session.Subscribe(_snapshotHandler);
             _session.Subscribe(_frameInputHandler);
@@ -138,12 +159,24 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
                 {
                     var joinResult = await _session.JoinRoomAsync(_roomId);
                     roomJoined = joinResult.Success;
+                    if (joinResult.Success)
+                    {
+                        _numericRoomId = joinResult.NumericRoomId;
+                    }
                 }
 
                 if (!roomJoined)
                 {
                     var createResult = await _session.CreateRoomAsync(_roomId);
                     roomJoined = createResult.Success;
+                    if (createResult.Success)
+                    {
+                        var joinResult = await _session.JoinRoomAsync(createResult.RoomId);
+                        if (joinResult.Success)
+                        {
+                            _numericRoomId = joinResult.NumericRoomId;
+                        }
+                    }
                 }
 
                 if (roomJoined)
@@ -179,7 +212,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
         {
             if (!_isConnected) return;
 
-            await _session.SubmitFrameInputAsync(_roomId, 0, _currentFrame, playerId, opCode, payload);
+            await _session.SubmitFrameInputAsync(_numericRoomId, 0, _currentFrame, playerId, (int)opCode, payload);
         }
 
         public void Tick(float deltaTime)
@@ -218,7 +251,8 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
                 _syncCts.Cancel();
                 _syncCts.Dispose();
             }
-            _session.Dispose();
+            _session?.Dispose();
+            _session = null;
         }
     }
 }

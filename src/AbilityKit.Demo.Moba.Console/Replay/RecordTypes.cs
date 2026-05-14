@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using MemoryPack;
 
 namespace AbilityKit.Demo.Moba.Console.Replay
 {
@@ -18,14 +20,16 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     /// <summary>
     /// 玩家输入命令
     /// </summary>
-    public readonly struct PlayerInputCommand
+    [MemoryPackable]
+    public readonly partial struct PlayerInputCommand
     {
-        public int ActorId { get; }
-        public int Frame { get; }
-        public InputCommandType Type { get; }
-        public byte OpCode { get; }
-        public byte[] Payload { get; }
+        [MemoryPackOrder(0)] public int ActorId { get; }
+        [MemoryPackOrder(1)] public int Frame { get; }
+        [MemoryPackOrder(2)] public InputCommandType Type { get; }
+        [MemoryPackOrder(3)] public byte OpCode { get; }
+        [MemoryPackOrder(4)] public byte[] Payload { get; }
 
+        [MemoryPackConstructor]
         public PlayerInputCommand(int actorId, int frame, InputCommandType type, byte opCode, byte[] payload)
         {
             ActorId = actorId;
@@ -33,30 +37,6 @@ namespace AbilityKit.Demo.Moba.Console.Replay
             Type = type;
             OpCode = opCode;
             Payload = payload ?? Array.Empty<byte>();
-        }
-
-        public static PlayerInputCommand Read(BinaryReader reader)
-        {
-            var actorId = reader.ReadInt32();
-            var frame = reader.ReadInt32();
-            var type = (InputCommandType)reader.ReadByte();
-            var opcode = reader.ReadByte();
-            var payloadLen = reader.ReadInt32();
-            var payload = payloadLen > 0 ? reader.ReadBytes(payloadLen) : Array.Empty<byte>();
-            return new PlayerInputCommand(actorId, frame, type, opcode, payload);
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write(ActorId);
-            writer.Write(Frame);
-            writer.Write((byte)Type);
-            writer.Write(OpCode);
-            writer.Write(Payload.Length);
-            if (Payload.Length > 0)
-            {
-                writer.Write(Payload);
-            }
         }
 
         public override string ToString()
@@ -68,29 +48,18 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     /// <summary>
     /// 帧状态快照（用于校验）
     /// </summary>
-    public readonly struct FrameSnapshot
+    [MemoryPackable]
+    public readonly partial struct FrameSnapshot
     {
-        public int Frame { get; }
-        public int ActorCount { get; }
-        public uint StateHash { get; }
+        [MemoryPackOrder(0)] public int Frame { get; }
+        [MemoryPackOrder(1)] public int ActorCount { get; }
+        [MemoryPackOrder(2)] public uint StateHash { get; }
 
         public FrameSnapshot(int frame, int actorCount, uint stateHash)
         {
             Frame = frame;
             ActorCount = actorCount;
             StateHash = stateHash;
-        }
-
-        public static FrameSnapshot Read(BinaryReader reader)
-        {
-            return new FrameSnapshot(reader.ReadInt32(), reader.ReadInt32(), reader.ReadUInt32());
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write(Frame);
-            writer.Write(ActorCount);
-            writer.Write(StateHash);
         }
     }
 
@@ -171,10 +140,20 @@ namespace AbilityKit.Demo.Moba.Console.Replay
             Header.Write(writer);
 
             writer.Write(Commands.Count);
-            foreach (var cmd in Commands) cmd.Write(writer);
+            foreach (var cmd in Commands)
+            {
+                var bytes = MemoryPackSerializer.Serialize(cmd);
+                writer.Write(bytes.Length);
+                writer.Write(bytes);
+            }
 
             writer.Write(Snapshots.Count);
-            foreach (var snap in Snapshots) snap.Write(writer);
+            foreach (var snap in Snapshots)
+            {
+                var bytes = MemoryPackSerializer.Serialize(snap);
+                writer.Write(bytes.Length);
+                writer.Write(bytes);
+            }
         }
 
         public static LockstepInputRecordFile ReadFromStream(Stream stream)
@@ -186,11 +165,27 @@ namespace AbilityKit.Demo.Moba.Console.Replay
 
             var cmdCount = reader.ReadInt32();
             for (int i = 0; i < cmdCount; i++)
-                file.Commands.Add(PlayerInputCommand.Read(reader));
+            {
+                var len = reader.ReadInt32();
+                if (len > 0)
+                {
+                    var bytes = reader.ReadBytes(len);
+                    var cmd = MemoryPackSerializer.Deserialize<PlayerInputCommand>(bytes);
+                    file.Commands.Add(cmd);
+                }
+            }
 
             var snapCount = reader.ReadInt32();
             for (int i = 0; i < snapCount; i++)
-                file.Snapshots.Add(FrameSnapshot.Read(reader));
+            {
+                var len = reader.ReadInt32();
+                if (len > 0)
+                {
+                    var bytes = reader.ReadBytes(len);
+                    var snap = MemoryPackSerializer.Deserialize<FrameSnapshot>(bytes);
+                    file.Snapshots.Add(snap);
+                }
+            }
 
             return file;
         }

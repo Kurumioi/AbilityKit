@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-
+using System.ComponentModel;
 using AbilityKit.Game.Battle.Transport.Moba.Client;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
@@ -92,6 +92,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         public bool EnableClientPrediction { get; set; } = false;
 
         /// <summary>
+        /// 网络连接配置
+        /// </summary>
+        [Description("网络连接配置（状态同步模式使用）")]
+        public NetworkConfig? Network { get; set; }
+
+        /// <summary>
         /// 玩家配置列表
         /// </summary>
         public List<PlayerConfig> Players { get; set; } = new();
@@ -101,12 +107,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         /// </summary>
         BattleStartConfig IBattleStartConfigProvider.Config => this;
 
-        int IBattleStartConfig.LocalPlayerId => HashPlayerId(PlayerId);
-
-        private static int HashPlayerId(string playerId)
-        {
-            return playerId.GetHashCode() & 0xFFFF;
-        }
+        int IBattleStartConfig.LocalPlayerId => DeterministicHash.StringToActorId(PlayerId);
 
         /// <summary>
         /// 构建战斗启动计划

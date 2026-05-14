@@ -72,6 +72,11 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
         int CurrentFrame { get; }
         int LocalActorId { get; }
 
+        /// <summary>
+        /// 网络客户端实现，可替换
+        /// </summary>
+        INetworkClient GatewayClient { get; set; }
+
         event Action<bool> OnConnectionChanged;
         event Action<int> OnFrameAdvanced;
         event Action<IWorldSnapshot> OnSnapshotReceived;

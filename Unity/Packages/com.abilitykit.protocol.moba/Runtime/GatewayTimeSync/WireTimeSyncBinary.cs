@@ -1,92 +1,58 @@
 using System;
-using System.Buffers.Binary;
-using System.IO;
-using System.Text;
+using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba.GatewayTimeSync
 {
+    /// <summary>
+    /// Wire 类型的时间同步协议编解码器
+    /// 使用 MemoryPack 进行高效序列化
+    /// </summary>
     public static class WireTimeSyncBinary
     {
         public static ArraySegment<byte> Serialize(in WireTimeSyncReq req)
         {
-            var bytes = new byte[8];
-            var written = Write(in req, bytes);
-            if (written == bytes.Length) return new ArraySegment<byte>(bytes);
-
-            var trimmed = new byte[written];
-            Buffer.BlockCopy(bytes, 0, trimmed, 0, written);
-            return new ArraySegment<byte>(trimmed);
+            var bytes = MemoryPackSerializer.Serialize(req);
+            return new ArraySegment<byte>(bytes);
         }
 
         public static ArraySegment<byte> Serialize(in WireTimeSyncRes res)
         {
-            var bytes = new byte[8 + 8 + 8];
-            var written = Write(in res, bytes);
-            if (written == bytes.Length) return new ArraySegment<byte>(bytes);
-
-            var trimmed = new byte[written];
-            Buffer.BlockCopy(bytes, 0, trimmed, 0, written);
-            return new ArraySegment<byte>(trimmed);
+            var bytes = MemoryPackSerializer.Serialize(res);
+            return new ArraySegment<byte>(bytes);
         }
 
         public static WireTimeSyncReq DeserializeTimeSyncReq(ArraySegment<byte> payload)
         {
-            return DeserializeTimeSyncReq(payload.Array == null
-                ? ReadOnlySpan<byte>.Empty
-                : new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count));
+            if (payload.Array == null || payload.Count == 0)
+                return default;
+
+            var span = new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count);
+            return MemoryPackSerializer.Deserialize<WireTimeSyncReq>(span);
         }
 
         public static WireTimeSyncReq DeserializeTimeSyncReq(ReadOnlySpan<byte> payload)
         {
-            return ReadTimeSyncReq(payload);
+            if (payload.Length == 0)
+                return default;
+
+            return MemoryPackSerializer.Deserialize<WireTimeSyncReq>(payload);
         }
 
         public static WireTimeSyncRes DeserializeTimeSyncRes(ArraySegment<byte> payload)
         {
-            return DeserializeTimeSyncRes(payload.Array == null
-                ? ReadOnlySpan<byte>.Empty
-                : new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count));
+            if (payload.Array == null || payload.Count == 0)
+                return default;
+
+            var span = new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count);
+            return MemoryPackSerializer.Deserialize<WireTimeSyncRes>(span);
         }
 
         public static WireTimeSyncRes DeserializeTimeSyncRes(ReadOnlySpan<byte> payload)
         {
-            return ReadTimeSyncRes(payload);
-        }
+            if (payload.Length == 0)
+                return default;
 
-        private static int Write(in WireTimeSyncReq req, byte[] buffer)
-        {
-            using var ms = new MemoryStream(buffer);
-            using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
-            bw.Write(req.ClientSendTicks);
-            bw.Flush();
-            return (int)ms.Position;
-        }
-
-        private static int Write(in WireTimeSyncRes res, byte[] buffer)
-        {
-            using var ms = new MemoryStream(buffer);
-            using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
-            bw.Write(res.ClientSendTicks);
-            bw.Write(res.ServerNowTicks);
-            bw.Write(res.ServerTickFrequency);
-            bw.Flush();
-            return (int)ms.Position;
-        }
-
-        private static WireTimeSyncReq ReadTimeSyncReq(ReadOnlySpan<byte> bytes)
-        {
-            if (bytes.Length < 8) throw new InvalidOperationException("EOF");
-            var clientSendTicks = BinaryPrimitives.ReadInt64LittleEndian(bytes.Slice(0, 8));
-            return new WireTimeSyncReq(clientSendTicks);
-        }
-
-        private static WireTimeSyncRes ReadTimeSyncRes(ReadOnlySpan<byte> bytes)
-        {
-            if (bytes.Length < 24) throw new InvalidOperationException("EOF");
-            var clientSendTicks = BinaryPrimitives.ReadInt64LittleEndian(bytes.Slice(0, 8));
-            var serverNowTicks = BinaryPrimitives.ReadInt64LittleEndian(bytes.Slice(8, 8));
-            var serverFreq = BinaryPrimitives.ReadInt64LittleEndian(bytes.Slice(16, 8));
-            return new WireTimeSyncRes(clientSendTicks, serverNowTicks, serverFreq);
+            return MemoryPackSerializer.Deserialize<WireTimeSyncRes>(payload);
         }
     }
 }
