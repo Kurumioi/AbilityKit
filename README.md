@@ -1,6 +1,6 @@
 # Ability-Kit
 
-> 通用游戏战斗框架 | Logic-Presentation Separation | Frame-Synchronized
+> 通用游戏战斗框架 | Logic-Presentation Separation | Ability-System
 
 **Ability-Kit** 是一个基于 Unity UPM 的通用游戏战斗框架，专注于**技能系统、战斗逻辑**。框架采用模块化设计，提供数据驱动的技能编排、事件触发系统、流程引擎等核心能力，支持按需组合以适配不同类型的游戏（MOBA、MMO、ARPG、RTS 等）。核心战斗逻辑以纯 C# runtime 形式实现，可脱离 Unity 环境运行（例如服务器/工具链/单元测试）；与 Unity 强相关的部分主要集中在表现层与少量适配层。
 
@@ -111,7 +111,7 @@
 | ------------------------------------- | --------------------------- |
 | `com.abilitykit.combat.entitymanager` | 实体管理器：索引表实现高效查询             |
 | `com.abilitykit.combat.skilllibrary`  | 技能库：索引表实现高效技能查询             |
-| `com.abilitykit.combat.targeting`     | 目标查找：圆形/扇形/矩形范围、流式处理、零 GC   |
+| `com.abilitykit.combat.targeting`     | 目标查找：查找目标、筛选、排序、流式处理、零 GC   |
 | `com.abilitykit.combat.projectile`    | 投射物系统：对象池、帧同步、命中策略、范围效果     |
 | `com.abilitykit.combat.damage`        | 伤害系统：DamagePipeline、自定义伤害公式 |
 
@@ -347,44 +347,14 @@ cd src/AbilityKit.Demo.Moba.Console
 dotnet run
 ```
 
-### 创建第一个技能
+### 触发器与流程
 
-```csharp
-// 1. 定义技能
-public class FireballAbility : Ability
-{
-    protected override AbilityPipeline CreatePipeline()
-    {
-        return Sequence(
-            // 吟唱阶段
-            new DurationalPhase("Cast", duration: 0.5f),
-            // 施法阶段
-            new TimelinePhase("Execute")
-                .AddEvent(0.0f, () => SpawnProjectile())
-                .AddEvent(0.3f, () => PlayEffect())
-                .AddEvent(0.5f, () => DealDamage())
-        );
-    }
-}
+| 模块 | 核心概念 | 入口 |
+|---|---|---|
+| **Triggering** | EventBus + TriggerRunner，按 phase/priority 调度触发器 | `com.abilitykit.triggering/Samples/` |
+| **Flow** | FlowSession + IFlowNode，支持异步/时间驱动的流程编排 | `com.abilitykit.flow/Samples~/` |
 
-// 2. 注册技能
-abilityRegistry.Register<FireballAbility>("Fireball");
-```
-
-### 配置触发器
-
-```csharp
-// 触发条件使用 RPN 表达式
-[TriggerCondition("Source.Tag == 'Hero' && Event.Damage > 100 && Source.Health < 0.3")]
-public class LowHealthTrigger : Trigger<DamageEvent>
-{
-    protected override void Execute(DamageEvent evt, ExecCtx ctx)
-    {
-        ctx.Source.GetComponent<AttributeComponent>()
-            .Modify("AttackBonus", ModifierType.PercentAdd, 50);
-    }
-}
-```
+> 完整示例代码见各模块 `Samples/` 目录，包含 TriggerPlan、DSL 写法、Flow 组合等参考实现。
 
 ---
 
