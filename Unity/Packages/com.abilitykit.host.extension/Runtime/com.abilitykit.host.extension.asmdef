@@ -6,6 +6,7 @@
         "AbilityKit.Core",
         "AbilityKit.World.DI",
         "AbilityKit.World.FrameSync",
+        "AbilityKit.World.NetworkFragments",
         "AbilityKit.World.Snapshot",
         "AbilityKit.Network.Runtime"
     ],

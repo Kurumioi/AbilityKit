@@ -1,14 +1,19 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 
-namespace AbilityKit.Ability.Host
+namespace AbilityKit.Ability.Host.Extensions.Session
 {
+    /// <summary>
+    /// Context interface for FramePacketNetAdapter.
+    /// Provides access to frame buffers, snapshot dispatcher, and world instances.
+    /// </summary>
     public interface IFramePacketNetAdapterContext
     {
         int InputDelayFrames { get; }
@@ -24,18 +29,28 @@ namespace AbilityKit.Ability.Host
         IConsumableRemoteFrameSource<PlayerInputCommand[]> ConfirmedConsumable { get; set; }
         IRemoteFrameSink<PlayerInputCommand[]> ConfirmedSink { get; set; }
 
-        FrameSnapshotDispatcher Snapshots { get; }
+        Core.Common.SnapshotRouting.FrameSnapshotDispatcher Snapshots { get; }
     }
 
+    /// <summary>
+    /// Processes incoming frame packets: routes inputs to frame buffers
+    /// and feeds snapshots to the dispatcher.
+    ///
+    /// This adapter bridges the network layer (FramePacket) with the
+    /// snapshot routing layer (FrameSnapshotDispatcher).
+    /// </summary>
     public sealed class FramePacketNetAdapter
     {
         private readonly IFramePacketNetAdapterContext _ctx;
 
         public FramePacketNetAdapter(IFramePacketNetAdapterContext ctx)
         {
-            _ctx = ctx;
+            _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
         }
 
+        /// <summary>
+        /// Process a FramePacket: route inputs to buffers and feed snapshots to dispatcher.
+        /// </summary>
         public FramePacket ProcessAndFeed(FramePacket packet)
         {
             packet = ProcessInput(packet);
@@ -43,7 +58,14 @@ namespace AbilityKit.Ability.Host
             return packet;
         }
 
-        public FramePacket ProcessAndFeed(WorldId worldId, FrameIndex frame, PlayerInputCommand[] inputs, ISnapshotEnvelope[] envelopes)
+        /// <summary>
+        /// Process raw frame data and optional snapshot envelopes.
+        /// </summary>
+        public FramePacket ProcessAndFeed(
+            WorldId worldId,
+            FrameIndex frame,
+            PlayerInputCommand[] inputs,
+            ISnapshotEnvelope[] envelopes)
         {
             var packet = new FramePacket(worldId, frame, inputs ?? Array.Empty<PlayerInputCommand>(), snapshot: default);
             packet = ProcessInput(packet);
@@ -59,23 +81,40 @@ namespace AbilityKit.Ability.Host
             return packet;
         }
 
-        public FramePacket ProcessAndFeed(WorldId worldId, in RemoteInputFrame inputFrame, in RemoteSnapshotFrame snapshotFrame)
+        /// <summary>
+        /// Process aggregated input and snapshot frames.
+        /// </summary>
+        public FramePacket ProcessAndFeed(
+            WorldId worldId,
+            in RemoteInputFrame inputFrame,
+            in RemoteSnapshotFrame snapshotFrame)
         {
             return ProcessAndFeed(worldId, inputFrame.Frame, inputFrame.Commands, snapshotFrame.Envelopes);
         }
 
         private FramePacket ProcessInput(FramePacket packet)
         {
-            if (_ctx.RemoteDrivenWorld == null && _ctx.ConfirmedWorld == null) return packet;
+            if (_ctx.RemoteDrivenWorld == null && _ctx.ConfirmedWorld == null)
+                return packet;
 
             try
             {
                 var frame = packet.Frame.Value;
                 var worldId = _ctx.RemoteDrivenWorld != null ? _ctx.RemoteDrivenWorld.Id : packet.WorldId;
 
-                var inputs = packet.Inputs == null || packet.Inputs.Count == 0
-                    ? Array.Empty<PlayerInputCommand>()
-                    : (packet.Inputs is PlayerInputCommand[] arr ? arr : new List<PlayerInputCommand>(packet.Inputs).ToArray());
+                PlayerInputCommand[] inputs;
+                if (packet.Inputs == null || packet.Inputs.Count == 0)
+                {
+                    inputs = Array.Empty<PlayerInputCommand>();
+                }
+                else if (packet.Inputs is PlayerInputCommand[] arr)
+                {
+                    inputs = arr;
+                }
+                else
+                {
+                    inputs = new List<PlayerInputCommand>(packet.Inputs).ToArray();
+                }
 
                 if (_ctx.RemoteDrivenInputSource == null)
                 {
@@ -90,7 +129,11 @@ namespace AbilityKit.Ability.Host
 
                 if (_ctx.ConfirmedInputSource == null)
                 {
-                    var buf = new FrameJitterBuffer<PlayerInputCommand[]>(delayFrames: 0, missingMode: MissingFrameMode.FillDefault, missingFrameFactory: Array.Empty<PlayerInputCommand>, initialCapacity: 256);
+                    var buf = new FrameJitterBuffer<PlayerInputCommand[]>(
+                        delayFrames: 0,
+                        missingMode: MissingFrameMode.FillDefault,
+                        missingFrameFactory: Array.Empty<PlayerInputCommand>,
+                        initialCapacity: 256);
                     _ctx.ConfirmedInputSource = buf;
                     _ctx.ConfirmedConsumable = buf;
                     _ctx.ConfirmedSink = buf;

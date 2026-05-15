@@ -10,6 +10,8 @@
     "com.abilitykit.core": "0.0.1",
     "com.abilitykit.world.di": "0.0.1",
     "com.abilitykit.world.framesync": "0.0.1",
-    "com.abilitykit.world.snapshot": "0.0.1"
+    "com.abilitykit.world.networkfragments": "0.0.1",
+    "com.abilitykit.world.snapshot": "0.0.1",
+    "com.abilitykit.network.runtime": "0.1.0"
   }
 }

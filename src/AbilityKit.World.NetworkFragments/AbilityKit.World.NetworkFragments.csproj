@@ -5,23 +5,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>AbilityKit</RootNamespace>
-    <AssemblyName>AbilityKit.Game.Battle.Runtime</AssemblyName>
+    <AssemblyName>AbilityKit.World.NetworkFragments</AssemblyName>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.game.battle.runtime/Runtime/**/*.cs" 
-             Exclude="../../Unity/Packages/com.abilitykit.game.battle.runtime/Runtime/**/*.asmdef" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.world.networkfragments/Runtime/**/*.cs" 
+             Exclude="../../Unity/Packages/com.abilitykit.world.networkfragments/Runtime/**/*.asmdef" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
-    <ProjectReference Include="../../src/AbilityKit.Ability.Config/AbilityKit.Ability.Config.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
-    <ProjectReference Include="../../src/AbilityKit.World.Snapshot/AbilityKit.World.Snapshot.csproj" />
-    <ProjectReference Include="../../src/AbilityKit.World.NetworkFragments/AbilityKit.World.NetworkFragments.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

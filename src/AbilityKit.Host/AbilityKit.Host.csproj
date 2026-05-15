@@ -10,16 +10,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- 引用 Packages 目录下的源码 -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.host/Runtime/**/*.cs" />
   </ItemGroup>
 
-  <!-- 项目引用 -->
   <ItemGroup>
     <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
   </ItemGroup>
 
 </Project>

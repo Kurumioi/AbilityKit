@@ -1,61 +1,17 @@
 using System;
-using System.Collections.Generic;
 using MemoryPack;
 
 namespace AbilityKit.Ability.StateSync.Snapshot
 {
-    [MemoryPackable]
-    public partial struct EntityStateSnapshot
-    {
-        public long EntityId;
-        public Vec3 Position;
-        public Quat Rotation;
-        public Vec3 Velocity;
-        public byte HealthPercent;
-        public uint StateFlags;
-        public long ActiveAbilityMask;
-        public Dictionary<int, float> Cooldowns;
-        public Dictionary<int, float> BuffTimers;
-        public int TeamId;
-        public byte ControlFlags;
-
-        public EntityStateSnapshot(long entityId)
-        {
-            EntityId = entityId;
-            Position = Vec3.Zero;
-            Rotation = Quat.Identity;
-            Velocity = Vec3.Zero;
-            HealthPercent = 100;
-            StateFlags = 0;
-            ActiveAbilityMask = 0;
-            Cooldowns = new Dictionary<int, float>();
-            BuffTimers = new Dictionary<int, float>();
-            TeamId = 0;
-            ControlFlags = 0;
-        }
-
-        public bool HasStateFlag(uint flag) => (StateFlags & flag) != 0;
-        public bool HasAbility(long abilityMask) => (ActiveAbilityMask & abilityMask) != 0;
-        public bool IsAlive => HealthPercent > 0;
-        public bool IsImmobile => (ControlFlags & (byte)EntityControlFlags.Immobile) != 0;
-        public bool IsStunned => (ControlFlags & (byte)EntityControlFlags.Stunned) != 0;
-        public bool IsInvulnerable => (ControlFlags & (byte)EntityControlFlags.Invulnerable) != 0;
-    }
-
-    [Flags]
-    public enum EntityControlFlags : byte
-    {
-        None = 0,
-        Immobile = 1 << 0,
-        Stunned = 1 << 1,
-        Invulnerable = 1 << 2,
-        Silenced = 1 << 3,
-        Disarmed = 1 << 4,
-        Rooted = 1 << 5,
-        Feared = 1 << 6,
-        Sleeping = 1 << 7,
-    }
-
+    /// <summary>
+    /// 通用向量类型（独立于引擎，用于序列化）
+    /// 用于网络传输和快照序列化
+    ///
+    /// 注意：此类型与 AbilityKit.Core.Math.Vec3 是不同的类型
+    /// - Vec3: 完整数学库，适合内部计算
+    /// - Vec3 (snapshot): MemoryPackable，适合序列化
+    /// 业务层在转换时应注意类型匹配
+    /// </summary>
     [MemoryPackable]
     public partial struct Vec3
     {
@@ -86,8 +42,27 @@ namespace AbilityKit.Ability.StateSync.Snapshot
                    Math.Abs(Y - other.Y) < epsilon &&
                    Math.Abs(Z - other.Z) < epsilon;
         }
+
+        /// <summary>
+        /// 从 Core.Math.Vec3 转换
+        /// </summary>
+        public static Vec3 FromCoreVec3(AbilityKit.Core.Math.Vec3 v) => new Vec3(v.X, v.Y, v.Z);
+
+        /// <summary>
+        /// 转换为 Core.Math.Vec3
+        /// </summary>
+        public AbilityKit.Core.Math.Vec3 ToCoreVec3() => new AbilityKit.Core.Math.Vec3(X, Y, Z);
     }
 
+    /// <summary>
+    /// 通用四元数类型（独立于引擎，用于序列化）
+    /// 用于网络传输和快照序列化
+    ///
+    /// 注意：此类型与 AbilityKit.Core.Math.Quat 是不同的类型
+    /// - Quat: 完整数学库，适合内部计算
+    /// - Quat (snapshot): MemoryPackable，适合序列化
+    /// 业务层在转换时应注意类型匹配
+    /// </summary>
     [MemoryPackable]
     public partial struct Quat
     {
@@ -110,83 +85,109 @@ namespace AbilityKit.Ability.StateSync.Snapshot
                    Math.Abs(Z - other.Z) < epsilon &&
                    Math.Abs(W - other.W) < epsilon;
         }
+
+        /// <summary>
+        /// 从 Core.Math.Quat 转换
+        /// </summary>
+        public static Quat FromCoreQuat(AbilityKit.Core.Math.Quat q) => new Quat(q.X, q.Y, q.Z, q.W);
+
+        /// <summary>
+        /// 转换为 Core.Math.Quat
+        /// </summary>
+        public AbilityKit.Core.Math.Quat ToCoreQuat() => new AbilityKit.Core.Math.Quat(X, Y, Z, W);
     }
 
-    [MemoryPackable]
-    public partial struct ProjectileStateSnapshot
-    {
-        public long ProjectileId;
-        public long OwnerId;
-        public Vec3 StartPosition;
-        public Vec3 CurrentPosition;
-        public Vec3 Direction;
-        public float Speed;
-        public float RemainingLifetime;
-        public int ConfigId;
-        public byte State;
-    }
-
-    [MemoryPackable]
-    public partial struct AbilityStateSnapshot
-    {
-        public long EntityId;
-        public int AbilityId;
-        public byte BehaviorState;
-        public float ElapsedMs;
-        public float CooldownRemaining;
-        public bool IsActive;
-        public byte[] EffectData;
-    }
-
+    /// <summary>
+    /// 世界状态快照
+    /// 通用的快照结构，只包含框架级数据
+    /// 业务层可通过扩展 partial class 来添加业务数据
+    /// </summary>
     [MemoryPackable]
     public partial class WorldStateSnapshot
     {
+        /// <summary>
+        /// 世界 ID
+        /// </summary>
         public ulong WorldId { get; set; }
+
+        /// <summary>
+        /// 快照版本号
+        /// </summary>
         public int Version { get; set; }
+
+        /// <summary>
+        /// 帧号
+        /// </summary>
         public int Frame { get; set; }
+
+        /// <summary>
+        /// 时间戳
+        /// </summary>
         public long Timestamp { get; set; }
-        public List<EntityStateSnapshot> Entities { get; set; }
-        public List<ProjectileStateSnapshot> Projectiles { get; set; }
-        public List<AbilityStateSnapshot> Abilities { get; set; }
+
+        /// <summary>
+        /// 世界状态标志位
+        /// </summary>
         public uint WorldFlags { get; set; }
-        public int ActiveTriggerCount { get; set; }
+
+        /// <summary>
+        /// 是否是完整快照（true）或增量快照（false）
+        /// </summary>
         public bool IsFullSnapshot { get; set; } = true;
+
+        /// <summary>
+        /// 当前版本号常量
+        /// </summary>
+        public const int CurrentVersion = 1;
 
         public WorldStateSnapshot()
         {
             Version = CurrentVersion;
-            Entities = new List<EntityStateSnapshot>();
-            Projectiles = new List<ProjectileStateSnapshot>();
-            Abilities = new List<AbilityStateSnapshot>();
         }
 
-        public const int CurrentVersion = 1;
-
+        /// <summary>
+        /// 序列化快照
+        /// </summary>
         public static byte[] Serialize(WorldStateSnapshot snapshot)
         {
             return MemoryPackSerializer.Serialize(snapshot);
         }
 
+        /// <summary>
+        /// 反序列化快照
+        /// </summary>
         public static WorldStateSnapshot Deserialize(byte[] data)
         {
             return MemoryPackSerializer.Deserialize<WorldStateSnapshot>(data);
         }
 
+        /// <summary>
+        /// 从字节数组创建快照
+        /// </summary>
         public static WorldStateSnapshot FromBytes(byte[] data)
         {
             return Deserialize(data);
         }
 
+        /// <summary>
+        /// 转换为字节数组
+        /// </summary>
         public byte[] ToBytes()
         {
             return Serialize(this);
         }
 
+        /// <summary>
+        /// 计算状态哈希
+        /// </summary>
         public StateHash ComputeHash()
         {
             return StateHashComputer.Compute(this);
         }
 
+        /// <summary>
+        /// 克隆快照
+        /// </summary>
         public WorldStateSnapshot Clone()
         {
             var bytes = ToBytes();

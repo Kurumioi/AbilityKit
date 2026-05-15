@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "AbilityKit.World.Snapshot",
   "rootNamespace": "AbilityKit",
   "references": [
@@ -6,7 +6,7 @@
     "AbilityKit.Host",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
-    "AbilityKit.Network.Runtime"
+    "AbilityKit.World.NetworkFragments"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

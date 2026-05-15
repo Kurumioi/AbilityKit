@@ -301,7 +301,7 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1"
+        "com.abilitykit.network.runtime": "0.1.0"
       }
     },
     "com.abilitykit.host.extension": {
@@ -313,7 +313,9 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.di": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
-        "com.abilitykit.world.snapshot": "0.0.1"
+        "com.abilitykit.world.networkfragments": "0.0.1",
+        "com.abilitykit.world.snapshot": "0.0.1",
+        "com.abilitykit.network.runtime": "0.1.0"
       }
     },
     "com.abilitykit.hotreload": {
@@ -501,12 +503,25 @@
         "com.abilitykit.world.di": "0.0.1"
       }
     },
+    "com.abilitykit.world.networkfragments": {
+      "version": "file:com.abilitykit.world.networkfragments",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.world.di": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1",
+        "com.abilitykit.host": "0.0.1",
+        "com.abilitykit.network.runtime": "0.1.0"
+      }
+    },
     "com.abilitykit.world.snapshot": {
       "version": "file:com.abilitykit.world.snapshot",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.0.1"
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.world.networkfragments": "0.0.1"
       }
     },
     "com.abilitykit.world.statesync": {

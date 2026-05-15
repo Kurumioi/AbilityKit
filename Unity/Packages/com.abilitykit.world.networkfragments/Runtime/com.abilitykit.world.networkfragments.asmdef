@@ -1,13 +1,12 @@
 {
-  "name": "AbilityKit.Game.Battle.Runtime",
+  "name": "AbilityKit.World.NetworkFragments",
   "rootNamespace": "AbilityKit",
   "references": [
+    "AbilityKit.Core",
     "AbilityKit.Host",
-    "AbilityKit.Ability",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
-    "AbilityKit.World.Snapshot",
-    "AbilityKit.World.NetworkFragments"
+    "AbilityKit.Network.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
@@ -17,5 +16,5 @@
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],
-  "noEngineReferences": true
+  "noEngineReferences": false
 }

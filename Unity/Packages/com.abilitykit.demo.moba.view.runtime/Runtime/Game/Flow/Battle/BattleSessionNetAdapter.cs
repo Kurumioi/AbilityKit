@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Session;
 using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;

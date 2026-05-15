@@ -9,8 +9,7 @@
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
-        "AbilityKit.Host.Extension",
-        "AbilityKit.Demo.Moba.Entitas.Generated",
+        "AbilityKit.Host.Extensions",
         "AbilityKit.Combat.Motion",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
@@ -18,6 +17,7 @@
         "AbilityKit.World.StateSync",
         "AbilityKit.World.ECS",
         "AbilityKit.World.Snapshot",
+        "AbilityKit.World.NetworkFragments",
         "AbilityKit.Ability",
         "AbilityKit.Ability.Behavior",
         "AbilityKit.ActionSchema",
@@ -28,8 +28,7 @@
         "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Triggering",
         "AbilityKit.Pipeline",
-        "AbilityKit.Trace",
-        "AbilityKit.HFSM.Examples"
+        "AbilityKit.Trace"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

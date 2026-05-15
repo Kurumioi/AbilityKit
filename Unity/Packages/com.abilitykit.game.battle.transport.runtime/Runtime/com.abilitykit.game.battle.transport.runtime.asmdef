@@ -5,6 +5,7 @@
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.Network.Runtime",
         "AbilityKit.World.Snapshot",
+        "AbilityKit.World.NetworkFragments",
         "AbilityKit.Core",
         "AbilityKit.Protocol.Moba",
         "MemoryPack"

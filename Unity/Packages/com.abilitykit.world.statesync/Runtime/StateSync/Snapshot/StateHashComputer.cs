@@ -1,14 +1,19 @@
 using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
-using System.Linq;
 
 namespace AbilityKit.Ability.StateSync.Snapshot
 {
+    /// <summary>
+    /// 状态哈希计算器
+    /// 计算世界状态的哈希值，用于客户端和服务器之间的状态一致性验证
+    /// </summary>
     public static class StateHashComputer
     {
         private const uint HASH_SEED = 0x9E3779B9u;
 
+        /// <summary>
+        /// 计算快照的框架级哈希
+        /// </summary>
         public static StateHash Compute(WorldStateSnapshot snapshot)
         {
             if (snapshot == null) return StateHash.Invalid;
@@ -16,94 +21,62 @@ namespace AbilityKit.Ability.StateSync.Snapshot
             unchecked
             {
                 ulong hash = (ulong)HASH_SEED;
-                hash = HashCombine(hash, snapshot.Version);
-                hash = HashCombine(hash, snapshot.Frame);
+                hash = HashCombine(hash, (long)snapshot.Version);
+                hash = HashCombine(hash, (long)snapshot.Frame);
                 hash = HashCombine(hash, snapshot.Timestamp);
-                hash = HashCombine(hash, snapshot.WorldFlags);
-                hash = HashCombine(hash, snapshot.ActiveTriggerCount);
+                hash = HashCombine(hash, (long)snapshot.WorldFlags);
 
-                hash = HashCombine(hash, snapshot.Entities?.Count ?? 0);
-                if (snapshot.Entities != null)
-                {
-                    foreach (var entity in snapshot.Entities.OrderBy(e => e.EntityId))
-                    {
-                        hash = ComputeEntityHash(hash, entity);
-                    }
-                }
+                return new StateHash(hash);
+            }
+        }
 
-                hash = HashCombine(hash, snapshot.Projectiles?.Count ?? 0);
-                if (snapshot.Projectiles != null)
+        /// <summary>
+        /// 计算包含业务数据的完整哈希
+        /// 框架级哈希与业务层提供的哈希合并
+        /// </summary>
+        /// <param name="snapshot">世界快照</param>
+        /// <param name="businessHashProvider">业务层哈希提供者（可选）</param>
+        /// <returns>包含业务数据的完整哈希</returns>
+        public static StateHash ComputeWithBusinessData(
+            WorldStateSnapshot snapshot,
+            IBusinessHashProvider businessHashProvider = null)
+        {
+            if (snapshot == null) return StateHash.Invalid;
+
+            unchecked
+            {
+                // 基础哈希
+                ulong hash = (ulong)HASH_SEED;
+                hash = HashCombine(hash, (long)snapshot.Version);
+                hash = HashCombine(hash, (long)snapshot.Frame);
+                hash = HashCombine(hash, snapshot.Timestamp);
+                hash = HashCombine(hash, (long)snapshot.WorldFlags);
+
+                // 合并业务层哈希
+                if (businessHashProvider != null)
                 {
-                    foreach (var proj in snapshot.Projectiles.OrderBy(p => p.ProjectileId))
-                    {
-                        hash = ComputeProjectileHash(hash, proj);
-                    }
+                    ulong businessHash = businessHashProvider.GetAllBusinessEntityHashes();
+                    hash = HashCombine(hash, (long)businessHash);
                 }
 
                 return new StateHash(hash);
             }
         }
 
-        private static ulong ComputeEntityHash(ulong hash, EntityStateSnapshot entity)
+        /// <summary>
+        /// 验证两个快照的哈希是否匹配
+        /// </summary>
+        /// <param name="clientHash">客户端哈希</param>
+        /// <param name="serverHash">服务器哈希</param>
+        /// <returns>是否匹配</returns>
+        public static bool ValidateHash(StateHash clientHash, StateHash serverHash)
         {
-            hash = HashCombine(hash, entity.EntityId);
-            hash = HashCombine(hash, entity.Position.X);
-            hash = HashCombine(hash, entity.Position.Y);
-            hash = HashCombine(hash, entity.Position.Z);
-            hash = HashCombine(hash, entity.Rotation.X);
-            hash = HashCombine(hash, entity.Rotation.Y);
-            hash = HashCombine(hash, entity.Rotation.Z);
-            hash = HashCombine(hash, entity.Rotation.W);
-            hash = HashCombine(hash, entity.Velocity.X);
-            hash = HashCombine(hash, entity.Velocity.Y);
-            hash = HashCombine(hash, entity.Velocity.Z);
-            hash = HashCombine(hash, entity.HealthPercent);
-            hash = HashCombine(hash, entity.StateFlags);
-            hash = HashCombine(hash, entity.ActiveAbilityMask);
-            hash = HashCombine(hash, entity.TeamId);
-            hash = HashCombine(hash, entity.ControlFlags);
-            return hash;
-        }
-
-        private static ulong ComputeProjectileHash(ulong hash, ProjectileStateSnapshot proj)
-        {
-            hash = HashCombine(hash, proj.ProjectileId);
-            hash = HashCombine(hash, proj.OwnerId);
-            hash = HashCombine(hash, proj.CurrentPosition.X);
-            hash = HashCombine(hash, proj.CurrentPosition.Y);
-            hash = HashCombine(hash, proj.CurrentPosition.Z);
-            hash = HashCombine(hash, proj.Direction.X);
-            hash = HashCombine(hash, proj.Direction.Y);
-            hash = HashCombine(hash, proj.Direction.Z);
-            hash = HashCombine(hash, proj.Speed);
-            hash = HashCombine(hash, proj.RemainingLifetime);
-            hash = HashCombine(hash, proj.State);
-            return hash;
+            return clientHash.Value == serverHash.Value;
         }
 
         private static ulong HashCombine(ulong hash, long value)
         {
             return hash ^ (ulong)value * 0x9E3779B97F4A7C15UL + (hash << 15) + (hash >> 2);
-        }
-
-        private static ulong HashCombine(ulong hash, int value)
-        {
-            return HashCombine(hash, (long)value);
-        }
-
-        private static ulong HashCombine(ulong hash, uint value)
-        {
-            return HashCombine(hash, (ulong)value);
-        }
-
-        private static ulong HashCombine(ulong hash, float value)
-        {
-            return HashCombine(hash, (long)BitConverter.SingleToInt32Bits(value));
-        }
-
-        private static ulong HashCombine(ulong hash, ulong value)
-        {
-            return hash ^ value * 0x9E3779B97F4A7C15UL + (hash << 15) + (hash >> 2);
         }
 
         public static byte[] ComputeFingerprint(byte[] data)

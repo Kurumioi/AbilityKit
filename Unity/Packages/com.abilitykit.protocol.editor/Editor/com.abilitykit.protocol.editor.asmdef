@@ -4,7 +4,8 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Protocol",
-    "AbilityKit.World.Snapshot"
+    "AbilityKit.World.Snapshot",
+    "AbilityKit.World.NetworkFragments"
   ],
   "includePlatforms": [
     "Editor"

@@ -1,10 +1,11 @@
-﻿{
+{
   "name": "AbilityKit.Host",
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Core",
     "AbilityKit.World.DI",
-    "AbilityKit.World.FrameSync"
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.Network.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
