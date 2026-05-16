@@ -14,6 +14,7 @@ using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 

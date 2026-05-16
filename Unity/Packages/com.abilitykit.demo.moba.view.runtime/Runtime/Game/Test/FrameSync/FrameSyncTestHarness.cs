@@ -9,6 +9,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 
 namespace AbilityKit.Game.Test.FrameSync

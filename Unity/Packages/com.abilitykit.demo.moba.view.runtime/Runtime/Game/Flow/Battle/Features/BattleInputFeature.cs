@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM

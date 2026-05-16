@@ -9,6 +9,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.World.ECS;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow
 {
@@ -53,13 +54,13 @@ namespace AbilityKit.Game.Flow
                 AbilityKit.Game.Flow.Snapshot.SharedSnapshotRegistry.RegisterAll(_confirmedViewSnapshots, _confirmedViewPipeline, _confirmedViewPipeline, _confirmedViewCmdHandler);
 
                 // Apply snapshots to confirmed view-side entity world (same logic as BattleSyncFeature subscriptions).
-                _confirmedViewSubActorTransform = _confirmedViewSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>(
+                _confirmedViewSubActorTransform = _confirmedViewSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
                     (int)MobaOpCode.ActorTransformSnapshot,
                     (packet, entries) => ApplyConfirmedViewTransformSnapshot(entries));
-                _confirmedViewSubStateHash = _confirmedViewSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>(
+                _confirmedViewSubStateHash = _confirmedViewSnapshots.Subscribe<MobaStateHashSnapshotPayload>(
                     (int)MobaOpCode.StateHashSnapshot,
                     (packet, snap) => ApplyConfirmedViewStateHashSnapshot(snap));
-                _confirmedViewSubActorSpawn = _confirmedViewSnapshots.Subscribe<MobaActorSpawnSnapshotCodec.Entry[]>(
+                _confirmedViewSubActorSpawn = _confirmedViewSnapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>(
                     (int)MobaOpCode.ActorSpawnSnapshot,
                     (packet, entries) => ApplyConfirmedViewSpawnSnapshot(entries));
 
@@ -132,32 +133,32 @@ namespace AbilityKit.Game.Flow
                 Push($"EnterGame: tickRate={res.TickRate}");
             }
 
-            public void OnActorTransformSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
+            public void OnActorTransformSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
             {
                 if (entries == null) return;
                 Push($"Transform: n={entries.Length}");
             }
 
-            public void OnProjectileEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+            public void OnProjectileEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries)
             {
                 if (entries == null) return;
                 Push($"Projectile: n={entries.Length}");
             }
 
-            public void OnAreaEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+            public void OnAreaEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries)
             {
                 if (entries == null) return;
                 Push($"Area: n={entries.Length}");
             }
 
-            public void OnDamageEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+            public void OnDamageEventSnapshot(AbilityKit.Ability.Host.ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
             {
                 if (entries == null) return;
                 Push($"Damage: n={entries.Length}");
             }
         }
 
-        private void ApplyConfirmedViewStateHashSnapshot(MobaStateHashSnapshotCodec.SnapshotPayload p)
+        private void ApplyConfirmedViewStateHashSnapshot(MobaStateHashSnapshotPayload p)
         {
             if (_confirmedViewCtx == null) return;
             var node = _confirmedViewCtx.EntityNode;
@@ -175,7 +176,7 @@ namespace AbilityKit.Game.Flow
             comp.Hash = p.Hash;
         }
 
-        private void ApplyConfirmedViewTransformSnapshot((int actorId, float x, float y, float z)[] entries)
+        private void ApplyConfirmedViewTransformSnapshot(MobaActorTransformSnapshotEntry[] entries)
         {
             if (_confirmedViewCtx == null) return;
 
@@ -199,7 +200,7 @@ namespace AbilityKit.Game.Flow
             for (int i = 0; i < entries.Length; i++)
             {
                 var en = entries[i];
-                var netId = new BattleNetId(en.actorId);
+                var netId = new BattleNetId(en.ActorId);
 
                 if (!lookup.TryResolve(world, netId, out var e))
                 {
@@ -212,16 +213,16 @@ namespace AbilityKit.Game.Flow
                     e.WithRef(t);
                 }
 
-                t.Position.x = en.x;
-                t.Position.y = en.y;
-                t.Position.z = en.z;
+                t.Position.x = en.X;
+                t.Position.y = en.Y;
+                t.Position.z = en.Z;
                 if (t.Forward == default) t.Forward = UnityEngine.Vector3.forward;
 
                 dirty.Add(e.Id);
             }
         }
 
-        private void ApplyConfirmedViewSpawnSnapshot(MobaActorSpawnSnapshotCodec.Entry[] entries)
+        private void ApplyConfirmedViewSpawnSnapshot(MobaActorSpawnSnapshotEntry[] entries)
         {
             if (_confirmedViewCtx == null) return;
 

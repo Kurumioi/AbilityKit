@@ -7,6 +7,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;

@@ -2,6 +2,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -11,12 +12,12 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
 
-        void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries);
+        void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries);
 
-        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries);
+        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries);
 
-        void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries);
+        void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries);
 
-        void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries);
+        void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
     }
 }

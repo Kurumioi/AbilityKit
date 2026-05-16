@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
 {
@@ -24,10 +25,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
             if (_snapshots == null || _sink == null) return;
 
             _subEnterGame = _snapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, _sink.OnEnterGameSnapshot);
-            _subActorTransform = _snapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, _sink.OnActorTransformSnapshot);
-            _subProjectileEvents = _snapshots.Subscribe<MobaProjectileEventSnapshotCodec.Entry[]>((int)MobaOpCode.ProjectileEventSnapshot, _sink.OnProjectileEventSnapshot);
-            _subAreaEvents = _snapshots.Subscribe<MobaAreaEventSnapshotCodec.Entry[]>((int)MobaOpCode.AreaEventSnapshot, _sink.OnAreaEventSnapshot);
-            _subDamageEvents = _snapshots.Subscribe<MobaDamageEventSnapshotCodec.Entry[]>((int)MobaOpCode.DamageEventSnapshot, _sink.OnDamageEventSnapshot);
+            _subActorTransform = _snapshots.Subscribe<MobaActorTransformSnapshotEntry[]>((int)MobaOpCode.ActorTransformSnapshot, _sink.OnActorTransformSnapshot);
+            _subProjectileEvents = _snapshots.Subscribe<MobaProjectileEventSnapshotEntry[]>((int)MobaOpCode.ProjectileEventSnapshot, _sink.OnProjectileEventSnapshot);
+            _subAreaEvents = _snapshots.Subscribe<MobaAreaEventSnapshotEntry[]>((int)MobaOpCode.AreaEventSnapshot, _sink.OnAreaEventSnapshot);
+            _subDamageEvents = _snapshots.Subscribe<MobaDamageEventSnapshotEntry[]>((int)MobaOpCode.DamageEventSnapshot, _sink.OnDamageEventSnapshot);
         }
 
         public void Dispose()

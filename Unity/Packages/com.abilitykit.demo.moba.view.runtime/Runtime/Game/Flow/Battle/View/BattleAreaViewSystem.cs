@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -21,7 +22,7 @@ namespace AbilityKit.Game.Flow
         public void HandleSnapshot(
             BattleViewBinder binder,
             IBattleEntityQuery query,
-            MobaAreaEventSnapshotCodec.Entry[] entries)
+            MobaAreaEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (query == null) return;
@@ -35,7 +36,7 @@ namespace AbilityKit.Game.Flow
                 if (evt.AreaId <= 0) continue;
 
                 var kind = evt.Kind;
-                if (kind == (int)MobaAreaEventSnapshotCodec.EventKind.Spawn)
+                if (kind == (int)AreaEventKind.Spawn)
                 {
                     if (_aoeViews.ContainsKey(evt.AreaId)) continue;
 
@@ -92,7 +93,7 @@ namespace AbilityKit.Game.Flow
 
                     _aoeViews[evt.AreaId] = h;
                 }
-                else if (kind == (int)MobaAreaEventSnapshotCodec.EventKind.Expire)
+                else if (kind == (int)AreaEventKind.Expire)
                 {
                     if (_aoeViews.TryGetValue(evt.AreaId, out var h) && h != null)
                     {

@@ -11,6 +11,7 @@ using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using AbilityKit.Game.Flow;
+using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
@@ -118,7 +119,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             RefreshDirtyViews();
         }
 
-        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotCodec.Entry[] entries)
+        public void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;
@@ -135,15 +136,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 if (proj == null) continue;
 
                 var vfxId = 0;
-                if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Spawn)
+                if (evt.Kind == (int)ProjectileEventKind.Spawn)
                 {
                     vfxId = proj.OnSpawnVfxId;
                 }
-                else if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Hit)
+                else if (evt.Kind == (int)ProjectileEventKind.Hit)
                 {
                     vfxId = proj.OnHitVfxId;
                 }
-                else if (evt.Kind == (int)MobaProjectileEventSnapshotCodec.EventKind.Exit)
+                else if (evt.Kind == (int)ProjectileEventKind.Exit)
                 {
                     vfxId = proj.OnExpireVfxId;
                 }
@@ -162,7 +163,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
         }
 
-        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotCodec.Entry[] entries)
+        public void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;
@@ -171,7 +172,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _areaViews?.HandleSnapshot(_binder, _query, entries);
         }
 
-        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+        public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             if (_ctx?.EntityWorld == null) return;
@@ -191,7 +192,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 }
                 pos += Vector3.up * 2f;
 
-                var isHeal = e.Kind == (int)MobaDamageEventSnapshotCodec.EventKind.Heal;
+                var isHeal = e.Kind == (int)DamageEventKind.Heal;
                 var color = isHeal ? new Color(0.2f, 1f, 0.2f, 1f) : new Color(1f, 0.2f, 0.2f, 1f);
                 var text = Mathf.Abs(e.Value) >= 1f ? Mathf.RoundToInt(Mathf.Abs(e.Value)).ToString() : Mathf.Abs(e.Value).ToString("0.0");
                 if (isHeal) text = $"+{text}";

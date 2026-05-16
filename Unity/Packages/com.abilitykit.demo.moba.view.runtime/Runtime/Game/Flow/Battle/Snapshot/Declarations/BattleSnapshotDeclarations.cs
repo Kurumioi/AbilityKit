@@ -5,6 +5,7 @@ using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Flow.Battle.Snapshot;
 using AbilityKit.Game.Flow;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
@@ -23,8 +24,8 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
-        [SnapshotDecoder("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotCodec.Entry[]))]
-        internal static bool DecodeActorSpawn(in WorldStateSnapshot snap, out MobaActorSpawnSnapshotCodec.Entry[] entries)
+        [SnapshotDecoder("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotEntry[]))]
+        internal static bool DecodeActorSpawn(in WorldStateSnapshot snap, out MobaActorSpawnSnapshotEntry[] entries)
         {
             if (snap.Payload == null || snap.Payload.Length == 0)
             {
@@ -36,8 +37,8 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
-        [SnapshotDecoder("battle", (int)MobaOpCode.ActorDespawnSnapshot, typeof(MobaActorDespawnSnapshotCodec.Entry[]))]
-        internal static bool DecodeActorDespawn(in WorldStateSnapshot snap, out MobaActorDespawnSnapshotCodec.Entry[] entries)
+        [SnapshotDecoder("battle", (int)MobaOpCode.ActorDespawnSnapshot, typeof(MobaActorDespawnSnapshotEntry[]))]
+        internal static bool DecodeActorDespawn(in WorldStateSnapshot snap, out MobaActorDespawnSnapshotEntry[] entries)
         {
             if (snap.Payload == null || snap.Payload.Length == 0)
             {
@@ -56,15 +57,15 @@ namespace AbilityKit.Game.Flow.Snapshot
             BattleEnterGameApplier.Apply(battleCtx, res);
         }
 
-        [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotCodec.Entry[]))]
-        internal static void HandleActorSpawn(object ctx, ISnapshotEnvelope packet, MobaActorSpawnSnapshotCodec.Entry[] entries)
+        [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorSpawnSnapshot, typeof(MobaActorSpawnSnapshotEntry[]))]
+        internal static void HandleActorSpawn(object ctx, ISnapshotEnvelope packet, MobaActorSpawnSnapshotEntry[] entries)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleActorSpawnApplier.Apply(battleCtx, entries);
         }
 
-        [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorDespawnSnapshot, typeof(MobaActorDespawnSnapshotCodec.Entry[]))]
-        internal static void HandleActorDespawn(object ctx, ISnapshotEnvelope packet, MobaActorDespawnSnapshotCodec.Entry[] entries)
+        [SnapshotCmdHandler("battle", (int)MobaOpCode.ActorDespawnSnapshot, typeof(MobaActorDespawnSnapshotEntry[]))]
+        internal static void HandleActorDespawn(object ctx, ISnapshotEnvelope packet, MobaActorDespawnSnapshotEntry[] entries)
         {
             if (ctx is not BattleContext battleCtx) return;
             BattleActorDespawnApplier.Apply(battleCtx, entries);

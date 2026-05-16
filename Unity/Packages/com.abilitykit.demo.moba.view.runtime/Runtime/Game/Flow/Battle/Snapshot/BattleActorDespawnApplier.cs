@@ -1,12 +1,13 @@
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.Snapshot
 {
     public static class BattleActorDespawnApplier
     {
-        public static void Apply(BattleContext ctx, MobaActorDespawnSnapshotCodec.Entry[] entries)
+        public static void Apply(BattleContext ctx, MobaActorDespawnSnapshotEntry[] entries)
         {
             if (ctx == null) return;
             if (ctx.EntityWorld == null || ctx.EntityLookup == null) return;

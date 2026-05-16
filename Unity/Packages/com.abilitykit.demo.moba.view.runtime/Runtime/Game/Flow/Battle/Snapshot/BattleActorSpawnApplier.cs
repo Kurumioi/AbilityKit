@@ -5,13 +5,14 @@ using UnityEngine;
 using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.World.ECS;
+using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
     public static class BattleActorSpawnApplier
     {
-        public static void Apply(BattleContext ctx, MobaActorSpawnSnapshotCodec.Entry[] entries)
+        public static void Apply(BattleContext ctx, MobaActorSpawnSnapshotEntry[] entries)
         {
             if (ctx == null) return;
             if (ctx.EntityWorld == null || ctx.EntityLookup == null || ctx.EntityFactory == null)

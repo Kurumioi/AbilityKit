@@ -2,6 +2,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
@@ -19,7 +20,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
-        public bool TryDeserializeActorTransform(in WorldStateSnapshot snap, out (int actorId, float x, float y, float z)[] entries)
+        public bool TryDeserializeActorTransform(in WorldStateSnapshot snap, out MobaActorTransformSnapshotEntry[] entries)
         {
             if (snap.OpCode != (int)MobaOpCode.ActorTransformSnapshot || snap.Payload == null || snap.Payload.Length == 0)
             {
@@ -31,7 +32,7 @@ namespace AbilityKit.Game.Flow.Snapshot
             return true;
         }
 
-        public bool TryDeserializeStateHash(in WorldStateSnapshot snap, out MobaStateHashSnapshotCodec.SnapshotPayload payload)
+        public bool TryDeserializeStateHash(in WorldStateSnapshot snap, out MobaStateHashSnapshotPayload payload)
         {
             if (snap.OpCode != (int)MobaOpCode.StateHashSnapshot || snap.Payload == null || snap.Payload.Length == 0)
             {
