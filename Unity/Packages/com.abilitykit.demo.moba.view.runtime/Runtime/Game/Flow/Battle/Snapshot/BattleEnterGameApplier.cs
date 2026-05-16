@@ -41,7 +41,7 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 dirty.Clear();
             }
 
-            if (!EnterMobaGamePayloadCodec.TryDeserializePosition(res.OpCode, res.Payload, out var p))
+            if (!MobaEnterGamePayloadCodec.TryDeserializePosition(res.OpCode, res.Payload, out var p))
             {
                 return;
             }

@@ -9,6 +9,12 @@ namespace AbilityKit.Protocol.Moba.StateSync
     {
         [MemoryPackOrder(0)] public float X;
         [MemoryPackOrder(1)] public float Z;
+
+        public MobaMovePayload(float x, float z)
+        {
+            X = x;
+            Z = z;
+        }
     }
 
     public static class MobaMoveCodec

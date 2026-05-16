@@ -21,6 +21,18 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(5)] public float Y;
         [MemoryPackOrder(6)] public float Z;
         [MemoryPackOrder(7)] public float Radius;
+
+        public MobaAreaEventSnapshotEntry(int kind, int areaId, int ownerActorId, int templateId, float x, float y, float z, float radius)
+        {
+            Kind = kind;
+            AreaId = areaId;
+            OwnerActorId = ownerActorId;
+            TemplateId = templateId;
+            X = x;
+            Y = y;
+            Z = z;
+            Radius = radius;
+        }
     }
 
     [MemoryPackable]

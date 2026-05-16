@@ -22,6 +22,19 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(6)] public int ReasonParam;
         [MemoryPackOrder(7)] public float TargetHp;
         [MemoryPackOrder(8)] public float TargetMaxHp;
+
+        public MobaDamageEventSnapshotEntry(int kind, int attackerActorId, int targetActorId, int damageType, float value, int reasonKind, int reasonParam, float targetHp, float targetMaxHp)
+        {
+            Kind = kind;
+            AttackerActorId = attackerActorId;
+            TargetActorId = targetActorId;
+            DamageType = damageType;
+            Value = value;
+            ReasonKind = reasonKind;
+            ReasonParam = reasonParam;
+            TargetHp = targetHp;
+            TargetMaxHp = targetMaxHp;
+        }
     }
 
     [MemoryPackable]

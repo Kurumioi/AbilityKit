@@ -20,6 +20,17 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(4)] public float X;
         [MemoryPackOrder(5)] public float Y;
         [MemoryPackOrder(6)] public float Z;
+
+        public MobaActorSpawnSnapshotEntry(int netId, int kind, int code, int ownerNetId, float x, float y, float z)
+        {
+            NetId = netId;
+            Kind = kind;
+            Code = code;
+            OwnerNetId = ownerNetId;
+            X = x;
+            Y = y;
+            Z = z;
+        }
     }
 
     [MemoryPackable]

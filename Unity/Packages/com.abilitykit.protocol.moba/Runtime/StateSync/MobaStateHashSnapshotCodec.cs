@@ -9,6 +9,13 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(0)] public int Version;
         [MemoryPackOrder(1)] public int Frame;
         [MemoryPackOrder(2)] public uint Hash;
+
+        public MobaStateHashSnapshotPayload(int version, int frame, uint hash)
+        {
+            Version = version;
+            Frame = frame;
+            Hash = hash;
+        }
     }
 
     public static class MobaStateHashSnapshotCodec

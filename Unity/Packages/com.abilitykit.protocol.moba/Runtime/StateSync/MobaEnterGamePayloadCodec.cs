@@ -11,6 +11,13 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(1)] public float Y;
         [MemoryPackOrder(2)] public float Z;
 
+        public MobaEnterGamePayload(float x, float y, float z)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+        }
+
         public Vec3 ToVec3() => new Vec3(X, Y, Z);
     }
 

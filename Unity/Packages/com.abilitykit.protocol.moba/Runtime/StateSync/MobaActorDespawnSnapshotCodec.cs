@@ -9,6 +9,12 @@ namespace AbilityKit.Protocol.Moba.StateSync
     {
         [MemoryPackOrder(0)] public int ActorId;
         [MemoryPackOrder(1)] public byte Reason;
+
+        public MobaActorDespawnSnapshotEntry(int actorId, byte reason)
+        {
+            ActorId = actorId;
+            Reason = reason;
+        }
     }
 
     [MemoryPackable]

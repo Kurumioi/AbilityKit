@@ -25,6 +25,21 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(8)] public float Z;
         [MemoryPackOrder(9)] public int HitCollider;
         [MemoryPackOrder(10)] public int ExitReason;
+
+        public MobaProjectileEventSnapshotEntry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason)
+        {
+            Kind = kind;
+            ProjectileActorId = projectileActorId;
+            OwnerActorId = ownerActorId;
+            TemplateId = templateId;
+            LauncherActorId = launcherActorId;
+            RootActorId = rootActorId;
+            X = x;
+            Y = y;
+            Z = z;
+            HitCollider = hitCollider;
+            ExitReason = exitReason;
+        }
     }
 
     [MemoryPackable]
