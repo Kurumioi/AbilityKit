@@ -7,15 +7,19 @@ using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     /// <summary>
     /// 触发器计划数据库（从 JSON 加载 TriggerPlan）
-    /// 已迁移到 TriggerPlanConverter 进行转换
+    /// 支持两种格式：
+    /// 1. 运行时格式（Triggers 数组 + Strings 字典）- 直接加载
+    /// 2. 源格式（triggers 数组 + actions/conditions 定义）- 自动转换后加载
     /// </summary>
     public sealed class TriggerPlanJsonDatabase
     {
+        private static readonly TriggerPlanSourceConverter _sourceConverter = new TriggerPlanSourceConverter();
         /// <summary>
         /// Cue 工厂接口
         /// 负责将 JSON 中的 CueKind / CueVfxId / CueSfxId 解析为具体的 ITriggerCue 实例
@@ -185,15 +189,50 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             TriggerPlanDatabaseDto dto;
+
+            // 检测 JSON 格式
+            var jsonStart = json.TrimStart();
+            bool isSourceFormat = jsonStart.StartsWith("{\"$schema\"") ||
+                                  jsonStart.StartsWith("{\"version\"") ||
+                                  jsonStart.StartsWith("{\"triggers\":");
+
             try
             {
-                dto = JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(json);
+                if (isSourceFormat)
+                {
+                    // 源格式：需要转换为运行时格式
+                    var runtimeJson = _sourceConverter.ConvertSourceToRuntimeJson(json);
+                    dto = JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(runtimeJson);
+                }
+                else
+                {
+                    // 运行时格式：直接反序列化
+                    dto = JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(json);
+                }
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {ex.Message}", ex);
             }
 
+            LoadFromDto(dto);
+        }
+
+        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
+        {
+            if (runner == null) throw new ArgumentNullException(nameof(runner));
+
+            for (int i = 0; i < _records.Count; i++)
+            {
+                var r = _records[i];
+                if (r.EventId == 0) continue;
+                var key = new EventKey<object>(r.EventId);
+                runner.RegisterPlan<object, TCtx>(key, r.Plan);
+            }
+        }
+
+        private void LoadFromDto(TriggerPlanDatabaseDto dto)
+        {
             var next = new List<Record>();
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
             var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
@@ -211,7 +250,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         eid = StableStringId.Get("event:" + t.EventName);
                     }
 
-                    var plan = BuildPlan(t);
+                    var plan = _converter.Convert(t);
                     next.Add(new Record(t.TriggerId, t.EventName, eid, in plan));
                     byTriggerId[t.TriggerId] = plan;
                 }
@@ -222,24 +261,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             _strings = strings;
         }
 
-        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
-        {
-            if (runner == null) throw new ArgumentNullException(nameof(runner));
-
-            for (int i = 0; i < _records.Count; i++)
-            {
-                var r = _records[i];
-                if (r.EventId == 0) continue;
-                var key = new EventKey<object>(r.EventId);
-                runner.RegisterPlan<object, TCtx>(key, r.Plan);
-            }
-        }
-
         private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();
-
-        private static TriggerPlan<object> BuildPlan(TriggerPlanDto dto)
-        {
-            return _converter.Convert(dto);
-        }
     }
 }

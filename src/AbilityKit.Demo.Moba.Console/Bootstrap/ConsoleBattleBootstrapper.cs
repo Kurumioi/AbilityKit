@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly ConsoleInputHandler _inputHandler;
         private readonly List<IWorldModule> _modules;
         private readonly BattleStartConfig _config;
-        private readonly MobaConfigDatabase _mobaConfig;
+        private MobaConfigDatabase _mobaConfig;
         private readonly BattleServices _battleServices;
         private readonly ConsoleSkillExecutor _skillExecutor;
         private readonly RecordConfig _recordConfig;
@@ -97,10 +97,10 @@ namespace AbilityKit.Demo.Moba.Console
 
             _modules = new List<IWorldModule>();
 
-            // ?? ConsoleConfigWorldModule????? [WorldService] ??
-            _modules.Add(new ConsoleConfigWorldModule());
+            // 使用 ConsoleConfigModule 统一管理配置加载
+            _modules.Add(new ConsoleConfigModule());
 
-            // ??????
+            // 添加额外的模块
             if (additionalModules != null)
             {
                 _modules.AddRange(additionalModules);
@@ -109,9 +109,8 @@ namespace AbilityKit.Demo.Moba.Console
             // ????
             _config = config ?? ConsoleConfigLoader.LoadBattleStartConfig();
 
-            var loader = new ConsoleTextAssetLoader();
-            _mobaConfig = mobaConfig ?? ConsoleConfigLoader.LoadMobaConfig(loader);
-            _mobaConfig.LoadFromResources(); // ??????
+            // _mobaConfig 通过 DI 在 ConfigureWorld 中解析
+            _mobaConfig = mobaConfig;
 
             Platform = new PlatformComponents();
 
@@ -211,9 +210,6 @@ namespace AbilityKit.Demo.Moba.Console
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ConfigureWorld - Entry");
             var builder = new WorldContainerBuilder();
 
-            // ?? ITextAssetLoader
-            builder.Register<ITextAssetLoader>(WorldLifetime.Singleton, _ => new ConsoleTextAssetLoader());
-
             foreach (var module in _modules)
             {
                 Log.Debug($"Configuring module: {module.GetType().Name}");
@@ -223,19 +219,15 @@ namespace AbilityKit.Demo.Moba.Console
             var container = builder.Build();
             _worldResolver = container;
 
+            // 从 DI 容器解析 MobaConfig（由 ConsoleConfigModule 注册）
+            if (_mobaConfig == null)
+            {
+                _mobaConfig = container.Resolve<MobaConfigDatabase>();
+                Log.System($"MobaConfig resolved from DI: {_mobaConfig.CharacterCount} characters, {_mobaConfig.SkillCount} skills");
+            }
+
             // ??? moba.core ??
             InitializeMobaCore();
-
-            // ?????
-            var loader = container.Resolve<ITextAssetLoader>();
-            if (loader != null)
-            {
-                Log.System($"ITextAssetLoader registered: {loader.GetType().Name}");
-            }
-            else
-            {
-                Log.Warn("No ITextAssetLoader registered");
-            }
 
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ConfigureWorld - Exit");
         }

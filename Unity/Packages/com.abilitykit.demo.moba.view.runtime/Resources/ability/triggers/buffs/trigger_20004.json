@@ -1,0 +1,19 @@
+﻿{
+    "conditions":  [
+
+                   ],
+    "id":  20004,
+    "enabled":  true,
+    "phase":  "immediate",
+    "event":  "",
+    "name":  "Trigger_20004",
+    "allowExternal":  false,
+    "actions":  [
+                    {
+                        "message":  "被动日志输出11111",
+                        "dump_args":  false,
+                        "type":  "debug_log"
+                    }
+                ],
+    "priority":  50
+}

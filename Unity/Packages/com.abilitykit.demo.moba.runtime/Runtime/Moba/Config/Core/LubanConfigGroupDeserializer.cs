@@ -1,0 +1,605 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Ability.Config;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using Newtonsoft.Json.Linq;
+
+namespace AbilityKit.Demo.Moba.Config.Core
+{
+    /// <summary>
+    /// Luban 配置组反序列化器。
+    /// 将 Luban 导出的 JSON 转换为框架的 MO DTO 类型。
+    /// 
+    /// Luban 导出的 JSON 字段名与框架 DTO 不同：
+    /// - Luban 使用 "Code"，框架使用 "Id"
+    /// - 需要处理字段映射和默认值
+    /// </summary>
+    public sealed class LubanConfigGroupDeserializer : ConfigGroupDeserializerBase
+    {
+        public static readonly LubanConfigGroupDeserializer Instance = new LubanConfigGroupDeserializer();
+
+        private LubanConfigGroupDeserializer() { }
+
+        public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)
+        {
+            throw new NotSupportedException(
+                $"[{nameof(LubanConfigGroupDeserializer)}] Bytes deserialization not supported. Use JSON format.");
+        }
+
+        public override Array DeserializeFromText(string text, Type dtoType)
+        {
+            if (string.IsNullOrEmpty(text)) return Array.CreateInstance(dtoType, 0);
+
+            try
+            {
+                var token = JToken.Parse(text);
+                if (token is not JArray array) return Array.CreateInstance(dtoType, 0);
+
+                var list = new List<object>();
+                foreach (var item in array)
+                {
+                    var obj = DeserializeItem(item as JObject, dtoType);
+                    if (obj != null) list.Add(obj);
+                }
+
+                var result = Array.CreateInstance(dtoType, list.Count);
+                for (int i = 0; i < list.Count; i++) result.SetValue(list[i], i);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to deserialize {dtoType.Name}: {ex.Message}", ex);
+            }
+        }
+
+        public override bool CanHandle(Type dtoType)
+        {
+            return dtoType.Namespace == "AbilityKit.Demo.Moba.Config.BattleDemo.MO";
+        }
+
+        private static object DeserializeItem(JObject obj, Type dtoType)
+        {
+            if (obj == null) return null;
+
+            // 根据类型分发
+            if (dtoType == typeof(CharacterDTO)) return DeserializeCharacter(obj);
+            if (dtoType == typeof(BattleAttributeTemplateDTO)) return DeserializeBattleAttributeTemplate(obj);
+            if (dtoType == typeof(SkillDTO)) return DeserializeSkill(obj);
+            if (dtoType == typeof(PassiveSkillDTO)) return DeserializePassiveSkill(obj);
+            if (dtoType == typeof(SkillButtonTemplateDTO)) return DeserializeSkillButtonTemplate(obj);
+            if (dtoType == typeof(TagTemplateDTO)) return DeserializeTagTemplate(obj);
+            if (dtoType == typeof(SearchQueryTemplateDTO)) return DeserializeSearchQueryTemplate(obj);
+            if (dtoType == typeof(BuffDTO)) return DeserializeBuff(obj);
+            if (dtoType == typeof(ModelDTO)) return DeserializeModel(obj);
+            if (dtoType == typeof(ProjectileLauncherDTO)) return DeserializeProjectileLauncher(obj);
+            if (dtoType == typeof(ProjectileDTO)) return DeserializeProjectile(obj);
+            if (dtoType == typeof(AoeDTO)) return DeserializeAoe(obj);
+            if (dtoType == typeof(EmitterDTO)) return DeserializeEmitter(obj);
+            if (dtoType == typeof(SummonDTO)) return DeserializeSummon(obj);
+            if (dtoType == typeof(SkillFlowDTO)) return DeserializeSkillFlow(obj);
+            if (dtoType == typeof(SkillLevelTableDTO)) return DeserializeSkillLevelTable(obj);
+            if (dtoType == typeof(ComponentTemplateDTO)) return DeserializeComponentTemplate(obj);
+            if (dtoType == typeof(OngoingEffectDTO)) return DeserializeOngoingEffect(obj);
+            if (dtoType == typeof(PresentationTemplateDTO)) return DeserializePresentationTemplate(obj);
+            if (dtoType == typeof(SpawnSummonActionTemplateDTO)) return DeserializeSpawnSummonActionTemplate(obj);
+
+            // 默认：尝试使用 JObject 反序列化
+            return obj.ToObject(dtoType);
+        }
+
+        private static CharacterDTO DeserializeCharacter(JObject obj)
+        {
+            // Luban: Code, Name, Career, ModelId, AttributeTemplateId
+            // 框架: Id, Name, SkillIds, PassiveSkillIds, ModelId, AttributeTemplateId
+            var dto = new CharacterDTO
+            {
+                Id = obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                ModelId = obj["ModelId"]?.Value<int>() ?? 0,
+                AttributeTemplateId = obj["AttributeTemplateId"]?.Value<int>() ?? 0,
+                SkillIds = obj["ActiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                PassiveSkillIds = obj["PassiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static BattleAttributeTemplateDTO DeserializeBattleAttributeTemplate(JObject obj)
+        {
+            // 框架 DTO: Id, ActiveSkills, PassiveSkills, Hp, MaxHp, ExtraHp, ...
+            // 没有 Name 字段
+            var dto = new BattleAttributeTemplateDTO
+            {
+                Id = obj["Code"]?.Value<int>() ?? 0,
+                ActiveSkills = obj["ActiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                PassiveSkills = obj["PassiveSkills"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Hp = obj["Hp"]?.Value<int>() ?? 0,
+                MaxHp = obj["MaxHp"]?.Value<int>() ?? 0,
+                ExtraHp = obj["ExtraHp"]?.Value<int>() ?? 0,
+                PhysicsAttack = obj["PhysicsAttack"]?.Value<int>() ?? 0,
+                MagicAttack = obj["MagicAttack"]?.Value<int>() ?? 0,
+                ExtraPhysicsAttack = obj["ExtraPhysicsAttack"]?.Value<int>() ?? 0,
+                ExtraMagicAttack = obj["ExtraMagicAttack"]?.Value<int>() ?? 0,
+                PhysicsDefense = obj["PhysicsDefense"]?.Value<int>() ?? 0,
+                MagicDefense = obj["MagicDefense"]?.Value<int>() ?? 0,
+                Mana = obj["Mana"]?.Value<int>() ?? 0,
+                MaxMana = obj["MaxMana"]?.Value<int>() ?? 0,
+                CriticalR = obj["CriticalR"]?.Value<int>() ?? 0,
+                AttackSpeedR = obj["AttackSpeedR"]?.Value<int>() ?? 0,
+                CooldownReduceR = obj["CooldownReduceR"]?.Value<int>() ?? 0,
+                PhysicsPenetrationR = obj["PhysicsPenetrationR"]?.Value<int>() ?? 0,
+                MagicPenetrationR = obj["MagicPenetrationR"]?.Value<int>() ?? 0,
+                MoveSpeed = obj["MoveSpeed"]?.Value<int>() ?? 0,
+                PhysicsBloodsuckingR = obj["PhysicsBloodsuckingR"]?.Value<int>() ?? 0,
+                MagicBloodsuckingR = obj["MagicBloodsuckingR"]?.Value<int>() ?? 0,
+                AttackRange = obj["AttackRange"]?.Value<int>() ?? 0,
+                PerSecondBloodR = obj["PerSecondBloodR"]?.Value<int>() ?? 0,
+                PerSecondManaR = obj["PerSecondManaR"]?.Value<int>() ?? 0,
+                ResilienceR = obj["ResilienceR"]?.Value<int>() ?? 0
+            };
+            return dto;
+        }
+
+        private static SkillDTO DeserializeSkill(JObject obj)
+        {
+            var dto = new SkillDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                CooldownMs = obj["CooldownMs"]?.Value<int>() ?? 0,
+                Range = obj["Range"]?.Value<int>() ?? 0,
+                IconId = obj["IconId"]?.Value<int>() ?? 0,
+                Category = obj["Category"]?.Value<int>() ?? 0,
+                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                SkillButtonTemplateId = obj["SkillButtonTemplateId"]?.Value<int>() ?? 0,
+                LevelTableId = obj["LevelTableId"]?.Value<int>() ?? 0,
+                PreCastFlowId = obj["PreCastFlowId"]?.Value<int>() ?? 0,
+                CastFlowId = obj["CastFlowId"]?.Value<int>() ?? 0
+            };
+            return dto;
+        }
+
+        private static PassiveSkillDTO DeserializePassiveSkill(JObject obj)
+        {
+            var dto = new PassiveSkillDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                CooldownMs = obj["CooldownMs"]?.Value<int>() ?? 0,
+                TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static SkillButtonTemplateDTO DeserializeSkillButtonTemplate(JObject obj)
+        {
+            var dto = new SkillButtonTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                LongPressSeconds = obj["LongPressSeconds"]?.Value<float>() ?? 0,
+                DragThreshold = obj["DragThreshold"]?.Value<float>() ?? 0,
+                EnableAim = obj["EnableAim"]?.Value<bool>() ?? false,
+                AimMode = obj["AimMode"]?.Value<int>() ?? 0,
+                AimMaxRadius = obj["AimMaxRadius"]?.Value<float>() ?? 0,
+                UsePointMode = obj["UsePointMode"]?.Value<int>() ?? 0,
+                SelectRange = obj["SelectRange"]?.Value<float>() ?? 0,
+                FaceToAim = obj["FaceToAim"]?.Value<bool>() ?? false
+            };
+            return dto;
+        }
+
+        private static TagTemplateDTO DeserializeTagTemplate(JObject obj)
+        {
+            var dto = new TagTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                RequiredTags = obj["RequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                BlockedTags = obj["BlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                GrantTags = obj["GrantTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                RemoveTags = obj["RemoveTags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static SearchQueryTemplateDTO DeserializeSearchQueryTemplate(JObject obj)
+        {
+            var dto = new SearchQueryTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                CenterMode = obj["CenterMode"]?.Value<int>() ?? 0,
+                Radius = obj["Radius"]?.Value<float>() ?? 0,
+                MaxCount = obj["MaxCount"]?.Value<int>() ?? 0,
+                ExcludeCaster = obj["ExcludeCaster"]?.Value<bool>() ?? false
+            };
+            return dto;
+        }
+
+        private static BuffDTO DeserializeBuff(JObject obj)
+        {
+            var dto = new BuffDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                OngoingEffectId = obj["OngoingEffectId"]?.Value<int>() ?? 0,
+                OnAddEffects = obj["OnAddEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnRemoveEffects = obj["OnRemoveEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnIntervalEffects = obj["OnIntervalEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                StackingPolicy = obj["StackingPolicy"]?.Value<int>() ?? 0,
+                RefreshPolicy = obj["RefreshPolicy"]?.Value<int>() ?? 0,
+                MaxStacks = obj["MaxStacks"]?.Value<int>() ?? 1,
+                TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static ModelDTO DeserializeModel(JObject obj)
+        {
+            // 框架 DTO: Id, PrefabPath, Scale (没有 Name, IconPath)
+            var dto = new ModelDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                PrefabPath = obj["PrefabPath"]?.Value<string>() ?? string.Empty,
+                Scale = obj["Scale"]?.Value<float>() ?? 1.0f
+            };
+            return dto;
+        }
+
+        private static ProjectileLauncherDTO DeserializeProjectileLauncher(JObject obj)
+        {
+            var dto = new ProjectileLauncherDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                EmitterType = obj["EmitterType"]?.Value<int>() ?? 0,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                CountPerShot = obj["CountPerShot"]?.Value<int>() ?? 1,
+                FanAngleDeg = obj["FanAngleDeg"]?.Value<float>() ?? 0
+            };
+            return dto;
+        }
+
+        private static ProjectileDTO DeserializeProjectile(JObject obj)
+        {
+            // 框架 DTO: Id, Name, VfxId, Speed, LifetimeMs, MaxDistance, HitPolicyKind, HitsRemaining, HitCooldownMs, TickIntervalMs, OnHitEffectId, OnSpawnVfxId, OnHitVfxId, OnExpireVfxId, ReturnAfterMs, ReturnSpeed, ReturnStopDistance
+            var dto = new ProjectileDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                VfxId = obj["VfxId"]?.Value<int>() ?? 0,
+                Speed = obj["Speed"]?.Value<float>() ?? 0,
+                LifetimeMs = obj["LifetimeMs"]?.Value<int>() ?? 0,
+                MaxDistance = obj["MaxDistance"]?.Value<float>() ?? 0,
+                HitPolicyKind = obj["HitPolicyKind"]?.Value<int>() ?? 0,
+                HitsRemaining = obj["HitsRemaining"]?.Value<int>() ?? 0,
+                HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,
+                TickIntervalMs = obj["TickIntervalMs"]?.Value<int>() ?? 0,
+                OnHitEffectId = obj["OnHitEffectId"]?.Value<int>() ?? 0,
+                OnSpawnVfxId = obj["OnSpawnVfxId"]?.Value<int>() ?? 0,
+                OnHitVfxId = obj["OnHitVfxId"]?.Value<int>() ?? 0,
+                OnExpireVfxId = obj["OnExpireVfxId"]?.Value<int>() ?? 0,
+                ReturnAfterMs = obj["ReturnAfterMs"]?.Value<int>() ?? 0,
+                ReturnSpeed = obj["ReturnSpeed"]?.Value<float>() ?? 0,
+                ReturnStopDistance = obj["ReturnStopDistance"]?.Value<float>() ?? 0
+            };
+            return dto;
+        }
+
+        private static AoeDTO DeserializeAoe(JObject obj)
+        {
+            // 框架 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds
+            var dto = new AoeDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                ModelId = obj["ModelId"]?.Value<int>() ?? 0,
+                VfxId = obj["VfxId"]?.Value<int>() ?? 0,
+                AttachMode = obj["AttachMode"]?.Value<int>() ?? 0,
+                OffsetX = obj["OffsetX"]?.Value<float>() ?? 0,
+                OffsetY = obj["OffsetY"]?.Value<float>() ?? 0,
+                OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0,
+                Radius = obj["Radius"]?.Value<float>() ?? 0,
+                DelayMs = obj["DelayMs"]?.Value<int>() ?? 0,
+                CollisionLayerMask = obj["CollisionLayerMask"]?.Value<int>() ?? 0,
+                MaxTargets = obj["MaxTargets"]?.Value<int>() ?? 0,
+                OnDelayTriggerIds = obj["OnDelayTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static EmitterDTO DeserializeEmitter(JObject obj)
+        {
+            // 框架 DTO: Id, Name, EmitKind, TemplateId, DelayMs, DurationMs, IntervalMs, TotalCount, CountPerShot, FanAngleDeg, CenterMode, OffsetX, OffsetY, OffsetZ
+            var dto = new EmitterDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                EmitKind = obj["EmitKind"]?.Value<int>() ?? 0,
+                TemplateId = obj["TemplateId"]?.Value<int>() ?? 0,
+                DelayMs = obj["DelayMs"]?.Value<int>() ?? 0,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                TotalCount = obj["TotalCount"]?.Value<int>() ?? 0,
+                CountPerShot = obj["CountPerShot"]?.Value<int>() ?? 1,
+                FanAngleDeg = obj["FanAngleDeg"]?.Value<float>() ?? 0,
+                CenterMode = obj["CenterMode"]?.Value<int>() ?? 0,
+                OffsetX = obj["OffsetX"]?.Value<float>() ?? 0,
+                OffsetY = obj["OffsetY"]?.Value<float>() ?? 0,
+                OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0
+            };
+            return dto;
+        }
+
+        private static SummonDTO DeserializeSummon(JObject obj)
+        {
+            // 框架 DTO: Id, Name, UnitSubType, ModelId, AttributeTemplateId, LifetimeMs, DespawnOnOwnerDie, MaxAlivePerOwner, OverflowPolicy, StatsMode, AttrScales, SkillIds, PassiveSkillIds, DefaultComponentTemplateIds, Tags
+            var dto = new SummonDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                UnitSubType = obj["UnitSubType"]?.Value<int>() ?? 0,
+                ModelId = obj["ModelId"]?.Value<int>() ?? 0,
+                AttributeTemplateId = obj["AttributeTemplateId"]?.Value<int>() ?? 0,
+                LifetimeMs = obj["LifetimeMs"]?.Value<int>() ?? 0,
+                DespawnOnOwnerDie = obj["DespawnOnOwnerDie"]?.Value<bool>() ?? false,
+                MaxAlivePerOwner = obj["MaxAlivePerOwner"]?.Value<int>() ?? 0,
+                OverflowPolicy = obj["OverflowPolicy"]?.Value<int>() ?? 0,
+                StatsMode = obj["StatsMode"]?.Value<int>() ?? 0,
+                AttrScales = DeserializeSummonAttrScales(obj["AttrScales"]),
+                SkillIds = obj["SkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                PassiveSkillIds = obj["PassiveSkillIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                DefaultComponentTemplateIds = obj["DefaultComponentTemplateIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
+        private static SummonAttrScaleDTO[] DeserializeSummonAttrScales(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SummonAttrScaleDTO>();
+            var array = token as JArray;
+            var result = new List<SummonAttrScaleDTO>();
+            foreach (var item in array)
+            {
+                if (item is JObject obj)
+                {
+                    result.Add(new SummonAttrScaleDTO
+                    {
+                        AttrId = obj["AttrId"]?.Value<int>() ?? 0,
+                        Ratio = obj["Ratio"]?.Value<float>() ?? 1.0f,
+                        Add = obj["Add"]?.Value<float>() ?? 0
+                    });
+                }
+            }
+            return result.ToArray();
+        }
+
+        private static SkillFlowDTO DeserializeSkillFlow(JObject obj)
+        {
+            var dto = new SkillFlowDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                Phases = DeserializeSkillPhases(obj["Phases"])
+            };
+            return dto;
+        }
+
+        private static SkillPhaseDTO[] DeserializeSkillPhases(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SkillPhaseDTO>();
+            var array = token as JArray;
+            var result = new List<SkillPhaseDTO>();
+            foreach (var item in array)
+            {
+                if (item is JObject obj)
+                {
+                    result.Add(new SkillPhaseDTO
+                    {
+                        Type = obj["Type"]?.Value<int>() ?? 0,
+                        Checks = DeserializeSkillChecks(obj["Checks"]),
+                        Timeline = DeserializeSkillTimeline(obj["Timeline"])
+                    });
+                }
+            }
+            return result.ToArray();
+        }
+
+        private static SkillChecksPhaseDTO DeserializeSkillChecks(JToken token)
+        {
+            if (token == null) return null;
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillChecksPhaseDTO
+            {
+                CheckCooldown = obj["CheckCooldown"]?.Value<bool>() ?? true,
+                CheckCastingState = obj["CheckCastingState"]?.Value<bool>() ?? true,
+                RequiredTags = obj["RequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                BlockedTags = obj["BlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+        }
+
+        private static SkillTimelinePhaseDTO DeserializeSkillTimeline(JToken token)
+        {
+            if (token == null) return null;
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillTimelinePhaseDTO
+            {
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                Events = DeserializeSkillTimelineEvents(obj["Events"])
+            };
+        }
+
+        private static SkillTimelineEventDTO[] DeserializeSkillTimelineEvents(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SkillTimelineEventDTO>();
+            var array = token as JArray;
+            var result = new List<SkillTimelineEventDTO>();
+            foreach (var item in array)
+            {
+                if (item is JObject obj)
+                {
+                    result.Add(new SkillTimelineEventDTO
+                    {
+                        AtMs = obj["AtMs"]?.Value<int>() ?? 0,
+                        EffectId = obj["EffectId"]?.Value<int>() ?? 0,
+                        ExecuteMode = obj["ExecuteMode"]?.Value<int>() ?? 0,
+                        EventTag = obj["EventTag"]?.Value<string>() ?? string.Empty
+                    });
+                }
+            }
+            return result.ToArray();
+        }
+
+        private static SkillLevelTableDTO DeserializeSkillLevelTable(JObject obj)
+        {
+            // 框架 DTO: Id, Levels
+            var dto = new SkillLevelTableDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Levels = DeserializeSkillLevels(obj["Levels"])
+            };
+            return dto;
+        }
+
+        private static SkillLevelDTO[] DeserializeSkillLevels(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SkillLevelDTO>();
+            var array = token as JArray;
+            var result = new List<SkillLevelDTO>();
+            foreach (var item in array)
+            {
+                if (item is JObject obj)
+                {
+                    // 框架 DTO: CooldownMs, Cost, Params (没有 Level, Damage)
+                    result.Add(new SkillLevelDTO
+                    {
+                        CooldownMs = obj["CooldownMs"]?.Value<int>() ?? 0,
+                        Cost = obj["Cost"]?.Value<int>() ?? 0,
+                        Params = obj["Params"]?.ToObject<float[]>() ?? Array.Empty<float>()
+                    });
+                }
+            }
+            return result.ToArray();
+        }
+
+        private static ComponentTemplateDTO DeserializeComponentTemplate(JObject obj)
+        {
+            // 框架 DTO: Id, Name, Ops
+            var dto = new ComponentTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                Ops = DeserializeComponentOps(obj["Ops"])
+            };
+            return dto;
+        }
+
+        private static ComponentOpDTO[] DeserializeComponentOps(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<ComponentOpDTO>();
+            var array = token as JArray;
+            var result = new List<ComponentOpDTO>();
+            foreach (var item in array)
+            {
+                if (item is JObject op)
+                {
+                    result.Add(new ComponentOpDTO
+                    {
+                        Kind = op["Kind"]?.Value<int>() ?? 0,
+                        IntValue = op["IntValue"]?.Value<int>() ?? 0,
+                        FloatValue = op["FloatValue"]?.Value<float>() ?? 0,
+                        BoolValue = op["BoolValue"]?.Value<bool>() ?? false
+                    });
+                }
+            }
+            return result.ToArray();
+        }
+
+        private static OngoingEffectDTO DeserializeOngoingEffect(JObject obj)
+        {
+            // 框架 DTO: Id, Name, DurationMs, PeriodMs, OnApplyEffectId, OnTickEffectId, OnRemoveEffectId
+            var dto = new OngoingEffectDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                PeriodMs = obj["PeriodMs"]?.Value<int>() ?? 0,
+                OnApplyEffectId = obj["OnApplyEffectId"]?.Value<int>() ?? 0,
+                OnTickEffectId = obj["OnTickEffectId"]?.Value<int>() ?? 0,
+                OnRemoveEffectId = obj["OnRemoveEffectId"]?.Value<int>() ?? 0
+            };
+            return dto;
+        }
+
+        private static PresentationTemplateDTO DeserializePresentationTemplate(JObject obj)
+        {
+            // 框架 DTO: Id, Name, Kind, AssetId, DefaultDurationMs, AttachMode, Socket, Follow, StackPolicy, StopPolicy, Scale, ColorR, ColorG, ColorB, ColorA, Radius, OffsetX, OffsetY, OffsetZ
+            var dto = new PresentationTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                Kind = obj["Kind"]?.Value<int>() ?? 0,
+                AssetId = obj["AssetId"]?.Value<int>() ?? 0,
+                DefaultDurationMs = obj["DefaultDurationMs"]?.Value<int>() ?? 0,
+                AttachMode = obj["AttachMode"]?.Value<int>() ?? 0,
+                Socket = obj["Socket"]?.Value<string>() ?? string.Empty,
+                Follow = obj["Follow"]?.Value<bool>() ?? false,
+                StackPolicy = obj["StackPolicy"]?.Value<int>() ?? 0,
+                StopPolicy = obj["StopPolicy"]?.Value<int>() ?? 0,
+                Scale = obj["Scale"]?.Value<float>() ?? 1.0f,
+                ColorR = obj["ColorR"]?.Value<float>() ?? 1.0f,
+                ColorG = obj["ColorG"]?.Value<float>() ?? 1.0f,
+                ColorB = obj["ColorB"]?.Value<float>() ?? 1.0f,
+                ColorA = obj["ColorA"]?.Value<float>() ?? 1.0f,
+                Radius = obj["Radius"]?.Value<float>() ?? 0,
+                OffsetX = obj["OffsetX"]?.Value<float>() ?? 0,
+                OffsetY = obj["OffsetY"]?.Value<float>() ?? 0,
+                OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0
+            };
+            return dto;
+        }
+
+        private static SpawnSummonActionTemplateDTO DeserializeSpawnSummonActionTemplate(JObject obj)
+        {
+            // 框架 DTO: Id, Name, SummonId, TargetMode, PositionMode, RotationMode, OwnerKeyMode, PatternMode, PatternCount, Spacing, Radius, StartAngleDeg, ArcAngleDeg, YawOffsetDeg, RandomSeed, RandomRadiusMin, RandomRadiusMax, GridRows, GridCols, GridSpacingX, GridSpacingZ, PerPointRotationMode, PerPointYawOffsetDeg, IntervalMs
+            var dto = new SpawnSummonActionTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                SummonId = obj["SummonId"]?.Value<int>() ?? 0,
+                TargetMode = obj["TargetMode"]?.Value<int>() ?? 0,
+                PositionMode = obj["PositionMode"]?.Value<int>() ?? 0,
+                RotationMode = obj["RotationMode"]?.Value<int>() ?? 0,
+                OwnerKeyMode = obj["OwnerKeyMode"]?.Value<int>() ?? 0,
+                PatternMode = obj["PatternMode"]?.Value<int>() ?? 0,
+                PatternCount = obj["PatternCount"]?.Value<int>() ?? 0,
+                Spacing = obj["Spacing"]?.Value<float>() ?? 0,
+                Radius = obj["Radius"]?.Value<float>() ?? 0,
+                StartAngleDeg = obj["StartAngleDeg"]?.Value<float>() ?? 0,
+                ArcAngleDeg = obj["ArcAngleDeg"]?.Value<float>() ?? 0,
+                YawOffsetDeg = obj["YawOffsetDeg"]?.Value<float>() ?? 0,
+                RandomSeed = obj["RandomSeed"]?.Value<int>() ?? 0,
+                RandomRadiusMin = obj["RandomRadiusMin"]?.Value<float>() ?? 0,
+                RandomRadiusMax = obj["RandomRadiusMax"]?.Value<float>() ?? 0,
+                GridRows = obj["GridRows"]?.Value<int>() ?? 0,
+                GridCols = obj["GridCols"]?.Value<int>() ?? 0,
+                GridSpacingX = obj["GridSpacingX"]?.Value<float>() ?? 0,
+                GridSpacingZ = obj["GridSpacingZ"]?.Value<float>() ?? 0,
+                PerPointRotationMode = obj["PerPointRotationMode"]?.Value<int>() ?? 0,
+                PerPointYawOffsetDeg = obj["PerPointYawOffsetDeg"]?.Value<float>() ?? 0,
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0
+            };
+            return dto;
+        }
+    }
+}

@@ -105,7 +105,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 ENumericValueRefKind.Blackboard => NumericValueRef.Blackboard(dto.BoardId, dto.KeyId),
                 ENumericValueRefKind.PayloadField => NumericValueRef.PayloadField(dto.FieldId),
                 ENumericValueRefKind.Var => NumericValueRef.Var(dto.DomainId, dto.Key),
-                ENumericValueRefKind.Expr => throw new NotSupportedException("UGC numeric value source kind 'Expr' is not allowed in JSON"),
+                ENumericValueRefKind.Expr => NumericValueRef.Expr(dto.ExprText),
                 _ => throw new InvalidOperationException($"Unsupported NumericValueRef kind: {kind}")
             };
         }

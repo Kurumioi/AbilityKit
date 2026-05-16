@@ -9,7 +9,10 @@ param(
     [string]$OutputJsonDir = "..\\..\\Unity\\Assets\\Resources\\moba",
 
     [Parameter(Mandatory = $false)]
-    [string]$OutputBytesDir = "..\\..\\Unity\\Assets\\Resources\\moba_bytes"
+    [string]$OutputBytesDir = "..\\..\\Unity\\Assets\\Resources\\moba_bytes",
+
+    [Parameter(Mandatory = $false)]
+    [string]$OutputConsoleConfigDir = "..\\..\\src\\AbilityKit.Demo.Moba.Console\\Configs\\luban"
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,13 +20,15 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $absJsonDir = [System.IO.Path]::GetFullPath((Join-Path $root $OutputJsonDir))
 $absBytesDir = [System.IO.Path]::GetFullPath((Join-Path $root $OutputBytesDir))
-
-New-Item -ItemType Directory -Force -Path $absJsonDir | Out-Null
-New-Item -ItemType Directory -Force -Path $absBytesDir | Out-Null
+$absConsoleConfigDir = [System.IO.Path]::GetFullPath((Join-Path $root $OutputConsoleConfigDir))
 
 $stageJsonDir = [System.IO.Path]::GetFullPath((Join-Path $root ".generated\\json"))
 $stageBytesDir = [System.IO.Path]::GetFullPath((Join-Path $root ".generated\\bytes"))
 $stageCodeDir = [System.IO.Path]::GetFullPath((Join-Path $root ".generated\\code"))
+
+New-Item -ItemType Directory -Force -Path $absJsonDir | Out-Null
+New-Item -ItemType Directory -Force -Path $absBytesDir | Out-Null
+New-Item -ItemType Directory -Force -Path $absConsoleConfigDir | Out-Null
 
 New-Item -ItemType Directory -Force -Path $stageJsonDir | Out-Null
 New-Item -ItemType Directory -Force -Path $stageBytesDir | Out-Null
@@ -31,6 +36,7 @@ New-Item -ItemType Directory -Force -Path $stageCodeDir | Out-Null
 
 Write-Host "[export_moba_configs] OutputJsonDir: $absJsonDir"
 Write-Host "[export_moba_configs] OutputBytesDir: $absBytesDir"
+Write-Host "[export_moba_configs] OutputConsoleConfigDir: $absConsoleConfigDir"
 Write-Host "[export_moba_configs] StageJsonDir: $stageJsonDir"
 Write-Host "[export_moba_configs] StageBytesDir: $stageBytesDir"
 Write-Host "[export_moba_configs] StageCodeDir: $stageCodeDir"
@@ -59,6 +65,10 @@ dotnet $absLubanDll -t all -c cs-newtonsoft-json --conf $absConf -x outputCodeDi
 
 Copy-Item -Path (Join-Path $stageJsonDir "*") -Destination $absJsonDir -Recurse -Force
 Copy-Item -Path (Join-Path $stageBytesDir "*") -Destination $absBytesDir -Recurse -Force
+
+# 拷贝 JSON 配置到 Console Config 目录
+Copy-Item -Path (Join-Path $stageJsonDir "*") -Destination $absConsoleConfigDir -Recurse -Force
+Write-Host "[export_moba_configs] Config copied to Console: $absConsoleConfigDir"
 
 # 拷贝代码到 LubanGen
 $lubanGenDir = [System.IO.Path]::GetFullPath((Join-Path $root "..\..\Unity\Packages\com.abilitykit.demo.moba.runtime\Runtime\Impl\Moba\Config\LubanGen"))

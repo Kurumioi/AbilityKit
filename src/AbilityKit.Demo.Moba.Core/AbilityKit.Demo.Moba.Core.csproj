@@ -19,6 +19,8 @@
   <ItemGroup>
     <!-- 排除 Editor 相关 -->
     <Compile Remove="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/**/Editor/**" />
+    <!-- 排除 Impl 目录（LubanGen 重复） -->
+    <Compile Remove="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Impl/**" />
   </ItemGroup>
 
   <!-- 条件编译排除 Unity 代码 -->
