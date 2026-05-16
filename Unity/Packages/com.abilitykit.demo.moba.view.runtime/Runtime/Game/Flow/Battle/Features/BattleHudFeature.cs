@@ -12,6 +12,7 @@ using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -84,7 +85,7 @@ namespace AbilityKit.Game.Flow
             if (_ctx?.FrameSnapshots != null)
             {
                 _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
-                _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotCodec.Entry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
+                _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotEntry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
             }
         }
 
@@ -503,7 +504,7 @@ namespace AbilityKit.Game.Flow
             _aimPreview.SetActive(true);
         }
 
-        private void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotCodec.Entry[] entries)
+        private void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnDamageEvents(entries);
@@ -554,7 +555,7 @@ namespace AbilityKit.Game.Flow
                 _ctx = ctx;
             }
 
-            public void OnDamageEvents(MobaDamageEventSnapshotCodec.Entry[] entries)
+            public void OnDamageEvents(MobaDamageEventSnapshotEntry[] entries)
             {
                 for (int i = 0; i < entries.Length; i++)
                 {
@@ -567,7 +568,7 @@ namespace AbilityKit.Game.Flow
                     EnsureHud(e.TargetActorId);
                     UpdateHp(e.TargetActorId, e.TargetHp, e.TargetMaxHp);
 
-                    var isHeal = e.Kind == (int)MobaDamageEventSnapshotCodec.EventKind.Heal;
+                    var isHeal = e.Kind == (int)DamageEventKind.Heal;
                     var sign = isHeal ? "+" : "-";
                     var text = sign + Mathf.RoundToInt(absValue).ToString();
 
