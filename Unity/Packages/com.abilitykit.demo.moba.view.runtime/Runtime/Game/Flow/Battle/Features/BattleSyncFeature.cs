@@ -46,8 +46,8 @@ namespace AbilityKit.Game.Flow
                     case BattleSyncMode.Lockstep:
                     case BattleSyncMode.HybridPredictReconcile:
                     default:
-                        _subActorTransform = _ctx.FrameSnapshots.Subscribe<(int actorId, float x, float y, float z)[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
-                        _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotCodec.SnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
+                        _subActorTransform = _ctx.FrameSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
+                        _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
                         break;
                 }
             }
