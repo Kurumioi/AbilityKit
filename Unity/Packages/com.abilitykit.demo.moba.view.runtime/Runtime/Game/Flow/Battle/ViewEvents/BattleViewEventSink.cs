@@ -114,7 +114,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             RefreshDirtyViews();
         }
 
-        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
+        public void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
         {
             RefreshDirtyViews();
         }
