@@ -90,7 +90,7 @@ namespace AbilityKit.Game.Flow
         {
         }
 
-        private void OnStateHashSnapshot(ISnapshotEnvelope packet, MobaStateHashSnapshotCodec.SnapshotPayload snap)
+        private void OnStateHashSnapshot(ISnapshotEnvelope packet, MobaStateHashSnapshotPayload snap)
         {
             ApplyStateHashSnapshot(snap);
 
@@ -107,7 +107,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private void OnActorTransformSnapshot(ISnapshotEnvelope packet, (int actorId, float x, float y, float z)[] entries)
+        private void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)
         {
             if (_ctx != null)
             {
@@ -117,7 +117,7 @@ namespace AbilityKit.Game.Flow
             ApplyTransformSnapshot(entries);
         }
 
-        private void ApplyStateHashSnapshot(MobaStateHashSnapshotCodec.SnapshotPayload p)
+        private void ApplyStateHashSnapshot(MobaStateHashSnapshotPayload p)
         {
             if (!_node.IsValid) return;
 
@@ -133,7 +133,7 @@ namespace AbilityKit.Game.Flow
             comp.Hash = p.Hash;
         }
 
-        private void ApplyTransformSnapshot((int actorId, float x, float y, float z)[] entries)
+        private void ApplyTransformSnapshot(MobaActorTransformSnapshotEntry[] entries)
         {
             if (_world == null || _lookup == null || _factory == null) return;
 
@@ -152,7 +152,7 @@ namespace AbilityKit.Game.Flow
             for (int i = 0; i < entries.Length; i++)
             {
                 var en = entries[i];
-                var netId = new BattleNetId(en.actorId);
+                var netId = new BattleNetId(en.ActorId);
 
                 if (!_lookup.TryResolve(_world, netId, out var e))
                 {
@@ -165,9 +165,9 @@ namespace AbilityKit.Game.Flow
                     e.WithRef(t);
                 }
 
-                t.Position.x = en.x;
-                t.Position.y = en.y;
-                t.Position.z = en.z;
+                t.Position.x = en.X;
+                t.Position.y = en.Y;
+                t.Position.z = en.Z;
                 if (t.Forward == default) t.Forward = Vector3.forward;
 
                 dirty.Add(e.Id);
