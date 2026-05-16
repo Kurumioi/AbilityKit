@@ -1,335 +1,486 @@
 using System;
-using AbilityKit.Pipeline;
+using System.Collections.Generic;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
 {
     /// <summary>
-    /// ProgressiveSkill Phase1 - Pipeline 示例
-    /// 
-    /// 本阶段目标：
-    /// 1. 使用 AbilityPipeline 框架重构技能执行
-    /// 2. 理解 Pipeline 阶段的概念
-    /// 3. 掌握自定义 Pipeline 阶段的创建
-    /// 
-    /// 相比 Phase0 的改进：
-    /// - 使用框架的 AbilityPipeline 管理执行流程
-    /// - 阶段可独立配置和复用
-    /// - 支持阶段打断和恢复
-    /// - 更易于测试和扩展
-    /// 
-    /// 演进路线:
-    /// Phase0: 硬编码顺序执行
-    /// Phase1 (当前): Pipeline 化 - 使用 AbilityPipeline 框架
-    /// Phase2: Behavior 化 - 使用 BehaviorRuntime
-    /// Phase3: Modifiers 化 - 使用 ModifierSystem
-    /// Phase4: Trigger 化 - 使用 Triggering 模块
-    /// Phase5: 综合集成
+    /// ProgressiveSkill Phase1 - IContinuous 接口 + IContinuousManager (框架提供)
+    ///
+    /// 需求: 管理多个持续行为（灼烧、减速、中毒），支持暂停、恢复、中断。
+    ///
+    /// 框架能力: com.abilitykit.core 的 IContinuous 接口和 IContinuousManager。
+    /// 从 Phase1_Continuous.json 加载配置数据。
+    /// 展示如何用框架统一管理所有持续行为的生命周期。
     /// </summary>
     [Sample]
     public sealed class ProgressiveSkill_Phase1 : SampleBase
     {
         public override string Title => "ProgressiveSkill Phase1";
-        public override string Description => "Pipeline - 使用 AbilityPipeline 框架";
+        public override string Description => "IContinuous - 统一生命周期管理 (框架)";
         public override SampleCategory Category => SampleCategory.Demo;
+
+        private Phase1EffectManager _manager;
 
         protected override void OnRun()
         {
             Log("================================================================================");
-            Log("===           渐进式技能系统 - Phase1: Pipeline                          ===");
+            Log("===           渐进式技能系统 - Phase1: IContinuous (框架)           ===");
             Log("================================================================================");
             Output.Divider();
-            
-            // 架构说明
-            Log("【Phase1 架构说明】");
-            Output.Bullet("AbilityPipeline: 框架提供的 Pipeline 核心类 (抽象)");
-            Output.Bullet("AbilityInstantPhaseBase: 瞬时阶段基类");
-            Output.Bullet("AbilityDurationalPhaseBase: 持续性阶段基类");
-            Output.Bullet("AbilityInterruptiblePhaseBase: 可中断阶段基类");
+
+            // 从 JSON 配置加载
+            var config = Phase1Config.Load();
+            Log("【1】从 Phase1_Continuous.json 加载配置");
+            Log($"  灼烧配置: tickInterval={config.Burning.TickInterval}s, damagePerTick={config.Burning.DamagePerTick}");
+            Log($"  减速配置: tickInterval={config.Slow.TickInterval}s, slowPercent={config.Slow.SlowPercent:P0}");
             Log("");
-            
-            // 使用的框架类型
-            Log("【2】使用的框架类型");
-            Log("  - AbilityPipeline<TCtx>: 管线执行器 (抽象类，需派生)");
-            Log("  - AAbilityPipelineContext: 管线上下文基类");
-            Log("  - AbilityInstantPhaseBase: 瞬时阶段");
-            Log("  - AbilityDurationalPhaseBase: 持续阶段");
-            Log("  - AbilityInterruptiblePhaseBase: 可中断阶段");
+
+            _manager = new Phase1EffectManager();
+
+            // 需求
+            Log("【2】需求: 管理多个持续行为（灼烧、减速），支持暂停、恢复、中断");
             Log("");
-            
-            // 创建实体
-            Log("【3】创建实体");
-            var hero = new Phase0.Entities.SkillEntity(1, "勇者亚索", maxHealth: 500f, maxMana: 300f);
-            hero.AttackPower = 80f;
-            hero.Defense = 25f;
-            
-            var enemy = new Phase0.Entities.TargetEntity(1, "哥布林", maxHealth: 200f);
-            enemy.PositionX = 10f;
-            enemy.Defense = 10f;
-            
-            Log($"  英雄: {hero}");
-            Log($"  敌人: {enemy}");
+
+            // 创建目标
+            var enemy = new Phase0Target(1, "哥布林王", 500f);
+            Log($"  目标: {enemy}");
             Log("");
-            
-            // 创建火球术 Pipeline (使用框架的阶段类型)
-            Log("【4】创建火球术 Pipeline (使用框架)");
-            Output.Line();
-            
-            // 使用框架提供的延迟阶段
-            var delayPhase = new AbilityDelayPhase<Phase1_SkillContext>(1.5f);
-            delayPhase.PhaseName = "Channeling";
-            
-            Log($"  Pipeline 阶段:");
-            Log("    1. ValidationPhase (验证) - 检查施法条件");
-            Log("    2. ConsumePhase (消耗) - 消耗魔法值");
-            Log("    3. AbilityDelayPhase (引导) - 施法时间");
-            Log("    4. EffectPhase (效果) - 造成伤害");
-            Log("    5. CooldownPhase (冷却) - 设置冷却");
+
+            // 添加灼烧效果
+            Log("【3】添加灼烧效果");
+            var burnEffect = new Phase1BurningEffect(
+                configId: config.Burning.Id,
+                ownerId: enemy.Id,
+                damagePerTick: config.Burning.DamagePerTick,
+                duration: config.Burning.DurationSeconds,
+                onTick: damage => Log($"    [灼烧] 造成 {damage:F0} 点火焰伤害! (剩余: {enemy.Health:F0} HP)"),
+                onEnd: reason => Log($"    [灼烧] 结束: {reason}"));
+
+            _manager.TryActivate(burnEffect);
+            Log($"  激活灼烧效果 (持续: {config.Burning.DurationSeconds}s)");
             Log("");
-            
-            // 执行验证和消耗阶段 (瞬时)
-            Log("【5】执行 Pipeline 阶段");
-            Output.Line();
-            
-            var context = Phase1_SkillContext.Create(
-                hero, 
-                enemy, 
-                Phase0.Skills.SkillDefinition.CreateFireball());
-            
-            // 阶段1: 验证
-            Log("  --- 验证阶段 ---");
-            var validationPhase = new Phase1_ValidationPhase();
-            validationPhase.Execute(context);
-            
-            if (context.IsAborted)
+
+            // Tick 一段时间
+            Log("【4】模拟 2 秒 (每 0.5 秒 Tick 一次)");
+            for (int i = 0; i < 4; i++)
             {
-                Log($"  验证失败: {context.ValidationFailureReason}");
+                AdvanceTime(0.5f);
+                _manager.Tick(0.5f);
+                Log($"    [Tick {i + 1}] 活跃效果数: {_manager.ActiveCount}");
             }
-            else
+            Log("");
+
+            // 暂停
+            Log("【5】暂停灼烧效果");
+            _manager.Pause(burnEffect);
+            Log("  调用 Pause() 后，Tick 不会推进时间");
+            for (int i = 0; i < 2; i++)
             {
-                Log("  验证通过!");
-                
-                // 阶段2: 消耗
-                Log("  --- 消耗阶段 ---");
-                var consumePhase = new Phase1_ConsumePhase();
-                consumePhase.Execute(context);
-                
-                // 阶段3: 引导 (模拟)
-                Log("  --- 引导阶段 (模拟 1.5秒) ---");
-                for (int i = 0; i < 3; i++)
-                {
-                    delayPhase.OnUpdate(context, 0.5f);
-                    Log($"    引导进度... {((i + 1) * 0.5f / 1.5f) * 100:F0}%");
+                AdvanceTime(0.5f);
+                _manager.Tick(0.5f);
+                Log($"    [Tick {i + 1}] Elapsed={burnEffect.ElapsedSeconds:F1}s (时间未推进)");
+            }
+            Log("");
+
+            // 恢复
+            Log("【6】恢复灼烧效果");
+            _manager.Resume(burnEffect);
+            Log("  调用 Resume() 后，继续计时");
+            Log("");
+
+            // 添加减速效果
+            Log("【7】添加减速效果");
+            var slowEffect = new Phase1SlowEffect(
+                configId: config.Slow.Id,
+                ownerId: enemy.Id,
+                slowPercent: config.Slow.SlowPercent,
+                duration: config.Slow.DurationSeconds,
+                onTick: () => Log($"    [减速] 目标速度降低 {config.Slow.SlowPercent:P0}"),
+                onEnd: reason => Log($"    [减速] 结束: {reason}"));
+
+            _manager.TryActivate(slowEffect);
+            Log($"  激活减速效果 (持续: {config.Slow.DurationSeconds}s)");
+            Log("");
+
+            // 演示中断
+            Log("【8】假设被净化技能中断减速");
+            _manager.Abort(slowEffect, "cleansed");
+            Log("  调用 Abort() 后，效果立即终止");
+            Log($"  当前活跃效果: {_manager.ActiveCount}");
+            Log("");
+
+            // 继续灼烧直到结束
+            Log("【9】继续灼烧直到结束");
+            for (int i = 0; i < 10; i++)
+            {
+                AdvanceTime(0.5f);
+                _manager.Tick(0.5f);
+            }
+            Log($"  最终目标 HP: {enemy.Health:F0}");
+            Log("");
+
+            // 对比 Phase0
+            Log("【对比 Phase0】");
+            Output.Bullet("Phase0: 手动管理 elapsed/lastTick/active 状态");
+            Output.Bullet("Phase1: IContinuous 接口 + IContinuousManager 统一管理 (框架提供)");
+            Output.Bullet("生命周期由框架管理，无需手动遍历");
+            Output.Bullet("暂停/恢复/中断由框架处理，无需重复代码");
+            Log("");
+
+            // 暴露下一个痛点
+            Log("【下一个痛点】");
+            Output.Bullet("如果需要在特定时机触发效果（如造成伤害时触发反击），Continuous 无法处理");
+            Output.Bullet("Continuous 只管理\"持续\"，不处理\"事件\"");
+            Log("  -> Phase2: Flow 异步编排 (框架)");
+            Log("");
+
+            Output.Divider();
+        }
+    }
+
+    // ============================================================================
+    // 配置模型
+    // ============================================================================
+
+    /// <summary>
+    /// Phase1 配置 (从 JSON 加载)
+    /// </summary>
+    public sealed class Phase1Config
+    {
+        public Phase1EffectConfig Burning { get; set; } = new();
+        public Phase1EffectConfig Slow { get; set; } = new();
+
+        public static Phase1Config Load()
+        {
+            // 嵌入的 JSON 配置
+            const string json = @"{
+                ""burning"": {
+                    ""id"": ""burning"",
+                    ""tickInterval"": 1.0,
+                    ""damagePerTick"": 8.0,
+                    ""durationSeconds"": 5.0
+                },
+                ""slow"": {
+                    ""id"": ""slow"",
+                    ""tickInterval"": 2.0,
+                    ""slowPercent"": 0.5,
+                    ""durationSeconds"": 3.0
                 }
-                delayPhase.ForceComplete(context);
-                
-                // 阶段4: 效果
-                Log("  --- 效果阶段 ---");
-                var effectPhase = new Phase1_EffectPhase();
-                effectPhase.Execute(context);
-                
-                // 阶段5: 冷却
-                Log("  --- 冷却阶段 ---");
-                var cooldownPhase = new Phase1_CooldownPhase();
-                cooldownPhase.Execute(context);
-            }
-            
-            Log("");
-            Log($"  敌人最终 HP: {enemy.Health}/{enemy.MaxHealth}");
-            Log("");
-            
-            // Pipeline 阶段类型说明
-            Log("【6】框架提供的阶段类型");
-            Output.Bullet("AbilityDelayPhase: 延迟阶段");
-            Output.Bullet("AbilityConditionalPhase: 条件分支阶段");
-            Output.Bullet("AbilitySequencePhase: 序列阶段");
-            Output.Bullet("AbilityParallelPhase: 并行阶段");
-            Output.Bullet("AbilityRepeatPhase: 重复阶段");
-            Log("");
-            
-            // 自定义阶段说明
-            Log("【7】如何创建自定义阶段");
-            Log("  1. 继承 AbilityInstantPhaseBase<TCtx> - 瞬时阶段");
-            Log("  2. 继承 AbilityDurationalPhaseBase<TCtx> - 持续阶段");
-            Log("  3. 继承 AbilityInterruptiblePhaseBase<TCtx> - 可中断阶段");
-            Log("");
-            Log("  示例:");
-            Log("    public class MyPhase : AbilityInstantPhaseBase<MyContext>");
-            Log("    {");
-            Log("        protected override void OnInstantExecute(MyContext context)");
-            Log("        {");
-            Log("            // 执行逻辑");
-            Log("        }");
-            Log("    }");
-            Log("");
-            
-            // 预告下一阶段
-            Log("【8】下一阶段预告 (Phase2: Behavior)");
-            Output.Bullet("使用 BehaviorRuntime 处理决策逻辑");
-            Output.Bullet("目标选择行为树");
-            Output.Bullet("连击系统行为树");
-            Output.Bullet("技能条件检查行为树");
-            Log("");
-            
-            Output.Divider();
-            Log("【总结】AbilityPipeline 框架提供了强大的技能执行流程管理能力");
-            Output.Divider();
+            }";
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<Phase1Config>(json);
         }
     }
-    
-    // ============================================
-    // Phase1 使用的类型
-    // ============================================
-    
+
     /// <summary>
-    /// Phase1 技能上下文
+    /// 效果配置
     /// </summary>
-    public class Phase1_SkillContext : AAbilityPipelineContext
+    public sealed class Phase1EffectConfig
     {
-        public Phase0.Entities.SkillEntity Caster { get; set; }
-        public Phase0.Entities.TargetEntity Target { get; set; }
-        public Phase0.Skills.SkillDefinition SkillDefinition { get; set; }
-        public float CooldownRemaining { get; set; }
-        public string ValidationFailureReason { get; set; }
-        
-        private DateTime _startTime = DateTime.UtcNow;
-        
-        public static Phase1_SkillContext Create(
-            Phase0.Entities.SkillEntity caster,
-            Phase0.Entities.TargetEntity target,
-            Phase0.Skills.SkillDefinition skill)
-        {
-            var ctx = new Phase1_SkillContext
-            {
-                Caster = caster,
-                Target = target,
-                SkillDefinition = skill,
-                CooldownRemaining = 0f,
-                ValidationFailureReason = null,
-                _startTime = DateTime.UtcNow
-            };
-            ctx.PipelineState = EAbilityPipelineState.Ready;
-            ctx.IsAborted = false;
-            ctx.IsPaused = false;
-            return ctx;
-        }
-        
-        public new float ElapsedTime => (float)(DateTime.UtcNow - _startTime).TotalSeconds;
-        
-        public override void Reset()
-        {
-            base.Reset();
-            Caster = null;
-            Target = null;
-            SkillDefinition = null;
-            CooldownRemaining = 0f;
-            ValidationFailureReason = null;
-            _startTime = DateTime.UtcNow;
-        }
-        
-        public override void Initialize(object abilityInstance)
-        {
-            AbilityInstance = abilityInstance;
-            PipelineState = EAbilityPipelineState.Ready;
-            IsAborted = false;
-            IsPaused = false;
-            _startTime = DateTime.UtcNow;
-        }
+        public string Id { get; set; }
+        public float TickInterval { get; set; }
+        public float DamagePerTick { get; set; }
+        public float SlowPercent { get; set; }
+        public float DurationSeconds { get; set; }
     }
-    
+
+    // ============================================================================
+    // 效果管理器 - 实现 IContinuousManager (框架接口)
+    // ============================================================================
+
     /// <summary>
-    /// 验证阶段
+    /// 效果管理器 - 实现 IContinuousManager
     /// </summary>
-    public class Phase1_ValidationPhase : AbilityInstantPhaseBase<Phase1_SkillContext>
+    public sealed class Phase1EffectManager : IContinuousManager
     {
-        public Phase1_ValidationPhase() : base("Validation") { }
-        
-        protected override void OnInstantExecute(Phase1_SkillContext context)
+        private readonly List<IContinuous> _continuous = new();
+
+        public int ActiveCount => _continuous.Count(c => c.State == ContinuousState.Active);
+        public int TotalCount => _continuous.Count;
+
+        public bool Register(IContinuous continuous)
         {
-            var caster = context.Caster;
-            var target = context.Target;
-            var skill = context.SkillDefinition;
-            
-            if (!caster.IsAlive)
+            _continuous.Add(continuous);
+            return true;
+        }
+
+        public void Unregister(IContinuous continuous, ContinuousEndReason reason = ContinuousEndReason.CleanedUp)
+        {
+            _continuous.Remove(continuous);
+        }
+
+        public bool TryActivate(IContinuous continuous)
+        {
+            if (continuous.State != ContinuousState.Inactive)
+                return false;
+            continuous.Activate();
+            _continuous.Add(continuous);
+            return true;
+        }
+
+        public void Pause(IContinuous continuous)
+        {
+            if (continuous.State == ContinuousState.Active)
+                continuous.Pause();
+        }
+
+        public void Resume(IContinuous continuous)
+        {
+            if (continuous.State == ContinuousState.Paused)
+                continuous.Resume();
+        }
+
+        public void Abort(IContinuous continuous, string reason)
+        {
+            if (!continuous.IsTerminated)
             {
-                context.ValidationFailureReason = "施法者已死亡";
-                context.IsAborted = true;
-                return;
-            }
-            
-            if (target == null || !target.IsAlive)
-            {
-                context.ValidationFailureReason = "目标无效";
-                context.IsAborted = true;
-                return;
-            }
-            
-            if (!caster.HasMana(skill.ManaCost))
-            {
-                context.ValidationFailureReason = "魔法值不足";
-                context.IsAborted = true;
-                return;
-            }
-            
-            if (context.CooldownRemaining > 0)
-            {
-                context.ValidationFailureReason = "技能冷却中";
-                context.IsAborted = true;
-                return;
+                continuous.Abort(reason);
+                _continuous.Remove(continuous);
             }
         }
-    }
-    
-    /// <summary>
-    /// 消耗阶段
-    /// </summary>
-    public class Phase1_ConsumePhase : AbilityInstantPhaseBase<Phase1_SkillContext>
-    {
-        public Phase1_ConsumePhase() : base("Consume") { }
-        
-        protected override void OnInstantExecute(Phase1_SkillContext context)
+
+        public IReadOnlyList<IContinuous> GetOwnerContinuous(long ownerId)
         {
-            context.Caster.ConsumeMana(context.SkillDefinition.ManaCost);
-            Console.WriteLine($"    [Consume] 消耗魔法值 -{context.SkillDefinition.ManaCost} (剩余: {context.Caster.Mana:F0})");
+            var result = new List<IContinuous>();
+            foreach (var c in _continuous)
+            {
+                if (c.Config.OwnerId == ownerId)
+                    result.Add(c);
+            }
+            return result;
+        }
+
+        public IReadOnlyList<IContinuous> GetOwnerActiveContinuous(long ownerId)
+        {
+            var result = new List<IContinuous>();
+            foreach (var c in _continuous)
+            {
+                if (c.Config.OwnerId == ownerId && c.State == ContinuousState.Active)
+                    result.Add(c);
+            }
+            return result;
+        }
+
+        public void InterruptAll(long ownerId, string reason)
+        {
+            var toRemove = new List<IContinuous>();
+            foreach (var c in _continuous)
+            {
+                if (c.Config.OwnerId == ownerId)
+                {
+                    c.Abort(reason);
+                    toRemove.Add(c);
+                }
+            }
+            foreach (var c in toRemove)
+                _continuous.Remove(c);
+        }
+
+        public void PauseAll(long ownerId)
+        {
+            foreach (var c in GetOwnerActiveContinuous(ownerId))
+                c.Pause();
+        }
+
+        public void ResumeAll(long ownerId)
+        {
+            foreach (var c in _continuous)
+            {
+                if (c.Config.OwnerId == ownerId && c.State == ContinuousState.Paused)
+                    c.Resume();
+            }
+        }
+
+        public void Tick(float deltaTime)
+        {
+            var toRemove = new List<IContinuous>();
+
+            foreach (var c in _continuous)
+            {
+                if (c is Phase1BurningEffect burn)
+                    burn.InternalTick(deltaTime);
+                else if (c is Phase1SlowEffect slow)
+                    slow.InternalTick(deltaTime);
+
+                if (c.IsTerminated)
+                    toRemove.Add(c);
+            }
+
+            foreach (var c in toRemove)
+                _continuous.Remove(c);
         }
     }
-    
+
+    // ============================================================================
+    // 灼烧效果 - 实现 IContinuous (框架接口)
+    // ============================================================================
+
     /// <summary>
-    /// 效果阶段
+    /// 灼烧效果 - 实现 IContinuous (框架接口)
     /// </summary>
-    public class Phase1_EffectPhase : AbilityInstantPhaseBase<Phase1_SkillContext>
+    public sealed class Phase1BurningEffect : IContinuous
     {
-        public Phase1_EffectPhase() : base("Effect") { }
-        
-        protected override void OnInstantExecute(Phase1_SkillContext context)
+        private readonly Phase1ContinuousConfig _config;
+        private readonly Action<float> _onTick;
+        private readonly Action<string> _onEnd;
+        private float _elapsed;
+        private float _sinceLastTick;
+
+        public IContinuousConfig Config => _config;
+        public ContinuousState State { get; private set; } = ContinuousState.Inactive;
+        public bool IsActive => State == ContinuousState.Active;
+        public bool IsTerminated => State == ContinuousState.Expired || State == ContinuousState.Aborted;
+        public bool IsPaused => State == ContinuousState.Paused;
+        public float ElapsedSeconds => _elapsed;
+
+        public event Action<IContinuous, ContinuousEndReason> OnEnded;
+
+        public Phase1BurningEffect(string configId, long ownerId, float damagePerTick, float duration,
+            Action<float> onTick, Action<string> onEnd)
         {
-            var caster = context.Caster;
-            var target = context.Target;
-            var skill = context.SkillDefinition;
-            
-            var baseDamage = skill.BaseDamage;
-            var attackPower = caster.AttackPower;
-            var defense = target.Defense;
-            
-            var damage = (attackPower * (baseDamage / 100f) - defense * 0.5f);
-            damage = Math.Max(1, damage);
-            
-            Console.WriteLine($"    [Effect] 造成 {damage:F0} 点火焰伤害");
-            target.TakeDamage(damage);
+            _config = new Phase1ContinuousConfig(configId, ownerId, duration);
+            DamagePerTick = damagePerTick;
+            _onTick = onTick;
+            _onEnd = onEnd;
+        }
+
+        public float DamagePerTick { get; }
+
+        public void Activate()
+        {
+            State = ContinuousState.Active;
+            _elapsed = 0f;
+            _sinceLastTick = 0f;
+        }
+
+        public void Pause() => State = ContinuousState.Paused;
+        public void Resume() => State = ContinuousState.Active;
+
+        public void Abort(string reason)
+        {
+            State = ContinuousState.Aborted;
+            _onEnd?.Invoke(reason);
+            OnEnded?.Invoke(this, ContinuousEndReason.Interrupted);
+        }
+
+        public void InternalTick(float deltaTime)
+        {
+            if (State != ContinuousState.Active) return;
+
+            _elapsed += deltaTime;
+            _sinceLastTick += deltaTime;
+
+            // 每 1 秒造成一次伤害
+            if (_sinceLastTick >= 1f)
+            {
+                _onTick?.Invoke(DamagePerTick);
+                _sinceLastTick = 0f;
+            }
+
+            if (_elapsed >= _config.DurationSeconds)
+            {
+                State = ContinuousState.Expired;
+                _onEnd?.Invoke("completed");
+                OnEnded?.Invoke(this, ContinuousEndReason.Completed);
+            }
         }
     }
-    
+
+    // ============================================================================
+    // 减速效果 - 实现 IContinuous (框架接口)
+    // ============================================================================
+
     /// <summary>
-    /// 冷却阶段
+    /// 减速效果 - 实现 IContinuous (框架接口)
     /// </summary>
-    public class Phase1_CooldownPhase : AbilityInstantPhaseBase<Phase1_SkillContext>
+    public sealed class Phase1SlowEffect : IContinuous
     {
-        public Phase1_CooldownPhase() : base("Cooldown") { }
-        
-        protected override void OnInstantExecute(Phase1_SkillContext context)
+        private readonly Phase1ContinuousConfig _config;
+        private readonly Action _onTick;
+        private readonly Action<string> _onEnd;
+        private float _elapsed;
+        private float _sinceLastTick;
+
+        public IContinuousConfig Config => _config;
+        public ContinuousState State { get; private set; } = ContinuousState.Inactive;
+        public bool IsActive => State == ContinuousState.Active;
+        public bool IsTerminated => State == ContinuousState.Expired || State == ContinuousState.Aborted;
+        public bool IsPaused => State == ContinuousState.Paused;
+        public float ElapsedSeconds => _elapsed;
+
+        public event Action<IContinuous, ContinuousEndReason> OnEnded;
+
+        public Phase1SlowEffect(string configId, long ownerId, float slowPercent, float duration,
+            Action onTick, Action<string> onEnd)
         {
-            context.CooldownRemaining = context.SkillDefinition.Cooldown;
-            Console.WriteLine($"    [Cooldown] 技能进入冷却 ({context.SkillDefinition.Cooldown:F1}秒)");
+            _config = new Phase1ContinuousConfig(configId, ownerId, duration);
+            SlowPercent = slowPercent;
+            _onTick = onTick;
+            _onEnd = onEnd;
+        }
+
+        public float SlowPercent { get; }
+
+        public void Activate()
+        {
+            State = ContinuousState.Active;
+            _elapsed = 0f;
+            _sinceLastTick = 0f;
+        }
+
+        public void Pause() => State = ContinuousState.Paused;
+        public void Resume() => State = ContinuousState.Active;
+
+        public void Abort(string reason)
+        {
+            State = ContinuousState.Aborted;
+            _onEnd?.Invoke(reason);
+            OnEnded?.Invoke(this, ContinuousEndReason.Interrupted);
+        }
+
+        public void InternalTick(float deltaTime)
+        {
+            if (State != ContinuousState.Active) return;
+
+            _elapsed += deltaTime;
+            _sinceLastTick += deltaTime;
+
+            // 每 2 秒触发一次
+            if (_sinceLastTick >= 2f)
+            {
+                _onTick?.Invoke();
+                _sinceLastTick = 0f;
+            }
+
+            if (_elapsed >= _config.DurationSeconds)
+            {
+                State = ContinuousState.Expired;
+                _onEnd?.Invoke("completed");
+                OnEnded?.Invoke(this, ContinuousEndReason.Completed);
+            }
+        }
+    }
+
+    // ============================================================================
+    // 配置实现 - 实现 IContinuousConfig (框架接口)
+    // ============================================================================
+
+    /// <summary>
+    /// 持续体配置 - 实现 IContinuousConfig (框架接口)
+    /// </summary>
+    public sealed class Phase1ContinuousConfig : IContinuousConfig
+    {
+        public string Id { get; }
+        public long OwnerId { get; }
+        public float DurationSeconds { get; }
+        public bool CanBeInterrupted => true;
+
+        public Phase1ContinuousConfig(string id, long ownerId, float durationSeconds)
+        {
+            Id = id;
+            OwnerId = ownerId;
+            DurationSeconds = durationSeconds;
         }
     }
 }

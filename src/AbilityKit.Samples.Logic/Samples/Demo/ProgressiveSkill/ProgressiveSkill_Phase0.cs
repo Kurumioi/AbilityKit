@@ -4,104 +4,174 @@ using AbilityKit.Samples.Abstractions;
 namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
 {
     /// <summary>
-    /// ProgressiveSkill Phase0 - 基础调度示例
-    /// 
-    /// 本阶段目标：
-    /// 1. 理解技能执行的基本流程
-    /// 2. 掌握技能上下文 (SkillContext) 的概念
-    /// 3. 熟悉简单技能执行器 (SimpleSkillExecutor) 的实现
-    /// 
-    /// 演进路线:
-    /// Phase0 (当前): 硬编码顺序执行
-    /// Phase1: Pipeline 化 - 将执行拆分为可配置的阶段
-    /// Phase2: 行为树化 - 使用行为树处理决策
-    /// Phase3: 状态机化 - 使用 HFSM 管理状态
-    /// Phase4: Buff 化 - 将效果抽象为 Buff
-    /// Phase5: 网络化 - 支持帧同步/状态同步
+    /// ProgressiveSkill Phase0 - 纯 C# Tick 循环
+    ///
+    /// 需求: 每秒对目标造成 10 点火焰伤害，持续 5 秒。
+    ///
+    /// 零框架依赖，纯 C# 实现。展示最朴素的定时行为写法。
+    /// 当需要管理多个定时行为时，这种方式的痛点就会暴露出来。
     /// </summary>
     [Sample]
     public sealed class ProgressiveSkill_Phase0 : SampleBase
     {
         public override string Title => "ProgressiveSkill Phase0";
-        public override string Description => "基础调度 - 硬编码顺序执行的技能系统";
+        public override string Description => "纯 C# Tick 循环 - 最朴素的定时行为";
         public override SampleCategory Category => SampleCategory.Demo;
 
         protected override void OnRun()
         {
             Log("================================================================================");
-            Log("===           渐进式技能系统 - Phase0: 基础调度                              ===");
+            Log("===           渐进式技能系统 - Phase0: 纯 C# Tick 循环                 ===");
             Log("================================================================================");
             Output.Divider();
-            
-            // 架构说明
-            Log("【Phase0 架构说明】");
-            Output.Bullet("技能执行器 (SkillExecutor): 硬编码的顺序执行流程");
-            Output.Bullet("技能上下文 (SkillContext): 封装执行时的所有信息");
-            Output.Bullet("技能定义 (SkillDefinition): 技能的配置数据");
-            Output.Bullet("执行流程: 验证 → 消耗 → 施法 → 效果 → 冷却");
+
+            // 需求：每秒造成 10 点火焰伤害，持续 5 秒
+            Log("【需求】每秒对目标造成 10 点火焰伤害，持续 5 秒");
             Log("");
-            
-            // 创建实体
-            Log("【1】创建实体");
-            var hero = new Phase0.Entities.SkillEntity(1, "勇者亚索", maxHealth: 500f, maxMana: 300f);
-            hero.AttackPower = 80f;
-            hero.Defense = 25f;
-            
-            var enemy1 = new Phase0.Entities.TargetEntity(1, "哥布林", maxHealth: 200f);
-            enemy1.PositionX = 5f;
-            enemy1.Defense = 10f;
-            
-            var enemy2 = new Phase0.Entities.TargetEntity(2, "哥布林王", maxHealth: 400f);
-            enemy2.PositionX = 10f;
-            enemy2.Defense = 20f;
-            
-            Log($"  英雄: {hero}");
-            Log($"  敌人1: {enemy1} (距离: {enemy1.PositionX})");
-            Log($"  敌人2: {enemy2} (距离: {enemy2.PositionX})");
+
+            // 创建目标
+            var target = new Phase0Target(1, "哥布林", 200f);
+            Log($"  目标: {target}");
+
+            // 模拟 5 秒，每 0.5 秒Tick一次
             Log("");
-            
-            // 演示火球术
-            Log("【2】施放火球术 (目标: 哥布林)");
+            Log("【执行】每 0.5 秒 Tick 一次...");
             Output.Line();
-            
-            var fireballSkill = new Phase0.Skills.BasicFireballSkill();
-            fireballSkill.Cast(hero, enemy1);
-            
+
+            float elapsed = 0f;
+            float interval = 1f;
+            float lastTickTime = 0f;
+            float totalDamage = 0f;
+
+            while (elapsed < 6f)
+            {
+                // Tick: 累积时间
+                elapsed += 0.5f;
+                lastTickTime += 0.5f;
+
+                // 每秒造成伤害
+                if (lastTickTime >= interval)
+                {
+                    float damage = 10f;
+                    target.Health -= damage;
+                    totalDamage += damage;
+                    lastTickTime = 0f;
+                    Log($"  [Tick {elapsed:F1}s] 造成 {damage:F0} 点火焰伤害！ 目标剩余: {target.Health:F0} HP");
+                }
+                else
+                {
+                    Log($"  [Tick {elapsed:F1}s] ...");
+                }
+            }
+
             Log("");
-            
-            // 演示治疗术
-            Log("【3】施放治疗术 (目标: 英雄自己)");
+            Log($"  总计造成 {totalDamage:F0} 点伤害，目标剩余 {target.Health:F0} HP");
+            Log("");
+
+            // 痛点暴露
+            Log("【痛点】如果同时有 3 个定时行为（灼烧 + 减速 + 中毒）呢？");
             Output.Line();
-            
-            var healSkill = new Phase0.Skills.BasicFireballSkill();
-            // 创建一个治疗技能
-            var healDef = Phase0.Skills.SkillDefinition.CreateHeal();
-            var healContext = new Phase0.Skills.SkillContext(hero, new Phase0.Entities.TargetEntity(999, "治疗目标", maxHealth: 500f), healDef);
-            var healExecutor = new Phase0.Skills.SimpleSkillExecutor();
-            healExecutor.Execute(healContext);
-            
+            Log("  需要手动维护:");
+            Output.Bullet("每个行为的 elapsed、interval、lastTickTime");
+            Output.Bullet("每个行为的激活/暂停/恢复/中断状态");
+            Output.Bullet("每个行为结束时的回调处理");
+            Output.Bullet("Owner 死亡时清理所有定时行为");
             Log("");
-            
-            // 展示问题
-            Log("【4】Phase0 的问题");
-            Output.Bullet("所有逻辑硬编码在 SkillExecutor 中");
-            Output.Bullet("技能流程无法灵活配置");
-            Output.Bullet("不支持打断、暂停、恢复");
-            Output.Bullet("效果系统简陋，无法组合");
-            Output.Bullet("难以测试单个阶段");
+            Log("  这些都是重复性工作，而且容易出错。");
             Log("");
-            
-            // 预告下一阶段
-            Log("【5】下一阶段预告 (Phase1: Pipeline)");
-            Output.Bullet("将技能执行拆分为多个独立阶段");
-            Output.Bullet("每个阶段可独立配置和复用");
-            Output.Bullet("支持阶段打断和恢复");
-            Output.Bullet("便于添加新阶段");
+
+            // 演示多定时行为
+            Log("【演示】同时管理灼烧和减速");
+            var enemy = new Phase0Target(2, "哥布林王", 500f);
+            SimulateMultipleTimers(enemy, 5f, 0.5f);
             Log("");
-            
+
             Output.Divider();
-            Log("【总结】Phase0 展示了技能系统的基本概念，但缺乏灵活性和可扩展性");
+            Log("【总结】Phase0 展示了定时行为的基本写法");
+            Log("       当定时行为数量增加时，需要统一的生命周期管理");
+            Log("       -> Phase1: IContinuous 接口 + IContinuousManager");
             Output.Divider();
         }
+
+        /// <summary>
+        /// 模拟多定时行为管理
+        /// </summary>
+        private void SimulateMultipleTimers(Phase0Target target, float duration, float tickInterval)
+        {
+            // 灼烧定时器
+            float burnElapsed = 0f;
+            float burnLastTick = 0f;
+            bool burnActive = true;
+
+            // 减速定时器
+            float slowElapsed = 0f;
+            float slowLastTick = 0f;
+            bool slowActive = true;
+
+            float totalTime = 0f;
+            while (totalTime < duration)
+            {
+                totalTime += tickInterval;
+                burnElapsed += tickInterval;
+                slowElapsed += tickInterval;
+
+                // 灼烧Tick
+                if (burnActive && burnLastTick >= 1f)
+                {
+                    target.Health -= 8f;
+                    Log($"  [灼烧] 造成 8 点火焰伤害 (剩余: {target.Health:F0} HP)");
+                    burnLastTick = 0f;
+                }
+                burnLastTick += tickInterval;
+
+                // 减速Tick (每 2 秒检测一次)
+                if (slowActive && slowLastTick >= 2f)
+                {
+                    Log($"  [减速] 检测: 目标速度降低 50%");
+                    slowLastTick = 0f;
+                }
+                slowLastTick += tickInterval;
+
+                // 检查结束
+                if (burnElapsed >= duration) burnActive = false;
+                if (slowElapsed >= duration) slowActive = false;
+
+                if (!burnActive && !slowActive) break;
+            }
+            Log($"  所有定时行为结束，目标剩余: {target.Health:F0} HP");
+        }
+    }
+
+    /// <summary>
+    /// Phase0 演示用的目标实体
+    /// </summary>
+    public class Phase0Target
+    {
+        public long Id { get; }
+        public string Name { get; }
+        public float Health { get; set; }
+        public float MaxHealth => 200f;
+        public float Mana { get; set; }
+        public float AttackPower { get; set; }
+        public bool IsAlive => Health > 0;
+
+        public Phase0Target(long id, string name, float health)
+        {
+            Id = id;
+            Name = name;
+            Health = health;
+            Mana = 100f;
+            AttackPower = 80f;
+        }
+
+        public void TakeDamage(float damage)
+        {
+            Health = Math.Max(0, Health - damage);
+        }
+
+        public bool HasMana(float cost) => Mana >= cost;
+        public void ConsumeMana(float amount) => Mana = Math.Max(0, Mana - amount);
+
+        public override string ToString() => $"{Name} (HP: {Health:F0}/{MaxHealth}, Mana: {Mana:F0})";
     }
 }

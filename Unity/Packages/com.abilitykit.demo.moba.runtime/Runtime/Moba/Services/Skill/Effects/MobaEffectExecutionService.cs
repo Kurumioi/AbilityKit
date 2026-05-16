@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Common.Log;
@@ -11,6 +12,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -23,6 +25,17 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly AbilityKit.Triggering.Eventing.IEventBus _planEventBus;
         private readonly FunctionRegistry _planFunctions;
         private readonly ActionRegistry _planActions;
+
+        /// <summary>
+        /// 溯源注册表（可选，用于链路追踪）
+        /// </summary>
+        public MobaTraceRegistry Trace { get; }
+
+        /// <summary>
+        /// 当前正在执行的溯源链路（用于父子关系追踪）
+        /// </summary>
+        private long _currentTraceRootId;
+        private readonly List<long> _currentActionContextIds = new List<long>();
 
         public MobaEffectExecutionService(
             IWorldResolver services,
@@ -38,6 +51,113 @@ namespace AbilityKit.Demo.Moba.Services
             _planEventBus = planEventBus;
             _planFunctions = planFunctions;
             _planActions = planActions;
+
+            // 初始化溯源注册表（默认启用）
+            Trace = new MobaTraceRegistry();
+        }
+
+        public MobaEffectExecutionService(
+            IWorldResolver services,
+            TriggerPlanJsonDatabase planDb,
+            AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> planRunner,
+            AbilityKit.Triggering.Eventing.IEventBus planEventBus,
+            FunctionRegistry planFunctions,
+            ActionRegistry planActions,
+            MobaTraceRegistry traceRegistry)
+        {
+            _services = services;
+            _planDb = planDb;
+            _planRunner = planRunner;
+            _planEventBus = planEventBus;
+            _planFunctions = planFunctions;
+            _planActions = planActions;
+            Trace = traceRegistry ?? new MobaTraceRegistry();
+        }
+
+        /// <summary>
+        /// 获取当前正在追踪的 Action 链路
+        /// </summary>
+        public IReadOnlyList<long> CurrentActionChain => _currentActionContextIds;
+
+        /// <summary>
+        /// 提取溯源信息
+        /// </summary>
+        private (int sourceActorId, int targetActorId) ExtractTraceInfo(IEffectContext ctx)
+        {
+            return (ctx?.SourceActorId ?? 0, ctx?.TargetActorId ?? 0);
+        }
+
+        /// <summary>
+        /// 提取溯源信息（从 object payload）
+        /// </summary>
+        private (int sourceActorId, int targetActorId) ExtractTraceInfoFromPayload(object payload)
+        {
+            if (payload is IEffectContext effectCtx)
+            {
+                return (effectCtx.SourceActorId, effectCtx.TargetActorId);
+            }
+            return (0, 0);
+        }
+
+        /// <summary>
+        /// 创建效果执行溯源根节点并记录 Action 子节点
+        /// </summary>
+        private TraceRootScope CreateEffectTraceRoot(int effectId, int triggerId, int sourceActorId, int targetActorId, EffectContextKind contextKind)
+        {
+            if (Trace == null) return default;
+
+            var rootScope = Trace.CreateEffectRoot(
+                effectConfigId: effectId,
+                triggerPlanId: triggerId,
+                sourceActorId: sourceActorId,
+                targetActorId: targetActorId,
+                contextKind: contextKind);
+
+            _currentTraceRootId = rootScope.RootId;
+            return rootScope;
+        }
+
+        /// <summary>
+        /// 为 Plan 中的所有 Action 创建子节点（父子关系）
+        /// </summary>
+        private void CreateActionChildNodes(in TriggerPlan<object> plan, int sourceActorId, int targetActorId)
+        {
+            if (Trace == null || _currentTraceRootId == 0) return;
+            if (plan.Actions == null || plan.Actions.Length == 0) return;
+
+            _currentActionContextIds.Clear();
+            foreach (var actionCall in plan.Actions)
+            {
+                var actionId = (int)actionCall.Id.Value;
+                if (actionId == 0) continue;
+
+                var childScope = Trace.CreateActionChild(
+                    parentRootId: _currentTraceRootId,
+                    actionId: actionId,
+                    sourceActorId: sourceActorId,
+                    targetActorId: targetActorId);
+
+                _currentActionContextIds.Add(childScope.ContextId);
+            }
+        }
+
+        /// <summary>
+        /// 结束当前溯源链路
+        /// </summary>
+        private void EndCurrentTrace(int reason)
+        {
+            if (Trace == null || _currentTraceRootId == 0) return;
+
+            // 结束所有子节点
+            foreach (var childId in _currentActionContextIds)
+            {
+                Trace.End(childId, reason);
+            }
+            _currentActionContextIds.Clear();
+
+            // 结束根节点
+            Trace.EndRoot(_currentTraceRootId, reason);
+            _currentTraceRootId = 0;
         }
 
         /// <summary>
@@ -374,12 +494,32 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Warning($"[MobaEffectExecutionService] EffectExecuteMode.{mode} is not supported (legacy publish removed). effectId={effectId}");
             }
 
-            if (TryExecutePlanByTriggerId(effectId, wrappedContext))
+            // 提取溯源信息
+            var effectCtx = (IEffectContext)wrappedContext;
+            var (sourceActorId, targetActorId) = ExtractTraceInfo(effectCtx);
+            var contextKind = effectCtx.Kind;
+
+            // 尝试获取 TriggerPlan 以便创建 Action 子节点
+            TriggerPlan<object> plan = default;
+            if (_planDb != null)
             {
-                return;
+                _planDb.TryGetPlanByTriggerId(effectId, out plan);
             }
 
-            Log.Warning($"[MobaEffectExecutionService] Effect execution skipped (no TriggerPlan found for triggerId={effectId}).");
+            // 创建效果执行溯源根节点
+            var rootScope = CreateEffectTraceRoot(effectId, effectId, sourceActorId, targetActorId, contextKind);
+
+            // 为 Plan 中的所有 Action 创建子节点（父子关系）
+            if (plan.Actions != null && plan.Actions.Length > 0)
+            {
+                CreateActionChildNodes(in plan, sourceActorId, targetActorId);
+            }
+
+            // 执行计划
+            bool executed = TryExecutePlanByTriggerId(effectId, wrappedContext);
+
+            // 结束溯源链路
+            EndCurrentTrace(executed ? 0 : -1);
         }
 
         /// <summary>
@@ -389,7 +529,31 @@ namespace AbilityKit.Demo.Moba.Services
         public void ExecuteTriggerId(int triggerId, object payload)
         {
             if (triggerId <= 0) return;
-            TryExecutePlanByTriggerId(triggerId, payload);
+
+            // 提取溯源信息
+            var (sourceActorId, targetActorId) = ExtractTraceInfoFromPayload(payload);
+
+            // 尝试获取 TriggerPlan 以便创建 Action 子节点
+            TriggerPlan<object> plan = default;
+            if (_planDb != null)
+            {
+                _planDb.TryGetPlanByTriggerId(triggerId, out plan);
+            }
+
+            // 创建效果执行溯源根节点
+            var rootScope = CreateEffectTraceRoot(0, triggerId, sourceActorId, targetActorId, EffectContextKind.Unknown);
+
+            // 为 Plan 中的所有 Action 创建子节点（父子关系）
+            if (plan.Actions != null && plan.Actions.Length > 0)
+            {
+                CreateActionChildNodes(in plan, sourceActorId, targetActorId);
+            }
+
+            // 执行计划
+            bool executed = TryExecutePlanByTriggerId(triggerId, payload);
+
+            // 结束溯源链路
+            EndCurrentTrace(executed ? 0 : -1);
         }
 
         public void Dispose()
