@@ -1,16 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Generic;
 using AbilityKit.Core.Common.Numbers;
-using AbilityKit.Effect;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -114,26 +113,15 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var entries = new List<MobaProjectileEventSnapshotCodec.Entry>(_spawns.Count + _hits.Count + _exits.Count);
+            var entries = new List<MobaProjectileEventSnapshotEntry>(_spawns.Count + _hits.Count + _exits.Count);
 
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var e = _spawns[i];
-                var it = MobaProjectileEventSnapshotCodec.Entry.FromSpawn(in e);
+                var it = FromSpawn(in e);
                 if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
                 {
-                    it = new MobaProjectileEventSnapshotCodec.Entry(
-                        kind: it.Kind,
-                        projectileActorId: projectileActorId,
-                        ownerActorId: it.OwnerActorId,
-                        templateId: it.TemplateId,
-                        launcherActorId: it.LauncherActorId,
-                        rootActorId: it.RootActorId,
-                        x: it.X,
-                        y: it.Y,
-                        z: it.Z,
-                        hitCollider: it.HitCollider,
-                        exitReason: it.ExitReason);
+                    it.ProjectileActorId = projectileActorId;
                 }
                 entries.Add(it);
             }
@@ -141,21 +129,10 @@ namespace AbilityKit.Demo.Moba.Services
             for (int i = 0; i < _hits.Count; i++)
             {
                 var e = _hits[i];
-                var it = MobaProjectileEventSnapshotCodec.Entry.FromHit(in e);
+                var it = FromHit(in e);
                 if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
                 {
-                    it = new MobaProjectileEventSnapshotCodec.Entry(
-                        kind: it.Kind,
-                        projectileActorId: projectileActorId,
-                        ownerActorId: it.OwnerActorId,
-                        templateId: it.TemplateId,
-                        launcherActorId: it.LauncherActorId,
-                        rootActorId: it.RootActorId,
-                        x: it.X,
-                        y: it.Y,
-                        z: it.Z,
-                        hitCollider: it.HitCollider,
-                        exitReason: it.ExitReason);
+                    it.ProjectileActorId = projectileActorId;
                 }
                 entries.Add(it);
             }
@@ -163,21 +140,10 @@ namespace AbilityKit.Demo.Moba.Services
             for (int i = 0; i < _exits.Count; i++)
             {
                 var e = _exits[i];
-                var it = MobaProjectileEventSnapshotCodec.Entry.FromExit(in e);
+                var it = FromExit(in e);
                 if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
                 {
-                    it = new MobaProjectileEventSnapshotCodec.Entry(
-                        kind: it.Kind,
-                        projectileActorId: projectileActorId,
-                        ownerActorId: it.OwnerActorId,
-                        templateId: it.TemplateId,
-                        launcherActorId: it.LauncherActorId,
-                        rootActorId: it.RootActorId,
-                        x: it.X,
-                        y: it.Y,
-                        z: it.Z,
-                        hitCollider: it.HitCollider,
-                        exitReason: it.ExitReason);
+                    it.ProjectileActorId = projectileActorId;
                 }
                 entries.Add(it);
             }
@@ -185,6 +151,60 @@ namespace AbilityKit.Demo.Moba.Services
             var payload = MobaProjectileEventSnapshotCodec.Serialize(entries.ToArray());
             snapshot = new WorldStateSnapshot((int)MobaOpCode.ProjectileEventSnapshot, payload);
             return true;
+        }
+
+        private static MobaProjectileEventSnapshotEntry FromSpawn(in ProjectileSpawnEvent e)
+        {
+            return new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProjectileEventKind.Spawn,
+                ProjectileActorId = 0,
+                OwnerActorId = e.OwnerId,
+                TemplateId = e.TemplateId,
+                LauncherActorId = e.LauncherActorId,
+                RootActorId = e.RootActorId,
+                X = e.Position.X,
+                Y = e.Position.Y,
+                Z = e.Position.Z,
+                HitCollider = 0,
+                ExitReason = 0
+            };
+        }
+
+        private static MobaProjectileEventSnapshotEntry FromHit(in ProjectileHitEvent e)
+        {
+            return new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProjectileEventKind.Hit,
+                ProjectileActorId = 0,
+                OwnerActorId = e.OwnerId,
+                TemplateId = e.TemplateId,
+                LauncherActorId = e.LauncherActorId,
+                RootActorId = e.RootActorId,
+                X = e.Point.X,
+                Y = e.Point.Y,
+                Z = e.Point.Z,
+                HitCollider = e.HitCollider.Value,
+                ExitReason = 0
+            };
+        }
+
+        private static MobaProjectileEventSnapshotEntry FromExit(in ProjectileExitEvent e)
+        {
+            return new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProjectileEventKind.Exit,
+                ProjectileActorId = 0,
+                OwnerActorId = e.OwnerId,
+                TemplateId = e.TemplateId,
+                LauncherActorId = e.LauncherActorId,
+                RootActorId = e.RootActorId,
+                X = e.Position.X,
+                Y = e.Position.Y,
+                Z = e.Position.Z,
+                HitCollider = 0,
+                ExitReason = (int)e.Reason
+            };
         }
 
         public void Dispose()
@@ -246,7 +266,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var entries = new List<MobaAreaEventSnapshotCodec.Entry>(_spawns.Count + _expires.Count);
+            var entries = new List<MobaAreaEventSnapshotEntry>(_spawns.Count + _expires.Count);
 
             for (int i = 0; i < _spawns.Count; i++)
             {
@@ -256,18 +276,33 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     templateId = entry.TemplateId;
                 }
-                entries.Add(MobaAreaEventSnapshotCodec.Entry.FromSpawn(in e, templateId));
+                entries.Add(new MobaAreaEventSnapshotEntry
+                {
+                    Kind = (int)AreaEventKind.Spawn,
+                    AreaId = e.Area.Value,
+                    OwnerActorId = e.OwnerId,
+                    TemplateId = templateId,
+                    X = e.Center.X,
+                    Y = e.Center.Y,
+                    Z = e.Center.Z,
+                    Radius = e.Radius
+                });
             }
 
             for (int i = 0; i < _expires.Count; i++)
             {
                 var e = _expires[i];
-                var templateId = 0;
-                if (_areaTriggers != null && _areaTriggers.TryGet(e.Area, out var entry))
+                entries.Add(new MobaAreaEventSnapshotEntry
                 {
-                    templateId = entry.TemplateId;
-                }
-                entries.Add(MobaAreaEventSnapshotCodec.Entry.FromExpire(in e, templateId));
+                    Kind = (int)AreaEventKind.Expire,
+                    AreaId = e.Area.Value,
+                    OwnerActorId = e.OwnerId,
+                    TemplateId = 0,
+                    X = 0f,
+                    Y = 0f,
+                    Z = 0f,
+                    Radius = 0f
+                });
             }
 
             var payload = MobaAreaEventSnapshotCodec.Serialize(entries.ToArray());
@@ -280,244 +315,11 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    // Damage snapshot and damage apply services are defined as standalone services.
-
-    public static class MobaAreaEventSnapshotCodec
-    {
-        public enum EventKind
-        {
-            Spawn = 1,
-            Expire = 2,
-        }
-
-        public static byte[] Serialize(Entry[] entries)
-        {
-            entries ??= Array.Empty<Entry>();
-            return BinaryObjectCodec.Encode(new SnapshotPayload(entries));
-        }
-
-        public static Entry[] Deserialize(byte[] payload)
-        {
-            if (payload == null || payload.Length < 4) return Array.Empty<Entry>();
-            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
-            return p.Entries ?? Array.Empty<Entry>();
-        }
-
-        public readonly struct SnapshotPayload
-        {
-            [BinaryMember(0)] public readonly Entry[] Entries;
-
-            public SnapshotPayload(Entry[] entries)
-            {
-                Entries = entries;
-            }
-        }
-
-        public readonly struct Entry
-        {
-            [BinaryMember(0)] public readonly int Kind;
-            [BinaryMember(1)] public readonly int AreaId;
-            [BinaryMember(2)] public readonly int OwnerActorId;
-            [BinaryMember(3)] public readonly int TemplateId;
-            [BinaryMember(4)] public readonly float X;
-            [BinaryMember(5)] public readonly float Y;
-            [BinaryMember(6)] public readonly float Z;
-            [BinaryMember(7)] public readonly float Radius;
-
-            public Entry(int kind, int areaId, int ownerActorId, int templateId, float x, float y, float z, float radius)
-            {
-                Kind = kind;
-                AreaId = areaId;
-                OwnerActorId = ownerActorId;
-                TemplateId = templateId;
-                X = x;
-                Y = y;
-                Z = z;
-                Radius = radius;
-            }
-
-            public static Entry FromSpawn(in AreaSpawnEvent e, int templateId)
-            {
-                return new Entry(
-                    kind: (int)EventKind.Spawn,
-                    areaId: e.Area.Value,
-                    ownerActorId: e.OwnerId,
-                    templateId: templateId,
-                    x: e.Center.X,
-                    y: e.Center.Y,
-                    z: e.Center.Z,
-                    radius: e.Radius);
-            }
-
-            public static Entry FromExpire(in AreaExpireEvent e, int templateId)
-            {
-                return new Entry(
-                    kind: (int)EventKind.Expire,
-                    areaId: e.Area.Value,
-                    ownerActorId: e.OwnerId,
-                    templateId: templateId,
-                    x: 0f,
-                    y: 0f,
-                    z: 0f,
-                    radius: 0f);
-            }
-        }
-    }
-
-    public static class MobaProjectileEventSnapshotCodec
-    {
-        public enum EventKind
-        {
-            Spawn = 1,
-            Hit = 2,
-            Exit = 3,
-        }
-
-        public static byte[] Serialize(Entry[] entries)
-        {
-            entries ??= Array.Empty<Entry>();
-            return BinaryObjectCodec.Encode(new SnapshotPayload(entries));
-        }
-
-        public static Entry[] Deserialize(byte[] payload)
-        {
-            if (payload == null || payload.Length < 4) return Array.Empty<Entry>();
-            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
-            return p.Entries ?? Array.Empty<Entry>();
-        }
-
-        public readonly struct SnapshotPayload
-        {
-            [BinaryMember(0)] public readonly Entry[] Entries;
-
-            public SnapshotPayload(Entry[] entries)
-            {
-                Entries = entries;
-            }
-        }
-
-        public readonly struct Entry
-        {
-            [BinaryMember(0)] public readonly int Kind;
-            [BinaryMember(1)] public readonly int ProjectileActorId;
-            [BinaryMember(2)] public readonly int OwnerActorId;
-            [BinaryMember(3)] public readonly int TemplateId;
-            [BinaryMember(4)] public readonly int LauncherActorId;
-            [BinaryMember(5)] public readonly int RootActorId;
-            [BinaryMember(6)] public readonly float X;
-            [BinaryMember(7)] public readonly float Y;
-            [BinaryMember(8)] public readonly float Z;
-            [BinaryMember(9)] public readonly int HitCollider;
-            [BinaryMember(10)] public readonly int ExitReason;
-
-            public Entry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason)
-            {
-                Kind = kind;
-                ProjectileActorId = projectileActorId;
-                OwnerActorId = ownerActorId;
-                TemplateId = templateId;
-                LauncherActorId = launcherActorId;
-                RootActorId = rootActorId;
-                X = x;
-                Y = y;
-                Z = z;
-                HitCollider = hitCollider;
-                ExitReason = exitReason;
-            }
-
-            public static Entry FromSpawn(in ProjectileSpawnEvent e)
-            {
-                return new Entry(
-                    kind: (int)EventKind.Spawn,
-                    projectileActorId: 0,
-                    ownerActorId: e.OwnerId,
-                    templateId: e.TemplateId,
-                    launcherActorId: e.LauncherActorId,
-                    rootActorId: e.RootActorId,
-                    x: e.Position.X,
-                    y: e.Position.Y,
-                    z: e.Position.Z,
-                    hitCollider: 0,
-                    exitReason: 0);
-            }
-
-            public static Entry FromHit(in ProjectileHitEvent e)
-            {
-                return new Entry(
-                    kind: (int)EventKind.Hit,
-                    projectileActorId: 0,
-                    ownerActorId: e.OwnerId,
-                    templateId: e.TemplateId,
-                    launcherActorId: e.LauncherActorId,
-                    rootActorId: e.RootActorId,
-                    x: e.Point.X,
-                    y: e.Point.Y,
-                    z: e.Point.Z,
-                    hitCollider: e.HitCollider.Value,
-                    exitReason: 0);
-            }
-
-            public static Entry FromExit(in ProjectileExitEvent e)
-            {
-                return new Entry(
-                    kind: (int)EventKind.Exit,
-                    projectileActorId: 0,
-                    ownerActorId: e.OwnerId,
-                    templateId: e.TemplateId,
-                    launcherActorId: e.LauncherActorId,
-                    rootActorId: e.RootActorId,
-                    x: e.Position.X,
-                    y: e.Position.Y,
-                    z: e.Position.Z,
-                    hitCollider: 0,
-                    exitReason: (int)e.Reason);
-            }
-        }
-    }
-
-    public static class MobaActorDespawnSnapshotCodec
-    {
-        public static byte[] Serialize(Entry[] entries)
-        {
-            entries ??= Array.Empty<Entry>();
-            return BinaryObjectCodec.Encode(new SnapshotPayload(entries));
-        }
-
-        public static Entry[] Deserialize(byte[] payload)
-        {
-            if (payload == null || payload.Length < 4) return Array.Empty<Entry>();
-            var p = BinaryObjectCodec.Decode<SnapshotPayload>(payload);
-            return p.Entries ?? Array.Empty<Entry>();
-        }
-
-        public readonly struct SnapshotPayload
-        {
-            [BinaryMember(0)] public readonly Entry[] Entries;
-
-            public SnapshotPayload(Entry[] entries)
-            {
-                Entries = entries;
-            }
-        }
-
-        public readonly struct Entry
-        {
-            [BinaryMember(0)] public readonly int ActorId;
-            [BinaryMember(1)] public readonly byte Reason;
-
-            public Entry(int actorId, byte reason)
-            {
-                ActorId = actorId;
-                Reason = reason;
-            }
-        }
-    }
-
     public sealed class MobaActorDespawnSnapshotService : IService
     {
         private readonly MobaGamePhaseService _phase;
         private FrameIndex _lastFrame;
-        private readonly List<MobaActorDespawnSnapshotCodec.Entry> _pending = new List<MobaActorDespawnSnapshotCodec.Entry>(64);
+        private readonly List<MobaActorDespawnSnapshotEntry> _pending = new List<MobaActorDespawnSnapshotEntry>(64);
 
         public MobaActorDespawnSnapshotService(MobaGamePhaseService phase)
         {
@@ -528,7 +330,7 @@ namespace AbilityKit.Demo.Moba.Services
         public void Enqueue(int actorId, byte reason = 0)
         {
             if (actorId <= 0) return;
-            _pending.Add(new MobaActorDespawnSnapshotCodec.Entry(actorId, reason));
+            _pending.Add(new MobaActorDespawnSnapshotEntry { ActorId = actorId, Reason = reason });
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -563,6 +365,4 @@ namespace AbilityKit.Demo.Moba.Services
             _pending.Clear();
         }
     }
-
-
 }

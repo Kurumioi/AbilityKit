@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
@@ -8,6 +8,7 @@ using AbilityKit.Core.Common.MotionSystem.Trajectory;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
+using AbilityKit.Protocol.Moba.StateSync;
 // [REMOVED] using AbilityKit.Demo.Moba.Effects.Runtime;
 // [REMOVED] using AbilityKit.Effects.Core;
 
@@ -171,14 +172,16 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
                 if (_sys.SpawnSnapshots != null)
                 {
-                    _sys.SpawnSnapshots.Enqueue(new MobaActorSpawnSnapshotCodec.Entry(
-                        netId: projectileActorId,
-                        kind: (int)SpawnEntityKind.Projectile,
-                        code: evt.TemplateId,
-                        ownerNetId: evt.OwnerId,
-                        x: evt.Position.X,
-                        y: evt.Position.Y,
-                        z: evt.Position.Z));
+                    _sys.SpawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
+                    {
+                        NetId = projectileActorId,
+                        Kind = (int)SpawnEntityKind.Projectile,
+                        Code = evt.TemplateId,
+                        OwnerNetId = evt.OwnerId,
+                        X = evt.Position.X,
+                        Y = evt.Position.Y,
+                        Z = evt.Position.Z
+                    });
                 }
 
                 try { _sys.Entities.TryRegisterFromEntity(bullet); }

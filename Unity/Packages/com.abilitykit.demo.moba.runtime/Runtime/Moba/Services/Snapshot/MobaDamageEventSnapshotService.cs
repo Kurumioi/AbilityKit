@@ -1,20 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    using AbilityKit.Demo.Moba;
     public sealed class MobaDamageEventSnapshotService : IService
     {
         private readonly MobaGamePhaseService _phase;
 
         private FrameIndex _lastFrame;
 
-        private readonly List<MobaDamageEventSnapshotCodec.Entry> _events = new List<MobaDamageEventSnapshotCodec.Entry>(64);
-        private readonly List<MobaDamageEventSnapshotCodec.Entry> _drain = new List<MobaDamageEventSnapshotCodec.Entry>(64);
+        private readonly List<MobaDamageEventSnapshotEntry> _events = new List<MobaDamageEventSnapshotEntry>(64);
+        private readonly List<MobaDamageEventSnapshotEntry> _drain = new List<MobaDamageEventSnapshotEntry>(64);
 
         public MobaDamageEventSnapshotService(MobaGamePhaseService phase)
         {
@@ -26,14 +26,36 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (targetActorId <= 0) return;
             if (value == 0f) return;
-            _events.Add(MobaDamageEventSnapshotCodec.Entry.Damage(attackerActorId, targetActorId, damageType, value, reasonKind, reasonParam, targetHp, targetMaxHp));
+            _events.Add(new MobaDamageEventSnapshotEntry
+            {
+                Kind = (int)DamageEventKind.Damage,
+                AttackerActorId = attackerActorId,
+                TargetActorId = targetActorId,
+                DamageType = damageType,
+                Value = value,
+                ReasonKind = reasonKind,
+                ReasonParam = reasonParam,
+                TargetHp = targetHp,
+                TargetMaxHp = targetMaxHp
+            });
         }
 
         public void ReportHeal(int healerActorId, int targetActorId, int healType, float value, int reasonKind, int reasonParam, float targetHp, float targetMaxHp)
         {
             if (targetActorId <= 0) return;
             if (value == 0f) return;
-            _events.Add(MobaDamageEventSnapshotCodec.Entry.Heal(healerActorId, targetActorId, healType, value, reasonKind, reasonParam, targetHp, targetMaxHp));
+            _events.Add(new MobaDamageEventSnapshotEntry
+            {
+                Kind = (int)DamageEventKind.Heal,
+                AttackerActorId = healerActorId,
+                TargetActorId = targetActorId,
+                DamageType = healType,
+                Value = value,
+                ReasonKind = reasonKind,
+                ReasonParam = reasonParam,
+                TargetHp = targetHp,
+                TargetMaxHp = targetMaxHp
+            });
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)

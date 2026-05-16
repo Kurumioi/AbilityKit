@@ -1,7 +1,9 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -20,14 +22,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            // Only after game started.
             if (!_phase.InGame)
             {
                 snapshot = default;
                 return false;
             }
 
-            // At most once per frame.
             if (frame.Value == _lastFrame.Value)
             {
                 snapshot = default;
@@ -35,23 +35,21 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
-            // For now: snapshot all known actors in registry.
-            // If you later remove registry, we can iterate group by ActorMatcher.Transform.
             var entries = BuildEntries();
-            if (entries.Length == 0)
+            if (entries.Count == 0)
             {
                 snapshot = default;
                 return false;
             }
 
-            var payload = MobaActorTransformSnapshotCodec.Serialize(entries);
+            var payload = MobaActorTransformSnapshotCodec.Serialize(entries.ToArray());
             snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorTransformSnapshot, payload);
             return true;
         }
 
-        private (int actorId, float x, float y, float z)[] BuildEntries()
+        private List<MobaActorTransformSnapshotEntry> BuildEntries()
         {
-            var tmp = new System.Collections.Generic.List<(int, float, float, float)>(8);
+            var tmp = new List<MobaActorTransformSnapshotEntry>(8);
 
             foreach (var kv in _registry.Entries)
             {
@@ -60,10 +58,16 @@ namespace AbilityKit.Demo.Moba.Services
                 if (e == null) continue;
                 if (!e.hasTransform) continue;
                 var p = e.transform.Value.Position;
-                tmp.Add((id, p.X, p.Y, p.Z));
+                tmp.Add(new MobaActorTransformSnapshotEntry
+                {
+                    ActorId = id,
+                    X = p.X,
+                    Y = p.Y,
+                    Z = p.Z
+                });
             }
 
-            return tmp.ToArray();
+            return tmp;
         }
 
         public void Dispose()

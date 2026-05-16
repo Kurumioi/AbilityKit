@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
@@ -11,7 +11,7 @@ using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -88,14 +88,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             if (_services != null && _services.TryResolve<MobaActorSpawnSnapshotService>(out var spawnSnapshots) && spawnSnapshots != null)
             {
-                spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotCodec.Entry(
-                    netId: projectileActorId,
-                    kind: (int)SpawnEntityKind.Projectile,
-                    code: projectileCode,
-                    ownerNetId: casterActorId,
-                    x: spawnPos.X,
-                    y: spawnPos.Y,
-                    z: spawnPos.Z));
+                spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
+                {
+                    NetId = projectileActorId,
+                    Kind = (int)SpawnEntityKind.Projectile,
+                    Code = projectileCode,
+                    OwnerNetId = casterActorId,
+                    X = spawnPos.X,
+                    Y = spawnPos.Y,
+                    Z = spawnPos.Z
+                });
             }
 
             // Optional: register immediately, otherwise MobaEntityManagerSyncSystem will pick it up next tick.

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -12,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
         private byte[] _snapshotPayload;
 
         private FrameIndex _lastFrame;
-        private readonly List<MobaActorSpawnSnapshotCodec.Entry> _pending = new List<MobaActorSpawnSnapshotCodec.Entry>(64);
+        private readonly List<MobaActorSpawnSnapshotEntry> _pending = new List<MobaActorSpawnSnapshotEntry>(64);
 
         public MobaActorSpawnSnapshotService()
         {
@@ -26,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
             _sent = false;
         }
 
-        public void Enqueue(in MobaActorSpawnSnapshotCodec.Entry entry)
+        public void Enqueue(in MobaActorSpawnSnapshotEntry entry)
         {
             if (entry.NetId <= 0) return;
             _pending.Add(entry);
@@ -34,7 +35,6 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            // At most once per frame.
             if (frame.Value == _lastFrame.Value)
             {
                 snapshot = default;
@@ -42,7 +42,6 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
-            // 1) One-shot bulk payload (enter-game).
             if (_hasSnapshot && !_sent)
             {
                 snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorSpawnSnapshot, _snapshotPayload);
@@ -50,7 +49,6 @@ namespace AbilityKit.Demo.Moba.Services
                 return true;
             }
 
-            // 2) Incremental spawns.
             if (_pending.Count > 0)
             {
                 try
@@ -62,7 +60,6 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 catch
                 {
-                    // Keep pending entries to retry next frame.
                 }
             }
 

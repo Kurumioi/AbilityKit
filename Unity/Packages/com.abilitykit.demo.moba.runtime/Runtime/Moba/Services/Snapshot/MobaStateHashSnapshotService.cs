@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -55,8 +56,6 @@ namespace AbilityKit.Demo.Moba.Services
 
         private uint ComputeStateHash()
         {
-            // Deterministic FNV-1a 32-bit over:
-            // started flag + (actorId, x, y, z) entries sorted by actorId.
             var entries = new List<(int actorId, float x, float y, float z)>(16);
             foreach (var kv in _registry.Entries)
             {

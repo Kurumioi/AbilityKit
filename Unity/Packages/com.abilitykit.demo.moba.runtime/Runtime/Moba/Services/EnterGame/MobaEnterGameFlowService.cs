@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Core.Common.Log;
@@ -9,6 +10,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
 
@@ -65,7 +67,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
 
-            var spawnEntries = new System.Collections.Generic.List<MobaActorSpawnSnapshotCodec.Entry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
+            var spawnEntries = new List<MobaActorSpawnSnapshotEntry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
 
             var built = ActorSpawnPipeline.BuildActorsFromEnterGameReqAndInitialize(
                 actorContext,
@@ -85,14 +87,16 @@ namespace AbilityKit.Demo.Moba.Services
                         var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
                         if (actorId > 0)
                         {
-                            spawnEntries.Add(new MobaActorSpawnSnapshotCodec.Entry(
-                                netId: actorId,
-                                kind: (int)SpawnEntityKind.Character,
-                                code: loadout.HeroId,
-                                ownerNetId: 0,
-                                x: loadout.SpawnX,
-                                y: loadout.SpawnY,
-                                z: loadout.SpawnZ));
+                            spawnEntries.Add(new MobaActorSpawnSnapshotEntry
+                            {
+                                NetId = actorId,
+                                Kind = (int)SpawnEntityKind.Character,
+                                Code = loadout.HeroId,
+                                OwnerNetId = 0,
+                                X = loadout.SpawnX,
+                                Y = loadout.SpawnY,
+                                Z = loadout.SpawnZ
+                            });
                         }
                     }
                     catch (Exception ex)
@@ -106,7 +110,7 @@ namespace AbilityKit.Demo.Moba.Services
             _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
 
             var p = built.LocalActorTransform.Position;
-            var payload = EnterMobaGamePayloadCodec.Serialize(in p);
+            var payload = MobaEnterGamePayloadCodec.Serialize(in p);
 
             var res = new EnterMobaGameRes(
                 worldId: _worldContext.Id,
@@ -116,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Services
                 tickRate: effectiveReq.TickRate,
                 inputDelayFrames: effectiveReq.InputDelayFrames,
                 players: built.Players,
-                opCode: EnterMobaGamePayloadCodec.PayloadOpCode,
+                opCode: MobaEnterGamePayloadCodec.PayloadOpCode,
                 payload: payload,
                 playersLoadout: effectiveReq.Players
             );
