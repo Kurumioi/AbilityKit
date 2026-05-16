@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Registry;
@@ -37,6 +37,8 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string PlaySound = "play_sound";
             public const string Heal = "heal";
             public const string Summon = "summon";
+            public const string SpawnSummon = "spawn_summon";
+            public const string PlayPresentation = "play_presentation";
 
             // Motion Actions
             public const string Dash = "dash";
@@ -111,6 +113,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId DebugLogId => GetActionId(Actions.DebugLog);
         public static ActionId ShootProjectileId => GetActionId(Actions.ShootProjectile);
         public static ActionId AddBuffId => GetActionId(Actions.AddBuff);
+        public static ActionId SpawnSummonId => GetActionId(Actions.SpawnSummon);
+        public static ActionId PlayPresentationId => GetActionId(Actions.PlayPresentation);
 
         // Motion Action IDs
         public static ActionId DashId => GetActionId(Actions.Dash);
