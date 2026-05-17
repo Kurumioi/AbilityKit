@@ -48,9 +48,9 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         /// <summary>
         /// 加载 Moba 配置数据库
         /// </summary>
-        public MobaConfigDatabase LoadMobaConfig()
+        public ConsoleMobaConfigDatabase LoadMobaConfig()
         {
-            var db = new MobaConfigDatabase(_textAssetLoader);
+            var db = new ConsoleMobaConfigDatabase(_textAssetLoader);
             db.LoadFromResources();
             return db;
         }
@@ -58,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         /// <summary>
         /// 记录配置信息
         /// </summary>
-        public void LogConfig(BattleStartConfig config, MobaConfigDatabase mobaDb)
+        public void LogConfig(BattleStartConfig config, ConsoleMobaConfigDatabase mobaDb)
         {
             Log.Config("=== Battle Configuration ===");
             Log.Config($"  World: {config.WorldId} ({config.WorldType})");

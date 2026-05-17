@@ -10,6 +10,11 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <!-- Copy Configs folder to output directory -->
+  <ItemGroup>
+    <None Include="Configs\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Project references -->
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
@@ -17,6 +22,8 @@
     <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
     <ProjectReference Include="..\AbilityKit.Game.Battle.Transport.Runtime\AbilityKit.Game.Battle.Transport.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
   </ItemGroup>
 
   <!-- NuGet Dependencies -->

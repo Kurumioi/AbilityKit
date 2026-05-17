@@ -1,0 +1,20 @@
+﻿{
+    "conditions":  [
+
+                   ],
+    "id":  20003,
+    "enabled":  true,
+    "phase":  "immediate",
+    "event":  "",
+    "name":  "Trigger_20003",
+    "allowExternal":  false,
+    "actions":  [
+                    {
+                        "type":  "add_buff",
+                        "buffIds":  [
+                                        100001
+                                    ]
+                    }
+                ],
+    "priority":  50
+}

@@ -3,44 +3,59 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Console.View
 {
-    public sealed class FloatingTextEntry
+    /// <summary>
+    /// 飘字信息
+    /// </summary>
+    public sealed class FloatingTextInfo
     {
         public int TargetActorId;
         public string Text;
         public bool IsHeal;
-        public long SpawnFrame;
-
-        public FloatingTextEntry() { }
-
-        public FloatingTextEntry(int targetActorId, string text, bool isHeal, long spawnFrame)
-        {
-            TargetActorId = targetActorId;
-            Text = text;
-            IsHeal = isHeal;
-            SpawnFrame = spawnFrame;
-        }
+        public float Age;
+        public float MaxAge;
+        public float StartY;
+        public float VelocityY;
     }
 
+    /// <summary>
+    /// Console 飘字系统
+    /// </summary>
     public sealed class ConsoleFloatingTextSystem
     {
-        private readonly List<FloatingTextEntry> _floatingTexts = new();
-        private long _currentFrame;
+        private readonly List<FloatingTextInfo> _floatingTexts = new();
+        private const float MaxAge = 1.5f;
+        private const float VelocityY = 0.5f;
 
         public void Spawn(int targetActorId, string text, bool isHeal)
         {
-            _floatingTexts.Add(new FloatingTextEntry(targetActorId, text, isHeal, _currentFrame));
+            var info = new FloatingTextInfo
+            {
+                TargetActorId = targetActorId,
+                Text = text,
+                IsHeal = isHeal,
+                Age = 0,
+                MaxAge = MaxAge,
+                StartY = 0,
+                VelocityY = VelocityY
+            };
+            _floatingTexts.Add(info);
         }
 
         public void Tick()
         {
-            _currentFrame++;
-            while (_floatingTexts.Count > 0 && _currentFrame - _floatingTexts[0].SpawnFrame > 30)
+            for (int i = _floatingTexts.Count - 1; i >= 0; i--)
             {
-                _floatingTexts.RemoveAt(0);
+                var ft = _floatingTexts[i];
+                ft.Age += 1f / 60f;
+
+                if (ft.Age >= ft.MaxAge)
+                {
+                    _floatingTexts.RemoveAt(i);
+                }
             }
         }
 
-        public IReadOnlyList<FloatingTextEntry> GetActive() => _floatingTexts;
-        public void Clear() { _floatingTexts.Clear(); _currentFrame = 0; }
+        public IReadOnlyList<FloatingTextInfo> GetAll() => _floatingTexts;
+        public void Clear() => _floatingTexts.Clear();
     }
 }

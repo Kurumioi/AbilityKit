@@ -68,46 +68,30 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return new ConsoleLubanConfigLoader(textAssetLoader, _lubanResourcesDir);
             });
 
-            // 注册框架版 MobaConfigDatabase（用于完整的 MO 配置）
+            // 注册框架版 MobaConfigDatabase（使用 moba 目录的 JSON 配置）
             builder.Register<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>(WorldLifetime.Singleton, container =>
             {
                 var registry = container.Resolve<IMobaConfigTableRegistry>();
                 var deserializer = container.Resolve<IMobaConfigDtoDeserializer>();
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
 
-                // 优先尝试 Luban 配置组
-                var lubanGroup = container.Resolve<LubanConfigGroup>();
                 var db = new AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase(registry, deserializer, null, textAssetLoader);
 
                 try
                 {
-                    db.LoadFromGroups(new List<IConfigGroup> { lubanGroup });
-                    Platform.Log.System("[ConsoleConfigModule] MobaConfigDatabase loaded from Luban config group");
-                }
-                catch (Exception lubanEx)
-                {
-                    Platform.Log.Warn($"[ConsoleConfigModule] Failed to load from Luban config group: {lubanEx.Message}");
+                    db.LoadFromResources(_resourcesDir);
+                    Platform.Log.System($"[ConsoleConfigModule] MobaConfigDatabase loaded from JSON configs: {_resourcesDir}");
 
-                    // Fallback 到简化版 JSON 配置
-                    try
-                    {
-                        db.LoadFromResources(_resourcesDir);
-                        Platform.Log.System("[ConsoleConfigModule] MobaConfigDatabase loaded from JSON configs (fallback)");
-                    }
-                    catch (Exception jsonEx)
-                    {
-                        Platform.Log.Error($"[ConsoleConfigModule] Failed to load from JSON configs: {jsonEx.Message}");
-                    }
+                    // 调试：检查各表加载情况
+                    var skillFlowCount = db.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillFlowMO>().Count;
+                    Platform.Log.System($"[ConsoleConfigModule] SkillFlow count: {skillFlowCount}");
+                }
+                catch (Exception ex)
+                {
+                    Platform.Log.Error($"[ConsoleConfigModule] Failed to load from JSON configs: {ex.Message}");
                 }
 
                 return db;
-            });
-
-            // 注册简化版 MobaConfigDatabase（Console 专用）
-            builder.Register<MobaConfigDatabase>(WorldLifetime.Singleton, container =>
-            {
-                var textAssetLoader = container.Resolve<ITextAssetLoader>();
-                return ConsoleConfigLoader.LoadMobaConfig(textAssetLoader);
             });
         }
     }

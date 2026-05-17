@@ -34,7 +34,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
             if (!File.Exists(fullPath))
             {
-                Platform.Log.Debug($"[ConsoleTextAssetLoader] File not found: {fullPath}");
                 return false;
             }
 
@@ -43,9 +42,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 text = File.ReadAllText(fullPath);
                 return !string.IsNullOrEmpty(text);
             }
-            catch (Exception ex)
+            catch
             {
-                Platform.Log.Warn($"[ConsoleTextAssetLoader] Failed to read file: {fullPath}, Error: {ex.Message}");
                 return false;
             }
         }
@@ -77,11 +75,16 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         private string GetFullPath(string path)
         {
-            if (Path.IsPathRooted(path))
+            if (string.IsNullOrEmpty(path)) return _basePath;
+
+            // 规范化路径分隔符（将 / 替换为 \ 以兼容 Windows）
+            var normalizedPath = path.Replace('/', Path.DirectorySeparatorChar);
+
+            if (Path.IsPathRooted(normalizedPath))
             {
-                return path;
+                return normalizedPath;
             }
-            return Path.Combine(_basePath, path);
+            return Path.Combine(_basePath, normalizedPath);
         }
 
         private static string GetDefaultBasePath()

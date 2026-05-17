@@ -128,10 +128,14 @@ namespace AbilityKit.Demo.Moba.Console.MobaCore
         private bool ExecuteFallback(int actorId, int skillId, int skillSlot, int targetActorId)
         {
             Log.Skill($"[MobaCoreSkillExecutor] Fallback: Actor#{actorId} Skill#{skillId}");
-            float damage = 100f;
+            // Fallback 模式下使用默认伤害（仅在无法获取技能配置时使用）
+            // 后续应该通过 BattleServices 进行完整的伤害计算
+            float defaultDamage = 50f;
             if (targetActorId > 0)
             {
-                OnDamageDealt?.Invoke(actorId, targetActorId, damage, skillId);
+                // TODO: 应该通过 BattleServices.ApplyDamage 进行完整伤害计算
+                // 这里仅作为临时 fallback
+                OnDamageDealt?.Invoke(actorId, targetActorId, defaultDamage, skillId);
             }
             OnSkillCast?.Invoke(actorId, skillId, skillSlot, targetActorId);
             return true;

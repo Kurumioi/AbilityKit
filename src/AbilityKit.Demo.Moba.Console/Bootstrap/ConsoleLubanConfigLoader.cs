@@ -156,10 +156,10 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         }
 
         /// <summary>
-        /// 尝试从 Luban 配置填充简化版 MobaConfigDatabase
+        /// 尝试从 Luban 配置填充简化版 ConsoleMobaConfigDatabase
         /// </summary>
         /// <returns>如果成功填充返回 true，否则返回 false</returns>
-        public bool TryPopulate(MobaConfigDatabase db)
+        public bool TryPopulate(ConsoleMobaConfigDatabase db)
         {
             try
             {

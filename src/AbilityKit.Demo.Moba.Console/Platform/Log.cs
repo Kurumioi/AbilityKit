@@ -151,6 +151,19 @@ namespace AbilityKit.Demo.Moba.Console.Platform
         public static void Entity(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Entity, format, args);
         public static void Config(string message) => WriteToChannel(OutputChannel.Config, message);
         public static void Config(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Config, format, args);
+
+        /// <summary>
+        /// 属性日志 - 用于调试属性系统
+        /// </summary>
+        public static void Attribute(string message) => WriteToChannel(OutputChannel.Debug, $"[ATTR] {message}");
+        public static void Attribute(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Debug, $"[ATTR] {format}", args);
+
+        /// <summary>
+        /// 冷却日志 - 用于调试冷却系统
+        /// </summary>
+        public static void Cooldown(string message) => WriteToChannel(OutputChannel.Debug, $"[CD] {message}");
+        public static void Cooldown(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Debug, $"[CD] {format}", args);
+
         public static void Debug(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Debug, format, args);
         public static void Warn(string message) => WriteToChannel(OutputChannel.Warning, message);
         public static void Warn(string format, params object[] args) => WriteFormatToChannel(OutputChannel.Warning, format, args);

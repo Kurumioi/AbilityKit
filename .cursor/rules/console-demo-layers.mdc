@@ -1,0 +1,180 @@
+# Console Demo 架构规范
+
+## 核心原则
+
+**Console Demo 是纯表现层工程，不包含任何逻辑层代码。**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              AbilityKit.Demo.Moba.Core (逻辑层)                   │
+│    源码位置: Unity/Packages/com.abilitykit.demo.moba.runtime     │
+│    包含: 技能执行、伤害计算、Buff管理、帧同步等                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ ISkillExecutor 接口
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│           AbilityKit.Demo.Moba.Console (表现层)                   │
+│                                                              │
+│  职责:                                                       │
+│  - ✅ 收集玩家输入（键盘、鼠标）                               │
+│  - ✅ 调用逻辑层执行技能（通过 MobaCoreSkillExecutor）           │
+│  - ✅ 播放表现（特效、飘字、动画）                             │
+│  - ✅ 帧同步驱动（Tick 推进）                                 │
+│  - ✅ 视图绑定和插值                                           │
+│                                                              │
+│  禁止:                                                        │
+│  - ❌ 伤害计算                                                │
+│  - ❌ 技能流程执行                                             │
+│  - ❌ Buff/状态管理                                             │
+│  - ❌ 目标搜索逻辑                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 目录结构
+
+```
+Console Demo/
+├── Battle/
+│   ├── Sync/                         # 帧同步
+│   │   ├── ConsoleSyncFeature.cs
+│   │   └── View/
+│   │       └── ConsoleViewBinder.cs  # 视图绑定器
+│   └── Vfx/
+│       └── ConsoleVfxManager.cs       # VFX 管理器
+│
+├── Bootstrap/                         # 启动器
+│   ├── ConsoleBattleBootstrapper.cs
+│   ├── FeatureContainer.cs
+│   └── IBattleBootstrapper.cs
+│
+├── Core/
+│   ├── Battle/                       # ECS 组件和实体
+│   │   ├── Context/
+│   │   ├── ECS/
+│   │   └── ...
+│   └── Input/
+│       └── ConsoleInputFeature.cs
+│
+├── Flow/                             # 流程控制
+│   ├── BattleFlow.cs
+│   ├── ModuleHost.cs                 # Module 宿主
+│   ├── PhaseHost.cs
+│   └── IBattleFlow.cs
+│
+├── Platform/                         # 平台抽象
+│   ├── Log.cs
+│   └── Abstractions/
+│
+├── Services/                         # 协议解析
+│   ├── MobaOpCode.cs
+│   ├── SkillInputCodec.cs
+│   ├── SkillInputEvent.cs
+│   ├── SimpleMoveCodec.cs
+│   ├── BattleServices.cs
+│   ├── SkillExecutor.cs
+│   └── ConsoleEffectExecutionService.cs
+│
+├── View/                              # 视图系统
+│   ├── ConsoleBattleView.cs          # 主视图
+│   ├── ConsoleEntityDisplayService.cs # 实体显示
+│   ├── ConsoleFloatingTextSystem.cs   # 飘字系统
+│   ├── ConsoleAreaViewSystem.cs      # 区域视图
+│   └── ConsoleProjectileDisplayService.cs
+│
+├── Replay/                           # 回放系统
+└── AutoTest/                         # 自动测试
+```
+
+## 视图系统设计
+
+### 核心组件
+
+| 组件 | 职责 |
+|------|------|
+| `ConsoleBattleView` | 主视图，协调所有子系统的显示 |
+| `ConsoleEntityDisplayService` | 实体数据存储（位置、HP等） |
+| `ConsoleFloatingTextSystem` | 飘字（伤害数字、治疗数字） |
+| `ConsoleAreaViewSystem` | AOE 区域显示 |
+| `ConsoleProjectileDisplayService` | 弹道显示 |
+| `ConsoleVfxManager` | VFX 管理（参考 moba.view 的 BattleVfxManager） |
+
+### 接口定义
+
+```csharp
+// 主视图接口
+public interface IConsoleBattleView : IDisposable
+{
+    void RegisterEntity(int actorId, string name, string type, float hp, float maxHp, float x, float y, float z);
+    void UpdateActorPosition(int actorId, float x, float y, float z);
+    void UpdateEntityHp(int actorId, float hp, float maxHp);
+    void ShowFloatingText(int targetActorId, string text, bool isHeal);
+    void ShowProjectileSpawn(int projectileId, int templateId, float x, float y, float z);
+    void ShowProjectileHit(int templateId, float x, float y, float z);
+    void ShowProjectileExpire(int projectileId);
+    void ShowAreaEffectStart(int areaId, int templateId, float centerX, float centerZ, float radius);
+    void ShowAreaEffectEnd(int areaId);
+    void ShowBuffApply(int targetId, int buffId, int casterId);
+    void ShowBuffRemove(int targetId, int buffId);
+    ConsoleEntityDisplayService EntityDisplay { get; }
+}
+
+// 战斗视图服务接口
+public interface BattleViewServices
+{
+    void ShowDamage(int actorId, float hp, float hpMax);
+    void ShowSkillEffect(int actorId, int skillId);
+    void ShowDeath(int actorId, int killerActorId);
+}
+```
+
+## 协议类型
+
+Console 使用 `AbilityKit.Protocol.Moba` 包中的正式协议类型：
+
+| 类型 | 命名空间 |
+|------|----------|
+| `EnterMobaGameRes` | `AbilityKit.Ability.Share.Impl.Moba.Struct` |
+| `MobaActorTransformSnapshotEntry` | `AbilityKit.Protocol.Moba.StateSync` |
+| `MobaProjectileEventSnapshotEntry` | `AbilityKit.Protocol.Moba.StateSync` |
+| `MobaAreaEventSnapshotEntry` | `AbilityKit.Protocol.Moba.StateSync` |
+| `MobaDamageEventSnapshotEntry` | `AbilityKit.Protocol.Moba.StateSync` |
+| `ISnapshotEnvelope` | `AbilityKit.Ability.Host` |
+
+## Services 目录职责
+
+`Services` 目录只放**协议解析**相关代码：
+- `MobaOpCode.cs` - 协议操作码
+- `SkillInputCodec.cs` - 技能输入编码
+- `SkillInputEvent.cs` - 输入事件
+- `SimpleMoveCodec.cs` - 移动编码
+- `BattleServices.cs` - 实体显示数据管理
+- `SkillExecutor.cs` - 技能输入处理
+- `ConsoleEffectExecutionService.cs` - 特效服务
+
+## View 目录职责
+
+`View` 目录包含所有表现层实现：
+- `ConsoleBattleView.cs` - 主视图，协调所有子系统
+- `ConsoleEntityDisplayService.cs` - 实体数据存储
+- `ConsoleFloatingTextSystem.cs` - 飘字系统
+- `ConsoleAreaViewSystem.cs` - 区域视图系统
+- `ConsoleProjectileDisplayService.cs` - 弹道显示服务
+
+## 禁止事项
+
+| 禁止 | 原因 |
+|------|------|
+| ❌ 在 Console 中计算伤害 | 伤害计算在逻辑层 |
+| ❌ 在 Console 中执行技能流程 | 技能流程在逻辑层 |
+| ❌ 在 Console 中管理 Buff | Buff 管理在逻辑层 |
+| ❌ 创建独立的伤害服务 | 伤害计算在逻辑层 |
+
+## 与 moba.view 的差异
+
+| 维度 | moba.view (Unity) | Console Demo |
+|------|-------------------|-------------|
+| **渲染** | Unity GameObject | Console Text |
+| **位置插值** | BattleViewBinder + SampleBuffer | ConsoleEntityDisplayService (简化) |
+| **VFX** | BattleVfxManager + Resources.Load | ConsoleVfxManager (简化) |
+| **事件系统** | IBattleViewEventSink (Protocol 类型) | IBattleViewEventSink (Protocol 类型) |

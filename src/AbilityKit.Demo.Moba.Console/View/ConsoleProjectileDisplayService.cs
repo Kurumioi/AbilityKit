@@ -1,9 +1,11 @@
-using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Console.View
 {
-    public sealed class ProjectileEntry
+    /// <summary>
+    /// 弹道信息
+    /// </summary>
+    public sealed class ProjectileInfo
     {
         public int ProjectileId;
         public int TemplateId;
@@ -12,13 +14,21 @@ namespace AbilityKit.Demo.Moba.Console.View
         public float Z;
     }
 
+    /// <summary>
+    /// Console 弹道显示服务
+    /// </summary>
     public sealed class ConsoleProjectileDisplayService
     {
-        private readonly Dictionary<int, ProjectileEntry> _projectiles = new();
+        private readonly Dictionary<int, ProjectileInfo> _projectiles = new();
 
         public void Spawn(int projectileId, int templateId, float x, float y, float z)
         {
-            _projectiles[projectileId] = new ProjectileEntry
+            if (_projectiles.ContainsKey(projectileId))
+            {
+                _projectiles.Remove(projectileId);
+            }
+
+            _projectiles[projectileId] = new ProjectileInfo
             {
                 ProjectileId = projectileId,
                 TemplateId = templateId,
@@ -28,20 +38,8 @@ namespace AbilityKit.Demo.Moba.Console.View
             };
         }
 
-        public void UpdatePosition(int projectileId, float x, float y, float z)
-        {
-            if (_projectiles.TryGetValue(projectileId, out var proj))
-            {
-                proj.X = x;
-                proj.Y = y;
-                proj.Z = z;
-            }
-        }
-
         public void Remove(int projectileId) => _projectiles.Remove(projectileId);
-        public bool TryGet(int projectileId, out ProjectileEntry entry) => _projectiles.TryGetValue(projectileId, out entry);
-        public IReadOnlyCollection<ProjectileEntry> GetAll() => _projectiles.Values;
-        public int Count => _projectiles.Count;
+        public IReadOnlyDictionary<int, ProjectileInfo> GetAll() => _projectiles;
         public void Clear() => _projectiles.Clear();
     }
 }

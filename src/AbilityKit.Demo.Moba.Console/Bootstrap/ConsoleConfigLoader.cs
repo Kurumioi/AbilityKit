@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         {
             loader ??= new ConsoleTextAssetLoader();
 
-            var configPath = $"{MobaConfigDir}/battle_start";
+            var configPath = System.IO.Path.Combine(MobaConfigDir, "battle_start");
             if (loader.TryLoadText(configPath, out var json) && !string.IsNullOrEmpty(json))
             {
                 try
@@ -23,7 +23,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                     var config = Newtonsoft.Json.JsonConvert.DeserializeObject<BattleStartConfig>(json);
                     if (config != null)
                     {
-                        // 应用环境变量覆盖
                         ApplyEnvironmentOverrides(config);
                         Log.System($"Loaded BattleStartConfig from: {configPath}");
                         return config;
@@ -64,13 +63,15 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             }
         }
 
-        public static MobaConfigDatabase LoadMobaConfig(ITextAssetLoader? loader = null)
+        public static ConsoleMobaConfigDatabase LoadMobaConfig(ITextAssetLoader? loader = null)
         {
             loader ??= new ConsoleTextAssetLoader();
-            return new MobaConfigDatabase(loader);
+            var db = new ConsoleMobaConfigDatabase(loader);
+            db.LoadFromResources(MobaConfigDir);
+            return db;
         }
 
-        public static MobaConfigDatabase LoadDefault()
+        public static ConsoleMobaConfigDatabase LoadDefault()
         {
             return LoadMobaConfig();
         }

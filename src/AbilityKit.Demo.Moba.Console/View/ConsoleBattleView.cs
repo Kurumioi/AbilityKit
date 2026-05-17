@@ -1,80 +1,8 @@
 using System;
-using System.Collections.Generic;
-using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Services;
 
 namespace AbilityKit.Demo.Moba.Console.View
 {
-    /// <summary>
-    /// Console 实体显示信息
-    /// </summary>
-    public sealed class ConsoleEntityInfo
-    {
-        public int ActorId;
-        public string Name;
-        public string Type;
-        public float X;
-        public float Y;
-        public float Z;
-        public float Hp;
-        public float MaxHp;
-
-        public bool IsDead => Hp <= 0;
-        public float HpPercent => MaxHp > 0 ? Hp / MaxHp : 0f;
-    }
-
-    /// <summary>
-    /// Console 实体显示服务
-    /// </summary>
-    public sealed class ConsoleEntityDisplayService
-    {
-        private readonly Dictionary<int, ConsoleEntityInfo> _entities = new();
-
-        public void Add(int actorId, string name, string type, float hp, float maxHp, float x, float y, float z)
-        {
-            if (!_entities.TryGetValue(actorId, out var info))
-            {
-                info = new ConsoleEntityInfo();
-                _entities[actorId] = info;
-            }
-
-            info.ActorId = actorId;
-            info.Name = name;
-            info.Type = type;
-            info.X = x;
-            info.Y = y;
-            info.Z = z;
-            info.Hp = hp;
-            info.MaxHp = maxHp;
-        }
-
-        public void UpdatePosition(int actorId, float x, float y, float z)
-        {
-            if (_entities.TryGetValue(actorId, out var info))
-            {
-                info.X = x;
-                info.Y = y;
-                info.Z = z;
-            }
-        }
-
-        public void UpdateHp(int actorId, float hp, float maxHp)
-        {
-            if (_entities.TryGetValue(actorId, out var info))
-            {
-                info.Hp = hp;
-                info.MaxHp = maxHp;
-            }
-        }
-
-        public void Remove(int actorId) => _entities.Remove(actorId);
-        public bool TryGet(int actorId, out ConsoleEntityInfo info) => _entities.TryGetValue(actorId, out info);
-        public IEnumerable<ConsoleEntityInfo> GetAll() => _entities.Values;
-        public int Count => _entities.Count;
-        public void Clear() => _entities.Clear();
-    }
-
     /// <summary>
     /// 视图接口
     /// </summary>
@@ -99,8 +27,17 @@ namespace AbilityKit.Demo.Moba.Console.View
     }
 
     /// <summary>
+    /// 战斗视图服务接口
+    /// </summary>
+    public interface BattleViewServices
+    {
+        void ShowDamage(int actorId, float hp, float hpMax);
+        void ShowSkillEffect(int actorId, int skillId);
+        void ShowDeath(int actorId, int killerActorId);
+    }
+
+    /// <summary>
     /// Console 战斗视图
-    /// 实现 BattleViewServices 接口用于战斗服务调用
     /// </summary>
     public sealed class ConsoleBattleView : IConsoleBattleView, BattleViewServices
     {
@@ -130,25 +67,16 @@ namespace AbilityKit.Demo.Moba.Console.View
 
         #region BattleViewServices 实现
 
-        /// <summary>
-        /// 显示伤害飘字
-        /// </summary>
         void BattleViewServices.ShowDamage(int actorId, float hp, float hpMax)
         {
             UpdateEntityHp(actorId, hp, hpMax);
         }
 
-        /// <summary>
-        /// 显示技能效果
-        /// </summary>
         void BattleViewServices.ShowSkillEffect(int actorId, int skillId)
         {
             Log.Skill($"[View] Actor #{actorId} skill effect {skillId}");
         }
 
-        /// <summary>
-        /// 显示死亡
-        /// </summary>
         void BattleViewServices.ShowDeath(int actorId, int killerActorId)
         {
             ShowFloatingText(actorId, "DIED!", false);
@@ -235,10 +163,50 @@ namespace AbilityKit.Demo.Moba.Console.View
         {
             _renderer.Clear();
 
+            // 渲染区域效果
+            foreach (var kvp in _areaViews.GetAll())
+            {
+                var area = kvp.Value;
+                var (cx, cy) = _renderer.WorldToScreen(area.CenterX, area.CenterZ);
+                _renderer.DrawText(cx - 2, cy, $"[@{area.Radius}]");
+            }
+
+            // 渲染弹道
+            foreach (var kvp in _projectileDisplay.GetAll())
+            {
+                var proj = kvp.Value;
+                var (px, py) = _renderer.WorldToScreen(proj.X, proj.Z);
+                _renderer.DrawText(px, py, "*");
+            }
+
+            // 渲染实体
             foreach (var entity in _entityDisplay.GetAll())
             {
                 var (px, py) = _renderer.WorldToScreen(entity.X, entity.Z);
+
+                // 绘制血条
+                _renderer.DrawText(px, py - 1, entity.Name);
                 _renderer.DrawText(px, py, entity.IsDead ? "X" : "O");
+
+                // 绘制 HP 条（简化）
+                if (!entity.IsDead)
+                {
+                    var hpWidth = (int)(entity.HpPercent * 10);
+                    var hpBar = new string('|', hpWidth) + new string('-', 10 - hpWidth);
+                    _renderer.DrawText(px - 2, py + 1, hpBar);
+                }
+            }
+
+            // 渲染飘字
+            foreach (var ft in _floatingTexts.GetAll())
+            {
+                if (_entityDisplay.TryGet(ft.TargetActorId, out var target))
+                {
+                    var (tx, ty) = _renderer.WorldToScreen(target.X, target.Z);
+                    var offsetY = (int)(ft.Age * ft.VelocityY * 10);
+                    var text = ft.IsHeal ? $"+{ft.Text}" : ft.Text;
+                    _renderer.DrawText(tx, ty - 2 - offsetY, text);
+                }
             }
 
             _renderer.Present();

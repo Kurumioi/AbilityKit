@@ -1,0 +1,40 @@
+﻿{
+    "entries":  [
+                    {
+                        "trigger_id":  10001,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  20001,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20002,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20003,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20004,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20005,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  21001,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  21002,
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  22001,
+                        "category":  "passives"
+                    }
+                ]
+}

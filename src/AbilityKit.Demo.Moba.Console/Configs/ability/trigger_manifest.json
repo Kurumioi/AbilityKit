@@ -1,0 +1,49 @@
+﻿{
+    "entries":  [
+                    {
+                        "trigger_id":  10001,
+                        "path":  "skills\\trigger_10001.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  20001,
+                        "path":  "buffs\\trigger_20001.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20002,
+                        "path":  "buffs\\trigger_20002.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20003,
+                        "path":  "buffs\\trigger_20003.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20004,
+                        "path":  "buffs\\trigger_20004.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  20005,
+                        "path":  "buffs\\trigger_20005.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  21001,
+                        "path":  "buffs\\trigger_21001.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  21002,
+                        "path":  "buffs\\trigger_21002.json",
+                        "category":  "buffs"
+                    },
+                    {
+                        "trigger_id":  22001,
+                        "path":  "passives\\trigger_22001.json",
+                        "category":  "passives"
+                    }
+                ]
+}

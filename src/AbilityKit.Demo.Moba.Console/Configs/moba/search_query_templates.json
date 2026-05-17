@@ -1,0 +1,18 @@
+[
+  {
+    "Id": 1,
+    "Name": "范围查询",
+    "CenterMode": 0,
+    "Radius": 10.0,
+    "MaxCount": 10,
+    "ExcludeCaster": true
+  },
+  {
+    "Id": 2,
+    "Name": "锥形查询",
+    "CenterMode": 0,
+    "Radius": 8.0,
+    "MaxCount": 5,
+    "ExcludeCaster": true
+  }
+]

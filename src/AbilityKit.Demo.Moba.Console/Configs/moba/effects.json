@@ -1,0 +1,32 @@
+[
+  {
+    "Id": 10001,
+    "Name": "廉颇-技能1-伤害",
+    "EffectType": 1,
+    "BaseDamage": 200,
+    "DamageType": 1,
+    "AttackRatio": 0.5,
+    "TargetPolicy": 1,
+    "Radius": 0
+  },
+  {
+    "Id": 10002,
+    "Name": "廉颇-技能2-伤害",
+    "EffectType": 1,
+    "BaseDamage": 300,
+    "DamageType": 1,
+    "AttackRatio": 0.6,
+    "TargetPolicy": 1,
+    "Radius": 0
+  },
+  {
+    "Id": 10003,
+    "Name": "廉颇-技能3-伤害",
+    "EffectType": 1,
+    "BaseDamage": 400,
+    "DamageType": 1,
+    "AttackRatio": 0.8,
+    "TargetPolicy": 2,
+    "Radius": 5
+  }
+]

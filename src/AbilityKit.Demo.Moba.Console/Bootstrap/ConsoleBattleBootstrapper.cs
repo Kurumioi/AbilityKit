@@ -15,11 +15,13 @@ using AbilityKit.Demo.Moba.Console.Battle.Sync;
 using AbilityKit.Demo.Moba.Console.Battle.Sync.View;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.View;
+using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Console.MobaCore;
+using AbilityKit.Demo.Moba.Config.Core;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console
@@ -39,14 +41,18 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly ConsoleInputHandler _inputHandler;
         private readonly List<IWorldModule> _modules;
         private readonly BattleStartConfig _config;
-        private MobaConfigDatabase _mobaConfig;
+        private AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase _mobaConfig;
         private readonly BattleServices _battleServices;
-        private readonly ConsoleSkillExecutor _skillExecutor;
+        private ConsoleSkillExecutor _skillExecutor;
         private readonly RecordConfig _recordConfig;
 
         // 同步适配器（支持帧同步/状态同步切换）
         private IBattleSyncAdapter? _syncAdapter;
         private ConsoleViewBinder? _viewBinder;
+        private ConsoleViewEventSink? _viewEventSink;
+
+        // 自动测试输入（可选，由 AutoTestRunner 管理）
+        private AutoTestInputFeature? _autoTestInput;
 
         private bool _disposed;
         private bool _running;
@@ -79,17 +85,17 @@ namespace AbilityKit.Demo.Moba.Console
         {
         }
 
-        public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig)
+        public ConsoleBattleBootstrapper(BattleStartConfig? config, AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase? mobaConfig)
             : this(config, mobaConfig, null, null)
         {
         }
 
-        public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules)
+        public ConsoleBattleBootstrapper(BattleStartConfig? config, AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules)
             : this(config, mobaConfig, additionalModules, null)
         {
         }
 
-        public ConsoleBattleBootstrapper(BattleStartConfig? config, MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules, RecordConfig? recordConfig)
+        public ConsoleBattleBootstrapper(BattleStartConfig? config, AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase? mobaConfig, IEnumerable<IWorldModule>? additionalModules, RecordConfig? recordConfig)
         {
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Entry");
 
@@ -126,17 +132,15 @@ namespace AbilityKit.Demo.Moba.Console
                 new ConsoleProjectileDisplayService(),
                 Platform.Renderer);
 
-            // ??????
-            _battleServices = new BattleServices((BattleViewServices)_battleView);
-            _skillExecutor = new ConsoleSkillExecutor(_mobaConfig, _battleServices);
+            // BattleServices 在 ConfigureWorld 之后创建
+            _battleServices = new BattleServices();
 
             _syncFeature = new ConsoleSyncFeature();
             _inputFeature = new ConsoleInputFeature();
             _hudFeature = new ConsoleHudFeature();
             _inputHandler = new ConsoleInputHandler(_inputFeature, _hudFeature, _flow, Platform.Input);
 
-            // SetServices ???????????????
-            _inputFeature.SetServices(_skillExecutor, _battleServices);
+            // SetServices 在 ConfigureWorld 中调用（在 SkillExecutor 创建后）
 
             // ???????????????????
             _hudFeature.SetBattleView(_battleView);
@@ -152,8 +156,10 @@ namespace AbilityKit.Demo.Moba.Console
             _viewBinder.TickRate = _config.TickRate;
             _viewBinder.BackTimeSeconds = (float)(1.0 / _config.TickRate);
 
+            // 创建 View 事件接收器（订阅框架事件进行表现）
+            _viewEventSink = new ConsoleViewEventSink(_battleView);
+
             Log.Config($"Config loaded: {_config.Name}, TickRate: {_config.TickRate}, SyncMode: {_config.SyncMode}");
-            Log.Config($"MobaConfig: {_mobaConfig.CharacterCount} characters, {_mobaConfig.SkillCount} skills, {_mobaConfig.ProjectileCount} projectiles");
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Exit");
         }
 
@@ -166,12 +172,28 @@ namespace AbilityKit.Demo.Moba.Console
         /// <summary>
         /// ?? Moba ??
         /// </summary>
-        public MobaConfigDatabase MobaConfig => _mobaConfig;
+        public AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase MobaConfig => _mobaConfig;
 
         /// <summary>
-        /// ??????
+        /// ???????
         /// </summary>
         public BattleServices BattleServices => _battleServices;
+
+        /// <summary>
+        /// 设置自动测试输入特征
+        /// </summary>
+        public void SetAutoTestInput(AutoTestInputFeature? autoInput)
+        {
+            _autoTestInput = autoInput;
+            if (autoInput != null)
+            {
+                autoInput.OnAttach(_context);
+            }
+            else if (_autoTestInput != null)
+            {
+                _autoTestInput.OnDetach(_context);
+            }
+        }
 
         /// <summary>
         /// ???????
@@ -222,9 +244,17 @@ namespace AbilityKit.Demo.Moba.Console
             // 从 DI 容器解析 MobaConfig（由 ConsoleConfigModule 注册）
             if (_mobaConfig == null)
             {
-                _mobaConfig = container.Resolve<MobaConfigDatabase>();
-                Log.System($"MobaConfig resolved from DI: {_mobaConfig.CharacterCount} characters, {_mobaConfig.SkillCount} skills");
+                _mobaConfig = container.Resolve<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>();
+                Log.System($"MobaConfig resolved from DI: {_mobaConfig.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.CharacterMO>().Count} characters, {_mobaConfig.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillMO>().Count} skills");
             }
+
+            // 创建表现层服务
+            var effectService = new ConsoleEffectExecutionService();
+
+            // 创建 SkillExecutor（只依赖 BattleServices）
+            _skillExecutor = new ConsoleSkillExecutor(_battleServices);
+
+            _inputFeature.SetServices(_skillExecutor, _battleServices);
 
             // ??? moba.core ??
             InitializeMobaCore();
@@ -321,15 +351,20 @@ namespace AbilityKit.Demo.Moba.Console
             Log.Config($"  Debug: {_context.Plan.EnableDebug}");
             Log.Config($"  Input Delay: {_context.Plan.InputDelayFrames} frames");
 
-            if (_mobaConfig.CharacterCount > 0)
+            if (_mobaConfig.TryGetCharacter(0, out var firstChar) && firstChar != null)
             {
                 Log.Config("  Characters:");
-                foreach (var c in _mobaConfig.GetAllCharacters())
+                foreach (var c in _mobaConfig.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.CharacterMO>().All())
                 {
-                    var attrs = _mobaConfig.GetCharacterAttributes(c);
-                    var hp = attrs?.Hp ?? 0;
-                    var atk = attrs?.PhysicsAttack ?? 0;
-                    var def = attrs?.PhysicsDefense ?? 0;
+                    var hp = 0;
+                    var atk = 0;
+                    var def = 0;
+                    if (_mobaConfig.TryGetAttributeTemplate(c.AttributeTemplateId, out var attrs) && attrs != null)
+                    {
+                        hp = attrs.Hp;
+                        atk = attrs.PhysicsAttack;
+                        def = attrs.PhysicsDefense;
+                    }
                     Log.Config($"    - {c.Name} (HP:{hp:F0}, ATK:{atk:F0}, DEF:{def:F0}, TemplateId:{c.AttributeTemplateId})");
                 }
             }
@@ -399,6 +434,7 @@ namespace AbilityKit.Demo.Moba.Console
             _flow.Tick((float)elapsed);
             _syncFeature.Tick(_context, (float)elapsed);
             _inputFeature.Tick(_context, (float)elapsed);
+            _autoTestInput?.Tick(_context, (float)elapsed);
             _hudFeature.Tick(_context, (float)elapsed);
             _battleView.Tick((float)elapsed);
 
@@ -501,7 +537,7 @@ namespace AbilityKit.Demo.Moba.Console
                 return;
             }
 
-            var attrs = _mobaConfig.GetCharacterAttributes(charConfig);
+            var attrs = _mobaConfig.TryGetAttributeTemplate(charConfig.AttributeTemplateId, out var attrMo) ? attrMo : null;
             CreateCharacter(
                 actorId: HashPlayerId(player.PlayerId),
                 name: charConfig.Name,
@@ -645,6 +681,7 @@ namespace AbilityKit.Demo.Moba.Console
             _inputFeature?.OnDetach(_context);
             _syncFeature?.OnDetach(_context);
             _viewBinder?.Dispose();
+            _viewEventSink?.Dispose();
             _syncAdapter?.Dispose();
             _flow?.Dispose();
             _battleView?.Dispose();

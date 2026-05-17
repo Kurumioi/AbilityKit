@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Replay;
@@ -20,10 +21,14 @@ namespace AbilityKit.Demo.Moba.Console
         {
             System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // ???????
+            // 先解析参数（EnableTrace 可能会在这里被调用）
             _exitImmediately = ParseArguments(args);
 
-            Log.SetMinLevel(Log.LogLevel.System);
+            // 如果没有开启 trace，使用默认级别
+            if (Log.MinLevel != Log.LogLevel.Trace)
+            {
+                Log.SetMinLevel(Log.LogLevel.System);
+            }
 
             // ??? --list/--info/--help???????? ParseArguments ????
             if (_exitImmediately)
@@ -80,7 +85,9 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System("Starting automated tests...");
             Log.System("");
 
-            testRunner.Start();
+            // 注册帧输入命令测试
+            Log.System("[TEST] Registering frame input test steps...");
+            testRunner.RunScenario(new FullBattleScenario());
 
             var gameThread = new Thread(GameLoop);
             gameThread.IsBackground = true;
@@ -272,6 +279,11 @@ namespace AbilityKit.Demo.Moba.Console
                     case "--test":
                     case "-t":
                         _recordConfig.Mode = RecordMode.None;
+                        break;
+
+                    case "--trace":
+                    case "--debug":
+                        Log.EnableTrace();
                         break;
 
                     case "--help":

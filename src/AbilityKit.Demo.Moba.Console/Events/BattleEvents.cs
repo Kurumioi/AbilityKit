@@ -86,4 +86,43 @@ namespace AbilityKit.Demo.Moba.Console.Events
         public float Damage { get; init; }
         public int SkillId { get; init; }
     }
+
+    /// <summary>
+    /// 治疗事件
+    /// </summary>
+    public readonly struct HealEvent
+    {
+        public int SourceId { get; init; }
+        public int TargetId { get; init; }
+        public float Amount { get; init; }
+    }
+
+    /// <summary>
+    /// Buff 添加事件
+    /// </summary>
+    public readonly struct BuffAppliedEvent
+    {
+        public int TargetId { get; init; }
+        public int BuffId { get; init; }
+        public int CasterId { get; init; }
+    }
+
+    /// <summary>
+    /// 技能冷却就绪事件
+    /// </summary>
+    public readonly struct CooldownReadyEvent
+    {
+        public int ActorId { get; init; }
+        public int SkillId { get; init; }
+    }
+
+    /// <summary>
+    /// 弹道命中事件
+    /// </summary>
+    public readonly struct ProjectileHitEvent
+    {
+        public int ProjectileId { get; init; }
+        public int TargetId { get; init; }
+        public int EffectId { get; init; }
+    }
 }

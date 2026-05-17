@@ -1,0 +1,20 @@
+[
+  {
+    "Id": 1,
+    "Name": "持续伤害",
+    "DurationMs": 3000,
+    "PeriodMs": 1000,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 1001,
+    "OnRemoveEffectId": 0
+  },
+  {
+    "Id": 2,
+    "Name": "持续治疗",
+    "DurationMs": 5000,
+    "PeriodMs": 1000,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 1002,
+    "OnRemoveEffectId": 0
+  }
+]

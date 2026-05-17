@@ -1,9 +1,11 @@
-using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Console.View
 {
-    public sealed class AreaEffectEntry
+    /// <summary>
+    /// AOE 区域视图信息
+    /// </summary>
+    public sealed class AreaViewInfo
     {
         public int AreaId;
         public int TemplateId;
@@ -12,13 +14,21 @@ namespace AbilityKit.Demo.Moba.Console.View
         public float Radius;
     }
 
+    /// <summary>
+    /// Console 区域视图系统
+    /// </summary>
     public sealed class ConsoleAreaViewSystem
     {
-        private readonly Dictionary<int, AreaEffectEntry> _areas = new();
+        private readonly Dictionary<int, AreaViewInfo> _areas = new();
 
         public void Spawn(int areaId, int templateId, float centerX, float centerZ, float radius)
         {
-            _areas[areaId] = new AreaEffectEntry
+            if (_areas.ContainsKey(areaId))
+            {
+                _areas.Remove(areaId);
+            }
+
+            _areas[areaId] = new AreaViewInfo
             {
                 AreaId = areaId,
                 TemplateId = templateId,
@@ -29,9 +39,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         public void Remove(int areaId) => _areas.Remove(areaId);
-        public bool TryGet(int areaId, out AreaEffectEntry entry) => _areas.TryGetValue(areaId, out entry);
-        public IReadOnlyCollection<AreaEffectEntry> GetAll() => _areas.Values;
-        public int Count => _areas.Count;
+        public IReadOnlyDictionary<int, AreaViewInfo> GetAll() => _areas;
         public void Clear() => _areas.Clear();
     }
 }
