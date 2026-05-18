@@ -34,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         /// <summary>
         /// 注入服务依赖
         /// </summary>
-        public void InjectServices(BattleServices battleServices, IConsoleBattleView battleView)
+        public void InjectServices(ViewActorRepository viewActorRepository, IConsoleBattleView battleView)
         {
             _hudFeature.SetBattleView(battleView);
         }

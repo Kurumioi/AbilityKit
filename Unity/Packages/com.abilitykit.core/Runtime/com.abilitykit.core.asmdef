@@ -1,9 +1,7 @@
 {
-  "name": "AbilityKit.Core",
-  "rootNamespace": "AbilityKit",
-  "references": [
-        "AbilityKit.GameplayTags"
-    ],
+    "name": "AbilityKit.Core",
+    "rootNamespace": "AbilityKit",
+    "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

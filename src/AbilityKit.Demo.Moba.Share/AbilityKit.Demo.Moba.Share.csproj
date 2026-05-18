@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>AbilityKit.Demo.Moba.Share</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- 
+    AbilityKit.Demo.Moba.Share
+    用于多个表现层通用的、平台无关的接口定义
+    引用 Unity/Packages/com.abilitykit.demo.moba.share 源码
+  -->
+  
+  <ItemGroup>
+    <!-- 引用 share 包源码 -->
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.share\Runtime\**\*.cs" />
+  </ItemGroup>
+
+  <!-- 引用必要的框架依赖 -->
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
+    <ProjectReference Include="..\AbilityKit.Game.Battle.Runtime\AbilityKit.Game.Battle.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.ECS\AbilityKit.World.ECS.csproj" />
+  </ItemGroup>
+
+</Project>

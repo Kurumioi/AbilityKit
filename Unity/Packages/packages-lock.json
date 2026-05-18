@@ -222,6 +222,18 @@
         "com.abilitykit.triggering": "0.0.1"
       }
     },
+    "com.abilitykit.demo.moba.share": {
+      "version": "file:com.abilitykit.demo.moba.share",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.mathematics": "1.2.6",
+        "com.abilitykit.core": "0.0.1",
+        "com.abilitykit.host": "0.0.1",
+        "com.abilitykit.demo.moba.runtime": "0.0.1",
+        "com.abilitykit.world.framesync": "0.0.1"
+      }
+    },
     "com.abilitykit.demo.moba.view.runtime": {
       "version": "file:com.abilitykit.demo.moba.view.runtime",
       "depth": 0,
@@ -237,6 +249,7 @@
         "com.abilitykit.world.snapshot": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
         "com.abilitykit.demo.moba.runtime": "0.0.1",
+        "com.abilitykit.demo.moba.share": "1.0.0",
         "com.abilitykit.flow": "0.0.1",
         "com.abilitykit.hfsm": "0.0.1"
       }

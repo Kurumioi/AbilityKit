@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         private readonly ITextAssetLoader _loader;
         private readonly Dictionary<int, CharacterConfig> _charactersById = new();
         private readonly Dictionary<int, SkillConfig> _skillsById = new();
+        private readonly Dictionary<int, SkillLevelTableConfig> _skillLevelTablesById = new();
         private readonly Dictionary<int, AttributeTemplateConfig> _attributeTemplatesById = new();
         private readonly Dictionary<int, BuffConfig> _buffsById = new();
         private readonly Dictionary<int, ProjectileConfig> _projectilesById = new();
@@ -33,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         {
             LoadCharacters(dir);
             LoadSkills(dir);
+            LoadSkillLevelTables(dir);
             LoadAttributeTemplates(dir);
             LoadBuffs(dir);
             LoadProjectiles(dir);
@@ -83,6 +85,30 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 catch (Exception ex)
                 {
                     Log.Warn($"Failed to load skills: {ex.Message}");
+                }
+            }
+        }
+
+        private void LoadSkillLevelTables(string dir)
+        {
+            var path = System.IO.Path.Combine(dir, "skill_level_tables.json");
+            if (_loader.TryLoadText(path, out var json) && !string.IsNullOrEmpty(json))
+            {
+                try
+                {
+                    var tables = Newtonsoft.Json.JsonConvert.DeserializeObject<List<SkillLevelTableConfig>>(json);
+                    if (tables != null)
+                    {
+                        foreach (var t in tables)
+                        {
+                            _skillLevelTablesById[t.Id] = t;
+                        }
+                        Log.System($"Loaded {tables.Count} skill level tables");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"Failed to load skill_level_tables: {ex.Message}");
                 }
             }
         }
@@ -252,6 +278,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         public bool TryGetCharacter(int id, out CharacterConfig config) => _charactersById.TryGetValue(id, out config);
         public bool TryGetSkill(int id, out SkillConfig config) => _skillsById.TryGetValue(id, out config);
+        public bool TryGetSkillLevelTable(int id, out SkillLevelTableConfig config) => _skillLevelTablesById.TryGetValue(id, out config);
         public bool TryGetAttributeTemplate(int id, out AttributeTemplateConfig config) => _attributeTemplatesById.TryGetValue(id, out config);
         public bool TryGetBuff(int id, out BuffConfig config) => _buffsById.TryGetValue(id, out config);
         public bool TryGetProjectile(int id, out ProjectileConfig config) => _projectilesById.TryGetValue(id, out config);
@@ -259,6 +286,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         public int CharacterCount => _charactersById.Count;
         public int SkillCount => _skillsById.Count;
+        public int SkillLevelTableCount => _skillLevelTablesById.Count;
         public int AttributeTemplateCount => _attributeTemplatesById.Count;
         public int BuffCount => _buffsById.Count;
         public int ProjectileCount => _projectilesById.Count;
@@ -391,6 +419,43 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         public int ReturnAfterMs { get; set; }
         public float ReturnSpeed { get; set; }
         public float ReturnStopDistance { get; set; }
+    }
+
+    /// <summary>
+    /// 技能等级表配置
+    /// 包含技能每个等级的参数（冷却、消耗、伤害等）
+    /// </summary>
+    public sealed class SkillLevelTableConfig
+    {
+        public int Id { get; set; }
+        public List<SkillLevelConfig> Levels { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 技能单个等级的配置
+    /// </summary>
+    public sealed class SkillLevelConfig
+    {
+        public int CooldownMs { get; set; }
+        public int Cost { get; set; }
+        public List<double> Params { get; set; } = new();
+
+        /// <summary>
+        /// 冷却秒数
+        /// </summary>
+        public float CooldownSeconds => CooldownMs / 1000f;
+
+        /// <summary>
+        /// 获取等级参数（用于伤害值等）
+        /// </summary>
+        public float GetParam(int index, float defaultValue = 0f)
+        {
+            if (index >= 0 && index < Params.Count)
+            {
+                return (float)Params[index];
+            }
+            return defaultValue;
+        }
     }
 
     /// <summary>

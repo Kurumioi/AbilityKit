@@ -21,10 +21,13 @@ namespace AbilityKit.Demo.Moba.Console
         void Tick(float deltaTime = 0.033f);
         void TransitionTo(string phaseName);
         void SetupBattle();
-        void CreateCharacter(int actorId, string name, int entityCode, float hp, float maxHp, float x, float y, float z);
-        void SimulateDamage(int targetId, float damage);
         void ShowHud();
         void PrintWorldStatus();
+
+        /// <summary>
+        /// 注册演示实体（用于自动测试）
+        /// </summary>
+        void RegisterDemoEntities();
     }
 
     public interface IBattleStartConfigProvider

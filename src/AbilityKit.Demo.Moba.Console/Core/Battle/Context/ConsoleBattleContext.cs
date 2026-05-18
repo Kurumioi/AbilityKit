@@ -1,41 +1,47 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Common.Pool;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
+using AbilityKit.Demo.Moba.Console.Core.Input;
+using AbilityKit.Demo.Moba.Console.Events;
+using AbilityKit.Demo.Moba.Console.Flow;
+using AbilityKit.Demo.Moba.Console.Simulation;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
 {
     /// <summary>
     /// 战斗上下文
-    /// 管理表现层状态，不涉及逻辑执行
+    /// 对齐 Unity BattleContext，管理表现层状态
     /// </summary>
-    public sealed class ConsoleBattleContext : Flow.IModuleContext, IDisposable
+    public sealed class ConsoleBattleContext : IModuleContext, IDisposable
     {
-        /// <summary>
-        /// ECS 世界
-        /// </summary>
-        public EC.EntityWorld EcsWorld { get; private set; }
+        private static readonly ObjectPool<ConsoleBattleContext> Pool = Pools.GetPool(
+            key: "ConsoleBattleContext",
+            createFunc: () => new ConsoleBattleContext(),
+            defaultCapacity: 1,
+            maxSize: 8);
 
         /// <summary>
-        /// 实体节点
+        /// 帧同步会话（模拟逻辑层）
         /// </summary>
-        public EC.IEntity EntityNode { get; private set; }
-
-        /// <summary>
-        /// 实体查找器
-        /// </summary>
-        public BattleEntityLookup EntityLookup { get; private set; }
-
-        /// <summary>
-        /// 实体工厂
-        /// </summary>
-        public BattleEntityFactory EntityFactory { get; private set; }
+        public ISimulatedBattleSession Session { get; set; }
 
         /// <summary>
         /// 战斗启动计划
         /// </summary>
         public BattleStartPlan Plan { get; set; }
+
+        /// <summary>
+        /// 当前帧
+        /// </summary>
+        public int LastFrame { get; set; }
+
+        /// <summary>
+        /// 逻辑时间（秒）
+        /// </summary>
+        public double LogicTimeSeconds { get; set; }
 
         /// <summary>
         /// 本地玩家 ID
@@ -48,14 +54,54 @@ namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
         public int PlayerCount { get; set; }
 
         /// <summary>
-        /// 当前帧
+        /// 帧快照分发器（占位，对齐 Unity 结构）
         /// </summary>
-        public int LastFrame { get; set; }
+        public object FrameSnapshots { get; set; }
 
         /// <summary>
-        /// 逻辑时间（秒）
+        /// 快照管道（占位，对齐 Unity 结构）
         /// </summary>
-        public double LogicTimeSeconds { get; set; }
+        public object SnapshotPipeline { get; set; }
+
+        /// <summary>
+        /// 命令处理器（占位，对齐 Unity 结构）
+        /// </summary>
+        public object CmdHandler { get; set; }
+
+        /// <summary>
+        /// 输入录制器（占位，对齐 Unity 结构）
+        /// </summary>
+        public object InputRecordWriter { get; set; }
+
+        /// <summary>
+        /// 本地输入队列
+        /// </summary>
+        public BattleLocalInputQueue LocalInputQueue { get; set; }
+
+        /// <summary>
+        /// ECS 世界
+        /// </summary>
+        public EC.IECWorld EcsWorld { get; set; }
+
+        /// <summary>
+        /// 实体节点
+        /// </summary>
+        public EC.IEntity EntityNode { get; set; }
+
+        /// <summary>
+        /// 实体查找器
+        /// </summary>
+        public BattleEntityLookup EntityLookup { get; set; }
+
+        /// <summary>
+        /// 实体工厂
+        /// </summary>
+        public BattleEntityFactory EntityFactory { get; set; }
+
+        /// <summary>
+        /// 脏实体列表（需要更新的实体）
+        /// </summary>
+        public List<EC.IEntityId> DirtyEntities { get; set; }
 
         /// <summary>
         /// HUD 移动输入
@@ -96,6 +142,23 @@ namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
         public bool IsInitialized { get; set; }
 
         /// <summary>
+        /// 从对象池获取实例
+        /// </summary>
+        public static ConsoleBattleContext Rent()
+        {
+            return Pool.Get();
+        }
+
+        /// <summary>
+        /// 归还实例到对象池
+        /// </summary>
+        public static void Return(ConsoleBattleContext ctx)
+        {
+            if (ctx == null) return;
+            Pool.Release(ctx);
+        }
+
+        /// <summary>
         /// 初始化 ECS 世界
         /// </summary>
         public void InitializeEcsWorld()
@@ -132,14 +195,27 @@ namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
         /// </summary>
         public void Reset()
         {
+            Session = null;
             Plan = default;
-            LocalActorId = 0;
-            PlayerCount = 0;
             LastFrame = 0;
             LogicTimeSeconds = 0d;
+            LocalActorId = 0;
+            PlayerCount = 0;
+
+            FrameSnapshots = null;
+            SnapshotPipeline = null;
+            CmdHandler = null;
+
+            InputRecordWriter = null;
+
+            LocalInputQueue = null;
+
             ResetHudState();
             State = BattleState.Idle;
             IsInitialized = false;
+
+            DirtyEntities?.Clear();
+            DirtyEntities = null;
 
             EntityLookup?.Clear();
             EntityFactory = null;

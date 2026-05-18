@@ -7,7 +7,6 @@ using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Logic;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
 
 namespace AbilityKit.Demo.Moba.Console.Core.Input
@@ -17,20 +16,24 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
     ///
     /// 职责边界：
     /// - ✅ 采集玩家输入
-    /// - ✅ 调用 IConsoleBattleSession.SubmitInput() 转发输入
+    /// - ✅ 通过 IConsoleInputSink 转发输入到逻辑层
     /// - ❌ 不执行技能逻辑
-    /// - ❌ 不计算伤害
-    /// - ❌ 不直接发布事件
+    /// ❌ 不计算伤害
+    /// - ❌ 不直接调用 Session
     ///
     /// 架构说明：
-    /// - 表现层持有 IConsoleBattleSession
-    /// - 通过 SubmitInput() 将输入转发到逻辑层
+    /// - 表现层持有 IConsoleInputSink（通过 DI 或手动注入）
+    /// - Sink 实现决定输入传输方式（DirectCall/FrameSync）
     /// - 逻辑层处理后发布事件，表现层通过 ConsoleViewEventSink 订阅
+    ///
+    /// 与 Unity 对齐：
+    /// - Unity InputFeature 通过 IInputSink 与逻辑层解耦
+    /// - Console InputFeature 通过 IConsoleInputSink 与模拟层解耦
     /// </summary>
     public sealed class ConsoleInputFeature : IInputFeature, IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
     {
         private ConsoleBattleContext _ctx;
-        private IConsoleBattleSession _session;
+        private IConsoleInputSink _inputSink;
         private BattleLocalInputQueue _inputQueue;
         private bool _initialized;
 
@@ -41,11 +44,11 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
         public int LocalActorId => _ctx?.LocalActorId ?? 0;
 
         /// <summary>
-        /// 设置战斗会话（逻辑层）
+        /// 设置输入转发表层（表现层持有）
         /// </summary>
-        public void SetSession(IConsoleBattleSession session)
+        public void SetInputSink(IConsoleInputSink sink)
         {
-            _session = session;
+            _inputSink = sink ?? throw new ArgumentNullException(nameof(sink));
         }
 
         public void OnAttach(ConsoleBattleContext context)
@@ -80,8 +83,6 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
                 return;
             }
 
-            _ctx.LastFrame++;
-
             ProcessMoveInput();
             ProcessSkillInput();
 
@@ -103,8 +104,8 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
                     ConsoleOpCode.Move,
                     payload);
 
-                // 通过 Session 提交到逻辑层
-                _session?.SubmitInput(new FrameIndex(_ctx.LastFrame), new[] { cmd });
+                // 通过 Sink 转发到逻辑层
+                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
 
                 // 记录本地输入
                 _inputQueue.Enqueue(new LocalPlayerInputEvent(_ctx.LocalActorId, ConsoleOpCode.Move, payload));
@@ -130,8 +131,8 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
                     ConsoleOpCode.SkillInput,
                     payload);
 
-                // 通过 Session 提交到逻辑层
-                _session?.SubmitInput(new FrameIndex(_ctx.LastFrame), new[] { cmd });
+                // 通过 Sink 转发到逻辑层
+                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
 
                 Log.Input($"[Input] Skill{slot} pressed");
                 _ctx.HudSkillClickSlot = 0;
@@ -152,8 +153,8 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
                     ConsoleOpCode.SkillInput,
                     payload);
 
-                // 通过 Session 提交到逻辑层
-                _session?.SubmitInput(new FrameIndex(_ctx.LastFrame), new[] { cmd });
+                // 通过 Sink 转发到逻辑层
+                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
 
                 Log.Input($"[Input] Skill{_ctx.HudSkillAimSubmitSlot} aim released at ({aimX:F1}, {aimZ:F1})");
                 _ctx.HudSkillAimSubmit = false;

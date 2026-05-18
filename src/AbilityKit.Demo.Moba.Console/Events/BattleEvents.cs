@@ -20,6 +20,9 @@ namespace AbilityKit.Demo.Moba.Console.Events
     {
         public int ActorId { get; init; }
         public int Slot { get; init; }
+        public int SkillId { get; init; }
+        public int TargetId { get; init; }
+        public float Damage { get; init; }
         public bool Success { get; init; }
         public string FailReason { get; init; }
     }
@@ -102,6 +105,10 @@ namespace AbilityKit.Demo.Moba.Console.Events
         /// 是否死亡（由逻辑层判定）
         /// </summary>
         public bool IsDead { get; init; }
+        /// <summary>
+        /// 是否暴击
+        /// </summary>
+        public bool IsCritical { get; init; }
     }
 
     /// <summary>

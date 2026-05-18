@@ -11,24 +11,44 @@ using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
 using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
 using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Battle.Snapshot;
 using AbilityKit.Demo.Moba.Console.Battle.Sync;
 using AbilityKit.Demo.Moba.Console.Battle.Sync.View;
 using AbilityKit.Demo.Moba.Console.Events;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
+using AbilityKit.Demo.Moba.Console.Presentation;
 using AbilityKit.Demo.Moba.Console.View;
 using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.Replay;
+using AbilityKit.Demo.Moba.Console.Simulation;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
+using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
+using ShareFrameSnapshotData = AbilityKit.Demo.Moba.Share.FrameSnapshotData;
+using ShareSnapshotType = AbilityKit.Demo.Moba.Share.SnapshotType;
+using ShareEnterGameData = AbilityKit.Demo.Moba.Share.EnterGameData;
+using ShareActorTransformData = AbilityKit.Demo.Moba.Share.ActorTransformData;
+using ShareProjectileEventData = AbilityKit.Demo.Moba.Share.ProjectileEventData;
+using ShareAreaEventData = AbilityKit.Demo.Moba.Share.AreaEventData;
+using ShareDamageEventData = AbilityKit.Demo.Moba.Share.DamageEventData;
+using ShareStateHashData = AbilityKit.Demo.Moba.Share.StateHashData;
+using ShareMobaOpCode = AbilityKit.Demo.Moba.Share.MobaOpCode;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console
 {
     /// <summary>
-    /// Console ???
-    /// ?? [WorldService] ??????????
+    /// Console 战斗启动器（纯表现层）
+    ///
+    /// 职责边界：
+    /// - ✅ 组装和初始化各层组件
+    /// - ✅ 管理生命周期
+    /// - ✅ 转发流程控制命令
+    /// - ❌ 不执行战斗逻辑（由 Simulation 层处理）
+    /// - ❌ 不计算伤害（由 Simulation 层处理）
+    /// - ❌ 不管理实体状态（由 ECS 组件处理）
     /// </summary>
     public sealed class ConsoleBattleBootstrapper : IBattleBootstrapper, IBattleStartConfigProvider
     {
@@ -42,19 +62,29 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly List<IWorldModule> _modules;
         private readonly BattleStartConfig _config;
         private AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase _mobaConfig;
-        private readonly BattleServices _battleServices;
+
+        // 表现层数据适配器（从 Simulation 层读取只读数据）
+        private ViewActorAdapter? _viewActorAdapter;
         private readonly RecordConfig _recordConfig;
 
         // 同步适配器（支持帧同步/状态同步切换）
         private IBattleSyncAdapter? _syncAdapter;
         private ConsoleViewBinder? _viewBinder;
-        private ConsoleViewEventSink? _viewEventSink;
 
-        // 输入适配器（表现层持有）
-        private ConsoleInputSink? _inputSink;
+        // 输入转发表层（表现层与模拟层解耦）
+        private IConsoleInputSink? _inputSink;
+
+        // Share 模块组件
+        private ConsoleFrameSnapshotDispatcher? _snapshotDispatcher;
+        private ConsoleBattleViewEventSink? _shareViewEventSink;
+        private ShareReplayRecorder? _replayRecorder;
+        private ShareReplayPlayer? _replayPlayer;
 
         // 自动测试输入（可选，由 AutoTestRunner 管理）
         private AutoTestInputFeature? _autoTestInput;
+
+        // 逻辑层会话（模拟逻辑层）
+        private SimulatedBattleSession? _battleSession;
 
         private bool _disposed;
         private bool _running;
@@ -134,9 +164,6 @@ namespace AbilityKit.Demo.Moba.Console
                 new ConsoleProjectileDisplayService(),
                 Platform.Renderer);
 
-            // BattleServices 在 ConfigureWorld 之后创建
-            _battleServices = new BattleServices();
-
             _syncFeature = new ConsoleSyncFeature();
             _inputFeature = new ConsoleInputFeature();
             _hudFeature = new ConsoleHudFeature();
@@ -158,11 +185,38 @@ namespace AbilityKit.Demo.Moba.Console
             _viewBinder.TickRate = _config.TickRate;
             _viewBinder.BackTimeSeconds = (float)(1.0 / _config.TickRate);
 
-            // 创建 View 事件接收器（订阅框架事件进行表现）
-            _viewEventSink = new ConsoleViewEventSink(_battleView);
+            // 初始化 Share 模块组件
+            InitializeShareComponents();
 
             Log.Config($"Config loaded: {_config.Name}, TickRate: {_config.TickRate}, SyncMode: {_config.SyncMode}");
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ctor - Exit");
+        }
+
+        /// <summary>
+        /// 初始化 Share 模块组件
+        /// </summary>
+        private void InitializeShareComponents()
+        {
+            Log.Trace("[TRACE] InitializeShareComponents - Entry");
+
+            // 创建快照分发器
+            _snapshotDispatcher = new ConsoleFrameSnapshotDispatcher();
+            Log.System("[Share] ConsoleFrameSnapshotDispatcher created");
+
+            // 创建 Share 视图事件接收器
+            _shareViewEventSink = new ConsoleBattleViewEventSink(_battleView, _config.PlayerId);
+            Log.System("[Share] ConsoleBattleViewEventSink created");
+
+            // 创建回放录制器
+            _replayRecorder = new ShareReplayRecorder();
+            _replayRecorder.SetSnapshotInterval(30); // 每 30 帧记录一次快照
+            Log.System("[Share] ShareReplayRecorder created");
+
+            // 创建回放播放器
+            _replayPlayer = new ShareReplayPlayer();
+            Log.System("[Share] ShareReplayPlayer created");
+
+            Log.Trace("[TRACE] InitializeShareComponents - Exit");
         }
 
         public IConsoleBattleView BattleView => _battleView;
@@ -177,13 +231,49 @@ namespace AbilityKit.Demo.Moba.Console
         public AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase MobaConfig => _mobaConfig;
 
         /// <summary>
-        /// ???????
+        /// 表现层角色数据适配器
         /// </summary>
-        public BattleServices BattleServices => _battleServices;
+        public ViewActorAdapter? ViewActorAdapter => _viewActorAdapter;
 
         /// <summary>
         /// 设置自动测试输入特征
         /// </summary>
+        /// <summary>
+        /// 回放录制器
+        /// </summary>
+        public ShareReplayRecorder? ReplayRecorder => _replayRecorder;
+
+        /// <summary>
+        /// 回放播放器
+        /// </summary>
+        public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
+
+        /// <summary>
+        /// 开始录制回放
+        /// </summary>
+        public bool StartRecording(string replayId = null)
+        {
+            if (_replayRecorder == null) return false;
+            return _replayRecorder.StartRecording(replayId);
+        }
+
+        /// <summary>
+        /// 停止录制并保存
+        /// </summary>
+        public string StopRecording()
+        {
+            return _replayRecorder?.StopRecording() ?? string.Empty;
+        }
+
+        /// <summary>
+        /// 开始回放
+        /// </summary>
+        public bool StartReplay(string filePath)
+        {
+            if (_replayPlayer == null) return false;
+            return _replayPlayer.LoadReplay(filePath);
+        }
+
         public void SetAutoTestInput(AutoTestInputFeature? autoInput)
         {
             _autoTestInput = autoInput;
@@ -200,7 +290,7 @@ namespace AbilityKit.Demo.Moba.Console
         /// <summary>
         /// 构建战斗计划
         /// </summary>
-        public BattleStartPlan Build()
+        public Battle.BattleStartPlan Build()
         {
             return _config.BuildPlan();
         }
@@ -208,7 +298,7 @@ namespace AbilityKit.Demo.Moba.Console
         /// <summary>
         /// ?? IBattleStartConfigProvider? ???
         /// </summary>
-        BattleStartPlan IBattleStartConfigProvider.BuildPlan() => Build();
+        Battle.BattleStartPlan IBattleStartConfigProvider.BuildPlan() => Build();
 
         public void Initialize()
         {
@@ -218,8 +308,69 @@ namespace AbilityKit.Demo.Moba.Console
             ConfigureWorld();
             _context.InitializeEcsWorld();
 
+            // 设置 Share 模块的订阅关系
+            InitializeShareSubscriptions();
+
             LogBattleConfig();
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.Initialize - Exit");
+        }
+
+        /// <summary>
+        /// 初始化 Share 模块的订阅关系
+        /// </summary>
+        private void InitializeShareSubscriptions()
+        {
+            if (_snapshotDispatcher == null || _shareViewEventSink == null)
+            {
+                Log.Warn("[Share] SnapshotDispatcher or ViewEventSink not initialized");
+                return;
+            }
+
+            var dispatcher = _snapshotDispatcher.Dispatcher;
+
+            // 订阅进入游戏事件
+            dispatcher.Subscribe(ShareMobaOpCode.EnterGameSnapshot, (int frame, ShareEnterGameData data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, enterGame: data);
+                _shareViewEventSink.OnEnterGameSnapshot(in snapshotData);
+            });
+
+            // 订阅角色变换事件
+            dispatcher.Subscribe(ShareMobaOpCode.ActorTransformSnapshot, (int frame, ShareActorTransformData[] data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, actorTransforms: data);
+                _shareViewEventSink.OnActorTransformSnapshot(in snapshotData);
+            });
+
+            // 订阅弹道事件
+            dispatcher.Subscribe(ShareMobaOpCode.ProjectileEventSnapshot, (int frame, ShareProjectileEventData[] data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, projectileEvents: data);
+                _shareViewEventSink.OnProjectileEventSnapshot(in snapshotData);
+            });
+
+            // 订阅区域事件
+            dispatcher.Subscribe(ShareMobaOpCode.AreaEventSnapshot, (int frame, ShareAreaEventData[] data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, areaEvents: data);
+                _shareViewEventSink.OnAreaEventSnapshot(in snapshotData);
+            });
+
+            // 订阅伤害事件
+            dispatcher.Subscribe(ShareMobaOpCode.DamageEventSnapshot, (int frame, ShareDamageEventData[] data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, damageEvents: data);
+                _shareViewEventSink.OnDamageEventSnapshot(in snapshotData);
+            });
+
+            // 订阅状态哈希
+            dispatcher.Subscribe(ShareMobaOpCode.StateHashSnapshot, (int frame, ShareStateHashData data) =>
+            {
+                var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, stateHash: data);
+                _shareViewEventSink.OnStateHashSnapshot(in snapshotData);
+            });
+
+            Log.System("[Share] Snapshot subscriptions initialized");
         }
 
         private IWorldResolver _worldResolver;
@@ -248,34 +399,48 @@ namespace AbilityKit.Demo.Moba.Console
             // 创建表现层服务
             var effectService = new ConsoleEffectExecutionService();
 
-            // 初始化输入服务
-            InitializeInputSink();
-
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.ConfigureWorld - Exit");
         }
 
-        private void InitializeInputSink()
+        private void CreateBattleSession()
         {
-            Log.Trace("[TRACE] ConsoleBattleBootstrapper.InitializeInputSink - Entry");
-            Log.System("Initializing InputSink...");
+            Log.Trace("[TRACE] CreateBattleSession - Entry");
 
-            // 创建 ConsoleInputSink
-            _inputSink = new ConsoleInputSink();
-            Log.System("ConsoleInputSink created");
+            // 1. 创建 ConsoleMobaConfigDatabase（用于技能配置）
+            var configDb = new ConsoleMobaConfigDatabase(new ConsoleTextAssetLoader());
+            configDb.LoadFromResources();
+            Log.System($"[Bootstrapper] ConsoleMobaConfigDatabase loaded: {configDb.SkillCount} skills, {configDb.SkillLevelTableCount} level tables");
 
-            // 尝试解析逻辑层的 IWorldInputSink（如果可用）
-            try
+            // 2. 创建模拟逻辑层会话（会在内部创建 ConsoleActorRepository）
+            _battleSession = new SimulatedBattleSession(_context.EcsWorld, _context.LocalActorId, null);
+
+            // 3. 创建配置驱动的技能执行器（依赖 ConsoleActorRepository）
+            var skillExecutor = new ConsoleSkillExecutor(configDb, _battleSession.ActorRepository);
+            skillExecutor.Initialize();
+
+            // 重新创建 Session 以注入 skillExecutor（暂时方案，后续优化）
+            _battleSession.Dispose();
+            _battleSession = new SimulatedBattleSession(_context.EcsWorld, _context.LocalActorId, skillExecutor);
+            _battleSession.Initialize();
+
+            // 4. 创建表现层数据适配器（从 Simulation 层读取只读数据）
+            _viewActorAdapter = new ViewActorAdapter(_battleSession.ActorRepository);
+
+            // 5. 连接逻辑层到快照分发器（表现层负责连接）
+            if (_snapshotDispatcher != null)
             {
-                var worldInputSink = _worldResolver.Resolve<AbilityKit.Ability.Host.IWorldInputSink>();
-                Log.System("IWorldInputSink resolved from DI (can be used for sync)");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"IWorldInputSink not found: {ex.Message}");
+                _battleSession.SetSnapshotDispatcher(_snapshotDispatcher);
+                Log.System($"[Bootstrapper] Session connected to SnapshotDispatcher");
             }
 
-            Log.System("InputSink initialized");
-            Log.Trace("[TRACE] ConsoleBattleBootstrapper.InitializeInputSink - Exit");
+            // 6. 创建输入转发表层（直接调用模式）
+            _inputSink = new DirectCallInputSink(_battleSession);
+
+            // 7. 将 Sink 注入到 InputFeature
+            _inputFeature.SetInputSink(_inputSink);
+
+            Log.System($"[Bootstrapper] SimulatedBattleSession with ConsoleSkillExecutor created and connected");
+            Log.Trace("[TRACE] CreateBattleSession - Exit");
         }
 
         private void LogBattleConfig()
@@ -312,6 +477,9 @@ namespace AbilityKit.Demo.Moba.Console
         {
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.Start - Entry");
             Log.System("Starting...");
+
+            // 创建逻辑层会话
+            CreateBattleSession();
 
             _syncFeature.OnAttach(_context);
             _inputFeature.OnAttach(_context);
@@ -374,6 +542,9 @@ namespace AbilityKit.Demo.Moba.Console
             _hudFeature.Tick(_context, (float)elapsed);
             _battleView.Tick((float)elapsed);
 
+            // 更新逻辑层会话（处理冷却等）
+            _battleSession?.Step((float)elapsed);
+
             // 更新同步适配器
             _syncAdapter?.Tick((float)elapsed);
 
@@ -386,6 +557,20 @@ namespace AbilityKit.Demo.Moba.Console
                     _viewBinder.SyncActor(snapshot.ActorId, snapshot, _syncAdapter?.LogicTimeSeconds ?? _totalTime);
                 }
                 _viewBinder.TickRender((float)elapsed, _syncAdapter?.LogicTimeSeconds ?? _totalTime);
+            }
+
+            // 更新 Share 模块快照分发器（推进帧计数）
+            _snapshotDispatcher?.SetFrame(_context.LastFrame);
+
+            // 更新回放录制器
+            if (_replayRecorder?.IsRecording == true && _replayRecorder.ShouldRecordSnapshot())
+            {
+                var snapshotData = _snapshotDispatcher?.SerializeCurrentSnapshot() ?? Array.Empty<byte>();
+                if (snapshotData.Length > 0)
+                {
+                    _replayRecorder.RecordSnapshot(_context.LastFrame, snapshotData);
+                    Log.Trace($"[Bootstrapper] Recorded snapshot at frame {_context.LastFrame}");
+                }
             }
 
             Log.Trace("[TRACE] ConsoleBattleBootstrapper.Tick - Exit");
@@ -461,7 +646,7 @@ namespace AbilityKit.Demo.Moba.Console
             if (!_mobaConfig.TryGetCharacter(player.HeroId, out var charConfig))
             {
                 Log.Warn($"Character config not found for HeroId: {player.HeroId}, using defaults");
-                CreateCharacter(
+                CreateEntityForView(
                     actorId: HashPlayerId(player.PlayerId),
                     name: player.Name,
                     characterId: player.HeroId,
@@ -474,7 +659,7 @@ namespace AbilityKit.Demo.Moba.Console
             }
 
             var attrs = _mobaConfig.TryGetAttributeTemplate(charConfig.AttributeTemplateId, out var attrMo) ? attrMo : null;
-            CreateCharacter(
+            CreateEntityForView(
                 actorId: HashPlayerId(player.PlayerId),
                 name: charConfig.Name,
                 characterId: charConfig.Id,
@@ -494,39 +679,30 @@ namespace AbilityKit.Demo.Moba.Console
 
         public void RegisterDemoEntities()
         {
-            CreateCharacter(1, "Warrior", 1001, 800, 800, 0, 0, 0);
-            CreateCharacter(2, "Archer", 1002, 600, 600, 10, 0, 0);
-            CreateCharacter(3, "Mage", 1003, 500, 500, -10, 0, 0);
-            CreateCharacter(101, "Minion_A1", 2001, 300, 300, 20, 0, 0);
-            CreateCharacter(102, "Minion_A2", 2001, 300, 300, 22, 0, 2);
-            CreateCharacter(103, "Minion_A3", 2002, 250, 250, 21, 0, 1);
+            CreateEntityForView(1, "Warrior", 1001, 800, 800, 0, 0, 0);
+            CreateEntityForView(2, "Archer", 1002, 600, 600, 10, 0, 0);
+            CreateEntityForView(3, "Mage", 1003, 500, 500, -10, 0, 0);
+            CreateEntityForView(101, "Minion_A1", 2001, 300, 300, 20, 0, 0);
+            CreateEntityForView(102, "Minion_A2", 2001, 300, 300, 22, 0, 2);
+            CreateEntityForView(103, "Minion_A3", 2002, 250, 250, 21, 0, 1);
 
             Log.Entity($"Registered demo entities: 3 heroes, 3 minions");
             Log.Entity($"ECS World alive count: {_context.EcsWorld.AliveCount}");
         }
 
-        public void CreateCharacter(int actorId, string name, int characterId, float hp, float maxHp, float x, float y, float z)
+        /// <summary>
+        /// 为视图层创建实体（纯表现层）
+        /// 只负责在视图层注册显示数据，不涉及逻辑层实体创建
+        /// </summary>
+        private void CreateEntityForView(int actorId, string name, int characterId, float hp, float maxHp, float x, float y, float z)
         {
-            Log.Trace($"[TRACE] CreateCharacter - Actor#{actorId} ({name}), CharacterId:{characterId}, HP:{hp:F0}, Pos:({x:F1},{y:F1},{z:F1})");
-            var netId = new BattleNetId(actorId);
-            var e = _context.EntityFactory.CreateCharacter(netId, characterId);
+            Log.Trace($"[TRACE] CreateEntityForView - Actor#{actorId} ({name}), HP:{hp:F0}, Pos:({x:F1},{y:F1},{z:F1})");
 
-            if (e.TryGetRef(out BattleTransformComponent t))
-            {
-                t.Position = new AbilityKit.Core.Math.Vec3(x, y, z);
-            }
-
-            if (e.TryGetRef(out BattleCharacterComponent c))
-            {
-                c.Hp = hp;
-                c.HpMax = maxHp;
-                c.TeamId = 1;
-            }
-
+            // 注册到视图层
             _battleView.RegisterEntity(actorId, name, "Character", hp, maxHp, x, y, z);
 
-            // ???????
-            _battleServices.RegisterActor(new ActorInfo(actorId, name)
+            // 注册到 Simulation 层数据仓库
+            _battleSession?.ActorRepository.RegisterActor(new ActorState(actorId, name)
             {
                 CharacterId = characterId,
                 X = x,
@@ -541,31 +717,6 @@ namespace AbilityKit.Demo.Moba.Console
             });
 
             Log.Entity($"Created: #{actorId} {name} (CharId:{characterId})");
-        }
-
-        public void SimulateDamage(int targetId, float damage)
-        {
-            var netId = new BattleNetId(targetId);
-            if (_context.EntityLookup.TryResolve(_context.EcsWorld, netId, out var e))
-            {
-                if (e.TryGetRef(out BattleCharacterComponent c))
-                {
-                    var newHp = Math.Max(0, c.Hp - damage);
-                    c.Hp = newHp;
-                    _battleView.UpdateEntityHp(targetId, newHp, c.HpMax);
-                    _battleView.ShowFloatingText(targetId, $"-{damage:F0}", false);
-                    Log.Damage($"Actor#{targetId} takes -{damage:F0} damage (HP: {newHp:F0}/{c.HpMax:F0})");
-                }
-            }
-        }
-
-        public EC.IEntity CreateProjectile(int actorId, int ownerId, int templateId = 0)
-        {
-            var netId = new BattleNetId(actorId);
-            var ownerNetId = new BattleNetId(ownerId);
-            var e = _context.EntityFactory.CreateProjectile(netId, ownerNetId, templateId);
-            Log.Entity($"Created projectile: #{actorId} from #{ownerId}");
-            return e;
         }
 
         public void ShowHud() => _hudFeature.RenderHud();
@@ -583,7 +734,7 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System($"  Alive entities: {world.AliveCount}");
             Log.System($"  Phase: {_flow.CurrentPhase}");
             Log.System($"  Frame: {_context.LastFrame}");
-            Log.System($"  ActorCount: {_battleServices.ActorCount}");
+            Log.System($"  ActorCount: {_battleSession?.ActorRepository.ActorCount ?? 0}");
         }
 
         private void OnPhaseEntered(string phaseName)
@@ -612,12 +763,19 @@ namespace AbilityKit.Demo.Moba.Console
             _disposed = true;
 
             Log.System("Disposing...");
+            _battleSession?.Dispose();
             _inputHandler?.Dispose();
             _hudFeature?.OnDetach(_context);
             _inputFeature?.OnDetach(_context);
             _syncFeature?.OnDetach(_context);
             _viewBinder?.Dispose();
-            _viewEventSink?.Dispose();
+
+            // 清理 Share 模块组件
+            _snapshotDispatcher?.Dispose();
+            _shareViewEventSink?.Dispose();
+            _replayRecorder?.Dispose();
+            _replayPlayer?.Dispose();
+
             _syncAdapter?.Dispose();
             _flow?.Dispose();
             _battleView?.Dispose();

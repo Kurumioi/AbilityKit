@@ -235,9 +235,9 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
                     return result;
                 }
 
-                if (_bootstrapper.BattleServices == null)
+                if (_bootstrapper.ViewActorAdapter == null)
                 {
-                    result.Fail("BattleServices is null");
+                    result.Fail("ViewActorAdapter is null");
                     return result;
                 }
 

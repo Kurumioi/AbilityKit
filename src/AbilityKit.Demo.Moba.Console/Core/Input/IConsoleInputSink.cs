@@ -5,21 +5,22 @@ using AbilityKit.Ability.Host;
 namespace AbilityKit.Demo.Moba.Console.Core.Input
 {
     /// <summary>
-    /// 表现层输入服务接口
-    ///
-    /// 表现层通过此接口将玩家输入转发到逻辑层
+    /// Console 平台输入转发表层接口
     ///
     /// 架构说明：
-    /// - 表现层持有此接口，不关心具体实现
-    /// - 逻辑层提供实现（如 MobaLobbyInputSink 或 Console 适配器）
-    /// - 表现层只调用 Submit() 方法，不执行任何逻辑
+    /// - 表现层（InputFeature）通过此接口与逻辑层（Session）解耦
+    /// - 不同的 Sink 实现代表不同的输入传输方式
+    /// - Console 提供 DirectCall Sink（直接调用）
+    /// - Unity 可提供 FrameSync Sink（帧同步网络传输）
+    ///
+    /// 设计模式：Strategy 模式
     /// </summary>
     public interface IConsoleInputSink
     {
         /// <summary>
-        /// 提交输入命令到逻辑层
+        /// 提交输入命令
         /// </summary>
-        /// <param name="frame">帧号</param>
+        /// <param name="frame">当前帧索引</param>
         /// <param name="inputs">输入命令列表</param>
         void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
     }

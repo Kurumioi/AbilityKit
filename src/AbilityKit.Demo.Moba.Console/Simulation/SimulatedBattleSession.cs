@@ -4,20 +4,22 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Core.Input;
-using AbilityKit.Demo.Moba.Console.Events;
+using AbilityKit.Demo.Moba.Console.Battle.Snapshot;
+using AbilityKit.Demo.Moba.Share;
 using EC = AbilityKit.World.ECS;
 
-namespace AbilityKit.Demo.Moba.Console.Logic
+namespace AbilityKit.Demo.Moba.Console.Simulation
 {
     /// <summary>
-    /// Console 平台的战斗会话接口
+    /// Console 战斗会话接口（模拟逻辑层）
     ///
-    /// 连接表现层和逻辑层，表现层通过此接口提交输入，
-    /// 逻辑层通过 IEventBus 发布事件，表现层订阅事件进行渲染
+    /// 【模拟层】此接口用于演示目的，封装简化的逻辑层运行时
+    /// 生产环境应使用真正的 AbilityKit.Ability.Runtime
     /// </summary>
-    public interface IConsoleBattleSession : IDisposable
+    public interface ISimulatedBattleSession : IDisposable
     {
         /// <summary>
         /// 提交输入命令到逻辑层
@@ -30,42 +32,78 @@ namespace AbilityKit.Demo.Moba.Console.Logic
         int LocalActorId { get; }
 
         /// <summary>
-        /// 帧推进
+        /// 帧推进（更新冷却等）
         /// </summary>
         void Step(float deltaTime);
+
+        /// <summary>
+        /// 初始化模拟逻辑层（注册实体、设置初始状态）
+        /// </summary>
+        void Initialize();
     }
 
     /// <summary>
-    /// Console 战斗会话实现
+    /// Console 战斗会话实现（模拟逻辑层）
     ///
-    /// 封装逻辑层运行时：
-    /// - 输入处理（Move, SkillInput）
-    /// - 技能执行
-    /// - 事件发布
+    /// 【逻辑层】此实现使用配置驱动的技能执行器
     ///
-    /// 职责边界：
+    /// 职责边界（逻辑层）：
     /// - ✅ 处理输入命令
-    /// - ✅ 执行技能逻辑
-    /// - ✅ 发布 Damage/Heal/Buff 等事件
+    /// - ✅ 技能执行（配置驱动）
+    /// - ✅ 伤害计算（配置驱动）
+    /// - ✅ 通过 ConsoleFrameSnapshotDispatcher 分发快照事件
+    /// - ✅ 持有角色数据（ConsoleActorRepository）
     /// - ❌ 不做渲染
     /// - ❌ 不持有 UI 引用
     /// </summary>
-    public sealed class ConsoleBattleSession : IConsoleBattleSession
+    public sealed class SimulatedBattleSession : ISimulatedBattleSession
     {
         private readonly EC.IECWorld _world;
         private readonly int _localActorId;
-        private readonly CooldownManager _cooldownManager;
-
+        private readonly IConsoleSkillExecutor _skillExecutor;
+        private ConsoleFrameSnapshotDispatcher _snapshotDispatcher;
         private bool _disposed;
+        private bool _initialized;
+
+        /// <summary>
+        /// 角色数据存储（权威数据源）
+        /// 由 SimulatedBattleSession 持有和管理
+        /// </summary>
+        public readonly ConsoleActorRepository ActorRepository;
 
         public EC.IECWorld World => _world;
         public int LocalActorId => _localActorId;
 
-        public ConsoleBattleSession(EC.IECWorld world, int localActorId)
+        public SimulatedBattleSession(EC.IECWorld world, int localActorId, IConsoleSkillExecutor skillExecutor)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _localActorId = localActorId;
-            _cooldownManager = new CooldownManager();
+            _skillExecutor = skillExecutor ?? throw new ArgumentNullException(nameof(skillExecutor));
+
+            // 创建角色数据仓库
+            ActorRepository = new ConsoleActorRepository();
+        }
+
+        /// <summary>
+        /// 设置快照分发器（在 Bootstrapper 中连接）
+        /// </summary>
+        public void SetSnapshotDispatcher(ConsoleFrameSnapshotDispatcher dispatcher)
+        {
+            _snapshotDispatcher = dispatcher;
+        }
+
+        /// <summary>
+        /// 初始化逻辑层
+        /// </summary>
+        public void Initialize()
+        {
+            if (_initialized) return;
+            if (_skillExecutor is IConsoleSkillExecutor executor)
+            {
+                executor.Initialize();
+            }
+            _initialized = true;
+            Platform.Log.System("[Session] Initialized");
         }
 
         public void SubmitInput(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
@@ -98,16 +136,7 @@ namespace AbilityKit.Demo.Moba.Console.Logic
             DeserializeMove(cmd.Payload, out var dx, out var dz);
             var actorId = ParsePlayerId(cmd.Player);
 
-            // 发布移动事件（逻辑层处理后发布）
-            var moveEvent = new MoveInputProcessedEvent
-            {
-                ActorId = actorId,
-                Dx = dx,
-                Dz = dz
-            };
-            BattleEventBus.Publish(in moveEvent);
-
-            Platform.Log.Input($"[Logic] Move: Actor#{actorId} dx={dx:F2} dz={dz:F2}");
+            Platform.Log.Input($"[SimSession] Move: Actor#{actorId} dx={dx:F2} dz={dz:F2}");
         }
 
         private void HandleSkillInput(PlayerInputCommand cmd)
@@ -117,75 +146,59 @@ namespace AbilityKit.Demo.Moba.Console.Logic
             var actorId = ParsePlayerId(cmd.Player);
             var (slot, phase, aimPos) = DeserializeSkillInput(cmd.Payload);
 
-            // 检查冷却
-            if (_cooldownManager.IsOnCooldown(slot))
+            // 释放技能，获取执行结果
+            var castResult = _skillExecutor.CastBySlot(actorId, slot, aimPos, Vec3.Forward);
+
+            if (!castResult.Success)
             {
-                Platform.Log.Skill($"[Logic] Skill{slot} on cooldown");
-                var failEvent = new SkillExecutedEvent
-                {
-                    ActorId = actorId,
-                    Slot = slot,
-                    Success = false,
-                    FailReason = "On cooldown"
-                };
-                BattleEventBus.Publish(in failEvent);
+                Platform.Log.Skill($"[Session] Skill failed: Actor#{actorId} Slot{slot} - {castResult.FailReason}");
                 return;
             }
 
-            // 执行技能
-            var skillId = GetSkillIdBySlot(slot);
-            _cooldownManager.StartCooldown(slot, 30); // 1秒@30FPS
+            Platform.Log.Skill($"[Session] Skill cast: Actor#{actorId} Slot{slot} Skill#{castResult.SkillId} " +
+                              $"Target#{castResult.TargetId} BaseDamage={castResult.BaseDamage:F0}");
 
-            Platform.Log.Skill($"[Logic] Skill: Actor#{actorId} Slot{slot} SkillId={skillId} Phase={phase}");
-
-            // 发布技能执行事件
-            var successEvent = new SkillExecutedEvent
+            // 计算最终伤害
+            if (!ActorRepository.TryGetActor(castResult.TargetId, out var targetActor))
             {
-                ActorId = actorId,
-                Slot = slot,
-                Success = true,
-                FailReason = null
-            };
-            BattleEventBus.Publish(in successEvent);
-
-            // 模拟伤害（简化：只有 slot 1 和 2 有伤害）
-            if (slot == 1 || slot == 2)
-            {
-                SimulateDamage(actorId, skillId, slot);
+                Platform.Log.Warn($"[Session] Target actor not found: #{castResult.TargetId}");
+                return;
             }
-        }
 
-        private void SimulateDamage(int casterId, int skillId, int slot)
-        {
-            // 简化伤害计算
-            var damage = slot == 1 ? 50f : 30f;
-            var targetId = FindNearestEnemy(casterId);
+            var damageResult = _skillExecutor.CalculateDamage(
+                castResult.CasterId,
+                castResult.TargetId,
+                castResult.SkillId,
+                castResult.BaseDamage,
+                targetActor.Hp,
+                targetActor.HpMax);
 
-            if (targetId > 0)
+            // 更新角色 HP 状态
+            ActorRepository.UpdateHp(castResult.TargetId, damageResult.CurrentHp, targetActor.HpMax);
+
+            // 构建伤害事件数据
+            var damageEvent = new DamageEventData(
+                castResult.CasterId,
+                castResult.TargetId,
+                castResult.SkillId,
+                damageType: 0,
+                (int)damageResult.Damage,
+                (int)damageResult.CurrentHp,
+                damageResult.IsDead);
+
+            // 通过 ConsoleFrameSnapshotDispatcher 分发伤害事件
+            _snapshotDispatcher?.DispatchDamage(new[] { damageEvent });
+
+            // 如果击杀，发布死亡事件
+            if (damageResult.IsDead)
             {
-                var damageEvent = new DamageEvent
-                {
-                    SourceId = casterId,
-                    TargetId = targetId,
-                    Damage = damage,
-                    SkillId = skillId,
-                    CurrentHp = 100f, // 简化
-                    MaxHp = 100f,
-                    IsDead = false
-                };
-                BattleEventBus.Publish(in damageEvent);
+                Platform.Log.Skill($"[Session] Actor#{castResult.TargetId} was killed by #{castResult.CasterId}");
             }
-        }
-
-        private int FindNearestEnemy(int casterId)
-        {
-            // 简化：返回第一个非本地玩家的 actor
-            return casterId == _localActorId ? 2 : _localActorId;
         }
 
         public void Step(float deltaTime)
         {
-            _cooldownManager.Step();
+            _skillExecutor.Step(deltaTime);
         }
 
         private static int ParsePlayerId(PlayerId player)
@@ -210,7 +223,7 @@ namespace AbilityKit.Demo.Moba.Console.Logic
             }
             catch (Exception ex)
             {
-                Platform.Log.Warn($"[Logic] Failed to deserialize move: {ex.Message}");
+                Platform.Log.Warn($"[SimSession] Failed to deserialize move: {ex.Message}");
             }
         }
 
@@ -234,7 +247,7 @@ namespace AbilityKit.Demo.Moba.Console.Logic
             }
             catch (Exception ex)
             {
-                Platform.Log.Warn($"[Logic] Failed to deserialize skill input: {ex.Message}");
+                Platform.Log.Warn($"[SimSession] Failed to deserialize skill input: {ex.Message}");
             }
 
             return (slot, phase, aimPos);
@@ -279,60 +292,13 @@ namespace AbilityKit.Demo.Moba.Console.Logic
             phase = (SkillInputPhase)value;
         }
 
-        private static int GetSkillIdBySlot(int slot)
-        {
-            return slot switch
-            {
-                1 => 101,
-                2 => 102,
-                3 => 103,
-                _ => 100 + slot
-            };
-        }
-
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
-            _cooldownManager.Dispose();
-        }
-
-        /// <summary>
-        /// 冷却管理器（逻辑层）
-        /// </summary>
-        private sealed class CooldownManager : IDisposable
-        {
-            private readonly int[] _cooldowns = new int[4];
-            private bool _disposed;
-
-            public bool IsOnCooldown(int slot)
+            if (_skillExecutor is IDisposable disposable)
             {
-                return slot >= 1 && slot <= 3 && _cooldowns[slot] > 0;
-            }
-
-            public void StartCooldown(int slot, int frames)
-            {
-                if (slot >= 1 && slot <= 3)
-                {
-                    _cooldowns[slot] = frames;
-                }
-            }
-
-            public void Step()
-            {
-                for (int i = 1; i <= 3; i++)
-                {
-                    if (_cooldowns[i] > 0)
-                    {
-                        _cooldowns[i]--;
-                    }
-                }
-            }
-
-            public void Dispose()
-            {
-                if (_disposed) return;
-                _disposed = true;
+                disposable.Dispose();
             }
         }
     }
