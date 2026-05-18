@@ -8,6 +8,7 @@ using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Core.Input;
 using AbilityKit.Demo.Moba.Console.Battle.Snapshot;
+using AbilityKit.Demo.Moba.Console.Events;
 using AbilityKit.Demo.Moba.Share;
 using EC = AbilityKit.World.ECS;
 
@@ -40,6 +41,11 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
         /// 初始化模拟逻辑层（注册实体、设置初始状态）
         /// </summary>
         void Initialize();
+
+        /// <summary>
+        /// 获取所有角色的当前状态（用于视图渲染）
+        /// </summary>
+        IEnumerable<ActorState> GetAllActorStates();
     }
 
     /// <summary>
@@ -60,8 +66,8 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
     {
         private readonly EC.IECWorld _world;
         private readonly int _localActorId;
-        private readonly IConsoleSkillExecutor _skillExecutor;
-        private ConsoleFrameSnapshotDispatcher _snapshotDispatcher;
+        private IConsoleSkillExecutor? _skillExecutor; // 非 readonly，允许延迟初始化
+        private ConsoleFrameSnapshotDispatcher? _snapshotDispatcher;
         private bool _disposed;
         private bool _initialized;
 
@@ -74,14 +80,23 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
         public EC.IECWorld World => _world;
         public int LocalActorId => _localActorId;
 
-        public SimulatedBattleSession(EC.IECWorld world, int localActorId, IConsoleSkillExecutor skillExecutor)
+        public SimulatedBattleSession(EC.IECWorld world, int localActorId, IConsoleSkillExecutor? skillExecutor)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _localActorId = localActorId;
-            _skillExecutor = skillExecutor ?? throw new ArgumentNullException(nameof(skillExecutor));
+            _skillExecutor = skillExecutor; // 允许为空，后续通过 SetSkillExecutor 设置
 
             // 创建角色数据仓库
             ActorRepository = new ConsoleActorRepository();
+        }
+
+        /// <summary>
+        /// 设置技能执行器（用于延迟初始化）
+        /// </summary>
+        public void SetSkillExecutor(IConsoleSkillExecutor executor)
+        {
+            _skillExecutor = executor ?? throw new ArgumentNullException(nameof(executor));
+            Platform.Log.Skill("[Session] SkillExecutor set");
         }
 
         /// <summary>
@@ -156,49 +171,27 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
             }
 
             Platform.Log.Skill($"[Session] Skill cast: Actor#{actorId} Slot{slot} Skill#{castResult.SkillId} " +
-                              $"Target#{castResult.TargetId} BaseDamage={castResult.BaseDamage:F0}");
+                              $"Target#{castResult.TargetId}");
 
-            // 计算最终伤害
-            if (!ActorRepository.TryGetActor(castResult.TargetId, out var targetActor))
+            // 发布技能释放事件（由逻辑层处理伤害计算）
+            BattleEventBus.Publish(new SkillCastEvent
             {
-                Platform.Log.Warn($"[Session] Target actor not found: #{castResult.TargetId}");
-                return;
-            }
-
-            var damageResult = _skillExecutor.CalculateDamage(
-                castResult.CasterId,
-                castResult.TargetId,
-                castResult.SkillId,
-                castResult.BaseDamage,
-                targetActor.Hp,
-                targetActor.HpMax);
-
-            // 更新角色 HP 状态
-            ActorRepository.UpdateHp(castResult.TargetId, damageResult.CurrentHp, targetActor.HpMax);
-
-            // 构建伤害事件数据
-            var damageEvent = new DamageEventData(
-                castResult.CasterId,
-                castResult.TargetId,
-                castResult.SkillId,
-                damageType: 0,
-                (int)damageResult.Damage,
-                (int)damageResult.CurrentHp,
-                damageResult.IsDead);
-
-            // 通过 ConsoleFrameSnapshotDispatcher 分发伤害事件
-            _snapshotDispatcher?.DispatchDamage(new[] { damageEvent });
-
-            // 如果击杀，发布死亡事件
-            if (damageResult.IsDead)
-            {
-                Platform.Log.Skill($"[Session] Actor#{castResult.TargetId} was killed by #{castResult.CasterId}");
-            }
+                CasterId = castResult.CasterId,
+                SkillId = castResult.SkillId,
+                TargetId = castResult.TargetId,
+                Slot = slot
+            });
         }
 
         public void Step(float deltaTime)
         {
             _skillExecutor.Step(deltaTime);
+        }
+
+        /// <inheritdoc />
+        public IEnumerable<ActorState> GetAllActorStates()
+        {
+            return ActorRepository.GetAllActors();
         }
 
         private static int ParsePlayerId(PlayerId player)

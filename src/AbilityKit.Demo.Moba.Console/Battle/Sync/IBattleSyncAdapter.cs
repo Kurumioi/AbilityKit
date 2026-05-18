@@ -1,11 +1,14 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Share;
+using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
 
 /// <summary>
-/// 战斗同步模式
+/// 战斗同步模式（已废弃，使用 Share.SyncMode）
 /// </summary>
+[Obsolete("使用 AbilityKit.Demo.Moba.Share.SyncMode 替代")]
 public enum SyncMode
 {
     /// <summary>

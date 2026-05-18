@@ -1,9 +1,15 @@
 using System;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
     /// <summary>
-    /// ?????????????
+    /// Console 层战斗启动计划
+    /// 与 Share 层的 BattleStartPlan 不同：
+    /// - 使用字符串类型的 ID（WorldId, ClientId, PlayerId）
+    /// - 添加了额外的配置字段（EnableInputRecording, InputRecordOutputPath 等）
+    ///
+    /// 注意：此类型仅用于 Console 内部，Share 层交互使用 Share.BattleStartPlan
     /// </summary>
     public readonly struct BattleStartPlan
     {
@@ -16,52 +22,52 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         public int InputDelayFrames { get; init; }
 
         /// <summary>
-        /// ????
+        /// 同步模式（使用 Share 层类型）
         /// </summary>
-        public BattleSyncMode SyncMode { get; init; }
+        public SyncMode SyncMode { get; init; }
 
         /// <summary>
-        /// ?????Normal / Record / Replay?
+        /// 运行模式 Normal / Record / Replay
         /// </summary>
-        public BattleRunMode RunMode { get; init; }
+        public RunMode RunMode { get; init; }
 
         /// <summary>
-        /// ????
+        /// 是否启用调试
         /// </summary>
         public bool EnableDebug { get; init; }
 
         /// <summary>
-        /// ??????
+        /// 最大玩家数
         /// </summary>
         public int MaxPlayerCount { get; init; }
 
         /// <summary>
-        /// ??????
+        /// 是否启用输入录制
         /// </summary>
         public bool EnableInputRecording { get; init; }
 
         /// <summary>
-        /// ????????
+        /// 输入录制输出路径
         /// </summary>
         public string InputRecordOutputPath { get; init; }
 
         /// <summary>
-        /// ??????
+        /// 是否启用输入回放
         /// </summary>
         public bool EnableInputReplay { get; init; }
 
         /// <summary>
-        /// ??????
+        /// 输入回放路径
         /// </summary>
         public string InputReplayPath { get; init; }
 
         /// <summary>
-        /// ???????
+        /// 是否启用客户端预测
         /// </summary>
         public bool EnableClientPrediction { get; init; }
 
         /// <summary>
-        /// ????
+        /// 构造函数
         /// </summary>
         public BattleStartPlan(
             string worldId = "room_1",
@@ -70,8 +76,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             string playerId = "player_1",
             int tickRate = 30,
             int inputDelayFrames = 2,
-            BattleSyncMode syncMode = BattleSyncMode.Lockstep,
-            BattleRunMode runMode = BattleRunMode.Normal,
+            SyncMode syncMode = SyncMode.Lockstep,
+            RunMode runMode = RunMode.Normal,
             bool enableDebug = true,
             int maxPlayerCount = 10,
             bool enableInputRecording = false,
@@ -98,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// ??????
+        /// 创建默认计划
         /// </summary>
         public static BattleStartPlan CreateDefault()
         {
@@ -106,53 +112,32 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         }
 
         /// <summary>
-        /// ??????
+        /// 创建调试计划
         /// </summary>
         public static BattleStartPlan CreateDebug()
         {
             return new BattleStartPlan(enableDebug: true);
         }
-    }
-
-    /// <summary>
-    /// ??????
-    /// </summary>
-    public enum BattleSyncMode
-    {
-        /// <summary>
-        /// ?????
-        /// </summary>
-        Lockstep = 0,
 
         /// <summary>
-        /// ??????
+        /// 转换为 Share 层的 BattleStartPlan
         /// </summary>
-        SnapshotAuthority = 1,
-
-        /// <summary>
-        /// ????????
-        /// </summary>
-        HybridPredictReconcile = 2,
-    }
-
-    /// <summary>
-    /// ??????
-    /// </summary>
-    public enum BattleRunMode
-    {
-        /// <summary>
-        /// ??????
-        /// </summary>
-        Normal = 0,
-
-        /// <summary>
-        /// ????
-        /// </summary>
-        Record = 1,
-
-        /// <summary>
-        /// ????
-        /// </summary>
-        Replay = 2,
+        public Share.BattleStartPlan ToSharePlan()
+        {
+            // Share.BattleStartPlan 是一个 class，通过构造函数创建
+            return new Share.BattleStartPlan(
+                mapId: 0,
+                worldId: 0, // Console 使用字符串 ID，无法直接转换
+                playerId: 0,
+                clientId: 0,
+                syncMode: SyncMode,
+                hostMode: Share.HostMode.Local,
+                tickRate: TickRate,
+                useGatewayTransport: false,
+                enableConfirmedAuthorityWorld: false,
+                enableReplayRecording: EnableInputRecording,
+                enableReplayPlayback: EnableInputReplay,
+                playerIds: Array.Empty<int>());
+        }
     }
 }

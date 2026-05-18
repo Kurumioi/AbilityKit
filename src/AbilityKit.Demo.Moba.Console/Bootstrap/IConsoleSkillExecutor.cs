@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
     /// <summary>
     /// Console 技能执行器接口
-    /// 从配置数据库读取技能配置并执行
+    /// 职责：接收技能释放输入，转发给逻辑层
     /// </summary>
     public interface IConsoleSkillExecutor
     {
@@ -17,15 +17,9 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         /// <summary>
         /// 按槽位释放技能（带瞄准信息）
-        /// 返回执行结果，由调用者处理事件分发
+        /// 返回执行结果，包含技能 ID 和目标 ID
         /// </summary>
         SkillCastResult CastBySlot(int actorId, int slot, Vec3 aimPos, Vec3 aimDir);
-
-        /// <summary>
-        /// 计算最终伤害（由 Simulation 层调用）
-        /// </summary>
-        DamageExecuteResult CalculateDamage(int casterId, int targetId, int skillId,
-            float baseDamage, float targetCurrentHp, float targetMaxHp);
 
         /// <summary>
         /// 帧推进

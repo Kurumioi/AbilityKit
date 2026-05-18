@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Transport.Moba.Client;
+using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
+using ShareRunMode = AbilityKit.Demo.Moba.Share.RunMode;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
@@ -49,12 +52,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         /// <summary>
         /// 同步模式
         /// </summary>
-        public BattleSyncMode SyncMode { get; set; } = BattleSyncMode.Lockstep;
+        public ShareSyncMode SyncMode { get; set; } = ShareSyncMode.Lockstep;
 
         /// <summary>
         /// 运行模式
         /// </summary>
-        public BattleRunMode RunMode { get; set; } = BattleRunMode.Normal;
+        public ShareRunMode RunMode { get; set; } = ShareRunMode.Normal;
 
         /// <summary>
         /// 启用调试

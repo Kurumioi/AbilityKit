@@ -198,7 +198,8 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     {
         None,
         Recording,
-        Replaying
+        Replaying,
+        SkillTest  // 技能测试模式
     }
 
     /// <summary>

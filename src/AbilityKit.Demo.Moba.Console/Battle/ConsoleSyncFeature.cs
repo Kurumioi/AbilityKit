@@ -2,10 +2,15 @@ using System;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Events;
+using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
-    public sealed class ConsoleSyncFeature : IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
+    /// <summary>
+    /// Console 帧同步特性
+    /// 实现 IFrameSyncController 接口
+    /// </summary>
+    public sealed class ConsoleSyncFeature : IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>, IFrameSyncController
     {
         private ConsoleBattleContext _ctx;
         private bool _initialized;
@@ -58,5 +63,49 @@ namespace AbilityKit.Demo.Moba.Console.Battle
                 }
             }
         }
+
+        #region IFrameSyncController 实现
+
+        /// <inheritdoc />
+        bool IFrameSyncController.IsPaused => false; // Console 层不实现暂停
+
+        /// <inheritdoc />
+        void IFrameSyncController.Pause()
+        {
+            Platform.Log.Sync("[Sync] Pause called - not implemented for Console");
+        }
+
+        /// <inheritdoc />
+        void IFrameSyncController.Resume()
+        {
+            Platform.Log.Sync("[Sync] Resume called - not implemented for Console");
+        }
+
+        /// <inheritdoc />
+        void IFrameSyncController.AdvanceToFrame(int targetFrame)
+        {
+            if (_ctx != null)
+            {
+                _ctx.LastFrame = targetFrame;
+                Platform.Log.Sync($"[Sync] Advanced to frame {targetFrame}");
+            }
+        }
+
+        /// <inheritdoc />
+        void IFrameSyncController.SetFrameRate(int framesPerSecond)
+        {
+            Platform.Log.Sync($"[Sync] Frame rate set to {framesPerSecond} FPS (read-only for Console)");
+        }
+
+        /// <inheritdoc />
+        int IFrameSyncController.TargetFrame => _ctx?.LastFrame ?? 0;
+
+        /// <inheritdoc />
+        bool IFrameSyncController.IsCatchingUp => false; // Console 层不需要追帧
+
+        /// <inheritdoc />
+        int IFrameSyncController.FrameDelay => 0; // Console 层不需要帧延迟
+
+        #endregion
     }
 }

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Events;
+using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Console.Simulation;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
@@ -15,6 +18,7 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
 {
     private ConsoleBattleContext _context;
     private BattleStartConfig _config;
+    private ISimulatedBattleSession? _session;
     private bool _initialized;
     private bool _connected;
     private int _currentFrame;
@@ -38,8 +42,17 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
 
     public void Initialize(ConsoleBattleContext context, BattleStartConfig config)
     {
+        Initialize(context, config, null);
+    }
+
+    /// <summary>
+    /// 初始化同步适配器（带 Session）
+    /// </summary>
+    public void Initialize(ConsoleBattleContext context, BattleStartConfig config, ISimulatedBattleSession? session)
+    {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _session = session;
         _initialized = true;
         _connected = true; // 本地模式始终连接
         _currentFrame = 0;
@@ -106,15 +119,37 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
 
     public ActorStateSnapshot[] GetAllActorStates()
     {
-        // 简化实现：返回空数组
-        // 完整实现需要使用 EntityWorld 的查询 API
-        return Array.Empty<ActorStateSnapshot>();
+        // 从 SimulatedBattleSession 获取所有角色状态
+        _actorStates.Clear();
+
+        if (_session != null)
+        {
+            foreach (var actor in _session.GetAllActorStates())
+            {
+                _actorStates.Add(new ActorStateSnapshot
+                {
+                    ActorId = actor.ActorId,
+                    X = actor.X,
+                    Y = actor.Y,
+                    Z = actor.Z,
+                    Rotation = 0,
+                    VelocityX = 0,
+                    VelocityZ = 0,
+                    Hp = actor.Hp,
+                    HpMax = actor.HpMax,
+                    TeamId = actor.TeamId
+                });
+            }
+        }
+
+        return _actorStates.ToArray();
     }
 
-    private static int HashPlayerId(string playerId)
-    {
-        return playerId.GetHashCode() & 0xFFFF;
-    }
+        private static int HashPlayerId(string playerId)
+        {
+            // 与 ConsoleBattleBootstrapper 保持一致
+            return DeterministicHash.StringToActorId(playerId);
+        }
 
     public void Dispose()
     {

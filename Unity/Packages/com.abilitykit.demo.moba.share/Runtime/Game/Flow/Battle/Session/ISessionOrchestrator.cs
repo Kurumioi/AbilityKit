@@ -126,6 +126,16 @@ namespace AbilityKit.Demo.Moba.Share
         /// 快照权威同步
         /// </summary>
         SnapshotAuthority = 1,
+
+        /// <summary>
+        /// 状态同步
+        /// </summary>
+        StateSync = 2,
+
+        /// <summary>
+        /// 混合模式（帧同步 + 预测）
+        /// </summary>
+        Hybrid = 3,
     }
 
     /// <summary>

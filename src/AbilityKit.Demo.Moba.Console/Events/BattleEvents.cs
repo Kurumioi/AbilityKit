@@ -14,6 +14,18 @@ namespace AbilityKit.Demo.Moba.Console.Events
     }
 
     /// <summary>
+    /// 技能释放事件
+    /// 表现层发布此事件，逻辑层订阅并计算伤害
+    /// </summary>
+    public readonly struct SkillCastEvent
+    {
+        public int CasterId { get; init; }
+        public int SkillId { get; init; }
+        public int TargetId { get; init; }
+        public int Slot { get; init; }
+    }
+
+    /// <summary>
     /// 技能执行事件
     /// </summary>
     public readonly struct SkillExecutedEvent

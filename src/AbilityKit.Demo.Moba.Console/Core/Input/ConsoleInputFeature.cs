@@ -7,6 +7,7 @@ using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
+using AbilityKit.Demo.Moba.Share;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
 
 namespace AbilityKit.Demo.Moba.Console.Core.Input
@@ -29,8 +30,11 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
     /// 与 Unity 对齐：
     /// - Unity InputFeature 通过 IInputSink 与逻辑层解耦
     /// - Console InputFeature 通过 IConsoleInputSink 与模拟层解耦
+    ///
+    /// Share 层接口：
+    /// - 实现 IPlatformInputSource 接口，提供跨平台的输入访问
     /// </summary>
-    public sealed class ConsoleInputFeature : IInputFeature, IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
+    public sealed class ConsoleInputFeature : IInputFeature, IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>, IPlatformInputSource
     {
         private ConsoleBattleContext _ctx;
         private IConsoleInputSink _inputSink;
@@ -192,6 +196,87 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
             _ctx.HudSkillAimSubmitDx = dx;
             _ctx.HudSkillAimSubmitDz = dz;
         }
+
+        #region IPlatformInputSource 实现
+
+        /// <inheritdoc />
+        bool IPlatformInputSource.IsEnabled
+        {
+            get => _initialized;
+            set { /* Console 输入始终启用 */ }
+        }
+
+        /// <inheritdoc />
+        void IPlatformInputSource.Update()
+        {
+            ProcessInput();
+        }
+
+        /// <inheritdoc />
+        (float x, float z) IPlatformInputSource.GetMoveInput()
+        {
+            if (_ctx == null) return (0, 0);
+            return (_ctx.HudMoveDx, _ctx.HudMoveDz);
+        }
+
+        /// <inheritdoc />
+        bool IPlatformInputSource.IsAttackPressed()
+        {
+            // Console 层不使用普通攻击
+            return false;
+        }
+
+        /// <inheritdoc />
+        int IPlatformInputSource.GetSkillInput()
+        {
+            if (_ctx == null) return -1;
+            // 返回最近点击的技能槽位
+            var slot = _ctx.HudSkillClickSlot;
+            _ctx.HudSkillClickSlot = 0;
+            return slot > 0 ? slot - 1 : -1; // 转换 1-indexed 到 0-indexed
+        }
+
+        /// <inheritdoc />
+        bool IPlatformInputSource.IsStopSkillPressed()
+        {
+            // Console 层不实现停止技能
+            return false;
+        }
+
+        /// <inheritdoc />
+        bool IPlatformInputSource.IsStopPressed()
+        {
+            // Console 层不实现停止移动
+            return false;
+        }
+
+        /// <inheritdoc />
+        (float x, float y) IPlatformInputSource.GetClickPosition()
+        {
+            // Console 层不实现屏幕点击
+            return (-1, -1);
+        }
+
+        /// <inheritdoc />
+        float IPlatformInputSource.GetCameraRotationInput()
+        {
+            // Console 层不实现视角旋转
+            return 0f;
+        }
+
+        /// <inheritdoc />
+        void IPlatformInputSource.Reset()
+        {
+            if (_ctx == null) return;
+            _ctx.HudMoveDx = 0;
+            _ctx.HudMoveDz = 0;
+            _ctx.HudHasMove = false;
+            _ctx.HudSkillClickSlot = 0;
+            _ctx.HudSkillAiming = false;
+            _ctx.HudSkillAimSubmit = false;
+        }
+
+        #endregion
     }
 
     /// <summary>

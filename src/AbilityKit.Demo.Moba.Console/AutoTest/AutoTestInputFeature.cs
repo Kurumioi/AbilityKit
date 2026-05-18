@@ -143,7 +143,9 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
 
         public void ClickSkill(int slot)
         {
-            // IInputFeature 接口实现，AutoTestInputFeature 通过 Tick 方法自动设置
+            // 设置技能点击标记，让 ConsoleInputFeature.ProcessSkillInput() 能够采集
+            if (_ctx == null) return;
+            _ctx.HudSkillClickSlot = slot;
         }
 
         public void AimSkill(int slot, float dx, float dz)

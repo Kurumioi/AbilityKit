@@ -9,8 +9,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
     /// <summary>
     /// Console 版本的帧快照分发器
     /// 封装 Share 层的 FrameSnapshotDispatcher，实现事件转换
+    /// 同时实现 IFrameSnapshotDeserializer 接口
     /// </summary>
-    public sealed class ConsoleFrameSnapshotDispatcher : IDisposable
+    public sealed class ConsoleFrameSnapshotDispatcher : IDisposable, IFrameSnapshotDeserializer
     {
         private readonly FrameSnapshotDispatcher _dispatcher;
         private bool _disposed;
@@ -183,6 +184,126 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
 
             Log.Trace("[ConsoleFrameSnapshotDispatcher] Disposed");
         }
+
+        #region IFrameSnapshotDeserializer 实现
+
+        /// <inheritdoc />
+        public bool TryDeserializeEnterGame(byte[] rawData, out EnterGameData result)
+        {
+            result = default;
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                // 简化实现：从 JSON 解析 EnterGameData
+                // Console 层使用内部格式，此处返回失败
+                Log.Warn("[SnapshotDispatcher] TryDeserializeEnterGame not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize EnterGame: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryDeserializeActorTransform(byte[] rawData, out ActorTransformData[] result)
+        {
+            result = Array.Empty<ActorTransformData>();
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                Log.Warn("[SnapshotDispatcher] TryDeserializeActorTransform not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize ActorTransform: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryDeserializeProjectileEvent(byte[] rawData, out ProjectileEventData[] result)
+        {
+            result = Array.Empty<ProjectileEventData>();
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                Log.Warn("[SnapshotDispatcher] TryDeserializeProjectileEvent not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize ProjectileEvent: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryDeserializeAreaEvent(byte[] rawData, out AreaEventData[] result)
+        {
+            result = Array.Empty<AreaEventData>();
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                Log.Warn("[SnapshotDispatcher] TryDeserializeAreaEvent not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize AreaEvent: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryDeserializeDamageEvent(byte[] rawData, out DamageEventData[] result)
+        {
+            result = Array.Empty<DamageEventData>();
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                Log.Warn("[SnapshotDispatcher] TryDeserializeDamageEvent not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize DamageEvent: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <inheritdoc />
+        public bool TryDeserializeStateHash(byte[] rawData, out StateHashData result)
+        {
+            result = default;
+            if (rawData == null || rawData.Length == 0) return false;
+
+            try
+            {
+                var json = System.Text.Encoding.UTF8.GetString(rawData);
+                Log.Warn("[SnapshotDispatcher] TryDeserializeStateHash not implemented for Console format");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[SnapshotDispatcher] Failed to deserialize StateHash: {ex.Message}");
+                return false;
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>

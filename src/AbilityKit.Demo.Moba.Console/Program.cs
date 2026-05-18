@@ -56,6 +56,9 @@ namespace AbilityKit.Demo.Moba.Console
                     case RecordMode.Replaying:
                         StartReplayMode();
                         break;
+                    case RecordMode.SkillTest:
+                        StartSkillTestMode();
+                        break;
                     default:
                         StartTestMode();
                         break;
@@ -74,6 +77,83 @@ namespace AbilityKit.Demo.Moba.Console
                 _replayController?.Dispose();
                 Log.System("Goodbye!");
             }
+        }
+
+        /// <summary>
+        /// 技能测试模式 - 只测试技能释放流程
+        /// </summary>
+        private static void StartSkillTestMode()
+        {
+            Log.EnableTrace();
+            Log.SetMinLevel(Log.LogLevel.Debug);
+
+            Log.System("");
+            Log.System("========================================");
+            Log.System("   SKILL CAST TEST MODE");
+            Log.System("========================================");
+
+            var testRunner = new AutoTestRunner(_bootstrapper);
+            testRunner.EnableDebugLogging();
+
+            // 创建技能测试场景
+            var skillScenario = new SkillCastScenario { SkillSlot = 1, Repeats = 5 };
+
+            Log.System("");
+            Log.System($"[SKILL-TEST] Testing skill slot {skillScenario.SkillSlot}, {skillScenario.Repeats} times");
+            Log.System("");
+
+            // 手动设置测试步骤
+            var autoInput = testRunner.AutoInput;
+            autoInput.ClearSteps();
+
+            // 等待游戏开始
+            _bootstrapper.TransitionTo("InMatch");
+
+            for (int i = 0; i < skillScenario.Repeats; i++)
+            {
+                autoInput.RegisterStep(InputStep.Skill(skillScenario.SkillSlot, 1));  // 释放技能
+                autoInput.RegisterStep(InputStep.Wait(35));                         // 等待冷却（约1秒）
+            }
+            autoInput.RegisterStep(InputStep.Idle(10));
+
+            // 启动自动输入
+            _bootstrapper.SetAutoTestInput(autoInput);
+            autoInput.Start();
+
+            Log.System("[SKILL-TEST] Starting skill test...");
+
+            // 运行测试循环
+            var gameThread = new Thread(() =>
+            {
+                while (_running.WaitOne(33))
+                {
+                    if (_bootstrapper == null) break;
+                    try
+                    {
+                        _bootstrapper.Tick();
+
+                        // 测试完成后自动退出
+                        if (!autoInput.IsRunning)
+                        {
+                            Log.System("");
+                            Log.System("[SKILL-TEST] Test completed!");
+                            _running.Reset();
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"Tick error: {ex.Message}");
+                    }
+                }
+            });
+            gameThread.IsBackground = true;
+            gameThread.Start();
+
+            System.Console.ReadLine();
+            _running.Reset();
+
+            testRunner.Dispose();
         }
 
         private static void StartTestMode()
@@ -279,6 +359,10 @@ namespace AbilityKit.Demo.Moba.Console
                     case "--test":
                     case "-t":
                         _recordConfig.Mode = RecordMode.None;
+                        break;
+
+                    case "--skill":
+                        _recordConfig.Mode = RecordMode.SkillTest;
                         break;
 
                     case "--trace":

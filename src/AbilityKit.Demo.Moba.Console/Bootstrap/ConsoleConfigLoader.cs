@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Platform;
+using AbilityKit.Demo.Moba.Share;
+using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
@@ -51,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             var syncMode = Environment.GetEnvironmentVariable("SYNC_MODE");
             if (!string.IsNullOrEmpty(syncMode))
             {
-                if (Enum.TryParse<BattleSyncMode>(syncMode, ignoreCase: true, out var mode))
+                if (Enum.TryParse<ShareSyncMode>(syncMode, ignoreCase: true, out var mode))
                 {
                     config.SyncMode = mode;
                     Log.System($"[ConfigOverride] SyncMode set to: {mode}");

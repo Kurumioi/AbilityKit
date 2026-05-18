@@ -89,22 +89,27 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         protected override void OnDamageEvent(
-            int attackerId, 
-            int targetId, 
-            int sourceId, 
-            int damageType, 
+            int attackerId,
+            int targetId,
+            int sourceId,
+            int damageType,
             int damageValue,
+            int targetHpAfter,
             bool isKill)
         {
             _battleView.ShowFloatingText(targetId, $"-{damageValue}", false);
-            _battleView.UpdateEntityHp(targetId, damageValue, damageValue);
+
+            // 从 DamageEventData 中获取 targetHpAfter（伤害后的 HP）更新视图
+            // 注意：Console 层简化处理，假设所有实体的最大 HP 为 5000
+            const float defaultMaxHp = 5000f;
+            _battleView.UpdateEntityHp(targetId, targetHpAfter, defaultMaxHp);
 
             if (isKill)
             {
                 _battleView.ShowFloatingText(targetId, "DIED!", false);
             }
 
-            Log.Damage($"[ConsoleViewEventSink] Damage: #{targetId} took {damageValue} from #{attackerId}");
+            Log.Damage($"[ConsoleViewEventSink] Damage: #{targetId} took {damageValue} from #{attackerId}, HP now: {targetHpAfter}");
         }
 
         protected override void OnStateHash(int frameIndex, uint stateHash)

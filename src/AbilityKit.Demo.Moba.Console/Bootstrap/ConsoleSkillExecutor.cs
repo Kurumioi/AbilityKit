@@ -10,9 +10,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
     ///
     /// 职责：
     /// - 从配置数据库读取技能配置
-    /// - 根据技能等级表计算伤害值
     /// - 管理冷却时间
-    /// - 返回执行结果（由 Simulation 层处理分发）
+    /// - 返回执行结果（由逻辑层处理伤害计算）
     ///
     /// 数据来源：
     /// - 技能配置从 ConsoleMobaConfigDatabase 读取
@@ -55,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
         /// <summary>
         /// 按槽位释放技能（带瞄准信息）
-        /// 返回执行结果，由调用者处理事件分发
+        /// 返回执行结果，传递给逻辑层处理
         /// </summary>
         public SkillCastResult CastBySlot(int actorId, int slot, Vec3 aimPos, Vec3 aimDir)
         {
@@ -100,9 +99,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return SkillCastResult.CreateFailure(actorId, slot, skillId, "No target found");
             }
 
-            // 计算伤害值（从等级配置读取 Params[0]）
-            var baseDamage = levelConfig.GetParam(0, 50f);
-
             // 开始冷却
             var cooldownFrames = (int)(levelConfig.CooldownSeconds * 30f); // 假设 30 FPS
             _cooldownManager.StartCooldown(skillId, cooldownFrames);
@@ -111,34 +107,9 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             var actor = _actorRepository.GetActor(actorId);
             var skillLevel = actor?.SkillLevel ?? 1;
 
-            Platform.Log.Skill($"[SkillExecutor] Actor#{actorId} cast Skill#{skillId} (Lv{skillLevel}) " +
-                              $"BaseDamage={baseDamage:F0} -> Target#{targetId}");
+            Platform.Log.Skill($"[SkillExecutor] Actor#{actorId} cast Skill#{skillId} (Lv{skillLevel}) -> Target#{targetId}");
 
-            return SkillCastResult.CreateSuccess(actorId, slot, skillId, targetId, baseDamage);
-        }
-
-        /// <summary>
-        /// 计算最终伤害（由 Simulation 层调用）
-        /// </summary>
-        /// <param name="casterId">释放者 ID</param>
-        /// <param name="targetId">目标 ID</param>
-        /// <param name="skillId">技能 ID</param>
-        /// <param name="baseDamage">基础伤害</param>
-        /// <param name="targetCurrentHp">目标当前 HP</param>
-        /// <param name="targetMaxHp">目标最大 HP</param>
-        /// <returns>伤害执行结果</returns>
-        public DamageExecuteResult CalculateDamage(int casterId, int targetId, int skillId,
-            float baseDamage, float targetCurrentHp, float targetMaxHp)
-        {
-            // 简化实现：直接使用配置的基础伤害
-            // 完整实现应考虑攻击方属性、防御方属性、伤害类型等
-            float damage = baseDamage;
-            float newHp = targetCurrentHp - damage;
-            bool isDead = newHp <= 0;
-
-            return new DamageExecuteResult(
-                casterId, targetId, skillId,
-                damage, newHp, targetMaxHp, isDead, false);
+            return SkillCastResult.CreateSuccess(actorId, slot, skillId, targetId);
         }
 
         /// <summary>
@@ -216,7 +187,8 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         private int FindTarget(int casterId)
         {
             // 使用 ConsoleActorRepository 查找最近的敌方单位
-            const float searchRange = 15f;
+            // 注意：测试配置中敌方在 Z=50，需要足够大的搜索范围
+            const float searchRange = 100f;
             return _actorRepository.FindNearestEnemy(casterId, searchRange);
         }
 

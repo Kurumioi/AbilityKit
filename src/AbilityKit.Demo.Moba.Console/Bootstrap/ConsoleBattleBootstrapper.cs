@@ -26,6 +26,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
 using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
+using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using ShareFrameSnapshotData = AbilityKit.Demo.Moba.Share.FrameSnapshotData;
 using ShareSnapshotType = AbilityKit.Demo.Moba.Share.SnapshotType;
 using ShareEnterGameData = AbilityKit.Demo.Moba.Share.EnterGameData;
@@ -177,8 +178,8 @@ namespace AbilityKit.Demo.Moba.Console
             _flow.Events.PhaseEntered += OnPhaseEntered;
 
             // 创建同步适配器（根据配置选择帧同步或状态同步）
+            // 注意：Session 在 SetupBattle 后才创建，所以先创建不带 Session 的适配器
             _syncAdapter = SyncAdapterFactory.Create(_context, _config);
-            _syncAdapter.Initialize(_context, _config);
 
             // 创建 View 绑定器
             _viewBinder = new ConsoleViewBinder();
@@ -418,9 +419,8 @@ namespace AbilityKit.Demo.Moba.Console
             var skillExecutor = new ConsoleSkillExecutor(configDb, _battleSession.ActorRepository);
             skillExecutor.Initialize();
 
-            // 重新创建 Session 以注入 skillExecutor（暂时方案，后续优化）
-            _battleSession.Dispose();
-            _battleSession = new SimulatedBattleSession(_context.EcsWorld, _context.LocalActorId, skillExecutor);
+            // 将 skillExecutor 注入到 Session
+            _battleSession.SetSkillExecutor(skillExecutor);
             _battleSession.Initialize();
 
             // 4. 创建表现层数据适配器（从 Simulation 层读取只读数据）
@@ -433,7 +433,13 @@ namespace AbilityKit.Demo.Moba.Console
                 Log.System($"[Bootstrapper] Session connected to SnapshotDispatcher");
             }
 
-            // 6. 创建输入转发表层（直接调用模式）
+            // 6. 将 Session 注入到 SyncAdapter（用于获取角色状态）
+            if (_syncAdapter is FrameSyncAdapter frameSync)
+            {
+                frameSync.Initialize(_context, _config, _battleSession);
+            }
+
+            // 7. 创建输入转发表层（直接调用模式）
             _inputSink = new DirectCallInputSink(_battleSession);
 
             // 7. 将 Sink 注入到 InputFeature
@@ -488,7 +494,7 @@ namespace AbilityKit.Demo.Moba.Console
             _flow.Start();
 
             // 如果是状态同步模式，连接到服务器
-            if (_syncAdapter is StateSyncAdapter stateSync && _config.SyncMode == BattleSyncMode.SnapshotAuthority)
+            if (_syncAdapter is StateSyncAdapter stateSync && _config.SyncMode == ShareSyncMode.SnapshotAuthority)
             {
                 Log.Sync($"[Bootstrapper] Connecting to server in StateSync mode...");
                 if (_config.Network != null)
@@ -654,7 +660,8 @@ namespace AbilityKit.Demo.Moba.Console
                     maxHp: 500,
                     x: player.PositionX,
                     y: player.PositionY,
-                    z: player.PositionZ);
+                    z: player.PositionZ,
+                    teamId: player.TeamId);
                 return;
             }
 
@@ -667,7 +674,8 @@ namespace AbilityKit.Demo.Moba.Console
                 maxHp: attrs?.MaxHp ?? 500,
                 x: player.PositionX,
                 y: player.PositionY,
-                z: player.PositionZ);
+                z: player.PositionZ,
+                teamId: player.TeamId);
 
             Log.Battle($"Spawned {charConfig.Name} (Team {player.TeamId}) at ({player.PositionX:F1}, {player.PositionZ:F1})");
         }
@@ -694,9 +702,9 @@ namespace AbilityKit.Demo.Moba.Console
         /// 为视图层创建实体（纯表现层）
         /// 只负责在视图层注册显示数据，不涉及逻辑层实体创建
         /// </summary>
-        private void CreateEntityForView(int actorId, string name, int characterId, float hp, float maxHp, float x, float y, float z)
+        private void CreateEntityForView(int actorId, string name, int characterId, float hp, float maxHp, float x, float y, float z, int teamId = 1)
         {
-            Log.Trace($"[TRACE] CreateEntityForView - Actor#{actorId} ({name}), HP:{hp:F0}, Pos:({x:F1},{y:F1},{z:F1})");
+            Log.Trace($"[TRACE] CreateEntityForView - Actor#{actorId} ({name}), HP:{hp:F0}, Pos:({x:F1},{y:F1},{z:F1}), Team:{teamId}");
 
             // 注册到视图层
             _battleView.RegisterEntity(actorId, name, "Character", hp, maxHp, x, y, z);
@@ -713,10 +721,10 @@ namespace AbilityKit.Demo.Moba.Console
                 PhysicsAttack = 10f,
                 PhysicsDefense = 0f,
                 MoveSpeed = 5f,
-                TeamId = 1
+                TeamId = teamId
             });
 
-            Log.Entity($"Created: #{actorId} {name} (CharId:{characterId})");
+            Log.Entity($"Created: #{actorId} {name} (CharId:{characterId}, Team:{teamId})");
         }
 
         public void ShowHud() => _hudFeature.RenderHud();

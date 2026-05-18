@@ -117,7 +117,7 @@ namespace AbilityKit.Demo.Moba.Share
             for (int i = 0; i < events.Count; i++)
             {
                 var evt = events[i];
-                OnDamageEvent(evt.AttackerId, evt.TargetId, evt.SourceId, evt.DamageType, evt.DamageValue, evt.IsKill);
+                OnDamageEvent(evt.AttackerId, evt.TargetId, evt.SourceId, evt.DamageType, evt.DamageValue, evt.TargetHpAfter, evt.IsKill);
             }
 
             LastProcessedFrame = snapshot.FrameIndex;
@@ -193,7 +193,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// <summary>
         /// 伤害事件处理（子类实现）
         /// </summary>
-        protected abstract void OnDamageEvent(int attackerId, int targetId, int sourceId, int damageType, int damageValue, bool isKill);
+        protected abstract void OnDamageEvent(int attackerId, int targetId, int sourceId, int damageType, int damageValue, int targetHpAfter, bool isKill);
 
         /// <summary>
         /// 状态哈希处理（子类实现）

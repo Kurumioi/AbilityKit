@@ -292,12 +292,14 @@ namespace AbilityKit.Demo.Moba.Share
     public abstract class BaseViewSubFeature<THost> : IViewSubFeature<THost> where THost : class
     {
         public virtual string Name => GetType().Name;
+        public virtual string Id => GetType().Name;
         public virtual int Priority => 0;
         public virtual bool IsEnabled { get; set; } = true;
 
         public virtual void OnAttach(IFeatureModuleContext<THost> ctx) { }
         public virtual void OnDetach(IFeatureModuleContext<THost> ctx) { }
         public virtual void Tick(IFeatureModuleContext<THost> ctx, float deltaTime) { }
+        public virtual void RebindAll(IFeatureModuleContext<THost> ctx) { }
     }
 
     /// <summary>
@@ -307,6 +309,7 @@ namespace AbilityKit.Demo.Moba.Share
     public abstract class BaseSessionMainTickSubFeature<THost> : ISessionMainTickSubFeature<THost> where THost : class
     {
         public virtual string Name => GetType().Name;
+        public virtual string Id => GetType().Name;
         public virtual int Priority => 0;
         public virtual bool IsEnabled { get; set; } = true;
 
@@ -314,5 +317,6 @@ namespace AbilityKit.Demo.Moba.Share
         public virtual void OnDetach(IFeatureModuleContext<THost> ctx) { }
         public virtual void Tick(IFeatureModuleContext<THost> ctx, float deltaTime) { }
         public virtual void MainTick(IFeatureModuleContext<THost> ctx, float deltaTime) { }
+        public virtual void RebindAll(IFeatureModuleContext<THost> ctx) { }
     }
 }
