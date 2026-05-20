@@ -1,9 +1,9 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Flow;
+using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.View;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
+using BattleConfig = AbilityKit.Demo.Moba.Console.Battle.Config;
 
 namespace AbilityKit.Demo.Moba.Console
 {
@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Console
         IBattleFlow Flow { get; }
         bool IsRunning { get; }
 
-        BattleStartPlan Build();
+        BattleConfig.BattleStartPlan Build();
 
         void Initialize();
         void Start();
@@ -30,9 +30,19 @@ namespace AbilityKit.Demo.Moba.Console
         void RegisterDemoEntities();
     }
 
+    /// <summary>
+    /// 战斗启动配置提供者接口
+    /// </summary>
     public interface IBattleStartConfigProvider
     {
-        BattleStartConfig Config { get; }
-        BattleStartPlan BuildPlan();
+        /// <summary>
+        /// 获取战斗启动配置
+        /// </summary>
+        BattleConfig.BattleStartConfig Config { get; }
+
+        /// <summary>
+        /// 构建战斗启动计划
+        /// </summary>
+        BattleConfig.BattleStartPlan BuildPlan();
     }
 }

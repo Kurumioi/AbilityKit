@@ -2,7 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using AbilityKit.Demo.Moba.Console.AutoTest;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Game;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Console.Services;
@@ -12,7 +13,8 @@ namespace AbilityKit.Demo.Moba.Console
     internal sealed class Program
     {
         private static readonly ManualResetEvent _running = new(true);
-        private static ConsoleBattleBootstrapper _bootstrapper = null!;
+        private static ConsoleGameEntry? _gameEntry;
+        private static ConsoleBattleBootstrapper? _bootstrapper;
         private static ReplayController? _replayController;
         private static RecordConfig _recordConfig = new();
         private static bool _exitImmediately;
@@ -21,16 +23,16 @@ namespace AbilityKit.Demo.Moba.Console
         {
             System.Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-            // 先解析参数（EnableTrace 可能会在这里被调用）
+            // Parse arguments first
             _exitImmediately = ParseArguments(args);
 
-            // 如果没有开启 trace，使用默认级别
+            // Set log level
             if (Log.MinLevel != Log.LogLevel.Trace)
             {
                 Log.SetMinLevel(Log.LogLevel.System);
             }
 
-            // ??? --list/--info/--help???????? ParseArguments ????
+            // Exit if command was handled
             if (_exitImmediately)
             {
                 return;
@@ -42,12 +44,23 @@ namespace AbilityKit.Demo.Moba.Console
 
             try
             {
+                // Initialize new architecture
+                ConsoleGameEntry.Initialize();
+                _gameEntry = ConsoleGameEntry.Instance;
+
+                // Create bootstrapper for battle
                 _bootstrapper = new ConsoleBattleBootstrapper(null, null, null, _recordConfig);
                 _bootstrapper.Initialize();
                 _bootstrapper.Start();
                 _bootstrapper.SetupBattle();
 
-                // ??????
+                // Set the battle context
+                _gameEntry.CurrentBattleContext = _bootstrapper.Context;
+
+                // Start game flow
+                _gameEntry.Flow.EnterBattle(_bootstrapper);
+
+                // Run based on mode
                 switch (_recordConfig.Mode)
                 {
                     case RecordMode.Recording:
@@ -75,6 +88,7 @@ namespace AbilityKit.Demo.Moba.Console
                 _running.Reset();
                 _bootstrapper?.Stop();
                 _replayController?.Dispose();
+                _gameEntry?.Dispose();
                 Log.System("Goodbye!");
             }
         }
@@ -230,13 +244,13 @@ namespace AbilityKit.Demo.Moba.Console
                 {
                     _bootstrapper.Tick();
 
-                    // ??????????????
+                    // 如果正在录制，回放控制器录制命令
                     if (_replayController?.IsRecording == true)
                     {
                         var ctx = _bootstrapper.Context;
                         var frame = ctx.LastFrame;
 
-                        // ??????
+                        // 记录移动
                         if (Math.Abs(ctx.HudMoveDx) > 0.01f || Math.Abs(ctx.HudMoveDz) > 0.01f)
                         {
                             var payload = SimpleMoveCodec.Serialize(ctx.HudMoveDx, ctx.HudMoveDz);
@@ -244,7 +258,7 @@ namespace AbilityKit.Demo.Moba.Console
                                 InputCommandType.Move, 1, payload);
                         }
 
-                        // ??????
+                        // 记录技能
                         var skillSlot = ctx.HudSkillClickSlot;
                         if (skillSlot > 0)
                         {
@@ -252,7 +266,7 @@ namespace AbilityKit.Demo.Moba.Console
                                 InputCommandType.SkillPress, (byte)skillSlot, Array.Empty<byte>());
                         }
 
-                        // ??????????
+                        // 定期添加快照
                         if (frame % _recordConfig.SnapshotIntervalFrames == 0)
                         {
                             var actorCount = ctx.EcsWorld?.AliveCount ?? 0;
@@ -284,7 +298,7 @@ namespace AbilityKit.Demo.Moba.Console
 
                         foreach (var cmd in commands)
                         {
-                            // ??????????
+                            // 根据命令类型应用输入
                             switch (cmd.Type)
                             {
                                 case InputCommandType.Move:
@@ -300,7 +314,7 @@ namespace AbilityKit.Demo.Moba.Console
 
                         driver.AdvanceFrame();
 
-                        // ????????
+                        // 回放结束
                         if (driver.CurrentFrame >= driver.TotalFrames)
                         {
                             Log.System("[Replay] Replay finished");
@@ -455,10 +469,14 @@ namespace AbilityKit.Demo.Moba.Console
         {
             while (_running.WaitOne(33))
             {
-                if (_bootstrapper == null) continue;
+                if (_gameEntry == null) continue;
                 try
                 {
-                    _bootstrapper.Tick();
+                    // Tick game entry (HFSM + Features)
+                    _gameEntry.Tick(0.033f);
+
+                    // Also tick bootstrapper for backward compatibility
+                    _bootstrapper?.Tick(0.033f);
                 }
                 catch
                 {

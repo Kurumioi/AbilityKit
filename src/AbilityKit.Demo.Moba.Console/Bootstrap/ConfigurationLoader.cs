@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Config;
+using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Battle;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {

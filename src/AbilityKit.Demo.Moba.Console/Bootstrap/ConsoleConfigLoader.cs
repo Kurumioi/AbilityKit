@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
-using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Share;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;

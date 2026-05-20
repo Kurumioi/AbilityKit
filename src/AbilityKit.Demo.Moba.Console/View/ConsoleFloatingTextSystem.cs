@@ -43,10 +43,18 @@ namespace AbilityKit.Demo.Moba.Console.View
 
         public void Tick()
         {
+            Tick(1f / 60f);
+        }
+
+        /// <summary>
+        /// 带 deltaTime 的 Tick
+        /// </summary>
+        public void Tick(float deltaTime)
+        {
             for (int i = _floatingTexts.Count - 1; i >= 0; i--)
             {
                 var ft = _floatingTexts[i];
-                ft.Age += 1f / 60f;
+                ft.Age += deltaTime;
 
                 if (ft.Age >= ft.MaxAge)
                 {

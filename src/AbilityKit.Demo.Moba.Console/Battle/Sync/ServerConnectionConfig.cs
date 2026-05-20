@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Console.Battle.Config;
+
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
 
 /// <summary>

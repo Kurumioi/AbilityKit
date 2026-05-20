@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Share;
-using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
 
@@ -14,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
 public sealed class FrameSyncAdapter : IBattleSyncAdapter
 {
     private ConsoleBattleContext _context;
-    private BattleStartConfig _config;
+    private Config.BattleStartConfig _config;
     private bool _initialized;
     private bool _connected;
     private int _currentFrame;
@@ -39,7 +38,7 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
     /// <summary>
     /// 初始化同步适配器
     /// </summary>
-    public void Initialize(ConsoleBattleContext context, BattleStartConfig config)
+    public void Initialize(ConsoleBattleContext context, Config.BattleStartConfig config)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -113,10 +112,10 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
         return _actorStates.ToArray();
     }
 
-        private static int HashPlayerId(string playerId)
-        {
-            return DeterministicHash.StringToActorId(playerId);
-        }
+    private static int HashPlayerId(string playerId)
+    {
+        return Config.DeterministicHash.StringToActorId(playerId);
+    }
 
     public void Dispose()
     {

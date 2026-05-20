@@ -5,15 +5,15 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Math;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Core.Input;
-using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Components;
-using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
-using AbilityKit.Demo.Moba.Console.Bootstrap;
 using AbilityKit.Demo.Moba.Console.Battle;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.ECS.Components;
+using AbilityKit.Demo.Moba.Console.Battle.ECS.Entities;
+using AbilityKit.Demo.Moba.Console.Battle.Input;
+using AbilityKit.Demo.Moba.Console.Battle.Flow;
+using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Battle.Sync;
-using AbilityKit.Demo.Moba.Console.Battle.Sync.View;
-using AbilityKit.Demo.Moba.Console.Flow;
+using AbilityKit.Demo.Moba.Console.Battle.Features;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Presentation;
 using AbilityKit.Demo.Moba.Console.View;
@@ -23,6 +23,7 @@ using AbilityKit.Demo.Moba.Console.Simulation;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
+using BattleConfig = AbilityKit.Demo.Moba.Console.Battle.Config;
 using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using ShareFrameSnapshotData = AbilityKit.Demo.Moba.Share.FrameSnapshotData;
@@ -37,6 +38,10 @@ using ShareMobaOpCode = AbilityKit.Demo.Moba.Share.MobaOpCode;
 using ShareFrameSnapshotDispatcher = AbilityKit.Demo.Moba.Share.FrameSnapshotDispatcher;
 using ShareActorSpawnData = AbilityKit.Demo.Moba.Share.ActorSpawnData;
 using EC = AbilityKit.World.ECS;
+using Bootstrap = AbilityKit.Demo.Moba.Console.Bootstrap;
+using ECSEntities = AbilityKit.Demo.Moba.Console.Battle.ECS.Entities;
+using ECSComp = AbilityKit.Demo.Moba.Console.Battle.ECS;
+using ViewBinderNamespace = AbilityKit.Demo.Moba.Console.View;
 
 namespace AbilityKit.Demo.Moba.Console
 {
@@ -54,13 +59,13 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly ConsoleHudFeature _hudFeature;
         private readonly ConsoleInputHandler _inputHandler;
         private readonly List<IWorldModule> _modules;
-        private readonly BattleStartConfig _config;
+        private readonly BattleConfig.BattleStartConfig _config;
         private readonly RecordConfig _recordConfig;
         private MobaConfigDatabase _mobaConfig;
 
         private ViewActorAdapter? _viewActorAdapter;
         private IBattleSyncAdapter? _syncAdapter;
-        private ConsoleViewBinder? _viewBinder;
+        private ViewBinderNamespace.IConsoleViewBinder? _viewBinder;
 
         private ShareFrameSnapshotDispatcher? _snapshotDispatcher;
         private ConsoleBattleViewEventSink? _shareViewEventSink;
@@ -77,7 +82,7 @@ namespace AbilityKit.Demo.Moba.Console
 
         public PlatformComponents Platform { get; }
         public IBattleSyncAdapter? SyncAdapter => _syncAdapter;
-        public ConsoleViewBinder? ViewBinder => _viewBinder;
+        public ViewBinderNamespace.IConsoleViewBinder? ViewBinder => _viewBinder;
         public IConsoleBattleView BattleView => _battleView;
         public IBattleFlow Flow => _flow;
         public ConsoleBattleContext Context => _context;
@@ -87,20 +92,20 @@ namespace AbilityKit.Demo.Moba.Console
         public ShareReplayRecorder? ReplayRecorder => _replayRecorder;
         public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
 
-        BattleStartConfig IBattleStartConfigProvider.Config => _config;
+        BattleConfig.BattleStartConfig IBattleStartConfigProvider.Config => _config;
 
-        public ConsoleBattleBootstrapper(BattleStartConfig? config = null, MobaConfigDatabase? mobaConfig = null,
+        public ConsoleBattleBootstrapper(BattleConfig.BattleStartConfig? config = null, MobaConfigDatabase? mobaConfig = null,
             IEnumerable<IWorldModule>? additionalModules = null, RecordConfig? recordConfig = null)
         {
             _recordConfig = recordConfig ?? new RecordConfig();
-            _modules = new List<IWorldModule> { new ConsoleConfigModule() };
+            _modules = new List<IWorldModule> { new Bootstrap.ConsoleConfigModule() };
 
             if (additionalModules != null)
             {
                 _modules.AddRange(additionalModules);
             }
 
-            _config = config ?? ConsoleConfigLoader.LoadBattleStartConfig();
+            _config = config ?? Bootstrap.ConsoleConfigLoader.LoadBattleStartConfig();
             _mobaConfig = mobaConfig;
 
             Platform = new PlatformComponents();
@@ -124,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             _syncAdapter = SyncAdapterFactory.Create(_context, _config);
 
-            _viewBinder = new ConsoleViewBinder
+            _viewBinder = new ViewBinderNamespace.ConsoleViewBinder
             {
                 TickRate = _config.TickRate,
                 BackTimeSeconds = (float)(1.0 / _config.TickRate)
@@ -167,8 +172,8 @@ namespace AbilityKit.Demo.Moba.Console
             }
         }
 
-        public Battle.BattleStartPlan Build() => _config.BuildPlan();
-        Battle.BattleStartPlan IBattleStartConfigProvider.BuildPlan() => Build();
+        public BattleConfig.BattleStartPlan Build() => _config.BuildPlan();
+        BattleConfig.BattleStartPlan IBattleStartConfigProvider.BuildPlan() => Build();
 
         public void Initialize()
         {
@@ -257,7 +262,7 @@ namespace AbilityKit.Demo.Moba.Console
 
         private void CreateBattleSession()
         {
-            var inputSink = new DirectCallInputSink();
+            var inputSink = new Bootstrap.DirectCallInputSink();
             _inputFeature.SetInputSink(inputSink);
             Log.System($"[Bootstrapper] DirectCall InputSink initialized");
         }
@@ -295,11 +300,28 @@ namespace AbilityKit.Demo.Moba.Console
         {
             Log.System("Starting...");
 
+            // 设置 BattleFlow 的 Context
+            _flow.SetBattleContext(_context);
+
+            // 配置 InMatchPhase 的 Features
+            var inMatchPhase = _flow.GetInMatchPhase();
+            if (inMatchPhase != null)
+            {
+                inMatchPhase.ConfigureFeatures(features =>
+                {
+                    features.AddConsoleFeature(_syncFeature);
+                    features.AddConsoleFeature(_inputFeature);
+                    features.AddConsoleFeature(_hudFeature);
+                });
+            }
+
             CreateBattleSession();
 
-            _syncFeature.OnAttach(_context);
-            _inputFeature.OnAttach(_context);
-            _hudFeature.OnAttach(_context);
+            // 不再手动 Attach Features，由 PhaseHost 管理
+            // _syncFeature.OnAttach(_context);
+            // _inputFeature.OnAttach(_context);
+            // _hudFeature.OnAttach(_context);
+
             _inputHandler.Start();
             _flow.Start();
 
@@ -339,13 +361,16 @@ namespace AbilityKit.Demo.Moba.Console
             _context.LogicTimeSeconds = _totalTime;
             _context.LastFrame++;
 
+            // 由 PhaseHost -> InMatchPhase -> FeatureHost 管理 Features
             _flow.Tick((float)elapsed);
-            _syncFeature.Tick(_context, (float)elapsed);
-            _inputFeature.Tick(_context, (float)elapsed);
-            _autoTestInput?.Tick(_context, (float)elapsed);
-            _hudFeature.Tick(_context, (float)elapsed);
-            _battleView.Tick((float)elapsed);
 
+            // Features 现在由 FeatureHost.Tick() 自动管理
+            // _syncFeature.Tick(_context, (float)elapsed);
+            // _inputFeature.Tick(_context, (float)elapsed);
+            // _autoTestInput?.Tick(_context, (float)elapsed);
+            // _hudFeature.Tick(_context, (float)elapsed);
+
+            _battleView.Tick((float)elapsed);
             _syncAdapter?.Tick((float)elapsed);
 
             if (_viewBinder != null)
@@ -479,8 +504,7 @@ namespace AbilityKit.Demo.Moba.Console
         private void CreateEntityForView(int actorId, string name, int characterId, float hp, float maxHp,
             float x, float y, float z, int teamId = 1, float physicsAttack = 10f, float physicsDefense = 0f, float moveSpeed = 5f)
         {
-            var netId = new BattleNetId(actorId);
-            var entity = _context.EntityFactory.CreateCharacter(netId, entityCode: characterId);
+            var entity = _context.EntityFactory.CreateCharacter(actorId, entityCode: characterId);
 
             DispatchActorSpawnEvent(actorId, characterId, name, x, y, z, teamId, hp, maxHp);
             Log.Entity($"Created: #{actorId} {name} (CharId:{characterId}, Team:{teamId})");
@@ -554,17 +578,19 @@ namespace AbilityKit.Demo.Moba.Console
             _disposed = true;
 
             Log.System("Disposing...");
-            _inputHandler?.Dispose();
-            _hudFeature?.OnDetach(_context);
-            _inputFeature?.OnDetach(_context);
-            _syncFeature?.OnDetach(_context);
-            _viewBinder?.Dispose();
 
+            _inputHandler?.Dispose();
+
+            // Features 现在由 FeatureHost 管理，不需要手动 Detach
+            // _hudFeature?.OnDetach(_context);
+            // _inputFeature?.OnDetach(_context);
+            // _syncFeature?.OnDetach(_context);
+
+            _viewBinder?.Dispose();
             _snapshotDispatcher?.Dispose();
             _shareViewEventSink?.Dispose();
             _replayRecorder?.Dispose();
             _replayPlayer?.Dispose();
-
             _syncAdapter?.Dispose();
             _flow?.Dispose();
             _battleView?.Dispose();

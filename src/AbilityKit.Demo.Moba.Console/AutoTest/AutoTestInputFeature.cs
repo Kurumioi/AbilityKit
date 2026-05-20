@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Core.Input;
-using AbilityKit.Demo.Moba.Console.Flow;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Input;
+using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 
 namespace AbilityKit.Demo.Moba.Console.AutoTest

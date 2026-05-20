@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Platform;
-using AbilityKit.Demo.Moba.Console.Flow;
+using AbilityKit.Demo.Moba.Console.Battle.Flow;
 
 namespace AbilityKit.Demo.Moba.Console.AutoTest
 {

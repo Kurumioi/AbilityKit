@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Transport.Moba;
 using AbilityKit.Protocol.Moba.FrameSync;

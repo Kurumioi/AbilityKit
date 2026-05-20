@@ -139,11 +139,11 @@ namespace AbilityKit.Demo.Moba.Console.View
                 _renderer.DrawText(cx - 2, cy, $"[@{area.Radius}]");
             }
 
-            foreach (var kvp in _projectileDisplay.GetAll())
+            foreach (var proj in _projectileDisplay.GetAll())
             {
-                var proj = kvp.Value;
                 var (px, py) = _renderer.WorldToScreen(proj.X, proj.Z);
-                _renderer.DrawText(px, py, "*");
+                var stateChar = proj.State == ProjectileState.Flying ? "*" : (proj.State == ProjectileState.Hit ? "X" : "-");
+                _renderer.DrawText(px, py, stateChar);
             }
 
             foreach (var entity in _entityDisplay.GetAll())
