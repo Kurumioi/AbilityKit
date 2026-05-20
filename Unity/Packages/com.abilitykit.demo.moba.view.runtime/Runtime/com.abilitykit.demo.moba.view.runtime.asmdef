@@ -25,7 +25,8 @@
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Pipeline",
         "AbilityKit.Network.Runtime",
-        "AbilityKit.Protocol.Moba"
+        "AbilityKit.Protocol.Moba",
+        "UnityEngine"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

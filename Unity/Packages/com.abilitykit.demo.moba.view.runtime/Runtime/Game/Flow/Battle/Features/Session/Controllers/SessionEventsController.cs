@@ -17,84 +17,59 @@ namespace AbilityKit.Game.Flow
 
             Exception PendingModuleValidationFailure { get; set; }
 
-            BattleEventBus Events { get; set; }
             BattleSessionHooks Hooks { get; set; }
-        }
-
-        internal interface IBattleSessionEventsProvider
-        {
-            bool TryCreate(out BattleEventBus events, out BattleSessionHooks hooks, out bool owned);
         }
 
         private sealed class SessionEventsController
         {
-            private bool _owned;
+            private bool _hasAttached;
 
-            public void OnAttach(IBattleSessionEventsProvider provider, ISessionEventsHost host)
+            public void OnAttach(ISessionEventsHost host)
             {
                 if (host == null) return;
+                if (_hasAttached) return;
 
-                if (provider != null && provider.TryCreate(out var events, out var hooks, out var owned) && events != null)
-                {
-                    host.Events = events;
-                    host.Hooks = hooks;
-                    _owned = owned;
-                }
-                else
-                {
-                    host.Hooks = new BattleSessionHooks();
-                    host.Events = new BattleEventBus();
-                    _owned = true;
-                }
-
-                host.Events.Subscribe<StartSessionRequested>(_ => host.OnStartSessionRequested());
-
-                host.Events.Subscribe<SessionStartedEvent>(e =>
-                {
-                    host.RaiseSessionStarted(e.Plan);
-                });
-
-                host.Events.Subscribe<SessionFailedEvent>(e =>
-                {
-                    host.RaiseSessionFailed(e.Exception);
-                });
-
-                host.Events.Subscribe<FirstFrameReceivedEvent>(_ =>
-                {
-                    host.RaiseFirstFrameReceived();
-                });
-
-                if (host.Context != null)
-                {
-                    host.Context.Events = host.Events;
-                }
+                host.Hooks ??= new BattleSessionHooks();
 
                 if (host.PendingModuleValidationFailure != null)
                 {
-                    host.Events?.Publish(new SessionFailedEvent(host.PendingModuleValidationFailure));
-                    host.Events?.Flush();
+                    host.RaiseSessionFailed(host.PendingModuleValidationFailure);
                     host.PendingModuleValidationFailure = null;
                 }
+
+                _hasAttached = true;
             }
 
             public void OnDetach(ISessionEventsHost host)
             {
                 if (host == null) return;
 
-                if (host.Context != null)
-                {
-                    host.Context.Events = null;
-                }
-
-                if (_owned)
-                {
-                    host.Events?.Dispose();
-                }
-
-                host.Events = null;
                 host.Hooks = null;
+                _hasAttached = false;
+            }
 
-                _owned = false;
+            public void RequestStartSession(ISessionEventsHost host)
+            {
+                if (host == null) return;
+                host.OnStartSessionRequested();
+            }
+
+            public void NotifySessionStarted(ISessionEventsHost host, BattleStartPlan plan)
+            {
+                if (host == null) return;
+                host.RaiseSessionStarted(plan);
+            }
+
+            public void NotifySessionFailed(ISessionEventsHost host, Exception exception)
+            {
+                if (host == null) return;
+                host.RaiseSessionFailed(exception);
+            }
+
+            public void NotifyFirstFrameReceived(ISessionEventsHost host)
+            {
+                if (host == null) return;
+                host.RaiseFirstFrameReceived();
             }
         }
     }

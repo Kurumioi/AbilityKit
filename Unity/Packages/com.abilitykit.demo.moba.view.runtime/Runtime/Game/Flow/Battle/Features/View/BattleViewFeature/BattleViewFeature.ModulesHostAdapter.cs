@@ -9,7 +9,6 @@ namespace AbilityKit.Game.Flow
     {
         BattleContext IViewFeatureModulesHost.Context => _ctx;
         BattleViewBinder IViewFeatureModulesHost.Binder => _binder;
-        BattleEventBus IViewFeatureModulesHost.Events => _events;
         bool IViewFeatureModulesHost.IsConfirmed => false;
         WorldId IViewFeatureModulesHost.WorldId => _ctx != null ? _ctx.RuntimeWorldId : default;
 

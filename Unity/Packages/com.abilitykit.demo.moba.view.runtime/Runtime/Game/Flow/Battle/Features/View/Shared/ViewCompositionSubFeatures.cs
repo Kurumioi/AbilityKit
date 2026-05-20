@@ -12,7 +12,6 @@ namespace AbilityKit.Game.Flow
                 if (f == null) return;
 
                 f._query = f._ctx != null ? f._ctx.EntityQuery : null;
-                f._events = f._ctx != null ? f._ctx.Events : null;
             }
 
             public void OnDetach(in FeatureModuleContext<BattleViewFeature> ctx)
@@ -20,7 +19,6 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                f._events = null;
                 f._query = null;
             }
 
@@ -40,7 +38,6 @@ namespace AbilityKit.Game.Flow
                 if (f == null) return;
 
                 f._query = f._confirmedCtx != null ? f._confirmedCtx.EntityQuery : null;
-                f._events = f._confirmedCtx != null ? f._confirmedCtx.Events : null;
             }
 
             public void OnDetach(in FeatureModuleContext<ConfirmedBattleViewFeature> ctx)
@@ -48,7 +45,6 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                f._events = null;
                 f._query = null;
             }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
 using AbilityKit.World.ECS;
@@ -7,9 +7,9 @@ using AbilityKit.Core.Common.Log;
 using AbilityKit.Game;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 using UnityHFSM;
 using static AbilityKit.Game.Flow.GameFlowDomain;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
@@ -198,6 +198,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI()
         {
+#if UNITY_EDITOR
             for (int i = 0; i < _features.Count; i++)
             {
                 if (_features[i] is IOnGUIFeature gui)
@@ -207,8 +208,6 @@ namespace AbilityKit.Game.Flow
             }
 
             if (!_entry.DebugEnabled) return;
-
-            return;
 
             if (_activeRoot == RootState.Battle && _activeBattle == BattleState.InMatch)
             {
@@ -238,6 +237,7 @@ namespace AbilityKit.Game.Flow
             }
 
             GUILayout.EndArea();
+#endif
         }
 
         public void SwitchTo(IGamePhase next)
@@ -335,6 +335,7 @@ namespace AbilityKit.Game.Flow
             fsm.AddState(BattleState.Prepare, onEnter: _ =>
             {
                 _activeRoot = RootState.Battle;
+                Log.Info("[GameFlowDomain] BattleState.Prepare entered");
                 ClearFeatures();
 
                 _battleSessionStarted = false;
@@ -348,17 +349,20 @@ namespace AbilityKit.Game.Flow
                 _battleSessionFeature.FirstFrameReceived += OnBattleFirstFrameReceived;
                 _battleSessionFeature.SessionFailed += OnBattleSessionFailed;
                 Attach(_battleSessionFeature);
-
-                Attach(new BattleDebugOnGUIFeature());
             });
 
             fsm.AddState(BattleState.Connect, onEnter: _ =>
             {
                 _activeRoot = RootState.Battle;
+                Log.Info("[GameFlowDomain] BattleState.Connect entered");
 
                 Attach(new BattleDebugOnGUIFeature());
 
                 if (_battleSessionStarted)
+                {
+                    fsm.Trigger(BattleEvent.Connected);
+                }
+                else if (_battleFirstFrameReceived)
                 {
                     fsm.Trigger(BattleEvent.Connected);
                 }
@@ -367,6 +371,7 @@ namespace AbilityKit.Game.Flow
             fsm.AddState(BattleState.CreateOrJoinWorld, onEnter: _ =>
             {
                 _activeRoot = RootState.Battle;
+                Log.Info("[GameFlowDomain] BattleState.CreateOrJoinWorld entered");
 
                 Attach(new BattleDebugOnGUIFeature());
 
@@ -379,8 +384,8 @@ namespace AbilityKit.Game.Flow
             fsm.AddState(BattleState.LoadAssets, onEnter: _ =>
             {
                 _activeRoot = RootState.Battle;
+                Log.Info("[GameFlowDomain] BattleState.LoadAssets entered");
 
-                // Waiting for BattleSessionFeature.FirstFrameReceived
                 Attach(new BattleDebugOnGUIFeature());
 
                 if (_battleFirstFrameReceived)
@@ -392,8 +397,8 @@ namespace AbilityKit.Game.Flow
             fsm.AddState(BattleState.InMatch, onEnter: _ =>
             {
                 _activeRoot = RootState.Battle;
+                Log.Info("[GameFlowDomain] BattleState.InMatch entered");
 
-                // Core battle features (context + session) already attached in Prepare.
                 Attach(new BattleSyncFeature());
                 Attach(new BattleInputFeature());
                 Attach(new BattleViewFeature());
@@ -426,6 +431,7 @@ namespace AbilityKit.Game.Flow
         private void OnBattleSessionStarted()
         {
             _battleSessionStarted = true;
+            Log.Info($"[GameFlowDomain] SessionStarted, activeBattle={_activeBattle}");
             if (_battleFsm == null) return;
 
             if (_activeBattle == BattleState.Prepare)
@@ -441,9 +447,18 @@ namespace AbilityKit.Game.Flow
         private void OnBattleFirstFrameReceived()
         {
             _battleFirstFrameReceived = true;
+            Log.Info($"[GameFlowDomain] FirstFrameReceived, activeBattle={_activeBattle}");
             if (_battleFsm == null) return;
 
-            if (_activeBattle == BattleState.CreateOrJoinWorld)
+            if (_activeBattle == BattleState.Prepare)
+            {
+                _battleFsm.Trigger(BattleEvent.PrepareDone);
+            }
+            else if (_activeBattle == BattleState.Connect)
+            {
+                _battleFsm.Trigger(BattleEvent.Connected);
+            }
+            else if (_activeBattle == BattleState.CreateOrJoinWorld)
             {
                 _battleFsm.Trigger(BattleEvent.JoinedWorld);
             }
@@ -455,7 +470,7 @@ namespace AbilityKit.Game.Flow
 
         private void OnBattleSessionFailed(Exception ex)
         {
-            Log.Exception(ex, "[GameFlowDomain] Battle session failed");
+            Log.Exception(ex, "[GameFlowDomain] Session failed");
             if (_battleFsm == null) return;
 
             if (_activeBattle != BattleState.End)
@@ -547,6 +562,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI(in GamePhaseContext ctx)
         {
+#if UNITY_EDITOR
             if (!_show) return;
             if (!ctx.Entry.DebugEnabled) return;
 
@@ -563,6 +579,7 @@ namespace AbilityKit.Game.Flow
             }
 
             GUILayout.EndArea();
+#endif
         }
     }
 }

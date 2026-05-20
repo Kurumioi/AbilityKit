@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using AbilityKit.Ability.Host.Hooks;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.Modules
@@ -79,6 +81,37 @@ namespace AbilityKit.Game.Flow.Battle.Modules
 
         public readonly Hook SessionStarting = new Hook();
         public readonly Hook SessionStopping = new Hook();
+
+        public readonly Hook<ViewBinderReadyEvent> ViewBinderReady = new Hook<ViewBinderReadyEvent>();
+        public readonly Hook<ViewsReboundEvent> ViewsRebound = new Hook<ViewsReboundEvent>();
+        public readonly Hook<ViewFrameAlignedEvent> ViewFrameAligned = new Hook<ViewFrameAlignedEvent>();
+    }
+
+    public sealed class InterceptHook<T>
+    {
+        private readonly List<Func<T, bool>> _handlers = new List<Func<T, bool>>(4);
+
+        public void Add(Func<T, bool> handler)
+        {
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
+            _handlers.Add(handler);
+        }
+
+        public bool Remove(Func<T, bool> handler)
+        {
+            if (handler == null) return false;
+            return _handlers.Remove(handler);
+        }
+
+        public bool Invoke(T arg)
+        {
+            for (int i = 0; i < _handlers.Count; i++)
+            {
+                if (_handlers[i]?.Invoke(arg) == true) return true;
+            }
+
+            return false;
+        }
     }
 
     public readonly struct PlanBuiltEvent

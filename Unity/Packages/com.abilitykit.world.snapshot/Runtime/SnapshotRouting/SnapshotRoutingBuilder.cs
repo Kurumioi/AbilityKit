@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Core.Common.SnapshotRouting
@@ -21,6 +21,54 @@ namespace AbilityKit.Core.Common.SnapshotRouting
             }
 
             return new SnapshotRoutingInstance(snapshots, pipeline, cmdHandler);
+        }
+
+        public static SnapshotRoutingInstance Build(object ctx, ISnapshotDispatcher externalDispatcher, IEnumerable<ISnapshotRegistry> registries)
+        {
+            if (externalDispatcher == null) throw new ArgumentNullException(nameof(externalDispatcher));
+
+            var pipeline = new SnapshotPipeline(ctx, externalDispatcher);
+            var cmdHandler = new SnapshotCmdHandler(ctx, externalDispatcher);
+
+            if (registries != null)
+            {
+                foreach (var reg in registries)
+                {
+                    if (reg == null) continue;
+                    reg.RegisterAll(externalDispatcher, pipeline, pipeline, cmdHandler);
+                }
+            }
+
+            return new SnapshotRoutingInstance(externalDispatcher, pipeline, cmdHandler);
+        }
+
+        public static SnapshotRoutingInstance Build(
+            object ctx,
+            ISnapshotDispatcher externalDispatcher,
+            IEnumerable<ISnapshotRegistry> registries,
+            ISet<string> enabledRegistryIds)
+        {
+            if (externalDispatcher == null) throw new ArgumentNullException(nameof(externalDispatcher));
+
+            var pipeline = new SnapshotPipeline(ctx, externalDispatcher);
+            var cmdHandler = new SnapshotCmdHandler(ctx, externalDispatcher);
+
+            if (registries != null)
+            {
+                foreach (var reg in registries)
+                {
+                    if (reg == null) continue;
+
+                    if (enabledRegistryIds != null && reg is IIdentifiedSnapshotRegistry identified)
+                    {
+                        if (!enabledRegistryIds.Contains(identified.RegistryId)) continue;
+                    }
+
+                    reg.RegisterAll(externalDispatcher, pipeline, pipeline, cmdHandler);
+                }
+            }
+
+            return new SnapshotRoutingInstance(externalDispatcher, pipeline, cmdHandler);
         }
 
         public static SnapshotRoutingInstance Build(object ctx, SnapshotRegistryCatalog catalog)

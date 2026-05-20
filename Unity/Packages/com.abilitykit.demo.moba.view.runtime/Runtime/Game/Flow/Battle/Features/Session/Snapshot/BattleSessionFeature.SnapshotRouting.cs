@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.SnapshotRouting;
 
@@ -22,11 +22,14 @@ namespace AbilityKit.Game.Flow
                 enabledRegistryIds = new HashSet<string>(_plan.EnabledSnapshotRegistryIds, StringComparer.Ordinal);
             }
 
-            _routing = enabledRegistryIds == null
-                ? SnapshotRoutingBuilder.Build(_ctx, catalog)
-                : SnapshotRoutingBuilder.Build(_ctx, catalog, enabledRegistryIds);
+            // Use the standard FrameSnapshotDispatcher, subscribed directly to BattleLogicSession.FrameReceived
+            _snapshots = new AbilityKit.Core.Common.SnapshotRouting.FrameSnapshotDispatcher();
+            _session.FrameReceived += OnSessionFrameReceived;
 
-            _snapshots = _routing.Snapshots;
+            _routing = enabledRegistryIds == null
+                ? SnapshotRoutingBuilder.Build(_ctx, _snapshots, catalog.Registries)
+                : SnapshotRoutingBuilder.Build(_ctx, _snapshots, catalog.Registries, enabledRegistryIds);
+
             _pipeline = _routing.Pipeline;
             _cmdHandler = _routing.CmdHandler;
 
@@ -43,6 +46,8 @@ namespace AbilityKit.Game.Flow
 
         private void DisposeSnapshotRouting()
         {
+            _session.FrameReceived -= OnSessionFrameReceived;
+
             _routing?.Dispose();
             _routing = null;
 
@@ -58,6 +63,11 @@ namespace AbilityKit.Game.Flow
             _cmdHandler = null;
             _pipeline = null;
             _snapshots = null;
+        }
+
+        private void OnSessionFrameReceived(AbilityKit.Ability.Host.FramePacket packet)
+        {
+            _snapshots.Feed(packet);
         }
     }
 }

@@ -437,7 +437,6 @@ namespace AbilityKit.Game.Flow
 
         private void OnInfoClick()
         {
-            Debug.Log("BattleHud: Info clicked");
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)

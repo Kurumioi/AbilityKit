@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
@@ -26,7 +26,6 @@ namespace AbilityKit.Game.Flow
                     bootstrapper: f._bootstrapper,
                     state: f._state,
                     handles: f._handles,
-                    events: f.Events,
                     hooks: f.Hooks,
                     ctx: f._ctx);
             }

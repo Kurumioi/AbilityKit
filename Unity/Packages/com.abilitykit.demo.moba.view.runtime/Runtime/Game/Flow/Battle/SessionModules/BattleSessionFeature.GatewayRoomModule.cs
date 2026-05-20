@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Flow.Battle.Modules;
@@ -21,14 +21,15 @@ namespace AbilityKit.Game.Flow
         private sealed class GatewayRoomModule : IBattleSessionModule, IBattleSessionModuleId, IBattleSessionModuleDependencies
         {
             private readonly IGatewayRoomModuleHost _host;
+            private readonly SessionEventsController _sessionEventsController;
 
-            private IDisposable _planBuiltSub;
+            private Func<BattleStartPlan, bool> _planBuiltHandler;
+            private bool _sessionRequested;
 
-            private BattleEventBus _events;
-
-            public GatewayRoomModule(IGatewayRoomModuleHost host)
+            public GatewayRoomModule(IGatewayRoomModuleHost host, SessionEventsController sessionEventsController)
             {
                 _host = host;
+                _sessionEventsController = sessionEventsController;
             }
 
             public string Id => "gateway_room";
@@ -37,22 +38,23 @@ namespace AbilityKit.Game.Flow
 
             public void OnAttach(in BattleSessionModuleContext ctx)
             {
-                _events = ctx.Events;
-
-                _planBuiltSub = ctx.Events?.SubscribeIntercept<PlanBuiltEvent>(_ =>
+                _planBuiltHandler = plan =>
                 {
                     if (_host == null || !_host.ShouldPrepareGatewayRoom()) return false;
                     _host.StartGatewayRoomPreparation();
-                    return true;
-                });
+                    return false;
+                };
+
+                ctx.Hooks?.PlanBuilt.Add(_planBuiltHandler);
             }
 
             public void OnDetach(in BattleSessionModuleContext ctx)
             {
-                _planBuiltSub?.Dispose();
-                _planBuiltSub = null;
-
-                _events = null;
+                if (_planBuiltHandler != null)
+                {
+                    ctx.Hooks?.PlanBuilt.Remove(_planBuiltHandler);
+                }
+                _planBuiltHandler = null;
 
                 _host?.StopGatewayRoomPreparation();
             }
@@ -76,13 +78,17 @@ namespace AbilityKit.Game.Flow
                     var wrapped = new InvalidOperationException("Gateway room preparation failed.", ex);
                     Log.Exception(wrapped, "[BattleSessionFeature] Gateway room preparation failed");
                     _host.StopGatewayRoomPreparation();
-                    _events?.Publish(new SessionFailedEvent(wrapped));
+                    _sessionEventsController?.NotifySessionFailed(ctx.Host as ISessionEventsHost, wrapped);
                     return;
                 }
 
                 _host.StopGatewayRoomPreparation();
 
-                _events?.Publish(new StartSessionRequested());
+                if (!_sessionRequested)
+                {
+                    _sessionRequested = true;
+                    _sessionEventsController?.RequestStartSession(ctx.Host as ISessionEventsHost);
+                }
             }
         }
     }

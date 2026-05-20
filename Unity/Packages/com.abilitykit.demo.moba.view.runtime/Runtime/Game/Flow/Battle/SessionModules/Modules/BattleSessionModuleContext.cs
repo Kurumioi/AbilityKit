@@ -4,7 +4,6 @@ namespace AbilityKit.Game.Flow.Battle.Modules
 {
     public interface IBattleSessionModuleHost
     {
-        BattleEventBus Events { get; }
         BattleSessionHooks Hooks { get; }
 
         BattleLogicSession Session { get; }
@@ -17,14 +16,12 @@ namespace AbilityKit.Game.Flow.Battle.Modules
         public readonly GamePhaseContext Phase;
         public readonly IBattleSessionModuleHost Host;
 
-        public BattleEventBus Events { get; }
         public BattleSessionHooks Hooks { get; }
 
         public BattleSessionModuleContext(in GamePhaseContext phase, IBattleSessionModuleHost host)
         {
             Phase = phase;
             Host = host;
-            Events = host != null ? host.Events : null;
             Hooks = host != null ? host.Hooks : null;
         }
 

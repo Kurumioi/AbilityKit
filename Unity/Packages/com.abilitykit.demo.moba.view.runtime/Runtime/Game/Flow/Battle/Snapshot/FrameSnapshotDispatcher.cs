@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
@@ -7,7 +7,7 @@ using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Flow.Snapshot
 {
-    public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegistry
+    public sealed class FrameSnapshotDispatcher : ISnapshotDispatcher
     {
         private readonly BattleLogicSession _session;
         private readonly Dictionary<int, IRoute> _routes = new Dictionary<int, IRoute>();
@@ -108,11 +108,17 @@ namespace AbilityKit.Game.Flow.Snapshot
             if (!envelope.Snapshot.HasValue) return;
             var snap = envelope.Snapshot.Value;
 
+            Log.Info($"[FrameSnapshotDispatcher] Received OpCode: {snap.OpCode}");
+
             SnapshotReceived?.Invoke(envelope, snap);
 
             if (_routes.TryGetValue(snap.OpCode, out var route) && route != null)
             {
                 route.Dispatch(envelope, in snap);
+            }
+            else
+            {
+                Log.Warning($"[FrameSnapshotDispatcher] No route for OpCode: {snap.OpCode}");
             }
         }
 

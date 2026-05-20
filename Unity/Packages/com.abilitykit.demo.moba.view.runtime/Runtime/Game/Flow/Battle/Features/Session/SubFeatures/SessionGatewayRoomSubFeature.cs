@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
@@ -13,9 +13,8 @@ namespace AbilityKit.Game.Flow
             IGameModuleId,
             IGameModuleDependencies
         {
-            private IDisposable _planBuiltSub;
-
-            private BattleEventBus _events;
+            private Func<BattleStartPlan, bool> _planBuiltHandler;
+            private bool _sessionRequested;
 
             public string Id => "gateway_room";
 
@@ -26,24 +25,25 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                _events = f.Events;
-
-                _planBuiltSub = _events?.SubscribeIntercept<PlanBuiltEvent>(_ =>
+                _planBuiltHandler = plan =>
                 {
                     if (!f.ShouldPrepareGatewayRoom()) return false;
                     f.StartGatewayRoomPreparation();
-                    return true;
-                });
+                    return false;
+                };
+
+                f.Hooks?.PlanBuilt.Add(_planBuiltHandler);
             }
 
             public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
             {
-                _planBuiltSub?.Dispose();
-                _planBuiltSub = null;
-
-                _events = null;
-
                 var f = ctx.Feature;
+                if (_planBuiltHandler != null && f != null)
+                {
+                    f.Hooks?.PlanBuilt.Remove(_planBuiltHandler);
+                }
+                _planBuiltHandler = null;
+
                 f?.StopGatewayRoomPreparation();
             }
 
@@ -64,13 +64,18 @@ namespace AbilityKit.Game.Flow
                     var wrapped = new InvalidOperationException("Gateway room preparation failed.", ex);
                     Log.Exception(wrapped, "[BattleSessionFeature] Gateway room preparation failed");
                     f.StopGatewayRoomPreparation();
-                    _events?.Publish(new SessionFailedEvent(wrapped));
+                    f.Hooks?.SessionFailed.Invoke(wrapped);
                     return;
                 }
 
                 f.StopGatewayRoomPreparation();
 
-                _events?.Publish(new StartSessionRequested());
+                if (!_sessionRequested)
+                {
+                    _sessionRequested = true;
+                    f.Hooks?.SessionStarting.Invoke();
+                    f.OnStartSessionRequested();
+                }
             }
 
             public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }

@@ -115,6 +115,14 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         /// <summary>
+        /// 分发角色生成事件
+        /// </summary>
+        public void DispatchActorSpawn(int frameIndex, in ActorSpawnData[] data)
+        {
+            Dispatch(frameIndex, (int)MobaOpCode.ActorSpawnSnapshot, data);
+        }
+
+        /// <summary>
         /// 分发快照数据
         /// </summary>
         /// <typeparam name="T">数据类型</typeparam>
@@ -222,15 +230,18 @@ namespace AbilityKit.Demo.Moba.Share
 
     /// <summary>
     /// MOBA 操作码
+    /// 注意：这些值必须与 Runtime 层的 AbilityKit.Demo.Moba.Services.MobaOpCode 保持一致
     /// </summary>
     public static class MobaOpCode
     {
-        public const int EnterGameSnapshot = 1001;
-        public const int ActorTransformSnapshot = 1002;
-        public const int ProjectileEventSnapshot = 1003;
-        public const int AreaEventSnapshot = 1004;
-        public const int DamageEventSnapshot = 1005;
-        public const int StateHashSnapshot = 1006;
+        public const int EnterGameSnapshot = 4002;
+        public const int ActorTransformSnapshot = 4003;
+        public const int StateHashSnapshot = 4004;
+        public const int ActorSpawnSnapshot = 4005;
+        public const int ProjectileEventSnapshot = 4006;
+        public const int DamageEventSnapshot = 4007;
+        public const int ActorDespawnSnapshot = 4008;
+        public const int AreaEventSnapshot = 4009;
         public const int SkillCastSnapshot = 2001;
         public const int SkillHitSnapshot = 2002;
         public const int UnitDeathSnapshot = 3001;

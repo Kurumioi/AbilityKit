@@ -3,6 +3,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Modules;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
@@ -10,7 +11,6 @@ namespace AbilityKit.Game.Flow
     {
         BattleContext Context { get; }
         BattleViewBinder Binder { get; }
-        BattleEventBus Events { get; }
 
         bool IsConfirmed { get; }
         WorldId WorldId { get; }
@@ -50,6 +50,7 @@ namespace AbilityKit.Game.Flow
             var f = ctx.Feature;
             if (f?.Context?.DirtyEntities == null) return;
             if (f.Context.DirtyEntities.Count == 0) return;
+
             f.RefreshDirtyViews();
         }
 
@@ -64,44 +65,54 @@ namespace AbilityKit.Game.Flow
     internal sealed class SharedTimelineModule<TFeature> : IViewFeatureModule<TFeature>
         where TFeature : class, IViewFeatureModulesHost
     {
-        private IDisposable _readySub;
-        private IDisposable _reboundSub;
+        private Action<ViewBinderReadyEvent> _onReadyHandler;
+        private Action<ViewsReboundEvent> _onReboundHandler;
 
         private int _lastSeenFrame = int.MinValue;
 
         public void OnAttach(in FeatureModuleContext<TFeature> ctx)
         {
             var f = ctx.Feature;
-            var events = f?.Events;
+            var hooks = f?.Context?.Hooks;
 
             _lastSeenFrame = int.MinValue;
 
-            _readySub = events?.Subscribe<ViewBinderReadyEvent>(e =>
+            _onReadyHandler = e =>
             {
                 if (f == null) return;
                 if (e.IsConfirmed != f.IsConfirmed) return;
                 if (!WorldId.Equals(e.WorldId, f.WorldId)) return;
                 f.RegisterAllSeekables();
                 f.SeekAllToCurrentFrame();
-            });
+            };
 
-            _reboundSub = events?.Subscribe<ViewsReboundEvent>(e =>
+            _onReboundHandler = e =>
             {
                 if (f == null) return;
                 if (e.IsConfirmed != f.IsConfirmed) return;
                 if (!WorldId.Equals(e.WorldId, f.WorldId)) return;
                 f.RegisterAllSeekables();
                 f.SeekAllToCurrentFrame();
-            });
+            };
+
+            hooks?.ViewBinderReady.Add(_onReadyHandler);
+            hooks?.ViewsRebound.Add(_onReboundHandler);
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)
         {
-            _readySub?.Dispose();
-            _readySub = null;
+            var hooks = ctx.Feature?.Context?.Hooks;
+            if (_onReadyHandler != null && hooks != null)
+            {
+                hooks.ViewBinderReady.Remove(_onReadyHandler);
+            }
+            if (_onReboundHandler != null && hooks != null)
+            {
+                hooks.ViewsRebound.Remove(_onReboundHandler);
+            }
 
-            _reboundSub?.Dispose();
-            _reboundSub = null;
+            _onReadyHandler = null;
+            _onReboundHandler = null;
         }
 
         public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)

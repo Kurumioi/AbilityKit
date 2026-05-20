@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Transport.Moba;
 using AbilityKit.Protocol.Moba.FrameSync;
 using EC = AbilityKit.World.ECS;
@@ -33,7 +34,7 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
 
     private NetworkConfig _networkConfig = new();
 
-    public SyncMode Mode => SyncMode.StateSync;
+    public SyncMode Mode => SyncMode.SnapshotAuthority;
     public bool IsConnected => _connected && (_gatewayClient?.IsConnected ?? false);
     public int CurrentFrame => _currentFrame;
     public double LogicTimeSeconds => _logicTimeSeconds;

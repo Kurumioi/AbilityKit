@@ -1,4 +1,4 @@
-﻿using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Pool;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Core.Common.SnapshotRouting;
@@ -26,9 +26,9 @@ namespace AbilityKit.Game.Flow
         public int LastFrame;
         public double LogicTimeSeconds;
 
-        public BattleEventBus Events;
-
         public int LocalActorId;
+
+        public BattleSessionHooks Hooks;
 
         public FrameSnapshotDispatcher FrameSnapshots;
         public SnapshotPipeline SnapshotPipeline;
@@ -96,9 +96,9 @@ namespace AbilityKit.Game.Flow
             LastFrame = 0;
             LogicTimeSeconds = 0d;
 
-            Events = null;
-
             LocalActorId = 0;
+
+            Hooks = null;
 
             FrameSnapshots = null;
             SnapshotPipeline = null;
@@ -149,9 +149,9 @@ namespace AbilityKit.Game.Flow
             LastFrame = 0;
             LogicTimeSeconds = 0d;
 
-            Events = null;
-
             LocalActorId = 0;
+
+            Hooks = null;
 
             FrameSnapshots = null;
             SnapshotPipeline = null;

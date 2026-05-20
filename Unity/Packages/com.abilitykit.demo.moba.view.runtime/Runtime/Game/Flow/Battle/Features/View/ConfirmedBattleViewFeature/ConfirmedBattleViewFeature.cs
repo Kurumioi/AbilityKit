@@ -36,8 +36,6 @@ namespace AbilityKit.Game.Flow
 
         private BattleTriggerEventViewAdapter _triggerAdapter;
 
-        private BattleEventBus _events;
-
         public ConfirmedBattleViewFeature(BattleContext confirmedCtx)
         {
             _confirmedCtx = confirmedCtx;

@@ -1,3 +1,4 @@
+using UnityEngine;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Modules;
 
@@ -10,7 +11,10 @@ namespace AbilityKit.Game.Flow
             public void OnAttach(in FeatureModuleContext<BattleViewFeature> ctx)
             {
                 var f = ctx.Feature;
-                if (f == null) return;
+                if (f == null)
+                {
+                    return;
+                }
 
                 f._eventSink = new BattleViewEventSink(
                     f._ctx,

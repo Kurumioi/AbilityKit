@@ -1,31 +1,8 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Share;
-using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
-
-/// <summary>
-/// 战斗同步模式（已废弃，使用 Share.SyncMode）
-/// </summary>
-[Obsolete("使用 AbilityKit.Demo.Moba.Share.SyncMode 替代")]
-public enum SyncMode
-{
-    /// <summary>
-    /// 帧同步 - 本地运行逻辑，客户端之间同步输入
-    /// </summary>
-    Lockstep = 0,
-
-    /// <summary>
-    /// 状态同步 - 服务器运行逻辑，客户端接收状态快照
-    /// </summary>
-    StateSync = 1,
-
-    /// <summary>
-    /// 混合模式 - 帧同步 + 客户端预测 + 回滚
-    /// </summary>
-    Hybrid = 2
-}
 
 /// <summary>
 /// 战斗同步适配器接口

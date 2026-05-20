@@ -2,9 +2,7 @@ using System;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Core.Input;
 using AbilityKit.Demo.Moba.Console.Battle;
-using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.View;
-using AbilityKit.Demo.Moba.Console.Events;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
@@ -34,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         /// <summary>
         /// 注入服务依赖
         /// </summary>
-        public void InjectServices(ViewActorRepository viewActorRepository, IConsoleBattleView battleView)
+        public void InjectServices(IConsoleBattleView battleView)
         {
             _hudFeature.SetBattleView(battleView);
         }

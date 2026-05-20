@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 
@@ -11,7 +11,7 @@ namespace AbilityKit.Core.Common.SnapshotRouting
     /// - This type is transport/session agnostic. Call <see cref="Feed"/> to push envelopes into it.
     /// - Decoding is registered per opCode, and handlers subscribe to typed payloads.
     /// </summary>
-    public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegistry
+    public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegistry, ISnapshotDispatcher
     {
         private readonly Dictionary<int, IRoute> _routes = new Dictionary<int, IRoute>();
 

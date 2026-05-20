@@ -16,9 +16,9 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
     /// - ❌ 不持有 UI 引用
     ///
     /// 数据来源：
-    /// - 由 SimulatedBattleSession 初始化和管理
-    /// - 伤害计算后由 SimulatedBattleSession 更新
-    /// - 移动处理后由 SimulatedBattleSession 更新
+    /// - 由 ConsoleLogicHub 初始化和管理
+    /// - 伤害计算后由 ConsoleLogicHub 更新
+    /// - 移动处理后由 ConsoleLogicHub 更新
     /// </summary>
     public sealed class ConsoleActorRepository
     {

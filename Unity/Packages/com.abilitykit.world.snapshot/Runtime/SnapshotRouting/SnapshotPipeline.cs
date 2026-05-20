@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 
@@ -12,10 +12,17 @@ namespace AbilityKit.Core.Common.SnapshotRouting
     public sealed class SnapshotPipeline : IDisposable, ISnapshotDecoderRegistry, ISnapshotPipelineStageRegistry
     {
         private readonly object _ctx;
-        private readonly FrameSnapshotDispatcher _dispatcher;
+        private readonly ISnapshotDispatcher _dispatcher;
         private readonly Dictionary<int, IRoute> _routes = new Dictionary<int, IRoute>();
 
         public SnapshotPipeline(object ctx, FrameSnapshotDispatcher dispatcher)
+        {
+            _ctx = ctx;
+            _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+            _dispatcher.SnapshotReceived += OnSnapshot;
+        }
+
+        public SnapshotPipeline(object ctx, ISnapshotDispatcher dispatcher)
         {
             _ctx = ctx;
             _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));

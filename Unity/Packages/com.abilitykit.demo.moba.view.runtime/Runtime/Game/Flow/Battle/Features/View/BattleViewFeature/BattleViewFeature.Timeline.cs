@@ -1,4 +1,4 @@
-﻿using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Battle.View;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
@@ -57,8 +57,7 @@ namespace AbilityKit.Game.Flow
             _lastAlignedFrame = frame;
 
             var worldId = _ctx.RuntimeWorldId;
-            _events?.Publish(new ViewFrameAlignedEvent(isConfirmed: false, worldId: worldId, frame: frame));
-            _events?.Flush();
+            _ctx?.Hooks?.ViewFrameAligned.Invoke(new ViewFrameAlignedEvent(isConfirmed: false, worldId: worldId, frame: frame));
         }
     }
 }

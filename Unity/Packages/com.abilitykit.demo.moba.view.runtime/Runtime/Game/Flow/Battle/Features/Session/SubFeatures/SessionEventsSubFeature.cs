@@ -20,12 +20,7 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                IBattleSessionEventsProvider provider = null;
-                if (ctx.Phase.Entry != null)
-                {
-                    ctx.Phase.Entry.TryGet(out provider);
-                }
-                f._eventsCtrl.OnAttach(provider, (ISessionEventsHost)f);
+                f._eventsCtrl.OnAttach((ISessionEventsHost)f);
             }
 
             public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)

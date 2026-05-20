@@ -38,7 +38,5 @@ namespace AbilityKit.Game.Flow
         private BattleSnapshotViewAdapter _snapshotAdapter;
 
         private BattleTriggerEventViewAdapter _triggerAdapter;
-
-        private BattleEventBus _events;
     }
 }

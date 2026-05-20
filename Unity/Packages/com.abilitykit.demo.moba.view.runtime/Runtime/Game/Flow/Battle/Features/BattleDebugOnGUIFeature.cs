@@ -37,6 +37,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI(in GamePhaseContext ctx)
         {
+#if UNITY_EDITOR
             if (!ctx.Entry.DebugEnabled) return;
 
             var flowDomain = ctx.Entry.Get<GameFlowDomain>();
@@ -64,6 +65,7 @@ namespace AbilityKit.Game.Flow
                 }
             }
             GUILayout.EndArea();
+#endif
         }
     }
 }

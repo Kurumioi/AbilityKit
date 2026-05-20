@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             try
             {
-                _bootstrapper = new ConsoleBattleBootstrapper(_recordConfig);
+                _bootstrapper = new ConsoleBattleBootstrapper(null, null, null, _recordConfig);
                 _bootstrapper.Initialize();
                 _bootstrapper.Start();
                 _bootstrapper.SetupBattle();

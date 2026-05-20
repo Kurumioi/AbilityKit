@@ -27,19 +27,9 @@ namespace AbilityKit.Demo.Moba.Console.View
     }
 
     /// <summary>
-    /// 战斗视图服务接口
-    /// </summary>
-    public interface BattleViewServices
-    {
-        void ShowDamage(int actorId, float hp, float hpMax);
-        void ShowSkillEffect(int actorId, int skillId);
-        void ShowDeath(int actorId, int killerActorId);
-    }
-
-    /// <summary>
     /// Console 战斗视图
     /// </summary>
-    public sealed class ConsoleBattleView : IConsoleBattleView, BattleViewServices
+    public sealed class ConsoleBattleView : IConsoleBattleView
     {
         private readonly ConsoleEntityDisplayService _entityDisplay;
         private readonly ConsoleFloatingTextSystem _floatingTexts;
@@ -65,28 +55,7 @@ namespace AbilityKit.Demo.Moba.Console.View
 
         public ConsoleEntityDisplayService EntityDisplay => _entityDisplay;
 
-        #region BattleViewServices 实现
-
-        void BattleViewServices.ShowDamage(int actorId, float hp, float hpMax)
-        {
-            UpdateEntityHp(actorId, hp, hpMax);
-        }
-
-        void BattleViewServices.ShowSkillEffect(int actorId, int skillId)
-        {
-            Log.Skill($"[View] Actor #{actorId} skill effect {skillId}");
-        }
-
-        void BattleViewServices.ShowDeath(int actorId, int killerActorId)
-        {
-            ShowFloatingText(actorId, "DIED!", false);
-            _entityDisplay.Remove(actorId);
-            Log.Battle($"[View] Actor #{actorId} died, killed by #{killerActorId}");
-        }
-
-        #endregion
-
-        #region IConsoleBattleView 实现
+        #region 视图方法
 
         public void OnGameStart(int playerCount)
         {
@@ -163,7 +132,6 @@ namespace AbilityKit.Demo.Moba.Console.View
         {
             _renderer.Clear();
 
-            // 渲染区域效果
             foreach (var kvp in _areaViews.GetAll())
             {
                 var area = kvp.Value;
@@ -171,7 +139,6 @@ namespace AbilityKit.Demo.Moba.Console.View
                 _renderer.DrawText(cx - 2, cy, $"[@{area.Radius}]");
             }
 
-            // 渲染弹道
             foreach (var kvp in _projectileDisplay.GetAll())
             {
                 var proj = kvp.Value;
@@ -179,16 +146,13 @@ namespace AbilityKit.Demo.Moba.Console.View
                 _renderer.DrawText(px, py, "*");
             }
 
-            // 渲染实体
             foreach (var entity in _entityDisplay.GetAll())
             {
                 var (px, py) = _renderer.WorldToScreen(entity.X, entity.Z);
 
-                // 绘制血条
                 _renderer.DrawText(px, py - 1, entity.Name);
                 _renderer.DrawText(px, py, entity.IsDead ? "X" : "O");
 
-                // 绘制 HP 条（简化）
                 if (!entity.IsDead)
                 {
                     var hpWidth = (int)(entity.HpPercent * 10);
@@ -197,7 +161,6 @@ namespace AbilityKit.Demo.Moba.Console.View
                 }
             }
 
-            // 渲染飘字
             foreach (var ft in _floatingTexts.GetAll())
             {
                 if (_entityDisplay.TryGet(ft.TargetActorId, out var target))

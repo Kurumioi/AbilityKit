@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Events;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Demo.Moba.Console.Simulation;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
@@ -18,7 +15,6 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
 {
     private ConsoleBattleContext _context;
     private BattleStartConfig _config;
-    private ISimulatedBattleSession? _session;
     private bool _initialized;
     private bool _connected;
     private int _currentFrame;
@@ -40,19 +36,13 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
     public event Action<int, double> OnFrameSync;
     public event Action<ActorStateSnapshot[]> OnActorStateSnapshot;
 
-    public void Initialize(ConsoleBattleContext context, BattleStartConfig config)
-    {
-        Initialize(context, config, null);
-    }
-
     /// <summary>
-    /// 初始化同步适配器（带 Session）
+    /// 初始化同步适配器
     /// </summary>
-    public void Initialize(ConsoleBattleContext context, BattleStartConfig config, ISimulatedBattleSession? session)
+    public void Initialize(ConsoleBattleContext context, BattleStartConfig config)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _config = config ?? throw new ArgumentNullException(nameof(config));
-        _session = session;
         _initialized = true;
         _connected = true; // 本地模式始终连接
         _currentFrame = 0;
@@ -105,41 +95,19 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
             Platform.Log.Sync($"[FrameSync] Frame: {_currentFrame}, State: {_context.State}, Actors: {_context.EcsWorld?.AliveCount ?? 0}");
         }
 
-        // 发布帧同步事件
+        // 触发帧同步事件
         OnFrameSync?.Invoke(_currentFrame, _logicTimeSeconds);
-
-        // 发布帧事件（供其他模块使用）
-        BattleEventBus.Publish(new FrameSyncEvent
-        {
-            Frame = _currentFrame,
-            ActorCount = _context.EcsWorld?.AliveCount ?? 0,
-            LogicTimeSeconds = _logicTimeSeconds
-        });
     }
 
     public ActorStateSnapshot[] GetAllActorStates()
     {
-        // 从 SimulatedBattleSession 获取所有角色状态
+        // 从 ECS 世界获取所有角色状态
         _actorStates.Clear();
 
-        if (_session != null)
+        if (_context.EcsWorld != null)
         {
-            foreach (var actor in _session.GetAllActorStates())
-            {
-                _actorStates.Add(new ActorStateSnapshot
-                {
-                    ActorId = actor.ActorId,
-                    X = actor.X,
-                    Y = actor.Y,
-                    Z = actor.Z,
-                    Rotation = 0,
-                    VelocityX = 0,
-                    VelocityZ = 0,
-                    Hp = actor.Hp,
-                    HpMax = actor.HpMax,
-                    TeamId = actor.TeamId
-                });
-            }
+            // TODO: 通过 ECS 查询获取角色状态
+            // 暂时返回空数组，由视图层通过订阅事件更新
         }
 
         return _actorStates.ToArray();
@@ -147,7 +115,6 @@ public sealed class FrameSyncAdapter : IBattleSyncAdapter
 
         private static int HashPlayerId(string playerId)
         {
-            // 与 ConsoleBattleBootstrapper 保持一致
             return DeterministicHash.StringToActorId(playerId);
         }
 

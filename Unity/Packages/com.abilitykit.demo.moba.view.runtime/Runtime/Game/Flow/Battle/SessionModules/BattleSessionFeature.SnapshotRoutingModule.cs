@@ -16,8 +16,8 @@ namespace AbilityKit.Game.Flow
         {
             private readonly ISnapshotRoutingModuleHost _host;
 
-            private IDisposable _sessionStartingSub;
-            private IDisposable _sessionStoppingSub;
+            private Action _onSessionStarting;
+            private Action _onSessionStopping;
 
             public SnapshotRoutingModule(ISnapshotRoutingModuleHost host)
             {
@@ -30,17 +30,26 @@ namespace AbilityKit.Game.Flow
 
             public void OnAttach(in BattleSessionModuleContext ctx)
             {
-                _sessionStartingSub = ctx.Events?.Subscribe<SessionStartingEvent>(_ => _host?.BuildSnapshotRouting());
-                _sessionStoppingSub = ctx.Events?.Subscribe<SessionStoppingEvent>(_ => _host?.DisposeSnapshotRouting());
+                _onSessionStarting = () => _host?.BuildSnapshotRouting();
+                _onSessionStopping = () => _host?.DisposeSnapshotRouting();
+
+                ctx.Hooks?.SessionStarting.Add(_onSessionStarting);
+                ctx.Hooks?.SessionStopping.Add(_onSessionStopping);
             }
 
             public void OnDetach(in BattleSessionModuleContext ctx)
             {
-                _sessionStartingSub?.Dispose();
-                _sessionStartingSub = null;
+                if (_onSessionStarting != null)
+                {
+                    ctx.Hooks?.SessionStarting.Remove(_onSessionStarting);
+                }
+                if (_onSessionStopping != null)
+                {
+                    ctx.Hooks?.SessionStopping.Remove(_onSessionStopping);
+                }
 
-                _sessionStoppingSub?.Dispose();
-                _sessionStoppingSub = null;
+                _onSessionStarting = null;
+                _onSessionStopping = null;
             }
 
             public void Tick(in BattleSessionModuleContext ctx, float deltaTime)

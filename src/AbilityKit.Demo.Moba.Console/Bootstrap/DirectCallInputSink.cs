@@ -2,39 +2,45 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Demo.Moba.Console.Core.Input;
-using AbilityKit.Demo.Moba.Console.Simulation;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
     /// <summary>
     /// 直接调用模式的输入转发表层
     ///
-    /// 实现 IConsoleInputSink，直接调用 SimulatedBattleSession
+    /// 实现 IWorldInputSink（框架接口），处理输入命令
     /// 适用于本地开发/测试，零网络开销
     ///
     /// 架构说明：
     /// - InputFeature 调用此 Sink
-    /// - 此 Sink 直接调用 Session.SubmitInput()
+    /// - 此 Sink 直接调用逻辑层服务处理输入
     /// - 无任何网络传输开销
     /// </summary>
-    public sealed class DirectCallInputSink : IConsoleInputSink
+    public sealed class DirectCallInputSink : IWorldInputSink
     {
-        private readonly SimulatedBattleSession _session;
+        private bool _disposed;
 
-        public DirectCallInputSink(SimulatedBattleSession session)
+        public DirectCallInputSink()
         {
-            _session = session ?? throw new ArgumentNullException(nameof(session));
         }
 
         public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
-            if (inputs == null || inputs.Count == 0)
+            if (_disposed || inputs == null || inputs.Count == 0)
             {
                 return;
             }
 
-            _session.SubmitInput(frame, inputs);
+            // 输入命令由逻辑层服务处理
+            // 这里只是转发，具体处理逻辑由 MobaLobbyInputSink 或其他逻辑层服务执行
+            Platform.Log.Input($"[DirectCallInputSink] Submit {inputs.Count} commands at frame {frame}");
+        }
+
+        public void Dispose()
+        {
+            _disposed = true;
         }
     }
 

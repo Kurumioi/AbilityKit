@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
@@ -27,6 +29,7 @@ namespace AbilityKit.Game.Flow
 
         private IDisposable _subActorTransform;
         private IDisposable _subStateHash;
+        private IDisposable _subActorSpawn;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -46,10 +49,22 @@ namespace AbilityKit.Game.Flow
                     case BattleSyncMode.Lockstep:
                     case BattleSyncMode.HybridPredictReconcile:
                     default:
+                        try
+                        {
+                            _subActorSpawn = _ctx.FrameSnapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>((int)MobaOpCode.ActorSpawnSnapshot, OnActorSpawnSnapshot);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Exception(ex, "[BattleSyncFeature] Failed to subscribe ActorSpawnSnapshot");
+                        }
                         _subActorTransform = _ctx.FrameSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
                         _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
                         break;
                 }
+            }
+            else
+            {
+                Log.Warning("[BattleSyncFeature] FrameSnapshots is null");
             }
 
             _localActorId = 0;
@@ -65,10 +80,12 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx?.FrameSnapshots != null)
             {
+                _subActorSpawn?.Dispose();
                 _subActorTransform?.Dispose();
                 _subStateHash?.Dispose();
             }
 
+            _subActorSpawn = null;
             _subActorTransform = null;
             _subStateHash = null;
 
@@ -117,6 +134,78 @@ namespace AbilityKit.Game.Flow
             ApplyTransformSnapshot(entries);
         }
 
+        private void OnActorSpawnSnapshot(ISnapshotEnvelope packet, MobaActorSpawnSnapshotEntry[] entries)
+        {
+            if (entries == null || entries.Length == 0)
+            {
+                return;
+            }
+            ApplySpawnSnapshot(entries);
+        }
+
+        private void ApplySpawnSnapshot(MobaActorSpawnSnapshotEntry[] entries)
+        {
+            if (_world == null || _lookup == null || _factory == null)
+            {
+                Log.Error("[BattleSyncFeature] ApplySpawnSnapshot aborted: EntityWorld/Lookup/Factory is null");
+                return;
+            }
+
+            if (entries == null || entries.Length == 0)
+            {
+                return;
+            }
+
+            var dirty = _ctx != null ? _ctx.DirtyEntities : null;
+            if (dirty == null)
+            {
+                dirty = new List<EC.IEntityId>(entries.Length);
+                if (_ctx != null) _ctx.DirtyEntities = dirty;
+            }
+            else
+            {
+                dirty.Clear();
+            }
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var en = entries[i];
+
+                if (en.NetId <= 0)
+                {
+                    continue;
+                }
+
+                var netId = new BattleNetId(en.NetId);
+
+                if (_lookup.TryResolve(_world, netId, out var existing))
+                {
+                    continue;
+                }
+
+                EC.IEntity e;
+                if (en.Kind == (int)SpawnEntityKind.Projectile)
+                {
+                    e = _factory.CreateProjectile(netId, ownerNetId: new BattleNetId(en.OwnerNetId), entityCode: en.Code);
+                }
+                else
+                {
+                    e = _factory.CreateCharacter(netId, entityCode: en.Code);
+                }
+
+                if (!e.TryGetRef(out BattleTransformComponent t) || t == null)
+                {
+                    t = new BattleTransformComponent();
+                    e.WithRef(t);
+                }
+
+                t.Position = new Vector3(en.X, en.Y, en.Z);
+                if (t.Forward == default) t.Forward = Vector3.forward;
+
+                dirty.Add(e.Id);
+            }
+        }
+
         private void ApplyStateHashSnapshot(MobaStateHashSnapshotPayload p)
         {
             if (!_node.IsValid) return;
@@ -140,7 +229,7 @@ namespace AbilityKit.Game.Flow
             var dirty = _ctx != null ? _ctx.DirtyEntities : null;
             if (dirty == null)
             {
-                dirty = new System.Collections.Generic.List<EC.IEntityId>(64);
+                dirty = new List<EC.IEntityId>(64);
                 if (_ctx != null) _ctx.DirtyEntities = dirty;
             }
             else
@@ -148,7 +237,11 @@ namespace AbilityKit.Game.Flow
                 dirty.Clear();
             }
 
-            if (entries == null || entries.Length == 0) return;
+            if (entries == null || entries.Length == 0)
+            {
+                return;
+            }
+
             for (int i = 0; i < entries.Length; i++)
             {
                 var en = entries[i];

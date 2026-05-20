@@ -11,8 +11,8 @@ namespace AbilityKit.Game.Flow
             IGameModuleId,
             IGameModuleDependencies
         {
-            private IDisposable _sessionStartingSub;
-            private IDisposable _sessionStoppingSub;
+            private Action _onSessionStarting;
+            private Action _onSessionStopping;
 
             public string Id => "snapshot_routing";
 
@@ -23,18 +23,27 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                var events = f.Events;
-                _sessionStartingSub = events?.Subscribe<SessionStartingEvent>(_ => f.EnsureSnapshotRoutingBuilt());
-                _sessionStoppingSub = events?.Subscribe<SessionStoppingEvent>(_ => f.DisposeSnapshotRoutingIfAny());
+                _onSessionStarting = () => f.EnsureSnapshotRoutingBuilt();
+                _onSessionStopping = () => f.DisposeSnapshotRoutingIfAny();
+
+                f.Hooks?.SessionStarting.Add(_onSessionStarting);
+                f.Hooks?.SessionStopping.Add(_onSessionStopping);
             }
 
             public void OnDetach(in FeatureModuleContext<BattleSessionFeature> ctx)
             {
-                _sessionStartingSub?.Dispose();
-                _sessionStartingSub = null;
+                var f = ctx.Feature;
+                if (_onSessionStarting != null && f != null)
+                {
+                    f.Hooks?.SessionStarting.Remove(_onSessionStarting);
+                }
+                if (_onSessionStopping != null && f != null)
+                {
+                    f.Hooks?.SessionStopping.Remove(_onSessionStopping);
+                }
 
-                _sessionStoppingSub?.Dispose();
-                _sessionStoppingSub = null;
+                _onSessionStarting = null;
+                _onSessionStopping = null;
             }
 
             public void Tick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime) { }

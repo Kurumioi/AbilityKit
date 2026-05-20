@@ -20,7 +20,8 @@ namespace AbilityKit.Game.Flow
             if (!_firstFrameReceived)
             {
                 _firstFrameReceived = true;
-                Events?.Publish(new FirstFrameReceivedEvent());
+                _eventsCtrl.NotifyFirstFrameReceived(this);
+                Hooks?.FirstFrameReceived.Invoke();
             }
 
             if (_ctx != null)

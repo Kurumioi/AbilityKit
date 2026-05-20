@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.Record.Lockstep;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
@@ -11,6 +12,7 @@ namespace AbilityKit.Game.Flow
 
         void ISessionEventsHost.RaiseSessionStarted(BattleStartPlan plan)
         {
+            Log.Info("[BattleSessionFeature] Session started");
             SessionStarted?.Invoke();
             Hooks?.SessionStarted.Invoke(plan);
         }
@@ -35,19 +37,12 @@ namespace AbilityKit.Game.Flow
             set => _pendingModuleValidationFailure = value;
         }
 
-        BattleEventBus ISessionEventsHost.Events
-        {
-            get => Events;
-            set => Events = value;
-        }
-
         BattleSessionHooks ISessionEventsHost.Hooks
         {
             get => Hooks;
             set => Hooks = value;
         }
 
-        internal BattleEventBus Events { get; private set; }
         internal BattleSessionHooks Hooks { get; private set; }
 
         public event Action SessionStarted;

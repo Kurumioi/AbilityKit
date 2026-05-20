@@ -54,6 +54,11 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public StateHashData StateHash { get; }
 
+        /// <summary>
+        /// 角色生成数据列表
+        /// </summary>
+        public IReadOnlyList<ActorSpawnData> ActorSpawns { get; }
+
         public FrameSnapshotData(
             int frameIndex,
             double timestamp,
@@ -63,7 +68,8 @@ namespace AbilityKit.Demo.Moba.Share
             IReadOnlyList<ProjectileEventData> projectileEvents = null,
             IReadOnlyList<AreaEventData> areaEvents = null,
             IReadOnlyList<DamageEventData> damageEvents = null,
-            StateHashData stateHash = default)
+            StateHashData stateHash = default,
+            IReadOnlyList<ActorSpawnData> actorSpawns = null)
         {
             FrameIndex = frameIndex;
             Timestamp = timestamp;
@@ -74,6 +80,7 @@ namespace AbilityKit.Demo.Moba.Share
             AreaEvents = areaEvents ?? Array.Empty<AreaEventData>();
             DamageEvents = damageEvents ?? Array.Empty<DamageEventData>();
             StateHash = stateHash;
+            ActorSpawns = actorSpawns ?? Array.Empty<ActorSpawnData>();
         }
     }
 
@@ -280,5 +287,42 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         public static readonly StateHashData Default = default;
+    }
+
+    /// <summary>
+    /// 角色生成数据
+    /// </summary>
+    public readonly struct ActorSpawnData
+    {
+        public int ActorId { get; }
+        public int CharacterId { get; }
+        public string Name { get; }
+        public float PositionX { get; }
+        public float PositionY { get; }
+        public float PositionZ { get; }
+        public float RotationY { get; }
+        public float Scale { get; }
+        public int TeamId { get; }
+        public float MaxHp { get; }
+        public float Hp { get; }
+
+        public ActorSpawnData(
+            int actorId, int characterId, string name,
+            float x, float y, float z,
+            float rotationY, float scale,
+            int teamId, float maxHp, float hp)
+        {
+            ActorId = actorId;
+            CharacterId = characterId;
+            Name = name;
+            PositionX = x;
+            PositionY = y;
+            PositionZ = z;
+            RotationY = rotationY;
+            Scale = scale;
+            TeamId = teamId;
+            MaxHp = maxHp;
+            Hp = hp;
+        }
     }
 }

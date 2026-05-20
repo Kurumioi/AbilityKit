@@ -72,13 +72,6 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         IInputQueue LocalInputQueue { get; }
 
-        // ============ 事件系统 ============
-
-        /// <summary>
-        /// 战斗事件总线
-        /// </summary>
-        IBattleEventBus Events { get; }
-
         // ============ 会话管理 ============
 
         /// <summary>
@@ -111,26 +104,5 @@ namespace AbilityKit.Demo.Moba.Share
         /// 队列中的输入数量
         /// </summary>
         int Count { get; }
-    }
-
-    /// <summary>
-    /// 战斗事件总线接口
-    /// </summary>
-    public interface IBattleEventBus
-    {
-        /// <summary>
-        /// 发布事件
-        /// </summary>
-        void Publish<T>(T evt) where T : struct;
-
-        /// <summary>
-        /// 订阅事件
-        /// </summary>
-        IDisposable Subscribe<T>(Action<T> handler) where T : struct;
-
-        /// <summary>
-        /// 取消订阅
-        /// </summary>
-        void Unsubscribe<T>(Action<T> handler) where T : struct;
     }
 }

@@ -20,8 +20,6 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                f.Events?.Publish(new SessionStartingEvent(f._plan));
-                f.Events?.Flush();
                 f.Hooks?.SessionStarting.Invoke();
             }
 
@@ -30,8 +28,6 @@ namespace AbilityKit.Game.Flow
                 var f = ctx.Feature;
                 if (f == null) return;
 
-                f.Events?.Publish(new SessionStoppingEvent(f._plan));
-                f.Events?.Flush();
                 f.Hooks?.SessionStopping.Invoke();
             }
 

@@ -5,6 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Features;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Share;
@@ -17,63 +18,57 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
     ///
     /// 职责边界：
     /// - ✅ 采集玩家输入
-    /// - ✅ 通过 IConsoleInputSink 转发输入到逻辑层
+    /// - ✅ 通过 IWorldInputSink 转发输入到逻辑层
     /// - ❌ 不执行技能逻辑
     /// ❌ 不计算伤害
     /// - ❌ 不直接调用 Session
     ///
     /// 架构说明：
-    /// - 表现层持有 IConsoleInputSink（通过 DI 或手动注入）
+    /// - 表现层持有 IWorldInputSink（通过 DI 或手动注入）
     /// - Sink 实现决定输入传输方式（DirectCall/FrameSync）
     /// - 逻辑层处理后发布事件，表现层通过 ConsoleViewEventSink 订阅
     ///
     /// 与 Unity 对齐：
     /// - Unity InputFeature 通过 IInputSink 与逻辑层解耦
-    /// - Console InputFeature 通过 IConsoleInputSink 与模拟层解耦
-    ///
-    /// Share 层接口：
-    /// - 实现 IPlatformInputSource 接口，提供跨平台的输入访问
+    /// - Console InputFeature 通过 IWorldInputSink 与模拟层解耦
     /// </summary>
-    public sealed class ConsoleInputFeature : IInputFeature, IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>, IPlatformInputSource
+    public sealed class ConsoleInputFeature : ConsoleSubFeatureBase, IInputFeature, IPlatformInputSource
     {
-        private ConsoleBattleContext _ctx;
-        private IConsoleInputSink _inputSink;
+        public override string Id => "console_input_feature";
+        public override string[] Dependencies => new[] { "console_sync_feature" };
+
+        private IWorldInputSink _inputSink;
         private BattleLocalInputQueue _inputQueue;
-        private bool _initialized;
 
         private float _lastMoveDx;
         private float _lastMoveDz;
         private bool _wasMoving;
 
-        public int LocalActorId => _ctx?.LocalActorId ?? 0;
+        public int LocalActorId => Context?.LocalActorId ?? 0;
 
         /// <summary>
         /// 设置输入转发表层（表现层持有）
         /// </summary>
-        public void SetInputSink(IConsoleInputSink sink)
+        public void SetInputSink(IWorldInputSink sink)
         {
             _inputSink = sink ?? throw new ArgumentNullException(nameof(sink));
         }
 
-        public void OnAttach(ConsoleBattleContext context)
+        public override void OnAttach(ConsoleBattleContext ctx)
         {
-            _ctx = context ?? throw new ArgumentNullException(nameof(context));
+            base.OnAttach(ctx);
             _inputQueue = new BattleLocalInputQueue();
-            _initialized = true;
-            Log.Input($"[Input] Attached - PlayerId: {_ctx.LocalActorId}");
+            Log.Input($"[Input] Attached - PlayerId: {ctx.LocalActorId}");
         }
 
-        public void OnDetach(ConsoleBattleContext context)
+        public override void OnDetach(ConsoleBattleContext ctx)
         {
-            _ctx = null;
             _inputQueue = null;
-            _initialized = false;
-            Log.Input($"[Input] Detached");
         }
 
-        public void Tick(ConsoleBattleContext context, float deltaTime)
+        public override void Tick(ConsoleBattleContext ctx, float deltaTime)
         {
-            if (!_initialized || _ctx == null || _ctx.State != BattleState.InMatch)
+            if (Context == null || ctx.State != BattleState.InMatch)
             {
                 return;
             }
@@ -82,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
 
         public void ProcessInput()
         {
-            if (_ctx == null || _inputQueue == null)
+            if (Context == null || _inputQueue == null)
             {
                 return;
             }
@@ -95,24 +90,21 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
 
         private void ProcessMoveInput()
         {
-            var dx = _ctx.HudMoveDx;
-            var dz = _ctx.HudMoveDz;
+            var dx = Context.HudMoveDx;
+            var dz = Context.HudMoveDz;
             var isMoving = Math.Abs(dx) > 0.01f || Math.Abs(dz) > 0.01f;
 
             if (isMoving || _wasMoving)
             {
                 var payload = MobaMoveCodec.Serialize(dx, dz);
                 var cmd = new PlayerInputCommand(
-                    new FrameIndex(_ctx.LastFrame),
-                    new PlayerId(_ctx.LocalActorId.ToString()),
+                    new FrameIndex(Context.LastFrame),
+                    new PlayerId(Context.LocalActorId.ToString()),
                     ConsoleOpCode.Move,
                     payload);
 
-                // 通过 Sink 转发到逻辑层
-                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
-
-                // 记录本地输入
-                _inputQueue.Enqueue(new LocalPlayerInputEvent(_ctx.LocalActorId, ConsoleOpCode.Move, payload));
+                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
+                _inputQueue.Enqueue(new LocalPlayerInputEvent(Context.LocalActorId, ConsoleOpCode.Move, payload));
 
                 Log.Input($"[Input] Move: dx={dx:F2}, dz={dz:F2}");
             }
@@ -124,156 +116,115 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
 
         private void ProcessSkillInput()
         {
-            // 处理技能点击
-            var slot = _ctx.HudSkillClickSlot;
+            var slot = Context.HudSkillClickSlot;
             if (slot > 0)
             {
                 var payload = ConsoleSkillInputCodec.Serialize(slot, SkillInputPhase.Press);
                 var cmd = new PlayerInputCommand(
-                    new FrameIndex(_ctx.LastFrame),
-                    new PlayerId(_ctx.LocalActorId.ToString()),
+                    new FrameIndex(Context.LastFrame),
+                    new PlayerId(Context.LocalActorId.ToString()),
                     ConsoleOpCode.SkillInput,
                     payload);
 
-                // 通过 Sink 转发到逻辑层
-                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
-
+                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
                 Log.Input($"[Input] Skill{slot} pressed");
-                _ctx.HudSkillClickSlot = 0;
+                Context.HudSkillClickSlot = 0;
             }
 
-            // 处理技能瞄准释放
-            if (_ctx.HudSkillAimSubmit && _ctx.HudSkillAimSubmitSlot > 0)
+            if (Context.HudSkillAimSubmit && Context.HudSkillAimSubmitSlot > 0)
             {
-                var aimX = _ctx.HudSkillAimSubmitDx;
-                var aimZ = _ctx.HudSkillAimSubmitDz;
-
+                var aimX = Context.HudSkillAimSubmitDx;
+                var aimZ = Context.HudSkillAimSubmitDz;
                 var aimPos = new Vec3(aimX, 0, aimZ);
-                var payload = ConsoleSkillInputCodec.Serialize(_ctx.HudSkillAimSubmitSlot, SkillInputPhase.Release, aimPos);
+                var payload = ConsoleSkillInputCodec.Serialize(Context.HudSkillAimSubmitSlot, SkillInputPhase.Release, aimPos);
 
                 var cmd = new PlayerInputCommand(
-                    new FrameIndex(_ctx.LastFrame),
-                    new PlayerId(_ctx.LocalActorId.ToString()),
+                    new FrameIndex(Context.LastFrame),
+                    new PlayerId(Context.LocalActorId.ToString()),
                     ConsoleOpCode.SkillInput,
                     payload);
 
-                // 通过 Sink 转发到逻辑层
-                _inputSink?.Submit(new FrameIndex(_ctx.LastFrame), new[] { cmd });
-
-                Log.Input($"[Input] Skill{_ctx.HudSkillAimSubmitSlot} aim released at ({aimX:F1}, {aimZ:F1})");
-                _ctx.HudSkillAimSubmit = false;
+                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
+                Log.Input($"[Input] Skill{Context.HudSkillAimSubmitSlot} aim released at ({aimX:F1}, {aimZ:F1})");
+                Context.HudSkillAimSubmit = false;
             }
         }
 
         public void SetMoveInput(float dx, float dz)
         {
-            if (_ctx == null) return;
-            _ctx.HudMoveDx = dx;
-            _ctx.HudMoveDz = dz;
-            _ctx.HudHasMove = Math.Abs(dx) > 0.01f || Math.Abs(dz) > 0.01f;
+            if (Context == null) return;
+            Context.HudMoveDx = dx;
+            Context.HudMoveDz = dz;
+            Context.HudHasMove = Math.Abs(dx) > 0.01f || Math.Abs(dz) > 0.01f;
         }
 
         public void ClickSkill(int slot)
         {
-            if (_ctx == null) return;
-            _ctx.HudSkillClickSlot = slot;
+            if (Context == null) return;
+            Context.HudSkillClickSlot = slot;
         }
 
         public void AimSkill(int slot, float dx, float dz)
         {
-            if (_ctx == null) return;
-            _ctx.HudSkillAiming = true;
-            _ctx.HudSkillAimSlot = slot;
-            _ctx.HudSkillAimDx = dx;
-            _ctx.HudSkillAimDz = dz;
+            if (Context == null) return;
+            Context.HudSkillAiming = true;
+            Context.HudSkillAimSlot = slot;
+            Context.HudSkillAimDx = dx;
+            Context.HudSkillAimDz = dz;
         }
 
         public void ReleaseSkillAim(int slot, float dx, float dz)
         {
-            if (_ctx == null) return;
-            _ctx.HudSkillAimSubmit = true;
-            _ctx.HudSkillAimSubmitSlot = slot;
-            _ctx.HudSkillAimSubmitDx = dx;
-            _ctx.HudSkillAimSubmitDz = dz;
+            if (Context == null) return;
+            Context.HudSkillAimSubmit = true;
+            Context.HudSkillAimSubmitSlot = slot;
+            Context.HudSkillAimSubmitDx = dx;
+            Context.HudSkillAimSubmitDz = dz;
         }
 
         #region IPlatformInputSource 实现
 
-        /// <inheritdoc />
         bool IPlatformInputSource.IsEnabled
         {
-            get => _initialized;
-            set { /* Console 输入始终启用 */ }
+            get => Context != null;
+            set { }
         }
 
-        /// <inheritdoc />
         void IPlatformInputSource.Update()
         {
             ProcessInput();
         }
 
-        /// <inheritdoc />
         (float x, float z) IPlatformInputSource.GetMoveInput()
         {
-            if (_ctx == null) return (0, 0);
-            return (_ctx.HudMoveDx, _ctx.HudMoveDz);
+            if (Context == null) return (0, 0);
+            return (Context.HudMoveDx, Context.HudMoveDz);
         }
 
-        /// <inheritdoc />
-        bool IPlatformInputSource.IsAttackPressed()
-        {
-            // Console 层不使用普通攻击
-            return false;
-        }
+        bool IPlatformInputSource.IsAttackPressed() => false;
 
-        /// <inheritdoc />
         int IPlatformInputSource.GetSkillInput()
         {
-            if (_ctx == null) return -1;
-            // 返回最近点击的技能槽位
-            var slot = _ctx.HudSkillClickSlot;
-            _ctx.HudSkillClickSlot = 0;
-            return slot > 0 ? slot - 1 : -1; // 转换 1-indexed 到 0-indexed
+            if (Context == null) return -1;
+            var slot = Context.HudSkillClickSlot;
+            Context.HudSkillClickSlot = 0;
+            return slot > 0 ? slot - 1 : -1;
         }
 
-        /// <inheritdoc />
-        bool IPlatformInputSource.IsStopSkillPressed()
-        {
-            // Console 层不实现停止技能
-            return false;
-        }
+        bool IPlatformInputSource.IsStopSkillPressed() => false;
+        bool IPlatformInputSource.IsStopPressed() => false;
+        (float x, float y) IPlatformInputSource.GetClickPosition() => (-1, -1);
+        float IPlatformInputSource.GetCameraRotationInput() => 0f;
 
-        /// <inheritdoc />
-        bool IPlatformInputSource.IsStopPressed()
-        {
-            // Console 层不实现停止移动
-            return false;
-        }
-
-        /// <inheritdoc />
-        (float x, float y) IPlatformInputSource.GetClickPosition()
-        {
-            // Console 层不实现屏幕点击
-            return (-1, -1);
-        }
-
-        /// <inheritdoc />
-        float IPlatformInputSource.GetCameraRotationInput()
-        {
-            // Console 层不实现视角旋转
-            return 0f;
-        }
-
-        /// <inheritdoc />
         void IPlatformInputSource.Reset()
         {
-            if (_ctx == null) return;
-            _ctx.HudMoveDx = 0;
-            _ctx.HudMoveDz = 0;
-            _ctx.HudHasMove = false;
-            _ctx.HudSkillClickSlot = 0;
-            _ctx.HudSkillAiming = false;
-            _ctx.HudSkillAimSubmit = false;
+            if (Context == null) return;
+            Context.HudMoveDx = 0;
+            Context.HudMoveDz = 0;
+            Context.HudHasMove = false;
+            Context.HudSkillClickSlot = 0;
+            Context.HudSkillAiming = false;
+            Context.HudSkillAimSubmit = false;
         }
 
         #endregion
@@ -301,7 +252,7 @@ namespace AbilityKit.Demo.Moba.Console.Core.Input
     /// </summary>
     public sealed class BattleLocalInputQueue
     {
-        private readonly System.Collections.Generic.Queue<LocalPlayerInputEvent> _queue = new();
+        private readonly Queue<LocalPlayerInputEvent> _queue = new();
 
         public void Enqueue(LocalPlayerInputEvent evt)
         {

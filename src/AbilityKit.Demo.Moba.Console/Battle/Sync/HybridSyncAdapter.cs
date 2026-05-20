@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.StateSync;
 using AbilityKit.Ability.StateSync.Prediction;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Events;
+using AbilityKit.Demo.Moba.Share;
 using Pred = AbilityKit.Ability.StateSync.Prediction;
 using PredHandlers = AbilityKit.Demo.Moba.Console.Battle.Prediction.Handlers;
 using AK = AbilityKit;
@@ -117,15 +117,8 @@ public sealed class HybridSyncAdapter : IBattleSyncAdapter
         // 渲染时间比逻辑时间滞后一帧
         _renderTimeSeconds = _logicTimeSeconds - (1.0 / _config.TickRate);
 
-        // 发布帧同步事件
+        // 触发帧同步事件
         OnFrameSync?.Invoke(_currentFrame, _logicTimeSeconds);
-
-        BattleEventBus.Publish(new FrameSyncEvent
-        {
-            Frame = _currentFrame,
-            ActorCount = _context.EcsWorld?.AliveCount ?? 0,
-            LogicTimeSeconds = _logicTimeSeconds
-        });
     }
 
     /// <summary>

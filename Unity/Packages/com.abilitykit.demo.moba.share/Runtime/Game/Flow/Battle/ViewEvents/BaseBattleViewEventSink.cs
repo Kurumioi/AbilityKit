@@ -138,6 +138,24 @@ namespace AbilityKit.Demo.Moba.Share
         }
 
         /// <summary>
+        /// 处理角色生成快照
+        /// </summary>
+        public virtual void OnActorSpawnSnapshot(in FrameSnapshotData snapshot)
+        {
+            if (snapshot.ActorSpawns == null || snapshot.ActorSpawns.Count == 0)
+            {
+                return;
+            }
+
+            var spawns = snapshot.ActorSpawns;
+            for (int i = 0; i < spawns.Count; i++)
+            {
+                var spawn = spawns[i];
+                OnActorSpawn(spawn);
+            }
+        }
+
+        /// <summary>
         /// 处理触发器事件
         /// </summary>
         public virtual void OnTriggerEvent(in TriggerEventData evt)
@@ -199,5 +217,10 @@ namespace AbilityKit.Demo.Moba.Share
         /// 状态哈希处理（子类实现）
         /// </summary>
         protected abstract void OnStateHash(int frameIndex, uint stateHash);
+
+        /// <summary>
+        /// 角色生成处理（子类实现）
+        /// </summary>
+        protected abstract void OnActorSpawn(in ActorSpawnData data);
     }
 }

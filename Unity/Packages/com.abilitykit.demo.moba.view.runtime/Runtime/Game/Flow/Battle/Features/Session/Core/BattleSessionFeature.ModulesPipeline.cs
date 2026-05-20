@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
@@ -12,17 +12,18 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
+                Log.Info("[BattleSessionFeature] Starting session");
                 StartSession();
-                Events?.Publish(new SessionStartedEvent(_plan));
-                Events?.Flush();
+                _eventsCtrl.NotifySessionStarted(this, _plan);
+                Hooks?.SessionStarted.Invoke(_plan);
                 ApplyAutoPlanActions();
             }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed after gateway room preparation");
                 StopSession();
-                Events?.Publish(new SessionFailedEvent(ex));
-                Events?.Flush();
+                _eventsCtrl.NotifySessionFailed(this, ex);
+                Hooks?.SessionFailed.Invoke(ex);
                 return;
             }
 
@@ -31,6 +32,7 @@ namespace AbilityKit.Game.Flow
                 _ctx.Plan = _plan;
                 _ctx.Session = _session;
                 _ctx.LastFrame = _lastFrame;
+                _ctx.Hooks = Hooks;
             }
         }
 

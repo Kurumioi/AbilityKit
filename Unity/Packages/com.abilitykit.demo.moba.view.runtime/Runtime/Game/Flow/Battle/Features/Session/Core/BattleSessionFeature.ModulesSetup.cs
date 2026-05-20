@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Battle;
@@ -19,10 +19,9 @@ namespace AbilityKit.Game.Flow
                 Log.Error($"[BattleSessionFeature] Module dependency validation failed: {message}");
 
                 var ex = new InvalidOperationException(message);
-                if (Events != null)
+                if (_eventsCtrl != null)
                 {
-                    Events.Publish(new SessionFailedEvent(ex));
-                    Events.Flush();
+                    _eventsCtrl.NotifySessionFailed(this, ex);
                 }
                 else
                 {

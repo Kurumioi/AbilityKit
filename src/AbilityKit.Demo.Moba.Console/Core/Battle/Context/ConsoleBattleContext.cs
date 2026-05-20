@@ -4,7 +4,6 @@ using AbilityKit.Core.Common.Pool;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Core.Battle.ECS.Entities;
 using AbilityKit.Demo.Moba.Console.Core.Input;
-using AbilityKit.Demo.Moba.Console.Events;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Simulation;
 using EC = AbilityKit.World.ECS;
@@ -22,11 +21,6 @@ namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
             createFunc: () => new ConsoleBattleContext(),
             defaultCapacity: 1,
             maxSize: 8);
-
-        /// <summary>
-        /// 帧同步会话（模拟逻辑层）
-        /// </summary>
-        public ISimulatedBattleSession Session { get; set; }
 
         /// <summary>
         /// 战斗启动计划
@@ -195,7 +189,6 @@ namespace AbilityKit.Demo.Moba.Console.Core.Battle.Context
         /// </summary>
         public void Reset()
         {
-            Session = null;
             Plan = default;
             LastFrame = 0;
             LogicTimeSeconds = 0d;

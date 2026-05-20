@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Game.Flow.Modules;
 using UnityEngine;
 
@@ -26,7 +27,7 @@ namespace AbilityKit.Game.Flow
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
 
-            fail ??= message => Debug.LogError($"[ViewSubFeaturePipeline:{typeof(TFeature).Name}] {message}");
+            fail ??= message => Log.Error($"[ViewSubFeaturePipeline:{typeof(TFeature).Name}] {message}");
 
             return new ModuleHost<FeatureModuleContext<TFeature>, IViewSubFeature<TFeature>>(
                 subFeatures,

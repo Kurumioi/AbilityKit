@@ -14,10 +14,14 @@ namespace AbilityKit.Game.Flow
 
             EnsureModulesCreated();
             _moduleHost?.Attach(new FeatureModuleContext<BattleViewFeature>(ctx, this));
+            OnAllSubFeaturesAttached(ctx);
+        }
 
-            var worldId = _ctx != null ? _ctx.RuntimeWorldId : default;
-            _events?.Publish(new ViewBinderReadyEvent(isConfirmed: false, worldId: worldId));
-            _events?.Flush();
+        private void OnAllSubFeaturesAttached(in GamePhaseContext ctx)
+        {
+            if (_ctx == null) return;
+            var worldId = _ctx.RuntimeWorldId;
+            _ctx?.Hooks?.ViewBinderReady.Invoke(new ViewBinderReadyEvent(isConfirmed: false, worldId: worldId));
         }
 
         public void OnDetach(in GamePhaseContext ctx)
@@ -31,7 +35,6 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx?.EntityWorld == null) return;
             _moduleHost?.Tick(new FeatureModuleContext<BattleViewFeature>(ctx, this), deltaTime);
-            _events?.Flush();
         }
 
         public void RebindAll()
@@ -41,8 +44,7 @@ namespace AbilityKit.Game.Flow
 
             var frame = _ctx != null ? _ctx.LastFrame : 0;
             var worldId = _ctx != null ? _ctx.RuntimeWorldId : default;
-            _events?.Publish(new ViewsReboundEvent(isConfirmed: false, worldId: worldId, frame: frame));
-            _events?.Flush();
+            _ctx?.Hooks?.ViewsRebound.Invoke(new ViewsReboundEvent(isConfirmed: false, worldId: worldId, frame: frame));
         }
 
         private void EnsureModulesCreated()

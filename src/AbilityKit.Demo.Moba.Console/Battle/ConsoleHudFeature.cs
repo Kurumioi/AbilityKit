@@ -1,12 +1,15 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Core.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Core.Battle.Features;
 using AbilityKit.Demo.Moba.Console.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.View;
-using AbilityKit.Demo.Moba.Console.Events;
 
 namespace AbilityKit.Demo.Moba.Console.Battle
 {
+    /// <summary>
+    /// HUD 显示配置
+    /// </summary>
     public sealed class BattleHudConfig
     {
         public bool ShowEntityList { get; set; } = true;
@@ -14,16 +17,21 @@ namespace AbilityKit.Demo.Moba.Console.Battle
         public bool ShowDamageNumbers { get; set; } = true;
         public bool ShowSkillCooldowns { get; set; } = true;
         public int UpdateIntervalMs { get; set; } = 100;
+
         public static BattleHudConfig Default => new();
     }
 
-    public sealed class ConsoleHudFeature : IGameModule<ConsoleBattleContext>, IGameModuleTick<ConsoleBattleContext>
+    /// <summary>
+    /// Console HUD 特性模块
+    /// 负责渲染战斗 HUD 信息
+    /// </summary>
+    public sealed class ConsoleHudFeature : ConsoleSubFeatureBase
     {
-        private ConsoleBattleContext _ctx;
-        private BattleHudConfig _config;
+        public override string Id => "console_hud_feature";
+        public override string[] Dependencies => new[] { "console_view_feature" };
+
         private IConsoleBattleView _battleView;
-        private int _tickCount;
-        private DateTime _lastRender;
+        private BattleHudConfig _config;
 
         private int _lastKnownFrame;
         private int _lastKnownActorCount;
@@ -43,92 +51,31 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             _battleView = battleView;
         }
 
-        public void OnAttach(ConsoleBattleContext context)
+        public override void OnAttach(ConsoleBattleContext ctx)
         {
-            _ctx = context ?? throw new ArgumentNullException(nameof(context));
-            _tickCount = 0;
-            _lastRender = DateTime.Now;
-            _lastKnownFrame = context.LastFrame;
-            _lastKnownActorCount = context.EcsWorld?.AliveCount ?? 0;
-
-            SubscribeToEvents();
-            Log.System("[HUD] Attached (Event-based)");
+            base.OnAttach(ctx);
+            _lastKnownFrame = ctx.LastFrame;
+            _lastKnownActorCount = ctx.EcsWorld?.AliveCount ?? 0;
+            Log.System("[HUD] Attached");
         }
 
-        public void OnDetach(ConsoleBattleContext context)
+        public override void OnDetach(ConsoleBattleContext ctx)
         {
-            UnsubscribeFromEvents();
-            _ctx = null;
             _battleView = null;
             Log.System("[HUD] Detached");
         }
 
-        private void SubscribeToEvents()
+        public override void Tick(ConsoleBattleContext ctx, float deltaTime)
         {
-            BattleEventBus.Subscribe<FrameSyncEvent>(OnFrameSync);
-            BattleEventBus.Subscribe<MoveInputProcessedEvent>(OnMoveInput);
-            BattleEventBus.Subscribe<SkillExecutedEvent>(OnSkillExecuted);
-            BattleEventBus.Subscribe<EntityCreatedEvent>(OnEntityCreated);
-            BattleEventBus.Subscribe<EntityUpdatedEvent>(OnEntityUpdated);
-        }
+            if (Context == null || ctx.State != BattleState.InMatch) return;
 
-        private void UnsubscribeFromEvents()
-        {
-            BattleEventBus.Unsubscribe<FrameSyncEvent>(OnFrameSync);
-            BattleEventBus.Unsubscribe<MoveInputProcessedEvent>(OnMoveInput);
-            BattleEventBus.Unsubscribe<SkillExecutedEvent>(OnSkillExecuted);
-            BattleEventBus.Unsubscribe<EntityCreatedEvent>(OnEntityCreated);
-            BattleEventBus.Unsubscribe<EntityUpdatedEvent>(OnEntityUpdated);
-        }
-
-        private void OnFrameSync(FrameSyncEvent evt)
-        {
-            _lastKnownFrame = evt.Frame;
-            _lastKnownActorCount = evt.ActorCount;
-        }
-
-        private void OnMoveInput(MoveInputProcessedEvent evt)
-        {
-            if (evt.ActorId == _ctx?.LocalActorId)
-            {
-                Log.Input($"[HUD] Local move: dx={evt.Dx:F2}, dz={evt.Dz:F2}");
-            }
-        }
-
-        private void OnSkillExecuted(SkillExecutedEvent evt)
-        {
-            if (evt.ActorId == _ctx?.LocalActorId)
-            {
-                if (evt.Success)
-                {
-                    Log.Skill($"[HUD] Local skill{evt.Slot} executed");
-                }
-                else
-                {
-                    Log.Skill($"[HUD] Local skill{evt.Slot} failed: {evt.FailReason}");
-                }
-            }
-        }
-
-        private void OnEntityCreated(EntityCreatedEvent evt)
-        {
-            Log.Entity($"[HUD] Entity created: #{evt.ActorId} {evt.Name}");
-        }
-
-        private void OnEntityUpdated(EntityUpdatedEvent evt)
-        {
-            _lastKnownActorCount = _ctx?.EcsWorld?.AliveCount ?? _lastKnownActorCount;
-        }
-
-        public void Tick(ConsoleBattleContext context, float deltaTime)
-        {
-            if (_ctx == null || _ctx.State != BattleState.InMatch) return;
-            _tickCount++;
+            _lastKnownFrame = ctx.LastFrame;
+            _lastKnownActorCount = ctx.EcsWorld?.AliveCount ?? _lastKnownActorCount;
         }
 
         public void RenderHud()
         {
-            if (_ctx == null) return;
+            if (Context == null) return;
 
             var view = _battleView as ConsoleBattleView;
             if (view == null) return;
@@ -137,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             Log.System("========================================");
             Log.System($"           BATTLE HUD - Frame {_lastKnownFrame}");
             Log.System("========================================");
-            Log.System($"Phase: {_ctx.State} | LocalActorId: {_ctx.LocalActorId}");
+            Log.System($"Phase: {Context.State} | LocalActorId: {Context.LocalActorId}");
             Log.System("----------------------------------------");
             Log.System("Commands: WASD/Arrows=Move  J=Skill1  K=Skill2  L=Skill3  SPACE=Stop");
             Log.System("----------------------------------------");
@@ -148,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle
             {
                 var hpText = entity.MaxHp > 0 ? $"{entity.Hp:F0}/{entity.MaxHp:F0}" : "N/A";
                 var posText = $"({entity.X:F1}, {entity.Z:F1})";
-                var isLocal = entity.ActorId == _ctx.LocalActorId ? "*" : " ";
+                var isLocal = entity.ActorId == Context.LocalActorId ? "*" : " ";
                 Log.System($"{isLocal}{entity.ActorId,-7} {entity.Name,-15} {entity.Type,-10} {hpText,-15} {posText,-20}");
             }
 

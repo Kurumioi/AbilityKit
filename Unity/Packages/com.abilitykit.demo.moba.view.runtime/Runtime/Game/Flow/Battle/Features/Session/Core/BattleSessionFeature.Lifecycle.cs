@@ -19,6 +19,8 @@ namespace AbilityKit.Game.Flow
             _root = ctx.Root;
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 
+            _eventsCtrl.OnAttach(this);
+
             EnsureModulesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
         }
@@ -53,10 +55,12 @@ namespace AbilityKit.Game.Flow
 
             _state.ResetSessionFlags();
 
+            _eventsCtrl.OnDetach(this);
+
             if (_ctx != null)
             {
                 _ctx.Session = null;
-                _ctx.Events = null;
+                _ctx.Hooks = null;
             }
 
             _ctx = null;
@@ -67,7 +71,6 @@ namespace AbilityKit.Game.Flow
         {
             Hooks?.PreTick.Invoke(deltaTime);
             InvokeModulesPreTick(ctx, deltaTime);
-            Events?.Flush();
 
             if (_session == null) return;
 
@@ -89,7 +92,6 @@ namespace AbilityKit.Game.Flow
 
             _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);
             Hooks?.PostTick.Invoke(deltaTime);
-            Events?.Flush();
         }
 
         private void InvokeMainTickSubFeatures(in GamePhaseContext ctx, float deltaTime)

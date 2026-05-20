@@ -5,16 +5,24 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
     /// <summary>
     /// Simulation 模块入口
     ///
-    /// 此模块包含 Console 项目的"模拟逻辑层"代码
-    /// 用于演示目的，模拟真实战斗系统的行为
+    /// 此模块包含 Console 项目的表现层模拟代码
     ///
     /// 架构说明：
-    /// - Console 项目属于"表现层"，只负责渲染和输入采集
-    /// - Simulation 模块提供简化的"模拟逻辑"，用于演示
-    /// - 生产环境应使用真正的 AbilityKit.Ability.Runtime
+    /// ┌─────────────────────────────────────────────────────────────┐
+    /// │ Simulation Layer (模拟层)                                    │
+    /// │ - ConsoleActorRepository: 角色数据存储（唯一数据源）          │
+    /// │ - ActorState: 角色状态快照                                  │
+    /// │ - ShareEntityAdapter: 适配 Share 层接口                      │
+    /// └─────────────────────────────────────────────────────────────┘
+    /// ┌─────────────────────────────────────────────────────────────┐
+    /// │ View Layer (表现层)                                         │
+    /// │ - ConsoleBattleView: 视图渲染                              │
+    /// │ - ConsoleViewEventSink: 事件接收                            │
+    /// │ - ConsoleViewBinder: 视图绑定和插值                          │
+    /// │ 数据流：Simulation → ConsoleViewEventSink → ConsoleBattleView │
+    /// └─────────────────────────────────────────────────────────────┘
     ///
-    /// 模块内容：
-    /// - SimulatedBattleSession：模拟战斗会话（逻辑层入口）
+    /// 生产环境应使用真正的 AbilityKit.Ability.Runtime
     /// </summary>
     public static class SimulationModule
     {
@@ -26,6 +34,6 @@ namespace AbilityKit.Demo.Moba.Console.Simulation
         /// <summary>
         /// 模块版本
         /// </summary>
-        public const string Version = "1.0.0";
+        public const string Version = "4.0.0";
     }
 }
