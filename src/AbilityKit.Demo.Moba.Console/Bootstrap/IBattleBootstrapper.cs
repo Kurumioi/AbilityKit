@@ -23,11 +23,6 @@ namespace AbilityKit.Demo.Moba.Console
         void SetupBattle();
         void ShowHud();
         void PrintWorldStatus();
-
-        /// <summary>
-        /// 注册演示实体（用于自动测试）
-        /// </summary>
-        void RegisterDemoEntities();
     }
 
     /// <summary>

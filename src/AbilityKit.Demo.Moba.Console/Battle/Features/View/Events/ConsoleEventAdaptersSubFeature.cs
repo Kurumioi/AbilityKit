@@ -18,43 +18,44 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
     }
 
     /// <summary>
-    /// Event adapters SubFeature
+    /// Event adapters Module
     /// Manages snapshot and trigger event adapters
+    /// 对齐 Unity EventAdaptersModule
     /// </summary>
-    public sealed class ConsoleEventAdaptersSubFeature : IConsoleViewFeatureModule
+    public sealed class ConsoleEventAdaptersModule : IConsoleViewModule
     {
+        private const string ModuleId = "view_event_adapters";
         private ConsoleSnapshotViewAdapter? _snapshotAdapter;
 
-        public void OnAttach(in ConsoleFeatureModuleContext ctx)
+        public string Id => ModuleId;
+        public string[]? Dependencies => null;
+
+        public void OnAttach(IConsoleViewFeatureModulesHost host)
         {
-            var host = ctx.Feature;
-            if (host == null) return;
-
             var dispatcher = host.Context?.FrameSnapshots as ShareFrameSnapshotDispatcher;
-            var eventSink = host.EventSink;
 
-            if (dispatcher != null && eventSink != null)
+            if (dispatcher != null)
             {
-                _snapshotAdapter = new ConsoleSnapshotViewAdapter(dispatcher, eventSink);
-                Platform.Log.View("[EventAdaptersSubFeature] Created SnapshotViewAdapter");
+                _snapshotAdapter = new ConsoleSnapshotViewAdapter(dispatcher, host.EventSink);
+                Platform.Log.View("[EventAdaptersModule] Created SnapshotViewAdapter");
             }
             else
             {
-                Platform.Log.Warn("[EventAdaptersSubFeature] Failed to create adapters: missing dispatcher or eventsink");
+                Platform.Log.Warn("[EventAdaptersModule] Failed to create adapters: missing dispatcher");
             }
         }
 
-        public void OnDetach(in ConsoleFeatureModuleContext ctx)
+        public void OnDetach(IConsoleViewFeatureModulesHost host)
         {
             _snapshotAdapter?.Dispose();
             _snapshotAdapter = null;
         }
 
-        public void Tick(in ConsoleFeatureModuleContext ctx, float deltaTime)
+        public void Tick(IConsoleViewFeatureModulesHost host, float deltaTime)
         {
         }
 
-        public void Rebind(in ConsoleFeatureModuleContext ctx)
+        public void Rebind(IConsoleViewFeatureModulesHost host)
         {
         }
     }
@@ -88,35 +89,35 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
 
             _dispatcher.Subscribe(MobaOpCode.ActorSpawnSnapshot, (int frame, ActorSpawnData[] data) =>
             {
-                var spawnList = new System.Collections.Generic.List<ActorSpawnData>(data);
+                var spawnList = new List<ActorSpawnData>(data);
                 var snapshot = new FrameSnapshotData(frame, 0, SnapshotType.Full, actorSpawns: spawnList);
                 _sink.OnActorSpawnSnapshot(in snapshot);
             });
 
             _dispatcher.Subscribe(MobaOpCode.ActorTransformSnapshot, (int frame, ActorTransformData[] data) =>
             {
-                var transformList = new System.Collections.Generic.List<ActorTransformData>(data);
+                var transformList = new List<ActorTransformData>(data);
                 var snapshot = new FrameSnapshotData(frame, 0, SnapshotType.Full, actorTransforms: transformList);
                 _sink.OnActorTransformSnapshot(in snapshot);
             });
 
             _dispatcher.Subscribe(MobaOpCode.ProjectileEventSnapshot, (int frame, ProjectileEventData[] data) =>
             {
-                var eventList = new System.Collections.Generic.List<ProjectileEventData>(data);
+                var eventList = new List<ProjectileEventData>(data);
                 var snapshot = new FrameSnapshotData(frame, 0, SnapshotType.Full, projectileEvents: eventList);
                 _sink.OnProjectileEventSnapshot(in snapshot);
             });
 
             _dispatcher.Subscribe(MobaOpCode.AreaEventSnapshot, (int frame, AreaEventData[] data) =>
             {
-                var eventList = new System.Collections.Generic.List<AreaEventData>(data);
+                var eventList = new List<AreaEventData>(data);
                 var snapshot = new FrameSnapshotData(frame, 0, SnapshotType.Full, areaEvents: eventList);
                 _sink.OnAreaEventSnapshot(in snapshot);
             });
 
             _dispatcher.Subscribe(MobaOpCode.DamageEventSnapshot, (int frame, DamageEventData[] data) =>
             {
-                var eventList = new System.Collections.Generic.List<DamageEventData>(data);
+                var eventList = new List<DamageEventData>(data);
                 var snapshot = new FrameSnapshotData(frame, 0, SnapshotType.Full, damageEvents: eventList);
                 _sink.OnDamageEventSnapshot(in snapshot);
             });

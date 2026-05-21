@@ -113,6 +113,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Ability", "Abili
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BTCore", "AbilityKit.BTCore\AbilityKit.BTCore.csproj", "{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.ET.Share", "AbilityKit.Demo.ET.Share\AbilityKit.Demo.ET.Share.csproj", "{A2000001-0001-0001-0001-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.ET.Logic", "AbilityKit.Demo.ET.Logic\AbilityKit.Demo.ET.Logic.csproj", "{A2000002-0002-0002-0002-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.ET.View", "AbilityKit.Demo.ET.View\AbilityKit.Demo.ET.View.csproj", "{A2000003-0003-0003-0003-000000000003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.ET.App", "AbilityKit.Demo.ET.App\AbilityKit.Demo.ET.App.csproj", "{A2000004-0004-0004-0004-000000000004}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -783,6 +791,54 @@ Global
 		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x64.Build.0 = Release|Any CPU
 		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x86.ActiveCfg = Release|Any CPU
 		{2E3C6E48-ABD9-4F65-B629-5FE0D2D2F63F}.Release|x86.Build.0 = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|x64.Build.0 = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Debug|x86.Build.0 = Debug|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|x64.ActiveCfg = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|x64.Build.0 = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|x86.ActiveCfg = Release|Any CPU
+		{A2000001-0001-0001-0001-000000000001}.Release|x86.Build.0 = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|x64.Build.0 = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Debug|x86.Build.0 = Debug|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|x64.ActiveCfg = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|x64.Build.0 = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|x86.ActiveCfg = Release|Any CPU
+		{A2000002-0002-0002-0002-000000000002}.Release|x86.Build.0 = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|x64.Build.0 = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Debug|x86.Build.0 = Debug|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|x64.ActiveCfg = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|x64.Build.0 = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|x86.ActiveCfg = Release|Any CPU
+		{A2000003-0003-0003-0003-000000000003}.Release|x86.Build.0 = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|x64.Build.0 = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Debug|x86.Build.0 = Debug|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|x64.ActiveCfg = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|x64.Build.0 = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|x86.ActiveCfg = Release|Any CPU
+		{A2000004-0004-0004-0004-000000000004}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

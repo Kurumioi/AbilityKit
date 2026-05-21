@@ -31,4 +31,20 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     {
         void Rebind(TContext context);
     }
+
+    /// <summary>
+    /// Module Id interface
+    /// </summary>
+    public interface IModuleId
+    {
+        string Id { get; }
+    }
+
+    /// <summary>
+    /// Module dependencies interface
+    /// </summary>
+    public interface IModuleDependencies
+    {
+        string[]? Dependencies { get; }
+    }
 }

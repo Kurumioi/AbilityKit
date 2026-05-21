@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Battle.Game;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Features
@@ -38,15 +39,33 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
     }
 
     /// <summary>
-    /// SubFeature 基类
+    /// SubFeature 基类（Console 版本）
     /// 提供默认实现，简化 SubFeature 创建
+    /// 同时实现 IGamePhaseFeature 接口以兼容游戏阶段系统
     /// </summary>
-    public abstract class ConsoleSubFeatureBase : IConsoleSubFeature, IGamePhaseFeature
+    public abstract class ConsoleSubFeatureBase : SubFeatureBase, IConsoleSubFeature, IGamePhaseFeature
     {
-        public abstract string Id { get; }
-        public virtual string[] Dependencies => Array.Empty<string>();
-
         protected ConsoleBattleContext? Context { get; private set; }
+
+        /// <summary>
+        /// SubFeature ID（使用基类的抽象属性）
+        /// </summary>
+        public override sealed string Id => GetSubFeatureId();
+
+        /// <summary>
+        /// SubFeature 依赖（使用基类的虚属性）
+        /// </summary>
+        public override sealed string[] Dependencies => GetSubFeatureDependencies();
+
+        /// <summary>
+        /// 获取 SubFeature ID（子类实现）
+        /// </summary>
+        protected abstract string GetSubFeatureId();
+
+        /// <summary>
+        /// 获取 SubFeature 依赖（子类可覆盖）
+        /// </summary>
+        protected virtual string[] GetSubFeatureDependencies() => Array.Empty<string>();
 
         public virtual void OnAttach(ConsoleBattleContext ctx)
         {
@@ -62,7 +81,33 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
             Context = null;
         }
 
-        // IGamePhaseFeature implementation
+        protected override void OnAttachInternal(IFeatureContext ctx)
+        {
+            if (ctx is FeatureContextAdapter adapter && adapter.Context != null)
+            {
+                OnAttach(adapter.Context);
+            }
+        }
+
+        protected override void OnDetachInternal(IFeatureContext ctx)
+        {
+            if (Context != null)
+            {
+                OnDetach(Context);
+            }
+        }
+
+        public override void Tick(IFeatureContext ctx, float deltaTime)
+        {
+            if (Context != null)
+            {
+                Tick(Context, deltaTime);
+            }
+            base.Tick(ctx, deltaTime);
+        }
+
+        #region IGamePhaseFeature 实现
+
         void IGamePhaseFeature.OnAttach(in ConsoleGamePhaseContext ctx)
         {
             OnAttach(ctx.BattleContext!);
@@ -77,5 +122,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
         {
             Tick(ctx.BattleContext!, deltaTime);
         }
+
+        #endregion
     }
 }

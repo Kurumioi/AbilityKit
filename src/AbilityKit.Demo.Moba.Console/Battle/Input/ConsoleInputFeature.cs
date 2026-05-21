@@ -34,8 +34,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
     /// </summary>
     public sealed class ConsoleInputFeature : ConsoleSubFeatureBase, IInputFeature, IPlatformInputSource
     {
-        public override string Id => "console_input_feature";
-        public override string[] Dependencies => new[] { "console_sync_feature" };
+        protected override string GetSubFeatureId() => "console_input_feature";
+        protected override string[] GetSubFeatureDependencies() => new[] { "console_sync_feature" };
 
         private IWorldInputSink _inputSink;
         private BattleLocalInputQueue _inputQueue;

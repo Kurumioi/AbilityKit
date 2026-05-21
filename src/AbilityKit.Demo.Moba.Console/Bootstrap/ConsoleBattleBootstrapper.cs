@@ -19,7 +19,6 @@ using AbilityKit.Demo.Moba.Console.Presentation;
 using AbilityKit.Demo.Moba.Console.View;
 using AbilityKit.Demo.Moba.Console.Services;
 using AbilityKit.Demo.Moba.Console.Replay;
-using AbilityKit.Demo.Moba.Console.Simulation;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -63,7 +62,6 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly RecordConfig _recordConfig;
         private MobaConfigDatabase _mobaConfig;
 
-        private ViewActorAdapter? _viewActorAdapter;
         private IBattleSyncAdapter? _syncAdapter;
         private ViewBinderNamespace.IConsoleViewBinder? _viewBinder;
 
@@ -88,7 +86,6 @@ namespace AbilityKit.Demo.Moba.Console
         public ConsoleBattleContext Context => _context;
         public bool IsRunning => _running;
         public IReadOnlyList<IWorldModule> Modules => _modules;
-        public ViewActorAdapter? ViewActorAdapter => _viewActorAdapter;
         public ShareReplayRecorder? ReplayRecorder => _replayRecorder;
         public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
 
@@ -179,7 +176,8 @@ namespace AbilityKit.Demo.Moba.Console
         {
             Log.System($"Initializing... Plan: {_context.Plan}");
             ConfigureWorld();
-            _context.InitializeEcsWorld();
+            // ECS 世界现在由 BattleEntityFeature 在 InMatchPhase.OnEnter() 时创建
+            // 不再在此处初始化
             InitializeShareSubscriptions();
             LogBattleConfig();
         }
@@ -421,124 +419,11 @@ namespace AbilityKit.Demo.Moba.Console
             TransitionTo("LoadAssets");
             TransitionTo("InMatch");
 
-            RegisterEntitiesFromConfig();
-            RegisterLocalPlayer();
+            // 实体创建和本地玩家注册现在由 InMatchPhase 处理
             _hudFeature.RenderHud();
         }
 
-        private void RegisterLocalPlayer()
-        {
-            if (_config.Players != null && _config.Players.Count > 0)
-            {
-                var localPlayer = _config.Players[0];
-                _context.LocalActorId = DeterministicHash.StringToActorId(localPlayer.PlayerId);
-                Log.Battle($"[Bootstrapper] LocalPlayer: {localPlayer.Name} (ActorId: {_context.LocalActorId})");
-            }
-            else
-            {
-                _context.LocalActorId = 1;
-                Log.Battle($"[Bootstrapper] Using default LocalActorId: {_context.LocalActorId}");
-            }
-        }
-
-        private void RegisterEntitiesFromConfig()
-        {
-            Log.Battle($"Setting up battle with {_config.Players.Count} players...");
-
-            int index = 0;
-            foreach (var player in _config.Players)
-            {
-                CreateCharacterFromPlayer(player);
-            }
-
-            Log.Entity($"Registered entities: {_context.EcsWorld.AliveCount} total");
-        }
-
-        private void CreateCharacterFromPlayer(PlayerConfig player)
-        {
-            float physicsAttack = 10f;
-            float physicsDefense = 0f;
-            float moveSpeed = 5f;
-
-            if (_mobaConfig.TryGetCharacter(player.HeroId, out var charConfig) && charConfig != null)
-            {
-                if (_mobaConfig.TryGetAttributeTemplate(charConfig.AttributeTemplateId, out var attrs) && attrs != null)
-                {
-                    physicsAttack = attrs.PhysicsAttack;
-                    physicsDefense = attrs.PhysicsDefense;
-                    moveSpeed = attrs.MoveSpeed;
-                }
-
-                CreateEntityForView(
-                    actorId: DeterministicHash.StringToActorId(player.PlayerId),
-                    name: charConfig.Name,
-                    characterId: charConfig.Id,
-                    hp: attrs?.Hp ?? 500,
-                    maxHp: attrs?.MaxHp ?? 500,
-                    x: player.PositionX,
-                    y: player.PositionY,
-                    z: player.PositionZ,
-                    teamId: player.TeamId,
-                    physicsAttack: physicsAttack,
-                    physicsDefense: physicsDefense,
-                    moveSpeed: moveSpeed);
-
-                Log.Battle($"Spawned {charConfig.Name} (Team {player.TeamId}) at ({player.PositionX:F1}, {player.PositionZ:F1})");
-            }
-            else
-            {
-                Log.Warn($"Character config not found for HeroId: {player.HeroId}, using defaults");
-                CreateEntityForView(
-                    actorId: DeterministicHash.StringToActorId(player.PlayerId),
-                    name: player.Name,
-                    characterId: player.HeroId,
-                    hp: 500, maxHp: 500,
-                    x: player.PositionX, y: player.PositionY, z: player.PositionZ,
-                    teamId: player.TeamId,
-                    physicsAttack: physicsAttack,
-                    physicsDefense: physicsDefense,
-                    moveSpeed: moveSpeed);
-            }
-        }
-
-        private void CreateEntityForView(int actorId, string name, int characterId, float hp, float maxHp,
-            float x, float y, float z, int teamId = 1, float physicsAttack = 10f, float physicsDefense = 0f, float moveSpeed = 5f)
-        {
-            var entity = _context.EntityFactory.CreateCharacter(actorId, entityCode: characterId);
-
-            DispatchActorSpawnEvent(actorId, characterId, name, x, y, z, teamId, hp, maxHp);
-            Log.Entity($"Created: #{actorId} {name} (CharId:{characterId}, Team:{teamId})");
-        }
-
-        private void DispatchActorSpawnEvent(int actorId, int characterId, string name, float x, float y, float z, int teamId, float hp, float maxHp)
-        {
-            if (_snapshotDispatcher == null)
-            {
-                Log.Warn("[Bootstrapper] Cannot dispatch ActorSpawn: _snapshotDispatcher is null");
-                return;
-            }
-
-            var spawnData = new ShareActorSpawnData(actorId, characterId, name, x, y, z, 0f, 1f, teamId, maxHp, hp);
-            _snapshotDispatcher.DispatchActorSpawn(_context.LastFrame, new[] { spawnData });
-        }
-
         public void ShowHud() => _hudFeature.RenderHud();
-
-        /// <summary>
-        /// Register demo entities for automated testing
-        /// </summary>
-        public void RegisterDemoEntities()
-        {
-            CreateEntityForView(1, "Warrior", 1001, 800, 800, 0, 0, 0, physicsAttack: 15f, physicsDefense: 5f, moveSpeed: 4f);
-            CreateEntityForView(2, "Archer", 1002, 600, 600, 10, 0, 0, physicsAttack: 20f, physicsDefense: 2f, moveSpeed: 5f);
-            CreateEntityForView(3, "Mage", 1003, 500, 500, -10, 0, 0, physicsAttack: 25f, physicsDefense: 1f, moveSpeed: 4.5f);
-            CreateEntityForView(101, "Minion_A1", 2001, 300, 300, 20, 0, 0, physicsAttack: 8f, physicsDefense: 1f, moveSpeed: 3f);
-            CreateEntityForView(102, "Minion_A2", 2001, 300, 300, 22, 0, 2, physicsAttack: 8f, physicsDefense: 1f, moveSpeed: 3f);
-            CreateEntityForView(103, "Minion_A3", 2002, 250, 250, 21, 0, 1, physicsAttack: 6f, physicsDefense: 0.5f, moveSpeed: 3f);
-
-            Log.Entity($"Registered demo entities: 3 heroes, 3 minions");
-            Log.Entity($"ECS World alive count: {_context.EcsWorld.AliveCount}");
-        }
 
         public void PrintWorldStatus()
         {

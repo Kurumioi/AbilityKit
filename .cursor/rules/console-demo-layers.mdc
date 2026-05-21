@@ -192,3 +192,222 @@ public sealed class MobaEffectExecutionService
 ---
 
 ## 四、完整数据流
+
+```
+输入 → ConsoleInputFeature → 逻辑层 → FrameSnapshotDispatcher → ConsoleBattleViewEventSink → ConsoleBattleView
+```
+
+---
+
+## 五、Feature + ModuleHost 架构
+
+### 5.1 架构概述
+
+Console Demo 使用 **FeatureHost + ModuleHost** 模式管理组件生命周期，支持嵌套层级结构。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FeatureHost                                        │
+│   管理 Feature 生命周期和依赖排序                                             │
+│                                                                             │
+│   ┌───────────────────────────────────────────────────────────────────┐   │
+│   │                  ConsoleViewFeature (Feature)                          │   │
+│   │   实现 IConsoleViewFeatureModulesHost                                │   │
+│   │                                                                      │   │
+│   │   ┌─────────────────────────────────────────────────────────────┐ │   │
+│   │   │           ModuleHost<IConsoleViewFeatureModulesHost,           │ │   │
+│   │   │                    IConsoleViewModule>                        │ │   │
+│   │   │                                                             │ │   │
+│   │   │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │ │   │
+│   │   │   │ Binding     │  │ EventSink   │  │ Timeline    │       │ │   │
+│   │   │   │ Module      │  │ Module      │  │ Module      │       │ │   │
+│   │   │   └─────────────┘  └─────────────┘  └─────────────┘       │ │   │
+│   │   │                                                             │ │   │
+│   │   │   ┌─────────────────────────────────────────────────┐     │ │   │
+│   │   │   │       CompositeModule (支持嵌套)                   │     │ │   │
+│   │   │   │       ┌───────────────────────────────────────┐   │     │ │   │
+│   │   │   │       │  子 ModuleHost                        │   │     │ │   │
+│   │   │   │       │  ┌─────────┐ ┌─────────┐             │   │     │ │   │
+│   │   │   │       │  │Child A  │ │Child B  │             │   │     │ │   │
+│   │   │   │       │  └─────────┘ └─────────┘             │   │     │ │   │
+│   │   │   │       └───────────────────────────────────────┘   │     │ │   │
+│   │   │   └─────────────────────────────────────────────────┘     │   │
+│   │   └─────────────────────────────────────────────────────────────┘   │
+│   └───────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 核心接口
+
+```csharp
+// Feature Host 接口
+public interface IFeature : IModuleId, IModuleDependencies
+{
+    void OnAttach(IFeatureContext ctx);
+    void OnDetach(IFeatureContext ctx);
+}
+
+// Module Host 管理器
+public sealed class ModuleHost<TContext, TModule> : IDisposable
+    where TContext : class
+    where TModule : class
+{
+    ModuleHost<TContext, TModule> Add(TModule module);
+    void Attach(in TContext context);
+    void Detach(in TContext context);
+    void Tick(in TContext context, float deltaTime);
+    void RebindAll(in TContext context);
+}
+
+// Module 接口 - 继承所有必要的接口
+public interface IConsoleViewModule : 
+    IModuleId,                          // 模块标识
+    IModuleDependencies,                 // 模块依赖
+    IGameModule<IConsoleViewFeatureModulesHost>,      // 生命周期
+    IGameModuleTick<IConsoleViewFeatureModulesHost>,  // Tick 支持
+    IGameModuleRebind<IConsoleViewFeatureModulesHost>  // Rebind 支持
+{
+}
+
+// Host 接口 - 暴露能力给 Module
+public interface IConsoleViewFeatureModulesHost
+{
+    ConsoleBattleContext Context { get; }
+    ConsoleSessionHooks? Hooks { get; }
+    IConsoleViewBinder Binder { get; }
+    IConsoleBattleView BattleView { get; }
+    ConsoleVfxManager VfxManager { get; }
+    ConsoleBattleViewEventSink EventSink { get; }
+}
+```
+
+### 5.3 Module 示例
+
+```csharp
+/// <summary>
+/// Binding Module - 管理 ViewBinder 生命周期
+/// </summary>
+public sealed class ConsoleBindingModule : IConsoleViewModule
+{
+    private const string ModuleId = "view_binding";
+    private IConsoleViewBinder? _binder;
+
+    public string Id => ModuleId;
+    public string[]? Dependencies => null;  // 无依赖
+
+    public void OnAttach(IConsoleViewFeatureModulesHost host)
+    {
+        _binder = new ConsoleViewBinder();
+        host.RegisterBinder(_binder);
+        // 触发事件...
+    }
+
+    public void OnDetach(IConsoleViewFeatureModulesHost host)
+    {
+        host.UnregisterBinder(_binder!);
+        _binder.Dispose();
+    }
+
+    public void Tick(IConsoleViewFeatureModulesHost host, float deltaTime) { }
+    public void Rebind(IConsoleViewFeatureModulesHost host) { }
+}
+
+/// <summary>
+/// 支持嵌套的 Composite Module
+/// </summary>
+public sealed class ConsoleCompositeModule : IConsoleViewModule
+{
+    private const string ModuleId = "composite_parent";
+    
+    // 子 ModuleHost
+    private readonly ModuleHost<IConsoleViewFeatureModulesHost, IConsoleViewModule> _childHost = new();
+    private IConsoleViewFeatureModulesHost? _host;
+
+    public string Id => ModuleId;
+    public string[]? Dependencies => null;
+
+    public void OnAttach(IConsoleViewFeatureModulesHost host)
+    {
+        _host = host;
+        
+        // 添加子模块
+        _childHost.Add(new ConsoleChildModuleA());
+        _childHost.Add(new ConsoleChildModuleB());
+        
+        // 附加子模块
+        _childHost.Attach(host);
+    }
+
+    public void OnDetach(IConsoleViewFeatureModulesHost host)
+    {
+        _childHost.Detach(host);
+        _host = null;
+    }
+
+    public void Tick(IConsoleViewFeatureModulesHost host, float deltaTime)
+    {
+        _childHost.Tick(_host!, deltaTime);
+    }
+
+    public void Rebind(IConsoleViewFeatureModulesHost host)
+    {
+        _childHost.RebindAll(_host!);
+    }
+}
+```
+
+### 5.4 ViewFeature 使用 ModuleHost
+
+```csharp
+public sealed class ConsoleViewFeature : 
+    IGameModule<ConsoleBattleContext>, 
+    IGamePhaseFeature, 
+    IConsoleViewFeatureModulesHost
+{
+    // 使用 ModuleHost 管理所有 Module
+    private readonly ModuleHost<IConsoleViewFeatureModulesHost, IConsoleViewModule> _moduleHost = new();
+
+    public void OnAttach(ConsoleBattleContext context)
+    {
+        // 注册 Module
+        _moduleHost.Add(new ConsoleBindingModule());
+        _moduleHost.Add(new ConsoleEventSinkModule());
+        _moduleHost.Add(new ConsoleTimelineModule());
+        // ...
+
+        // 附加所有 Module（自动处理依赖排序）
+        _moduleHost.Attach(this);
+    }
+
+    public void Tick(in ConsoleGamePhaseContext ctx, float deltaTime)
+    {
+        // Tick 所有 Module（包括嵌套的子模块）
+        _moduleHost.Tick(this, deltaTime);
+    }
+
+    public void OnDetach(ConsoleBattleContext context)
+    {
+        // 分离所有 Module（反向顺序）
+        _moduleHost.Detach(this);
+    }
+}
+```
+
+### 5.5 设计原则
+
+| 原则 | 说明 |
+|-----|------|
+| **单一职责** | 每个 Module 只负责一个功能 |
+| **依赖注入** | Module 通过 Host 接口获取能力 |
+| **生命周期管理** | ModuleHost 自动处理 Attach/Detach 顺序 |
+| **支持嵌套** | Module 可以包含自己的子 ModuleHost |
+| **无循环依赖** | 依赖关系必须是 DAG |
+
+### 5.6 禁止事项
+
+| 禁止 | 说明 |
+|-----|------|
+| ❌ Module 直接引用其他 Module | 通过 Host 接口通信 |
+| ❌ Module 持有自己的 ModuleHost 的引用 | 由父级管理 |
+| ❌ 在构造函数中初始化 | 使用 OnAttach |
+| ❌ 循环依赖 | 依赖关系必须是有向无环图 |

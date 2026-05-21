@@ -112,6 +112,14 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
+        /// 跳转到指定帧（与 SeekAll 相同，方便调用）
+        /// </summary>
+        public void SeekToFrame(int frame, float secondsPerFrame = 1f / 30f)
+        {
+            SeekAll(frame, secondsPerFrame);
+        }
+
+        /// <summary>
         /// 获取视图数量
         /// </summary>
         public int Count => _seekableViews.Count;

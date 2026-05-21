@@ -25,8 +25,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
     /// </summary>
     public sealed class ConsoleHudFeature : ConsoleSubFeatureBase
     {
-        public override string Id => "console_hud_feature";
-        public override string[] Dependencies => new[] { "console_view_feature" };
+        protected override string GetSubFeatureId() => "console_hud_feature";
+        protected override string[] GetSubFeatureDependencies() => new[] { "console_view_feature" };
 
         private IConsoleBattleView _battleView;
         private BattleHudConfig _config;

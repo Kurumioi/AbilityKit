@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Pool;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Console.Battle.ECS;
 using AbilityKit.Demo.Moba.Console.Battle.ECS.Entities;
 using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Battle.Input;
-using AbilityKit.Demo.Moba.Console.Simulation;
+using AbilityKit.Demo.Moba.Console.Battle.Session;
 using EC = AbilityKit.World.ECS;
+using ConsoleIBattleEntityQuery = AbilityKit.Demo.Moba.Console.Battle.ECS.IBattleEntityQuery;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Context
 {
@@ -21,6 +23,17 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
             createFunc: () => new ConsoleBattleContext(),
             defaultCapacity: 1,
             maxSize: 8);
+
+        /// <summary>
+        /// 战斗逻辑会话（对齐 Unity BattleContext.Session）
+        /// Console 版本使用 SyncAdapter 替代
+        /// </summary>
+        public object Session { get; set; }
+
+        /// <summary>
+        /// 会话钩子（对齐 Unity BattleContext.Hooks）
+        /// </summary>
+        public ConsoleSessionHooks? Hooks { get; set; }
 
         /// <summary>
         /// 战斗启动计划
@@ -48,22 +61,23 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
         public int PlayerCount { get; set; }
 
         /// <summary>
-        /// 帧快照分发器（占位，对齐 Unity 结构）
+        /// 帧快照分发器（对齐 Unity BattleContext.FrameSnapshots）
+        /// Console 版本使用 ConsoleBattleViewEventSink
         /// </summary>
         public object FrameSnapshots { get; set; }
 
         /// <summary>
-        /// 快照管道（占位，对齐 Unity 结构）
+        /// 快照管道（对齐 Unity BattleContext.SnapshotPipeline）
         /// </summary>
         public object SnapshotPipeline { get; set; }
 
         /// <summary>
-        /// 命令处理器（占位，对齐 Unity 结构）
+        /// 命令处理器（对齐 Unity BattleContext.CmdHandler）
         /// </summary>
         public object CmdHandler { get; set; }
 
         /// <summary>
-        /// 输入录制器（占位，对齐 Unity 结构）
+        /// 输入录制器（对齐 Unity BattleContext.InputRecordWriter）
         /// </summary>
         public object InputRecordWriter { get; set; }
 
@@ -71,6 +85,16 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
         /// 本地输入队列
         /// </summary>
         public BattleLocalInputQueue LocalInputQueue { get; set; }
+
+        /// <summary>
+        /// 运行时世界 ID（对齐 Unity BattleContext.RuntimeWorldId）
+        /// </summary>
+        public string RuntimeWorldId { get; set; }
+
+        /// <summary>
+        /// 是否有运行时世界 ID（对齐 Unity BattleContext.HasRuntimeWorldId）
+        /// </summary>
+        public bool HasRuntimeWorldId { get; set; }
 
         /// <summary>
         /// ECS 世界
@@ -96,6 +120,11 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
         /// 脏实体列表（需要更新的实体）
         /// </summary>
         public List<EC.IEntityId> DirtyEntities { get; set; }
+
+        /// <summary>
+        /// 实体查询器
+        /// </summary>
+        public ConsoleIBattleEntityQuery EntityQuery { get; set; }
 
         /// <summary>
         /// HUD 移动输入
@@ -161,6 +190,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
             EntityNode = EcsWorld.Create("BattleEntities");
             EntityLookup = new BattleEntityLookup();
             EntityFactory = new BattleEntityFactory(EcsWorld, EntityLookup, EntityNode);
+            EntityQuery = new BattleEntityQuery(EcsWorld, EntityLookup);
 
             Platform.Log.Entity("ECS World initialized");
         }
@@ -189,6 +219,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
         /// </summary>
         public void Reset()
         {
+            Session = null;
+            Hooks = null;
             Plan = default;
             LastFrame = 0;
             LogicTimeSeconds = 0d;
@@ -203,6 +235,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
 
             LocalInputQueue = null;
 
+            RuntimeWorldId = null;
+            HasRuntimeWorldId = false;
+
             ResetHudState();
             State = BattleState.Idle;
             IsInitialized = false;
@@ -210,6 +245,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Context
             DirtyEntities?.Clear();
             DirtyEntities = null;
 
+            EntityQuery = null;
             EntityLookup?.Clear();
             EntityFactory = null;
             EntityNode = default;

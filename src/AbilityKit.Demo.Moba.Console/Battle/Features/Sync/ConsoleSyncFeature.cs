@@ -10,8 +10,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
     /// </summary>
     public sealed class ConsoleSyncFeature : ConsoleSubFeatureBase, IFrameSyncController
     {
-        public override string Id => "console_sync_feature";
-        public override string[] Dependencies => new[] { "console_view_feature" };
+        protected override string GetSubFeatureId() => "console_sync_feature";
+        protected override string[] GetSubFeatureDependencies() => new[] { "console_view_feature" };
 
         private int _syncTickCounter;
         private float _lastMoveUpdateTime;

@@ -235,9 +235,9 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
                     return result;
                 }
 
-                if (_bootstrapper.ViewActorAdapter == null)
+                if (_bootstrapper.Context.EcsWorld == null)
                 {
-                    result.Fail("ViewActorAdapter is null");
+                    result.Fail("EcsWorld is null");
                     return result;
                 }
 

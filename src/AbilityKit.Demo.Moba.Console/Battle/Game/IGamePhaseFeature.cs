@@ -21,4 +21,15 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Game
         /// </summary>
         void Tick(in ConsoleGamePhaseContext ctx, float deltaTime);
     }
+
+    /// <summary>
+    /// 游戏阶段 Feature 基类
+    /// 提供默认实现
+    /// </summary>
+    public abstract class GamePhaseFeatureBase : IGamePhaseFeature
+    {
+        public abstract void OnAttach(in ConsoleGamePhaseContext ctx);
+        public abstract void OnDetach(in ConsoleGamePhaseContext ctx);
+        public abstract void Tick(in ConsoleGamePhaseContext ctx, float deltaTime);
+    }
 }

@@ -30,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     /// </summary>
     public interface IFeatureDependencies
     {
-        string[] Dependencies { get; }
+        string[]? Dependencies { get; }
     }
 
     /// <summary>
@@ -38,13 +38,13 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     /// </summary>
     public interface IFeatureTick
     {
-        void Tick(float deltaTime);
+        void Tick(IFeatureContext ctx, float deltaTime);
     }
 
     /// <summary>
     /// Feature 基础接口
     /// </summary>
-    public interface IFeature : IFeatureId
+    public interface IFeature : IFeatureId, IModuleDependencies
     {
         void OnAttach(IFeatureContext ctx);
         void OnDetach(IFeatureContext ctx);
@@ -54,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     /// 特性上下文适配器
     /// 将 ConsoleBattleContext 适配为 IFeatureContext
     /// </summary>
-    public sealed class FeatureContextAdapter : IFeatureContext
+    public sealed class FeatureContextAdapter : IFeatureContext, IFeatureContextProvider
     {
         private readonly ConsoleBattleContext _battleContext;
 
@@ -69,13 +69,15 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         public static FeatureContextAdapter Wrap(ConsoleBattleContext ctx) => new FeatureContextAdapter(ctx);
+
+        public IFeatureContext? GetContext() => this;
     }
 
     /// <summary>
     /// Feature 宿主
     /// 管理一组 Feature 的生命周期和依赖排序
     /// </summary>
-    public sealed class FeatureHost : IDisposable
+    public sealed class FeatureHost : IDisposable, IFeatureContextProvider
     {
         private readonly List<IFeature> _features = new();
         private readonly Dictionary<string, IFeature> _featureById = new();
@@ -244,7 +246,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         /// </summary>
         public void Tick(float deltaTime)
         {
-            if (!_attached)
+            if (!_attached || _context == null)
             {
                 return;
             }
@@ -255,7 +257,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
                 {
                     try
                     {
-                        tick.Tick(deltaTime);
+                        tick.Tick(_context, deltaTime);
                     }
                     catch (Exception ex)
                     {
@@ -279,6 +281,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         /// 获取已排序的 Feature 列表
         /// </summary>
         public IReadOnlyList<IFeature> Features => _sortedFeatures;
+
+        public IFeatureContext? GetContext() => _context;
 
         public void Dispose()
         {
@@ -354,7 +358,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
             }
         }
 
-        public void Tick(float deltaTime)
+        public void Tick(IFeatureContext ctx, float deltaTime)
         {
             if (_context != null)
             {

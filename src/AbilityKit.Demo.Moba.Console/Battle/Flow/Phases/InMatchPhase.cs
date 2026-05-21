@@ -1,7 +1,11 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Console.Battle.ECS;
+using AbilityKit.Demo.Moba.Console.Battle.ECS.Entities;
+using AbilityKit.Demo.Moba.Console.Battle.Features;
 using AbilityKit.Demo.Moba.Config.Core;
+using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 {
@@ -14,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         private readonly IBattleFlow _flow;
         private readonly IBattleFlowEvents _events;
         private readonly FeatureHost _features;
+        private readonly BattleEntityFeature _entityFeature;
 
         private StepState _state = StepState.Pending;
         private int _currentStep;
@@ -32,6 +37,10 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
             _flow = flow;
             _events = events;
             _features = new FeatureHost();
+            _entityFeature = new BattleEntityFeature();
+
+            // BattleEntityFeature 必须最先添加，确保 ECS 世界在所有 Feature 之前创建
+            _features.Add(_entityFeature);
         }
 
         public void SetContext(
@@ -47,6 +56,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         /// <summary>
         /// 配置战斗 Feature
         /// 由 Bootstrapper 调用
+        /// 注意：BattleEntityFeature 已在此构造函数中自动添加
         /// </summary>
         public void ConfigureFeatures(Action<FeatureHost> configure)
         {
@@ -127,8 +137,17 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 
         private void SpawnCharacter(PlayerConfig player)
         {
+            if (_context?.EntityFactory == null)
+            {
+                Platform.Log.Error("[InMatch] EntityFactory is null, cannot spawn character");
+                return;
+            }
+
             float hp = 500f;
             float maxHp = 500f;
+            float physicsAttack = 10f;
+            float physicsDefense = 0f;
+            float moveSpeed = 5f;
 
             if (_mobaConfig?.TryGetCharacter(player.HeroId, out var charConfig) == true && charConfig != null)
             {
@@ -136,9 +155,35 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
                 {
                     hp = attrs.Hp;
                     maxHp = attrs.MaxHp;
+                    physicsAttack = attrs.PhysicsAttack;
+                    physicsDefense = attrs.PhysicsDefense;
+                    moveSpeed = attrs.MoveSpeed;
                 }
 
-                Platform.Log.Battle($"[InMatch] Spawned {charConfig.Name} (Team {player.TeamId}) at ({player.PositionX:F1}, {player.PositionZ:F1})");
+                // 使用 EntityFactory 创建角色实体
+                var actorId = DeterministicHash.StringToActorId(player.PlayerId);
+                var netId = _context.EntityFactory.CreateCharacter(actorId);
+
+                // 设置变换组件
+                if (_context.EntityQuery.TryGetTransform(netId, out var transform))
+                {
+                    transform.X = player.PositionX;
+                    transform.Y = player.PositionY;
+                    transform.Z = player.PositionZ;
+                }
+
+                // 设置角色组件
+                if (_context.EntityQuery.TryGetCharacter(netId, out var character))
+                {
+                    character.HpMax = maxHp;
+                    character.Hp = hp;
+                    character.PhysicsAttack = physicsAttack;
+                    character.PhysicsDefense = physicsDefense;
+                    character.MoveSpeed = moveSpeed;
+                    character.TeamId = player.TeamId;
+                }
+
+                Platform.Log.Battle($"[InMatch] Spawned {charConfig.Name} (Team {player.TeamId}) at ({player.PositionX:F1}, {player.PositionZ:F1}) as NetId={netId.Value}");
             }
             else
             {
