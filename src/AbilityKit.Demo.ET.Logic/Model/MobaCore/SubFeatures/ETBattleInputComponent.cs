@@ -3,19 +3,19 @@ using System.Collections.Generic;
 namespace ET.Logic
 {
     /// <summary>
-    /// 输入 SubFeature Component
-    /// 负责管理玩家输入
+    /// ?? SubFeature Component
+    /// ????????
     /// </summary>
     [ComponentOf(typeof(ETBattleComponent))]
     public class ETBattleInputComponent : Entity, IAwake, IUpdate, IDestroy
     {
-        // 输入缓冲
+        // ????
         public Queue<InputFrame> InputBuffer { get; set; } = new Queue<InputFrame>();
 
-        // 当前待处理的输入
+        // ????????
         public InputFrame CurrentInput { get; set; }
 
-        // 本地玩家 Actor ID
+        // ???? Actor ID
         public int LocalPlayerActorId { get; set; }
 
         public void Awake()
@@ -24,7 +24,7 @@ namespace ET.Logic
 
         public void Update(ETBattleInputComponent self)
         {
-            // 处理输入缓冲
+            // ??????
             while (self.InputBuffer.Count > 0)
             {
                 var input = self.InputBuffer.Dequeue();
@@ -56,7 +56,7 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// 输入类型
+    /// ????
     /// </summary>
     public enum InputType
     {
@@ -66,7 +66,7 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// 输入�?
+    /// ???
     /// </summary>
     public struct InputFrame
     {
@@ -79,7 +79,18 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// 输入 SubFeature System
+    /// ET Player Input Command
+    /// </summary>
+    public struct ETPlayerInputCmd
+    {
+        public int ActorId;
+        public float TargetX;
+        public float TargetY;
+        public float TargetZ;
+    }
+
+    /// <summary>
+    /// ?? SubFeature System
     /// </summary>
     [EntitySystemOf(typeof(ETBattleInputComponent))]
     [FriendOf(typeof(ETBattleInputComponent))]

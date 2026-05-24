@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Ability.Host.WorldBlueprints
 {
-    public sealed class WorldBlueprintRegistry
+    public sealed class WorldBlueprintRegistry : IWorldBlueprintRegistry
     {
         private readonly Dictionary<string, IWorldBlueprint> _map = new Dictionary<string, IWorldBlueprint>(StringComparer.Ordinal);
 

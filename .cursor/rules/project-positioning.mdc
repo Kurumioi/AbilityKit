@@ -31,15 +31,32 @@ AbilityKit/
 │   ├── com.abilitykit.hfsm           # 分层有限状态机
 │   └── com.abilitykit.pipeline       # 技能流程管道
 │
+├── 世界与网络
+│   ├── com.abilitykit.world.*        # 世界/ECS 系统
+│   ├── com.abilitykit.protocol.*     # 网络协议
+│   ├── com.abilitykit.flow           # 流程控制
+│   │
+│   ├── com.abilitykit.host           # Host 运行时（世界管理 + 网络连接）
+│   │   ├── HostRuntime              # 宿主运行时
+│   │   ├── WorldManager             # 世界生命周期管理
+│   │   ├── IHostRuntimeModule       # 模块扩展接口
+│   │   └── Builder                  # 组件组装 Builder
+│   │
+│   └── com.abilitykit.host.extension # Host 业务扩展
+│       ├── MobaRoomState            # 房间权威状态
+│       ├── MobaRoomOrchestrator     # 房间编排器
+│       └── FrameSyncDriverModule    # 帧同步驱动
+│
 ├── 战斗系统
 │   ├── com.abilitykit.ability        # 技能系统
 │   ├── com.abilitykit.combat.*       # 战斗模块（伤害/碰撞/投射物/目标）
 │   └── com.abilitykit.gameplaytags   # 标签系统
 │
-├── 世界与网络
-│   ├── com.abilitykit.world.*        # 世界/ECS 系统
-│   ├── com.abilitykit.protocol.*     # 网络协议
-│   └── com.abilitykit.flow           # 流程控制
+├── 会话协调
+│   └── com.abilitykit.coordinator    # 通用会话协调框架
+│       ├── SessionCoordinator        # 会话生命周期管理
+│       ├── ISyncAdapter             # 同步策略（Local/Remote/Hybrid）
+│       └── SubFeature               # 可扩展功能模块
 │
 └── MOBA 示例
     ├── com.abilitykit.demo.moba.share     # 跨平台共享接口

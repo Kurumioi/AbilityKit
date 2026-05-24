@@ -28,5 +28,25 @@
     "AttackRatio": 0.8,
     "TargetPolicy": 2,
     "Radius": 5
+  },
+  {
+    "Id": 100001,
+    "Name": "Buff添加效果-日志",
+    "EffectType": 1,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 0
+  },
+  {
+    "Id": 10101,
+    "Name": "持续掉血效果",
+    "EffectType": 1,
+    "BaseDamage": 10,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 1,
+    "Radius": 0
   }
 ]

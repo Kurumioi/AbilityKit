@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Ability.World.DI;
-using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 {
@@ -31,7 +31,6 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 
         public void OnEnter(PhaseContext context)
         {
-            Platform.Log.Phase("[Prepare] Entered Prepare phase");
             _state = StepState.Running;
             _currentStep = 0;
         }
@@ -60,16 +59,9 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 
         private void ExecuteConfigureWorld()
         {
-            if (_modules == null) { _currentStep++; return; }
-
-            var builder = new WorldContainerBuilder();
-            foreach (var module in _modules)
-            {
-                module.Configure(builder);
-            }
-
-            _worldResolver = builder.Build();
-            Platform.Log.Phase("[Prepare] Step 1/3: World configured");
+            // 配置已在 Bootstrapper.ConfigureWorld() 中完成
+            // 这里只需要记录日志
+            Platform.Log.Phase("[Prepare] Step 1/3: World configured (via Bootstrapper)");
             _currentStep++;
         }
 

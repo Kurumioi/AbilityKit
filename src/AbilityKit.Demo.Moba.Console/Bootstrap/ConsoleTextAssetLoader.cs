@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             if (string.IsNullOrEmpty(path)) return false;
 
             var fullPath = GetFullPath(path);
+            Platform.Log.System($"[ConsoleTextAssetLoader] TryLoadText: path={path}, fullPath={fullPath}, exists={File.Exists(fullPath)}");
 
             if (!File.Exists(fullPath))
             {
@@ -84,7 +85,14 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             {
                 return normalizedPath;
             }
-            return Path.Combine(_basePath, normalizedPath);
+            // 组合 _basePath 和路径
+            var combined = Path.Combine(_basePath, normalizedPath);
+            // 添加 .json 扩展名（文件名本身包含 .json）
+            if (!combined.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                combined += ".json";
+            }
+            return combined;
         }
 
         private static string GetDefaultBasePath()

@@ -1,0 +1,117 @@
+using System;
+using System.IO;
+using AbilityKit.Ability.Config;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services.Attributes;
+
+namespace ET.Logic
+{
+    /// <summary>
+    /// ET ??????TextAsset ????
+    /// ???????????? JSON ??????
+    /// </summary>
+    [WorldService(typeof(ITextAssetLoader), WorldLifetime.Singleton)]
+    public sealed class ETTextAssetLoader : ITextAssetLoader
+    {
+        private readonly string _basePath;
+
+        public ETTextAssetLoader() : this(GetDefaultBasePath())
+        {
+        }
+
+        public ETTextAssetLoader(string basePath)
+        {
+            _basePath = string.IsNullOrEmpty(basePath) ? GetDefaultBasePath() : basePath;
+            Log.Info($"[ETTextAssetLoader] Created with basePath: {_basePath}");
+        }
+
+        public bool TryLoadText(string path, out string text)
+        {
+            text = null;
+            if (string.IsNullOrEmpty(path)) return false;
+
+            var fullPath = GetFullPath(path);
+
+            if (!File.Exists(fullPath))
+            {
+                Log.Warning($"[ETTextAssetLoader] File not found: {fullPath}");
+                return false;
+            }
+
+            try
+            {
+                text = File.ReadAllText(fullPath);
+                Log.Info($"[ETTextAssetLoader] Loaded: {fullPath}");
+                return !string.IsNullOrEmpty(text);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[ETTextAssetLoader] Failed to read: {fullPath}, Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool TryLoadBytes(string path, out byte[] bytes)
+        {
+            bytes = null;
+            if (string.IsNullOrEmpty(path)) return false;
+
+            var fullPath = GetFullPath(path);
+
+            if (!File.Exists(fullPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                bytes = File.ReadAllBytes(fullPath);
+                return bytes != null && bytes.Length > 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[ETTextAssetLoader] Failed to read bytes: {fullPath}, Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        private string GetFullPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return _basePath;
+
+            var normalizedPath = path.Replace('/', Path.DirectorySeparatorChar);
+
+            if (Path.IsPathRooted(normalizedPath))
+            {
+                return normalizedPath;
+            }
+            return Path.Combine(_basePath, normalizedPath);
+        }
+
+        private static string GetDefaultBasePath()
+        {
+            var exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            var configDir = Path.Combine(exeDir, "Configs");
+
+            if (Directory.Exists(configDir))
+            {
+                return configDir;
+            }
+
+            // ????????????
+            var current = new DirectoryInfo(exeDir);
+            while (current != null)
+            {
+                var testPath = Path.Combine(current.FullName, "Configs");
+                if (Directory.Exists(testPath))
+                {
+                    return testPath;
+                }
+                current = current.Parent;
+            }
+
+            // ???? exe ??
+            return exeDir;
+        }
+    }
+}

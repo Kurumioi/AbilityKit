@@ -97,7 +97,7 @@ namespace ET.Logic
             }
 
             // Add skill command with current frame
-            inputComponent.AddSkillCommand(currentFrame, TestActorId, SkillSlot, targetX, targetY);
+            inputComponent.AddSkillCommand(currentFrame, (int)TestActorId, SkillSlot, targetX, targetY);
             _skillCastCount++;
 
             Log.Info($"[ETBattleSkillTest] Skill cast: Frame={currentFrame}, ActorId={TestActorId}, Slot={SkillSlot}, Target=({targetX:F2}, {targetY:F2})");

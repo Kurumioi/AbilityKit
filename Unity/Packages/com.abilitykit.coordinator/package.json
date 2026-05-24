@@ -1,0 +1,22 @@
+{
+    "name": "com.abilitykit.coordinator",
+    "version": "1.0.0",
+    "displayName": "AbilityKit Coordinator",
+    "description": "Universal battle session coordination framework for client-server synchronization",
+    "unity": "2022.3",
+    "keywords": [
+        "abilitykit",
+        "coordinator",
+        "frame-sync",
+        "state-sync",
+        "client-server"
+    ],
+    "author": {
+        "name": "AbilityKit"
+    },
+    "dependencies": {
+        "com.abilitykit.core": "1.0.0",
+        "com.abilitykit.world.di": "1.0.0",
+        "com.abilitykit.host": "1.0.0"
+    }
+}

@@ -24,7 +24,7 @@ namespace ET.Logic
         /// </summary>
         public static void SubmitMoveInput(this ETInputComponent self, int frame, long actorId, float x, float y)
         {
-            self.AddMoveCommand(frame, actorId, x, y);
+            self.AddMoveCommand(frame, (int)actorId, x, y);
             Log.Debug($"[ETInput] Move input: Actor {actorId} -> ({x}, {y}) at frame {frame}");
         }
 
@@ -33,7 +33,7 @@ namespace ET.Logic
         /// </summary>
         public static void SubmitSkillInput(this ETInputComponent self, int frame, long actorId, int skillSlot, float targetX, float targetY)
         {
-            self.AddSkillCommand(frame, actorId, skillSlot, targetX, targetY);
+            self.AddSkillCommand(frame, (int)actorId, skillSlot, targetX, targetY);
             Log.Debug($"[ETInput] Skill input: Actor {actorId} Skill {skillSlot} -> ({targetX}, {targetY}) at frame {frame}");
         }
 
@@ -42,7 +42,7 @@ namespace ET.Logic
         /// </summary>
         public static void SubmitStopInput(this ETInputComponent self, int frame, long actorId)
         {
-            self.AddStopCommand(frame, actorId);
+            self.AddStopCommand(frame, (int)actorId);
             Log.Debug($"[ETInput] Stop input: Actor {actorId} at frame {frame}");
         }
 
@@ -98,9 +98,9 @@ namespace ET.Logic
                 return;
             }
 
-            unit.TargetX = cmd.TargetX;
-            unit.TargetY = cmd.TargetY;
-            Log.Info($"[ETInput] Move processed: Actor {cmd.ActorId} -> ({cmd.TargetX}, {cmd.TargetY})");
+            unit.TargetX = cmd.X;
+            unit.TargetY = cmd.Y;
+            Log.Info($"[ETInput] Move processed: Actor {cmd.ActorId} -> ({cmd.X}, {cmd.Y})");
         }
 
         private static void ProcessSkillCommand(this ETInputComponent self, ETUnitComponent unitComponent, SkillCommand cmd)

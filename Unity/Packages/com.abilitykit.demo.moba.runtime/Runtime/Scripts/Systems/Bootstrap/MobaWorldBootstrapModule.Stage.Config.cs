@@ -13,6 +13,10 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             Log.Info("[RegisterConfig] Entered");
 
+            // 注册 IMobaConfigTableRegistry（MobaConfigRegistry 单例）
+            builder.TryRegister<IMobaConfigTableRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Config.BattleDemo.MobaConfigRegistry.Instance);
+            Log.Info("[RegisterConfig] Registered MobaConfigRegistry");
+
             // 注意：ITextAssetLoader 在 RegisterTriggerPlans 中统一注册
 
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);

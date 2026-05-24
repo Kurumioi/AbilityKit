@@ -31,6 +31,52 @@ App → View/HotfixView → Share ← Logic
 | View | 依赖 Share |
 | App | 依赖所有层 |
 
+### 1.3 与 Coordinator/Host 的关系
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       ET Demo 与 Coordinator/Host 关系                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ET Demo 位于游戏项目层，通过适配器接入框架                                  │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                      游戏项目层 (Game)                                │   │
+│   │                                                                     │   │
+│   │   ET Demo                                                          │   │
+│   │   ├── ETBattleComponent ─── 战斗生命周期管理                         │   │
+│   │   ├── ETMobaBattleDriver ─── 战斗驱动（适配器）                    │   │
+│   │   ├── ETMobaRoomComponent ─── 房间状态                             │   │
+│   │   └── ETCoordinatorHost ─── Coordinator 宿主适配                   │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                   Coordinator 包 (com.abilitykit.coordinator)             │   │
+│   │                                                                     │   │
+│   │   SessionCoordinator ─── 通用会话协调                               │   │
+│   │   ├── ISyncAdapter ─── 同步策略                                    │   │
+│   │   └── SubFeature ─── 可扩展功能模块                               │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                   Host 包 (com.abilitykit.host)                      │   │
+│   │                                                                     │   │
+│   │   HostRuntime ─── 世界管理 + 网络连接                               │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**适配器模式**：
+
+| ET Demo 组件 | 适配接口 | 职责 |
+|--------------|----------|------|
+| `ETCoordinatorHost` | `ISessionCoordinatorHost` | 提供 WorldHost、服务注册、配置加载 |
+| `ETMobaBattleDriver` | `IBattleDriverHost` | 封装输入提交和状态查询 |
+| `ETBattleViewEventSink` | `IViewEventSink` | 接收视图事件并发布到 ET 事件系统 |
+
 ## 二、Component + System 模式
 
 ### 2.1 核心原则
@@ -432,8 +478,8 @@ public class ETBattleAutoTestComponent : Entity, IAwake, IUpdate, IDestroy
     // Is auto test enabled
     public bool IsEnabled { get; set; } = false;
 
-    // Test parameters
-    public long TestActorId { get; set; }
+    // Test parameters (使用 EntityCode 作为逻辑层 ID)
+    public int TestEntityCode { get; set; }
     public int TestIntervalFrames { get; set; } = 5; // Test interval
 
     // Internal state
@@ -451,12 +497,12 @@ public class ETBattleAutoTestComponent : Entity, IAwake, IUpdate, IDestroy
     /// <summary>
     /// Initialize auto test
     /// </summary>
-    public void Initialize(long actorId)
+    public void Initialize(int entityCode)
     {
-        TestActorId = actorId;
+        TestEntityCode = entityCode;
         _currentFrame = 0;
         _testCount = 0;
-        Log.Info($"[AutoTest] Initialized for ActorId={actorId}");
+        Log.Info($"[AutoTest] Initialized for EntityCode={entityCode}");
     }
 
     public void Update() { }
@@ -531,6 +577,81 @@ public static partial class ETBattleAutoTestComponentSystem
         Log.Info("[AutoTest] Auto test disabled");
     }
 }
+```
+
+### 9.4 EntityCode vs ActorId 设计规范
+
+**核心原则：ET 表现层使用 EntityCode 作为逻辑层 ID，不使用 ActorId。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ID 设计原则 │
+│ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETUnit (ET 表现层实体) │ │
+│ │ │ │
+│ │ - Id (继承自 Entity): ET 框架自动生成，用于 ET 内部操作 │ │
+│ │ - EntityCode (int): 逻辑层权威 ID，用于和 moba.core 交互 │ │
+│ │ - ActorId: ❌ 不使用（ET 框架系统字段） │ │
+│ │ │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETUnitComponent (单位管理器) │ │
+│ │ │ │
+│ │ - 字典 key 使用 EntityCode (int) │ │
+│ │ - CreateUnit(entityCode, ...) / GetUnit(entityCode) │ │
+│ │ │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**ID 对应关系：**
+
+| 位置 | 字段 | 类型 | 说明 |
+|------|------|------|------|
+| `ETUnit.Id` | 继承自 Entity | `long` | ET 框架自动生成 |
+| `ETUnit.EntityCode` | 自定义 | `int` | 逻辑层权威 ID |
+| `ActorSpawnData.ActorId` | moba.core | `int` | 逻辑层 ID，直接映射到 `EntityCode` |
+| `MoveCommand.ActorId` | 命令 | `int` | 逻辑层 ID，实际是 `EntityCode` |
+
+**命令类型定义：**
+
+```csharp
+public struct MoveCommand
+{
+    public int Frame;
+    public int ActorId;  // 实际是逻辑层 EntityCode
+    public float TargetX;
+    public float TargetY;
+}
+
+public struct SkillCommand
+{
+    public int Frame;
+    public int ActorId;  // 实际是逻辑层 EntityCode
+    public int SkillSlot;
+    public float TargetX;
+    public float TargetY;
+}
+
+public struct StopCommand
+{
+    public int Frame;
+    public int ActorId;  // 实际是逻辑层 EntityCode
+}
+```
+
+**正确 vs 错误示例：**
+
+```csharp
+// ✅ 正确：使用 EntityCode
+var unit = unitComponent.GetUnit(entityCode);
+unit.EntityCode  // 用于和 moba.core 交互
+
+// ❌ 错误：使用 ActorId（ET 框架系统字段）
+var unit = unitComponent.GetUnit(unit.ActorId);  // ❌ 不要这样用
 ```
 
 ### 9.4 驱动桥接规范
@@ -773,9 +894,155 @@ private void InitializeAutoTestComponent(Scene scene, in FrameSnapshotData snaps
 }
 ```
 
-## 十三、调试建议
+### 13.3 帧同步架构图
 
-### 13.1 查看自动测试日志
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ET Demo 帧同步架构                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Logic 层 (ET.Logic)                                               │   │
+│  │                                                                     │   │
+│  │  ┌──────────────────┐    ┌──────────────────┐                   │   │
+│  │  │ ETBattleComponent │───▶│ ETMobaBattleDriver│                   │   │
+│  │  │   (生命周期管理)   │    │   (帧同步核心)     │                   │   │
+│  │  └──────────────────┘    └──────────────────┘                   │   │
+│  │          │                       │                               │   │
+│  │          ▼                       ▼                               │   │
+│  │  ┌──────────────────┐    ┌──────────────────┐                   │   │
+│  │  │ ETBattleDriver   │    │   HostRuntime    │                   │   │
+│  │  │    Bridge       │    │  + WorldManager  │                   │   │
+│  │  └──────────────────┘    │  + moba.core     │                   │   │
+│  │          │               └──────────────────┘                   │   │
+│  │          │                       │                               │   │
+│  │  ┌──────────────────┐            ▼                               │   │
+│  │  │ ETInputComponent │    ┌──────────────────┐                   │   │
+│  │  │  (输入缓冲)      │    │ FrameSnapshot    │                   │   │
+│  │  └──────────────────┘    │  Dispatcher     │                   │   │
+│  │          │               └──────────────────┘                   │   │
+│  │          │                       │                               │   │
+│  │  ┌──────────────────┐            ▼                               │   │
+│  │  │ AutoTestComponent│    ┌──────────────────┐                   │   │
+│  │  │ SkillTestComponent│───▶│ ETBattleView    │                   │   │
+│  │  └──────────────────┘    │   EventSink    │                   │   │
+│  │                          └──────────────────┘                   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                       │
+│                                    ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ View 层 (ET.AbilityKit.Demo.ET.View)                                │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │ ActorSpawnEventHandler                                        │   │   │
+│  │  │ - 创建 ETUnit (Logic 层)                                      │   │   │
+│  │  │ - 创建 ETUnitViewComponent (View 层)                          │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 13.4 违反规范的常见问题
+
+| 问题 | 位置 | 说明 | 严重程度 |
+|------|------|------|----------|
+| 输入层包含伤害逻辑 | `ETInputComponentSystem.cs` | `ProcessSkillCommand` 中包含伤害计算 | 高 |
+| Handler 未创建 Logic 单位 | `ActorSpawnEventHandler.cs` | 只记录日志，未调用 `CreateUnit` | 高 |
+| 手动修改单位位置 | `ProcessMoveCommand` | 应只设置 TargetX/Y | 中 |
+| 未通过 moba.core 服务处理伤害 | `ProcessSkillCommand` | 应使用 `SkillExecutionService` | 高 |
+
+### 13.5 正确 vs 错误示例
+
+**正确 - 输入处理只设置目标：**
+
+```csharp
+// ✅ 正确：输入只设置目标，不处理业务逻辑
+private static void ProcessMoveCommand(this ETInputComponent self, ETUnitComponent unitComponent, MoveCommand cmd)
+{
+    var unit = unitComponent.GetUnit(cmd.ActorId);
+    if (unit == null || unit.IsDead)
+        return;
+
+    // 只设置目标位置
+    unit.TargetX = cmd.TargetX;
+    unit.TargetY = cmd.TargetY;
+}
+
+// ✅ 正确：技能输入只设置技能目标
+private static void ProcessSkillCommand(this ETInputComponent self, ETUnitComponent unitComponent, SkillCommand cmd)
+{
+    var unit = unitComponent.GetUnit(cmd.ActorId);
+    if (unit == null || unit.IsDead)
+        return;
+
+    // 只设置技能目标，由 moba.core 处理伤害
+    self.CurrentSkillSlot = cmd.SkillSlot;
+    self.SkillTargetX = cmd.TargetX;
+    self.SkillTargetY = cmd.TargetY;
+}
+```
+
+**错误 - 输入处理包含伤害逻辑：**
+
+```csharp
+// ❌ 错误：在输入层处理伤害（违反规范）
+private static void ProcessSkillCommand(...)
+{
+    // ...
+    // 自己实现伤害计算 ❌
+    var targets = unitComponent.FindUnitsInRange(cmd.TargetX, cmd.TargetY, 3f);
+    foreach (var target in targets)
+    {
+        if (target.Kind == ActorKind.Monster)
+        {
+            // ❌ 不应在输入层计算伤害
+            unitComponent.ExecuteDamage(cmd.ActorId, target.ActorId, unit.Attack * 1.5f);
+        }
+    }
+}
+```
+
+**正确 - ActorSpawnEventHandler 创建单位：**
+
+```csharp
+// ✅ 正确：Handler 负责创建 Logic 层和 View 层单位
+[Event(SceneType.DemoBattle)]
+public class ETBattleView_EventHandler : AEvent<Scene, ActorSpawnEvent>
+{
+    protected override async ETTask Run(Scene scene, ActorSpawnEvent args)
+    {
+        // 1. 创建 Logic 层单位
+        var unitComponent = scene.GetComponent<ETUnitComponent>();
+        unitComponent?.CreateUnit(
+            args.ActorId,
+            args.EntityCode,
+            args.Kind,
+            args.Name,
+            args.X,
+            args.Y,
+            args.MaxHp);
+
+        // 2. 创建 View 层单位视图
+        var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
+        unitViewComponent?.CreateUnitView(args);
+    }
+}
+```
+
+**错误 - Handler 只记录日志：**
+
+```csharp
+// ❌ 错误：Handler 不创建单位
+[Event(SceneType.DemoBattle)]
+public class ActorSpawnEventHandler : AEvent<Scene, ActorSpawnEvent>
+{
+    protected override async ETTask Run(Scene scene, ActorSpawnEvent args)
+    {
+        // 只记录日志 ❌
+        Log.Info($"[Handler] Received spawn event: {args.Name}");
+    }
+}
+```
 
 ```bash
 # 过滤自动测试日志
@@ -795,3 +1062,1007 @@ grep "ProcessInput\|Move processed" logs/*.log
 | `unit not found` | `ActorSpawnEvent` 处理器未创建 ETUnit | 检查 `ETBattleView_EventHandler` 是否调用 `CreateUnit` |
 | 自动测试命令未处理 | `ProcessInput` 未调用 | 在 `ETBattleDriverBridgeSystem.Update` 中添加调用 |
 | ActorId 不匹配 | 自动测试组件初始化太早 | 在 `OnEnterGameSnapshot` 后初始化 |
+
+## 十四、SubFeature 模式规范
+
+### 14.1 SubFeature 设计原则
+
+**SubFeature 是模块化的功能扩展组件，用于分离战斗会话的不同职责。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Session SubFeature 架构图 │
+│ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETBattleComponent │ │
+│ │ (生命周期管理) │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ├── ETSessionEventsSubFeature (事件系统) - 必须首先创建 │
+│ ├── ETSessionPlanSubFeature (计划) │
+│ ├── ETSessionLifecycleSubFeature (生命周期) │
+│ ├── ETSessionSnapshotRoutingSubFeature (快照路由) │
+│ ├── ETSessionTickLoopSubFeature (帧循环) │
+│ └── ETSessionReplaySubFeature (回放录制) │
+│ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 14.2 SubFeature 接口定义
+
+```csharp
+/// <summary>
+/// Session SubFeature 基接口
+/// 所有 SubFeature 必须实现此接口
+/// </summary>
+public interface ISessionSubFeature
+{
+    /// <summary>
+    /// 附加到战斗组件时调用
+    /// </summary>
+    void OnAttach(ETBattleComponent battle);
+
+    /// <summary>
+    /// 从战斗组件分离时调用
+    /// </summary>
+    void OnDetach(ETBattleComponent battle);
+
+    /// <summary>
+    /// 会话运行时每帧调用
+    /// </summary>
+    void Tick(ETBattleComponent battle, float deltaTime);
+}
+```
+
+### 14.3 SubFeature Component 规范
+
+**Component 只存储数据，System 处理逻辑：**
+
+```csharp
+// ✅ 正确：SubFeature Component 只定义数据
+[ComponentOf(typeof(Scene))]
+public class ETSessionTickLoopSubFeature : Entity, IAwake, IDestroy
+{
+    /// <summary>
+    /// Owner battle component reference
+    /// </summary>
+    public ETBattleComponent Owner { get; set; }
+
+    /// <summary>
+    /// Tick rate (frames per second)
+    /// </summary>
+    public int TickRate { get; set; }
+
+    /// <summary>
+    /// Is the tick loop running
+    /// </summary>
+    public bool IsRunning { get; set; }
+
+    public void Awake()
+    {
+        TickRate = 30;
+        IsRunning = false;
+    }
+
+    public void Destroy()
+    {
+        Owner = null;
+    }
+}
+
+// ❌ 错误：SubFeature Component 包含业务逻辑
+[ComponentOf(typeof(Scene))]
+public class ETSessionTickLoopSubFeature : Entity, IAwake
+{
+    public ETBattleComponent Owner { get; set; }
+
+    public void Awake()
+    {
+        // ❌ 不应在 Awake 中执行初始化逻辑
+        Log.Info("Starting tick loop...");
+        StartLoop();
+    }
+
+    private void StartLoop() // ❌ 逻辑应该在 System 中
+    {
+        // ...
+    }
+}
+```
+
+### 14.4 SubFeature System 规范
+
+```csharp
+// ✅ 正确：SubFeature System 使用 partial class + 扩展方法
+[EntitySystemOf(typeof(ETSessionTickLoopSubFeature))]
+[FriendOf(typeof(ETSessionTickLoopSubFeature))]
+[FriendOf(typeof(ETBattleSessionHooks))]
+public static partial class ETSessionTickLoopSubFeatureSystem
+{
+    [EntitySystem]
+    private static void Awake(this ETSessionTickLoopSubFeature self)
+    {
+        Log.Info("[TickLoop] System awake");
+    }
+
+    /// <summary>
+    /// Attach to battle component
+    /// </summary>
+    public static void OnAttach(this ETSessionTickLoopSubFeature self, ETBattleComponent battle)
+    {
+        self.Owner = battle;
+    }
+
+    /// <summary>
+    /// Start tick loop
+    /// </summary>
+    public static void Start(this ETSessionTickLoopSubFeature self)
+    {
+        self.IsRunning = true;
+        Log.Info("[TickLoop] Tick loop started");
+    }
+
+    /// <summary>
+    /// Stop tick loop
+    /// </summary>
+    public static void Stop(this ETSessionTickLoopSubFeature self)
+    {
+        self.IsRunning = false;
+        Log.Info("[TickLoop] Tick loop stopped");
+    }
+}
+```
+
+### 14.5 SubFeature 创建顺序
+
+SubFeature 必须按依赖顺序创建：
+
+```csharp
+// 在 ETBattleComponentSystem.InitializeBattle 中：
+public static void InitializeBattle(this ETBattleComponent self, BattleStartPlan plan, ITextAssetLoader textAssetLoader)
+{
+    // 1. EventsSubFeature 必须首先创建（其他 SubFeature 依赖它）
+    var eventsSubFeature = scene.AddComponent<ETSessionEventsSubFeature>();
+    eventsSubFeature.OnAttach(self);
+
+    // 2. PlanSubFeature
+    var planSubFeature = scene.AddComponent<ETSessionPlanSubFeature>();
+    planSubFeature.OnAttach(self);
+
+    // 3. LifecycleSubFeature
+    var lifecycleSubFeature = scene.AddComponent<ETSessionLifecycleSubFeature>();
+    lifecycleSubFeature.OnAttach(self);
+
+    // 4. SnapshotRoutingSubFeature
+    var snapshotRoutingSubFeature = scene.AddComponent<ETSessionSnapshotRoutingSubFeature>();
+    snapshotRoutingSubFeature.OnAttach(self);
+
+    // 5. TickLoopSubFeature
+    var tickLoopSubFeature = scene.AddComponent<ETSessionTickLoopSubFeature>();
+    tickLoopSubFeature.OnAttach(self);
+
+    // 6. ReplaySubFeature
+    var replaySubFeature = scene.AddComponent<ETSessionReplaySubFeature>();
+    replaySubFeature.OnAttach(self);
+}
+```
+
+### 14.6 SubFeature 禁止事项
+
+| 禁止 | 说明 | 正确做法 |
+|------|------|----------|
+| ❌ SubFeature 直接修改其他 SubFeature 状态 | 通过 Hooks 或生命周期方法通信 | 使用 `OnAttach`/`OnDetach`/`Tick` 接口 |
+| ❌ SubFeature 在构造函数中执行逻辑 | Component 只存储数据 | 在 `Awake` 或 `OnAttach` 中设置默认值 |
+| ❌ 跨 SubFeature 直接调用方法 | 破坏模块化 | 通过 Hooks 订阅/发布事件 |
+
+## 十五、Hooks 系统规范
+
+### 15.1 Hooks 设计原则
+
+**ETBattleSessionHooks 提供事件钩子，用于 SubFeature 之间的松耦合通信。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Hooks 系统架构图 │
+│ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETBattleSessionHooks │ │
+│ │ │ │
+│ │ Action OnPreTick; // 每帧前调用 │ │
+│ │ Action OnPostTick; // 每帧后调用 │ │
+│ │ Action OnFirstFrameReceived; // 首帧收到时调用 │ │
+│ │ Action OnSessionStarted; // 会话开始时调用 │ │
+│ │ Action OnSessionFailed; // 会话失败时调用 │ │
+│ │ Action OnSessionStarting; // 会话即将开始时调用 │ │
+│ │ Action OnSessionStopping; // 会话即将停止时调用 │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ │ 订阅 │ │
+│ ├── SubFeature A ──▶ OnPreTick ──▶ 执行前置逻辑 │ │
+│ ├── SubFeature B ──▶ OnPostTick ──▶ 执行后置逻辑 │ │
+│ └── ETBattleComponent ──▶ OnSessionStarting ──▶ 启动 TickLoop │ │
+│ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 Hooks Component 定义
+
+```csharp
+[ComponentOf(typeof(Scene))]
+public class ETBattleSessionHooks : Entity, IAwake, IDestroy
+{
+    // ============== Session Lifecycle Hooks ==============
+
+    /// <summary>
+    /// Called before each tick
+    /// </summary>
+    public Action<float> OnPreTick { get; set; }
+
+    /// <summary>
+    /// Called after each tick
+    /// </summary>
+    public Action<float> OnPostTick { get; set; }
+
+    /// <summary>
+    /// Called when first frame is received
+    /// </summary>
+    public Action OnFirstFrameReceived { get; set; }
+
+    /// <summary>
+    /// Called when session starts
+    /// </summary>
+    public Action<BattleStartPlan> OnSessionStarted { get; set; }
+
+    /// <summary>
+    /// Called when session fails
+    /// </summary>
+    public Action<Exception> OnSessionFailed { get; set; }
+
+    /// <summary>
+    /// Called when session is about to start
+    /// </summary>
+    public Action OnSessionStarting { get; set; }
+
+    /// <summary>
+    /// Called when session is stopping
+    /// </summary>
+    public Action OnSessionStopping { get; set; }
+
+    public void Awake() { }
+
+    public void Destroy()
+    {
+        // 清理所有 Action
+        OnPreTick = null;
+        OnPostTick = null;
+        OnFirstFrameReceived = null;
+        OnSessionStarted = null;
+        OnSessionFailed = null;
+        OnSessionStarting = null;
+        OnSessionStopping = null;
+    }
+}
+```
+
+### 15.3 Hooks 调用方法
+
+```csharp
+public static partial class ETBattleSessionHooksSystem
+{
+    /// <summary>
+    /// Invoke session starting hook
+    /// </summary>
+    public static void InvokeSessionStarting(this ETBattleSessionHooks self)
+    {
+        self.OnSessionStarting?.Invoke();
+    }
+
+    /// <summary>
+    /// Invoke session started hook
+    /// </summary>
+    public static void InvokeSessionStarted(this ETBattleSessionHooks self, in BattleStartPlan plan)
+    {
+        self.OnSessionStarted?.Invoke(plan);
+    }
+
+    /// <summary>
+    /// Invoke session stopping hook
+    /// </summary>
+    public static void InvokeSessionStopping(this ETBattleSessionHooks self)
+    {
+        self.OnSessionStopping?.Invoke();
+    }
+
+    /// <summary>
+    /// Invoke pre tick hook
+    /// </summary>
+    public static void InvokePreTick(this ETBattleSessionHooks self, float deltaTime)
+    {
+        self.OnPreTick?.Invoke(deltaTime);
+    }
+
+    /// <summary>
+    /// Invoke post tick hook
+    /// </summary>
+    public static void InvokePostTick(this ETBattleSessionHooks self, float deltaTime)
+    {
+        self.OnPostTick?.Invoke(deltaTime);
+    }
+}
+```
+
+### 15.4 订阅 Hooks 示例
+
+```csharp
+// ✅ 正确：在 System 中订阅 Hooks
+[EntitySystemOf(typeof(ETSessionTickLoopSubFeature))]
+[FriendOf(typeof(ETSessionTickLoopSubFeature))]
+[FriendOf(typeof(ETBattleSessionHooks))]
+public static partial class ETSessionTickLoopSubFeatureSystem
+{
+    /// <summary>
+    /// Subscribe to hooks
+    /// </summary>
+    public static void SubscribeToHooks(ETSessionTickLoopSubFeature self)
+    {
+        var scene = self.Scene();
+        var hooks = scene?.GetComponent<ETBattleSessionHooks>();
+        if (hooks == null)
+            return;
+
+        hooks.OnPreTick += (deltaTime) => OnPreTickHook(self, deltaTime);
+        hooks.OnPostTick += (deltaTime) => OnPostTickHook(self, deltaTime);
+    }
+
+    private static void OnPreTickHook(ETSessionTickLoopSubFeature self, float deltaTime)
+    {
+        // 前置 Tick 逻辑
+    }
+
+    private static void OnPostTickHook(ETSessionTickLoopSubFeature self, float deltaTime)
+    {
+        // 后置 Tick 逻辑
+    }
+}
+```
+
+### 15.5 Hooks 禁止事项
+
+| 禁止 | 说明 | 正确做法 |
+|------|------|----------|
+| ❌ 在 Component 构造函数中订阅 Hooks | Component 只存储数据 | 在 `OnAttach` 或专门初始化方法中订阅 |
+| ❌ 持有 Hooks 强引用导致内存泄漏 | 应在 `OnDetach` 中取消订阅 | 在 `Destroy` 中清理 `Action = null` |
+| ❌ Hooks 中执行耗时操作 | 可能阻塞帧 | 只执行轻量级逻辑 |
+
+## 十六、Driver Bridge 模式规范
+
+### 16.1 Driver Bridge 设计原则
+
+**ETBattleDriverBridge 封装与 BattleDriver 的交互逻辑，提供统一的访问接口。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Driver Bridge 架构图 │
+│ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETBattleComponent │ │
+│ │ │ │
+│ │ - BattleDriver (ETMobaBattleDriver) │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETBattleDriverBridge (静态辅助类) │ │
+│ │ │ │
+│ │ + SubmitMoveInput(ETBattleComponent, actorId, x, y) │ │
+│ │ + SubmitSkillInput(ETBattleComponent, actorId, slot, x, y) │ │
+│ │ + ProcessInput(ETBattleComponent, currentFrame) │ │
+│ │ + GetWorld(ETBattleComponent): IWorld │ │
+│ │ + TryResolve<T>(ETBattleComponent, out T): bool │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ▼ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETMobaBattleDriver (Component) │ │
+│ │ │ │
+│ │ - IWorldManager WorldManager │ │
+│ │ - HostRuntime HostRuntime │ │
+│ │ - FrameSnapshotDispatcher SnapshotDispatcher │ │
+│ │ - ... │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 16.2 Driver Bridge 模板
+
+```csharp
+/// <summary>
+/// Battle driver bridge
+/// Encapsulates interaction logic with BattleDriver
+/// All methods delegate to ETMobaBattleDriverSystem extension methods
+/// </summary>
+public static class ETBattleDriverBridge
+{
+    /// <summary>
+    /// Submit move input
+    /// </summary>
+    public static void SubmitMoveInput(ETBattleComponent self, long actorId, float targetX, float targetZ)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            ETMobaBattleDriverSystem.SubmitMoveInput(driver, (int)actorId, targetX, targetZ);
+        }
+    }
+
+    /// <summary>
+    /// Submit skill input
+    /// </summary>
+    public static void SubmitSkillInput(ETBattleComponent self, long actorId, int slot, float targetX, float targetZ)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            ETMobaBattleDriverSystem.SubmitSkillInput(driver, (int)actorId, slot, targetX, targetZ);
+        }
+    }
+
+    /// <summary>
+    /// Get World
+    /// </summary>
+    public static IWorld GetWorld(ETBattleComponent self)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            return driver.World;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Try resolve service from moba.core
+    /// </summary>
+    public static bool TryResolve<T>(ETBattleComponent self, out T service) where T : class
+    {
+        service = null;
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            return ETMobaBattleDriverSystem.TryResolve(driver, out service);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Start battle driver
+    /// </summary>
+    public static void Start(ETBattleComponent self)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            ETMobaBattleDriverSystem.StartBattle(driver);
+        }
+    }
+
+    /// <summary>
+    /// Stop battle driver
+    /// </summary>
+    public static void Stop(ETBattleComponent self)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            ETMobaBattleDriverSystem.StopBattle(driver);
+        }
+    }
+
+    /// <summary>
+    /// Get current frame number
+    /// </summary>
+    public static int GetCurrentFrame(ETBattleComponent self)
+    {
+        if (self.BattleDriver is ETMobaBattleDriver driver)
+        {
+            return driver.CurrentFrame;
+        }
+        return 0;
+    }
+}
+```
+
+### 16.3 Driver Bridge 禁止事项
+
+| 禁止 | 说明 | 正确做法 |
+|------|------|----------|
+| ❌ 在 BattleDriver 中直接实现业务逻辑 | 应委托给 System | 在 `ETMobaBattleDriverSystem` 中实现 |
+| ❌ 绕过 Bridge 直接访问 Driver | Bridge 提供统一接口 | 使用 `ETBattleDriverBridge.TryResolve<T>()` |
+| ❌ 在 Bridge 中缓存引用 | 可能导致引用失效 | 每次通过 `self.BattleDriver` 获取 |
+
+## 十七、ETUnit 子组件模式规范
+
+### 17.1 子组件设计原则
+
+**ETUnit 作为根实体持有子组件，通过子组件 ID 管理子组件生命周期。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ETUnit 子组件架构图 │
+│ │
+│ ┌───────────────────────────────────────────────────────────────────────┐ │
+│ │ ETUnit (根实体) │ │
+│ │ │ │
+│ │ - Id: ET 框架自动生成 │ │
+│ │ - MetaId: 子组件 ID │ │
+│ │ - TransformId: 子组件 ID │ │
+│ │ - CharacterId: 子组件 ID │ │
+│ │ - SkillListId: 子组件 ID │ │
+│ │ - BuffListId: 子组件 ID │ │
+│ │ │ │
+│ │ 通过 GetChild<T>(id) 获取子组件 │ │
+│ └───────────────────────────────────────────────────────────────────────┘ │
+│ │ │
+│ ├── ETUnitMetaComponent (元数据) │
+│ ├── ETUnitTransformComponent (变换) │
+│ ├── ETUnitCharacterComponent (角色属性) │
+│ ├── ETUnitSkillListComponent (技能列表) │
+│ └── ETUnitBuffListComponent (Buff 列表) │
+│ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 17.2 ETUnit Component 定义
+
+```csharp
+[ComponentOf(typeof(Scene))]
+public class ETUnit : Entity, IAwake
+{
+    // 子组件 ID（遵循 ET 设计：通过 ID 管理子组件）
+    public long MetaId { get; set; }
+    public long TransformId { get; set; }
+    public long CharacterId { get; set; }
+    public long SkillListId { get; set; }
+    public long BuffListId { get; set; }
+
+    public void Awake() { }
+}
+```
+
+### 17.3 ETUnitExtensions 扩展方法
+
+```csharp
+/// <summary>
+/// ETUnit 扩展方法
+/// 提供子组件访问和便捷属性
+/// Design:
+/// - Component 只存储数据（这里是子组件 ID），不持有 Component 引用
+/// - 通过 GetChild<T>(id) 获取子组件，保持 O(1) 查找性能
+/// </summary>
+public static class ETUnitExtensions
+{
+    #region Child Component Access
+
+    public static ETUnitMetaComponent? GetMeta(this ETUnit self)
+    {
+        if (self.MetaId == 0)
+            return null;
+        return self.GetChild<ETUnitMetaComponent>(self.MetaId);
+    }
+
+    public static ETUnitTransformComponent? GetTransform(this ETUnit self)
+    {
+        if (self.TransformId == 0)
+            return null;
+        return self.GetChild<ETUnitTransformComponent>(self.TransformId);
+    }
+
+    public static ETUnitCharacterComponent? GetCharacter(this ETUnit self)
+    {
+        if (self.CharacterId == 0)
+            return null;
+        return self.GetChild<ETUnitCharacterComponent>(self.CharacterId);
+    }
+
+    // ... 其他子组件访问方法
+
+    #endregion
+
+    #region Convenience Properties
+
+    public static int GetEntityCode(this ETUnit self) =>
+        self.GetMeta()?.EntityCode ?? 0;
+
+    public static float GetX(this ETUnit self) =>
+        self.GetTransform()?.X ?? 0;
+
+    public static float GetHp(this ETUnit self) =>
+        self.GetCharacter()?.Hp ?? 0;
+
+    public static bool IsDead(this ETUnit self) =>
+        self.GetCharacter()?.IsDead ?? true;
+
+    #endregion
+
+    #region Setters
+
+    public static void SetHp(this ETUnit self, float hp)
+    {
+        self.GetCharacter()?.SetHp(hp);
+    }
+
+    public static void SetTarget(this ETUnit self, float x, float y)
+    {
+        self.GetTransform()?.SetTarget(x, y);
+    }
+
+    #endregion
+}
+```
+
+### 17.4 子组件访问规范
+
+```csharp
+// ✅ 正确：通过扩展方法访问
+var hp = unit.GetHp();
+var x = unit.GetX();
+unit.SetTarget(10f, 20f);
+
+// ✅ 正确：安全访问子组件
+var transform = unit.GetTransform();
+if (transform != null)
+{
+    var rotation = transform.Rotation;
+}
+
+// ❌ 错误：直接访问私有字段
+var hp = unit._character.Hp; // ❌
+
+// ❌ 错误：在构造时缓存引用
+public class ETUnit : Entity
+{
+    private ETUnitCharacterComponent _character; // ❌
+}
+```
+
+### 17.5 子组件创建流程
+
+```csharp
+// 在 ETUnitComponentSystem.CreateUnit 中
+public static ETUnit CreateUnit(this ETUnitComponent self, /* ... */)
+{
+    var unit = self.AddChild<ETUnit>();
+
+    // 创建子组件
+    var meta = unit.AddChild<ETUnitMetaComponent>();
+    var transform = unit.AddChild<ETUnitTransformComponent>();
+    var character = unit.AddChild<ETUnitCharacterComponent>();
+    var skillList = unit.AddChild<ETUnitSkillListComponent>();
+    var buffList = unit.AddChild<ETUnitBuffListComponent>();
+
+    // 存储子组件 ID
+    unit.MetaId = meta.Id;
+    unit.TransformId = transform.Id;
+    unit.CharacterId = character.Id;
+    unit.SkillListId = skillList.Id;
+    unit.BuffListId = buffList.Id;
+
+    return unit;
+}
+```
+
+## 十八、详细目录结构规范
+
+### 18.1 Logic 层目录结构
+
+```
+src/AbilityKit.Demo.ET.Logic/
+├── Model/
+│   ├── Battle/
+│   │   ├── ETBattleComponent.cs
+│   │   ├── ETBattleAutoTestComponent.cs
+│   │   └── ETBattleSkillTestComponent.cs
+│   │
+│   ├── Unit/
+│   │   ├── ETUnit.cs                    # 根实体 + Extensions
+│   │   └── Components/
+│   │       ├── ETUnitComponent.cs       # 单位管理器
+│   │       ├── ETUnitMetaComponent.cs
+│   │       ├── ETUnitTransformComponent.cs
+│   │       ├── ETUnitCharacterComponent.cs
+│   │       ├── ETUnitSkillListComponent.cs
+│   │       └── ETUnitBuffListComponent.cs
+│   │
+│   ├── Input/
+│   │   └── ETInputComponent.cs
+│   │
+│   ├── Flow/
+│   │   └── ETFlowComponent.cs
+│   │
+│   ├── Session/
+│   │   └── Components/
+│   │       └── ETSessionComponent.cs
+│   │
+│   └── MobaCore/
+│       ├── Driver/
+│       │   └── ETMobaBattleDriver.cs    # Pure Data Component
+│       │
+│       ├── Components/                  # Session SubFeature Components
+│       │   ├── ETBattleSessionHooks.cs
+│       │   ├── ETBattleEventsComponent.cs
+│       │   ├── ETBattleSnapshotComponent.cs
+│       │   ├── ETBattlePlayerRegistryComponent.cs
+│       │   ├── ETSessionEventsSubFeature.cs
+│       │   ├── ETSessionPlanSubFeature.cs
+│       │   ├── ETSessionLifecycleSubFeature.cs
+│       │   ├── ETSessionSnapshotRoutingSubFeature.cs
+│       │   ├── ETSessionTickLoopSubFeature.cs
+│       │   └── ETSessionReplaySubFeature.cs
+│       │
+│       ├── Interfaces/
+│       │   ├── ISessionSubFeature.cs
+│       │   └── IViewSubFeature.cs
+│       │
+│       ├── Data/
+│       │   ├── ETPlayerSpawnData.cs
+│       │   └── PlayerRegistration.cs
+│       │
+│       ├── Services/
+│       │   └── ETConfigLoaderService.cs
+│       │
+│       ├── Handlers/
+│       │   └── ETBattleSnapshotHandlers.cs  # 快照处理器
+│       │
+│       └── SubFeatures/
+│           └── ETMobaRoomComponent.cs
+│
+├── Hotfix/
+│   ├── Battle/
+│   │   ├── ETBattleComponentSystem.cs
+│   │   ├── ETInputComponentSystem.cs
+│   │   ├── ETBattleViewComponentSystem.cs
+│   │   ├── ETMobaRoomSystem.cs
+│   │   │
+│   │   ├── AutoTest/
+│   │   │   └── ETBattleDriverBridge.cs
+│   │   │
+│   │   ├── Events/
+│   │   │   └── ETBattleViewEventSink.cs
+│   │   │
+│   │   └── SkillTest/
+│   │       └── ETBattleSkillTestComponentSystem.cs
+│   │
+│   ├── Unit/
+│   │   ├── ETUnitComponentSystem.cs
+│   │   ├── ETUnitSystem.cs
+│   │   ├── ETUnitMetaComponentSystem.cs
+│   │   ├── ETUnitTransformComponentSystem.cs
+│   │   ├── ETUnitCharacterComponentSystem.cs
+│   │   ├── ETUnitSkillListComponentSystem.cs
+│   │   └── ETUnitBuffListComponentSystem.cs
+│   │
+│   ├── MobaCore/
+│   │   ├── ETMobaBattleDriverSystem.cs
+│   │   ├── ETBattleViewFeatureSystem.cs
+│   │   ├── ETBattleSessionHooksSystem.cs
+│   │   ├── ETBattleEventsSystem.cs
+│   │   ├── ETBattleSnapshotSystem.cs
+│   │   ├── ETBattlePlayerRegistrySystem.cs
+│   │   ├── ETWorldResolverComponentSystem.cs
+│   │   ├── PlayerSpawnBuilder.cs
+│   │   │
+│   │   ├── ETSessionEventsSubFeatureSystem.cs
+│   │   ├── ETSessionPlanSubFeatureSystem.cs
+│   │   ├── ETSessionLifecycleSubFeatureSystem.cs
+│   │   ├── ETSessionSnapshotRoutingSubFeatureSystem.cs
+│   │   ├── ETSessionTickLoopSubFeatureSystem.cs
+│   │   └── ETSessionReplaySubFeatureSystem.cs
+│   │
+│   ├── View/
+│   │   └── ETUnitViewComponentSystem.cs
+│   │
+│   └── Process/
+│       └── DemoProcessComponentSystem.cs
+│
+├── Platform/
+│   └── Console/
+│       └── ConsoleBattleInputSource.cs
+│
+└── Model/
+    ├── Login/
+    │   └── DemoLoginComponent.cs
+    │
+    ├── Process/
+    │   └── DemoProcessComponent.cs
+    │
+    └── View/
+        ├── Components/
+        │   ├── ETBattleViewComponent.cs
+        │   └── ETUnitViewComponent.cs
+        │
+        └── Data/
+            └── UnitViewData.cs
+```
+
+### 18.2 Share 层目录结构
+
+```
+src/AbilityKit.Demo.ET.Share/
+├── Interface/
+│   └── IETViewEventSink.cs
+│
+├── Model/
+│   ├── EventType.cs
+│   ├── ActorSpawnEvent.cs
+│   ├── ActorMoveEvent.cs
+│   ├── ActorDamageEvent.cs
+│   ├── ActorDeadEvent.cs
+│   ├── BattleStartEvent.cs
+│   ├── BattleEndEvent.cs
+│   └── FrameTickEvent.cs
+│
+└── src/
+    └── cn.etetet.sourcegenerator@3.0.1/
+        └── ET.SourceGenerator.dll
+```
+
+### 18.3 文件命名规范总结
+
+| 类型 | 命名规范 | 示例 |
+|------|----------|------|
+| Component | `*Component.cs` | `ETBattleComponent.cs` |
+| System | `*ComponentSystem.cs` | `ETBattleComponentSystem.cs` |
+| Pure Data Driver | `ET*MobaBattleDriver.cs` | `ETMobaBattleDriver.cs` |
+| Bridge | `*DriverBridge.cs` | `ETBattleDriverBridge.cs` |
+| Event Sink | `*EventSink.cs` | `ETBattleViewEventSink.cs` |
+| Hooks | `*Hooks.cs` | `ETBattleSessionHooks.cs` |
+| SubFeature Component | `ET*SubFeature.cs` | `ETSessionTickLoopSubFeature.cs` |
+| SubFeature System | `ET*SubFeatureSystem.cs` | `ETSessionTickLoopSubFeatureSystem.cs` |
+| ViewFeature Component | `ETBattleViewFeature.cs` | `ETBattleViewFeatureComponent.cs` |
+| ViewFeature System | `ET*ViewFeatureSystem.cs` | `ETBattleViewFeatureSystem.cs` |
+| Snapshot Handlers | `ET*SnapshotHandlers.cs` | `ETBattleSnapshotHandlers.cs` |
+| Extensions | `*Extensions.cs` | `ETUnitExtensions.cs` |
+| Event | `*Event.cs` | `ActorSpawnEvent.cs` |
+| Event Handler | `*_Handler.cs` | `BattleEnd_Handler.cs` |
+
+### 18.4 命名空间规范
+
+```
+ET.Logic                           # Logic 层根命名空间
+ET.Logic.Battle                    # 战斗相关
+ET.Logic.Unit                      # 单位相关
+ET.Logic.Unit.Components           # 单位子组件
+ET.Logic.Input                     # 输入相关
+ET.Logic.MobaCore                  # MobaCore 会话相关
+ET.Logic.MobaCore.Driver           # Driver
+ET.Logic.MobaCore.Components       # Session SubFeature Components
+ET.Logic.MobaCore.Interfaces       # 接口定义
+ET.Logic.MobaCore.Data             # 数据结构
+ET.Logic.MobaCore.Services         # 服务
+ET.Logic.View                      # 表现层
+ET.Logic.Platform                  # 平台相关
+ET.Logic.Platform.Console          # Console 平台
+
+ET.AbilityKit.Demo.ET.Share        # Share 层根命名空间
+ET.AbilityKit.Demo.ET.Share.Model  # Share 层事件/数据结构
+```
+
+## 十九、常见错误对照表
+
+### 19.1 Component 层常见错误
+
+| 错误写法 | 正确写法 | 说明 |
+|----------|----------|------|
+| `Component 中调用 Log.Info` | 删除，移到 System | Component 只存数据 |
+| `Component 中创建其他 Component` | 删除，移到 System | 生命周期由 System 管理 |
+| `Component 中定义业务方法` | 移到 System 扩展方法 | Component 只存数据 |
+| `直接持有其他 Component 引用` | 通过 `self.Scene().GetComponent<T>()` 获取 | 避免引用失效 |
+
+### 19.2 System 层常见错误
+
+| 错误写法 | 正确写法 | 说明 |
+|----------|----------|------|
+| `遗漏 FriendOf 声明` | 添加所有需要的 `[FriendOf]` | 访问私有成员必须声明 |
+| `System 中定义实例字段` | 移到 Component | 状态存在 Component 中 |
+| `同步长时间操作` | 使用 `async/await + ETTask` | 避免阻塞帧 |
+| `直接访问其他 SubFeature` | 通过 Hooks 订阅/发布 | 保持模块化 |
+
+### 19.3 SubFeature 层常见错误
+
+| 错误写法 | 正确写法 | 说明 |
+|----------|----------|------|
+| `SubFeature A 直接调用 SubFeature B 方法` | 通过 Hooks 通信 | 保持松耦合 |
+| `在 Component 构造函数执行逻辑` | 在 `OnAttach` 或 `Awake` 中 | Component 只存储数据 |
+| `未在 Destroy 中清理 Action` | `Action = null` | 避免内存泄漏 |
+
+### 19.4 Hooks 层常见错误
+
+| 错误写法 | 正确写法 | 说明 |
+|----------|----------|------|
+| `在 Component 构造函数订阅 Hooks` | 在 `OnAttach` 或初始化方法中订阅 | Component 只存储数据 |
+| `持有 Hooks 强引用未清理` | 在 `OnDetach` 或 `Destroy` 中取消订阅 | 避免内存泄漏 |
+| `Hooks 中执行耗时操作` | 只执行轻量级逻辑 | 避免阻塞帧 |
+
+### 19.5 ViewFeature 层常见错误
+
+| 错误写法 | 正确写法 | 说明 |
+|----------|----------|------|
+| `ViewEventSink 直接修改 ETUnit` | 通过 ViewFeature 路由 | 保持视图层解耦 |
+| `在 Sink 中直接创建 ETUnit` | 发布 ET 事件，让 Handler 处理 | ET 规范 |
+| `跳过 ViewFeature 直接操作` | 使用 `ETBattleViewFeatureSystem` 方法 | 保持架构一致 |
+
+## 二十、ViewFeature 与 moba.view 对齐
+
+### 20.1 架构对比
+
+| moba.view 组件 | ET Demo 对应组件 | 说明 |
+|-----------------|------------------|------|
+| `BattleSessionFeature` | `ETBattleComponent` | 会话管理核心 |
+| `FrameSnapshotDispatcher` | `FrameSnapshotDispatcher` | 来自 AbilityKit 包 |
+| `BattleViewEventSink` | `ETBattleViewEventSink` | 事件桥接 |
+| `BattleViewFeature` | `ETBattleViewFeature` | 视图层封装 |
+| `IBattleViewEventSink` | `IBattleViewEventSink` | Share 层接口 |
+
+### 20.2 事件流向
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ET Demo 事件流向                                     │
+│                                                                             │
+│  moba.core (逻辑层)                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ HostRuntime.Tick() → FrameSnapshot → ViewSink.On*Snapshot()      │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ ETBattleViewEventSink (事件桥接)                                      │   │
+│  │                                                                       │   │
+│  │ - 发布 ET 事件 (EventSystem.Instance.Publish)                        │   │
+│  │ - 调用 ETBattleViewFeatureSystem 方法                               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    │                                        │
+│          ┌─────────────────────────┼─────────────────────────┐            │
+│          ▼                         ▼                         ▼                │
+│  ┌──────────────┐        ┌──────────────┐        ┌──────────────┐      │
+│  │ ET 事件系统    │        │ ViewFeature  │        │ Handler 处理  │      │
+│  │ (EventSystem) │        │ System       │        │              │      │
+│  │               │        │              │        │              │      │
+│  │ ActorSpawn   │        │ OnActorSpawn │        │ ETBattleView │      │
+│  │ Handler订阅   │        │ OnActorMove │        │ _EventHandler│      │
+│  │              │        │ OnActorDamage│        │              │      │
+│  └──────────────┘        └──────────────┘        └──────────────┘      │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ ETBattleViewComponent (渲染层)                                       │   │
+│  │ - ETUnitViewComponent (单位视图)                                     │   │
+│  │ - Console 渲染 (ASCII)                                             │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 20.3 ViewEventSink 双路由模式
+
+ET Demo 采用双路由模式，确保事件既符合 ET 规范又支持直接调用：
+
+```csharp
+public void OnActorSpawn(in ActorSpawnData spawn)
+{
+    var scene = _battleComponent.Scene();
+
+    // 1. 发布到 ET 事件系统（符合 ET 规范）
+    var evt = new ActorSpawnEvent { EntityCode = spawn.ActorId, ... };
+    EventSystem.Instance.Publish<Scene, ActorSpawnEvent>(scene, evt);
+
+    // 2. 直接调用 ViewFeature（如果已初始化）
+    var viewFeature = scene.GetComponent<ETBattleViewFeature>();
+    if (viewFeature?.IsInitialized == true)
+    {
+        ETBattleViewFeatureSystem.OnActorSpawn(viewFeature, evt);
+    }
+}
+```
+
+### 20.4 与 moba.view 差异说明
+
+| 维度 | moba.view | ET Demo | 说明 |
+|------|-----------|---------|------|
+| View Event 订阅 | `FrameSnapshotDispatcher.Subscribe` | `EventSystem.Instance.Publish` | ET 使用自己的事件系统 |
+| Handler 处理 | 反射订阅 | `[Event]` 特性订阅 | ET 使用 SourceGenerator |
+| ViewBinder | `BattleViewBinder` | `ETUnitViewComponent` | 功能相同，实现不同 |
+| VFX 管理 | `BattleVfxManager` | 简化实现 | Console 不需要 VFX |

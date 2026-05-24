@@ -16,5 +16,14 @@
     "OnApplyEffectId": 0,
     "OnTickEffectId": 1002,
     "OnRemoveEffectId": 0
+  },
+  {
+    "Id": 101,
+    "Name": "buff持续掉血",
+    "DurationMs": 5000,
+    "PeriodMs": 1000,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 10101,
+    "OnRemoveEffectId": 0
   }
 ]

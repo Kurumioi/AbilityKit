@@ -91,7 +91,7 @@ namespace ET.Logic
             var inputComponent = this.Scene().GetComponent<ETInputComponent>();
             if (inputComponent != null)
             {
-                inputComponent.AddMoveCommand(_currentFrame, TestActorId, newTargetX, newTargetY);
+                inputComponent.AddMoveCommand(_currentFrame, (int)TestActorId, newTargetX, newTargetY);
                 _moveCommandCount++;
 
                 float dx = newTargetX - _currentX;

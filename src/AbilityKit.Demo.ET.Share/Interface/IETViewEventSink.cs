@@ -35,6 +35,7 @@ namespace ET.AbilityKit.Demo.ET.Share
         void OnBattleStart(BattleStartEvent evt);
         void OnBattleEnd(BattleEndEvent evt);
         void OnFrameTick(FrameTickEvent evt);
+        void OnFrameSyncComplete(int frame);
     }
 
     /// <summary>
@@ -123,11 +124,11 @@ namespace ET.AbilityKit.Demo.ET.Share
     public struct MoveCommand
     {
         public int Frame;
-        public long ActorId;
+        public int ActorId;  // 逻辑层 EntityCode
         public float TargetX;
         public float TargetY;
 
-        public MoveCommand(int frame, long actorId, float targetX, float targetY)
+        public MoveCommand(int frame, int actorId, float targetX, float targetY)
         {
             Frame = frame;
             ActorId = actorId;
@@ -142,12 +143,12 @@ namespace ET.AbilityKit.Demo.ET.Share
     public struct SkillCommand
     {
         public int Frame;
-        public long ActorId;
+        public int ActorId;  // 逻辑层 EntityCode
         public int SkillSlot;
         public float TargetX;
         public float TargetY;
 
-        public SkillCommand(int frame, long actorId, int skillSlot, float targetX, float targetY)
+        public SkillCommand(int frame, int actorId, int skillSlot, float targetX, float targetY)
         {
             Frame = frame;
             ActorId = actorId;
@@ -163,9 +164,9 @@ namespace ET.AbilityKit.Demo.ET.Share
     public struct StopCommand
     {
         public int Frame;
-        public long ActorId;
+        public int ActorId;  // 逻辑层 EntityCode
 
-        public StopCommand(int frame, long actorId)
+        public StopCommand(int frame, int actorId)
         {
             Frame = frame;
             ActorId = actorId;

@@ -7,19 +7,23 @@ namespace AbilityKit.Ability.Host.WorldBlueprints
     public sealed class WorldBlueprintWorldFactory : IWorldFactory
     {
         private readonly IWorldFactory _inner;
-        private readonly WorldBlueprintRegistry _blueprints;
+        private readonly IWorldBlueprintRegistry _blueprints;
 
-        public WorldBlueprintWorldFactory(IWorldFactory inner, WorldBlueprintRegistry blueprints)
+        public WorldBlueprintWorldFactory(IWorldFactory inner, IWorldBlueprintRegistry blueprints)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-            _blueprints = blueprints ?? throw new ArgumentNullException(nameof(blueprints));
+            _blueprints = blueprints;
         }
 
         public IWorld Create(WorldCreateOptions options)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            _blueprints.Configure(options);
+            if (_blueprints != null && _blueprints.TryGet(options.WorldType, out var blueprint))
+            {
+                blueprint.Configure(options);
+            }
+
             return _inner.Create(options);
         }
     }

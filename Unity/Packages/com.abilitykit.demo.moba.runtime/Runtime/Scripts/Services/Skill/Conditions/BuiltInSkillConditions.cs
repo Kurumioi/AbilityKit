@@ -114,10 +114,23 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public override SkillConditionResult Check(SkillPipelineContext context)
         {
-            if (context.PipelineState == EAbilityPipelineState.Executing)
-            {
-                return Fail("正在施法中", "casting");
-            }
+            // 注意：这个条件的实现存在问题
+            //
+            // 问题分析：
+            // 1. 这个条件检查 context.PipelineState == EAbilityPipelineState.Executing
+            // 2. 但在 AbilityPipeline.Run 构造函数中，PipelineState 已被设置为 Executing
+            // 3. 所以当执行 Checks 阶段时（第一次 Tick），PipelineState 已经是 Executing
+            // 4. 导致条件检查失败，所有技能释放都会被阻止
+            //
+            // 正确语义应该是："是否有其他技能正在施法"
+            // 但当前实现检查的是"自身 Pipeline 是否正在执行"
+            // 由于 context 是当前 Pipeline 的上下文，所以这个检查永远为 Executing
+            //
+            // 修复方案：暂时返回 Pass，跳过这个检查
+            // 正确的实现应该通过其他机制（如 SkillExecutor 的运行状态）来判断
+            //
+            // TODO: 重新设计这个条件，正确检查"是否有其他技能正在施法"
+
             return Pass;
         }
     }

@@ -58,7 +58,7 @@ namespace ET.Logic
             var inputComponent = self.Scene().GetComponent<ETInputComponent>();
             if (inputComponent != null)
             {
-                inputComponent.AddMoveCommand(frame, self.TestActorId, newTargetX, newTargetY);
+                inputComponent.AddMoveCommand(frame, (int)self.TestActorId, newTargetX, newTargetY);
 
                 Log.Debug($"[ETBattleAutoTest] Frame={frame}: Move command sent, ActorId={self.TestActorId}, Target=({newTargetX:F2}, {newTargetY:F2})");
             }

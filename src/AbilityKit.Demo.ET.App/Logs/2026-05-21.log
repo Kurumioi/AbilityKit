@@ -1,9 +1,0 @@
-2026-05-21 10:54:22.3321 [ERROR] 000001.0000000000.Server System.IO.FileNotFoundException: Could not find file 'C:\Workspace\gitProject\AbilityKit\src\AbilityKit.Demo.ET.App\Bin\ET.Hotfix.dll'.
-File name: 'C:\Workspace\gitProject\AbilityKit\src\AbilityKit.Demo.ET.App\Bin\ET.Hotfix.dll'
-   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
-   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
-   at System.IO.File.OpenHandle(String path, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize)
-   at System.IO.File.ReadAllBytes(String path)
-   at ET.CodeLoader.LoadHotfix() in C:\Workspace\gitProject\AbilityKit\src\AbilityKit.Demo.ET.Share\src\cn.etetet.loader@3.0.1\Scripts\Loader\Server\CodeLoader.cs:line 44
-   at ET.CodeLoader.Start() in C:\Workspace\gitProject\AbilityKit\src\AbilityKit.Demo.ET.Share\src\cn.etetet.loader@3.0.1\Scripts\Loader\Server\CodeLoader.cs:line 31
-   at ET.Init.Start() in C:\Workspace\gitProject\AbilityKit\src\AbilityKit.Demo.ET.Share\src\cn.etetet.loader@3.0.1\Scripts\Loader\Server\Init.cs:line 31 

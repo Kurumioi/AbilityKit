@@ -15,5 +15,20 @@
     "MaxStacks": 0,
     "TriggerIds": [],
     "Tags": []
+  },
+  {
+    "Id": 101,
+    "Name": "持续掉血buff",
+    "DurationMs": 5000,
+    "OngoingEffectId": 101,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 1000,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [1]
   }
 ]

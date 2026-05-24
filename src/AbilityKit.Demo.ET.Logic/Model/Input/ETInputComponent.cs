@@ -1,20 +1,19 @@
 using System;
 using System.Collections.Generic;
-using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
 {
     /// <summary>
-    /// 输入组件 - 管理输入缓冲
-    /// 对应 Moba.Console �?ConsoleInputFeature
+    /// ???? - ??????
+    /// ?? Moba.Console ?ConsoleInputFeature
     /// </summary>
     [ComponentOf(typeof(Scene))]
     public class ETInputComponent: Entity, IAwake
     {
-        // 输入缓冲 (帧号 -> 命令列表)
-        private Dictionary<int, List<object>> _inputBuffer = new();
+        // ???? (?? -> ????)
+        private Dictionary<int, List<object>> _inputBuffer = new Dictionary<int, List<object>>();
 
-        // 当前输入状�?
+        // ??????
         public float MoveTargetX { get; set; }
         public float MoveTargetY { get; set; }
         public int CurrentSkillSlot { get; set; } = -1;
@@ -26,9 +25,9 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 添加移动命令到缓�?
+        /// ?????????
         /// </summary>
-        public void AddMoveCommand(int frame, long actorId, float x, float y)
+        public void AddMoveCommand(int frame, int actorId, float x, float y)
         {
             if (!_inputBuffer.TryGetValue(frame, out var commands))
             {
@@ -39,9 +38,9 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 添加技能命令到缓冲
+        /// ?????????
         /// </summary>
-        public void AddSkillCommand(int frame, long actorId, int skillSlot, float targetX, float targetY)
+        public void AddSkillCommand(int frame, int actorId, int skillSlot, float targetX, float targetY)
         {
             if (!_inputBuffer.TryGetValue(frame, out var commands))
             {
@@ -52,9 +51,9 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 添加停止命令到缓�?
+        /// ?????????
         /// </summary>
-        public void AddStopCommand(int frame, long actorId)
+        public void AddStopCommand(int frame, int actorId)
         {
             if (!_inputBuffer.TryGetValue(frame, out var commands))
             {
@@ -65,7 +64,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 获取指定帧的输入
+        /// ????????
         /// </summary>
         public List<object>? GetInputsForFrame(int frame)
         {
@@ -73,7 +72,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 清除已处理的输入
+        /// ????????
         /// </summary>
         public void ClearProcessedInputs(int upToFrame)
         {
@@ -89,4 +88,19 @@ namespace ET.Logic
             }
         }
     }
+
+    /// <summary>
+    /// ????
+    /// </summary>
+    public sealed record MoveCommand(int Frame, int ActorId, float X, float Y);
+
+    /// <summary>
+    /// ????
+    /// </summary>
+    public sealed record SkillCommand(int Frame, int ActorId, int SkillSlot, float TargetX, float TargetY);
+
+    /// <summary>
+    /// ????
+    /// </summary>
+    public sealed record StopCommand(int Frame, int ActorId);
 }

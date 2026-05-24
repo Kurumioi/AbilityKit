@@ -57,6 +57,19 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow.Steps
             }
 
             _worldResolver = builder.Build();
+
+            // 手动 resolve TriggerPlanJsonDatabase 来触发其加载
+            Platform.Log.System("[Prepare] Resolving TriggerPlanJsonDatabase...");
+            try
+            {
+                var triggerDb = _worldResolver.Resolve<AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanJsonDatabase>();
+                Platform.Log.System($"[Prepare] TriggerPlanJsonDatabase resolved, records={triggerDb?.Records?.Count ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                Platform.Log.Error($"[Prepare] Failed to resolve TriggerPlanJsonDatabase: {ex.Message}");
+            }
+
             Platform.Log.System("[Prepare] World configured");
         }
 

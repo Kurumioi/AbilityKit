@@ -36,7 +36,8 @@ namespace AbilityKit.Ability.Share.ECS
 
         public EcsEntityId(int actorId) => ActorId = actorId;
         public EcsEntityId(string actorId) => ActorId = int.Parse(actorId);
-        public bool IsValid => ActorId > 0;
+        // So we check for != 0 instead of > 0
+        public bool IsValid => ActorId != 0;
         public override string ToString() => ActorId.ToString();
     }
 

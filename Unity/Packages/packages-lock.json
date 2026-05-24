@@ -169,6 +169,16 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.coordinator": {
+      "version": "file:com.abilitykit.coordinator",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "1.0.0",
+        "com.abilitykit.world.di": "1.0.0",
+        "com.abilitykit.host": "1.0.0"
+      }
+    },
     "com.abilitykit.core": {
       "version": "file:com.abilitykit.core",
       "depth": 0,

@@ -283,5 +283,9 @@ namespace ET.Logic
         public void OnFrameTick(FrameTickEvent evt)
         {
         }
+
+        public void OnFrameSyncComplete(int frame)
+        {
+        }
     }
 }

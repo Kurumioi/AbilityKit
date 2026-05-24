@@ -1,52 +1,44 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Variables.Numeric;
+using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
-    /// <summary>
-    /// Console 环境的配置服务模块。
-    /// 负责注册配置相关的 DI 服务，统一管理配置加载。
-    /// 
-    /// 配置加载优先级（从高到低）：
-    /// 1. Luban 导出配置（高性能，策划使用 Luban 编辑）
-    /// 2. 简化版 JSON 配置（快速原型，Fallback）
-    /// </summary>
     public sealed class ConsoleConfigModule : IWorldModule
     {
         private readonly string _resourcesDir;
         private readonly string _lubanResourcesDir;
+        private readonly string _triggerPlansDir;
 
-        /// <summary>
-        /// 创建配置模块
-        /// </summary>
-        /// <param name="resourcesDir">简化版 JSON 配置目录（默认 moba）</param>
-        /// <param name="lubanResourcesDir">Luban 配置目录（默认 luban/moba）</param>
-        public ConsoleConfigModule(string resourcesDir = "moba", string lubanResourcesDir = "luban/moba")
+        public ConsoleConfigModule(string resourcesDir = "moba", string lubanResourcesDir = "luban/moba", string triggerPlansDir = "ability/triggers")
         {
             _resourcesDir = resourcesDir;
             _lubanResourcesDir = lubanResourcesDir;
+            _triggerPlansDir = triggerPlansDir;
         }
 
         public void Configure(WorldContainerBuilder builder)
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            // 注册 ITextAssetLoader（平台相关实现）
             builder.Register<ITextAssetLoader>(WorldLifetime.Singleton, _ => new ConsoleTextAssetLoader());
-
-            // 注册配置表注册器（逻辑层使用）
             builder.Register<IMobaConfigTableRegistry>(WorldLifetime.Singleton, _ => MobaConfigRegistry.Instance);
-
-            // 注册配置表的反序列化器（逻辑层使用）
             builder.Register<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.Register<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
 
-            // 注册逻辑层配置加载器（用于需要完整 MO 对象的场景）
             builder.Register<DefaultMobaConfigLoader>(WorldLifetime.Singleton, container =>
             {
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
@@ -54,21 +46,18 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return new DefaultMobaConfigLoader(registry, textAssetLoader);
             });
 
-            // 注册 Luban 配置组（使用 IConfigGroup 模式）
             builder.Register<LubanConfigGroup>(WorldLifetime.Singleton, container =>
             {
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
                 return LubanConfigGroup.Create(textAssetLoader, _lubanResourcesDir);
             });
 
-            // 注册 Luban 配置加载器（旧接口，保持兼容）
             builder.Register<ILubanConfigLoader>(WorldLifetime.Singleton, container =>
             {
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
                 return new ConsoleLubanConfigLoader(textAssetLoader, _lubanResourcesDir);
             });
 
-            // 注册框架版 MobaConfigDatabase（使用 moba 目录的 JSON 配置）
             builder.Register<AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase>(WorldLifetime.Singleton, container =>
             {
                 var registry = container.Resolve<IMobaConfigTableRegistry>();
@@ -76,23 +65,233 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
 
                 var db = new AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase(registry, deserializer, null, textAssetLoader);
+                try { db.LoadFromResources(_resourcesDir); } catch { }
+                return db;
+            });
+
+            builder.Register<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, container =>
+            {
+                var textAssetLoader = container.Resolve<ITextAssetLoader>();
+                var db = new TriggerPlanJsonDatabase();
 
                 try
                 {
-                    db.LoadFromResources(_resourcesDir);
-                    Platform.Log.System($"[ConsoleConfigModule] MobaConfigDatabase loaded from JSON configs: {_resourcesDir}");
+                    var adapter = new TextAssetLoaderAdapter(textAssetLoader);
+                    var files = adapter.GetFiles(_triggerPlansDir, "*.json").ToList();
+                    var converter = new TriggerPlanSourceConverter();
+                    var records = new List<TriggerPlanJsonDatabase.Record>();
+                    var byId = new Dictionary<int, TriggerPlan<object>>();
+                    var strings = new Dictionary<int, string>();
 
-                    // 调试：检查各表加载情况
-                    var skillFlowCount = db.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillFlowMO>().Count;
-                    Platform.Log.System($"[ConsoleConfigModule] SkillFlow count: {skillFlowCount}");
+                    foreach (var file in files)
+                    {
+                        if (!adapter.TryLoad(file, out var content) || string.IsNullOrEmpty(content))
+                            continue;
+
+                        try
+                        {
+                            var trimmed = content.TrimStart();
+                            bool needsConversion = trimmed.StartsWith("{\"$schema\"") ||
+                                trimmed.StartsWith("{\"version\"") ||
+                                trimmed.StartsWith("{\"triggers\":");
+
+                            string runtimeJson = needsConversion
+                                ? converter.ConvertSourceToRuntimeJson(content)
+                                : content;
+
+                            var runtimeDto = JObject.Parse(runtimeJson);
+                            var triggers = runtimeDto["triggers"] as JArray;
+
+                            if (triggers != null)
+                            {
+                                foreach (var trigger in triggers)
+                                {
+                                    var triggerId = trigger["id"]?.Value<int>() ?? 0;
+                                    if (triggerId <= 0) continue;
+
+                                    var eventName = trigger["event"]?.Value<string>() ?? "";
+                                    var eventId = trigger["eventId"]?.Value<int>() ?? 0;
+                                    if (eventId == 0 && !string.IsNullOrEmpty(eventName))
+                                    {
+                                        eventId = StableStringId.Get("event:" + eventName);
+                                    }
+
+                                    var phaseStr = trigger["phase"]?.Value<string>();
+                                    var phase = ParsePhase(phaseStr);
+                                    var priority = trigger["priority"]?.Value<int>() ?? 0;
+
+                                    var actionsArray = trigger["actions"] as JArray;
+                                    var actions = BuildActionCallPlans(actionsArray);
+
+                                    var plan = new TriggerPlan<object>(
+                                        phase: phase,
+                                        priority: priority,
+                                        triggerId: triggerId,
+                                        actions: actions,
+                                        interruptPriority: 0,
+                                        cue: null,
+                                        schedule: default);
+
+                                    records.Add(new TriggerPlanJsonDatabase.Record(triggerId, eventName, eventId, plan));
+                                    byId[triggerId] = plan;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    SetDatabaseRecords(db, records, byId, strings);
+                    Platform.Log.System($"[ConsoleConfigModule] Loaded {records.Count} triggers from directory");
                 }
                 catch (Exception ex)
                 {
-                    Platform.Log.Error($"[ConsoleConfigModule] Failed to load from JSON configs: {ex.Message}");
+                    Platform.Log.Error($"[ConsoleConfigModule] Failed to load TriggerPlanJsonDatabase: {ex.Message}");
                 }
 
                 return db;
             });
+        }
+
+        private static int ParsePhase(string phase)
+        {
+            return phase?.ToLowerInvariant() switch
+            {
+                "immediate" => 0,
+                "delayed" => 1,
+                "precondition" => 2,
+                "postcondition" => 3,
+                _ => 0
+            };
+        }
+
+        private static ActionCallPlan[] BuildActionCallPlans(JArray actionsArray)
+        {
+            if (actionsArray == null || actionsArray.Count == 0)
+                return Array.Empty<ActionCallPlan>();
+
+            var result = new ActionCallPlan[actionsArray.Count];
+            for (int i = 0; i < actionsArray.Count; i++)
+            {
+                var action = actionsArray[i];
+                var actionId = action["actionId"]?.Value<int>() ?? 0;
+                var id = new ActionId(actionId);
+
+                var argsObj = action["args"] as JObject;
+                if (argsObj != null && argsObj.Count > 0)
+                {
+                    var namedArgs = new Dictionary<string, ActionArgValue>(argsObj.Count, StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in argsObj.Properties())
+                    {
+                        namedArgs[prop.Name] = new ActionArgValue(BuildValueRef(prop.Value), prop.Name);
+                    }
+                    result[i] = ActionCallPlan.WithArgs(id, namedArgs);
+                }
+                else
+                {
+                    result[i] = new ActionCallPlan(id);
+                }
+            }
+            return result;
+        }
+
+        private static NumericValueRef BuildValueRef(JToken token)
+        {
+            if (token == null) return default;
+
+            var kind = token["kind"]?.Value<string>();
+            switch (kind)
+            {
+                case "Const":
+                    var constValue = token["constValue"]?.Value<double>() ?? 0;
+                    return NumericValueRef.Const(constValue);
+                case "PayloadField":
+                    var fieldId = token["fieldId"]?.Value<int>() ?? 0;
+                    return NumericValueRef.PayloadField(fieldId);
+                default:
+                    return default;
+            }
+        }
+
+        private static void SetDatabaseRecords(
+            TriggerPlanJsonDatabase db,
+            List<TriggerPlanJsonDatabase.Record> records,
+            Dictionary<int, TriggerPlan<object>> byId,
+            Dictionary<int, string> strings)
+        {
+            var type = typeof(TriggerPlanJsonDatabase);
+            var recordsField = type.GetField("_records", BindingFlags.NonPublic | BindingFlags.Instance);
+            recordsField?.SetValue(db, records);
+            var byIdField = type.GetField("_byTriggerId", BindingFlags.NonPublic | BindingFlags.Instance);
+            byIdField?.SetValue(db, byId);
+            var stringsField = type.GetField("_strings", BindingFlags.NonPublic | BindingFlags.Instance);
+            stringsField?.SetValue(db, strings);
+        }
+    }
+
+    internal sealed class TextAssetLoaderAdapter : TriggerPlanJsonDatabase.ITextLoader, IFileSystemTextLoader
+    {
+        private readonly ITextAssetLoader _inner;
+        private readonly string _basePath;
+
+        public TextAssetLoaderAdapter(ITextAssetLoader inner)
+        {
+            _inner = inner;
+            _basePath = GetBasePath(inner);
+        }
+
+        public bool TryLoad(string id, out string text)
+        {
+            var normalizedId = id;
+            if (normalizedId.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedId = normalizedId.Substring(0, normalizedId.Length - 5);
+            }
+            return _inner.TryLoadText(normalizedId, out text);
+        }
+
+        public IEnumerable<string> GetFiles(string directory, string pattern)
+        {
+            if (string.IsNullOrEmpty(_basePath))
+                return Enumerable.Empty<string>();
+
+            var normalizedBasePath = _basePath.Replace('/', Path.DirectorySeparatorChar);
+            var normalizedDir = directory.Replace('/', Path.DirectorySeparatorChar);
+            var fullDir = Path.Combine(normalizedBasePath, normalizedDir);
+
+            if (!Directory.Exists(fullDir)) return Enumerable.Empty<string>();
+
+            var searchPattern = pattern.Replace("**/", "").Replace("**", "*");
+
+            try
+            {
+                return Directory.GetFiles(fullDir, searchPattern, SearchOption.AllDirectories)
+                    .Where(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                    .Select(f => GetRelativePath(f))
+                    .ToList();
+            }
+            catch
+            {
+                return Enumerable.Empty<string>();
+            }
+        }
+
+        private string GetRelativePath(string fullPath)
+        {
+            if (string.IsNullOrEmpty(_basePath)) return fullPath;
+            var normalizedBasePath = _basePath.Replace('/', Path.DirectorySeparatorChar);
+            var relative = fullPath.Replace(normalizedBasePath + Path.DirectorySeparatorChar, "");
+            return relative.Replace('\\', '/');
+        }
+
+        private static string GetBasePath(ITextAssetLoader loader)
+        {
+            if (loader is ConsoleTextAssetLoader consoleLoader)
+            {
+                var field = typeof(ConsoleTextAssetLoader).GetField("_basePath",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                return field?.GetValue(consoleLoader) as string ?? string.Empty;
+            }
+            return string.Empty;
         }
     }
 }
