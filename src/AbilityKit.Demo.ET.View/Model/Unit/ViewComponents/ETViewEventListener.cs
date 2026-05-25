@@ -1,48 +1,51 @@
 using System;
+using System.Collections.Generic;
+using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.AbilityKit.Demo.ET.View
 {
     /// <summary>
     /// 视图层事件监听器
     /// 监听实体创建销毁等事件
+    ///
+    /// Design:
+    /// - 纯数据 Component
+    /// - Handler 更新数据
     /// </summary>
     [ComponentOf(typeof(Scene))]
     public class ETViewEventListener: Entity, IAwake
     {
+        // Unit view data dictionary: MobaActorId -> ETUnitViewComponent
+        private readonly Dictionary<int, ETUnitViewComponent> _unitViews = new();
+
+        public IReadOnlyDictionary<int, ETUnitViewComponent> UnitViews => _unitViews;
+
         public void Awake()
         {
         }
 
         /// <summary>
-        /// 单位创建回调
+        /// Add unit view
         /// </summary>
-        public void OnUnitCreate(long unitId, string name)
+        public void AddUnitView(int mobaActorId, ETUnitViewComponent view)
         {
-            Log.Info($"[ETView] Unit created: {name} ({unitId})");
+            _unitViews[mobaActorId] = view;
         }
 
         /// <summary>
-        /// 单位销毁回调
+        /// Remove unit view
         /// </summary>
-        public void OnUnitDestroy(long unitId)
+        public void RemoveUnitView(int mobaActorId)
         {
-            Log.Info($"[ETView] Unit destroyed: {unitId}");
+            _unitViews.Remove(mobaActorId);
         }
 
         /// <summary>
-        /// 位置变化回调
+        /// Get unit view
         /// </summary>
-        public void OnPositionChanged(long unitId, float x, float y)
+        public ETUnitViewComponent GetUnitView(int mobaActorId)
         {
-            Log.Info($"[ETView] Unit {unitId} position changed to ({x}, {y})");
-        }
-
-        /// <summary>
-        /// 旋转变化回调
-        /// </summary>
-        public void OnRotationChanged(long unitId, float rotation)
-        {
-            Log.Info($"[ETView] Unit {unitId} rotation changed to {rotation}");
+            return _unitViews.TryGetValue(mobaActorId, out var view) ? view : null;
         }
     }
 }

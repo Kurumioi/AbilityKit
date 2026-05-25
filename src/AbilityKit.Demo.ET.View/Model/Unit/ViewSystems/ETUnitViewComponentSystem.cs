@@ -14,6 +14,7 @@ namespace ET.AbilityKit.Demo.ET.View
         public static void OnActorSpawn(this ETUnitViewComponent self, ActorSpawnEvent evt)
         {
             self.UnitId = evt.ActorId;
+            self.MobaActorId = evt.MobaActorId;
             self.Name = evt.Name;
             self.X = evt.X;
             self.Y = evt.Y;
@@ -23,7 +24,7 @@ namespace ET.AbilityKit.Demo.ET.View
             self.IsDead = false;
             self.IsVisible = true;
 
-            Log.Info($"[ETUnitView] Actor spawned: {evt.Name} ({evt.ActorId}) at ({evt.X}, {evt.Y})");
+            Log.Info($"[ETUnitView] Actor spawned: {evt.Name} (ET={evt.ActorId}, Moba={evt.MobaActorId}) at ({evt.X}, {evt.Y})");
         }
 
         /// <summary>
@@ -32,7 +33,7 @@ namespace ET.AbilityKit.Demo.ET.View
         public static void OnActorDead(this ETUnitViewComponent self, ActorDeadEvent evt)
         {
             self.OnDead();
-            Log.Info($"[ETUnitView] Actor dead: {evt.ActorId}, Killer: {evt.KillerId}");
+            Log.Info($"[ETUnitView] Actor dead: MobaActorId={evt.ActorId}, Killer: {evt.KillerId}");
         }
 
         /// <summary>
@@ -48,7 +49,7 @@ namespace ET.AbilityKit.Demo.ET.View
                 self.OnDead();
             }
 
-            Log.Info($"[ETUnitView] Actor damaged: {evt.ActorId}, Damage: {evt.Damage}, CurrentHP: {evt.CurrentHp}/{evt.MaxHp}");
+            Log.Info($"[ETUnitView] Actor damaged: MobaActorId={evt.ActorId}, Damage: {evt.Damage}, CurrentHP: {evt.CurrentHp}/{evt.MaxHp}");
         }
 
         /// <summary>

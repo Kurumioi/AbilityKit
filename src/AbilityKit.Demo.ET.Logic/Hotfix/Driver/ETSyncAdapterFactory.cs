@@ -46,7 +46,7 @@ namespace ET.Logic
         /// </summary>
         public static IETLocalSyncAdapter CreateLocalSyncAdapter(ETMobaBattleDriver driver, in BattleStartPlan plan)
         {
-            var adapter = new ETFrameSyncAdapter();
+            var adapter = new ETLocalSyncAdapter();
             adapter.Initialize(driver, plan);
             return adapter;
         }
@@ -98,11 +98,11 @@ namespace ET.Logic
         {
             return mode switch
             {
-                SyncMode.Lockstep => nameof(ETFrameSyncAdapter),
+                SyncMode.Lockstep => "LocalSyncAdapter",
                 SyncMode.SnapshotAuthority => nameof(ETStateSyncAdapter),
                 SyncMode.StateSync => nameof(ETStateSyncAdapter),
                 SyncMode.Hybrid => nameof(ETHybridSyncAdapter),
-                _ => nameof(ETFrameSyncAdapter)
+                _ => "LocalSyncAdapter"
             };
         }
 

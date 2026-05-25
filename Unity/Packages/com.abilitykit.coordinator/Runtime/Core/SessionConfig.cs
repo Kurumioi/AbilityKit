@@ -26,6 +26,11 @@ namespace AbilityKit.Coordinator
         /// </summary>
         public int WorldId;
 
+        /// <summary>
+        /// World blueprint type (e.g. moba "battle")
+        /// </summary>
+        public string WorldType;
+
         // ============== Player ==============
 
         /// <summary>
@@ -104,6 +109,7 @@ namespace AbilityKit.Coordinator
         public static SessionConfig Default => new SessionConfig
         {
             SessionId = SessionId.New(),
+            WorldType = "battle",
             TickRate = 30,
             SyncMode = SyncMode.Lockstep,
             HostMode = HostMode.Local,

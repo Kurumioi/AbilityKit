@@ -73,9 +73,13 @@ namespace ET.Logic
             var battleDriver = scene.AddComponent<ETMobaBattleDriver>();
             self.BattleDriver = battleDriver;
 
+            // Create Entity Cache Component for ET.View
+            var cacheComponent = scene.AddComponent<ETBattleEntityCacheComponent>();
+
             // Create ET View Event Sink and pass to BattleDriver
             var viewSink = new ETBattleViewEventSink(self);
-            battleDriver.Initialize(plan, viewSink, textAssetLoader);
+            viewSink.InitializeCache(cacheComponent);
+            battleDriver.Initialize(plan, viewSink);
 
             self.State = BattleState.Ready;
             Log.Info($"[ETBattle] Battle {self.BattleId} ready!");

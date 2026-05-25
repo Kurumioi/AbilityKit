@@ -51,8 +51,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Triggering", "Ab
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.Collision.Abstractions", "AbilityKit.Combat.Collision.Abstractions\AbilityKit.Combat.Collision.Abstractions.csproj", "{A1000024-0024-0024-0024-000000000024}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.Collision.Unity", "AbilityKit.Combat.Collision.Unity\AbilityKit.Combat.Collision.Unity.csproj", "{A1000025-0025-0025-0025-000000000025}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.Damage", "AbilityKit.Combat.Damage\AbilityKit.Combat.Damage.csproj", "{A1000026-0026-0026-0026-000000000026}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.EntityManager", "AbilityKit.Combat.EntityManager\AbilityKit.Combat.EntityManager.csproj", "{A1000027-0027-0027-0027-000000000027}"

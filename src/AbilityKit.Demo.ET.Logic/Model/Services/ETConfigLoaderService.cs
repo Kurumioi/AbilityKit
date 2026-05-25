@@ -221,4 +221,59 @@ namespace ET.Logic
         public float MagicDefense { get; set; }
         public float MoveSpeed { get; set; }
     }
+
+    /// <summary>
+    /// 玩家生成数据
+    /// 用于传递玩家信息到 BattleDriver 创建实体
+    /// </summary>
+    public class ETPlayerSpawnData
+    {
+        public int ActorId { get; set; }
+        public int CharacterId { get; set; }
+        public string CharacterName { get; set; }
+        public int TeamId { get; set; }
+        public float PositionX { get; set; }
+        public float PositionY { get; set; }
+        public float PositionZ { get; set; }
+        public float RotationY { get; set; }
+        public float Scale { get; set; }
+        public float Hp { get; set; }
+        public float MaxHp { get; set; }
+
+        public ETPlayerSpawnData()
+        {
+        }
+
+        public ETPlayerSpawnData(int actorId, int characterId, string characterName, int teamId,
+            float x, float y, float z)
+        {
+            ActorId = actorId;
+            CharacterId = characterId;
+            CharacterName = characterName;
+            TeamId = teamId;
+            PositionX = x;
+            PositionY = y;
+            PositionZ = z;
+            RotationY = 0f;
+            Scale = 1f;
+            Hp = 500f;
+            MaxHp = 500f;
+        }
+
+        public ETPlayerSpawnData(int actorId, int characterId, string characterName, int teamId,
+            float x, float y, float z, float rotY, float scale, float hp, float maxHp)
+        {
+            ActorId = actorId;
+            CharacterId = characterId;
+            CharacterName = characterName;
+            TeamId = teamId;
+            PositionX = x;
+            PositionY = y;
+            PositionZ = z;
+            RotationY = rotY;
+            Scale = scale;
+            Hp = hp;
+            MaxHp = maxHp;
+        }
+    }
 }

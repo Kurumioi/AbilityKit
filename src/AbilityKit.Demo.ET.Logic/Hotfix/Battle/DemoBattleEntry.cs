@@ -7,8 +7,8 @@ using AbilityKit.Demo.Moba.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// ???? - ??????
-    /// ?? Moba.Console ? ConsoleBattleBootstrapper
+    /// DemoBattleEntry - 战斗入口
+    /// 对应 Moba.Console 的 ConsoleBattleBootstrapper
     /// </summary>
     public static class DemoBattleEntry
     {
@@ -16,22 +16,17 @@ namespace ET.Logic
         private static long _localActorId = 1001;
 
         /// <summary>
-        /// ????
+        /// 开始战斗
         /// </summary>
         public static async Task StartBattleAsync(Scene scene, long playerId, string playerName)
         {
             _isRunning = true;
             Log.Info($"[DemoBattleEntry] Starting battle for player: {playerName}");
 
-            // ?????????
+            // 创建战斗组件
             var battleComponent = scene.AddComponent<ETBattleComponent>();
-            var battleViewComponent = scene.AddComponent<ETBattleViewComponent>();
 
-            // ?????
-            battleViewComponent.Initialize();
-            battleViewComponent.ShowHelp();
-
-            // ??????
+            // 创建启动计划
             var plan = new BattleStartPlan(
                 mapId: 1,
                 worldId: 1,
@@ -46,26 +41,22 @@ namespace ET.Logic
                 enableReplayPlayback: false,
                 playerIds: new int[] { (int)playerId });
 
-            // ?????????????
+            // 初始化战斗组件
             var textAssetLoader = new ETTextAssetLoader();
             battleComponent.InitializeBattle(plan, textAssetLoader);
 
-            // ?????
-            var flowComponent = scene.GetComponent<ETFlowComponent>();
-            flowComponent?.StartFlow(FlowPhase.None);
-
-            // ?????????
+            // 创建视图事件桥接（发布到 ET 事件系统）
             var viewSink = new ETViewEventSink(scene);
             battleComponent.ViewSink = viewSink;
 
-            // ??????
+            // 运行输入循环
             await RunInputLoopAsync(scene);
 
             Log.Info("[DemoBattleEntry] Battle entry finished");
         }
 
         /// <summary>
-        /// ??????
+        /// 输入循环
         /// </summary>
         private static async Task RunInputLoopAsync(Scene scene)
         {
@@ -75,7 +66,7 @@ namespace ET.Logic
 
             while (_isRunning && battleComponent?.State != BattleState.Ended)
             {
-                // ???????
+                // 处理输入
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(true);
@@ -87,7 +78,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// ????
+        /// 处理输入
         /// </summary>
         private static void ProcessInput(
             Scene scene,
@@ -162,7 +153,7 @@ namespace ET.Logic
 
                 case ConsoleKey.Spacebar:
                     inputComponent.SubmitStopInput(battleComponent.CurrentFrame, playerUnit.ActorId);
-                    playerUnit.StopMove();
+                    // 停止移动由 moba.core 处理（通过快照更新）
                     break;
 
                 case ConsoleKey.Q:
@@ -173,7 +164,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// ????
+        /// 停止战斗
         /// </summary>
         public static void StopBattle()
         {
@@ -183,12 +174,12 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// ???? Sink ??
-    /// ?????????????
+    /// 视图事件 Sink 实现
+    /// 将 AbilityKit 事件桥接到 ET 事件系统，由 ET.View 处理渲染
     /// </summary>
     public class ETViewEventSink: IETViewEventSink
     {
-        private Scene _scene;
+        private readonly Scene _scene;
 
         public ETViewEventSink(Scene scene)
         {
@@ -202,42 +193,26 @@ namespace ET.Logic
 
         public void OnActorSpawn(ActorSpawnEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-                unitViewComponent?.CreateUnitView(evt);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnActorDead(ActorDeadEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-                unitViewComponent?.DestroyUnitView(evt.ActorId);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnActorMove(ActorMoveEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-                unitViewComponent?.UpdateUnitPosition(evt);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnActorDamage(ActorDamageEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-                unitViewComponent?.UpdateUnitHp(evt);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnActorAttributeChange(ActorAttributeChangeEvent evt)
@@ -262,22 +237,14 @@ namespace ET.Logic
 
         public void OnBattleStart(BattleStartEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var battleViewComponent = scene.GetComponent<ETBattleViewComponent>();
-                battleViewComponent?.OnBattleStart(evt);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnBattleEnd(BattleEndEvent evt)
         {
-            var scene = GetBattleScene();
-            if (scene != null)
-            {
-                var battleViewComponent = scene.GetComponent<ETBattleViewComponent>();
-                battleViewComponent?.OnBattleEnd(evt);
-            }
+            // 发布到 ET 事件系统
+            EventSystem.Instance.Publish(_scene, evt);
         }
 
         public void OnFrameTick(FrameTickEvent evt)

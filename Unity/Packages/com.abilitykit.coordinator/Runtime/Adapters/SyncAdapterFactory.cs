@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Coordinator.Core;
 
 namespace AbilityKit.Coordinator
 {
@@ -22,6 +23,11 @@ namespace AbilityKit.Coordinator
             if (world == null)
             {
                 throw new ArgumentNullException(nameof(world), "World cannot be null");
+            }
+
+            if (config.HostMode == HostMode.Local)
+            {
+                return CreateLocalSyncAdapter(world, config);
             }
 
             return config.SyncMode switch

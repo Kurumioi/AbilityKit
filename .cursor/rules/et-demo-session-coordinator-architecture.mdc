@@ -1,0 +1,331 @@
+---
+description: ET Demo SessionCoordinator 架构设计 - 基于 ET Framework 的战斗会话协调
+alwaysApply: true
+---
+
+# ET Demo SessionCoordinator 架构设计
+
+## 一、架构概述
+
+ET Demo 采用 **SessionCoordinator 架构**，将 AbilityKit 的通用会话协调能力与 ET Framework 的组件系统有机结合。
+
+### 1.1 核心定位
+
+**关键理解**：
+- **ET.Logic** = 逻辑层的**表现层**（数据缓存）
+- **ET.View** = 表现层的**渲染层**（读取缓存渲染）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ET Demo 架构分层图                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    ET.View (渲染层)                                    │   │
+│  │                                                                       │   │
+│  │   ETUnitViewComponent ─── 读取缓存并渲染（仅日志）                    │   │
+│  │   ETUnitViewComponentSystem ─── 渲染更新逻辑                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    ▲                                        │
+│                                    │ 读取缓存                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    ET.Logic (表现层数据缓存) ✅                       │   │
+│  │                                                                       │   │
+│  │   ETBattleEntityCacheComponent ─── 缓存 moba.core 快照数据           │   │
+│  │   ETBattleSessionComponent ─── 持有 Coordinator 句柄                    │   │
+│  │   ETInputComponent ─── 输入缓冲                                       │   │
+│  │   ETUnitComponent ─── 单位管理                                        │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    ▲                                        │
+│                                    │ 接收快照                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              Coordinator 包 (com.abilitykit.coordinator)                │   │
+│  │                                                                       │   │
+│  │   SessionCoordinator ────────────── 会话协调器                          │   │
+│  │   ├── ISyncAdapter ─────────────── 同步策略                          │   │
+│  │   └── IBattleDriverHost ─────────── 驱动宿主                          │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    ▲                                        │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              Moba.Session (com.abilitykit.demo.moba.runtime)          │   │
+│  │                                                                       │   │
+│  │   MobaBattleDriverHost ────────────── MOBA 战斗驱动宿主               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    ▲                                        │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              Host 包 (com.abilitykit.host)                            │   │
+│  │                                                                       │   │
+│  │   HostRuntime + WorldManager ────────── 世界管理                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                    ▲                                        │
+│                                    │                                        │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              moba.core (com.abilitykit.demo.moba.runtime)            │   │
+│  │                                                                       │   │
+│  │   ECS World ───────────────────────── 逻辑世界（实体/移动/战斗）      │   │
+│  │   MobaEntityManager ───────────────── 实体管理                        │   │
+│  │   IWorldStateSnapshotProvider ──────── 快照提供者                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 二、核心设计原则
+
+### 2.1 单一入口原则
+
+**核心原则**：ET.Logic 层只通过以下接口与 moba.core 交互：
+
+| 交互方向 | 入口接口 | 说明 |
+|---------|---------|------|
+| **输入** | `IWorldInputSink.Submit()` | 提交玩家输入 |
+| **状态查询** | `IWorldStateSnapshotProvider` | 获取快照数据 |
+
+**禁止**：
+- ❌ 直接访问 `MobaEntityManager` 或实体
+- ❌ 通过服务解析获取 `MobaEntityManager` 并操作实体
+- ❌ 在 ET.Logic 层创建 moba.core 实体
+
+### 2.2 表现层职责分离
+
+| 层 | 职责 | 禁止 |
+|---|------|------|
+| **ET.Logic** | - 缓存 moba.core 快照数据<br>- 管理输入缓冲<br>- 驱动 SessionCoordinator | - 渲染逻辑<br>- 访问 moba.core 实体 |
+| **ET.View** | - 读取缓存渲染<br>- 仅日志输出 | - 业务逻辑<br>- 修改缓存数据 |
+
+---
+
+## 三、核心组件
+
+### 3.1 ETBattleEntityCacheComponent
+
+**职责**：缓存 moba.core 快照数据，供 ET.View 渲染使用。
+
+```csharp
+[ComponentOf(typeof(Scene))]
+public class ETBattleEntityCacheComponent : Entity, IAwake, IDestroy
+{
+    // 实体缓存字典
+    private readonly Dictionary<int, EntityCacheData> _entityCache = new();
+    
+    // 当前缓存的帧号
+    public int CachedFrame { get; private set; }
+    
+    // 更新缓存
+    public void UpdateCache(int frame, IReadOnlyList<ActorTransformData> transforms);
+    
+    // 查询位置
+    public bool TryGetPosition(int actorId, out float x, out float y, out float z);
+}
+```
+
+### 3.2 EntityCacheData
+
+**职责**：单个实体的缓存数据。
+
+```csharp
+public sealed class EntityCacheData
+{
+    public int ActorId { get; }
+    public float X { get; private set; }
+    public float Y { get; private set; }
+    public float Z { get; private set; }
+    public float PrevX { get; private set; }  // 上一帧位置（用于插值）
+    public float PrevY { get; private set; }
+    public float PrevZ { get; private set; }
+    public bool IsDead { get; private set; }
+    public int LastUpdateFrame { get; private set; }
+    
+    public bool HasMoved();  // 位置是否变化
+}
+```
+
+### 3.3 MobaBattleDriverHost
+
+**职责**：MOBA 战斗驱动宿主，通过服务接口与 moba.core 交互。
+
+```csharp
+public sealed class MobaBattleDriverHost : IBattleDriverHost
+{
+    // 通过 IWorldInputSink 提交输入（唯一入口）
+    public void SubmitInputs(PlayerInput[] inputs);
+    
+    // 设置位置快照回调
+    public void SetTransformSnapshotCallback(Action<int, MobaActorTransformSnapshotEntry[]> callback);
+    
+    // 帧推进（驱动 moba.core Tick）
+    public void AdvanceFrame(float deltaTime);
+    
+    // 禁止：GetAllEntityStates() 不再直接返回实体状态
+}
+```
+
+---
+
+## 四、数据流
+
+### 4.1 快照同步流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          快照同步流程                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. AdvanceFrame (MobaBattleDriverHost)                                    │
+│     └─▶ _hostRuntime.Tick(deltaTime)                                     │
+│     └─▶ _coordinator.Tick(deltaTime)                                     │
+│                                                                             │
+│  2. TryGetTransformSnapshot (MobaBattleDriverHost)                        │
+│     └─▶ _world.Services.TryResolve<IWorldStateSnapshotProvider>()        │
+│     └─▶ provider.TryGetSnapshot(frame, out snapshot)                      │
+│                                                                             │
+│  3. SetTransformSnapshotCallback (回调)                                   │
+│     └─▶ OnTransformSnapshotReceived(frame, transforms)                    │
+│                                                                             │
+│  4. ETBattleDriverBridge.OnTransformSnapshotReceived()                    │
+│     ├─▶ cache.UpdateCache(frame, actorTransforms)                       │
+│     └─▶ EventSystem.Instance.Publish<ActorMoveEvent>()                  │
+│                                                                             │
+│  5. ET.View 订阅事件                                                      │
+│     └─▶ ActorMoveEventHandler 接收事件                                  │
+│     └─▶ 渲染实体                                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 输入处理流程
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           输入处理流程                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. AutoTest (ETBattleAutoTestComponent)                                  │
+│     └─▶ AddMoveCommand(frame, actorId, x, y)                              │
+│                                                                             │
+│  2. InputBuffer (ETInputComponent)                                        │
+│     └─▶ 存储命令到缓冲                                                    │
+│                                                                             │
+│  3. ProcessInput (ETInputComponentSystem)                                 │
+│     └─▶ ForwardMoveToCoordinator()                                        │
+│     └─▶ session.SubmitLocalInput(input)                                  │
+│                                                                             │
+│  4. SessionCoordinator (LocalSyncAdapter)                                 │
+│     └─▶ _pendingInputs.Add(input)                                        │
+│                                                                             │
+│  5. ProcessLogicFrame (LocalSyncAdapter)                                 │
+│     └─▶ driverHost.SubmitInputs(inputs)                                  │
+│                                                                             │
+│  6. MobaBattleDriverHost.SubmitInputs()                                   │
+│     └─▶ _inputSink.Submit(frame, commands)  ← 唯一入口                  │
+│                                                                             │
+│  7. moba.core (IWorldInputSink 实现)                                     │
+│     └─▶ MobaLobbyInputSink.HandleMove()                                  │
+│     └─▶ entity.AddMoveInput(x, z)                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 五、ET.View 层职责
+
+### 5.1 View 层定位
+
+**ET.View 是渲染层，只读取 ET.Logic 的缓存数据来渲染。**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ET.View 职责                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ✅ 正确：View 层职责                                                     │
+│  ├── 读取 ETBattleEntityCacheComponent 缓存                               │
+│  ├── 渲染实体（GameObject/ASCII/日志）                                    │
+│  └── 订阅缓存变化事件（可选）                                              │
+│                                                                             │
+│  ❌ 禁止：View 层禁止职责                                                  │
+│  ├── 直接访问 moba.core 实体                                              │
+│  ├── 修改 ETBattleEntityCacheComponent 数据                               │
+│  ├── 业务逻辑处理（伤害计算、Buff 等）                                    │
+│  └── 创建 moba.core 实体                                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 5.2 View 层事件订阅
+
+ET.View 通过 ET 框架的事件系统订阅 ET.Logic 发布的事件：
+
+```csharp
+// ET.View 的 Handler 示例
+[Event(SceneType.DemoBattle)]
+public class ActorMoveEventHandler : AEvent<Scene, ActorMoveEvent>
+{
+    protected override async ETTask Run(Scene scene, ActorMoveEvent args)
+    {
+        Log.Info($"[View] Actor moved: MobaActorId={args.MobaActorId} at ({args.X}, {args.Y})");
+    }
+}
+```
+
+---
+
+## 六、禁止事项
+
+### 6.1 单一入口禁止
+
+| 禁止 | 说明 | 正确做法 |
+|-----|------|---------|
+| ❌ 直接访问 `MobaEntityManager` | 违反单一入口原则 | 通过 `IWorldInputSink` 提交输入 |
+| ❌ 直接查询实体位置 | 违反单一入口原则 | 通过快照回调更新缓存 |
+| ❌ 在 ET.Logic 创建 moba.core 实体 | 应该在 moba.core 内部创建 | 通过输入触发实体生成 |
+
+### 6.2 层级禁止
+
+| 禁止 | 说明 | 正确做法 |
+|-----|------|---------|
+| ❌ ET.View 访问 moba.core | 跨层访问 | 通过 ET.Logic 缓存间接访问 |
+| ❌ ET.Logic 包含渲染逻辑 | 职责混乱 | ET.View 负责渲染 |
+| ❌ 循环依赖 | 架构破坏 | 单向依赖 |
+
+---
+
+## 七、关键文件
+
+### 7.1 ET.Logic 层
+
+| 文件 | 职责 |
+|-----|------|
+| `Model/Battle/ETBattleEntityCacheComponent.cs` | 实体状态缓存 |
+| `Model/Battle/ETBattleSessionComponent.cs` | 会话组件 |
+| `Hotfix/Battle/ETBattleDriverBridge.cs` | 驱动桥接（快照回调） |
+| `Hotfix/Battle/ETInputComponentSystem.cs` | 输入处理 |
+| `Hotfix/Battle/ETBattleSessionComponentSystem.cs` | 会话生命周期 |
+
+### 7.2 Unity Packages
+
+| 文件 | 职责 |
+|-----|------|
+| `MobaBattleDriverHost.cs` | 驱动宿主（服务接口封装） |
+| `SessionCoordinator.cs` | 会话协调器 |
+| `MobaLobbyInputSink.cs` | 输入处理（moba.core） |
+| `MobaActorTransformSnapshotService.cs` | 快照服务 |
+
+---
+
+## 八、架构检查清单
+
+开发时检查以下问题：
+
+```
+□ 输入是否通过 IWorldInputSink.Submit() 提交？
+□ 快照是否通过回调更新到 ETBattleEntityCacheComponent？
+□ ET.View 是否只读取缓存，不访问 moba.core？
+□ 是否有代码直接访问 MobaEntityManager？
+□ 是否有代码在 ET.Logic 创建 moba.core 实体？
+```

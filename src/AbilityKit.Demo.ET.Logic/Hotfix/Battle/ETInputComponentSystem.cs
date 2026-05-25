@@ -5,7 +5,12 @@ namespace ET.Logic
 {
     /// <summary>
     /// Input component System
-    /// Corresponds to Moba.Console ConsoleInputFeature
+    /// 对应 Moba.Console ConsoleInputFeature
+    ///
+    /// 设计说明：
+    /// - 作为状态同步客户端，只负责输入采集和转发
+    /// - 不做任何游戏逻辑处理
+    /// - 所有业务逻辑由 moba.core 处理
     /// </summary>
     [EntitySystemOf(typeof(ETInputComponent))]
     [FriendOf(typeof(ETInputComponent))]
@@ -19,8 +24,10 @@ namespace ET.Logic
             Log.Info("[ETInput] ETInputComponent awake");
         }
 
+        #region Input Submission
+
         /// <summary>
-        /// Submit move input
+        /// 提交移动输入
         /// </summary>
         public static void SubmitMoveInput(this ETInputComponent self, int frame, long actorId, float x, float y)
         {
@@ -29,7 +36,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// Submit skill input
+        /// 提交技能输入
         /// </summary>
         public static void SubmitSkillInput(this ETInputComponent self, int frame, long actorId, int skillSlot, float targetX, float targetY)
         {
@@ -38,7 +45,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// Submit stop input
+        /// 提交停止输入
         /// </summary>
         public static void SubmitStopInput(this ETInputComponent self, int frame, long actorId)
         {
@@ -46,21 +53,25 @@ namespace ET.Logic
             Log.Debug($"[ETInput] Stop input: Actor {actorId} at frame {frame}");
         }
 
+        #endregion
+
+        #region Input Processing
+
         /// <summary>
-        /// Process input
+        /// 处理输入 - 转发到 Driver
+        ///
+        /// 设计说明：
+        /// - 只负责从缓冲读取输入并转发
+        /// - 不做任何业务逻辑处理（伤害、Buff 等）
+        /// - 业务逻辑由 moba.core 处理
         /// </summary>
         public static void ProcessInput(this ETInputComponent self, int currentFrame)
         {
-            Log.Info($"[ETInput] ProcessInput called at frame {currentFrame}");
-
             var commands = self.GetInputsForFrame(currentFrame);
             if (commands == null)
             {
-                Log.Info($"[ETInput] No commands found for frame {currentFrame}");
                 return;
             }
-
-            Log.Info($"[ETInput] Found {commands.Count} commands at frame {currentFrame}");
 
             var unitComponent = self.Scene().GetComponent<ETUnitComponent>();
             if (unitComponent == null)
@@ -74,13 +85,13 @@ namespace ET.Logic
                 switch (cmd)
                 {
                     case MoveCommand move:
-                        self.ProcessMoveCommand(unitComponent, move);
+                        ProcessMoveCommand(self, unitComponent, move);
                         break;
                     case SkillCommand skill:
-                        self.ProcessSkillCommand(unitComponent, skill);
+                        ProcessSkillCommand(self, unitComponent, skill);
                         break;
                     case StopCommand stop:
-                        self.ProcessStopCommand(unitComponent, stop);
+                        ProcessStopCommand(self, unitComponent, stop);
                         break;
                 }
             }
@@ -89,76 +100,76 @@ namespace ET.Logic
             self.ClearProcessedInputs(currentFrame);
         }
 
+        /// <summary>
+        /// 处理移动命令 - 设置目标位置
+        ///
+        /// 说明：设置 TargetX/Y 用于渲染插值，实际移动由 moba.core 计算
+        /// </summary>
         private static void ProcessMoveCommand(this ETInputComponent self, ETUnitComponent unitComponent, MoveCommand cmd)
         {
             var unit = unitComponent.GetUnit(cmd.ActorId);
             if (unit == null || unit.IsDead)
             {
-                Log.Warning($"[ETInput] Cannot process move: unit {cmd.ActorId} not found or dead");
                 return;
             }
 
+            // 设置目标位置（用于渲染插值参考）
+            // 实际位置由快照更新，这里只设置渲染目标
             unit.TargetX = cmd.X;
             unit.TargetY = cmd.Y;
-            Log.Info($"[ETInput] Move processed: Actor {cmd.ActorId} -> ({cmd.X}, {cmd.Y})");
+
+            Log.Debug($"[ETInput] Move command forwarded: Actor {cmd.ActorId} -> ({cmd.X}, {cmd.Y})");
         }
 
+        /// <summary>
+        /// 处理技能命令 - 转发到 Driver
+        ///
+        /// 说明：不做任何技能释放逻辑，只转发命令到 moba.core
+        /// </summary>
         private static void ProcessSkillCommand(this ETInputComponent self, ETUnitComponent unitComponent, SkillCommand cmd)
         {
-            Log.Info($"[ETInput] ProcessSkillCommand: Actor {cmd.ActorId}, Slot={cmd.SkillSlot}, Target=({cmd.TargetX}, {cmd.TargetY})");
-
             var unit = unitComponent.GetUnit(cmd.ActorId);
             if (unit == null || unit.IsDead)
             {
-                Log.Warning($"[ETInput] Cannot process skill: unit {cmd.ActorId} not found or dead");
                 return;
             }
 
-            // Check cooldown
-            if (cmd.SkillSlot >= 0 && cmd.SkillSlot < unit.SkillCooldowns.Length)
-            {
-                if (unit.SkillCooldowns[cmd.SkillSlot] > 0)
-                {
-                    Log.Info($"[ETInput] Skill {cmd.SkillSlot} is on cooldown: {unit.SkillCooldowns[cmd.SkillSlot]:F1}s");
-                    return;
-                }
-            }
-
-            // Set skill target
+            // 设置技能目标（用于渲染）
             self.CurrentSkillSlot = cmd.SkillSlot;
             self.SkillTargetX = cmd.TargetX;
             self.SkillTargetY = cmd.TargetY;
 
-            // Simulate skill release - deal damage to enemies in range
-            var targets = unitComponent.FindUnitsInRange(cmd.TargetX, cmd.TargetY, 3f);
-            foreach (var target in targets)
-            {
-                if (target.Kind == ActorKind.Monster && !target.IsDead && target.ActorId != cmd.ActorId)
-                {
-                    // Deal damage
-                    unitComponent.ExecuteDamage(cmd.ActorId, target.ActorId, unit.Attack * 1.5f);
+            Log.Debug($"[ETInput] Skill command forwarded: Actor {cmd.ActorId} Slot={cmd.SkillSlot}");
 
-                    // Set cooldown
-                    if (cmd.SkillSlot >= 0 && cmd.SkillSlot < unit.SkillCooldowns.Length)
-                    {
-                        unit.SkillCooldowns[cmd.SkillSlot] = 2f; // 2 second cooldown
-                    }
-                }
-            }
-
-            Log.Info($"[ETInput] Actor {cmd.ActorId} cast skill {cmd.SkillSlot} at ({cmd.TargetX}, {cmd.TargetY})");
-
-            // Reset skill state
-            self.CurrentSkillSlot = -1;
+            // 技能释放逻辑由 moba.core 处理（通过快照更新）
+            // 这里只设置渲染状态，不执行任何业务逻辑
         }
 
+        /// <summary>
+        /// 处理停止命令
+        /// </summary>
         private static void ProcessStopCommand(this ETInputComponent self, ETUnitComponent unitComponent, StopCommand cmd)
         {
             var unit = unitComponent.GetUnit(cmd.ActorId);
             if (unit == null)
                 return;
 
-            unit.StopMove();
+            // 清除移动目标
+            unit.TargetX = 0;
+            unit.TargetY = 0;
+
+            Log.Debug($"[ETInput] Stop command: Actor {cmd.ActorId}");
         }
+
+        #endregion
+
+        #region ❌ 已删除的业务逻辑
+
+        // ❌ 技能冷却检查 - 由 moba.core 处理
+        // ❌ 范围查询 - 由 moba.core 处理
+        // ❌ 伤害计算 - 由 moba.core 处理
+        // ❌ 冷却设置 - 由 moba.core 处理
+
+        #endregion
     }
 }

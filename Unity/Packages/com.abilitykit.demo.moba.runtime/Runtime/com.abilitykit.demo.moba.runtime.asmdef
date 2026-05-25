@@ -10,6 +10,7 @@
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Host",
+        "AbilityKit.Coordinator",
         "AbilityKit.Host.Extensions",
         "AbilityKit.Combat.Motion",
         "AbilityKit.World.DI",

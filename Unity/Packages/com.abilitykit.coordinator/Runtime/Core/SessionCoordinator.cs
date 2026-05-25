@@ -93,7 +93,9 @@ namespace AbilityKit.Coordinator
 
                 // Create World
                 var worldOptions = CreateWorldOptions(config);
+                _host.ConfigureWorldCreateOptions(in config, worldOptions);
                 _world = _worldHost.CreateWorld(worldOptions);
+                _world.Initialize();
                 _worldResolver = _world.Services;
 
                 // Load config
@@ -362,10 +364,11 @@ namespace AbilityKit.Coordinator
 
         private WorldCreateOptions CreateWorldOptions(SessionConfig config)
         {
+            string worldType = string.IsNullOrEmpty(config.WorldType) ? "battle" : config.WorldType;
             return new WorldCreateOptions
             {
-                Id = new WorldId(config.WorldId.ToString()),
-                WorldType = "BattleWorld"
+                Id = new WorldId(config.WorldId > 0 ? config.WorldId.ToString() : "1"),
+                WorldType = worldType
             };
         }
 

@@ -18,6 +18,8 @@
     <!-- ========== Model 层 ========== -->
     <!-- Model 层 - 流程 -->
     <Compile Include="Model/Process/**/*.cs" />
+    <!-- Model 层 - 根目录下的 Component -->
+    <Compile Include="Model/*.cs" />
 
     <!-- Model 层 - 登录 -->
     <Compile Include="Model/Login/**/*.cs" />
@@ -42,6 +44,12 @@
 
     <!-- Model 层 - moba.core 集成 -->
     <Compile Include="Model/MobaCore/**/*.cs" />
+    <!-- Model 层 - Driver -->
+    <Compile Include="Model/Driver/**/*.cs" />
+    <!-- Model 层 - Services -->
+    <Compile Include="Model/Services/**/*.cs" />
+    <!-- Model 层 - Handlers -->
+    <Compile Include="Model/Handlers/**/*.cs" />
 
     <!-- ========== Hotfix 层 ========== -->
     <!-- Hotfix 层 - 战斗 -->
@@ -64,6 +72,12 @@
 
     <!-- Hotfix 层 - MobaCore -->
     <Compile Include="Hotfix/MobaCore/**/*.cs" />
+    <!-- Hotfix 层 - Driver -->
+    <Compile Include="Hotfix/Driver/**/*.cs" />
+    <!-- Hotfix 层 - Hooks -->
+    <Compile Include="Hotfix/Hooks/**/*.cs" />
+    <!-- Hotfix 层 - Coordinator -->
+    <Compile Include="Hotfix/Coordinator/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

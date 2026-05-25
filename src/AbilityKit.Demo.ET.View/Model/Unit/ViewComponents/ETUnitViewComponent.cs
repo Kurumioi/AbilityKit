@@ -7,9 +7,15 @@ namespace ET.AbilityKit.Demo.ET.View
     public class ETUnitViewComponent
     {
         /// <summary>
-        /// 单位ID
+        /// ET 实体 ID
         /// </summary>
         public long UnitId { get; set; }
+
+        /// <summary>
+        /// 逻辑层（MobaCore）的 ActorId
+        /// 用于与逻辑层交互
+        /// </summary>
+        public int MobaActorId { get; set; }
 
         /// <summary>
         /// 单位名称

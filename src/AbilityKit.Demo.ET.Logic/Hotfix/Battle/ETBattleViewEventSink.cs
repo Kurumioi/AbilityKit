@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Demo.Moba.Share;
 using ET.AbilityKit.Demo.ET.Share;
 
@@ -6,15 +7,37 @@ namespace ET.Logic
     /// <summary>
     /// ET Battle View Event Sink
     /// Bridges IBattleViewEventSink events to ET event system
+    /// Also updates the entity cache component for ET.View queries
     /// </summary>
     public sealed class ETBattleViewEventSink : IBattleViewEventSink
     {
         private readonly ETBattleComponent _battleComponent;
+        private ETBattleEntityCacheComponent _cacheComponent;
+        private ETViewSnapshotProvider _snapshotProvider;
 
         public ETBattleViewEventSink(ETBattleComponent battleComponent)
         {
             _battleComponent = battleComponent;
         }
+
+        #region Cache Setup
+
+        /// <summary>
+        /// 初始化缓存组件
+        /// 由 ETBattleComponentSystem 在初始化时调用
+        /// </summary>
+        public void InitializeCache(ETBattleEntityCacheComponent cacheComponent)
+        {
+            _cacheComponent = cacheComponent;
+            _snapshotProvider = new ETViewSnapshotProvider(cacheComponent);
+        }
+
+        /// <summary>
+        /// 获取快照提供器
+        /// </summary>
+        public IETViewSnapshotProvider GetSnapshotProvider() => _snapshotProvider;
+
+        #endregion
 
         #region Unit Events
 
@@ -26,6 +49,13 @@ namespace ET.Logic
 
             Log.Info($"[ETBattleViewEventSink] >>> OnEnterGameSnapshot received, ActorSpawns count: {snapshot.ActorSpawns?.Count ?? 0}");
 
+            // 更新缓存
+            if (_cacheComponent != null)
+            {
+                _cacheComponent.UpdateCache(snapshot.FrameIndex, snapshot);
+            }
+
+            // 发布 ActorSpawnEvent 事件
             foreach (var spawn in snapshot.ActorSpawns)
             {
                 var evt = new ActorSpawnEvent()
@@ -46,25 +76,20 @@ namespace ET.Logic
 
             Log.Info($"[ETBattleViewEventSink] >>> All ActorSpawnEvents published");
 
-            // Initialize auto test components
+            // 初始化自动测试组件
             InitializeAutoTestComponent(scene, snapshot);
         }
 
         /// <summary>
-        /// Initialize auto test components
-        /// Called in OnEnterGameSnapshot, when units are not yet created by ETUnitComponent
-        /// So use the first spawn's ActorId
+        /// 初始化自动测试组件
         /// </summary>
         private void InitializeAutoTestComponent(Scene scene, in FrameSnapshotData snapshot)
         {
             var autoTest = scene.GetComponent<ETBattleAutoTestComponent>();
             var skillTest = scene.GetComponent<ETBattleSkillTestComponent>();
             if (autoTest == null && skillTest == null)
-            {
                 return;
-            }
 
-            // Use the first player's ActorId from the spawn data
             long actorIdToUse = 0;
             float startX = 0f;
             float startY = 0f;
@@ -78,7 +103,6 @@ namespace ET.Logic
             }
             else
             {
-                // Fallback to PlayerActorId
                 actorIdToUse = _battleComponent.PlayerActorId;
             }
 
@@ -101,6 +125,13 @@ namespace ET.Logic
             if (scene == null)
                 return;
 
+            // 更新缓存
+            if (_cacheComponent != null)
+            {
+                _cacheComponent.UpdateCache(snapshot.FrameIndex, snapshot);
+            }
+
+            // 发布 ActorMoveEvent 事件
             foreach (var transform in snapshot.ActorTransforms)
             {
                 EventSystem.Instance.Publish<Scene, ActorMoveEvent>(
@@ -120,6 +151,13 @@ namespace ET.Logic
             if (scene == null)
                 return;
 
+            // 更新缓存
+            if (_cacheComponent != null)
+            {
+                _cacheComponent.UpdateCache(snapshot.FrameIndex, snapshot);
+            }
+
+            // 发布伤害和死亡事件
             foreach (var damage in snapshot.DamageEvents)
             {
                 EventSystem.Instance.Publish<Scene, ActorDamageEvent>(

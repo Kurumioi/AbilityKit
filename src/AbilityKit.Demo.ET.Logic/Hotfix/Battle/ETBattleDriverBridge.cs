@@ -62,7 +62,10 @@ namespace ET.Logic
         /// </summary>
         public static void Start(ETBattleComponent self)
         {
-            self.BattleDriver?.Start();
+            if (self.BattleDriver is ETMobaBattleDriver driver)
+            {
+                driver.StartBattle();
+            }
         }
 
         /// <summary>
@@ -72,7 +75,7 @@ namespace ET.Logic
         {
             if (self.BattleDriver is ETMobaBattleDriver driver)
             {
-                driver.Stop();
+                driver.StopBattle();
             }
         }
 

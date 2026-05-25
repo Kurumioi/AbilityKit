@@ -5,19 +5,39 @@ namespace ET.AbilityKit.Demo.ET.View
 {
     /// <summary>
     /// ActorSpawnEvent 事件处理器
-    /// 监听逻辑层派发的单位生成事件
-    /// 注意：实际的视图创建由 Logic 层的 ETBattleViewComponent 处理
+    /// 订阅 ET.Logic 发布的事件，创建视图层单位
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ActorSpawnEventHandler : AEvent<Scene, ActorSpawnEvent>
     {
         protected override async ETTask Run(Scene scene, ActorSpawnEvent args)
         {
-            Log.Info($"[ActorSpawnEventHandler] >>> Received ActorSpawnEvent: {args.Name} ({args.ActorId})");
+            // Get or create view event listener
+            var listener = scene.GetComponent<ETViewEventListener>();
+            if (listener == null)
+            {
+                listener = scene.AddComponent<ETViewEventListener>();
+            }
 
-            // 视图创建由 Logic 层的 ETBattleViewComponent.AddUnitView 处理
-            // 这里只记录日志
-            Log.Info($"[ActorSpawnEventHandler] >>> Actor spawned in view: {args.Name} ({args.ActorId}), Kind={args.Kind}, IsLocalPlayer={args.IsLocalPlayer}");
+            // Create unit view
+            var view = new ETUnitViewComponent
+            {
+                UnitId = args.ActorId,
+                MobaActorId = args.MobaActorId,
+                Name = args.Name,
+                X = args.X,
+                Y = args.Y,
+                CurrentHp = args.MaxHp,
+                MaxHp = args.MaxHp,
+                EntityCode = args.EntityCode,
+                IsDead = false,
+                IsVisible = true
+            };
+
+            // Add to listener
+            listener.AddUnitView(args.MobaActorId, view);
+
+            Log.Info($"[ActorSpawnEventHandler] Unit spawned in view: {args.Name} (MobaActorId={args.MobaActorId}) at ({args.X}, {args.Y})");
         }
     }
 }

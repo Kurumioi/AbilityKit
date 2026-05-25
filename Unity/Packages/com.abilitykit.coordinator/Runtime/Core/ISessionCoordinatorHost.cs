@@ -20,6 +20,11 @@ namespace AbilityKit.Coordinator
         IWorldHost CreateWorldHost(SessionConfig config);
 
         /// <summary>
+        /// Configure world create options before the coordinator creates the world
+        /// </summary>
+        void ConfigureWorldCreateOptions(in SessionConfig config, WorldCreateOptions options);
+
+        /// <summary>
         /// Register services to the world
         /// </summary>
         void RegisterServices(IWorld world, SessionConfig config);

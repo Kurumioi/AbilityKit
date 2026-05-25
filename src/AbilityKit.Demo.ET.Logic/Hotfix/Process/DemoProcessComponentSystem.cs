@@ -167,15 +167,12 @@ namespace ET.Logic
             // 初始化战斗组件（传递 textAssetLoader）
             battleComponent.InitializeBattle(plan, textAssetLoader);
 
-            // ========== 步骤5: 添加视图组件 ==========
-            // 注意：视图组件必须在 TriggerBattleStart 之前创建
-            var battleViewComponent = battleScene.AddComponent<ETBattleViewComponent>();
-            battleViewComponent.Initialize();
-            battleViewComponent.ShowHelp();
-
-            // 创建视图事件处理器并绑定到战斗组件
+            // ========== 步骤5: 创建视图事件桥接 ==========
+            // ETViewEventSink 负责将 AbilityKit 事件桥接到 ET 事件系统
             var viewSink = new ETViewEventSink(battleScene);
             battleComponent.ViewSink = viewSink;
+
+            Log.Info($"[DemoProcess] View event sink created");
 
             // ========== 步骤6: 监听房间准备好事件 ==========
             // 注意：必须在 AutoSetupForLocalTest 之前注册，以便回调能正确触发

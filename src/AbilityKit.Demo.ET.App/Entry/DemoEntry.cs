@@ -63,7 +63,6 @@ namespace ET.AbilityKit.Demo.ET.App
                 typeof(DemoEntry).Assembly, // App
                 typeof(global::ET.Logic.DemoLoginComponent).Assembly, // Logic
                 typeof(global::ET.Logic.DemoProcessComponent).Assembly, // Logic
-                typeof(global::ET.Logic.ETBattleViewComponent).Assembly, // Logic (包含 View 组件)
             };
 
             // 如果 View 层程序集存在，也加载它
@@ -112,7 +111,6 @@ namespace ET.AbilityKit.Demo.ET.App
                     typeof(DemoEntry).Assembly, // App
                     typeof(global::ET.Logic.DemoLoginComponent).Assembly, // Logic
                     typeof(global::ET.Logic.DemoProcessComponent).Assembly, // Logic
-                    typeof(global::ET.Logic.ETBattleViewComponent).Assembly, // Logic (包含 View 组件)
                     typeof(global::ET.CodeTypes).Assembly, // ET.Share - 包含 LogInvokerHandler 等
                 };
 

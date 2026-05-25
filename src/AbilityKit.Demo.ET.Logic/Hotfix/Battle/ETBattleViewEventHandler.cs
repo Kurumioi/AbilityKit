@@ -6,7 +6,11 @@ namespace ET.Logic
 {
     /// <summary>
     /// Battle view event handler
-    /// Subscribes to logic layer events and creates units
+    /// Subscribes to logic layer events and creates Logic layer units
+    ///
+    /// Note: View layer events (ActorMove, ActorDamage, ActorDead) are published
+    /// to the ET event system for ET.View to handle. This handler only manages
+    /// Logic layer unit creation.
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_EventHandler: AEvent<Scene, ActorSpawnEvent>
@@ -32,52 +36,60 @@ namespace ET.Logic
                 Log.Warning($"[ETBattleView] ETUnitComponent not found!");
             }
 
-            // Create View layer unit view
-            var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-            unitViewComponent?.CreateUnitView(args);
-
             await ETTask.CompletedTask;
         }
     }
 
-    /// <summary>
-    /// Unit move event handler
-    /// </summary>
-    [Event(SceneType.DemoBattle)]
-    public class ETBattleView_ActorMove_Handler: AEvent<Scene, ActorMoveEvent>
-    {
-        protected override async ETTask Run(Scene scene, ActorMoveEvent args)
+        /// <summary>
+        /// Unit move event handler - publishes to ET event system for ET.View
+        /// </summary>
+        [Event(SceneType.DemoBattle)]
+        public class ETBattleView_ActorMove_Handler: AEvent<Scene, ActorMoveEvent>
         {
-            var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-            unitViewComponent?.UpdateUnitPosition(args);
-            await ETTask.CompletedTask;
+            protected override async ETTask Run(Scene scene, ActorMoveEvent args)
+            {
+                // Update Logic layer unit position directly
+                var unitComponent = scene.GetComponent<ETUnitComponent>();
+                if (unitComponent != null)
+                {
+                    var unit = unitComponent.GetUnit(args.ActorId);
+                    if (unit != null)
+                    {
+                        unit.X = args.X;
+                        unit.Y = args.Y;
+                    }
+                }
+
+                // Publish to ET event system for ET.View to handle rendering
+                EventSystem.Instance.Publish(scene, args);
+                await ETTask.CompletedTask;
+            }
         }
-    }
 
     /// <summary>
-    /// Unit damage event handler
+    /// Unit damage event handler - publishes to ET event system for ET.View
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorDamage_Handler: AEvent<Scene, ActorDamageEvent>
     {
         protected override async ETTask Run(Scene scene, ActorDamageEvent args)
         {
-            var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-            unitViewComponent?.UpdateUnitHp(args);
+            // Publish to ET event system for ET.View to handle rendering
+            EventSystem.Instance.Publish(scene, args);
             await ETTask.CompletedTask;
         }
     }
 
     /// <summary>
-    /// Unit dead event handler
+    /// Unit dead event handler - publishes to ET event system for ET.View
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorDead_Handler: AEvent<Scene, ActorDeadEvent>
     {
         protected override async ETTask Run(Scene scene, ActorDeadEvent args)
         {
-            var unitViewComponent = scene.GetComponent<ETUnitViewComponent>();
-            unitViewComponent?.DestroyUnitView(args.ActorId);
+            // Publish to ET event system for ET.View to handle rendering
+            EventSystem.Instance.Publish(scene, args);
             await ETTask.CompletedTask;
         }
     }
@@ -90,8 +102,7 @@ namespace ET.Logic
     {
         protected override async ETTask Run(Scene scene, BattleStartEvent args)
         {
-            var battleViewComponent = scene.GetComponent<ETBattleViewComponent>();
-            battleViewComponent?.OnBattleStart(args);
+            Log.Info($"[ETBattleView] Battle start: {args.BattleId}");
             await ETTask.CompletedTask;
         }
     }
@@ -104,8 +115,7 @@ namespace ET.Logic
     {
         protected override async ETTask Run(Scene scene, BattleEndEvent args)
         {
-            var battleViewComponent = scene.GetComponent<ETBattleViewComponent>();
-            battleViewComponent?.OnBattleEnd(args);
+            Log.Info($"[ETBattleView] Battle end: {args.BattleId}, Victory={args.IsVictory}");
             await ETTask.CompletedTask;
         }
     }
