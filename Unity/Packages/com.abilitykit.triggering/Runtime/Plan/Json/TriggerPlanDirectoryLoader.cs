@@ -126,7 +126,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             var db = new TriggerPlanJsonDatabase();
             var allRecords = new List<TriggerPlanJsonDatabase.Record>();
-            var allById = new Dictionary<int, TriggerPlan<object>>();
             var allStrings = new Dictionary<int, string>();
 
             foreach (var file in files)
@@ -155,7 +154,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
                             var plan = BuildPlan(trigger);
                             allRecords.Add(new TriggerPlanJsonDatabase.Record(trigger.TriggerId, trigger.EventName, eventId, in plan));
-                            allById[trigger.TriggerId] = plan;
                         }
                     }
 
@@ -173,7 +171,16 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
             }
 
-            SetDatabaseRecords(db, allRecords, allById, allStrings);
+            foreach (var kvp in allStrings)
+            {
+                db.AddString(kvp.Key, kvp.Value);
+            }
+
+            for (int i = 0; i < allRecords.Count; i++)
+            {
+                db.AddRecord(allRecords[i]);
+            }
+
             return db;
         }
 
@@ -325,27 +332,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (string.IsNullOrEmpty(relativePath)) return baseDir;
             return Path.Combine(baseDir, relativePath).Replace('\\', '/');
-        }
-
-        private static void SetDatabaseRecords(
-            TriggerPlanJsonDatabase db,
-            List<TriggerPlanJsonDatabase.Record> records,
-            Dictionary<int, TriggerPlan<object>> byId,
-            Dictionary<int, string> strings)
-        {
-            var type = typeof(TriggerPlanJsonDatabase);
-
-            var recordsField = type.GetField("_records",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            recordsField?.SetValue(db, records);
-
-            var byIdField = type.GetField("_byTriggerId",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            byIdField?.SetValue(db, byId);
-
-            var stringsField = type.GetField("_strings",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            stringsField?.SetValue(db, strings);
         }
 
         private static void LogWarning(string message)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Ability.Config
 {
@@ -23,5 +24,13 @@ namespace AbilityKit.Ability.Config
         /// <param name="bytes">输出的二进制内容</param>
         /// <returns>是否成功加载</returns>
         bool TryLoadBytes(string path, out byte[] bytes);
+    }
+
+    /// <summary>
+    /// Optional capability for text asset loaders that can enumerate files under a directory.
+    /// </summary>
+    public interface ITextAssetDirectoryLoader
+    {
+        IEnumerable<string> GetTextAssetPaths(string directory, string pattern);
     }
 }

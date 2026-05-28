@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -11,7 +13,7 @@ namespace ET.Logic
     /// ???????????? JSON ??????
     /// </summary>
     [WorldService(typeof(ITextAssetLoader), WorldLifetime.Singleton)]
-    public sealed class ETTextAssetLoader : ITextAssetLoader
+    public sealed class ETTextAssetLoader : ITextAssetLoader, ITextAssetDirectoryLoader
     {
         private readonly string _basePath;
 
@@ -75,6 +77,34 @@ namespace ET.Logic
             }
         }
 
+        public IEnumerable<string> GetTextAssetPaths(string directory, string pattern)
+        {
+            if (string.IsNullOrEmpty(directory)) return Array.Empty<string>();
+
+            var fullDir = GetFullPath(directory);
+            if (!Directory.Exists(fullDir)) return Array.Empty<string>();
+
+            var searchOption = pattern != null && pattern.Contains("**")
+                ? SearchOption.AllDirectories
+                : SearchOption.TopDirectoryOnly;
+            var searchPattern = string.IsNullOrEmpty(pattern)
+                ? "*.json"
+                : pattern.Replace("**/", string.Empty).Replace("**", "*");
+
+            try
+            {
+                return Directory.GetFiles(fullDir, searchPattern, searchOption)
+                    .Where(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                    .Select(GetRelativePath)
+                    .ToArray();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[ETTextAssetLoader] Failed to enumerate files: {fullDir}, Error: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         private string GetFullPath(string path)
         {
             if (string.IsNullOrEmpty(path)) return _basePath;
@@ -86,6 +116,16 @@ namespace ET.Logic
                 return normalizedPath;
             }
             return Path.Combine(_basePath, normalizedPath);
+        }
+
+        private string GetRelativePath(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return fullPath;
+
+            var relative = fullPath.StartsWith(_basePath, StringComparison.OrdinalIgnoreCase)
+                ? fullPath.Substring(_basePath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                : fullPath;
+            return relative.Replace('\\', '/');
         }
 
         private static string GetDefaultBasePath()

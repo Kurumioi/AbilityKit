@@ -168,6 +168,66 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             return _byTriggerId != null && _byTriggerId.TryGetValue(triggerId, out plan);
         }
 
+        public void AddString(int id, string value, bool replaceExisting = true)
+        {
+            if (id == 0) return;
+            if (_strings == null) _strings = new Dictionary<int, string>();
+            if (replaceExisting || !_strings.ContainsKey(id))
+            {
+                _strings[id] = value;
+            }
+        }
+
+        public void AddRecord(in Record record, bool replaceExisting = true)
+        {
+            if (record.TriggerId <= 0) return;
+            if (_records == null) _records = new List<Record>();
+            if (_byTriggerId == null) _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+
+            var existingIndex = -1;
+            for (int i = 0; i < _records.Count; i++)
+            {
+                if (_records[i].TriggerId == record.TriggerId)
+                {
+                    existingIndex = i;
+                    break;
+                }
+            }
+
+            if (existingIndex >= 0)
+            {
+                if (!replaceExisting) return;
+                _records[existingIndex] = record;
+            }
+            else
+            {
+                _records.Add(record);
+            }
+
+            _byTriggerId[record.TriggerId] = record.Plan;
+        }
+
+        public void MergeFrom(TriggerPlanJsonDatabase source, bool replaceExisting = true)
+        {
+            if (source == null) return;
+
+            if (source._strings != null)
+            {
+                foreach (var kvp in source._strings)
+                {
+                    AddString(kvp.Key, kvp.Value, replaceExisting);
+                }
+            }
+
+            if (source._records != null)
+            {
+                for (int i = 0; i < source._records.Count; i++)
+                {
+                    AddRecord(source._records[i], replaceExisting);
+                }
+            }
+        }
+ 
         public void Load(ITextLoader loader, string id)
         {
             if (loader == null) throw new ArgumentNullException(nameof(loader));

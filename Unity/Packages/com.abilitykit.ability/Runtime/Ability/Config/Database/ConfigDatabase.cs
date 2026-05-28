@@ -65,7 +65,17 @@ namespace AbilityKit.Ability.Config
             return Reload(source, basePath);
         }
 
+        public ConfigReloadResult Load(IConfigSource source, string basePath, bool strict)
+        {
+            return Reload(source, basePath, strict);
+        }
+
         public ConfigReloadResult Reload(IConfigSource source, string basePath = null)
+        {
+            return Reload(source, basePath, strict: true);
+        }
+
+        public ConfigReloadResult Reload(IConfigSource source, string basePath, bool strict)
         {
             if (source == null)
             {
@@ -73,7 +83,8 @@ namespace AbilityKit.Ability.Config
             }
 
             var tables = _registry.Tables;
-            var nextTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             for (int i = 0; i < tables.Count; i++)
             {
@@ -84,17 +95,25 @@ namespace AbilityKit.Ability.Config
 
                 if (!TryLoadFromSource(source, fullPath, definition, out var arr))
                 {
-                    var fail = ConfigReloadResult.Fail(DefaultKey, _version, 
-                        $"Config not found: {definition.FilePath}");
-                    ConfigReloadBus.Publish(fail);
-                    return fail;
+                    if (strict)
+                    {
+                        var fail = ConfigReloadResult.Fail(DefaultKey, _version,
+                            $"Config not found: {definition.FilePath}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+
+                    arr = Array.CreateInstance(definition.DtoType, 0);
                 }
+
+                var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                nextDtoTables[definition.DtoType] = dtoTable;
 
                 var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
                 nextTables[definition.EntryType] = table;
             }
 
-            CommitTables(nextTables);
+            CommitTables(nextTables, nextDtoTables);
             var success = ConfigReloadResult.Success(DefaultKey, _version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
             return success;
@@ -119,7 +138,8 @@ namespace AbilityKit.Ability.Config
             }
 
             var tables = _registry.Tables;
-            var nextTables = new Dictionary<Type, object>();
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
             for (int i = 0; i < tables.Count; i++)
             {
@@ -149,11 +169,14 @@ namespace AbilityKit.Ability.Config
                     return fail;
                 }
 
+                var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                nextDtoTables[definition.DtoType] = dtoTable;
+
                 var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
                 nextTables[definition.EntryType] = table;
             }
 
-            CommitTables(nextTables);
+            CommitTables(nextTables, nextDtoTables);
             var success = ConfigReloadResult.Success(DefaultKey, _version, fullReload: true, changedIds: null);
             ConfigReloadBus.Publish(success);
             return success;
@@ -524,6 +547,73 @@ namespace AbilityKit.Ability.Config
 
                     var table = CreateAndPopulateTable(entry.DtoType, entry.EntryType, arr);
                     nextTables[entry.EntryType] = table;
+                }
+            }
+
+            CommitTables(nextTables, nextDtoTables);
+            var success = ConfigReloadResult.Success(DefaultKey, _version, fullReload: true, changedIds: null);
+            ConfigReloadBus.Publish(success);
+            return success;
+        }
+
+        #endregion
+
+        #region DTO Array Loading
+
+        public ConfigReloadResult LoadFromDtoArrays(IReadOnlyDictionary<Type, Array> dtoArraysByType, bool strict = true)
+        {
+            return ReloadFromDtoArrays(dtoArraysByType, strict);
+        }
+
+        public ConfigReloadResult ReloadFromDtoArrays(IReadOnlyDictionary<Type, Array> dtoArraysByType, bool strict = true)
+        {
+            if (dtoArraysByType == null)
+            {
+                var fail = ConfigReloadResult.Fail(DefaultKey, _version, "DTO array dictionary is null");
+                ConfigReloadBus.Publish(fail);
+                return fail;
+            }
+
+            var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+            var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
+
+            var tables = _registry.Tables;
+            for (int i = 0; i < tables.Count; i++)
+            {
+                var definition = tables[i];
+
+                if (!dtoArraysByType.TryGetValue(definition.DtoType, out var arr) || arr == null)
+                {
+                    if (strict)
+                    {
+                        var fail = ConfigReloadResult.Fail(DefaultKey, _version, $"DTO array not found: {definition.DtoType.FullName}");
+                        ConfigReloadBus.Publish(fail);
+                        return fail;
+                    }
+
+                    arr = Array.CreateInstance(definition.DtoType, 0);
+                }
+
+                if (arr.GetType().GetElementType() != definition.DtoType)
+                {
+                    var fail = ConfigReloadResult.Fail(DefaultKey, _version, $"DTO array type mismatch: expected {definition.DtoType.FullName}, actual {arr.GetType().FullName}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
+                }
+
+                try
+                {
+                    var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
+                    nextDtoTables[definition.DtoType] = dtoTable;
+
+                    var table = CreateAndPopulateTable(definition.DtoType, definition.EntryType, arr);
+                    nextTables[definition.EntryType] = table;
+                }
+                catch (Exception ex)
+                {
+                    var fail = ConfigReloadResult.Fail(DefaultKey, _version, $"Failed to build config from DTO array: {definition.DtoType.FullName}. {ex.Message}");
+                    ConfigReloadBus.Publish(fail);
+                    return fail;
                 }
             }
 

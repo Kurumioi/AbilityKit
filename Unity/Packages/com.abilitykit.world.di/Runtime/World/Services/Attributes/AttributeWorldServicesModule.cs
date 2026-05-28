@@ -67,6 +67,11 @@ namespace AbilityKit.Ability.World.Services.Attributes
 
         private static readonly System.Collections.Generic.Dictionary<CacheKey, Registration[]> Cache = new System.Collections.Generic.Dictionary<CacheKey, Registration[]>();
 
+        public static void ClearCache()
+        {
+            Cache.Clear();
+        }
+ 
         public AttributeWorldServicesModule(WorldServiceProfile profile, Assembly[] assemblies, string[] namespacePrefixes)
         {
             _profile = profile;

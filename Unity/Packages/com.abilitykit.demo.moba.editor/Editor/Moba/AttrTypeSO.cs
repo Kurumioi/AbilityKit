@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
