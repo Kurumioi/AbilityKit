@@ -13,12 +13,19 @@ namespace AbilityKit.Demo.Moba.Systems
     {
         public IPlanActionModule[] Modules { get; }
 
-        public PlanActionModuleRegistry(IPlanActionModule[] modules)
+        // Parameterless constructor for DI container (auto-discovery internally)
+        public PlanActionModuleRegistry()
         {
-            Modules = modules;
+            Modules = CreateModules();
         }
 
-        public static PlanActionModuleRegistry CreateDefault()
+        // Explicit constructor for manual creation with specific modules
+        public PlanActionModuleRegistry(IPlanActionModule[] modules)
+        {
+            Modules = modules ?? Array.Empty<IPlanActionModule>();
+        }
+
+        private static IPlanActionModule[] CreateModules()
         {
             var asm = typeof(PlanActionModuleRegistry).Assembly;
             var list = new List<(int order, string name, IPlanActionModule module)>();
@@ -53,7 +60,12 @@ namespace AbilityKit.Demo.Moba.Systems
                 modules[i] = list[i].module;
             }
 
-            return new PlanActionModuleRegistry(modules);
+            return modules;
+        }
+
+        public static PlanActionModuleRegistry CreateDefault()
+        {
+            return new PlanActionModuleRegistry(CreateModules());
         }
 
         public void Dispose()

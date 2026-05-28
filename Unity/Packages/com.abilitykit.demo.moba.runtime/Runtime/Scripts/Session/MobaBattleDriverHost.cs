@@ -18,9 +18,9 @@ namespace AbilityKit.Demo.Moba.Session
     /// 将 Coordinator 输入提交到 moba.core 逻辑世界
     ///
     /// 设计原则（单一入口）：
-    /// - 只通过服务接口与 moba.core 交互
-    /// - 输入：通过 IWorldInputSink.Submit() 提交
-    /// - 位置查询：通过 MobaSnapshotRouter 快照事件获取
+    /// - 只通过战斗逻辑层端口与 moba.core 交互
+    /// - 输入：通过 IMobaBattleInputPort 提交
+    /// - 输出：通过 IMobaBattleOutputPort 获取快照
     /// - 禁止直接访问 MobaEntityManager 或实体
     /// </summary>
     public sealed class MobaBattleDriverHost : IBattleDriverHost
@@ -28,8 +28,9 @@ namespace AbilityKit.Demo.Moba.Session
         private IWorld _world;
         private HostRuntime _hostRuntime;
         private ISessionCoordinator _coordinator;
-        private IWorldInputSink _inputSink;
-        private MobaSnapshotRouter _snapshotRouter;
+        private IMobaBattleInputPort _input;
+        private MobaPlayerInputCommandConverter _inputConverter;
+        private MobaTransformSnapshotDispatcher _transformSnapshots;
         private int _currentFrame;
         private double _logicTimeSeconds;
         private bool _isRunning;
@@ -43,12 +44,14 @@ namespace AbilityKit.Demo.Moba.Session
             _hostRuntime = hostRuntime;
             _coordinator = coordinator;
 
-            // 获取服务引用
+            // 获取战斗逻辑层 IO 端口，外部模块不直接依赖内部输入/快照服务。
             if (_world?.Services != null)
             {
-                _world.Services.TryResolve(out _inputSink);
-                _world.Services.TryResolve(out _snapshotRouter);
+                _world.Services.TryResolve(out _input);
             }
+
+            _inputConverter = new MobaPlayerInputCommandConverter();
+            _transformSnapshots = new MobaTransformSnapshotDispatcher(_world);
 
             // 订阅快照事件（通过 HostRuntime 的事件机制）
             SubscribeToSnapshots();
@@ -106,27 +109,17 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void SubmitInputs(PlayerInput[] inputs)
         {
-            if (!_isRunning || inputs == null || inputs.Length == 0 || _inputSink == null)
+            if (!_isRunning || inputs == null || inputs.Length == 0 || _input == null)
             {
                 return;
             }
 
             Log.Info($"[MobaBattleDriverHost] SubmitInputs: {inputs.Length} inputs");
 
-            // 将 Coordinator.PlayerInput 转换为 PlayerInputCommand
-            var commands = new List<PlayerInputCommand>(inputs.Length);
-            foreach (var input in inputs)
-            {
-                var playerId = new PlayerId(input.PlayerId.ToString());
-                commands.Add(new PlayerInputCommand(
-                    new FrameIndex(input.Frame),
-                    playerId,
-                    input.OpCode,
-                    input.Payload));
-            }
+            var commands = _inputConverter.Convert(inputs);
 
-            // 通过 IWorldInputSink 提交输入（唯一入口）
-            _inputSink.Submit(new FrameIndex(_currentFrame), commands);
+            // 通过战斗逻辑层输入端口提交，隔离具体输入处理服务。
+            _input.Submit(new FrameIndex(_currentFrame), commands);
         }
 
         public EntityState[] GetAllEntityStates()
@@ -197,37 +190,16 @@ namespace AbilityKit.Demo.Moba.Session
                 sessionCoordinator.Tick(deltaTime);
             }
 
-            // 从快照路由获取位置快照（通过服务接口）
+            // 从战斗逻辑层输出端口获取位置快照。
             TryGetTransformSnapshot();
         }
 
         /// <summary>
-        /// 从 MobaSnapshotRouter 获取位置快照（服务接口）
+        /// 从战斗逻辑层输出端口获取位置快照。
         /// </summary>
         private void TryGetTransformSnapshot()
         {
-            if (_snapshotRouter == null)
-            {
-                return;
-            }
-
-            // 通过 IWorldStateSnapshotProvider 接口获取快照
-            if (_world?.Services?.TryResolve<IWorldStateSnapshotProvider>(out var provider) != true)
-            {
-                return;
-            }
-
-            var frameIndex = new FrameIndex(_currentFrame);
-            if (provider.TryGetSnapshot(frameIndex, out var snapshot))
-            {
-                // 解析快照类型
-                if (snapshot.OpCode == (int)MobaOpCode.ActorTransformSnapshot)
-                {
-                    var entries = MobaActorTransformSnapshotCodec.Deserialize(snapshot.Payload);
-                    _onTransformSnapshot?.Invoke(_currentFrame, entries);
-                    Log.Info($"[MobaBattleDriverHost] Transform snapshot: {entries?.Length ?? 0} entities");
-                }
-            }
+            _transformSnapshots?.TryDispatch(_currentFrame, _onTransformSnapshot);
         }
 
         private void HandleSkillInput(PlayerInput input)
@@ -243,7 +215,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         private void HandleMoveInput(PlayerInput input)
         {
-            // 移动输入通过 SubmitInputs -> IWorldInputSink.Submit() 处理
+            // 移动输入通过 SubmitInputs -> IMobaBattleInputPort.Submit() 处理
             // 不在这里直接操作实体
             if (!input.TryGetMoveTarget(out float x, out float z))
             {

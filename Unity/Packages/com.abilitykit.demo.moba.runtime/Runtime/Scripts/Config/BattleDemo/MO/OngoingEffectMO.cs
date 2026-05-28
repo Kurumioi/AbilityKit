@@ -1,4 +1,5 @@
 ﻿using System;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {

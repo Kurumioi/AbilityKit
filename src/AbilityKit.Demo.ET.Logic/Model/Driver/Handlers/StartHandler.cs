@@ -1,7 +1,6 @@
 using System;
-using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services;
 
 namespace ET.Logic
 {
@@ -15,39 +14,27 @@ namespace ET.Logic
 
         public void Handle(ETMobaBattleDriver driver)
         {
-            // 从 World.Services 获取 InputSink（由 MobaWorldBootstrapModule 注册的 MobaLobbyInputSink）
-            if (driver.World?.Services == null ||
-                !driver.World.Services.TryResolve<IWorldInputSink>(out var inputSink) ||
-                inputSink == null)
-            {
-                Log.Error("[StartHandler] IWorldInputSink not registered in World.Services!");
-                throw new InvalidOperationException("IWorldInputSink must be registered");
-            }
+            IMobaBattleInputPort inputPort = null;
 
-            // 尝试转换为 ETMobaInputSink（如果可用，用于注册回调）
-            if (inputSink is ETMobaInputSink etMobaInputSink)
+            // 从 World.Services 获取战斗逻辑层输入端口，避免外部模块直接依赖内部 Sink。
+            if (driver.World?.Services != null &&
+                driver.World.Services.TryResolve<IMobaBattleInputPort>(out var port) &&
+                port != null)
             {
-                // 注册移动命令回调 - 用于调试和追踪（仅 ETMobaInputSink 支持）
-                etMobaInputSink.OnMoveCommand += (actorId, unused, x, z) =>
-                {
-                    Log.Debug($"[StartHandler] Move command: ActorId={actorId} -> ({x:F2}, {z:F2})");
-                };
-                Log.Info("[StartHandler] Using ETMobaInputSink with callbacks");
+                inputPort = port;
             }
             else
             {
-                // 使用 MobaLobbyInputSink，它不支持 OnMoveCommand 回调
-                Log.Info("[StartHandler] Using MobaLobbyInputSink (callbacks not available)");
+                Log.Error("[StartHandler] IMobaBattleInputPort not registered in World.Services!");
+                throw new InvalidOperationException("IMobaBattleInputPort must be registered");
             }
 
-            driver.InputSink = inputSink;
+            driver.InputPort = inputPort;
 
             driver.IsRunning = true;
             driver.LastTickTime = GetCurrentTimeSeconds();
             driver.CurrentFrame = 0;
             driver.LogicTimeSeconds = 0;
-
-            Log.Info("[StartHandler] Done - IWorldInputSink obtained from World.Services");
         }
 
         private static double GetCurrentTimeSeconds()

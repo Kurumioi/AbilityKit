@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Pipeline;
+using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.World.DI;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    using AbilityKit.Ability;
+    [WorldService(typeof(IMobaSkillPipelineLibrary), WorldLifetime.Scoped)]
     public sealed class TableDrivenMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
         private static readonly AbilityPipelinePhaseId PreCastChecksPhaseId = new AbilityPipelinePhaseId("skill.checks.precast");

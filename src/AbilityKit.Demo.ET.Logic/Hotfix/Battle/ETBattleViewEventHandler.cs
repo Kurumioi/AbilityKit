@@ -19,24 +19,10 @@ namespace ET.Logic
     {
         protected override async ETTask Run(Scene scene, ActorSpawnEvent args)
         {
-            // Create Logic layer unit
-            var unitComponent = scene.GetComponent<ETUnitComponent>();
-            if (unitComponent != null)
-            {
-                unitComponent.CreateUnit(
-                    (int)args.ActorId,  // ActorId is long in ActorSpawnEvent, cast to int
-                    args.EntityCode,
-                    args.Kind,
-                    args.Name,
-                    args.X,
-                    args.Y,
-                    args.MaxHp);
-                Log.Info($"[ETBattleView] Logic unit created: {args.Name} (ActorId={args.ActorId}, EntityCode={args.EntityCode})");
-            }
-            else
-            {
-                Log.Warning($"[ETBattleView] ETUnitComponent not found!");
-            }
+            // Note: ETUnit creation is handled by TriggerEnterGameSnapshot in ETMobaBattleDriver
+            // This handler only handles view-layer concerns, not Logic layer unit creation
+            // ActorSpawnEvent is now only used for view rendering (ETUnitViewComponent)
+            Log.Debug($"[ETBattleView] ActorSpawnEvent received: {args.Name} (ActorId={args.ActorId}) - view layer rendering handled elsewhere");
 
             await ETTask.CompletedTask;
         }

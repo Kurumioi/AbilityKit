@@ -1,4 +1,6 @@
-﻿namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
+﻿using AbilityKit.Demo.Moba.Share.Config;
+
+namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
     public sealed class PresentationTemplateMO_Standalone
     {

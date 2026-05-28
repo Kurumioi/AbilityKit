@@ -10,17 +10,16 @@ namespace ET.Logic
     /// Battle 服务模块
     /// 注册 Battle 世界所需的所有服务
     /// 
-    /// 注意：IWorldInputSink 由 MobaWorldBootstrapModule 注册为 MobaLobbyInputSink
-    /// 我们需要让 ETMobaInputSink 被使用，所以这里不使用
+    /// 注意：战斗逻辑层输入由运行时包注册为 IMobaBattleInputPort。
+    /// ET 侧只通过端口接入，不直接替换内部输入服务。
     /// </summary>
     public sealed class BattleServiceModule : IWorldModule
     {
         public void Configure(WorldContainerBuilder builder)
         {
-            // 不再注册 IWorldInputSink，让 MobaWorldBootstrapModule 的 MobaLobbyInputSink 被使用
-            // ET Demo 的自定义输入处理逻辑应该在 StartHandler 中通过 IWorldInputSink 接口访问
+            // 不注册输入服务，ET Demo 的输入处理逻辑通过 IMobaBattleInputPort 接入。
 
-            Log.Info("[BattleServiceModule] Configured (IWorldInputSink is handled by MobaWorldBootstrapModule)");
+            Log.Info("[BattleServiceModule] Configured (battle IO ports are handled by moba runtime)");
         }
     }
 }

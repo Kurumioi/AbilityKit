@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo
 {
@@ -62,55 +63,55 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
         public static readonly Entry[] Tables =
         {
             // 瑙掕壊鐩稿叧
-            new Entry(MobaConfigPaths.CharactersFile, typeof(MO.CharacterDTO), typeof(MO.CharacterMO)),
+            new Entry(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(MO.CharacterMO)),
 
             // 灞炴€х浉鍏?
-            new Entry(MobaConfigPaths.AttributeTemplatesFile, typeof(MO.BattleAttributeTemplateDTO), typeof(MO.BattleAttributeTemplateMO)),
+            new Entry(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(MO.BattleAttributeTemplateMO)),
             new Entry(MobaConfigPaths.AttributeTypesFile, typeof(AttrTypeDTO), typeof(MO.AttrTypeMO)),
 
             // 鎶€鑳界浉鍏?
-            new Entry(MobaConfigPaths.SkillsFile, typeof(MO.SkillDTO), typeof(MO.SkillMO)),
-            new Entry(MobaConfigPaths.PassiveSkillsFile, typeof(MO.PassiveSkillDTO), typeof(MO.PassiveSkillMO)),
-            new Entry(MobaConfigPaths.SkillFlowsFile, typeof(MO.SkillFlowDTO), typeof(MO.SkillFlowMO)),
-            new Entry(MobaConfigPaths.SkillLevelTablesFile, typeof(MO.SkillLevelTableDTO), typeof(MO.SkillLevelTableMO)),
+            new Entry(MobaConfigPaths.SkillsFile, typeof(SkillDTO), typeof(MO.SkillMO)),
+            new Entry(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(MO.PassiveSkillMO)),
+            new Entry(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(MO.SkillFlowMO)),
+            new Entry(MobaConfigPaths.SkillLevelTablesFile, typeof(SkillLevelTableDTO), typeof(MO.SkillLevelTableMO)),
 
             // 瑙嗚鏁堟灉鐩稿叧
-            new Entry(MobaConfigPaths.ModelsFile, typeof(MO.ModelDTO), typeof(MO.ModelMO)),
+            new Entry(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(MO.ModelMO)),
 
             // Buff 鐩稿叧
-            new Entry(MobaConfigPaths.BuffsFile, typeof(MO.BuffDTO), typeof(MO.BuffMO)),
+            new Entry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(MO.BuffMO)),
 
             // 寮归亾鐩稿叧
-            new Entry(MobaConfigPaths.ProjectileLaunchersFile, typeof(MO.ProjectileLauncherDTO), typeof(MO.ProjectileLauncherMO)),
-            new Entry(MobaConfigPaths.ProjectilesFile, typeof(MO.ProjectileDTO), typeof(MO.ProjectileMO)),
+            new Entry(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(MO.ProjectileLauncherMO)),
+            new Entry(MobaConfigPaths.ProjectilesFile, typeof(ProjectileDTO), typeof(MO.ProjectileMO)),
 
             // AOE 鍜屽彂灏勫櫒
-            new Entry(MobaConfigPaths.AoesFile, typeof(MO.AoeDTO), typeof(MO.AoeMO)),
-            new Entry(MobaConfigPaths.EmittersFile, typeof(MO.EmitterDTO), typeof(MO.EmitterMO)),
+            new Entry(MobaConfigPaths.AoesFile, typeof(AoeDTO), typeof(MO.AoeMO)),
+            new Entry(MobaConfigPaths.EmittersFile, typeof(EmitterDTO), typeof(MO.EmitterMO)),
 
             // 鍙敜鐗?
-            new Entry(MobaConfigPaths.SummonsFile, typeof(MO.SummonDTO), typeof(MO.SummonMO)),
+            new Entry(MobaConfigPaths.SummonsFile, typeof(SummonDTO), typeof(MO.SummonMO)),
 
             // 缁勪欢妯℃澘
-            new Entry(MobaConfigPaths.ComponentTemplatesFile, typeof(MO.ComponentTemplateDTO), typeof(MO.ComponentTemplateMO)),
+            new Entry(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(MO.ComponentTemplateMO)),
 
             // 鎸夐挳妯℃澘
-            new Entry(MobaConfigPaths.SkillButtonTemplatesFile, typeof(MO.SkillButtonTemplateDTO), typeof(MO.SkillButtonTemplateMO)),
+            new Entry(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(MO.SkillButtonTemplateMO)),
 
             // 鏍囩妯℃澘
-            new Entry(MobaConfigPaths.TagTemplatesFile, typeof(MO.TagTemplateDTO), typeof(MO.TagTemplateMO)),
+            new Entry(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(MO.TagTemplateMO)),
 
             // 鎼滅储鏌ヨ妯℃澘
-            new Entry(MobaConfigPaths.SearchQueryTemplatesFile, typeof(MO.SearchQueryTemplateDTO), typeof(MO.SearchQueryTemplateMO)),
+            new Entry(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(MO.SearchQueryTemplateMO)),
 
             // 鍙敜鍔ㄤ綔妯℃澘
-            new Entry(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(MO.SpawnSummonActionTemplateDTO), typeof(MO.SpawnSummonActionTemplateMO)),
+            new Entry(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(MO.SpawnSummonActionTemplateMO)),
 
             // 琛ㄧ幇妯℃澘
-            new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(MO.PresentationTemplateDTO), typeof(MO.PresentationTemplateMO)),
+            new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(MO.PresentationTemplateMO)),
 
             // 鎸佺画鏁堟灉
-            new Entry(MobaConfigPaths.OngoingEffectsFile, typeof(MO.OngoingEffectDTO), typeof(MO.OngoingEffectMO)),
+            new Entry(MobaConfigPaths.OngoingEffectsFile, typeof(OngoingEffectDTO), typeof(MO.OngoingEffectMO)),
         };
     }
 }

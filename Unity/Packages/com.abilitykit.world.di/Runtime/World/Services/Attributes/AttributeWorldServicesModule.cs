@@ -129,14 +129,8 @@ namespace AbilityKit.Ability.World.Services.Attributes
             for (int i = 0; i < registrations.Length; i++)
             {
                 var r = registrations[i];
-                if (r.IsDefault)
-                {
-                    builder.TryRegisterType(r.ServiceType, r.ImplType, r.Lifetime);
-                }
-                else
-                {
-                    builder.RegisterType(r.ServiceType, r.ImplType, r.Lifetime);
-                }
+                // Always use TryRegisterType to respect existing registrations
+                builder.TryRegisterType(r.ServiceType, r.ImplType, r.Lifetime);
             }
         }
 

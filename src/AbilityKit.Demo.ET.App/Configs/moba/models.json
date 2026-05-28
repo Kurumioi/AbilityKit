@@ -1,0 +1,14 @@
+[
+  {
+    "Id": 1,
+    "Name": "战士模型",
+    "PrefabPath": "Prefabs/Characters/Warrior",
+    "Scale": 1.0
+  },
+  {
+    "Id": 2,
+    "Name": "法师模型",
+    "PrefabPath": "Prefabs/Characters/Mage",
+    "Scale": 1.0
+  }
+]

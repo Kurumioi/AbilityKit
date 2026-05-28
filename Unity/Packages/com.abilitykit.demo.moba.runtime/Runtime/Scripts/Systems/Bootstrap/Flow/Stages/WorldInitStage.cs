@@ -78,7 +78,9 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, "[WorldInitStage] ApplyGameStartSpec failed");
+                    // ET Demo provides player data via OnAllPlayersReady, not via WorldInitData
+                    // Empty players in WorldInitData is expected and should not be treated as error
+                    Log.Warning($"[WorldInitStage] ApplyGameStartSpec skipped (ET Demo uses OnAllPlayersReady): {ex.Message}");
                 }
             }
             else

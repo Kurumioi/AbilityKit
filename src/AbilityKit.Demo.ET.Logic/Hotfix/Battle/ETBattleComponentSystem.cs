@@ -38,10 +38,12 @@ namespace ET.Logic
                 return;
 
             // 1. Process auto test (generates move commands to ETInputComponent)
-            ETBattleDriverBridge.ProcessAutoTest(self, self.BattleDriver?.CurrentFrame ?? 0);
+            var currentFrame = self.BattleDriver?.CurrentFrame ?? 0;
+            Log.Debug($"[ETBattleComponentSystem.Update] Frame={currentFrame}, State={self.State}");
+            ETBattleDriverBridge.ProcessAutoTest(self, currentFrame);
 
             // 2. Process skill test (generates skill commands to ETInputComponent)
-            ETBattleDriverBridge.ProcessSkillTest(self, self.BattleDriver?.CurrentFrame ?? 0);
+            ETBattleDriverBridge.ProcessSkillTest(self, currentFrame);
 
             // 3. Tick the battle driver
             //    - PreTickPhase: 递增帧号
@@ -52,6 +54,7 @@ namespace ET.Logic
             if (self.BattleDriver is ETMobaBattleDriver driver)
             {
                 float deltaTime = 1f / self.TickRate;
+                Log.Debug($"[ETBattleComponentSystem.Update] Calling driver.Tick, Frame={driver.CurrentFrame}, DeltaTime={deltaTime:F4}");
                 driver.Tick(deltaTime);
             }
 

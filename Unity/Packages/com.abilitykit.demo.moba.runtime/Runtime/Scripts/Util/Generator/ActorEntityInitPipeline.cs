@@ -11,8 +11,9 @@ using AbilityKit.Effect;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
 
 namespace AbilityKit.Demo.Moba.Util.Generator
@@ -24,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
      * - 鍏稿瀷宸ヤ綔锛氬睘鎬фā鏉垮垵濮嬪寲銆佹妧鑳借閰嶃€佽祫婧愬鍣?灞炴€у鍣ㄥ厹搴曠瓑銆?
      * - 涓嶈礋璐ｅ垱寤哄疄浣擄紙鍒涘缓鐢?ActorArchetypeFactory/ActorSpawnPipeline 璐熻矗锛夈€?
      */
+    [WorldService(typeof(ActorEntityInitPipeline), WorldLifetime.Scoped)]
     public sealed class ActorEntityInitPipeline : IService
     {
         private static readonly HashSet<int> LoggedMissingCharacterIds = new HashSet<int>();

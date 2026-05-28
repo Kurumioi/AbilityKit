@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.Core
 {
@@ -15,27 +16,27 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static readonly HashSet<Type> SupportedTypes = new HashSet<Type>
         {
-            typeof(BattleDemo.MO.CharacterDTO),
-            typeof(BattleDemo.MO.SkillDTO),
-            typeof(BattleDemo.MO.SkillButtonTemplateDTO),
-            typeof(BattleDemo.MO.TagTemplateDTO),
-            typeof(BattleDemo.MO.SearchQueryTemplateDTO),
-            typeof(BattleDemo.MO.PassiveSkillDTO),
-            typeof(BattleDemo.MO.SkillFlowDTO),
-            typeof(BattleDemo.MO.SkillLevelTableDTO),
-            typeof(BattleDemo.MO.BattleAttributeTemplateDTO),
+            typeof(CharacterDTO),
+            typeof(SkillDTO),
+            typeof(SkillButtonTemplateDTO),
+            typeof(TagTemplateDTO),
+            typeof(SearchQueryTemplateDTO),
+            typeof(PassiveSkillDTO),
+            typeof(SkillFlowDTO),
+            typeof(SkillLevelTableDTO),
+            typeof(BattleAttributeTemplateDTO),
             typeof(AttrTypeDTO),
-            typeof(BattleDemo.MO.ModelDTO),
-            typeof(BattleDemo.MO.BuffDTO),
-            typeof(BattleDemo.MO.ProjectileLauncherDTO),
-            typeof(BattleDemo.MO.ProjectileDTO),
-            typeof(BattleDemo.MO.AoeDTO),
-            typeof(BattleDemo.MO.EmitterDTO),
-            typeof(BattleDemo.MO.SummonDTO),
-            typeof(BattleDemo.MO.SpawnSummonActionTemplateDTO),
-            typeof(BattleDemo.MO.ComponentTemplateDTO),
-            typeof(BattleDemo.MO.OngoingEffectDTO),
-            typeof(BattleDemo.MO.PresentationTemplateDTO),
+            typeof(ModelDTO),
+            typeof(BuffDTO),
+            typeof(ProjectileLauncherDTO),
+            typeof(ProjectileDTO),
+            typeof(AoeDTO),
+            typeof(EmitterDTO),
+            typeof(SummonDTO),
+            typeof(SpawnSummonActionTemplateDTO),
+            typeof(ComponentTemplateDTO),
+            typeof(OngoingEffectDTO),
+            typeof(PresentationTemplateDTO),
         };
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)

@@ -1,0 +1,17 @@
+[
+  {
+    "Id": 1,
+    "Name": "AOE-圆形",
+    "ModelId": 0,
+    "VfxId": 0,
+    "AttachMode": 0,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 5.0,
+    "DelayMs": 0,
+    "CollisionLayerMask": 1,
+    "MaxTargets": 10,
+    "OnDelayTriggerIds": []
+  }
+]

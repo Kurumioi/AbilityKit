@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
@@ -41,11 +40,10 @@ namespace ET.Logic
 
         public bool Submit(ETMobaBattleDriver driver, int actorId, int slot, float targetX, float targetZ)
         {
-            // 使用 driver.InputSink 提交输入
-            var inputSink = driver.InputSink;
-            if (inputSink == null)
+            var inputPort = driver.InputPort;
+            if (inputPort == null)
             {
-                Log.Error($"[SkillInputHandler] InputSink is null! Driver not started properly.");
+                Log.Error($"[SkillInputHandler] InputPort is null! Driver not started properly.");
                 return false;
             }
 
@@ -54,7 +52,7 @@ namespace ET.Logic
             var frameIndex = new FrameIndex(driver.CurrentFrame);
             var command = new PlayerInputCommand(frameIndex, playerId, SkillInputOpCode, payload);
 
-            inputSink.Submit(frameIndex, new List<PlayerInputCommand> { command });
+            inputPort.Submit(frameIndex, new List<PlayerInputCommand> { command });
             Log.Debug($"[SkillInputHandler] Submit: ActorId={actorId}, Slot={slot}");
             return true;
         }

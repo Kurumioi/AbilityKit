@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo
 {
@@ -12,27 +13,27 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
     {
         private static readonly HashSet<Type> SupportedTypes = new HashSet<Type>
         {
-            typeof(MO.CharacterDTO),
-            typeof(MO.SkillDTO),
-            typeof(MO.SkillButtonTemplateDTO),
-            typeof(MO.TagTemplateDTO),
-            typeof(MO.SearchQueryTemplateDTO),
-            typeof(MO.PassiveSkillDTO),
-            typeof(MO.SkillFlowDTO),
-            typeof(MO.SkillLevelTableDTO),
-            typeof(MO.BattleAttributeTemplateDTO),
+            typeof(CharacterDTO),
+            typeof(SkillDTO),
+            typeof(SkillButtonTemplateDTO),
+            typeof(TagTemplateDTO),
+            typeof(SearchQueryTemplateDTO),
+            typeof(PassiveSkillDTO),
+            typeof(SkillFlowDTO),
+            typeof(SkillLevelTableDTO),
+            typeof(BattleAttributeTemplateDTO),
             typeof(AttrTypeDTO),
-            typeof(MO.ModelDTO),
-            typeof(MO.BuffDTO),
-            typeof(MO.ProjectileLauncherDTO),
-            typeof(MO.ProjectileDTO),
-            typeof(MO.AoeDTO),
-            typeof(MO.EmitterDTO),
-            typeof(MO.SummonDTO),
-            typeof(MO.SpawnSummonActionTemplateDTO),
-            typeof(MO.ComponentTemplateDTO),
-            typeof(MO.OngoingEffectDTO),
-            typeof(MO.PresentationTemplateDTO),
+            typeof(ModelDTO),
+            typeof(BuffDTO),
+            typeof(ProjectileLauncherDTO),
+            typeof(ProjectileDTO),
+            typeof(AoeDTO),
+            typeof(EmitterDTO),
+            typeof(SummonDTO),
+            typeof(SpawnSummonActionTemplateDTO),
+            typeof(ComponentTemplateDTO),
+            typeof(OngoingEffectDTO),
+            typeof(PresentationTemplateDTO),
         };
 
         public Array DeserializeDtoArray(string text, Type dtoType)

@@ -33,8 +33,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return new PlanTextLoaderAdapter(jsonLoader);
             });
 
-            builder.TryRegister<PlanActionModuleRegistry>(WorldLifetime.Singleton, _ => PlanActionModuleRegistry.CreateDefault());
-
             builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, r =>
             {
                 var db = new TriggerPlanJsonDatabase();

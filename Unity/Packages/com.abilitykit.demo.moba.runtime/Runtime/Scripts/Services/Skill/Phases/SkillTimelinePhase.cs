@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Core.Generic;
-using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Pipeline;

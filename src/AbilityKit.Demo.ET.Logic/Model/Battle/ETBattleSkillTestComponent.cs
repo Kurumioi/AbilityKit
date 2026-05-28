@@ -23,6 +23,11 @@ namespace ET.Logic
         public int TestActorId { get; set; }
 
         /// <summary>
+        /// 测试的 PlayerId（与 moba.core 中 MobaPlayerActorMapService 注册时一致）
+        /// </summary>
+        public string TestPlayerId { get; set; }
+
+        /// <summary>
         /// 技能槽位
         /// </summary>
         public int SkillSlot { get; set; } = BattleTestConfig.DefaultSkillSlot;
@@ -47,9 +52,10 @@ namespace ET.Logic
         /// <summary>
         /// 初始化技能测试
         /// </summary>
-        public void Initialize(int actorId, int skillSlot = 0)
+        public void Initialize(int actorId, string playerId, int skillSlot = 0)
         {
             TestActorId = actorId;
+            TestPlayerId = playerId;
             SkillSlot = skillSlot;
             SkillCastCount = 0;
             LastCastFrame = 0;

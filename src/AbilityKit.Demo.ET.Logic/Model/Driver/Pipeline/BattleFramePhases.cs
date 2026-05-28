@@ -50,7 +50,7 @@ namespace ET.Logic
 
     /// <summary>
     /// 阶段 2: 处理 ET 输入
-    /// 从 ETInputComponent 读取命令并提交到 IWorldInputSink
+    /// 从 ETInputComponent 读取命令并提交到战斗输入端口
     ///
     /// 设计说明：
     /// - ET.Logic 层的输入先存入 ETInputComponent 缓冲
@@ -76,10 +76,10 @@ namespace ET.Logic
                 return;
             }
 
-            // 获取 IWorldInputSink
-            if (!ctx.Driver.TryResolve(out IWorldInputSink inputSink) || inputSink == null)
+            // 获取战斗逻辑层输入端口
+            if (!ctx.Driver.TryResolve(out IMobaBattleInputPort inputPort) || inputPort == null)
             {
-                Log.Warning("[ProcessETInputPhase] IWorldInputSink not resolved");
+                Log.Warning("[ProcessETInputPhase] IMobaBattleInputPort not resolved");
                 return;
             }
 
@@ -90,13 +90,15 @@ namespace ET.Logic
                 switch (cmd)
                 {
                     case MoveCommand move:
-                        var movePayload = MobaMoveCodec.Serialize(move.X, move.Y);
-                        var movePlayerId = PlayerIdUtils.ToPlayerId(move.ActorId);
+                        // 使用移动方向向量 (dx, dz)
+                        var movePayload = MobaMoveCodec.Serialize(move.Dx, move.Dz);
+                        var movePlayerId = new PlayerId(move.PlayerId);
                         playerCommands.Add(new PlayerInputCommand(
                             new FrameIndex(ctx.CurrentFrame),
                             movePlayerId,
                             (int)OpCode.Move,
                             movePayload));
+                        Log.Debug($"[ProcessETInputPhase] Move: PlayerId={move.PlayerId}, Dir=({move.Dx:F2}, {move.Dz:F2})");
                         break;
 
                     case SkillCommand skill:
@@ -106,17 +108,18 @@ namespace ET.Logic
                             targetActorId: 0,
                             aimPos: new Vec3(skill.TargetX, 0, skill.TargetY));
                         var skillPayload = SkillInputCodec.Serialize(in skillEvt);
-                        var skillPlayerId = PlayerIdUtils.ToPlayerId(skill.ActorId);
+                        var skillPlayerId = new PlayerId(skill.PlayerId);
                         playerCommands.Add(new PlayerInputCommand(
                             new FrameIndex(ctx.CurrentFrame),
                             skillPlayerId,
                             (int)OpCode.SkillInput,
                             skillPayload));
+                        Log.Debug($"[ProcessETInputPhase] Skill: PlayerId={skill.PlayerId}, Slot={skill.SkillSlot}");
                         break;
 
                     case StopCommand stop:
                         // Stop 命令使用 InputOpCodes.Stop
-                        var stopPlayerId = PlayerIdUtils.ToPlayerId(stop.ActorId);
+                        var stopPlayerId = new PlayerId(stop.PlayerId);
                         playerCommands.Add(new PlayerInputCommand(
                             new FrameIndex(ctx.CurrentFrame),
                             stopPlayerId,
@@ -126,11 +129,10 @@ namespace ET.Logic
                 }
             }
 
-            // 提交到 moba.core
+            // 提交到战斗逻辑层输入端口
             if (playerCommands.Count > 0)
             {
-                inputSink.Submit(new FrameIndex(ctx.CurrentFrame), playerCommands);
-                Log.Debug($"[ProcessETInputPhase] Submitted {playerCommands.Count} commands at frame {ctx.CurrentFrame}");
+                inputPort.Submit(new FrameIndex(ctx.CurrentFrame), playerCommands);
             }
         }
     }
@@ -156,7 +158,6 @@ namespace ET.Logic
 
         public override bool ShouldExecute(BattleFrameContext ctx)
         {
-            // 仅在运行状态且有 delta time 时执行
             return ctx.IsRunning && ctx.DeltaTime > 0f;
         }
     }
@@ -183,15 +184,14 @@ namespace ET.Logic
             }
 
             var unitComponent = ctx.GetUnitComponent();
-            if (unitComponent == null || unitComponent.Units.Count == 0)
+            if (unitComponent == null || ETUnitComponentSystem.UnitCount(unitComponent) == 0)
             {
                 return;
             }
 
             // 收集变换数据
-            foreach (var kv in unitComponent.Units)
+            foreach (var unit in ETUnitComponentSystem.GetAllUnits(unitComponent))
             {
-                var unit = kv.Value;
                 if (unit == null || unit.IsDead)
                 {
                     continue;
@@ -203,7 +203,7 @@ namespace ET.Logic
 
                 // 从 moba.core 读取实际位置
                 if (ctx.Driver.TryResolve(out MobaEntityManager entityManager)
-                    && entityManager.TryGetActorEntity((int)unit.ActorId, out var actorEntity)
+                    && entityManager.TryGetActorEntity(unit.LogicActorId, out var actorEntity)
                     && actorEntity != null)
                 {
                     if (actorEntity.hasTransform)
@@ -216,7 +216,7 @@ namespace ET.Logic
                 }
 
                 ctx.TransformSnapshots.Add(new ActorTransformData(
-                    actorId: (int)unit.ActorId,
+                    actorId: unit.LogicActorId,
                     x: x,
                     y: y,
                     z: 0f,
@@ -243,7 +243,12 @@ namespace ET.Logic
 
         protected override void OnInstantExecute(BattleFrameContext ctx)
         {
-            if (ctx.SnapshotDispatched || ctx.TransformSnapshots.Count == 0)
+            if (ctx.SnapshotDispatched)
+            {
+                return;
+            }
+
+            if (ctx.TransformSnapshots.Count == 0)
             {
                 return;
             }

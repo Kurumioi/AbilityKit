@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Collections;
 using System.Reflection;
-using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.GameplayTags;
 using Newtonsoft.Json;

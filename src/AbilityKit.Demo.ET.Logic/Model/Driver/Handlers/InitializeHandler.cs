@@ -1,15 +1,10 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Management;
-using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Share;
-using AbilityKit.Demo.Moba.Systems;
 
 namespace ET.Logic
 {
@@ -84,53 +79,23 @@ namespace ET.Logic
 
         private void InitializeWorld(ETMobaBattleDriver driver, in BattleStartPlan plan)
         {
-            // 创建 WorldManager
-            var worldManager = new WorldManager(BattleWorldFactory.Instance);
-            driver.WorldManager = worldManager;
-
-            // 创建 HostRuntime（传入 WorldManager）
-            driver.HostRuntime = new HostRuntime(worldManager);
-
-            // 重要：模块注册顺序很重要！
-            // 目标：让 ETMobaInputSink 被使用（MobaEntityManager 会被正确解析）
-            // 
-            // 方案：BattleServiceModule 先注册 ETMobaInputSink，
-            //       MobaWorldBootstrapModule 后注册但使用 TryRegisterType 跳过已存在的服务
-            var modules = new List<IWorldModule>
+            // 使用 LogicWorldRegistry 获取对应的 Creator
+            var worldType = BattleWorldTypes.Battle;
+            var creator = LogicWorldRegistry.GetCreator(worldType);
+            if (creator == null)
             {
-                // BattleServiceModule 先注册 ETMobaInputSink
-                new BattleServiceModule(),
-                // MobaWorldBootstrapModule 后注册，MobaLobbyInputSink 会被跳过
-                new MobaWorldBootstrapModule()
-            };
-
-            // 创建 WorldCreateOptions
-            var options = new WorldCreateOptions
-            {
-                Id = new WorldId($"battle-{plan.WorldId}"),
-                WorldType = BattleWorldTypes.Battle
-            };
-
-            // 设置 Entitas 上下文工厂（必须！用于创建 EntitasWorld）
-            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-
-            // 添加模块
-            foreach (var module in modules)
-            {
-                options.Modules.Add(module);
+                throw new InvalidOperationException($"No LogicWorldCreator registered for world type '{worldType}'");
             }
 
-            // 通过 HostRuntime 创建 World
-            var world = driver.HostRuntime.CreateWorld(options);
-            if (world == null)
-            {
-                throw new InvalidOperationException($"Failed to create world with options: Id={options.Id}, Type={options.WorldType}");
-            }
+            // 通过 Creator 创建并初始化 World
+            creator.CreateAndInitialize(
+                driver,
+                plan.WorldId,
+                plan.MapId,
+                plan.PlayerId,
+                plan.TickRate > 0 ? plan.TickRate : 30);
 
-            driver.World = world;
-
-            Log.Info($"[InitializeHandler] World created: Id={world.Id}, Type={world.WorldType}");
-            Log.Info($"[InitializeHandler] World initialized with services");
+            Log.Info($"[InitializeHandler] World initialized via LogicWorldRegistry: Type={worldType}");
         }
     }
 }

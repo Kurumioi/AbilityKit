@@ -28,10 +28,10 @@ namespace ET.Logic
 
         public void Submit(ETMobaBattleDriver driver, int actorId)
         {
-            var inputSink = driver.InputSink;
-            if (inputSink == null)
+            var inputPort = driver.InputPort;
+            if (inputPort == null)
             {
-                Log.Error($"[StopInputHandler] InputSink is null!");
+                Log.Error($"[StopInputHandler] InputPort is null!");
                 return;
             }
 
@@ -39,7 +39,7 @@ namespace ET.Logic
             var frameIndex = new FrameIndex(driver.CurrentFrame);
             var command = new PlayerInputCommand(frameIndex, playerId, StopOpCode, null);
 
-            inputSink.Submit(frameIndex, new List<PlayerInputCommand> { command });
+            inputPort.Submit(frameIndex, new List<PlayerInputCommand> { command });
             Log.Debug($"[StopInputHandler] Submit: ActorId={actorId}");
         }
     }

@@ -9,10 +9,10 @@ namespace ET.Logic
     /// 管理 ETUnit 生命周期
     ///
     /// 设计说明：
-    /// - 作为状态同步客户端，只管理单位数据
-    /// - 数据由快照更新，不自己做计算
-    /// - 不包含任何游戏业务逻辑（伤害、Buff、移动等）
-    /// - 使用 Component 实例字段存储单位字典（不使用静态字典）
+    /// - 使用 ET 原生的 AddChild/GetChild 管理子实体
+    /// - ETUnit.Id 使用 moba.core 的 ActorId
+    /// - 创建: AddChild&lt;ETUnit&gt;((long)actorId)
+    /// - 查询: GetChild&lt;ETUnit&gt;(actorId)
     /// </summary>
     [EntitySystemOf(typeof(ETUnitComponent))]
     [FriendOf(typeof(ETUnitComponent))]
@@ -22,19 +22,18 @@ namespace ET.Logic
         [EntitySystem]
         private static void Awake(this ETUnitComponent self)
         {
-            // Instance field is initialized in Component constructor
         }
 
         [EntitySystem]
         private static void Destroy(this ETUnitComponent self)
         {
-            // Units are disposed in Component.Destroy()
         }
 
         #region Basic CRUD
 
         /// <summary>
         /// 创建单位
+        /// 使用 AddChildWithId&lt;ETUnit&gt;(actorId) 让 ET 自动管理
         /// </summary>
         public static ETUnit CreateUnit(
             this ETUnitComponent self,
@@ -50,8 +49,17 @@ namespace ET.Logic
             float moveSpeed = 5f,
             bool isLocalPlayer = false)
         {
-            var unit = self.AddChild<ETUnit>();
-            unit.ActorId = actorId;
+            // Idempotency check: return existing unit if already created
+            var existingUnit = self.GetChild<ETUnit>((long)actorId);
+            if (existingUnit != null)
+            {
+                Log.Warning($"[ETUnit] Unit already exists: ActorId={actorId}, returning existing unit");
+                return existingUnit;
+            }
+
+            // 使用 actorId 作为 ET 实体 ID
+            var unit = self.AddChildWithId<ETUnit>((long)actorId);
+            unit.LogicActorId = actorId;
             unit.EntityCode = entityCode;
             unit.Kind = kind;
             unit.Name = name;
@@ -66,9 +74,6 @@ namespace ET.Logic
             unit.RenderX = x;
             unit.RenderY = y;
 
-            // 使用 ActorId 作为 key
-            self.Units[actorId] = unit;
-
             Log.Info($"[ETUnit] Unit created: {name} (ActorId={actorId}, EntityCode={entityCode}) at ({x}, {y})");
 
             return unit;
@@ -76,10 +81,11 @@ namespace ET.Logic
 
         /// <summary>
         /// 获取单位
+        /// 使用 ET 原生的 GetChild 方法
         /// </summary>
         public static ETUnit? GetUnit(this ETUnitComponent self, int actorId)
         {
-            return self.Units.TryGetValue(actorId, out var unit) ? unit : null;
+            return self.GetChild<ETUnit>((long)actorId);
         }
 
         /// <summary>
@@ -87,7 +93,11 @@ namespace ET.Logic
         /// </summary>
         public static IEnumerable<ETUnit> GetAllUnits(this ETUnitComponent self)
         {
-            return self.Units.Values;
+            foreach (var entity in self.Children.Values)
+            {
+                if (entity is ETUnit unit)
+                    yield return unit;
+            }
         }
 
         /// <summary>
@@ -95,9 +105,9 @@ namespace ET.Logic
         /// </summary>
         public static IEnumerable<ETUnit> GetUnitsByKind(this ETUnitComponent self, ActorKind kind)
         {
-            foreach (var unit in self.Units.Values)
+            foreach (var child in self.Children.Values)
             {
-                if (unit.Kind == kind)
+                if (child is ETUnit unit && unit.Kind == kind)
                     yield return unit;
             }
         }
@@ -107,9 +117,9 @@ namespace ET.Logic
         /// </summary>
         public static ETUnit? GetLocalPlayerUnit(this ETUnitComponent self)
         {
-            foreach (var unit in self.Units.Values)
+            foreach (var child in self.Children.Values)
             {
-                if (unit.IsLocalPlayer)
+                if (child is ETUnit unit && unit.IsLocalPlayer)
                     return unit;
             }
             return null;
@@ -120,9 +130,10 @@ namespace ET.Logic
         /// </summary>
         public static ETUnit? GetFirstUnit(this ETUnitComponent self)
         {
-            foreach (var unit in self.Units.Values)
+            foreach (var child in self.Children.Values)
             {
-                return unit;
+                if (child is ETUnit unit)
+                    return unit;
             }
             return null;
         }
@@ -132,9 +143,9 @@ namespace ET.Logic
         /// </summary>
         public static void RemoveUnit(this ETUnitComponent self, int actorId)
         {
-            if (self.Units.TryGetValue(actorId, out var unit))
+            var unit = self.GetChild<ETUnit>((long)actorId);
+            if (unit != null)
             {
-                self.Units.Remove(actorId);
                 unit.Dispose();
                 Log.Info($"[ETUnit] Unit removed: ActorId={actorId}");
             }
@@ -149,7 +160,7 @@ namespace ET.Logic
         /// </summary>
         public static int UnitCount(this ETUnitComponent self)
         {
-            return self.Units.Count;
+            return self.Children.Count;
         }
 
         /// <summary>
@@ -158,22 +169,13 @@ namespace ET.Logic
         public static int AliveUnitCount(this ETUnitComponent self)
         {
             int count = 0;
-            foreach (var unit in self.Units.Values)
+            foreach (var child in self.Children.Values)
             {
-                if (!unit.IsDead)
+                if (child is ETUnit unit && !unit.IsDead)
                     count++;
             }
             return count;
         }
-
-        #endregion
-
-        #region ❌ 已删除的业务逻辑
-
-        // ❌ ExecuteDamage() - 伤害由 moba.core 计算，通过快照更新
-        // ❌ FindUnitsInRange() - 范围查询由 moba.core 处理
-        // ❌ Tick() - 移动和冷却由 moba.core 计算，通过快照更新
-        // ❌ OnUnitDead() - 死亡由 moba.core 检测，通过快照更新
 
         #endregion
     }

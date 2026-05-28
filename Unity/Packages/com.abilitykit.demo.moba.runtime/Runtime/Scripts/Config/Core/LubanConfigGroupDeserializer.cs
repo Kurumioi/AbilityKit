@@ -1,18 +1,19 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using Newtonsoft.Json.Linq;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// Luban 配置组反序列化器。
-    /// 将 Luban 导出的 JSON 转换为框架的 MO DTO 类型。
+    /// Luban 閰嶇疆缁勫弽搴忓垪鍖栧櫒銆?
+    /// 灏?Luban 瀵煎嚭鐨?JSON 杞崲涓烘鏋剁殑 MO DTO 绫诲瀷銆?
     /// 
-    /// Luban 导出的 JSON 字段名与框架 DTO 不同：
-    /// - Luban 使用 "Code"，框架使用 "Id"
-    /// - 需要处理字段映射和默认值
+    /// Luban 瀵煎嚭鐨?JSON 瀛楁鍚嶄笌妗嗘灦 DTO 涓嶅悓锛?
+    /// - Luban 浣跨敤 "Code"锛屾鏋朵娇鐢?"Id"
+    /// - 闇€瑕佸鐞嗗瓧娈垫槧灏勫拰榛樿鍊?
     /// </summary>
     public sealed class LubanConfigGroupDeserializer : ConfigGroupDeserializerBase
     {
@@ -62,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (obj == null) return null;
 
-            // 根据类型分发
+            // 鏍规嵁绫诲瀷鍒嗗彂
             if (dtoType == typeof(CharacterDTO)) return DeserializeCharacter(obj);
             if (dtoType == typeof(BattleAttributeTemplateDTO)) return DeserializeBattleAttributeTemplate(obj);
             if (dtoType == typeof(SkillDTO)) return DeserializeSkill(obj);
@@ -84,14 +85,14 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(PresentationTemplateDTO)) return DeserializePresentationTemplate(obj);
             if (dtoType == typeof(SpawnSummonActionTemplateDTO)) return DeserializeSpawnSummonActionTemplate(obj);
 
-            // 默认：尝试使用 JObject 反序列化
+            // 榛樿锛氬皾璇曚娇鐢?JObject 鍙嶅簭鍒楀寲
             return obj.ToObject(dtoType);
         }
 
         private static CharacterDTO DeserializeCharacter(JObject obj)
         {
             // Luban: Code, Name, Career, ModelId, AttributeTemplateId
-            // 框架: Id, Name, SkillIds, PassiveSkillIds, ModelId, AttributeTemplateId
+            // 妗嗘灦: Id, Name, SkillIds, PassiveSkillIds, ModelId, AttributeTemplateId
             var dto = new CharacterDTO
             {
                 Id = obj["Code"]?.Value<int>() ?? 0,
@@ -106,8 +107,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static BattleAttributeTemplateDTO DeserializeBattleAttributeTemplate(JObject obj)
         {
-            // 框架 DTO: Id, ActiveSkills, PassiveSkills, Hp, MaxHp, ExtraHp, ...
-            // 没有 Name 字段
+            // 妗嗘灦 DTO: Id, ActiveSkills, PassiveSkills, Hp, MaxHp, ExtraHp, ...
+            // 娌℃湁 Name 瀛楁
             var dto = new BattleAttributeTemplateDTO
             {
                 Id = obj["Code"]?.Value<int>() ?? 0,
@@ -240,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static ModelDTO DeserializeModel(JObject obj)
         {
-            // 框架 DTO: Id, PrefabPath, Scale (没有 Name, IconPath)
+            // 妗嗘灦 DTO: Id, PrefabPath, Scale (娌℃湁 Name, IconPath)
             var dto = new ModelDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -267,7 +268,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static ProjectileDTO DeserializeProjectile(JObject obj)
         {
-            // 框架 DTO: Id, Name, VfxId, Speed, LifetimeMs, MaxDistance, HitPolicyKind, HitsRemaining, HitCooldownMs, TickIntervalMs, OnHitEffectId, OnSpawnVfxId, OnHitVfxId, OnExpireVfxId, ReturnAfterMs, ReturnSpeed, ReturnStopDistance
+            // 妗嗘灦 DTO: Id, Name, VfxId, Speed, LifetimeMs, MaxDistance, HitPolicyKind, HitsRemaining, HitCooldownMs, TickIntervalMs, OnHitEffectId, OnSpawnVfxId, OnHitVfxId, OnExpireVfxId, ReturnAfterMs, ReturnSpeed, ReturnStopDistance
             var dto = new ProjectileDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -293,7 +294,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static AoeDTO DeserializeAoe(JObject obj)
         {
-            // 框架 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds
+            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds
             var dto = new AoeDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -315,7 +316,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static EmitterDTO DeserializeEmitter(JObject obj)
         {
-            // 框架 DTO: Id, Name, EmitKind, TemplateId, DelayMs, DurationMs, IntervalMs, TotalCount, CountPerShot, FanAngleDeg, CenterMode, OffsetX, OffsetY, OffsetZ
+            // 妗嗘灦 DTO: Id, Name, EmitKind, TemplateId, DelayMs, DurationMs, IntervalMs, TotalCount, CountPerShot, FanAngleDeg, CenterMode, OffsetX, OffsetY, OffsetZ
             var dto = new EmitterDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -338,7 +339,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static SummonDTO DeserializeSummon(JObject obj)
         {
-            // 框架 DTO: Id, Name, UnitSubType, ModelId, AttributeTemplateId, LifetimeMs, DespawnOnOwnerDie, MaxAlivePerOwner, OverflowPolicy, StatsMode, AttrScales, SkillIds, PassiveSkillIds, DefaultComponentTemplateIds, Tags
+            // 妗嗘灦 DTO: Id, Name, UnitSubType, ModelId, AttributeTemplateId, LifetimeMs, DespawnOnOwnerDie, MaxAlivePerOwner, OverflowPolicy, StatsMode, AttrScales, SkillIds, PassiveSkillIds, DefaultComponentTemplateIds, Tags
             var dto = new SummonDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -462,7 +463,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static SkillLevelTableDTO DeserializeSkillLevelTable(JObject obj)
         {
-            // 框架 DTO: Id, Levels
+            // 妗嗘灦 DTO: Id, Levels
             var dto = new SkillLevelTableDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -480,7 +481,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 if (item is JObject obj)
                 {
-                    // 框架 DTO: CooldownMs, Cost, Params (没有 Level, Damage)
+                    // 妗嗘灦 DTO: CooldownMs, Cost, Params (娌℃湁 Level, Damage)
                     result.Add(new SkillLevelDTO
                     {
                         CooldownMs = obj["CooldownMs"]?.Value<int>() ?? 0,
@@ -494,7 +495,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static ComponentTemplateDTO DeserializeComponentTemplate(JObject obj)
         {
-            // 框架 DTO: Id, Name, Ops
+            // 妗嗘灦 DTO: Id, Name, Ops
             var dto = new ComponentTemplateDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -527,7 +528,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static OngoingEffectDTO DeserializeOngoingEffect(JObject obj)
         {
-            // 框架 DTO: Id, Name, DurationMs, PeriodMs, OnApplyEffectId, OnTickEffectId, OnRemoveEffectId
+            // 妗嗘灦 DTO: Id, Name, DurationMs, PeriodMs, OnApplyEffectId, OnTickEffectId, OnRemoveEffectId
             var dto = new OngoingEffectDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -543,7 +544,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static PresentationTemplateDTO DeserializePresentationTemplate(JObject obj)
         {
-            // 框架 DTO: Id, Name, Kind, AssetId, DefaultDurationMs, AttachMode, Socket, Follow, StackPolicy, StopPolicy, Scale, ColorR, ColorG, ColorB, ColorA, Radius, OffsetX, OffsetY, OffsetZ
+            // 妗嗘灦 DTO: Id, Name, Kind, AssetId, DefaultDurationMs, AttachMode, Socket, Follow, StackPolicy, StopPolicy, Scale, ColorR, ColorG, ColorB, ColorA, Radius, OffsetX, OffsetY, OffsetZ
             var dto = new PresentationTemplateDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -571,7 +572,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static SpawnSummonActionTemplateDTO DeserializeSpawnSummonActionTemplate(JObject obj)
         {
-            // 框架 DTO: Id, Name, SummonId, TargetMode, PositionMode, RotationMode, OwnerKeyMode, PatternMode, PatternCount, Spacing, Radius, StartAngleDeg, ArcAngleDeg, YawOffsetDeg, RandomSeed, RandomRadiusMin, RandomRadiusMax, GridRows, GridCols, GridSpacingX, GridSpacingZ, PerPointRotationMode, PerPointYawOffsetDeg, IntervalMs
+            // 妗嗘灦 DTO: Id, Name, SummonId, TargetMode, PositionMode, RotationMode, OwnerKeyMode, PatternMode, PatternCount, Spacing, Radius, StartAngleDeg, ArcAngleDeg, YawOffsetDeg, RandomSeed, RandomRadiusMin, RandomRadiusMax, GridRows, GridCols, GridSpacingX, GridSpacingZ, PerPointRotationMode, PerPointYawOffsetDeg, IntervalMs
             var dto = new SpawnSummonActionTemplateDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,

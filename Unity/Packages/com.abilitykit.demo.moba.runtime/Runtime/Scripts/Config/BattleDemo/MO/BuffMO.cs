@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {

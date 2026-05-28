@@ -32,7 +32,7 @@ namespace ET.Logic
             {
                 snapshot = new TransformSnapshot
                 {
-                    ActorId = (int)unit.ActorId,
+                    ActorId = (int)unit.LogicActorId,
                     X = unit.X,
                     Y = unit.Y,
                     Rotation = unit.Rotation,
@@ -75,7 +75,7 @@ namespace ET.Logic
             {
                 _transformSnapshots.Add(new TransformSnapshot
                 {
-                    ActorId = (int)unit.ActorId,
+                    ActorId = (int)unit.LogicActorId,
                     X = unit.X,
                     Y = unit.Y,
                     Rotation = unit.Rotation,
@@ -98,7 +98,7 @@ namespace ET.Logic
             {
                 _hpSnapshots.Add(new HpSnapshot
                 {
-                    ActorId = (int)unit.ActorId,
+                    ActorId = (int)unit.LogicActorId,
                     Hp = unit.Hp,
                     MaxHp = unit.MaxHp
                 });

@@ -23,6 +23,7 @@
         "AbilityKit.World.Snapshot",
         "AbilityKit.World.NetworkFragments",
         "AbilityKit.Demo.Moba.Runtime",
+        "AbilityKit.Demo.Moba.Share",
         "AbilityKit.Pipeline",
         "AbilityKit.Network.Runtime",
         "AbilityKit.Protocol.Moba"

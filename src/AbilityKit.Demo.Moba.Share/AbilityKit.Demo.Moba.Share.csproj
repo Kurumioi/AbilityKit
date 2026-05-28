@@ -22,7 +22,6 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />

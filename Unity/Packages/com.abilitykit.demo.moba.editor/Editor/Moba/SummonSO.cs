@@ -1,6 +1,6 @@
 using System;
 using System.Collections;
-using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Config.Core;
 using UnityEngine;
 

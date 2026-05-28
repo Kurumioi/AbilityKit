@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Triggering;
-using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Ability.Triggering.Definitions;
 
 namespace AbilityKit.Demo.Moba.Triggering.SummonSpawning

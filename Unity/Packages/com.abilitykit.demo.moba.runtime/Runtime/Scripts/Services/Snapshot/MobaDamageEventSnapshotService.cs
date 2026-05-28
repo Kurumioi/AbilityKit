@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
@@ -8,15 +7,15 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    [MobaSnapshotEmitter(60)]
     [WorldService(typeof(MobaDamageEventSnapshotService))]
-    public sealed class MobaDamageEventSnapshotService : IService
+    public sealed class MobaDamageEventSnapshotService : IService, IMobaSnapshotEmitter
     {
         private readonly MobaGamePhaseService _phase;
 
         private FrameIndex _lastFrame;
 
-        private readonly List<MobaDamageEventSnapshotEntry> _events = new List<MobaDamageEventSnapshotEntry>(64);
-        private readonly List<MobaDamageEventSnapshotEntry> _drain = new List<MobaDamageEventSnapshotEntry>(64);
+        private readonly MobaSnapshotBuffer<MobaDamageEventSnapshotEntry> _events = new MobaSnapshotBuffer<MobaDamageEventSnapshotEntry>(64, 512);
 
         public MobaDamageEventSnapshotService(MobaGamePhaseService phase)
         {
@@ -81,17 +80,15 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            _drain.Clear();
-            _drain.AddRange(_events);
-            _events.Clear();
-
-            var payload = MobaDamageEventSnapshotCodec.Serialize(_drain.ToArray());
+            var payload = MobaDamageEventSnapshotCodec.Serialize(_events.ToArrayClearAndTrim());
             snapshot = new WorldStateSnapshot((int)MobaOpCode.DamageEventSnapshot, payload);
             return true;
         }
 
         public void Dispose()
         {
+            _events.ClearAndTrim();
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

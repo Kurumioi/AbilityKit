@@ -4,8 +4,12 @@ using ET.AbilityKit.Demo.ET.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// ETBattleAutoTestComponent System
+    /// 战斗自动测试组件 System
     /// 处理所有自动测试业务逻辑
+    ///
+    /// 设计说明：
+    /// - AutoTest 生成移动方向向量 (dx, dz)，不是目标坐标
+    /// - 与 moba.view 的 BattleInputFeature 保持一致
     /// </summary>
     [EntitySystemOf(typeof(ETBattleAutoTestComponent))]
     [FriendOf(typeof(ETBattleAutoTestComponent))]
@@ -31,61 +35,107 @@ namespace ET.Logic
         /// <summary>
         /// 初始化自动测试
         /// </summary>
-        public static void Initialize(this ETBattleAutoTestComponent self, long actorId, float startX, float startY)
+        public static void Initialize(this ETBattleAutoTestComponent self, long actorId, string playerId, float startX, float startZ)
         {
-            self.Initialize(actorId, startX, startY);
-            Log.Info($"[ETBattleAutoTest] Initialized for ActorId={actorId}, StartPos=({startX}, {startY})");
+            self.Initialize((int)actorId, playerId, startX, startZ);
+            Log.Info($"[ETBattleAutoTest] Initialized for ActorId={actorId}, PlayerId={playerId}, StartPos=({startX}, {startZ})");
         }
 
         /// <summary>
         /// 每帧更新 - 发送自动移动命令
+        /// 命令发送到下一帧 (frame + 1)，确保在下一个管线周期被 ProcessETInputPhase 正确处理
+        ///
+        /// 帧号流程:
+        /// 1. AutoTest.OnUpdate(frame) 生成命令到 buffer[frame + 1]
+        /// 2. PreTickPhase 递增 ctx.CurrentFrame++
+        /// 3. ProcessETInputPhase 从 buffer[ctx.CurrentFrame] 读取，此时 buffer[frame + 1] 有数据
         /// </summary>
         public static void OnUpdate(this ETBattleAutoTestComponent self, int frame)
         {
             if (!self.IsEnabled)
                 return;
 
-            // 每隔指定帧数发送移动命令
+            // 命令发送到下一帧，确保在管线处理时正确读取
+            int targetFrame = frame + 1;
             if (frame % self.MoveIntervalFrames == 0)
             {
-                SendMoveCommand(self, frame);
+                Log.Debug($"[ETBattleAutoTest] Frame={frame}: Generating move command for PlayerId={self.TestPlayerId} to Frame={targetFrame}");
+                SendMoveCommand(self, targetFrame);
             }
         }
 
         /// <summary>
-        /// 发送移动命令
+        /// 发送移动命令 - 发送方向向量，不是目标坐标
+        /// 与 moba.view BattleInputFeature 保持一致
         /// </summary>
         private static void SendMoveCommand(ETBattleAutoTestComponent self, int frame)
         {
-            // 计算新目标（基于时间动态计算）
-            float newTargetX = self.CurrentX + (float)Math.Sin(frame * 0.1) * BattleTestConfig.MovementAmplitude;
-            float newTargetY = self.CurrentY + (float)Math.Cos(frame * 0.1) * BattleTestConfig.MovementAmplitude;
+            // 检查是否到达边界，如果是则反转方向
+            CheckBoundaryAndFlipDirection(self);
 
-            // 限制范围
-            newTargetX = Math.Clamp(newTargetX, BattleTestConfig.MovementMinBound, BattleTestConfig.MovementMaxBound);
-            newTargetY = Math.Clamp(newTargetY, BattleTestConfig.MovementMinBound, BattleTestConfig.MovementMaxBound);
+            // 获取移动方向
+            float dx = self.MoveDirX;
+            float dz = self.MoveDirZ;
 
             // 获取输入组件并发送命令
             var inputComponent = self.Scene().GetComponent<ETInputComponent>();
             if (inputComponent != null)
             {
-                inputComponent.AddMoveCommand(frame, self.TestActorId, newTargetX, newTargetY);
+                // 发送方向向量（dx, dz）
+                inputComponent.AddMoveCommand(frame, self.TestPlayerId, dx, dz);
                 self.MoveCommandCount++;
 
-                // 计算移动距离
-                float dx = newTargetX - self.CurrentX;
-                float dy = newTargetY - self.CurrentY;
-                self.MoveDistance += (float)Math.Sqrt(dx * dx + dy * dy);
-
-                // 更新当前位置
-                self.CurrentX = newTargetX;
-                self.CurrentY = newTargetY;
-
-                Log.Info($"[ETBattleAutoTest] Move command: Frame={frame}, ActorId={self.TestActorId}, Target=({newTargetX:F2}, {newTargetY:F2})");
+                Log.Info($"[ETBattleAutoTest] Move command: Frame={frame}, PlayerId={self.TestPlayerId}, Dir=({dx:F2}, {dz:F2})");
             }
             else
             {
                 Log.Warning("[ETBattleAutoTest] ETInputComponent not found!");
+            }
+        }
+
+        /// <summary>
+        /// 检查边界并翻转移动方向
+        /// </summary>
+        private static void CheckBoundaryAndFlipDirection(ETBattleAutoTestComponent self)
+        {
+            bool needFlip = false;
+            float flipX = self.MoveDirX;
+            float flipZ = self.MoveDirZ;
+
+            // 检查 X 边界
+            if (self.CurrentX <= self.MinX || self.CurrentX >= self.MaxX)
+            {
+                needFlip = true;
+                flipX = -flipX;
+            }
+
+            // 检查 Z 边界
+            if (self.CurrentY <= self.MinZ || self.CurrentY >= self.MaxZ)
+            {
+                needFlip = true;
+                flipZ = -flipZ;
+            }
+
+            // 如果需要翻转方向
+            if (needFlip)
+            {
+                // 归一化方向向量（如果需要）
+                float len = (float)Math.Sqrt(flipX * flipX + flipZ * flipZ);
+                if (len > 0.001f)
+                {
+                    flipX /= len;
+                    flipZ /= len;
+                }
+                else
+                {
+                    // 默认方向：向 X 正方向
+                    flipX = 1f;
+                    flipZ = 0f;
+                }
+
+                self.MoveDirX = flipX;
+                self.MoveDirZ = flipZ;
+                Log.Info($"[ETBattleAutoTest] Direction flipped: Dir=({flipX:F2}, {flipZ:F2})");
             }
         }
 

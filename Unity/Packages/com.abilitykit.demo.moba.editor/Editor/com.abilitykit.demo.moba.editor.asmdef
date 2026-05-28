@@ -3,6 +3,7 @@
   "rootNamespace": "AbilityKit",
   "references": [
     "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.Share",
     "AbilityKit.Demo.Moba.View.Runtime",
     "AbilityKit.GameplayTags",
     "AbilityKit.Ability",

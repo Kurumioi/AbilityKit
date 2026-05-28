@@ -16,6 +16,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     {
         public override string Name => "Install.PlanTriggering";
 
+        protected internal override void Configure(WorldContainerBuilder builder)
+        {
+            // 注册 PlanActionModuleRegistry（必须在 InitializePlanActions 之前）
+            // 注意：此注册会通过 TryRegisterType 被 MobaServicesAutoModule 的自动注册覆盖，
+            // 因为 AttributeWorldServicesModule 对 isDefault=false 的服务使用 RegisterType。
+            // 实际注册在 Install 阶段通过 MobaEffectExecutionService.InitializePlanActions 使用。
+        }
+
         protected internal override void Install(
             Entitas.IContexts contexts,
             Entitas.Systems systems,

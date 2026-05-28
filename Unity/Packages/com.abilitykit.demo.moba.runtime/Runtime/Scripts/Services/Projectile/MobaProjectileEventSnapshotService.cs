@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(32);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(32);
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
+        private readonly AbilityKit.Demo.Moba.Services.MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry> _entries = new AbilityKit.Demo.Moba.Services.MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry>(32, 512);
 
         public MobaProjectileEventSnapshotService(AbilityKit.Demo.Moba.Services.MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
@@ -60,7 +61,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
-            var entries = new List<MobaProjectileEventSnapshotEntry>(_spawns.Count + _hits.Count + _exits.Count);
+            _entries.Clear();
 
             for (int i = 0; i < _spawns.Count; i++)
             {
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 {
                     it.ProjectileActorId = projectileActorId;
                 }
-                entries.Add(it);
+                _entries.Add(it);
             }
 
             for (int i = 0; i < _hits.Count; i++)
@@ -81,7 +82,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 {
                     it.ProjectileActorId = projectileActorId;
                 }
-                entries.Add(it);
+                _entries.Add(it);
             }
 
             for (int i = 0; i < _exits.Count; i++)
@@ -92,10 +93,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 {
                     it.ProjectileActorId = projectileActorId;
                 }
-                entries.Add(it);
+                _entries.Add(it);
             }
 
-            var payload = MobaProjectileEventSnapshotCodec.Serialize(entries.ToArray());
+            var payload = MobaProjectileEventSnapshotCodec.Serialize(_entries.ToArrayClearAndTrim());
             snapshot = new WorldStateSnapshot((int)MobaOpCode.ProjectileEventSnapshot, payload);
             return true;
         }
@@ -156,6 +157,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public void Dispose()
         {
+            _spawns.Clear();
+            _hits.Clear();
+            _exits.Clear();
+            _entries.ClearAndTrim();
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

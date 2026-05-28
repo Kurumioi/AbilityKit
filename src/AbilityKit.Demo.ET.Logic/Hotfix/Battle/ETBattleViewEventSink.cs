@@ -51,35 +51,11 @@ namespace ET.Logic
             if (scene == null)
                 return;
 
-            Log.Info($"[ETBattleViewEventSink] >>> OnEnterGameSnapshot received, ActorSpawns count: {snapshot.ActorSpawns?.Count ?? 0}");
-
             // 更新缓存
             if (_cacheComponent != null)
             {
                 _cacheComponent.UpdateCache(snapshot.FrameIndex, snapshot);
             }
-
-            // 发布 ActorSpawnEvent 事件
-            foreach (var spawn in snapshot.ActorSpawns)
-            {
-                var evt = new ActorSpawnEvent()
-                {
-                    ActorId = spawn.ActorId,  // 运行时自增 ID
-                    MobaActorId = spawn.ActorId,
-                    EntityCode = spawn.EntityCode,  // 配置表 ID
-                    Kind = spawn.TeamId == 1 ? ActorKind.Character : ActorKind.Monster,
-                    Name = spawn.Name,
-                    X = spawn.PositionX,
-                    Y = spawn.PositionY,
-                    MaxHp = spawn.MaxHp,
-                    IsLocalPlayer = spawn.ActorId == _battleComponent.PlayerActorId
-                };
-
-                Log.Info($"[ETBattleViewEventSink] >>> Publishing ActorSpawnEvent: {spawn.Name} (ActorId={spawn.ActorId}, EntityCode={spawn.EntityCode}), Team={spawn.TeamId}");
-                EventSystem.Instance.Publish<Scene, ActorSpawnEvent>(scene, evt);
-            }
-
-            Log.Info($"[ETBattleViewEventSink] >>> All ActorSpawnEvents published");
 
             // 初始化自动测试组件
             InitializeAutoTestComponent(scene, snapshot);
@@ -97,6 +73,7 @@ namespace ET.Logic
 
             int actorIdToUse = 0;
             int entityCodeToUse = 0;
+            string playerIdToUse = null;
             float startX = 0f;
             float startY = 0f;
 
@@ -104,32 +81,26 @@ namespace ET.Logic
             if (snapshot.ActorSpawns != null && snapshot.ActorSpawns.Count > 0)
             {
                 var firstSpawn = snapshot.ActorSpawns[0];
-                actorIdToUse = firstSpawn.ActorId;  // 运行时自增 ID
-                entityCodeToUse = firstSpawn.EntityCode;  // 配置表 ID
+                actorIdToUse = firstSpawn.ActorId;
+                entityCodeToUse = firstSpawn.EntityCode;
+                playerIdToUse = firstSpawn.PlayerId;
                 startX = firstSpawn.PositionX;
                 startY = firstSpawn.PositionY;
-                Log.Info($"[ETBattleViewEventSink] Using ActorId={actorIdToUse}, EntityCode={entityCodeToUse} from spawn");
             }
             else if (_battleComponent.PlayerActorId > 0)
             {
                 actorIdToUse = (int)_battleComponent.PlayerActorId;
-                Log.Info($"[ETBattleViewEventSink] Using PlayerActorId: {actorIdToUse}");
-            }
-            else
-            {
-                Log.Warning($"[ETBattleViewEventSink] No valid ActorId found!");
+                playerIdToUse = actorIdToUse.ToString();
             }
 
-            if (autoTest != null)
+            if (autoTest != null && playerIdToUse != null)
             {
-                autoTest.Initialize(actorIdToUse, startX, startY);  // 使用 ActorId
-                Log.Info($"[ETBattleViewEventSink] AutoTest initialized with ActorId={actorIdToUse}, StartPos=({startX}, {startY})");
+                autoTest.Initialize(actorIdToUse, playerIdToUse, startX, startY);
             }
 
-            if (skillTest != null)
+            if (skillTest != null && playerIdToUse != null)
             {
-                skillTest.Initialize(actorIdToUse, 0);
-                Log.Info($"[ETBattleViewEventSink] SkillTest initialized with ActorId={actorIdToUse}");
+                skillTest.Initialize(actorIdToUse, playerIdToUse, 0);
             }
         }
 
@@ -138,9 +109,6 @@ namespace ET.Logic
             var scene = _battleComponent.Scene();
             if (scene == null)
                 return;
-
-            // 记录快照
-            Log.Info($"[ETBattleViewEventSink] OnActorTransformSnapshot: Frame={snapshot.FrameIndex}, Count={snapshot.ActorTransforms?.Count ?? 0}");
 
             // 更新缓存
             if (_cacheComponent != null)
@@ -153,13 +121,11 @@ namespace ET.Logic
             {
                 foreach (var transform in snapshot.ActorTransforms)
                 {
-                    Log.Info($"[ETBattleViewEventSink] Transform: ActorId={transform.ActorId}, Pos=({transform.PositionX:F2}, {transform.PositionY:F2}, {transform.PositionZ:F2}), Rot={transform.RotationY:F2}");
-
                     EventSystem.Instance.Publish<Scene, ActorMoveEvent>(
                         scene,
                         new ActorMoveEvent
                         {
-                            ActorId = transform.ActorId,  // 运行时自增 ID
+                            ActorId = transform.ActorId,
                             X = transform.PositionX,
                             Y = transform.PositionY,
                             Z = transform.PositionZ,
@@ -236,9 +202,6 @@ namespace ET.Logic
         public void OnFrameSyncComplete(int frameIndex)
         {
             // 此方法已被 OnActorTransformSnapshot 替代
-            // 变换数据应通过 moba.core 快照系统生成并通过 OnActorTransformSnapshot 传递
-            // 而不是直接从 ET.Logic 层访问 ETUnitComponent 构建
-            Log.Debug($"[ETBattleViewEventSink] OnFrameSyncComplete called for frame {frameIndex} (deprecated)");
         }
 
         #endregion
@@ -250,8 +213,7 @@ namespace ET.Logic
         /// </summary>
         public virtual void OnProjectileEventSnapshot(in FrameSnapshotData snapshot)
         {
-            Log.Debug($"[ETBattleViewEventSink] OnProjectileEventSnapshot not implemented for frame {snapshot.FrameIndex}");
-            // TODO: Implement projectile rendering when moba.core adds projectile system
+            // Reserved for future projectile rendering support
         }
 
         /// <summary>
@@ -259,8 +221,7 @@ namespace ET.Logic
         /// </summary>
         public virtual void OnAreaEventSnapshot(in FrameSnapshotData snapshot)
         {
-            Log.Debug($"[ETBattleViewEventSink] OnAreaEventSnapshot not implemented for frame {snapshot.FrameIndex}");
-            // TODO: Implement area effect rendering when moba.core adds area effect system
+            // Reserved for future area effect rendering support
         }
 
         /// <summary>
@@ -268,13 +229,11 @@ namespace ET.Logic
         /// </summary>
         public virtual void OnStateHashSnapshot(in FrameSnapshotData snapshot)
         {
-            Log.Debug($"[ETBattleViewEventSink] OnStateHashSnapshot not implemented for frame {snapshot.FrameIndex}");
-            // TODO: Implement state hash verification when needed
+            // Reserved for future state hash verification support
         }
 
         public virtual void OnTriggerEvent(in TriggerEventData evt)
         {
-            Log.Debug($"[ETBattleViewEventSink] Trigger: type={evt.EventType}, caster={evt.CasterId}, target={evt.TargetId}");
         }
 
         #endregion

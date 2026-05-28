@@ -27,12 +27,14 @@ namespace ET.Logic
         #region Input Submission
 
         /// <summary>
-        /// 提交移动输入
+        /// 提交移动输入 - 发送方向向量 (dx, dz)
         /// </summary>
-        public static void SubmitMoveInput(this ETInputComponent self, int frame, long actorId, float x, float y)
+        public static void SubmitMoveInput(this ETInputComponent self, int frame, long actorId, float dx, float dz)
         {
-            self.AddMoveCommand(frame, (int)actorId, x, y);
-            Log.Debug($"[ETInput] Move input: Actor {actorId} -> ({x}, {y}) at frame {frame}");
+            // 将 ActorId 转换为 PlayerId 字符串
+            string playerId = actorId.ToString();
+            self.AddMoveCommand(frame, playerId, dx, dz);
+            Log.Debug($"[ETInput] Move input: Actor {actorId} Dir=({dx}, {dz}) at frame {frame}");
         }
 
         /// <summary>
@@ -40,7 +42,9 @@ namespace ET.Logic
         /// </summary>
         public static void SubmitSkillInput(this ETInputComponent self, int frame, long actorId, int skillSlot, float targetX, float targetY)
         {
-            self.AddSkillCommand(frame, (int)actorId, skillSlot, targetX, targetY);
+            // 将 ActorId 转换为 PlayerId 字符串
+            string playerId = actorId.ToString();
+            self.AddSkillCommand(frame, playerId, skillSlot, targetX, targetY);
             Log.Debug($"[ETInput] Skill input: Actor {actorId} Skill {skillSlot} -> ({targetX}, {targetY}) at frame {frame}");
         }
 
@@ -49,7 +53,9 @@ namespace ET.Logic
         /// </summary>
         public static void SubmitStopInput(this ETInputComponent self, int frame, long actorId)
         {
-            self.AddStopCommand(frame, (int)actorId);
+            // 将 ActorId 转换为 PlayerId 字符串
+            string playerId = actorId.ToString();
+            self.AddStopCommand(frame, playerId);
             Log.Debug($"[ETInput] Stop input: Actor {actorId} at frame {frame}");
         }
 
@@ -101,31 +107,28 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// 处理移动命令 - 设置目标位置
+        /// 处理移动命令 - 转发到 BattleDriver
         ///
-        /// 说明：设置 TargetX/Y 用于渲染插值，实际移动由 moba.core 计算
+        /// 说明：移动命令是方向向量 (dx, dz)，转发给 moba.core 处理
         /// </summary>
         private static void ProcessMoveCommand(this ETInputComponent self, ETUnitComponent unitComponent, MoveCommand cmd)
         {
-            var unit = unitComponent.GetUnit(cmd.ActorId);
+            // 将 PlayerId 字符串转换回 ActorId 用于单位查找
+            int actorId = DeterministicHash.StringToActorId(cmd.PlayerId);
+            var unit = unitComponent.GetUnit(actorId);
             if (unit == null || unit.IsDead)
             {
-                Log.Warning($"[ETInput] Move: Unit not found or dead, ActorId={cmd.ActorId}");
+                Log.Warning($"[ETInput] Move: Unit not found or dead, PlayerId={cmd.PlayerId}, ActorId={actorId}");
                 return;
             }
-
-            // 设置目标位置（用于渲染插值参考）
-            // 实际位置由快照更新，这里只设置渲染目标
-            unit.TargetX = cmd.X;
-            unit.TargetY = cmd.Y;
 
             // 转发到 BattleDriver（通过 BattleComponent）
             var scene = self.Scene();
             var battleComponent = scene?.GetComponent<ETBattleComponent>();
             if (battleComponent != null)
             {
-                ETBattleDriverBridge.SubmitMoveInput(battleComponent, cmd.ActorId, cmd.X, cmd.Y);
-                Log.Info($"[ETInput] Move forwarded to Driver: Actor {cmd.ActorId} -> ({cmd.X}, {cmd.Y})");
+                ETBattleDriverBridge.SubmitMoveInput(battleComponent, actorId, cmd.Dx, cmd.Dz);
+                Log.Info($"[ETInput] Move forwarded to Driver: PlayerId={cmd.PlayerId}, ActorId={actorId}, Dir=({cmd.Dx}, {cmd.Dz})");
             }
             else
             {
@@ -140,7 +143,9 @@ namespace ET.Logic
         /// </summary>
         private static void ProcessSkillCommand(this ETInputComponent self, ETUnitComponent unitComponent, SkillCommand cmd)
         {
-            var unit = unitComponent.GetUnit(cmd.ActorId);
+            // 将 PlayerId 字符串转换回 ActorId 用于单位查找
+            int actorId = DeterministicHash.StringToActorId(cmd.PlayerId);
+            var unit = unitComponent.GetUnit(actorId);
             if (unit == null || unit.IsDead)
             {
                 return;
@@ -151,10 +156,9 @@ namespace ET.Logic
             self.SkillTargetX = cmd.TargetX;
             self.SkillTargetY = cmd.TargetY;
 
-            Log.Debug($"[ETInput] Skill command forwarded: Actor {cmd.ActorId} Slot={cmd.SkillSlot}");
+            Log.Debug($"[ETInput] Skill command forwarded: PlayerId={cmd.PlayerId}, ActorId={actorId}, Slot={cmd.SkillSlot}");
 
             // 技能释放逻辑由 moba.core 处理（通过快照更新）
-            // 这里只设置渲染状态，不执行任何业务逻辑
         }
 
         /// <summary>
@@ -162,15 +166,17 @@ namespace ET.Logic
         /// </summary>
         private static void ProcessStopCommand(this ETInputComponent self, ETUnitComponent unitComponent, StopCommand cmd)
         {
-            var unit = unitComponent.GetUnit(cmd.ActorId);
+            // 将 PlayerId 字符串转换回 ActorId 用于单位查找
+            int actorId = DeterministicHash.StringToActorId(cmd.PlayerId);
+            var unit = unitComponent.GetUnit(actorId);
             if (unit == null)
                 return;
 
-            // 清除移动目标
-            unit.TargetX = 0;
-            unit.TargetY = 0;
+            // 清除移动方向
+            self.LastMoveDx = 0;
+            self.LastMoveDz = 0;
 
-            Log.Debug($"[ETInput] Stop command: Actor {cmd.ActorId}");
+            Log.Debug($"[ETInput] Stop command: PlayerId={cmd.PlayerId}, ActorId={actorId}");
         }
 
         #endregion

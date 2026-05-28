@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
@@ -8,11 +7,13 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    [MobaSnapshotEmitter(80)]
     [WorldService(typeof(MobaActorTransformSnapshotService))]
-    public sealed class MobaActorTransformSnapshotService : IService
+    public sealed class MobaActorTransformSnapshotService : IService, IMobaSnapshotEmitter
     {
         private readonly MobaGamePhaseService _phase;
         private readonly MobaActorRegistry _registry;
+        private readonly MobaSnapshotBuffer<MobaActorTransformSnapshotEntry> _entries = new MobaSnapshotBuffer<MobaActorTransformSnapshotEntry>(8, 256);
         private FrameIndex _lastFrame;
 
         public MobaActorTransformSnapshotService(MobaGamePhaseService phase, MobaActorRegistry registry)
@@ -37,21 +38,21 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
-            var entries = BuildEntries();
-            if (entries.Count == 0)
+            BuildEntries();
+            if (_entries.Count == 0)
             {
                 snapshot = default;
                 return false;
             }
 
-            var payload = MobaActorTransformSnapshotCodec.Serialize(entries.ToArray());
+            var payload = MobaActorTransformSnapshotCodec.Serialize(_entries.ToArrayClearAndTrim());
             snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorTransformSnapshot, payload);
             return true;
         }
 
-        private List<MobaActorTransformSnapshotEntry> BuildEntries()
+        private void BuildEntries()
         {
-            var tmp = new List<MobaActorTransformSnapshotEntry>(8);
+            _entries.Clear();
 
             foreach (var kv in _registry.Entries)
             {
@@ -60,20 +61,14 @@ namespace AbilityKit.Demo.Moba.Services
                 if (e == null) continue;
                 if (!e.hasTransform) continue;
                 var p = e.transform.Value.Position;
-                tmp.Add(new MobaActorTransformSnapshotEntry
-                {
-                    ActorId = id,
-                    X = p.X,
-                    Y = p.Y,
-                    Z = p.Z
-                });
+                _entries.Add(new MobaActorTransformSnapshotEntry(id, p.X, p.Y, p.Z));
             }
-
-            return tmp;
         }
 
         public void Dispose()
         {
+            _entries.Clear();
+            _lastFrame = new FrameIndex(-999999);
         }
     }
 }

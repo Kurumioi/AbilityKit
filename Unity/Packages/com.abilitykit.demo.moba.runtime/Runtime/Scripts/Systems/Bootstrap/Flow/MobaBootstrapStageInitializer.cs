@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
     /// </summary>
     public static class MobaBootstrapStageInitializer
     {
-        private static readonly bool _initialized;
+        private static bool _initialized;
 
         /// <summary>
         /// 初始化所有 Stage
@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         public static void Initialize()
         {
             if (_initialized) return;
+            _initialized = true;
 
             var assembly = typeof(MobaBootstrapStageInitializer).Assembly;
             var stageTypes = assembly.GetTypes()

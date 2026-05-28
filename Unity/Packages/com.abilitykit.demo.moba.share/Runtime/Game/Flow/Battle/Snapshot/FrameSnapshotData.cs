@@ -315,11 +315,18 @@ namespace AbilityKit.Demo.Moba.Share
         public float MaxHp { get; }
         public float Hp { get; }
 
+        /// <summary>
+        /// 玩家 ID（字符串，用于与 moba.core 中的 PlayerId 一致）
+        /// 用于输入命令路由到正确的玩家
+        /// </summary>
+        public string PlayerId { get; }
+
         public ActorSpawnData(
             int actorId, int entityCode, int characterId, string name,
             float x, float y, float z,
             float rotationY, float scale,
-            int teamId, float maxHp, float hp)
+            int teamId, float maxHp, float hp,
+            string playerId = null)
         {
             ActorId = actorId;
             EntityCode = entityCode;
@@ -333,6 +340,7 @@ namespace AbilityKit.Demo.Moba.Share
             TeamId = teamId;
             MaxHp = maxHp;
             Hp = hp;
+            PlayerId = playerId ?? actorId.ToString();
         }
     }
 }

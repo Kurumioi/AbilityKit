@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
 {
     /// <summary>
     /// 移动输入处理器
+    /// 将移动命令（方向向量）提交到战斗输入端口
     /// </summary>
     [InputHandler(3003)] // Move = 3003
     public sealed class MoveInputHandler : ISubmittableInputHandler
@@ -22,34 +22,37 @@ namespace ET.Logic
 
         public void Handle(ETMobaBattleDriver driver, int frame, PlayerInputCommand input)
         {
-            // 解析移动坐标
-            MobaMoveCodec.Deserialize(input.Payload, out var targetX, out var targetZ);
+            // 解析移动方向向量
+            MobaMoveCodec.Deserialize(input.Payload, out var dx, out var dz);
             int actorId = PlayerIdUtils.ToActorId(input.Player);
 
-            Log.Debug($"[MoveInputHandler] Handle: ActorId={actorId}, Target=({targetX:F2}, {targetZ:F2})");
+            Log.Debug($"[MoveInputHandler] Handle: ActorId={actorId}, Dir=({dx:F2}, {dz:F2})");
 
             // 提交移动输入
-            Submit(driver, actorId, targetX, targetZ);
+            Submit(driver, actorId, dx, dz);
         }
 
-        public void Submit(ETMobaBattleDriver driver, int actorId, float targetX, float targetZ)
+        /// <summary>
+        /// 提交移动输入到战斗输入端口。
+        /// dx/dz 是移动方向向量（-1 到 1）。
+        /// </summary>
+        public void Submit(ETMobaBattleDriver driver, int actorId, float dx, float dz)
         {
-            // 使用 driver.InputSink 提交输入
-            // driver.InputSink 在 StartHandler 中初始化
-            var inputSink = driver.InputSink;
-            if (inputSink == null)
+            var inputPort = driver.InputPort;
+            if (inputPort == null)
             {
-                Log.Error($"[MoveInputHandler] InputSink is null! Driver not started properly.");
+                Log.Error($"[MoveInputHandler] InputPort is null! Driver not started properly.");
                 return;
             }
 
-            var payload = MobaMoveCodec.Serialize(targetX, targetZ);
+            // 序列化方向向量
+            var payload = MobaMoveCodec.Serialize(dx, dz);
             var playerId = PlayerIdUtils.ToPlayerId(actorId);
             var frameIndex = new FrameIndex(driver.CurrentFrame);
             var command = new PlayerInputCommand(frameIndex, playerId, MoveOpCode, payload);
 
-            inputSink.Submit(frameIndex, new List<PlayerInputCommand> { command });
-            Log.Debug($"[MoveInputHandler] Submit: ActorId={actorId}, Position=({targetX:F2}, {targetZ:F2})");
+            inputPort.Submit(frameIndex, new List<PlayerInputCommand> { command });
+            Log.Debug($"[MoveInputHandler] Submit: ActorId={actorId}, Dir=({dx:F2}, {dz:F2})");
         }
     }
 }

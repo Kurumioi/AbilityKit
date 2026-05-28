@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
@@ -8,15 +7,16 @@ using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    [MobaSnapshotEmitter(20)]
     [WorldService(typeof(MobaActorSpawnSnapshotService))]
-    public sealed class MobaActorSpawnSnapshotService : IWorldStateSnapshotProvider
+    public sealed class MobaActorSpawnSnapshotService : IWorldStateSnapshotProvider, IMobaSnapshotEmitter
     {
         private bool _hasSnapshot;
         private bool _sent;
         private byte[] _snapshotPayload;
 
         private FrameIndex _lastFrame;
-        private readonly List<MobaActorSpawnSnapshotEntry> _pending = new List<MobaActorSpawnSnapshotEntry>(64);
+        private readonly MobaSnapshotBuffer<MobaActorSpawnSnapshotEntry> _pending = new MobaSnapshotBuffer<MobaActorSpawnSnapshotEntry>(64, 512);
 
         public MobaActorSpawnSnapshotService()
         {
@@ -56,8 +56,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 try
                 {
-                    var payload = MobaActorSpawnSnapshotCodec.Serialize(_pending.ToArray());
-                    _pending.Clear();
+                    var payload = MobaActorSpawnSnapshotCodec.Serialize(_pending.ToArrayClearAndTrim());
                     snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorSpawnSnapshot, payload);
                     return true;
                 }

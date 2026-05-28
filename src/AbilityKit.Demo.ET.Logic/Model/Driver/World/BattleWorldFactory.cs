@@ -14,7 +14,7 @@ namespace ET.Logic
     /// </summary>
     public static class BattleWorldTypes
     {
-        public const string Battle = "ETDemoBattle";
+        public const string Battle = "battle";
     }
 
     /// <summary>

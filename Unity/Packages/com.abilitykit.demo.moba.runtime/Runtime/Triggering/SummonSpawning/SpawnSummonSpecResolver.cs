@@ -1,5 +1,5 @@
-﻿using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Demo.Moba.Config.Core;
+﻿using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;

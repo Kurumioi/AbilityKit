@@ -8,6 +8,7 @@ using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Coordinator;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.World;
@@ -73,6 +74,10 @@ namespace AbilityKit.Demo.Moba.Session
             options.ServiceBuilder.TryRegister<IMobaConfigTableRegistry>(
                 WorldLifetime.Singleton,
                 _ => MobaConfigRegistry.Instance);
+
+            options.ServiceBuilder.TryRegister<ICollisionService>(
+                WorldLifetime.Singleton,
+                _ => new CollisionService());
         }
 
         public void RegisterServices(IWorld world, SessionConfig config)

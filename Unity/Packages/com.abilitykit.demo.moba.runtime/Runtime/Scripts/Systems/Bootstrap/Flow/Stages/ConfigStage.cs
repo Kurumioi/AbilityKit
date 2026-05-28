@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             builder.TryRegister<IMobaConfigDtoDeserializer>(WorldLifetime.Singleton, _ => JsonNetMobaConfigDtoDeserializer.Instance);
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
+            builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
 
             builder.TryRegister<MobaConfigDatabase>(WorldLifetime.Singleton, _ =>
             {
@@ -38,15 +39,17 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);
                 _.TryResolve<IMobaConfigDtoDeserializer>(out var deserializer);
                 _.TryResolve<IMobaConfigDtoBytesDeserializer>(out var bytesDeserializer);
-                Log.Info($"[ConfigStage] registry={(registry != null ? registry.GetType().Name : "null")}, deserializer={(deserializer != null ? "set" : "null")}, bytesDeserializer={(bytesDeserializer != null ? "set" : "null")}");
+                _.TryResolve<IMobaConfigLoadProfile>(out var loadProfile);
+                Log.Info($"[ConfigStage] registry={(registry != null ? registry.GetType().Name : "null")}, deserializer={(deserializer != null ? "set" : "null")}, bytesDeserializer={(bytesDeserializer != null ? "set" : "null")}, loadProfile={(loadProfile != null ? loadProfile.Name : "null")}");
                 var db = new MobaConfigDatabase(registry, deserializer, bytesDeserializer, textAssetLoader);
                 Log.Info($"[ConfigStage] after ctor: _tables.Count={CountTables(db)}, dbHash={db.GetHashCode()}");
 
                 try
                 {
-                    Log.Info("[ConfigStage] Loading from Resources");
-                    db.LoadFromResources(MobaConfigPaths.DefaultResourcesDir, strict: false);
-                    Log.Info($"[ConfigStage] LoadFromResources completed: CountTables={CountTables(db)}, dbHash={db.GetHashCode()}");
+                    loadProfile ??= ResourcesJsonMobaConfigLoadProfile.Default;
+                    Log.Info($"[ConfigStage] Loading configs by profile: {loadProfile.Name}");
+                    loadProfile.Load(db);
+                    Log.Info($"[ConfigStage] Config load completed: CountTables={CountTables(db)}, dbHash={db.GetHashCode()}");
                     return db;
                 }
                 catch (Exception ex)

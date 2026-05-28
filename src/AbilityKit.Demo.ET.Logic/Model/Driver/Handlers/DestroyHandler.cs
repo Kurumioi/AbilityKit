@@ -14,7 +14,7 @@ namespace ET.Logic
         public void Handle(ETMobaBattleDriver driver)
         {
             // 清理资源
-            driver.InputSink = null;
+            driver.InputPort = null;
             driver.ConfigLoader = null;
             driver.SnapshotDispatcher = null;
             driver.Units.Clear();

@@ -48,7 +48,7 @@ namespace ET.Logic
         public void LoadCharacterConfigs()
         {
             Characters.Clear();
-            var path = "Configs/moba/characters.json";
+            var path = "moba/characters.json";  // basePath 已经是 Configs，所以不需要再包含 Configs/
 
             if (_loader.TryLoadText(path, out var json) && !string.IsNullOrEmpty(json))
             {
@@ -78,7 +78,7 @@ namespace ET.Logic
         public void LoadAttributeTemplates()
         {
             AttributeTemplates.Clear();
-            var path = "Configs/moba/attribute_templates.json";
+            var path = "moba/attribute_templates.json";  // basePath 已经是 Configs，所以不需要再包含 Configs/
 
             if (_loader.TryLoadText(path, out var json) && !string.IsNullOrEmpty(json))
             {
@@ -157,9 +157,10 @@ namespace ET.Logic
                     player.Scale > 0 ? player.Scale : 1f,
                     player.TeamId,
                     hp,
-                    maxHp));
+                    maxHp,
+                    player.PlayerId));
 
-                Log.Info($"[ETConfigLoaderService] Built spawn: ActorId={actorId}, EntityCode={entityCode}, Character={player.CharacterName}, Team={player.TeamId}");
+                Log.Info($"[ETConfigLoaderService] Built spawn: ActorId={actorId}, PlayerId={player.PlayerId}, EntityCode={entityCode}, Character={player.CharacterName}, Team={player.TeamId}");
             }
 
             return spawns;
@@ -168,19 +169,22 @@ namespace ET.Logic
         /// <summary>
         /// 添加默认生成数据
         /// </summary>
-        public List<ActorSpawnData> CreateDefaultSpawns(int playerActorId = 1)
+        public List<ActorSpawnData> CreateDefaultSpawns(int playerActorId = 1, string playerId = null)
         {
             var spawns = new List<ActorSpawnData>();
             int nextEntityCode = 1;
 
             // 使用 DeterministicHash 计算 ActorId
             int playerActorIdHashed = DeterministicHash.StringToActorId(playerActorId.ToString());
+            // 默认使用 actorId 作为 PlayerId
+            string playerIdStr = playerId ?? playerActorId.ToString();
 
             // Player character
             spawns.Add(new ActorSpawnData(
                 playerActorIdHashed, nextEntityCode++, 1001, "Hero_001",
                 0f, 0f, 0f, 0f, 1f,
-                1, 200f, 200f));
+                1, 200f, 200f,
+                playerIdStr));
 
             // Default minions
             for (int i = 1; i <= 2; i++)
