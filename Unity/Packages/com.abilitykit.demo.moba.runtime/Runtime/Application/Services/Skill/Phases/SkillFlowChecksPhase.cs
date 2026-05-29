@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.GameplayTags;
 using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -16,16 +17,19 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly SkillChecksPhaseDTO _def;
         private readonly SkillConditionRegistry _conditionRegistry;
+        private readonly IGameplayTagService _tags;
         private readonly List<ISkillCondition> _conditions;
 
         public SkillFlowChecksPhase(
             AbilityPipelinePhaseId phaseId,
             SkillChecksPhaseDTO def,
-            SkillConditionRegistry conditionRegistry = null)
+            SkillConditionRegistry conditionRegistry = null,
+            IGameplayTagService tags = null)
             : base(phaseId)
         {
             _def = def;
             _conditionRegistry = conditionRegistry;
+            _tags = tags;
             _conditions = new List<ISkillCondition>();
             BuildConditions();
         }
@@ -56,28 +60,18 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            // 3. 目标存在检查（如果有RequiredTags）
-            if (_def.RequiredTags != null && _def.RequiredTags.Length > 0)
-            {
-                // TODO: 实现标签检查条件
-                // if (_conditionRegistry?.TryGet("tag_required", out var tagCondition) == true)
-                // {
-                //     _conditions.Add(tagCondition);
-                // }
-            }
-
-            // 4. 目标不存在检查（如果有BlockedTags）
-            if (_def.BlockedTags != null && _def.BlockedTags.Length > 0)
-            {
-                // TODO: 实现标签阻塞检查条件
-            }
+            // RequiredTags and BlockedTags are checked directly in this phase because
+            // the configured values are tag ids, not condition ids.
         }
 
         protected override void OnInstantExecute(SkillPipelineContext context)
         {
             if (context == null) return;
 
-            // 空配置表示不进行任何检查
+            if (!CheckRequiredTags(context)) return;
+            if (!CheckBlockedTags(context)) return;
+
+            // 空条件列表表示只进行配置型标签检查，或不进行任何检查
             if (_conditions.Count == 0) return;
 
             // 执行所有条件检查
@@ -93,6 +87,52 @@ namespace AbilityKit.Demo.Moba.Services
                     return;
                 }
             }
+        }
+
+        private bool CheckRequiredTags(SkillPipelineContext context)
+        {
+            var required = _def?.RequiredTags;
+            if (required == null || required.Length == 0) return true;
+            if (_tags == null) return true;
+
+            var actorId = context.CasterActorId;
+            for (int i = 0; i < required.Length; i++)
+            {
+                var tagId = required[i];
+                if (tagId <= 0) continue;
+
+                if (!_tags.HasTag(actorId, GameplayTag.FromId(tagId)))
+                {
+                    context.FailReason = $"缺少必需标签: {tagId}";
+                    context.IsAborted = true;
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private bool CheckBlockedTags(SkillPipelineContext context)
+        {
+            var blocked = _def?.BlockedTags;
+            if (blocked == null || blocked.Length == 0) return true;
+            if (_tags == null) return true;
+
+            var actorId = context.CasterActorId;
+            for (int i = 0; i < blocked.Length; i++)
+            {
+                var tagId = blocked[i];
+                if (tagId <= 0) continue;
+
+                if (_tags.HasTag(actorId, GameplayTag.FromId(tagId)))
+                {
+                    context.FailReason = $"存在阻塞标签: {tagId}";
+                    context.IsAborted = true;
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

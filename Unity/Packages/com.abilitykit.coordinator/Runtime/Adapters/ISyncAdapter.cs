@@ -56,12 +56,12 @@ namespace AbilityKit.Coordinator
         /// <summary>
         /// Attach to session coordinator with driver host
         /// </summary>
-        void Attach(ISessionCoordinator coordinator, IBattleDriverHost driverHost);
+        void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost);
 
         /// <summary>
         /// Set the driver host after initial attachment
         /// </summary>
-        void SetDriverHost(IBattleDriverHost driverHost);
+        void SetDriverHost(ILogicWorldDriverBridge driverHost);
 
         /// <summary>
         /// Frame update (called by tick loop)
@@ -74,9 +74,9 @@ namespace AbilityKit.Coordinator
         void SubmitInput(PlayerInput input);
 
         /// <summary>
-        /// Get all entity states for rendering
+        /// Get all entity states for rendering.
         /// </summary>
-        EntityState[] GetAllEntityStates();
+        SnapshotEntityState[] GetAllEntityStates();
     }
 
     // ============== Mode-Specific Interfaces ==============
@@ -110,9 +110,9 @@ namespace AbilityKit.Coordinator
         event Action<bool> OnConnectionChanged;
 
         /// <summary>
-        /// Entity state snapshot event (triggered when server snapshot received)
+        /// Entity state snapshot event triggered when server snapshot received.
         /// </summary>
-        event Action<EntityState[]> OnServerSnapshot;
+        event Action<SnapshotEntityState[]> OnServerSnapshot;
 
         /// <summary>
         /// Connect to remote server
@@ -147,8 +147,8 @@ namespace AbilityKit.Coordinator
         int PredictionAheadFrames { get; }
 
         /// <summary>
-        /// Trigger reconciliation (rollback)
+        /// Trigger reconciliation (rollback).
         /// </summary>
-        void TriggerReconciliation(int confirmedFrame, EntityState[] serverState);
+        void TriggerReconciliation(int confirmedFrame, SnapshotEntityState[] serverState);
     }
 }

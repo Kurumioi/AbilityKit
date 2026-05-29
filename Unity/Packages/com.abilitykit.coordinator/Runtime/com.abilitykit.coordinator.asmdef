@@ -4,7 +4,9 @@
     "references": [
         "AbilityKit.Core",
         "AbilityKit.World.DI",
-        "AbilityKit.Host"
+        "AbilityKit.Host",
+        "AbilityKit.Protocol",
+        "MemoryPack"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

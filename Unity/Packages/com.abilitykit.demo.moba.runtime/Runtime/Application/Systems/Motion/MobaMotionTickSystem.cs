@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
@@ -15,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     {
         private IWorldClock _clock;
         private global::Entitas.IGroup<global::ActorEntity> _group;
+        private int _sampleLogCount;
 
         public MobaMotionTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -55,8 +57,15 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 state.Forward = t.Forward;
 
                 var output = m.Output;
+                var oldPosition = state.Position;
 
                 m.Pipeline.Tick(e.actorId.Value, ref state, dt, ref output);
+
+                _sampleLogCount++;
+                if (_sampleLogCount <= 5 || _sampleLogCount % 60 == 0)
+                {
+                    Log.Info($"[MobaMotionTickSystem] ActorId={e.actorId.Value}, Dt={dt:F4}, Old=({oldPosition.X:F3},{oldPosition.Y:F3},{oldPosition.Z:F3}), Desired=({output.DesiredDelta.X:F3},{output.DesiredDelta.Y:F3},{output.DesiredDelta.Z:F3}), Applied=({output.AppliedDelta.X:F3},{output.AppliedDelta.Y:F3},{output.AppliedDelta.Z:F3}), New=({state.Position.X:F3},{state.Position.Y:F3},{state.Position.Z:F3}), Count={_sampleLogCount}");
+                }
 
                 var desiredForward = output.NewForward.SqrMagnitude > 0f ? output.NewForward : state.Forward;
                 var newRot = desiredForward.SqrMagnitude > 0f ? Quat.LookRotation(desiredForward, Vec3.Up) : t.Rotation;

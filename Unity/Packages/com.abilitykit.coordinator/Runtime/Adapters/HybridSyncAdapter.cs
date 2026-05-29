@@ -23,7 +23,7 @@ namespace AbilityKit.Coordinator
         private readonly IWorld _world;
         private readonly SessionConfig _config;
         private ISessionCoordinator _coordinator;
-        private IBattleDriverHost _driverHost;
+        private ILogicWorldDriverBridge _driverHost;
 
         private double _renderTime;
         private int _localPlayerId;
@@ -39,11 +39,11 @@ namespace AbilityKit.Coordinator
         // Prediction state
         private int _lastConfirmedFrame;
         private int _predictedFrame;
-        private readonly List<EntityState> _confirmedSnapshot = new();
+        private readonly List<SnapshotEntityState> _confirmedSnapshot = new();
 
         // Reconciliation
         private bool _needsReconciliation;
-        private EntityState[] _serverCorrection;
+        private SnapshotEntityState[] _serverCorrection;
 
         // ============== ISyncAdapter Implementation ==============
 
@@ -71,7 +71,7 @@ namespace AbilityKit.Coordinator
 
         public event Action<int, double> OnFrameSync;
         public event Action<bool> OnConnectionChanged;
-        public event Action<EntityState[]> OnServerSnapshot;
+        public event Action<SnapshotEntityState[]> OnServerSnapshot;
 
         public HybridSyncAdapter(IWorld world, in SessionConfig config)
         {
@@ -91,13 +91,13 @@ namespace AbilityKit.Coordinator
             _coordinator = coordinator;
         }
 
-        public void Attach(ISessionCoordinator coordinator, IBattleDriverHost driverHost)
+        public void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost)
         {
             _coordinator = coordinator;
             _driverHost = driverHost;
         }
 
-        public void SetDriverHost(IBattleDriverHost driverHost)
+        public void SetDriverHost(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
         }
@@ -109,7 +109,7 @@ namespace AbilityKit.Coordinator
             _predictionEnabled = enabled;
         }
 
-        public void TriggerReconciliation(int confirmedFrame, EntityState[] serverState)
+        public void TriggerReconciliation(int confirmedFrame, SnapshotEntityState[] serverState)
         {
             _serverCorrection = serverState;
             _needsReconciliation = true;
@@ -202,8 +202,8 @@ namespace AbilityKit.Coordinator
             {
                 if (serverState.EntityId == _localPlayerId)
                 {
-                    // Local player state - check for desync
-                    // TODO: Compare with predicted state and correct if needed
+                    // Local player state - check for desync.
+                    // TODO: Compare with predicted state and correct if needed.
                     _lastConfirmedFrame = _predictedFrame;
                     break;
                 }
@@ -214,16 +214,16 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Feed server confirmation (called by network handler)
+        /// Feed server confirmation (called by network handler).
         /// </summary>
-        public void FeedServerConfirmation(int serverFrame, EntityState[] states)
+        public void FeedServerConfirmation(int serverFrame, SnapshotEntityState[] states)
         {
             TriggerReconciliation(serverFrame, states);
             OnServerSnapshot?.Invoke(states);
             OnFrameSync?.Invoke(serverFrame, 0);
         }
 
-        public EntityState[] GetAllEntityStates()
+        public SnapshotEntityState[] GetAllEntityStates()
         {
             if (_driverHost != null)
             {
@@ -235,7 +235,7 @@ namespace AbilityKit.Coordinator
                 return _confirmedSnapshot.ToArray();
             }
 
-            // TODO: Return predicted snapshot when prediction is implemented
+            // TODO: Return predicted snapshot when prediction is implemented.
             return _confirmedSnapshot.ToArray();
         }
 

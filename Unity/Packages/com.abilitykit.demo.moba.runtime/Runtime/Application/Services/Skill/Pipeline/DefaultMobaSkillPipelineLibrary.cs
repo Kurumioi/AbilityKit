@@ -9,6 +9,9 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
+
+    // Fallback pipeline used only when table-driven skill flow is unavailable.
+    // New skills should prefer TableDrivenMobaSkillPipelineLibrary.
     public sealed class DefaultMobaSkillPipelineLibrary : IMobaSkillPipelineLibrary
     {
         private static readonly AbilityPipelinePhaseId PreCastPhaseId = new AbilityPipelinePhaseId("precast.check");

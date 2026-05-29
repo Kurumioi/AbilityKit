@@ -52,7 +52,7 @@ namespace AbilityKit.Coordinator.SubFeatures
         /// <summary>
         /// Route snapshot to view timeline
         /// </summary>
-        public void RouteSnapshot(int frame, EntityState[] states, double timeSeconds)
+        public void RouteSnapshot(int frame, SnapshotEntityState[] states, double timeSeconds)
         {
             if (states == null) return;
 
@@ -66,11 +66,6 @@ namespace AbilityKit.Coordinator.SubFeatures
                     // TODO: Trigger entity spawn event
                 }
 
-                if (state.IsDead && _knownEntities.Contains(state.EntityId))
-                {
-                    _knownEntities.Remove(state.EntityId);
-                    // TODO: Trigger entity death event
-                }
             }
 
             _lastFrame = frame;

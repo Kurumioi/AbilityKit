@@ -24,39 +24,8 @@ namespace ET.Logic
         /// </summary>
         public static void RegisterAll(ETMobaBattleDriver driver)
         {
-            RegisterInputHandlers(driver);
             RegisterSnapshotHandlers(driver);
             RegisterLifecycleHandlers(driver);
-        }
-
-        private static void RegisterInputHandlers(ETMobaBattleDriver driver)
-        {
-            driver.InputHandlers.Clear();
-
-            // 扫描所有 InputHandler 实现
-            var handlerType = typeof(IInputHandler);
-            var types = _assemblies
-                .SelectMany(a => a.GetTypes())
-                .Where(t => handlerType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-
-            foreach (var type in types)
-            {
-                try
-                {
-                    var handler = Activator.CreateInstance(type) as IInputHandler;
-                    if (handler != null)
-                    {
-                        driver.InputHandlers.Add(handler);
-                        Log.Debug($"[HandlerRegistry] Registered InputHandler: {type.Name}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[HandlerRegistry] Failed to create InputHandler {type.Name}: {ex.Message}");
-                }
-            }
-
-            Log.Info($"[HandlerRegistry] InputHandlers registered: {driver.InputHandlers.Count}");
         }
 
         private static void RegisterSnapshotHandlers(ETMobaBattleDriver driver)

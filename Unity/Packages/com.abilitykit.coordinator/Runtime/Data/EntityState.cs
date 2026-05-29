@@ -1,66 +1,118 @@
 using System;
+using MemoryPack;
 
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Entity state snapshot
+    /// Transport-friendly snapshot entity envelope.
     /// </summary>
-    public struct EntityState
+    public readonly struct SnapshotEntityState
     {
         /// <summary>
-        /// Entity identifier
+        /// Entity identifier in the logic world.
         /// </summary>
-        public int EntityId;
+        public readonly int EntityId;
 
         /// <summary>
-        /// Position X
+        /// Application-defined state type.
         /// </summary>
-        public float X;
+        public readonly int StateType;
 
         /// <summary>
-        /// Position Y
+        /// Serialized application-defined state payload.
         /// </summary>
-        public float Y;
+        public readonly byte[] Payload;
+
+        public SnapshotEntityState(int entityId, int stateType, byte[] payload)
+        {
+            EntityId = entityId;
+            StateType = stateType;
+            Payload = payload ?? Array.Empty<byte>();
+        }
+
+        public static SnapshotEntityState Create<TPayload>(int entityId, in TPayload payload)
+        {
+            var stateType = CoordinatorPayloadCodec.TryGetOpCode<TPayload>(out var opCode) ? opCode : 0;
+            return Create(entityId, stateType, in payload);
+        }
+
+        public static SnapshotEntityState Create<TPayload>(int entityId, int stateType, in TPayload payload)
+        {
+            return new SnapshotEntityState(entityId, stateType, CoordinatorPayloadCodec.Encode(in payload));
+        }
+
+        public bool TryGetPayload<TPayload>(out TPayload payload)
+        {
+            if (CoordinatorPayloadCodec.TryGetOpCode<TPayload>(out var opCode) && StateType != opCode)
+            {
+                payload = default;
+                return false;
+            }
+
+            return CoordinatorPayloadCodec.TryDecode(Payload, out payload);
+        }
+    }
+
+    /// <summary>
+    /// Default entity-state payload retained as a convenience model.
+    /// </summary>
+    [MemoryPackable]
+    public partial struct EntityState
+    {
+        /// <summary>
+        /// Entity identifier.
+        /// </summary>
+        [MemoryPackOrder(0)] public int EntityId;
 
         /// <summary>
-        /// Position Z
+        /// Position X.
         /// </summary>
-        public float Z;
+        [MemoryPackOrder(1)] public float X;
 
         /// <summary>
-        /// Rotation (Y-axis)
+        /// Position Y.
         /// </summary>
-        public float Rotation;
+        [MemoryPackOrder(2)] public float Y;
 
         /// <summary>
-        /// Velocity X
+        /// Position Z.
         /// </summary>
-        public float VelocityX;
+        [MemoryPackOrder(3)] public float Z;
 
         /// <summary>
-        /// Velocity Z
+        /// Rotation around Y-axis.
         /// </summary>
-        public float VelocityZ;
+        [MemoryPackOrder(4)] public float Rotation;
 
         /// <summary>
-        /// Current HP
+        /// Velocity X.
         /// </summary>
-        public float Hp;
+        [MemoryPackOrder(5)] public float VelocityX;
 
         /// <summary>
-        /// Maximum HP
+        /// Velocity Z.
         /// </summary>
-        public float HpMax;
+        [MemoryPackOrder(6)] public float VelocityZ;
 
         /// <summary>
-        /// Team identifier
+        /// Current HP.
         /// </summary>
-        public int TeamId;
+        [MemoryPackOrder(7)] public float Hp;
 
         /// <summary>
-        /// Is entity dead
+        /// Maximum HP.
         /// </summary>
-        public bool IsDead;
+        [MemoryPackOrder(8)] public float HpMax;
+
+        /// <summary>
+        /// Team identifier.
+        /// </summary>
+        [MemoryPackOrder(9)] public int TeamId;
+
+        /// <summary>
+        /// Is entity dead.
+        /// </summary>
+        [MemoryPackOrder(10)] public bool IsDead;
 
         public EntityState(int entityId)
         {
@@ -71,6 +123,11 @@ namespace AbilityKit.Coordinator
             Hp = HpMax = 0;
             TeamId = 0;
             IsDead = true;
+        }
+
+        public SnapshotEntityState ToSnapshotEntityState()
+        {
+            return SnapshotEntityState.Create(EntityId, in this);
         }
 
         public static EntityState Empty(int entityId) => new EntityState(entityId);

@@ -51,14 +51,43 @@ namespace ET.Logic
             if (scene == null)
                 return;
 
-            // 更新缓存
+            CreatePresentationUnits(scene, in snapshot);
+
             if (_cacheComponent != null)
             {
                 _cacheComponent.UpdateCache(snapshot.FrameIndex, snapshot);
             }
 
-            // 初始化自动测试组件
             InitializeAutoTestComponent(scene, snapshot);
+        }
+
+        private void CreatePresentationUnits(Scene scene, in FrameSnapshotData snapshot)
+        {
+            if (snapshot.ActorSpawns == null || snapshot.ActorSpawns.Count == 0)
+            {
+                return;
+            }
+
+            var unitComponent = scene.GetComponent<ETUnitComponent>();
+            if (unitComponent == null)
+            {
+                Log.Warning("[ETBattleViewEventSink] ETUnitComponent not found, cannot create presentation units");
+                return;
+            }
+
+            foreach (var spawn in snapshot.ActorSpawns)
+            {
+                var unit = unitComponent.CreateUnit(
+                    actorId: spawn.ActorId,
+                    entityCode: spawn.EntityCode,
+                    kind: spawn.EntityCode == 1 ? ActorKind.Hero : ActorKind.Monster,
+                    name: string.IsNullOrEmpty(spawn.Name) ? $"Actor_{spawn.ActorId}" : spawn.Name,
+                    x: spawn.PositionX,
+                    y: spawn.PositionY,
+                    maxHp: spawn.MaxHp > 0f ? spawn.MaxHp : 100f);
+
+                _cacheComponent?.AddEntity(spawn.ActorId, unit);
+            }
         }
 
         /// <summary>
@@ -90,7 +119,7 @@ namespace ET.Logic
             else if (_battleComponent.PlayerActorId > 0)
             {
                 actorIdToUse = (int)_battleComponent.PlayerActorId;
-                playerIdToUse = actorIdToUse.ToString();
+                playerIdToUse = _battleComponent.PlayerId.ToString();
             }
 
             if (autoTest != null && playerIdToUse != null)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Coordinator;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Generic;
 using AbilityKit.Ability.Share.Impl.Moba.Struct;
@@ -9,21 +8,52 @@ using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
+    /// Logic-world spawn data used by runtime services.
+    /// Host adapters can map coordinator, server, console, or ET spawn requests into this model.
+    /// </summary>
+    public struct LogicWorldSpawnData
+    {
+        public int PlayerId;
+        public int CharacterId;
+        public int TeamId;
+        public float X;
+        public float Y;
+        public float Z;
+        public string Name;
+
+        public LogicWorldSpawnData(int playerId, int characterId, int teamId, float x, float y, float z, string name = null)
+        {
+            PlayerId = playerId;
+            CharacterId = characterId;
+            TeamId = teamId;
+            X = x;
+            Y = y;
+            Z = z;
+            Name = name;
+        }
+
+        public static LogicWorldSpawnData CreateLocalPlayer(int playerId, int characterId, float x, float z)
+        {
+            return new LogicWorldSpawnData(playerId, characterId, 1, x, 0f, z, "LocalPlayer");
+        }
+    }
+
+    /// <summary>
     /// 数据结构转换器
     ///
-    /// 负责在 Coordinator 层和 moba.core 层之间转换数据结构
+    /// 负责将外部生成计划转换为 moba.core 进场数据结构
     ///
     /// Design:
     /// - 提供静态转换方法，可独立使用
-    /// - 封装 Coordinator 层到 moba.core 层的转换逻辑
-    /// - 支持从多种来源（PlayerSpawnData、PlayerSpawnPlan 等）转换
+    /// - 封装逻辑世界生成数据到 moba.core 层的转换逻辑
+    /// - 外部协议或协调层数据应先由 adapter 转换为 LogicWorldSpawnData
     /// </summary>
     public static class SpawnDataConverter
     {
         /// <summary>
-        /// 将 PlayerSpawnData[] 转换为 MobaPlayerLoadout[]
+        /// 将 LogicWorldSpawnData[] 转换为 MobaPlayerLoadout[]
         /// </summary>
-        public static MobaPlayerLoadout[] ConvertToLoadouts(PlayerSpawnData[] spawns, int startIndex = 0)
+        public static MobaPlayerLoadout[] ConvertToLoadouts(LogicWorldSpawnData[] spawns, int startIndex = 0)
         {
             if (spawns == null || spawns.Length == 0)
             {
@@ -40,9 +70,9 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将单个 PlayerSpawnData 转换为 MobaPlayerLoadout
+        /// 将单个 LogicWorldSpawnData 转换为 MobaPlayerLoadout
         /// </summary>
-        public static MobaPlayerLoadout ConvertToLoadout(PlayerSpawnData spawn, int spawnIndex)
+        public static MobaPlayerLoadout ConvertToLoadout(LogicWorldSpawnData spawn, int spawnIndex)
         {
             var playerId = new PlayerId(spawn.PlayerId.ToString());
 
@@ -65,10 +95,10 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将 PlayerSpawnData[] 转换为 EnterMobaGameReq
+        /// 将 LogicWorldSpawnData[] 转换为 EnterMobaGameReq
         /// </summary>
         public static EnterMobaGameReq ConvertToEnterGameReq(
-            PlayerSpawnData[] spawns,
+            LogicWorldSpawnData[] spawns,
             PlayerId playerId,
             string matchId,
             int mapId,
@@ -100,10 +130,10 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将 PlayerSpawnData[] 转换为 MobaGameStartSpec
+        /// 将 LogicWorldSpawnData[] 转换为 MobaGameStartSpec
         /// </summary>
         public static MobaGameStartSpec ConvertToGameStartSpec(
-            PlayerSpawnData[] spawns,
+            LogicWorldSpawnData[] spawns,
             PlayerId playerId,
             string matchId,
             int mapId,

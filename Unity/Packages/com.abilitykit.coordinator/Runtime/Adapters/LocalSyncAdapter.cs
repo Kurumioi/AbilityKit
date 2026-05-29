@@ -23,7 +23,7 @@ namespace AbilityKit.Coordinator
         private readonly IWorld _world;
         private readonly SessionConfig _config;
         private ISessionCoordinator _coordinator;
-        private IBattleDriverHost _driverHost;
+        private ILogicWorldDriverBridge _driverHost;
 
         private double _lastTickTime;
         private double _renderTime;
@@ -62,13 +62,13 @@ namespace AbilityKit.Coordinator
             _coordinator = coordinator;
         }
 
-        public void Attach(ISessionCoordinator coordinator, IBattleDriverHost driverHost)
+        public void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost)
         {
             _coordinator = coordinator;
             _driverHost = driverHost;
         }
 
-        public void SetDriverHost(IBattleDriverHost driverHost)
+        public void SetDriverHost(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
         }
@@ -97,13 +97,13 @@ namespace AbilityKit.Coordinator
             }
         }
 
-        public EntityState[] GetAllEntityStates()
+        public SnapshotEntityState[] GetAllEntityStates()
         {
             if (_driverHost != null)
             {
                 return _driverHost.GetAllEntityStates();
             }
-            return Array.Empty<EntityState>();
+            return Array.Empty<SnapshotEntityState>();
         }
 
         public void Dispose()
@@ -132,8 +132,16 @@ namespace AbilityKit.Coordinator
                 _driverHost.SubmitInputs(inputsToSubmit);
             }
 
-            // Advance frame (if not using driver host's frame)
-            if (_driverHost == null)
+            if (_driverHost != null)
+            {
+                if (!_driverHost.IsRunning)
+                {
+                    _driverHost.Start();
+                }
+
+                _driverHost.AdvanceFrame(deltaTime);
+            }
+            else
             {
                 _currentFrame++;
                 _logicTime += deltaTime;

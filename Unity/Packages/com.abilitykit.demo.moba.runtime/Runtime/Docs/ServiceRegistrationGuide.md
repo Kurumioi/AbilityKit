@@ -85,26 +85,21 @@ public sealed class MyService : IService
 // MobaServicesAutoModule.cs
 public void Configure(WorldContainerBuilder builder)
 {
-    builder.AddModule(new AttributeWorldServicesModule(
-        WorldServiceProfile.All,
-        scanAllLoadedAssemblies: true,
-        namespacePrefixes: TargetNamespacePrefixes  // 扫描的命名空间
-    ));
+    builder.AddModule(new MobaApplicationServicesModule());
+    builder.AddModule(new MobaApplicationSystemsServicesModule());
+    builder.AddModule(new MobaInfrastructureServicesModule());
 }
 ```
 
-扫描的命名空间前缀：
-- `AbilityKit.Demo.Moba.Services`
-- `AbilityKit.Demo.Moba.Snapshot`
-- `AbilityKit.Demo.Moba.Combat`
-- `AbilityKit.Demo.Moba.Skill`
-- `AbilityKit.Demo.Moba.Buff`
-- `AbilityKit.Demo.Moba.Triggering`
-- `AbilityKit.Demo.Moba.Effect`
-- `AbilityKit.Demo.Moba.Actor`
-- `AbilityKit.Demo.Moba.Core`
-- `AbilityKit.Demo.Moba.FrameSync`
-- `AbilityKit.Demo.Moba.Systems`
+当前按模块拆分扫描范围：
+
+| 模块 | 扫描的命名空间前缀 | 用途 |
+| --- | --- | --- |
+| `MobaApplicationServicesModule` | `AbilityKit.Demo.Moba.Services` | 业务服务、技能服务、战斗服务、输入服务、快照服务等 |
+| `MobaApplicationSystemsServicesModule` | `AbilityKit.Demo.Moba.Systems` | 系统侧辅助服务、PlanAction 模块注册等 |
+| `MobaInfrastructureServicesModule` | `AbilityKit.Demo.Moba.Util`, `AbilityKit.Demo.Moba.Util.Generator` | 工具、生成器、基础设施辅助能力 |
+
+新增服务时优先放在 `AbilityKit.Demo.Moba.Services` 命名空间下；只有确实属于系统安装或基础设施工具时，才进入 `Systems` 或 `Util` 范围。
 
 ## 5. 服务依赖注入
 

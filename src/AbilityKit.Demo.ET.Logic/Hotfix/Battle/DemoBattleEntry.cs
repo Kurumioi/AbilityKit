@@ -95,6 +95,7 @@ namespace ET.Logic
                 return;
 
             float moveStep = 2f;
+            var playerId = battleComponent.PlayerId.ToString();
 
             switch (key.Key)
             {
@@ -103,7 +104,7 @@ namespace ET.Logic
                     playerUnit.TargetY += moveStep;
                     inputComponent.SubmitMoveInput(
                         battleComponent.CurrentFrame,
-                        playerUnit.LogicActorId,
+                        playerId,
                         playerUnit.TargetX,
                         playerUnit.TargetY);
                     break;
@@ -113,7 +114,7 @@ namespace ET.Logic
                     playerUnit.TargetY -= moveStep;
                     inputComponent.SubmitMoveInput(
                         battleComponent.CurrentFrame,
-                        playerUnit.LogicActorId,
+                        playerId,
                         playerUnit.TargetX,
                         playerUnit.TargetY);
                     break;
@@ -123,7 +124,7 @@ namespace ET.Logic
                     playerUnit.TargetX -= moveStep;
                     inputComponent.SubmitMoveInput(
                         battleComponent.CurrentFrame,
-                        playerUnit.LogicActorId,
+                        playerId,
                         playerUnit.TargetX,
                         playerUnit.TargetY);
                     break;
@@ -133,7 +134,7 @@ namespace ET.Logic
                     playerUnit.TargetX += moveStep;
                     inputComponent.SubmitMoveInput(
                         battleComponent.CurrentFrame,
-                        playerUnit.LogicActorId,
+                        playerId,
                         playerUnit.TargetX,
                         playerUnit.TargetY);
                     break;
@@ -145,14 +146,14 @@ namespace ET.Logic
                     int skillSlot = key.Key - ConsoleKey.D1;
                     inputComponent.SubmitSkillInput(
                         battleComponent.CurrentFrame,
-                        playerUnit.LogicActorId,
+                        playerId,
                         skillSlot,
                         playerUnit.X + 5f,
                         playerUnit.Y);
                     break;
 
                 case ConsoleKey.Spacebar:
-                    inputComponent.SubmitStopInput(battleComponent.CurrentFrame, playerUnit.LogicActorId);
+                    inputComponent.SubmitStopInput(battleComponent.CurrentFrame, playerId);
                     // 停止移动由 moba.core 处理（通过快照更新）
                     break;
 

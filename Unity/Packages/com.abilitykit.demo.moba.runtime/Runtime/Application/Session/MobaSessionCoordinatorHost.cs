@@ -12,19 +12,29 @@ using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.World;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 
 namespace AbilityKit.Demo.Moba.Session
 {
+    public interface ILogicWorldSessionHost
+    {
+        HostRuntime HostRuntime { get; }
+        IWorldHost CreateLogicWorldHost(string worldType = null);
+        void ConfigureLogicWorldOptions(WorldCreateOptions options, string worldType, string worldId);
+        void RegisterLogicWorldServices(IWorld world);
+        void LoadLogicWorldConfig(IWorld world);
+        LogicWorldSpawnData[] CreateLogicWorldSpawnData(int localPlayerId);
+    }
+
     /// <summary>
-    /// MOBA 会话 Coordinator Host（跨平台复用）
-    /// 负责创建 HostRuntime、配置世界蓝图与 moba.core 服务
+    /// MOBA 会话 Host（跨平台复用）。Coordinator 接口是外层适配，逻辑世界流程使用 ILogicWorldSessionHost。
     /// </summary>
-    public sealed class MobaSessionCoordinatorHost : ISessionCoordinatorHost
+    public sealed class MobaSessionCoordinatorHost : ILogicWorldSessionHost, ISessionCoordinatorHost
     {
         private readonly ITextAssetLoader _textAssetLoader;
         private HostRuntime _hostRuntime;
-        private PlayerSpawnData[] _pendingSpawns;
+        private LogicWorldSpawnData[] _pendingSpawns;
 
         public MobaSessionCoordinatorHost(ITextAssetLoader textAssetLoader)
         {
@@ -35,10 +45,20 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void SetPendingSpawns(PlayerSpawnData[] spawns)
         {
+            _pendingSpawns = ToLogicWorldSpawns(spawns);
+        }
+
+        public void SetPendingLogicWorldSpawns(LogicWorldSpawnData[] spawns)
+        {
             _pendingSpawns = spawns;
         }
 
         public IWorldHost CreateWorldHost(SessionConfig config)
+        {
+            return CreateLogicWorldHost(config.WorldType);
+        }
+
+        public IWorldHost CreateLogicWorldHost(string worldType = null)
         {
             var worldTypeRegistry = new WorldTypeRegistry();
             MobaWorldBlueprintsRegistration.RegisterAll(worldTypeRegistry, options => new EntitasWorld(options));
@@ -52,15 +72,23 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void ConfigureWorldCreateOptions(in SessionConfig config, WorldCreateOptions options)
         {
+            ConfigureLogicWorldOptions(
+                options,
+                config.WorldType,
+                config.WorldId > 0 ? config.WorldId.ToString() : "1");
+        }
+
+        public void ConfigureLogicWorldOptions(WorldCreateOptions options, string worldType, string worldId)
+        {
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
             }
 
-            options.Id = new WorldId(config.WorldId > 0 ? config.WorldId.ToString() : "1");
-            options.WorldType = string.IsNullOrEmpty(config.WorldType)
+            options.Id = new WorldId(string.IsNullOrEmpty(worldId) ? "1" : worldId);
+            options.WorldType = string.IsNullOrEmpty(worldType)
                 ? MobaBattleWorldBlueprint.Type
-                : config.WorldType;
+                : worldType;
 
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
 
@@ -82,15 +110,24 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void RegisterServices(IWorld world, SessionConfig config)
         {
+            RegisterLogicWorldServices(world);
+            Log.Info($"[MobaSessionCoordinatorHost] World services ready, SyncMode={config.SyncMode}");
+        }
+
+        public void RegisterLogicWorldServices(IWorld world)
+        {
             if (world?.Services == null)
             {
                 return;
             }
-
-            Log.Info($"[MobaSessionCoordinatorHost] World services ready, SyncMode={config.SyncMode}");
         }
 
         public void LoadConfig(IWorld world, SessionConfig config)
+        {
+            LoadLogicWorldConfig(world);
+        }
+
+        public void LoadLogicWorldConfig(IWorld world)
         {
             if (world?.Services == null)
             {
@@ -109,6 +146,17 @@ namespace AbilityKit.Demo.Moba.Session
 
         public PlayerSpawnData[] CreatePlayerSpawnData(SessionConfig config)
         {
+            var spawns = CreateLogicWorldSpawnData(config);
+            return ToPlayerSpawnData(spawns);
+        }
+
+        public LogicWorldSpawnData[] CreateLogicWorldSpawnData(SessionConfig config)
+        {
+            return CreateLogicWorldSpawnData(config.LocalPlayerId);
+        }
+
+        public LogicWorldSpawnData[] CreateLogicWorldSpawnData(int localPlayerId)
+        {
             if (_pendingSpawns != null && _pendingSpawns.Length > 0)
             {
                 return _pendingSpawns;
@@ -116,8 +164,58 @@ namespace AbilityKit.Demo.Moba.Session
 
             return new[]
             {
-                PlayerSpawnData.CreateLocalPlayer(config.LocalPlayerId, 1001, 0f, 0f)
+                LogicWorldSpawnData.CreateLocalPlayer(localPlayerId, 1001, 0f, 0f)
             };
+        }
+
+        private static LogicWorldSpawnData[] ToLogicWorldSpawns(PlayerSpawnData[] spawns)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<LogicWorldSpawnData>();
+            }
+
+            var result = new LogicWorldSpawnData[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                var spawn = spawns[i];
+                result[i] = new LogicWorldSpawnData(
+                    spawn.PlayerId,
+                    spawn.CharacterId,
+                    spawn.TeamId,
+                    spawn.X,
+                    spawn.Y,
+                    spawn.Z,
+                    spawn.Name);
+            }
+
+            return result;
+        }
+
+        private static PlayerSpawnData[] ToPlayerSpawnData(LogicWorldSpawnData[] spawns)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<PlayerSpawnData>();
+            }
+
+            var result = new PlayerSpawnData[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                var spawn = spawns[i];
+                result[i] = new PlayerSpawnData
+                {
+                    PlayerId = spawn.PlayerId,
+                    CharacterId = spawn.CharacterId,
+                    TeamId = spawn.TeamId,
+                    X = spawn.X,
+                    Y = spawn.Y,
+                    Z = spawn.Z,
+                    Name = spawn.Name
+                };
+            }
+
+            return result;
         }
     }
 }

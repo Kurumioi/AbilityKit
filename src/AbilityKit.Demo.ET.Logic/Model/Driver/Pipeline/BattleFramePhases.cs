@@ -1,20 +1,15 @@
-using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Pipeline;
-using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Moba.FrameSync;
-using AbilityKit.Core.Math;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using SkillInputCodec = AbilityKit.Demo.Moba.Services.SkillInputCodec;
-using MobaEntityManager = AbilityKit.Demo.Moba.Services.EntityManager.MobaEntityManager;
-using OpCode = AbilityKit.Demo.Moba.Services.MobaOpCode;
 
 namespace ET.Logic
 {
@@ -43,7 +38,7 @@ namespace ET.Logic
         {
             ctx.CurrentFrame++;
             ctx.LogicTimeSeconds += ctx.DeltaTime;
-            ctx.TransformSnapshots.Clear();
+            ctx.FrameSnapshots.Clear();
             ctx.SnapshotDispatched = false;
         }
     }
@@ -83,57 +78,58 @@ namespace ET.Logic
                 return;
             }
 
-            // 转换为 PlayerInputCommand 并提交
+            var frameIndex = new FrameIndex(ctx.CurrentFrame);
             var playerCommands = new List<PlayerInputCommand>(commands.Count);
-            foreach (var cmd in commands)
+            foreach (var command in commands)
             {
-                switch (cmd)
+                if (ETInputCommandConverterRegistry.TryConvert(command, frameIndex, out var playerCommand))
                 {
-                    case MoveCommand move:
-                        // 使用移动方向向量 (dx, dz)
-                        var movePayload = MobaMoveCodec.Serialize(move.Dx, move.Dz);
-                        var movePlayerId = new PlayerId(move.PlayerId);
-                        playerCommands.Add(new PlayerInputCommand(
-                            new FrameIndex(ctx.CurrentFrame),
-                            movePlayerId,
-                            (int)OpCode.Move,
-                            movePayload));
-                        Log.Debug($"[ProcessETInputPhase] Move: PlayerId={move.PlayerId}, Dir=({move.Dx:F2}, {move.Dz:F2})");
-                        break;
-
-                    case SkillCommand skill:
-                        var skillEvt = new SkillInputEvent(
-                            slot: skill.SkillSlot,
-                            phase: SkillInputPhase.Press,
-                            targetActorId: 0,
-                            aimPos: new Vec3(skill.TargetX, 0, skill.TargetY));
-                        var skillPayload = SkillInputCodec.Serialize(in skillEvt);
-                        var skillPlayerId = new PlayerId(skill.PlayerId);
-                        playerCommands.Add(new PlayerInputCommand(
-                            new FrameIndex(ctx.CurrentFrame),
-                            skillPlayerId,
-                            (int)OpCode.SkillInput,
-                            skillPayload));
-                        Log.Debug($"[ProcessETInputPhase] Skill: PlayerId={skill.PlayerId}, Slot={skill.SkillSlot}");
-                        break;
-
-                    case StopCommand stop:
-                        // Stop 命令使用 InputOpCodes.Stop
-                        var stopPlayerId = new PlayerId(stop.PlayerId);
-                        playerCommands.Add(new PlayerInputCommand(
-                            new FrameIndex(ctx.CurrentFrame),
-                            stopPlayerId,
-                            InputOpCodes.Stop,
-                            null));
-                        break;
+                    playerCommands.Add(playerCommand);
                 }
             }
 
             // 提交到战斗逻辑层输入端口
             if (playerCommands.Count > 0)
             {
+                PlayerInputCommand first = playerCommands[0];
+                Log.Info($"[ProcessETInputPhase] Submit: Frame={ctx.CurrentFrame}, Count={playerCommands.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
                 inputPort.Submit(new FrameIndex(ctx.CurrentFrame), playerCommands);
+                LogRuntimeInputState(ctx, first);
             }
+        }
+
+        private static void LogRuntimeInputState(BattleFrameContext ctx, PlayerInputCommand first)
+        {
+            ctx.Driver.TryResolve(out MobaGamePhaseService phase);
+            ctx.Driver.TryResolve(out MobaPlayerActorMapService playerActorMap);
+            ctx.Driver.TryResolve(out MobaActorRegistry registry);
+            ctx.Driver.TryResolve(out MobaConfigDatabase config);
+
+            var inGame = phase != null && phase.InGame;
+            var actorId = 0;
+            var hasActor = playerActorMap != null && playerActorMap.TryGetActorId(first.Player, out actorId);
+            var hasEntity = false;
+            var dx = 0f;
+            var dz = 0f;
+            var speed = 0f;
+            var hasConfig = config != null;
+
+            if (hasActor && registry != null && registry.TryGet(actorId, out var entity) && entity != null)
+            {
+                hasEntity = true;
+                if (entity.hasMoveInput)
+                {
+                    dx = entity.moveInput.Dx;
+                    dz = entity.moveInput.Dz;
+                }
+
+                if (entity.hasAttributeGroup)
+                {
+                    speed = new MobaAttrs(entity).MoveSpeed;
+                }
+            }
+
+            Log.Info($"[ProcessETInputPhase] Runtime input state: Frame={ctx.CurrentFrame}, InGame={inGame}, HasPlayerMap={playerActorMap != null}, Player={first.Player.Value}, HasActor={hasActor}, ActorId={(hasActor ? actorId : 0)}, HasEntity={hasEntity}, Move=({dx:F3},{dz:F3}), Speed={speed:F3}, HasConfig={hasConfig}");
         }
     }
 
@@ -143,6 +139,8 @@ namespace ET.Logic
     /// </summary>
     public sealed class DriveWorldPhase : AbilityInstantPhaseBase<BattleFrameContext>
     {
+        private int _sampleLogCount;
+
         public DriveWorldPhase() : base(BattleFramePhaseIds.DriveWorld) { }
 
         protected override void OnInstantExecute(BattleFrameContext ctx)
@@ -154,6 +152,52 @@ namespace ET.Logic
 
             // 驱动 World Tick
             ctx.Driver.World.Tick(ctx.DeltaTime);
+
+            _sampleLogCount++;
+            if (_sampleLogCount <= 5 || _sampleLogCount % 60 == 0)
+            {
+                LogRuntimeActorState(ctx);
+            }
+        }
+
+        private static void LogRuntimeActorState(BattleFrameContext ctx)
+        {
+            if (!ctx.Driver.TryResolve(out MobaActorRegistry registry) || registry == null)
+            {
+                Log.Info($"[DriveWorldPhase] Runtime actor registry not resolved: Frame={ctx.CurrentFrame}");
+                return;
+            }
+
+            ctx.Driver.TryResolve(out IWorldClock clock);
+
+            foreach (var kv in registry.Entries)
+            {
+                var actorId = kv.Key;
+                var e = kv.Value;
+                if (e == null) continue;
+
+                var x = 0f;
+                var y = 0f;
+                var z = 0f;
+                if (e.hasTransform)
+                {
+                    var p = e.transform.Value.Position;
+                    x = p.X;
+                    y = p.Y;
+                    z = p.Z;
+                }
+
+                var dx = e.hasMoveInput ? e.moveInput.Dx : 0f;
+                var dz = e.hasMoveInput ? e.moveInput.Dz : 0f;
+                var speed = 0f;
+                if (e.hasAttributeGroup)
+                {
+                    speed = new MobaAttrs(e).MoveSpeed;
+                }
+
+                Log.Info($"[DriveWorldPhase] Runtime actor: Frame={ctx.CurrentFrame}, ActorId={actorId}, Pos=({x:F3},{y:F3},{z:F3}), HasMoveInput={e.hasMoveInput}, Move=({dx:F3},{dz:F3}), HasMotion={e.hasMotion}, MotionInit={(e.hasMotion && e.motion.Initialized)}, Speed={speed:F3}, ClockDt={(clock != null ? clock.DeltaTime : -1f):F4}");
+                break;
+            }
         }
 
         public override bool ShouldExecute(BattleFrameContext ctx)
@@ -164,10 +208,12 @@ namespace ET.Logic
 
     /// <summary>
     /// 阶段 4: 收集快照
-    /// 从 moba.core 收集状态快照
+    /// 从 Runtime 输出端口收集状态快照
     /// </summary>
     public sealed class CollectSnapshotPhase : AbilityInstantPhaseBase<BattleFrameContext>
     {
+        private readonly List<WorldStateSnapshot> _runtimeSnapshots = new List<WorldStateSnapshot>(32);
+
         public CollectSnapshotPhase() : base(BattleFramePhaseIds.CollectSnapshot) { }
 
         protected override void OnInstantExecute(BattleFrameContext ctx)
@@ -177,59 +223,28 @@ namespace ET.Logic
                 return;
             }
 
-            var scene = ctx.GetScene();
-            if (scene == null)
+            if (!ctx.Driver.TryResolve(out IMobaBattleOutputPort outputPort) || outputPort == null)
             {
+                Log.Warning("[CollectSnapshotPhase] IMobaBattleOutputPort not resolved");
                 return;
             }
 
-            var unitComponent = ctx.GetUnitComponent();
-            if (unitComponent == null || ETUnitComponentSystem.UnitCount(unitComponent) == 0)
+            _runtimeSnapshots.Clear();
+            outputPort.CollectSnapshots(new FrameIndex(ctx.CurrentFrame), _runtimeSnapshots);
+
+            for (int i = 0; i < _runtimeSnapshots.Count; i++)
             {
-                return;
-            }
-
-            // 收集变换数据
-            foreach (var unit in ETUnitComponentSystem.GetAllUnits(unitComponent))
-            {
-                if (unit == null || unit.IsDead)
+                var runtimeSnapshot = _runtimeSnapshots[i];
+                Log.Info($"[CollectSnapshotPhase] Runtime snapshot: Frame={ctx.CurrentFrame}, OpCode={runtimeSnapshot.OpCode}");
+                if (ETBattleWorldSnapshotAdapter.TryConvert(
+                    in runtimeSnapshot,
+                    ctx.CurrentFrame,
+                    ctx.LogicTimeSeconds,
+                    out var frameSnapshot))
                 {
-                    continue;
+                    ctx.FrameSnapshots.Add(frameSnapshot);
                 }
-
-                float x = unit.X;
-                float y = unit.Y;
-                float rotationY = unit.Rotation;
-
-                // 从 moba.core 读取实际位置
-                if (ctx.Driver.TryResolve(out MobaEntityManager entityManager)
-                    && entityManager.TryGetActorEntity(unit.LogicActorId, out var actorEntity)
-                    && actorEntity != null)
-                {
-                    if (actorEntity.hasTransform)
-                    {
-                        var transform = actorEntity.transform.Value;
-                        x = transform.Position.X;
-                        y = transform.Position.Z;
-                        rotationY = ExtractRotationY(transform.Rotation);
-                    }
-                }
-
-                ctx.TransformSnapshots.Add(new ActorTransformData(
-                    actorId: unit.LogicActorId,
-                    x: x,
-                    y: y,
-                    z: 0f,
-                    rotationY: rotationY,
-                    scale: 1f));
             }
-        }
-
-        private static float ExtractRotationY(in Quat rotation)
-        {
-            return MathF.Atan2(
-                2f * (rotation.W * rotation.Y + rotation.X * rotation.Z),
-                1f - 2f * (rotation.Y * rotation.Y + rotation.Z * rotation.Z));
         }
     }
 
@@ -248,27 +263,23 @@ namespace ET.Logic
                 return;
             }
 
-            if (ctx.TransformSnapshots.Count == 0)
+            if (ctx.FrameSnapshots.Count == 0)
             {
                 return;
             }
 
-            // 构建 FrameSnapshotData
-            var snapshotData = new FrameSnapshotData(
-                ctx.CurrentFrame,
-                0,
-                SnapshotType.Delta,
-                actorTransforms: ctx.TransformSnapshots);
+            for (int i = 0; i < ctx.FrameSnapshots.Count; i++)
+            {
+                var snapshot = ctx.FrameSnapshots[i];
+                ctx.Driver?.HandleSnapshot(in snapshot);
+            }
 
-            // 通过 ViewSink 分发给视图层
-            ctx.Driver?.ViewSink?.OnActorTransformSnapshot(in snapshotData);
             ctx.SnapshotDispatched = true;
         }
 
         public override bool ShouldExecute(BattleFrameContext ctx)
         {
-            // 仅在有快照且未分发时执行
-            return ctx.TransformSnapshots.Count > 0 && !ctx.SnapshotDispatched;
+            return ctx.FrameSnapshots.Count > 0 && !ctx.SnapshotDispatched;
         }
     }
 

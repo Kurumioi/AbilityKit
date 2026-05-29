@@ -17,6 +17,8 @@
     "dependencies": {
         "com.abilitykit.core": "1.0.0",
         "com.abilitykit.world.di": "1.0.0",
-        "com.abilitykit.host": "1.0.0"
+        "com.abilitykit.host": "1.0.0",
+        "com.abilitykit.protocol": "0.0.1",
+        "com.cysharp.memorypack": "1.10.0"
     }
 }

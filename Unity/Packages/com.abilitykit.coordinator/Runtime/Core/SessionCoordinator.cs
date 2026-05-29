@@ -33,7 +33,7 @@ namespace AbilityKit.Coordinator
         // ============== Sync ==============
 
         private ISyncAdapter _syncAdapter;
-        private IBattleDriverHost _driverHost;
+        private ILogicWorldDriverBridge _driverHost;
         private Timeline.IViewTimeline _viewTimeline;
 
         // ============== View ==============
@@ -61,7 +61,8 @@ namespace AbilityKit.Coordinator
         public ISyncAdapter SyncAdapter => _syncAdapter;
         public Timeline.IViewTimeline ViewTimeline => _viewTimeline;
 
-        public IBattleDriverHost? DriverHost => _driverHost;
+        public ILogicWorldDriverBridge? LogicWorldDriver => _driverHost;
+        public IBattleDriverHost? DriverHost => _driverHost as IBattleDriverHost;
         public IViewEventSink? ViewEventSink => _viewEventSink;
 
         public SessionHooks Hooks => _hooks;
@@ -203,13 +204,18 @@ namespace AbilityKit.Coordinator
 
         // ============== Driver & View ==============
 
-        public void SetDriverHost(IBattleDriverHost driverHost)
+        public void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
             if (_syncAdapter != null)
             {
                 _syncAdapter.SetDriverHost(driverHost);
             }
+        }
+
+        public void SetDriverHost(IBattleDriverHost driverHost)
+        {
+            SetLogicWorldDriver(driverHost);
         }
 
         public void SetViewEventSink(IViewEventSink sink)

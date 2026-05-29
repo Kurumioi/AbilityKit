@@ -4,7 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Coordinator;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -26,6 +26,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
+            if (inputs != null && inputs.Count > 0)
+            {
+                PlayerInputCommand first = inputs[0];
+                Log.Info($"[MobaBattleIOPort] Submit: Frame={frame.Value}, Count={inputs.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
+            }
+
             _input.Submit(frame, inputs);
         }
 
@@ -48,9 +54,9 @@ namespace AbilityKit.Demo.Moba.Services
             return count;
         }
 
-        public EntityState[] GetAllEntityStates()
+        public LogicWorldEntityState[] GetAllEntityStates()
         {
-            var states = new List<EntityState>(8);
+            var states = new List<LogicWorldEntityState>(8);
 
             foreach (var kv in _actors.Entries)
             {
@@ -58,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var entity = kv.Value;
                 if (entity == null) continue;
 
-                var state = new EntityState(actorId);
+                var state = new LogicWorldEntityState(actorId);
 
                 if (entity.hasTransform)
                 {

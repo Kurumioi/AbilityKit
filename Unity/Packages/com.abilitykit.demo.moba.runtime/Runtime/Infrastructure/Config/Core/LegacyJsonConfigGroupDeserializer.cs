@@ -6,7 +6,8 @@ using AbilityKit.Demo.Moba.Share.Config;
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// 浼犵粺 JSON 鏍煎紡閰嶇疆缁勫弽搴忓垪鍖栧櫒
+    /// Legacy JSON config group deserializer kept for older demo data.
+    /// New config domains should use explicit config groups and deserializers.
     /// </summary>
     public sealed class LegacyJsonConfigGroupDeserializer : ConfigGroupDeserializerBase
     {

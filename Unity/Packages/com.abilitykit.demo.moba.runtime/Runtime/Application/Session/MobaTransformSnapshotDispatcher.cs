@@ -37,15 +37,14 @@ namespace AbilityKit.Demo.Moba.Session
         /// </summary>
         /// <param name="currentFrame">当前逻辑帧</param>
         /// <param name="callback">表现层快照回调</param>
-        public void TryDispatch(int currentFrame, Action<int, MobaActorTransformSnapshotEntry[]> callback)
+        public void TryDispatch(FrameIndex frame, Action<int, MobaActorTransformSnapshotEntry[]> callback)
         {
             if (_world?.Services?.TryResolve<IMobaBattleOutputPort>(out var output) != true)
             {
                 return;
             }
 
-            FrameIndex frameIndex = new FrameIndex(currentFrame);
-            if (!output.TryGetSnapshot(frameIndex, out WorldStateSnapshot snapshot))
+            if (!output.TryGetSnapshot(frame, out WorldStateSnapshot snapshot))
             {
                 return;
             }
@@ -56,7 +55,7 @@ namespace AbilityKit.Demo.Moba.Session
             }
 
             MobaActorTransformSnapshotEntry[] entries = MobaActorTransformSnapshotCodec.Deserialize(snapshot.Payload);
-            callback?.Invoke(currentFrame, entries);
+            callback?.Invoke(frame.Value, entries);
             Log.Info($"[MobaBattleDriverHost] Transform snapshot: {entries?.Length ?? 0} entities");
         }
     }

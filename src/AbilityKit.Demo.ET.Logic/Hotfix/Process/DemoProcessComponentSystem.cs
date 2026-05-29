@@ -268,7 +268,7 @@ namespace ET.Logic
                 }
 
                 var spawnData = new ETPlayerSpawnData(
-                    actorId: int.Parse(player.PlayerId.Value),
+                    playerId: player.PlayerId.Value,
                     characterId: player.HeroId,
                     characterName: $"Hero_{player.HeroId}",
                     teamId: player.TeamId,

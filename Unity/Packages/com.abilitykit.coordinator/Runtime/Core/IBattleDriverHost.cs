@@ -1,38 +1,56 @@
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Battle Driver Host Interface
-    /// 
-    /// Design:
-    /// - Provides access to battle driver and services
-    /// - Used by sync adapters to interact with battle logic
-    /// - Abstracts the specific BattleDriver implementation
+    /// Generic logic-world driver bridge used by sync adapters.
     /// </summary>
-    public interface IBattleDriverHost
+    public interface ILogicWorldDriverBridge
     {
         /// <summary>
-        /// Current frame number
+        /// Current logic frame number.
         /// </summary>
         int CurrentFrame { get; }
 
         /// <summary>
-        /// Logic time in seconds
+        /// Logic time in seconds.
         /// </summary>
         double LogicTimeSeconds { get; }
 
         /// <summary>
-        /// Is the driver running
+        /// Is the driver running.
         /// </summary>
         bool IsRunning { get; }
 
         /// <summary>
-        /// Submit inputs for processing
+        /// Start the driver lifecycle.
+        /// </summary>
+        void Start();
+
+        /// <summary>
+        /// Stop the driver lifecycle.
+        /// </summary>
+        void Stop();
+
+        /// <summary>
+        /// Submit inputs for processing.
         /// </summary>
         void SubmitInputs(PlayerInput[] inputs);
 
         /// <summary>
-        /// Get all entity states for rendering
+        /// Advance one logic frame.
         /// </summary>
-        EntityState[] GetAllEntityStates();
+        void AdvanceFrame(float deltaTime);
+
+        /// <summary>
+        /// Get all entity states for rendering or state sync.
+        /// </summary>
+        SnapshotEntityState[] GetAllEntityStates();
+    }
+
+    /// <summary>
+    /// Legacy battle driver host interface retained for source compatibility.
+    /// New code should depend on ILogicWorldDriverBridge.
+    /// </summary>
+    public interface IBattleDriverHost : ILogicWorldDriverBridge
+    {
     }
 }

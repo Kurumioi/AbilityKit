@@ -8,6 +8,8 @@ namespace AbilityKit.Demo.Moba.Systems
 {
     public sealed partial class MobaWorldBootstrapModule
     {
+        // Compatibility guard only: new trigger actions should be registered through
+        // PlanActionModuleRegistry and concrete IPlanActionModule implementations.
         private static void RegisterStubActionsFromPlans(TriggerPlanJsonDatabase db, ActionRegistry actions)
         {
             if (db == null || actions == null) return;

@@ -21,7 +21,7 @@ namespace AbilityKit.Coordinator
         private readonly IWorld _world;
         private readonly SessionConfig _config;
         private ISessionCoordinator _coordinator;
-        private IBattleDriverHost _driverHost;
+        private ILogicWorldDriverBridge _driverHost;
 
         private double _renderTime;
         private int _localPlayerId;
@@ -31,7 +31,7 @@ namespace AbilityKit.Coordinator
         private long _playerId;
 
         // Snapshot storage
-        private readonly List<EntityState> _lastSnapshot = new();
+        private readonly List<SnapshotEntityState> _lastSnapshot = new();
 
         // ============== ISyncAdapter Implementation ==============
 
@@ -52,7 +52,7 @@ namespace AbilityKit.Coordinator
         public bool IsConnected => _isConnected;
 
         public event Action<bool> OnConnectionChanged;
-        public event Action<EntityState[]> OnServerSnapshot;
+        public event Action<SnapshotEntityState[]> OnServerSnapshot;
 
         public RemoteSyncAdapter(IWorld world, in SessionConfig config)
         {
@@ -68,13 +68,13 @@ namespace AbilityKit.Coordinator
             _coordinator = coordinator;
         }
 
-        public void Attach(ISessionCoordinator coordinator, IBattleDriverHost driverHost)
+        public void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost)
         {
             _coordinator = coordinator;
             _driverHost = driverHost;
         }
 
-        public void SetDriverHost(IBattleDriverHost driverHost)
+        public void SetDriverHost(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
         }
@@ -121,9 +121,9 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Feed a snapshot from server (called by network handler)
+        /// Feed a snapshot from server (called by network handler).
         /// </summary>
-        public void FeedServerSnapshot(int serverFrame, EntityState[] states)
+        public void FeedServerSnapshot(int serverFrame, SnapshotEntityState[] states)
         {
             _lastSnapshot.Clear();
             if (states != null)
@@ -135,7 +135,7 @@ namespace AbilityKit.Coordinator
             OnFrameSync?.Invoke(serverFrame, 0);
         }
 
-        public EntityState[] GetAllEntityStates()
+        public SnapshotEntityState[] GetAllEntityStates()
         {
             if (_driverHost != null)
             {

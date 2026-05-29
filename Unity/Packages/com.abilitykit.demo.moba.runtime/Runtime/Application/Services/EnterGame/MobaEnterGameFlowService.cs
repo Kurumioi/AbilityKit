@@ -109,7 +109,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: BuildEnterGameActors done (localActorId={built.LocalActorId})");
 
-            _playerActorMap.Bind(req.PlayerId, built.LocalActorId);
+            BindPlayerActors(built.PlayerActors);
 
             var p = built.LocalActorTransform.Position;
             var payload = MobaEnterGamePayloadCodec.Serialize(in p);
@@ -139,6 +139,25 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
             }
             return true;
+        }
+
+        private void BindPlayerActors(MobaPlayerActorEntry[] playerActors)
+        {
+            if (playerActors == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < playerActors.Length; i++)
+            {
+                var entry = playerActors[i];
+                if (entry.ActorId <= 0)
+                {
+                    continue;
+                }
+
+                _playerActorMap.Bind(entry.PlayerId, entry.ActorId);
+            }
         }
 
         public void Dispose()

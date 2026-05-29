@@ -22,16 +22,17 @@ using AbilityKit.Demo.Moba;
 namespace ET.Logic
 {
     /// <summary>
-    /// ET version of moba.core battle driver (Pure Data Component)
+    /// ET battle host component and facade for the MOBA Runtime world.
     ///
     /// Responsibilities:
-    /// - Integrate AbilityKit.Host.Extension framework
-    /// - Manage snapshot dispatching
-    /// - Host World for moba.core services
+    /// - Host the AbilityKit world and ET-side lifecycle state.
+    /// - Route input through handlers and Runtime input ports.
+    /// - Dispatch snapshots and view events back to ET presentation.
     ///
-    /// Architecture:
-    /// - Component: 本文件，存储数据
-    /// - Handlers/: 输入、快照、生命周期处理器（基于 Attribute 自动发现）
+    /// Boundary:
+    /// - Keep combat rules in MOBA Runtime services/systems.
+    /// - Keep ET glue in handlers, coordinators, and world modules.
+    /// - Do not expand this component as a direct rules implementation surface.
     /// </summary>
     [ComponentOf(typeof(Scene))]
     public class ETMobaBattleDriver : Entity, IAwake, IUpdate, IDestroy, IBattleDriver
@@ -101,11 +102,6 @@ namespace ET.Logic
         // ============== Handler Collections ==============
 
         /// <summary>
-        /// 输入处理器列表
-        /// </summary>
-        public List<IInputHandler> InputHandlers { get; set; } = new List<IInputHandler>();
-
-        /// <summary>
         /// 快照处理器列表
         /// </summary>
         public List<ISnapshotHandler> SnapshotHandlers { get; set; } = new List<ISnapshotHandler>();
@@ -161,7 +157,6 @@ namespace ET.Logic
             ETBattleLifecycleDispatcher.Destroy(this);
 
             // 清理处理器
-            InputHandlers?.Clear();
             SnapshotHandlers?.Clear();
             LifecycleHandlers?.Clear();
         }
@@ -169,28 +164,6 @@ namespace ET.Logic
         public void Tick(float deltaTime)
         {
             ETBattleLifecycleDispatcher.Tick(this, deltaTime);
-        }
-
-        // ============== Input Submission ==============
-
-        public void SubmitInputs(int frame, IReadOnlyList<PlayerInputCommand> inputs)
-        {
-            ETBattleInputRouter.SubmitInputs(this, frame, inputs);
-        }
-
-        public void SubmitMoveInput(int actorId, float targetX, float targetZ)
-        {
-            ETBattleInputRouter.SubmitMoveInput(this, actorId, targetX, targetZ);
-        }
-
-        public bool SubmitSkillInput(int actorId, int slot, float targetX, float targetZ)
-        {
-            return ETBattleInputRouter.SubmitSkillInput(this, actorId, slot, targetX, targetZ);
-        }
-
-        public void SubmitStopInput(int actorId)
-        {
-            ETBattleInputRouter.SubmitStopInput(this, actorId);
         }
 
         // ============== Snapshot Handling ==============
@@ -206,7 +179,10 @@ namespace ET.Logic
             }
         }
 
-        // ============== IBattleDriver Interface Implementation ==============
+        // ============== IBattleDriver Compatibility Surface ==============
+        // These members keep the legacy demo-facing IBattleDriver contract alive.
+        // New battle logic should go through Runtime ports/services instead of
+        // adding direct rule implementations here.
 
         public void CreateActor(int actorId, int characterId, int teamId, float x, float y, float z) { }
         public ActorTransformData? GetActorTransform(int actorId) => null;
@@ -264,9 +240,8 @@ namespace ET.Logic
             }
 
             ETBattleEnterGameCoordinator.Trigger(this);
-            // Note: OnBattleStart is called by StartBattle in DemoProcessComponentSystem
-
-            ETBattleAutoTestInitializer.Initialize(this);
+            // Note: OnBattleStart is called by StartBattle in DemoProcessComponentSystem.
+            // Demo test fixtures must be enabled by the demo/test entry, not by the formal battle driver.
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
@@ -20,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         private readonly Dictionary<int, int> _seenStampByActorId = new Dictionary<int, int>(128);
         private readonly List<int> _tmpRemoveActorIds = new List<int>(64);
         private int _stamp;
+        private int _sampleLogCount;
 
         public MobaMotionLocomotionInputSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -73,6 +75,12 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 }
 
                 loco.SetInput(e.moveInput.Dx, e.moveInput.Dz);
+
+                _sampleLogCount++;
+                if (_sampleLogCount <= 5 || _sampleLogCount % 60 == 0)
+                {
+                    Log.Info($"[MobaMotionLocomotionInputSystem] ActorId={actorId}, MoveInput=({e.moveInput.Dx:F3},{e.moveInput.Dz:F3}), Speed={speed:F3}, Dt={_clock.DeltaTime:F4}, Count={_sampleLogCount}");
+                }
 
                 e.ReplaceMotion(
                     newPipeline: m.Pipeline,

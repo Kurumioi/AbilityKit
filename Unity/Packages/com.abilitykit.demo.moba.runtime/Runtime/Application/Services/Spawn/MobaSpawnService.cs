@@ -12,20 +12,20 @@ using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public interface ILogicWorldSpawnService : IService
+    {
+        bool CreateLogicWorldSpawns(LogicWorldSpawnData[] spawns);
+    }
+
     /// <summary>
-    /// MOBA spawn service implementation
-    ///
-    /// Implements ISpawnService from Coordinator package
-    /// Bridges SessionCoordinator player spawn requests to moba.core entity creation
-    ///
-    /// Design:
-    /// - Uses SpawnDataConverter for data transformation
-    /// - Uses MobaEnterGameFlowService for actual entity creation
-    /// - Publishes spawn events for view synchronization
+    /// Logic-world spawn service implementation.
+    /// Coordinator hosts can still reach it through ISpawnService, while server/headless hosts
+    /// can use ILogicWorldSpawnService without depending on coordinator DTOs.
     /// </summary>
     [WorldService(typeof(MobaSpawnService))]
+    [WorldService(typeof(ILogicWorldSpawnService))]
     [WorldService(typeof(ISpawnService))]
-    public sealed class MobaSpawnService : ISpawnService
+    public sealed class MobaSpawnService : ILogicWorldSpawnService, ISpawnService
     {
         private readonly MobaEnterGameFlowService _enterGameFlow;
         private readonly MobaActorRegistry _registry;
@@ -50,6 +50,11 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public bool CreateSpawns(PlayerSpawnData[] spawns)
+        {
+            return CreateLogicWorldSpawns(ToLogicWorldSpawns(spawns));
+        }
+
+        public bool CreateLogicWorldSpawns(LogicWorldSpawnData[] spawns)
         {
             if (spawns == null || spawns.Length == 0)
             {
@@ -96,9 +101,33 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaSpawnService] CreateSpawns failed");
+                Log.Exception(ex, "[MobaSpawnService] CreateLogicWorldSpawns failed");
                 return false;
             }
+        }
+
+        private static LogicWorldSpawnData[] ToLogicWorldSpawns(PlayerSpawnData[] spawns)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<LogicWorldSpawnData>();
+            }
+
+            var logicWorldSpawns = new LogicWorldSpawnData[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                var spawn = spawns[i];
+                logicWorldSpawns[i] = new LogicWorldSpawnData(
+                    spawn.PlayerId,
+                    spawn.CharacterId,
+                    spawn.TeamId,
+                    spawn.X,
+                    spawn.Y,
+                    spawn.Z,
+                    spawn.Name);
+            }
+
+            return logicWorldSpawns;
         }
 
         public void Dispose()

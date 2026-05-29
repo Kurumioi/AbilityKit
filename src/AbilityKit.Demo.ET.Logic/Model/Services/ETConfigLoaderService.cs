@@ -130,76 +130,6 @@ namespace ET.Logic
             return AttributeTemplates.TryGetValue(id, out template);
         }
 
-        /// <summary>
-        /// 根据角色配置和属性模板构建 ActorSpawnData 列表
-        /// </summary>
-        public List<ActorSpawnData> BuildActorSpawns(List<ETPlayerSpawnData> players)
-        {
-            var spawns = new List<ActorSpawnData>();
-            int nextEntityCode = 1;
-
-            foreach (var player in players)
-            {
-                int actorId = player.ActorId;
-                int entityCode = nextEntityCode++;
-                float hp = player.Hp > 0 ? player.Hp : 200f;
-                float maxHp = player.MaxHp > 0 ? player.MaxHp : hp;
-
-                spawns.Add(new ActorSpawnData(
-                    actorId,
-                    entityCode,
-                    player.CharacterId,
-                    player.CharacterName,
-                    player.PositionX,
-                    player.PositionY,
-                    player.PositionZ,
-                    player.RotationY,
-                    player.Scale > 0 ? player.Scale : 1f,
-                    player.TeamId,
-                    hp,
-                    maxHp,
-                    player.PlayerId));
-
-                Log.Info($"[ETConfigLoaderService] Built spawn: ActorId={actorId}, PlayerId={player.PlayerId}, EntityCode={entityCode}, Character={player.CharacterName}, Team={player.TeamId}");
-            }
-
-            return spawns;
-        }
-
-        /// <summary>
-        /// 添加默认生成数据
-        /// </summary>
-        public List<ActorSpawnData> CreateDefaultSpawns(int playerActorId = 1, string playerId = null)
-        {
-            var spawns = new List<ActorSpawnData>();
-            int nextEntityCode = 1;
-
-            // 使用 DeterministicHash 计算 ActorId
-            int playerActorIdHashed = DeterministicHash.StringToActorId(playerActorId.ToString());
-            // 默认使用 actorId 作为 PlayerId
-            string playerIdStr = playerId ?? playerActorId.ToString();
-
-            // Player character
-            spawns.Add(new ActorSpawnData(
-                playerActorIdHashed, nextEntityCode++, 1001, "Hero_001",
-                0f, 0f, 0f, 0f, 1f,
-                1, 200f, 200f,
-                playerIdStr));
-
-            // Default minions
-            for (int i = 1; i <= 2; i++)
-            {
-                int minionActorId = DeterministicHash.StringToActorId((2000 + i).ToString());
-                spawns.Add(new ActorSpawnData(
-                    minionActorId, nextEntityCode++, 2001, $"Enemy_Minion_{i}",
-                    10f, 0f, i * 5f, 0f, 1f,
-                    2, 80f, 80f));
-            }
-
-            Log.Info($"[ETConfigLoaderService] Created {spawns.Count} default spawns");
-
-            return spawns;
-        }
     }
 
     /// <summary>
@@ -233,20 +163,15 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// 玩家生成数据
-    /// 用于传递玩家信息到 BattleDriver 创建实体
+    /// ET-side player spawn request data.
+    /// Runtime ActorId is allocated by the Runtime enter-game flow, never by ET.Logic.
     /// </summary>
     public class ETPlayerSpawnData
     {
         /// <summary>
-        /// 玩家 ID（字符串，用于生成确定性 ActorId）
+        /// Player identity used by room, input, and Runtime player-to-actor mapping.
         /// </summary>
         public string PlayerId { get; set; }
-
-        /// <summary>
-        /// 运行时 ActorId（通过 DeterministicHash 从 PlayerId 计算）
-        /// </summary>
-        public int ActorId { get; set; }
 
         public int CharacterId { get; set; }
         public string CharacterName { get; set; }
@@ -262,52 +187,21 @@ namespace ET.Logic
         public ETPlayerSpawnData()
         {
             PlayerId = string.Empty;
+            CharacterName = string.Empty;
         }
 
         public ETPlayerSpawnData(string playerId, int characterId, string characterName, int teamId,
             float x, float y, float z)
+            : this(playerId, characterId, characterName, teamId, x, y, z, 0f, 1f, 500f, 500f)
         {
-            PlayerId = playerId;
-            ActorId = DeterministicHash.StringToActorId(playerId);
-            CharacterId = characterId;
-            CharacterName = characterName;
-            TeamId = teamId;
-            PositionX = x;
-            PositionY = y;
-            PositionZ = z;
-            RotationY = 0f;
-            Scale = 1f;
-            Hp = 500f;
-            MaxHp = 500f;
         }
 
-        /// <summary>
-        /// 构造函数（兼容旧代码，使用 actorId 直接赋值）
-        /// </summary>
-        public ETPlayerSpawnData(int actorId, int characterId, string characterName, int teamId,
-            float x, float y, float z)
-        {
-            PlayerId = actorId.ToString();
-            ActorId = actorId;
-            CharacterId = characterId;
-            CharacterName = characterName;
-            TeamId = teamId;
-            PositionX = x;
-            PositionY = y;
-            PositionZ = z;
-            RotationY = 0f;
-            Scale = 1f;
-            Hp = 500f;
-            MaxHp = 500f;
-        }
-
-        public ETPlayerSpawnData(int actorId, int characterId, string characterName, int teamId,
+        public ETPlayerSpawnData(string playerId, int characterId, string characterName, int teamId,
             float x, float y, float z, float rotY, float scale, float hp, float maxHp)
         {
-            PlayerId = actorId.ToString();
-            ActorId = actorId;
+            PlayerId = playerId ?? string.Empty;
             CharacterId = characterId;
-            CharacterName = characterName;
+            CharacterName = characterName ?? string.Empty;
             TeamId = teamId;
             PositionX = x;
             PositionY = y;

@@ -82,7 +82,7 @@ namespace ET.Logic
         {
             self.BattleId = IdGenerater.Instance.GenerateId();
             self.PlayerId = plan.PlayerId;
-            self.PlayerActorId = plan.PlayerId;
+            self.PlayerActorId = 0;
             self.State = BattleState.Loading;
 
             Log.Info($"[ETBattle] Initializing battle {self.BattleId} for player {self.PlayerId}...");
@@ -243,25 +243,5 @@ namespace ET.Logic
         }
 
         #endregion
-
-        #region Input
-
-        /// <summary>
-        /// Submit move input
-        /// </summary>
-        public static void SubmitMoveInput(this ETBattleComponent self, long actorId, float targetX, float targetZ)
-        {
-            ETBattleDriverBridge.SubmitMoveInput(self, actorId, targetX, targetZ);
-        }
-
-        /// <summary>
-        /// Submit skill input
-        /// </summary>
-        public static void SubmitSkillInput(this ETBattleComponent self, long actorId, int slot, float targetX, float targetZ)
-        {
-            ETBattleDriverBridge.SubmitSkillInput(self, actorId, slot, targetX, targetZ);
-        }
-
-        #endregion
-    }
+}
 }

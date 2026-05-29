@@ -19,7 +19,7 @@ namespace ET.Logic
 
         public void Handle(ETMobaBattleDriver driver, in FrameSnapshotData snapshot)
         {
-            Log.Debug($"[TransformSnapshotHandler] Frame={snapshot.FrameIndex}, Count={snapshot.ActorTransforms?.Count ?? 0}");
+            Log.Info($"[TransformSnapshotHandler] Frame={snapshot.FrameIndex}, Count={snapshot.ActorTransforms?.Count ?? 0}");
 
             driver.ViewSink?.OnActorTransformSnapshot(in snapshot);
         }

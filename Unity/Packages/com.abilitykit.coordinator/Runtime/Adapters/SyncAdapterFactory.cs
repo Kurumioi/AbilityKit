@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Coordinator.Core;
@@ -13,31 +14,75 @@ namespace AbilityKit.Coordinator
     /// - Centralized adapter instantiation logic
     /// - Returns strongly typed interfaces for mode-specific behavior
     /// </summary>
-    public static class SyncAdapterFactory
+    public delegate ISyncAdapter SyncAdapterCreator(IWorld world, in SessionConfig config);
+
+    public interface ISyncAdapterFactory
     {
-        /// <summary>
-        /// Create a sync adapter based on sync mode
-        /// </summary>
-        public static ISyncAdapter Create(IWorld world, in SessionConfig config)
+        ISyncAdapter Create(IWorld world, in SessionConfig config);
+    }
+
+    public sealed class DefaultSyncAdapterFactory : ISyncAdapterFactory
+    {
+        private readonly Dictionary<Core.SyncMode, SyncAdapterCreator> _creators = new Dictionary<Core.SyncMode, SyncAdapterCreator>();
+
+        public DefaultSyncAdapterFactory()
+        {
+            Register(Core.SyncMode.Lockstep, (IWorld world, in SessionConfig config) => new LocalSyncAdapter(world, config));
+            Register(Core.SyncMode.SnapshotAuthority, (IWorld world, in SessionConfig config) => new RemoteSyncAdapter(world, config));
+            Register(Core.SyncMode.StateSync, (IWorld world, in SessionConfig config) => new RemoteSyncAdapter(world, config));
+            Register(Core.SyncMode.Hybrid, (IWorld world, in SessionConfig config) => new HybridSyncAdapter(world, config));
+        }
+
+        public DefaultSyncAdapterFactory Register(Core.SyncMode mode, SyncAdapterCreator creator)
+        {
+            if (creator == null)
+            {
+                throw new ArgumentNullException(nameof(creator));
+            }
+
+            _creators[mode] = creator;
+            return this;
+        }
+
+        public ISyncAdapter Create(IWorld world, in SessionConfig config)
         {
             if (world == null)
             {
                 throw new ArgumentNullException(nameof(world), "World cannot be null");
             }
 
-            if (config.HostMode == HostMode.Local)
+            var mode = config.HostMode == HostMode.Local ? Core.SyncMode.Lockstep : config.SyncMode;
+            if (_creators.TryGetValue(mode, out var creator))
             {
-                return CreateLocalSyncAdapter(world, config);
+                return creator(world, in config);
             }
 
-            return config.SyncMode switch
-            {
-                Core.SyncMode.Lockstep => CreateLocalSyncAdapter(world, config),
-                Core.SyncMode.SnapshotAuthority => CreateRemoteSyncAdapter(world, config),
-                Core.SyncMode.StateSync => CreateRemoteSyncAdapter(world, config),
-                Core.SyncMode.Hybrid => CreateHybridSyncAdapter(world, config),
-                _ => CreateLocalSyncAdapter(world, config)
-            };
+            return new LocalSyncAdapter(world, config);
+        }
+    }
+
+    public static class SyncAdapterFactory
+    {
+        private static ISyncAdapterFactory _defaultFactory = new DefaultSyncAdapterFactory();
+
+        public static ISyncAdapterFactory DefaultFactory => _defaultFactory;
+
+        public static void SetDefaultFactory(ISyncAdapterFactory factory)
+        {
+            _defaultFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+        }
+
+        public static void ResetDefaultFactory()
+        {
+            _defaultFactory = new DefaultSyncAdapterFactory();
+        }
+
+        /// <summary>
+        /// Create a sync adapter based on sync mode.
+        /// </summary>
+        public static ISyncAdapter Create(IWorld world, in SessionConfig config)
+        {
+            return _defaultFactory.Create(world, in config);
         }
 
         /// <summary>

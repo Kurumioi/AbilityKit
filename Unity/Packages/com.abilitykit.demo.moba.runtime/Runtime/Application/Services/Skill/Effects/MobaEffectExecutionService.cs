@@ -232,7 +232,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: register debug_log action failed");
             }
 
-            // Register stubs first (skip named-args actions since real modules will register them)
+            // Compatibility guard: stubs are registered before real modules so older positional
+            // actions can survive migration. New actions must use PlanActionModuleRegistry.
             try
             {
                 RegisterStubActionsFromPlans(_planDb, _planActions);
@@ -268,6 +269,8 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
+        // Compatibility repair for worlds initialized before all action modules are ready.
+        // Keep this path defensive; do not use it as the normal extension point.
         private void TryRepairMissingActions()
         {
             if (_planDb == null || _planActions == null) return;
@@ -304,6 +307,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        // Compatibility repair for a single legacy plan loaded without complete registrations.
         private void TryRepairMissingActions(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan)
         {
             if (_planActions == null) return;

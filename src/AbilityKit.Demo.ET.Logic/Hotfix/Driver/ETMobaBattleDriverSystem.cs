@@ -17,9 +17,8 @@ namespace ET.Logic
         [EntitySystem]
         private static void Awake(this ETMobaBattleDriver self)
         {
-            // 注册所有处理器
             HandlerRegistry.RegisterAll(self);
-            Log.Info($"[ETMobaBattleDriverSystem] Awake: InputHandlers={self.InputHandlers?.Count ?? 0}, SnapshotHandlers={self.SnapshotHandlers?.Count ?? 0}, LifecycleHandlers={self.LifecycleHandlers?.Count ?? 0}");
+            Log.Info($"[ETMobaBattleDriverSystem] Awake: SnapshotHandlers={self.SnapshotHandlers?.Count ?? 0}, LifecycleHandlers={self.LifecycleHandlers?.Count ?? 0}");
         }
 
         [EntitySystem]

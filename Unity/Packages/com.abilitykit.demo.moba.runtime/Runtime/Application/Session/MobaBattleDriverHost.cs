@@ -11,9 +11,22 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Session
 {
+    public interface ILogicWorldDriverHost : IFrameDriver
+    {
+        double LogicTimeSeconds { get; }
+        bool IsRunning { get; }
+        void BindLogicWorld(IWorld world, HostRuntime hostRuntime);
+        void Start();
+        void Stop();
+        void SubmitCommands(IReadOnlyList<PlayerInputCommand> commands);
+        LogicWorldEntityState[] GetLogicWorldEntityStates();
+        bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
+        int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
+    }
+
     /// <summary>
-    /// MOBA 战斗驱动 Host（跨平台复用）
-    /// 将 Coordinator 输入提交到 moba.core 逻辑世界
+    /// MOBA 逻辑世界驱动 Host（跨平台复用）
+    /// 将外部输入提交到 moba.core 逻辑世界
     ///
     /// 设计原则（单一入口）：
     /// - 只通过战斗逻辑层端口与 moba.core 交互
@@ -21,16 +34,15 @@ namespace AbilityKit.Demo.Moba.Session
     /// - 输出：通过 IMobaBattleOutputPort 获取快照
     /// - 禁止直接访问 MobaEntityManager 或实体
     /// </summary>
-    public sealed class MobaBattleDriverHost : IBattleDriverHost
+    public sealed class MobaBattleDriverHost : ILogicWorldDriverHost, IBattleDriverHost
     {
         private IWorld _world;
         private HostRuntime _hostRuntime;
-        private ISessionCoordinator _coordinator;
         private IMobaBattleInputPort _input;
         private IMobaBattleOutputPort _output;
         private MobaPlayerInputCommandConverter _inputConverter;
         private MobaTransformSnapshotDispatcher _transformSnapshots;
-        private int _currentFrame;
+        private FrameIndex _currentFrame;
         private double _logicTimeSeconds;
         private bool _isRunning;
 
@@ -39,11 +51,15 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void Bind(IWorld world, HostRuntime hostRuntime, ISessionCoordinator coordinator)
         {
+            BindLogicWorld(world, hostRuntime);
+        }
+
+        public void BindLogicWorld(IWorld world, HostRuntime hostRuntime)
+        {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _hostRuntime = hostRuntime;
-            _coordinator = coordinator;
 
-            // 获取战斗逻辑层 IO 端口，外部模块不直接依赖内部输入/快照服务。
+            // 获取逻辑世界 IO 端口，外部模块不直接依赖内部输入/快照服务。
             if (_world?.Services != null)
             {
                 _world.Services.TryResolve(out _input);
@@ -53,7 +69,6 @@ namespace AbilityKit.Demo.Moba.Session
             _inputConverter = new MobaPlayerInputCommandConverter();
             _transformSnapshots = new MobaTransformSnapshotDispatcher(_world);
 
-            // 订阅快照事件（通过 HostRuntime 的事件机制）
             SubscribeToSnapshots();
         }
 
@@ -87,7 +102,9 @@ namespace AbilityKit.Demo.Moba.Session
             // 实际位置同步通过快照事件机制
         }
 
-        public int CurrentFrame => _currentFrame;
+        public int CurrentFrame => _currentFrame.Value;
+
+        public FrameIndex Frame => _currentFrame;
 
         public double LogicTimeSeconds => _logicTimeSeconds;
 
@@ -96,7 +113,7 @@ namespace AbilityKit.Demo.Moba.Session
         public void Start()
         {
             _isRunning = true;
-            _currentFrame = 0;
+            _currentFrame = new FrameIndex(0);
             _logicTimeSeconds = 0;
             Log.Info("[MobaBattleDriverHost] Started");
         }
@@ -117,34 +134,67 @@ namespace AbilityKit.Demo.Moba.Session
             Log.Info($"[MobaBattleDriverHost] SubmitInputs: {inputs.Length} inputs");
 
             var commands = _inputConverter.Convert(inputs);
-
-            // 通过战斗逻辑层输入端口提交，隔离具体输入处理服务。
-            _input.Submit(new FrameIndex(_currentFrame), commands);
+            SubmitCommands(commands);
         }
 
-        public EntityState[] GetAllEntityStates()
+        public void SubmitCommands(IReadOnlyList<PlayerInputCommand> commands)
         {
-            return _output?.GetAllEntityStates() ?? Array.Empty<EntityState>();
+            if (!_isRunning || commands == null || commands.Count == 0 || _input == null)
+            {
+                return;
+            }
+
+            _input.Submit(_currentFrame, commands);
+        }
+
+        public SnapshotEntityState[] GetAllEntityStates()
+        {
+            return MobaPlayerInputCommandConverter.ToCoordinatorStates(GetLogicWorldEntityStates());
+        }
+
+        public LogicWorldEntityState[] GetLogicWorldEntityStates()
+        {
+            return _output?.GetAllEntityStates() ?? Array.Empty<LogicWorldEntityState>();
+        }
+
+        public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
+        {
+            if (_output == null)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            return _output.TryGetSnapshot(frame, out snapshot);
+        }
+
+        public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
+        {
+            if (_output == null || snapshots == null)
+            {
+                return 0;
+            }
+
+            return _output.CollectSnapshots(frame, snapshots, maxSnapshots);
         }
 
         public void AdvanceFrame(float deltaTime)
+        {
+            Step(deltaTime);
+        }
+
+        public void Step(float deltaTime)
         {
             if (!_isRunning)
             {
                 return;
             }
 
-            _currentFrame++;
+            _currentFrame = new FrameIndex(_currentFrame.Value + 1);
             _logicTimeSeconds += deltaTime;
 
             // 驱动 moba.core Tick
             _hostRuntime?.Tick(deltaTime);
-
-            // 通过 Coordinator 协调
-            if (_coordinator is SessionCoordinator sessionCoordinator)
-            {
-                sessionCoordinator.Tick(deltaTime);
-            }
 
             // 从战斗逻辑层输出端口获取位置快照。
             TryGetTransformSnapshot();

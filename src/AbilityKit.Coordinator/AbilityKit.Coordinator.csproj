@@ -19,6 +19,11 @@
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol\AbilityKit.Protocol.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.0" />
   </ItemGroup>
 
 </Project>

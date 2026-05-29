@@ -25,19 +25,14 @@ namespace ET.Logic
                 return;
             }
 
-            if (driver.PlayerSpawnData.Count == 0)
-            {
-                return;
-            }
-
-            var localPlayer = driver.PlayerSpawnData[0];
-            var unit = ETUnitComponentSystem.GetUnit(unitComponent, localPlayer.ActorId);
+            var unit = unitComponent.GetLocalPlayerUnit() ?? unitComponent.GetFirstUnit();
             if (unit == null)
             {
                 return;
             }
 
-            autoTest.Initialize(localPlayer.ActorId, localPlayer.PlayerId, unit.X, unit.Y);
+            var playerId = driver.PlayerSpawnData.Count > 0 ? driver.PlayerSpawnData[0].PlayerId : string.Empty;
+            autoTest.Initialize(unit.LogicActorId, playerId, unit.X, unit.Y);
         }
     }
 }

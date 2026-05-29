@@ -33,7 +33,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             MobaInputCommandHandlerRegistry registry = new MobaInputCommandHandlerRegistry();
             MarkerScanner<MobaInputCommandHandlerAttribute>.ScanAll(registry);
+            registry.RegisterBuiltInHandlers();
             return registry;
+        }
+
+        private void RegisterBuiltInHandlers()
+        {
+            Register((int)MobaOpCode.Move, typeof(MobaMoveInputCommandHandler));
+            Register((int)MobaOpCode.SkillInput, typeof(MobaSkillInputCommandHandler));
         }
 
         /// <summary>

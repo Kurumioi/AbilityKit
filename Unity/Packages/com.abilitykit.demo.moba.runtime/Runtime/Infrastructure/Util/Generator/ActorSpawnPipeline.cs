@@ -137,6 +137,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
             if (specs == null || specs.Length != loadouts.Length) throw new InvalidOperationException("specs must match loadouts");
 
             var players = new MobaPlayerEntry[loadouts.Length];
+            var playerActors = new MobaPlayerActorEntry[loadouts.Length];
             var localActorId = 0;
             var localTransform = Transform3.Identity;
 
@@ -152,6 +153,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
                     onActorBuilt: (entity, buildSpec) => onActorBuilt?.Invoke(entity, loadout));
 
                 players[i] = new MobaPlayerEntry(loadout.PlayerId, loadout.TeamId, loadout.HeroId, loadout.SpawnIndex);
+                playerActors[i] = new MobaPlayerActorEntry(loadout.PlayerId, built.Spec.Info.ActorId);
 
                 if (localActorId == 0 && loadout.PlayerId.Equals(localPlayerId))
                 {
@@ -165,7 +167,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
                 throw new InvalidOperationException($"localPlayerId not found in loadouts. playerId={localPlayerId.Value}");
             }
 
-            return new BuildActorsResult(localActorId: localActorId, players: players, localActorTransform: localTransform);
+            return new BuildActorsResult(localActorId: localActorId, players: players, playerActors: playerActors, localActorTransform: localTransform);
         }
 
         public static BuildActorsResult BuildActorsFromEnterGameReqAndInitialize(
@@ -238,16 +240,30 @@ namespace AbilityKit.Demo.Moba.Util.Generator
         }
     }
 
+    public readonly struct MobaPlayerActorEntry
+    {
+        public readonly PlayerId PlayerId;
+        public readonly int ActorId;
+
+        public MobaPlayerActorEntry(PlayerId playerId, int actorId)
+        {
+            PlayerId = playerId;
+            ActorId = actorId;
+        }
+    }
+
     public readonly struct BuildActorsResult
     {
         public readonly int LocalActorId;
         public readonly MobaPlayerEntry[] Players;
+        public readonly MobaPlayerActorEntry[] PlayerActors;
         public readonly Transform3 LocalActorTransform;
 
-        public BuildActorsResult(int localActorId, MobaPlayerEntry[] players, in Transform3 localActorTransform)
+        public BuildActorsResult(int localActorId, MobaPlayerEntry[] players, MobaPlayerActorEntry[] playerActors, in Transform3 localActorTransform)
         {
             LocalActorId = localActorId;
             Players = players;
+            PlayerActors = playerActors;
             LocalActorTransform = localActorTransform;
         }
     }

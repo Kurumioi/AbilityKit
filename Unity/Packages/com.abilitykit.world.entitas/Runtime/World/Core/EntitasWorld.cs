@@ -110,14 +110,14 @@ namespace AbilityKit.Ability.World
         {
             if (!_initialized) return;
 
-            Systems.Execute();
-            Systems.Cleanup();
-
             if (_clock == null)
             {
                 _clock = _scope?.Resolve<IWorldClock>();
             }
             _clock?.Tick(deltaTime);
+
+            Systems.Execute();
+            Systems.Cleanup();
         }
 
         /// <summary>

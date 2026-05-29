@@ -67,10 +67,20 @@ namespace AbilityKit.Coordinator
         /// <summary>
         /// Set the battle driver host
         /// </summary>
+        void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost);
+
+        /// <summary>
+        /// Set the legacy battle driver host.
+        /// </summary>
         void SetDriverHost(IBattleDriverHost driverHost);
 
         /// <summary>
         /// Get the battle driver host
+        /// </summary>
+        ILogicWorldDriverBridge? LogicWorldDriver { get; }
+
+        /// <summary>
+        /// Get the legacy battle driver host when available.
         /// </summary>
         IBattleDriverHost? DriverHost { get; }
 

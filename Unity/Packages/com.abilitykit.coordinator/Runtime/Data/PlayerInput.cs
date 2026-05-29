@@ -1,29 +1,30 @@
 using System;
+using MemoryPack;
 
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Player input command
+    /// Player input command.
     /// </summary>
     public struct PlayerInput
     {
         /// <summary>
-        /// Input frame
+        /// Input frame.
         /// </summary>
         public int Frame;
 
         /// <summary>
-        /// Player identifier
+        /// Player identifier.
         /// </summary>
         public int PlayerId;
 
         /// <summary>
-        /// Operation code
+        /// Operation code.
         /// </summary>
         public int OpCode;
 
         /// <summary>
-        /// Serialized payload data
+        /// Serialized payload data.
         /// </summary>
         public byte[] Payload;
 
@@ -35,35 +36,55 @@ namespace AbilityKit.Coordinator
             Payload = payload;
         }
 
+        public static PlayerInput Create<TPayload>(int frame, int playerId, in TPayload payload)
+        {
+            var opCode = CoordinatorPayloadCodec.GetOpCode<TPayload>();
+            return Create(frame, playerId, opCode, in payload);
+        }
+
+        public static PlayerInput Create<TPayload>(int frame, int playerId, int opCode, in TPayload payload)
+        {
+            return new PlayerInput(frame, playerId, opCode, CoordinatorPayloadCodec.Encode(in payload));
+        }
+
         public static PlayerInput CreateMove(int frame, int playerId, float x, float z)
         {
-            var payload = new byte[sizeof(float) * 2];
-            BitConverter.GetBytes(x).CopyTo(payload, 0);
-            BitConverter.GetBytes(z).CopyTo(payload, sizeof(float));
-            return new PlayerInput(frame, playerId, InputOpCodes.Move, payload);
+            var payload = new MoveInputPayload(x, z);
+            return Create(frame, playerId, in payload);
         }
 
         public static PlayerInput CreateSkill(int frame, int playerId, int slot, float x, float z)
         {
-            var payload = new byte[sizeof(int) + sizeof(float) * 2];
-            BitConverter.GetBytes(slot).CopyTo(payload, 0);
-            BitConverter.GetBytes(x).CopyTo(payload, sizeof(int));
-            BitConverter.GetBytes(z).CopyTo(payload, sizeof(int) + sizeof(float));
-            return new PlayerInput(frame, playerId, InputOpCodes.Skill, payload);
+            var payload = new SkillInputPayload(slot, x, z);
+            return Create(frame, playerId, in payload);
         }
 
         public static PlayerInput CreateStop(int frame, int playerId)
         {
-            return new PlayerInput(frame, playerId, InputOpCodes.Stop, null);
+            return new PlayerInput(frame, playerId, InputOpCodes.Stop, Array.Empty<byte>());
+        }
+
+        public bool TryGetPayload<TPayload>(out TPayload payload)
+        {
+            payload = default;
+            if (CoordinatorPayloadCodec.TryGetOpCode<TPayload>(out var opCode) && OpCode != opCode)
+            {
+                return false;
+            }
+
+            return CoordinatorPayloadCodec.TryDecode(Payload, out payload);
         }
 
         public bool TryGetMoveTarget(out float x, out float z)
         {
             x = z = 0;
-            if (OpCode != InputOpCodes.Move || Payload == null || Payload.Length < sizeof(float) * 2)
+            if (!TryGetPayload<MoveInputPayload>(out var payload))
+            {
                 return false;
-            x = BitConverter.ToSingle(Payload, 0);
-            z = BitConverter.ToSingle(Payload, sizeof(float));
+            }
+
+            x = payload.X;
+            z = payload.Z;
             return true;
         }
 
@@ -71,17 +92,50 @@ namespace AbilityKit.Coordinator
         {
             slot = 0;
             x = z = 0;
-            if (OpCode != InputOpCodes.Skill || Payload == null || Payload.Length < sizeof(int) + sizeof(float) * 2)
+            if (!TryGetPayload<SkillInputPayload>(out var payload))
+            {
                 return false;
-            slot = BitConverter.ToInt32(Payload, 0);
-            x = BitConverter.ToSingle(Payload, sizeof(int));
-            z = BitConverter.ToSingle(Payload, sizeof(int) + sizeof(float));
+            }
+
+            slot = payload.Slot;
+            x = payload.X;
+            z = payload.Z;
             return true;
         }
     }
 
+    [MemoryPackable]
+    [CoordinatorPayload(InputOpCodes.Move)]
+    public readonly partial struct MoveInputPayload
+    {
+        [MemoryPackOrder(0)] public readonly float X;
+        [MemoryPackOrder(1)] public readonly float Z;
+
+        public MoveInputPayload(float x, float z)
+        {
+            X = x;
+            Z = z;
+        }
+    }
+
+    [MemoryPackable]
+    [CoordinatorPayload(InputOpCodes.Skill)]
+    public readonly partial struct SkillInputPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Slot;
+        [MemoryPackOrder(1)] public readonly float X;
+        [MemoryPackOrder(2)] public readonly float Z;
+
+        public SkillInputPayload(int slot, float x, float z)
+        {
+            Slot = slot;
+            X = x;
+            Z = z;
+        }
+    }
+
     /// <summary>
-    /// Standard input operation codes
+    /// Standard input operation codes.
     /// </summary>
     public static class InputOpCodes
     {

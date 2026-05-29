@@ -111,9 +111,9 @@ namespace ET.Logic
         // ============== 快照数据 ==============
 
         /// <summary>
-        /// 变换快照列表（由 CollectSnapshotPhase 填充）
+        /// 当前帧从 Runtime 输出端口收集到的共享快照。
         /// </summary>
-        public List<ActorTransformData> TransformSnapshots { get; } = new List<ActorTransformData>();
+        public List<FrameSnapshotData> FrameSnapshots { get; } = new List<FrameSnapshotData>();
 
         /// <summary>
         /// 是否已分发快照

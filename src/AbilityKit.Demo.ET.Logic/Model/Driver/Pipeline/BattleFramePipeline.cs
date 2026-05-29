@@ -89,7 +89,7 @@ namespace ET.Logic
             driver.CurrentFrame = context.CurrentFrame;
             driver.LogicTimeSeconds = context.LogicTimeSeconds;
 
-            Log.Debug($"[BattleFramePipeline] Tick completed: Frame={driver.CurrentFrame}, TransformSnapshots.Count={context.TransformSnapshots.Count}");
+            Log.Debug($"[BattleFramePipeline] Tick completed: Frame={driver.CurrentFrame}, FrameSnapshots.Count={context.FrameSnapshots.Count}");
 
             // 释放上下文
             ReleaseContext(context);

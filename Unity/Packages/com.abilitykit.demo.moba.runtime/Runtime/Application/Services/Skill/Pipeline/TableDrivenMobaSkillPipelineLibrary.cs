@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Pipeline;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -21,15 +22,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaConfigDatabase _configs;
         private readonly MobaEffectInvokerService _effects;
         private readonly SkillConditionRegistry _conditionRegistry;
+        private readonly IGameplayTagService _tags;
 
         public TableDrivenMobaSkillPipelineLibrary(
             MobaConfigDatabase configs,
             MobaEffectInvokerService effects,
-            SkillConditionRegistry conditionRegistry = null)
+            SkillConditionRegistry conditionRegistry = null,
+            IGameplayTagService tags = null)
         {
             _configs = configs;
             _effects = effects;
             _conditionRegistry = conditionRegistry;
+            _tags = tags;
         }
 
         public bool TryGet(
@@ -84,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Services
                 switch (type)
                 {
                     case SkillPhaseType.Checks:
-                        list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks, _conditionRegistry));
+                        list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks, _conditionRegistry, _tags));
                         break;
                     case SkillPhaseType.Timeline:
                         if (p.Timeline == null) break;

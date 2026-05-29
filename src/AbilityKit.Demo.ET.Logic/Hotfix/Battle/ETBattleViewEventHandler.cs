@@ -35,6 +35,8 @@ namespace ET.Logic
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorMove_Handler: AEvent<Scene, ActorMoveEvent>
     {
+        private static int _loggedMoveCount;
+
         protected override async ETTask Run(Scene scene, ActorMoveEvent args)
         {
             // Update Logic layer unit position only
@@ -47,6 +49,12 @@ namespace ET.Logic
                 {
                     unit.X = args.X;
                     unit.Y = args.Y;
+
+                    _loggedMoveCount++;
+                    if (_loggedMoveCount <= 5 || _loggedMoveCount % 60 == 0)
+                    {
+                        Log.Info($"[ETBattleView] Unit position updated: ActorId={args.ActorId}, X={args.X:F3}, Y={args.Y:F3}, Count={_loggedMoveCount}");
+                    }
                 }
             }
             await ETTask.CompletedTask;

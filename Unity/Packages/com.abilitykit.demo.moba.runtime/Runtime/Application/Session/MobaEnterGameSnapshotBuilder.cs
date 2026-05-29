@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Session
         {
             if (spawns == null || spawns.Length == 0)
             {
-                return new FrameSnapshotData(0, 0, SnapshotType.Full, Array.Empty<EntityState>());
+                return new FrameSnapshotData(0, 0, SnapshotType.Full, Array.Empty<SnapshotEntityState>());
             }
 
             var entities = new EntityState[spawns.Length];
@@ -37,7 +37,7 @@ namespace AbilityKit.Demo.Moba.Session
             return new FrameSnapshotData(0, 0, SnapshotType.Full, entities);
         }
 
-        public static EntityState[] ToEntityStates(PlayerSpawnData[] spawns)
+        public static SnapshotEntityState[] ToEntityStates(PlayerSpawnData[] spawns)
         {
             var snapshot = BuildEnterGameSnapshot(spawns);
             return snapshot.Entities;

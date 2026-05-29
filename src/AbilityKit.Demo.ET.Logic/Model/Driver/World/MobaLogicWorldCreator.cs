@@ -8,6 +8,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
@@ -67,8 +68,13 @@ namespace ET.Logic
             var options = new WorldCreateOptions
             {
                 Id = new WorldId($"battle-{worldId}"),
-                WorldType = BattleWorldTypes.Battle
+                WorldType = BattleWorldTypes.Battle,
+                ServiceBuilder = WorldServiceContainerFactory.CreateDefaultOnly()
             };
+
+            options.ServiceBuilder.TryRegister<ICollisionService>(
+                WorldLifetime.Singleton,
+                _ => new CollisionService());
 
             // 步骤 5: 设置 Entitas 上下文工厂（必须！用于创建 EntitasWorld）
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());

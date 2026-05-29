@@ -20,8 +20,32 @@ namespace ET
 
         static NLogger()
         {
-            LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration("Packages/cn.etetet.loader/Scripts/Loader/Server/NLog.config");
+            string configPath = ResolveConfigPath();
+            LogManager.Configuration = new NLog.Config.XmlLoggingConfiguration(configPath);
             LogManager.Configuration.Variables["currentDir"] = Environment.CurrentDirectory;
+        }
+
+        private static string ResolveConfigPath()
+        {
+            string loaderConfigPath = Path.Combine("Packages", "cn.etetet.loader", "Scripts", "Loader", "Server", "NLog.config");
+            string[] candidates =
+            {
+                Path.Combine(Environment.CurrentDirectory, loaderConfigPath),
+                Path.Combine(AppContext.BaseDirectory, loaderConfigPath),
+                Path.Combine(AppContext.BaseDirectory, "NLog.config"),
+                Path.Combine(Environment.CurrentDirectory, "src", "AbilityKit.Demo.ET.App", loaderConfigPath),
+                Path.Combine(Environment.CurrentDirectory, "src", "AbilityKit.Demo.ET.App", "NLog.config")
+            };
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (File.Exists(candidates[i]))
+                {
+                    return candidates[i];
+                }
+            }
+
+            return loaderConfigPath;
         }
 
         public NLogger(string name, int process, int fiber)

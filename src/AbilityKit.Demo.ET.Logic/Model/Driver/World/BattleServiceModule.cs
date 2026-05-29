@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services;
@@ -18,6 +19,8 @@ namespace ET.Logic
         public void Configure(WorldContainerBuilder builder)
         {
             // 不注册输入服务，ET Demo 的输入处理逻辑通过 IMobaBattleInputPort 接入。
+            builder.TryRegister<ITextAssetLoader>(WorldLifetime.Singleton, _ => new ETTextAssetLoader());
+            builder.TryRegister<ITextAssetDirectoryLoader>(WorldLifetime.Singleton, _ => new ETTextAssetLoader());
 
             Log.Info("[BattleServiceModule] Configured (battle IO ports are handled by moba runtime)");
         }

@@ -150,7 +150,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
             if (entity == null) return;
 
             var templateId = loadout.AttributeTemplateId;
-            if (templateId <= 0 && _config != null)
+            if (templateId <= 0 && (_config != null || TryResolveConfig()))
             {
                 try
                 {
