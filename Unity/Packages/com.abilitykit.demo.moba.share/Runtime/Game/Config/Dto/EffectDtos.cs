@@ -3,13 +3,22 @@ using System;
 namespace AbilityKit.Demo.Moba.Share.Config
 {
     [Serializable]
+    public sealed class ContinuousModifierDTO
+    {
+        public int TargetKind;
+        public int TargetId;
+        public int AttrTypeId;
+        public int Op;
+        public float Value;
+        public int Priority;
+    }
+
+    [Serializable]
     public sealed class BuffDTO
     {
         public int Id;
         public string Name;
         public int DurationMs;
-
-        public int OngoingEffectId;
 
         public int[] OnAddEffects;
         public int[] OnRemoveEffects;
@@ -19,21 +28,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int RefreshPolicy;
         public int MaxStacks;
         public int[] TriggerIds;
+        public int ContinuousTagTemplateId;
         public int[] Tags;
-    }
-
-    [Serializable]
-    public sealed class OngoingEffectDTO
-    {
-        public int Id;
-        public string Name;
-
-        public int DurationMs;
-        public int PeriodMs;
-
-        public int OnApplyEffectId;
-        public int OnTickEffectId;
-        public int OnRemoveEffectId;
+        public ContinuousModifierDTO[] Modifiers;
     }
 
     public enum SkillEffectType

@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Services;
+
 namespace AbilityKit.Demo.Moba.Events
 {
     /// <summary>
@@ -46,17 +48,17 @@ namespace AbilityKit.Demo.Moba.Events
 
         // ========== Buff 事件 ==========
         /// <summary>Buff 应用</summary>
-        public const string Buff_Apply = "buff.apply";
+        public const string Buff_Apply = MobaBuffTriggering.Events.Apply;
         /// <summary>Buff 叠加</summary>
-        public const string Buff_Stack = "buff.stack";
+        public const string Buff_Stack = MobaBuffTriggering.Events.Stack;
         /// <summary>Buff 刷新</summary>
-        public const string Buff_Refresh = "buff.refresh";
+        public const string Buff_Refresh = MobaBuffTriggering.Events.Refresh;
         /// <summary>Buff 移除</summary>
-        public const string Buff_Remove = "buff.remove";
+        public const string Buff_Remove = MobaBuffTriggering.Events.Remove;
         /// <summary>Buff Tick</summary>
-        public const string Buff_Tick = "buff.tick";
+        public const string Buff_Tick = MobaBuffTriggering.Events.Tick;
         /// <summary>Buff 结束</summary>
-        public const string Buff_End = "buff.end";
+        public const string Buff_End = MobaBuffTriggering.Events.End;
 
         // ========== 投射物事件 ==========
         /// <summary>投射物生成</summary>

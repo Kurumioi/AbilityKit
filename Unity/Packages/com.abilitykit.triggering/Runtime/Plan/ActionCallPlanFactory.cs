@@ -149,7 +149,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 创建持续帧执行的动作（每帧执行直到外部终止）
+        /// 创建持续调度执行的动作（按调度间隔执行，直到外部中断）
         /// </summary>
         /// <param name="canBeInterrupted">是否可中断</param>
         public static ActionCallPlan Continuous(ActionId id, bool canBeInterrupted = true)

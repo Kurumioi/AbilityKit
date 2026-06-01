@@ -22,6 +22,22 @@ namespace AbilityKit.Demo.Moba.Share.Config
     }
 
     [Serializable]
+    public sealed class ContinuousTagTemplateDTO
+    {
+        public int Id;
+        public string Name;
+
+        public int[] ActivationRequiredTags;
+        public int[] ActivationBlockedTags;
+        public int[] ApplicationTags;
+        public int[] RemovalRequiredTags;
+        public int[] RemovalBlockedTags;
+        public int[] OngoingRequiredTags;
+        public int[] OngoingBlockedTags;
+        public int[] RemovalTags;
+    }
+
+    [Serializable]
     public sealed class SearchQueryTemplateDTO
     {
         public int Id;

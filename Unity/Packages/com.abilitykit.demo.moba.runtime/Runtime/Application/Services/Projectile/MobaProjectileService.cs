@@ -10,7 +10,6 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -23,24 +22,23 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private const int CollisionLayer_Unit = 1 << 0;
         private const int CollisionLayer_World = 1 << 2;
 
-        private readonly IWorldResolver _services;
-        private readonly IProjectileService _projectiles;
-        private readonly ActorIdAllocator _actorIds;
-        private readonly MobaActorRegistry _registry;
-        private readonly MobaEntityManager _entities;
-        private readonly MobaProjectileLinkService _links;
-
-        public MobaProjectileService(IWorldResolver services, IProjectileService projectiles, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaProjectileLinkService links)
-        {
-            _services = services;
-            _projectiles = projectiles;
-            _actorIds = actorIds;
-            _registry = registry;
-            _entities = entities;
-            _links = links;
-        }
+        [WorldInject] private IProjectileService _projectiles;
+        [WorldInject] private ActorIdAllocator _actorIds;
+        [WorldInject] private MobaActorRegistry _registry;
+        [WorldInject] private MobaEntityManager _entities;
+        [WorldInject] private MobaProjectileLinkService _links;
+        [WorldInject(required: false)] private global::Entitas.IContexts _contexts;
+        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots;
+        [WorldInject(required: false)] private IFrameTime _frameTime;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
 
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
+        {
+            return Shoot(casterActorId, emitterType, projectileCode, speed, lifetimeFrames, maxDistance, in aimPos, in aimDir, default);
+        }
+
+        public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
         {
             if (_projectiles == null) return false;
             if (casterActorId <= 0) return false;
@@ -60,10 +58,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var projectileActorId = _actorIds.Next();
 
-            global::Entitas.IContexts contexts = null;
-            _services?.TryResolve(out contexts);
-
-            var actorContext = (contexts as global::Contexts)?.actor;
+            var actorContext = (_contexts as global::Contexts)?.actor;
             if (actorContext == null) return false;
 
             var spec = MobaConverter.ToProjectileActorBuildSpec(projectileActorId, projectileCode, caster, in spawnPos, in dir);
@@ -74,9 +69,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             _registry?.Register(projectileActorId, bullet);
 
-            if (_services != null && _services.TryResolve<MobaActorSpawnSnapshotService>(out var spawnSnapshots) && spawnSnapshots != null)
+            if (_spawnSnapshots != null)
             {
-                spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
+                _spawnSnapshots.Enqueue(new MobaActorSpawnSnapshotEntry
                 {
                     NetId = projectileActorId,
                     Kind = (int)SpawnEntityKind.Projectile,
@@ -97,11 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
 
-            var spawnFrame = 0;
-            if (_services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
-            {
-                spawnFrame = frameTime.Frame.Value;
-            }
+            var spawnFrame = _frameTime != null ? _frameTime.Frame.Value : 0;
 
             var spawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
@@ -131,6 +122,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             _links?.Link(pid, projectileActorId);
+            BindProjectileSource(pid, casterActorId, 0, projectileCode, in sourceContext);
+            RetainProjectileSkillRuntime(pid, projectileCode);
             return true;
         }
 
@@ -194,6 +187,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 aimPos, in Vec3 aimDir)
         {
+            return Launch(casterActorId, launcher, projectile, in aimPos, in aimDir, default);
+        }
+
+        public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
+        {
             if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (launcher == null) return false;
@@ -209,10 +207,15 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             dir = dir.Normalized;
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
-            return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir);
+            return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir, in sourceContext);
         }
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
+        {
+            return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir, default);
+        }
+
+        public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
         {
             if (_projectiles == null) return false;
             if (_actorIds == null) return false;
@@ -232,14 +235,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var sp = spawnPos.SqrMagnitude > 0f ? spawnPos : caster.transform.Value.Position;
 
-            global::Entitas.IContexts contexts = null;
-            _services?.TryResolve(out contexts);
-            var actorContext = contexts != null ? contexts.Actor() : null;
+            var actorContext = _contexts != null ? _contexts.Actor() : null;
             if (actorContext == null) return false;
 
-            var frameTime = default(IFrameTime);
-            _services?.TryResolve(out frameTime);
-
+            var frameTime = _frameTime;
             var nowMs = 0L;
             if (frameTime != null)
             {
@@ -384,6 +383,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             var schedule = ProjectileScheduleParams.Repeat(startFrame, intervalFrames: intervalFrames, count: count);
+            var launcherSource = CreateLaunchSource(casterActorId, 0, projectile.Id, in sourceContext);
+            if (_links != null && launcherSource.IsValid)
+            {
+                _links.BindLauncherSource(launcherActorId, in launcherSource);
+            }
+
             var scheduleId = _projectiles.ScheduleEmit(pattern, in baseSpawn, in schedule);
 
             var endTimeMs = launcher.DurationMs > 0 ? nowMs + launcher.DurationMs : nowMs;
@@ -398,6 +403,73 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 newTotalCount: count);
 
             return true;
+        }
+
+        private void BindProjectileSource(ProjectileId projectileId, int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)
+        {
+            if (_links == null) return;
+            if (projectileId.Value == 0) return;
+
+            var source = CreateLaunchSource(sourceActorId, targetActorId, projectileConfigId, in sourceContext);
+            if (source.IsValid)
+            {
+                _links.BindSource(projectileId, in source);
+            }
+        }
+
+        private ProjectileSourceContext CreateLaunchSource(int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)
+        {
+            var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
+                ? sourceOrigin.WithActors(sourceActorId, targetActorId)
+                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId, 0);
+
+            var parentContextId = origin.EffectiveParentContextId;
+            var launchContextId = 0L;
+            if (_trace != null)
+            {
+                launchContextId = parentContextId != 0L
+                    ? _trace.CreateChildContext(parentContextId, MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId)
+                    : _trace.CreateRootContext(MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId);
+            }
+
+            if (launchContextId != 0L)
+            {
+                origin = MobaGameplayOriginBuilder.Create()
+                    .FromOrigin(in origin)
+                    .WithActors(sourceActorId, targetActorId)
+                    .WithImmediate(MobaTraceKind.ProjectileLaunch, projectileConfigId, launchContextId)
+                    .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId)
+                    .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId)
+                    .Build();
+            }
+
+            return ProjectileSourceContextBuilder.Create()
+                .WithActors(sourceActorId, targetActorId)
+                .WithProjectileConfig(projectileConfigId)
+                .WithSourceContext(launchContextId)
+                .WithRootContext(origin.EffectiveRootContextId)
+                .WithOwnerContext(origin.OwnerContextId)
+                .WithOrigin(in origin)
+                .Build();
+        }
+
+        internal bool RetainProjectileSkillRuntime(ProjectileId projectileId, int projectileConfigId)
+        {
+            if (_links == null) return false;
+            if (_skillRuntimes == null) return false;
+            if (!_links.TryGetSource(projectileId, out var source)) return false;
+            if (!source.SkillRuntimeHandle.IsValid) return false;
+            if (_links.TryGetRetain(projectileId, out _)) return true;
+
+            var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, projectileId.Value, source.SourceContextId, projectileConfigId);
+            var runtimeHandle = source.SkillRuntimeHandle;
+            if (_skillRuntimes.RetainChild(in runtimeHandle, in child, out var retainHandle))
+            {
+                _links.BindRetain(projectileId, in retainHandle);
+                return true;
+            }
+
+            return false;
         }
 
         public void Dispose()

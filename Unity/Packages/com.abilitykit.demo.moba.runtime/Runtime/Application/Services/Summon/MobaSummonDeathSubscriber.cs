@@ -1,6 +1,7 @@
 ﻿using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Demo.Moba.Events.Summon;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -8,7 +9,7 @@ using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSummonDeathSubscriber))]
-    public sealed class MobaSummonDeathSubscriber : IService
+    public sealed class MobaSummonDeathSubscriber : IWorldDeinitializable
     {
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaActorRegistry _registry;
@@ -43,7 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
             _summons.TryDespawn(r.TargetActorId, SummonDespawnReason.Killed);
         }
 
-        public void Dispose()
+        public void OnDeinit(IWorldResolver services)
         {
             var s = _sub;
             if (s != null)
@@ -51,6 +52,10 @@ namespace AbilityKit.Demo.Moba.Services
                 _sub = null;
                 s.Dispose();
             }
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

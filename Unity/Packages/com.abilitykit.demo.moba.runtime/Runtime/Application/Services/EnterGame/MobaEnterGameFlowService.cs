@@ -7,7 +7,6 @@ using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba;
@@ -20,44 +19,16 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaEnterGameFlowService))]
     public sealed class MobaEnterGameFlowService : IService
     {
-        private readonly MobaEnterGameSnapshotService _snapshot;
-        private readonly IWorldContext _worldContext;
-        private readonly ActorIdAllocator _actorIds;
-        private readonly MobaActorRegistry _registry;
-        private readonly MobaEntityManager _entities;
-        private readonly MobaPlayerActorMapService _playerActorMap;
-        private readonly MobaSkillLoadoutService _skills;
-        private readonly MobaConfigDatabase _config;
-        private readonly ActorEntityInitPipeline _generator;
-        private readonly MobaActorSpawnSnapshotService _spawn;
-
-        public MobaEnterGameFlowService(
-            MobaEnterGameSnapshotService snapshot,
-            MobaActorSpawnSnapshotService spawn,
-            IWorldContext worldContext,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            MobaPlayerActorMapService playerActorMap,
-            MobaSkillLoadoutService skills,
-            ActorEntityInitPipeline generator)
-            : this(snapshot, spawn, worldContext, actorIds, registry, entities, playerActorMap, skills, generator, config: null)
-        {
-        }
-
-        public MobaEnterGameFlowService(MobaEnterGameSnapshotService snapshot, MobaActorSpawnSnapshotService spawn, IWorldContext worldContext, ActorIdAllocator actorIds, MobaActorRegistry registry, MobaEntityManager entities, MobaPlayerActorMapService playerActorMap, MobaSkillLoadoutService skills, ActorEntityInitPipeline generator, MobaConfigDatabase config)
-        {
-            _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
-            _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
-            _worldContext = worldContext ?? throw new ArgumentNullException(nameof(worldContext));
-            _actorIds = actorIds ?? throw new ArgumentNullException(nameof(actorIds));
-            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _entities = entities ?? throw new ArgumentNullException(nameof(entities));
-            _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
-            _skills = skills ?? throw new ArgumentNullException(nameof(skills));
-            _generator = generator;
-            _config = config;
-        }
+        [WorldInject] private MobaEnterGameSnapshotService _snapshot;
+        [WorldInject] private IWorldContext _worldContext;
+        [WorldInject] private ActorIdAllocator _actorIds;
+        [WorldInject] private MobaActorRegistry _registry;
+        [WorldInject] private MobaEntityManager _entities;
+        [WorldInject] private MobaPlayerActorMapService _playerActorMap;
+        [WorldInject] private MobaSkillLoadoutService _skills;
+        [WorldInject(required: false)] private MobaConfigDatabase _config;
+        [WorldInject(required: false)] private ActorEntityInitPipeline _generator;
+        [WorldInject] private MobaActorSpawnSnapshotService _spawn;
 
         public bool ApplyGameStartSpec(ActorContext actorContext, in MobaGameStartSpec spec)
         {

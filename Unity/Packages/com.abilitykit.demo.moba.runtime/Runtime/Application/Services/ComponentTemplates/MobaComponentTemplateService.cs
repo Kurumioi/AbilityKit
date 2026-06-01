@@ -1,7 +1,6 @@
 ﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 
@@ -10,16 +9,9 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaComponentTemplateService))]
     public sealed class MobaComponentTemplateService : IService
     {
-        private readonly MobaConfigDatabase _config;
-        private readonly IFrameTime _frameTime;
-        private readonly IWorldClock _clock;
-
-        public MobaComponentTemplateService(IWorldResolver services, MobaConfigDatabase config)
-        {
-            _config = config;
-            services?.TryResolve(out _frameTime);
-            services?.TryResolve(out _clock);
-        }
+        [WorldInject] private MobaConfigDatabase _config;
+        [WorldInject(required: false)] private IFrameTime _frameTime;
+        [WorldInject(required: false)] private IWorldClock _clock;
 
         public bool TryApply(global::ActorEntity entity, int templateId)
         {

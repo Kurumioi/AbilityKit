@@ -205,15 +205,31 @@ namespace AbilityKit.Triggering.Runtime.Executable
         ConditionResult Evaluate(object ctx);
     }
 
+    public interface IConfigurableCondition : ICondition
+    {
+        void Configure(ConditionConfig config, ConfigToExecutableConverter converter);
+    }
+
     /// <summary>
     /// 组合条件
     /// </summary>
-    public sealed class MultiCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.Multi, "Multi")]
+    public sealed class MultiCondition : IConfigurableCondition
     {
         public string Name => "MultiCondition";
         public Config.EConditionCombinator Combinator { get; set; } = Config.EConditionCombinator.And;
         public List<ICondition> Conditions { get; set; } = new List<ICondition>();
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            var combinator = config.Combinator?.ToLowerInvariant() ?? "and";
+            Combinator = combinator == "or" ? EConditionCombinator.Or : EConditionCombinator.And;
+            Conditions.Clear();
+            if (config.Children == null) return;
+            foreach (var childConfig in config.Children)
+                Conditions.Add(converter.ConvertCondition(childConfig));
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             if (Conditions.Count == 0) return ConditionResult.Pass;
@@ -253,11 +269,19 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 取反条件
     /// </summary>
-    public sealed class NotCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.Not, "Not")]
+    public sealed class NotCondition : IConfigurableCondition
     {
         public string Name => "Not";
         public ICondition Inner { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Inner = config.Children != null && config.Children.Count > 0
+                ? converter.ConvertCondition(config.Children[0])
+                : null;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             var inner = Inner?.Evaluate(ctx) ?? ConditionResult.Pass;
@@ -268,12 +292,19 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// And 条件
     /// </summary>
-    public sealed class AndCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.And, "And")]
+    public sealed class AndCondition : IConfigurableCondition
     {
         public string Name => "And";
         public ICondition Left { get; set; }
         public ICondition Right { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Left = config.Children != null && config.Children.Count > 0 ? converter.ConvertCondition(config.Children[0]) : null;
+            Right = config.Children != null && config.Children.Count > 1 ? converter.ConvertCondition(config.Children[1]) : null;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             var leftResult = Left?.Evaluate(ctx) ?? ConditionResult.Pass;
@@ -285,12 +316,19 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// Or 条件
     /// </summary>
-    public sealed class OrCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.Or, "Or")]
+    public sealed class OrCondition : IConfigurableCondition
     {
         public string Name => "Or";
         public ICondition Left { get; set; }
         public ICondition Right { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Left = config.Children != null && config.Children.Count > 0 ? converter.ConvertCondition(config.Children[0]) : null;
+            Right = config.Children != null && config.Children.Count > 1 ? converter.ConvertCondition(config.Children[1]) : null;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             var leftResult = Left?.Evaluate(ctx) ?? ConditionResult.Pass;
@@ -302,13 +340,21 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 数值比较条件
     /// </summary>
-    public sealed class NumericCompareCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.NumericCompare, "NumericCompare")]
+    public sealed class NumericCompareCondition : IConfigurableCondition
     {
         public string Name => "NumericCompare";
         public ECompareOp Op { get; set; }
         public NumericValueRef Left { get; set; }
         public NumericValueRef Right { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Op = ConfigToExecutableConverter.ParseCompareOp(config.CompareOp);
+            Left = converter.ConvertNumericValueRef(config.Left);
+            Right = converter.ConvertNumericValueRef(config.Right);
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             var left = Left.Resolve(ctx);
@@ -329,7 +375,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 载荷字段比较条件
     /// </summary>
-    public sealed class PayloadCompareCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.PayloadCompare, "PayloadCompare")]
+    public sealed class PayloadCompareCondition : IConfigurableCondition
     {
         public string Name => "PayloadCompare";
         public int FieldId { get; set; }
@@ -337,6 +384,14 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public NumericValueRef CompareValue { get; set; }
         public bool Negate { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            FieldId = config.FieldId;
+            Op = ConfigToExecutableConverter.ParseCompareOp(config.CompareOp);
+            CompareValue = converter.ConvertNumericValueRef(config.CompareValue);
+            Negate = config.Negate;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             var compareVal = CompareValue.Resolve(ctx);
@@ -347,11 +402,17 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 是否有目标条件
     /// </summary>
-    public sealed class HasTargetCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.HasTarget, "HasTarget")]
+    public sealed class HasTargetCondition : IConfigurableCondition
     {
         public string Name => "HasTarget";
         public bool Negate { get; set; }
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Negate = config.Negate;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             // TODO: 实现目标检测逻辑
@@ -362,11 +423,17 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// <summary>
     /// 常量条件
     /// </summary>
-    public sealed class ConstCondition : ICondition
+    [ConditionTypeId(TypeIdRegistry.Condition.Const, "Const")]
+    public sealed class ConstCondition : IConfigurableCondition
     {
         public string Name => "Const";
         public bool Value { get; set; } = true;
 
+        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
+        {
+            Value = true;
+        }
+ 
         public ConditionResult Evaluate(object ctx)
         {
             return Value ? ConditionResult.Pass : ConditionResult.Fail("Const is false");

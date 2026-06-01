@@ -23,10 +23,6 @@ namespace AbilityKit.ExcelSync.Generated
         [ExcelColumn("DurationMs", Order = 2)]
         public int DurationMs;
 
-        [LabelText("持续生效效果id")]
-        [ExcelColumn("OngoingEffectId", Order = 3)]
-        public int OngoingEffectId;
-
         [LabelText("添加时效果")]
         [ExcelColumn("OnAddEffects", Order = 4)]
         public List<int> OnAddEffects;

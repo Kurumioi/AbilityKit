@@ -178,7 +178,9 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         private abstract class ContinuousExecutorEntry
         {
             public abstract float IntervalMs { get; }
+            public abstract void Start(object ctx);
             public abstract void Execute(float deltaTimeMs, IContinuousTriggerInstance instance, object ctx);
+            public abstract void Terminate(EContinuousState reason, object ctx);
         }
 
         private class ContinuousExecutorEntry<TCtx> : ContinuousExecutorEntry where TCtx : class
@@ -192,9 +194,19 @@ namespace AbilityKit.Triggering.Runtime.Continuous
                 IntervalMs = intervalMs;
             }
 
+            public override void Start(object ctx)
+            {
+                Executor.Start((TCtx)ctx);
+            }
+
             public override void Execute(float deltaTimeMs, IContinuousTriggerInstance instance, object ctx)
             {
                 Executor.Execute(deltaTimeMs, instance, (TCtx)ctx);
+            }
+
+            public override void Terminate(EContinuousState reason, object ctx)
+            {
+                Executor.Terminate(reason, (TCtx)ctx);
             }
         }
 
@@ -209,13 +221,39 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         }
 
         /// <summary>
-        /// 尝试执行持续行为
+        /// 尝试启动持续行为
+        /// </summary>
+        internal static bool TryStart(int triggerId, object ctx)
+        {
+            if (_executors.TryGetValue(triggerId, out var entry))
+            {
+                entry.Start(ctx);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 尝试执行持续行为 tick
         /// </summary>
         internal static bool TryExecute(int triggerId, float deltaTimeMs, IContinuousTriggerInstance instance, object ctx)
         {
             if (_executors.TryGetValue(triggerId, out var entry))
             {
                 entry.Execute(deltaTimeMs, instance, ctx);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 尝试终止持续行为
+        /// </summary>
+        internal static bool TryTerminate(int triggerId, EContinuousState reason, object ctx)
+        {
+            if (_executors.TryGetValue(triggerId, out var entry))
+            {
+                entry.Terminate(reason, ctx);
                 return true;
             }
             return false;

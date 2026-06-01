@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.GameplayTags;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
@@ -18,5 +20,11 @@ namespace AbilityKit.Demo.Moba.Components
         public int SourceId;
         public int StackCount;
         public long SourceContextId;
+        public MobaSkillCastRuntimeHandle SkillRuntimeHandle;
+        public MobaSkillRuntimeRetainHandle SkillRuntimeRetainHandle;
+        public ContinuousTagRequirements TagRequirements;
+        public BuffContinuousRuntime Continuous;
+        public List<BuffModifierBinding> ModifierBindings;
+        public long PeriodicInstanceId;
     }
 }

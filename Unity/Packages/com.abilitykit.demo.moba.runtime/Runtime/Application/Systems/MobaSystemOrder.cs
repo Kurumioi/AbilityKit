@@ -61,8 +61,8 @@ namespace AbilityKit.Demo.Moba.Systems
         // ========== 持续效果系统 (Execute/Normal) ==========
         /// <summary>持续触发器计划调和</summary>
         public const int OngoingTriggerPlansReconcile = Base + WorldSystemOrder.Normal + 312;
-        /// <summary>持续效果 Tick</summary>
-        public const int OngoingEffectsTick = Base + WorldSystemOrder.Normal + 315;
+        /// <summary>正式持续周期行为 Tick</summary>
+        public const int ContinuousPeriodicTick = Base + WorldSystemOrder.Normal + 315;
 
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>

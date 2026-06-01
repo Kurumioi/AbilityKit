@@ -9,7 +9,6 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Effect.Components;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.GameplayTags;
@@ -62,8 +61,9 @@ namespace AbilityKit.Demo.Moba.Services
             catch { frame = 0; }
 
             var sourceContextId = context.SourceContextId;
+            var runtimeHandle = context.RuntimeHandle;
 
-            var args = new Dictionary<string, object>(6, StringComparer.Ordinal)
+            var args = new Dictionary<string, object>(8, StringComparer.Ordinal)
             {
                 [MobaSkillTriggerArgs.SkillId] = skillId,
                 [MobaSkillTriggerArgs.SkillSlot] = slot,
@@ -78,9 +78,15 @@ namespace AbilityKit.Demo.Moba.Services
                 args["effect.sourceContextId"] = sourceContextId;
                 args[EffectTriggering.Args.OriginSource] = casterActorId;
                 args[EffectTriggering.Args.OriginTarget] = targetActorId;
-                args[EffectTriggering.Args.OriginKind] = EffectSourceKind.SkillCast;
+                args[EffectTriggering.Args.OriginKind] = MobaTraceKind.SkillCast;
                 args[EffectTriggering.Args.OriginConfigId] = skillId;
                 args[EffectTriggering.Args.OriginContextId] = sourceContextId;
+            }
+
+            if (runtimeHandle.IsValid)
+            {
+                args[AbilityContextKeys.SkillRuntimeHandle.ToKeyString()] = runtimeHandle;
+                args[AbilityContextKeys.SkillRuntimeId.ToKeyString()] = runtimeHandle.RuntimeId;
             }
 
             var spec = new GameplayEffectSpec(

@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Effect;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Demo.Moba.Events.Buff;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -25,12 +26,12 @@ namespace AbilityKit.Demo.Moba.Services
             PublishBaseEvent(MobaBuffTriggering.Events.ApplyOrRefresh, buff.Id, sourceActorId, targetActorId, durationSeconds, runtime);
         }
 
-        public void PublishRemove(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
+        public void PublishRemove(BuffMO buff, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
         {
             if (_eventBus == null) return;
             if (buff == null) return;
 
-            PublishStageEvent(MobaBuffTriggering.Events.Remove, buff.OnRemoveEffects, stage: "remove", buffId: buff.Id, sourceActorId, targetActorId, runtime, reason);
+            PublishStageEvent(MobaBuffTriggering.Events.Remove, buff.OnRemoveEffects, MobaBuffTriggering.Stages.Remove, buff.Id, sourceActorId, targetActorId, runtime, reason);
         }
 
         public void PublishPerEffect(string baseEventId, IReadOnlyList<int> effectIds, string stage, int sourceActorId, int targetActorId, BuffRuntime runtime)
@@ -57,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services
                     Stage = stage,
                     StackCount = runtime != null ? runtime.StackCount : 0,
                     DurationSeconds = 0f,
-                    RemoveReason = EffectSourceEndReason.None,
+                    RemoveReason = TraceLifecycleReason.None,
                     SourceContextId = runtime != null ? runtime.SourceContextId : 0,
                     Runtime = runtime,
                 };
@@ -83,10 +84,10 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetActorId = targetActorId,
                 BuffId = runtime != null ? runtime.BuffId : 0,
                 EffectId = 0,
-                Stage = "interval",
+                Stage = MobaBuffTriggering.Stages.Interval,
                 StackCount = runtime != null ? runtime.StackCount : 0,
                 DurationSeconds = 0f,
-                RemoveReason = EffectSourceEndReason.None,
+                RemoveReason = TraceLifecycleReason.None,
                 SourceContextId = runtime != null ? runtime.SourceContextId : 0,
                 Runtime = runtime,
             };
@@ -110,7 +111,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Stage = null,
                 StackCount = runtime != null ? runtime.StackCount : 0,
                 DurationSeconds = durationSeconds,
-                RemoveReason = EffectSourceEndReason.None,
+                RemoveReason = TraceLifecycleReason.None,
                 SourceContextId = runtime != null ? runtime.SourceContextId : 0,
                 Runtime = runtime,
             };
@@ -120,7 +121,7 @@ namespace AbilityKit.Demo.Moba.Services
             _eventBus.Publish(new EventKey<object>(eid), in boxed);
         }
 
-        private void PublishStageEvent(string baseEventId, IReadOnlyList<int> effectIds, string stage, int buffId, int sourceActorId, int targetActorId, BuffRuntime runtime, EffectSourceEndReason reason)
+        private void PublishStageEvent(string baseEventId, IReadOnlyList<int> effectIds, string stage, int buffId, int sourceActorId, int targetActorId, BuffRuntime runtime, TraceLifecycleReason reason)
         {
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(baseEventId)) return;

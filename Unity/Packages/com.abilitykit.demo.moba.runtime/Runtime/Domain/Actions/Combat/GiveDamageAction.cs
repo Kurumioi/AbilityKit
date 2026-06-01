@@ -10,7 +10,6 @@ using AbilityKit.Core.Common.Log;
 using CritType = AbilityKit.Demo.Moba.CritType;
 using DamageReasonKind = AbilityKit.Demo.Moba.DamageReasonKind;
 using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
-using EffectSourceKind = AbilityKit.Demo.Moba.EffectSourceKind;
 
 namespace AbilityKit.Demo.Moba.Actions.Combat
 {
@@ -56,8 +55,8 @@ namespace AbilityKit.Demo.Moba.Actions.Combat
             int attackerActorId = 0;
             int targetActorId = 0;
 
-            Systems.PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out attackerActorId);
-            Systems.PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId);
+            AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out attackerActorId);
+            AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId);
 
             if (attackerActorId <= 0 || targetActorId <= 0)
                 return;
@@ -73,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Actions.Combat
                 FormulaKind = (int)DamageFormulaKind.Standard,
                 OriginSource = attackerActorId,
                 OriginTarget = targetActorId,
-                OriginKind = EffectSourceKind.Effect,
+                OriginKind = MobaTraceKind.EffectExecution,
                 OriginConfigId = 0,
                 OriginContextId = 0,
             };

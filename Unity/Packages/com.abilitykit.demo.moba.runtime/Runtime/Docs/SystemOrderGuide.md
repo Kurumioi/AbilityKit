@@ -54,8 +54,8 @@ public static class MobaSystemOrder
     public const int BuffsApply = Base + WorldSystemOrder.Normal + 300;
     public const int BuffsTick = Base + WorldSystemOrder.Normal + 310;
 
-    // ========== PostExecute (Late) ==========
-    public const int OngoingEffectsTick = Base + WorldSystemOrder.Normal + 315;
+    // ========== Execute (Normal) ==========
+    public const int ContinuousPeriodicTick = Base + WorldSystemOrder.Normal + 315;
     public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;
     public const int ProjectileSync = Base + WorldSystemOrder.Late + 10;
     public const int AreaSync = Base + WorldSystemOrder.Late + 11;
@@ -176,7 +176,7 @@ Entity Sync (Pre) → Input Processing → Core Logic → Effects → Buffs → 
 
 | 系统 | Order | 职责 |
 |-----|-------|------|
-| OngoingEffectsTick | Base + Normal + 315 | 持续效果 tick |
+| ContinuousPeriodicTick | Base + Normal + 315 | 正式持续周期行为 tick |
 | EntityManagerCleanup | Base + Late + 5 | 实体管理器清理 |
 | ProjectileSync | Base + Late + 10 | 投射物同步 |
 | AreaSync | Base + Late + 11 | 区域同步 |

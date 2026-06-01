@@ -13,14 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaEffectInvokerService))]
     public sealed class MobaEffectInvokerService : IService
     {
-        private readonly MobaEffectExecutionService _effects;
-        private readonly IWorldResolver _services;
-
-        public MobaEffectInvokerService(MobaEffectExecutionService effects, IWorldResolver services)
-        {
-            _effects = effects;
-            _services = services;
-        }
+        [WorldInject] private MobaEffectExecutionService _effects;
+        [WorldInject] private IWorldResolver _services;
 
         public void Execute(int effectId, int sourceActorId, int targetActorId, int contextKind, long sourceContextId, IWorldResolver worldServices = null, Action<MobaEffectPipelineContext> configure = null)
         {

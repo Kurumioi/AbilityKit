@@ -70,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(PassiveSkillDTO)) return DeserializePassiveSkill(obj);
             if (dtoType == typeof(SkillButtonTemplateDTO)) return DeserializeSkillButtonTemplate(obj);
             if (dtoType == typeof(TagTemplateDTO)) return DeserializeTagTemplate(obj);
+            if (dtoType == typeof(ContinuousTagTemplateDTO)) return DeserializeContinuousTagTemplate(obj);
             if (dtoType == typeof(SearchQueryTemplateDTO)) return DeserializeSearchQueryTemplate(obj);
             if (dtoType == typeof(BuffDTO)) return DeserializeBuff(obj);
             if (dtoType == typeof(ModelDTO)) return DeserializeModel(obj);
@@ -81,7 +82,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(SkillFlowDTO)) return DeserializeSkillFlow(obj);
             if (dtoType == typeof(SkillLevelTableDTO)) return DeserializeSkillLevelTable(obj);
             if (dtoType == typeof(ComponentTemplateDTO)) return DeserializeComponentTemplate(obj);
-            if (dtoType == typeof(OngoingEffectDTO)) return DeserializeOngoingEffect(obj);
             if (dtoType == typeof(PresentationTemplateDTO)) return DeserializePresentationTemplate(obj);
             if (dtoType == typeof(SpawnSummonActionTemplateDTO)) return DeserializeSpawnSummonActionTemplate(obj);
 
@@ -204,6 +204,24 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return dto;
         }
 
+        private static ContinuousTagTemplateDTO DeserializeContinuousTagTemplate(JObject obj)
+        {
+            var dto = new ContinuousTagTemplateDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                ActivationRequiredTags = obj["ActivationRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                ActivationBlockedTags = obj["ActivationBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                ApplicationTags = obj["ApplicationTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                RemovalRequiredTags = obj["RemovalRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                RemovalBlockedTags = obj["RemovalBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OngoingRequiredTags = obj["OngoingRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OngoingBlockedTags = obj["OngoingBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                RemovalTags = obj["RemovalTags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+            return dto;
+        }
+
         private static SearchQueryTemplateDTO DeserializeSearchQueryTemplate(JObject obj)
         {
             var dto = new SearchQueryTemplateDTO
@@ -225,7 +243,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
                 DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
-                OngoingEffectId = obj["OngoingEffectId"]?.Value<int>() ?? 0,
                 OnAddEffects = obj["OnAddEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnRemoveEffects = obj["OnRemoveEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnIntervalEffects = obj["OnIntervalEffects"]?.ToObject<int[]>() ?? Array.Empty<int>(),
@@ -234,9 +251,34 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 RefreshPolicy = obj["RefreshPolicy"]?.Value<int>() ?? 0,
                 MaxStacks = obj["MaxStacks"]?.Value<int>() ?? 1,
                 TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>()
+                ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>() ?? 0,
+                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Modifiers = DeserializeContinuousModifiers(obj["Modifiers"])
             };
             return dto;
+        }
+
+        private static ContinuousModifierDTO[] DeserializeContinuousModifiers(JToken token)
+        {
+            if (token == null) return Array.Empty<ContinuousModifierDTO>();
+
+            var modifiers = token.ToObject<ContinuousModifierDTO[]>() ?? Array.Empty<ContinuousModifierDTO>();
+            for (int i = 0; i < modifiers.Length; i++)
+            {
+                var modifier = modifiers[i];
+                if (modifier == null) continue;
+                if (modifier.TargetKind == 0 && modifier.AttrTypeId != 0)
+                {
+                    modifier.TargetKind = 1;
+                }
+
+                if (modifier.TargetId == 0 && modifier.AttrTypeId != 0)
+                {
+                    modifier.TargetId = modifier.AttrTypeId;
+                }
+            }
+
+            return modifiers;
         }
 
         private static ModelDTO DeserializeModel(JObject obj)
@@ -524,22 +566,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 }
             }
             return result.ToArray();
-        }
-
-        private static OngoingEffectDTO DeserializeOngoingEffect(JObject obj)
-        {
-            // 妗嗘灦 DTO: Id, Name, DurationMs, PeriodMs, OnApplyEffectId, OnTickEffectId, OnRemoveEffectId
-            var dto = new OngoingEffectDTO
-            {
-                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
-                Name = obj["Name"]?.Value<string>() ?? string.Empty,
-                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
-                PeriodMs = obj["PeriodMs"]?.Value<int>() ?? 0,
-                OnApplyEffectId = obj["OnApplyEffectId"]?.Value<int>() ?? 0,
-                OnTickEffectId = obj["OnTickEffectId"]?.Value<int>() ?? 0,
-                OnRemoveEffectId = obj["OnRemoveEffectId"]?.Value<int>() ?? 0
-            };
-            return dto;
         }
 
         private static PresentationTemplateDTO DeserializePresentationTemplate(JObject obj)

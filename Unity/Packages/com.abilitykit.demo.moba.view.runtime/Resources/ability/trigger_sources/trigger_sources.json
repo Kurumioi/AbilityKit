@@ -244,6 +244,7 @@
                          "comment":  "Debug log output",
                          "id":  20001,
                          "enabled":  true,
+                         "scope":  "owner",
                          "phase":  "immediate",
                          "conditions":  [
 
@@ -268,6 +269,7 @@
                          "comment":  "Debug log output",
                          "id":  20002,
                          "enabled":  true,
+                         "scope":  "owner",
                          "phase":  "immediate",
                          "conditions":  [
 

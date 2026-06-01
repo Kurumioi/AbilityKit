@@ -112,17 +112,20 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         }
 
         /// <summary>
-        /// 注册已配置的持续行为执行器
-        /// 使用 ContinuousExecutorBase
+        /// 注册外部生命周期控制的持续 tick 执行器。
+        /// 返回值是持续执行器的 triggerId，可用于后续中断或注销。
         /// </summary>
         public int RegisterContinuousExecutor<TCtx>(
             ContinuousExecutorBase<TCtx> executor,
             float intervalMs = 0,
-            int maxExecutions = -1)
+            int maxExecutions = -1,
+            TCtx context = null,
+            bool canBeInterrupted = true)
             where TCtx : class
         {
-            // 注册到静态注册器
-            return ContinuousExecutorRegistry.Register(executor, intervalMs);
+            var triggerId = ContinuousExecutorRegistry.Register(executor, intervalMs);
+            _registry.Timed.RegisterContinuousExecutor(triggerId, intervalMs, maxExecutions, context, canBeInterrupted);
+            return triggerId;
         }
 
         /// <summary>
@@ -140,7 +143,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         /// </summary>
         public void InterruptAllContinuous(string reason = null)
         {
-            _registry.Timed.InterruptAll(0, reason ?? "User interrupt");
+            _registry.Timed.InterruptAll(reason ?? "User interrupt");
         }
 
         /// <summary>

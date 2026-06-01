@@ -35,10 +35,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
             new ConfigTableDefinition(MobaConfigPaths.ComponentTemplatesFile, typeof(ComponentTemplateDTO), typeof(BattleDemo.MO.ComponentTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SkillButtonTemplatesFile, typeof(SkillButtonTemplateDTO), typeof(BattleDemo.MO.SkillButtonTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(BattleDemo.MO.TagTemplateMO), ConfigGroupNames.LegacyJson),
+            new ConfigTableDefinition(MobaConfigPaths.ContinuousTagTemplatesFile, typeof(ContinuousTagTemplateDTO), typeof(BattleDemo.MO.ContinuousTagTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(BattleDemo.MO.SearchQueryTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(BattleDemo.MO.SpawnSummonActionTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(BattleDemo.MO.PresentationTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.OngoingEffectsFile, typeof(OngoingEffectDTO), typeof(BattleDemo.MO.OngoingEffectMO), ConfigGroupNames.LegacyJson)
+            new ConfigTableDefinition(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(BattleDemo.MO.PresentationTemplateMO), ConfigGroupNames.LegacyJson)
         );
 
         /// <summary>

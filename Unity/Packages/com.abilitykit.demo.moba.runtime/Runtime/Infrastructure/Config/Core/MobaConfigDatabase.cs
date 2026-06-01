@@ -22,7 +22,7 @@ using SummonMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SummonMO;
 using ComponentTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ComponentTemplateMO;
 using SkillButtonTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillButtonTemplateMO;
 using TagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.TagTemplateMO;
-using OngoingEffectMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.OngoingEffectMO;
+using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousTagTemplateMO;
 
 namespace AbilityKit.Demo.Moba.Config.Core
 {
@@ -456,9 +456,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return GetTable<TagTemplateMO>().Get(id);
         }
 
-        public OngoingEffectMO GetOngoingEffect(int id)
+        public ContinuousTagTemplateMO GetContinuousTagTemplate(int id)
         {
-            return GetTable<OngoingEffectMO>().Get(id);
+            return GetTable<ContinuousTagTemplateMO>().Get(id);
         }
 
         public bool TryGetCharacter(int id, out CharacterMO mo) => GetTable<CharacterMO>().TryGet(id, out mo);
@@ -473,6 +473,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         public bool TryGetComponentTemplate(int id, out ComponentTemplateMO mo) => GetTable<ComponentTemplateMO>().TryGet(id, out mo);
         public bool TryGetSkillButtonTemplate(int id, out SkillButtonTemplateMO mo) => GetTable<SkillButtonTemplateMO>().TryGet(id, out mo);
         public bool TryGetTagTemplate(int id, out TagTemplateMO mo) => GetTable<TagTemplateMO>().TryGet(id, out mo);
+        public bool TryGetContinuousTagTemplate(int id, out ContinuousTagTemplateMO mo) => GetTable<ContinuousTagTemplateMO>().TryGet(id, out mo);
         public bool TryGetTagTemplateByName(string name, out TagTemplateMO mo)
         {
             mo = null;
@@ -487,7 +488,22 @@ namespace AbilityKit.Demo.Moba.Config.Core
             }
             return false;
         }
-        public bool TryGetOngoingEffect(int id, out OngoingEffectMO mo) => GetTable<OngoingEffectMO>().TryGet(id, out mo);
+
+        public bool TryGetContinuousTagTemplateByName(string name, out ContinuousTagTemplateMO mo)
+        {
+            mo = null;
+            if (string.IsNullOrEmpty(name)) return false;
+            foreach (var entry in GetTable<ContinuousTagTemplateMO>().All())
+            {
+                if (entry != null && name == entry.Name)
+                {
+                    mo = entry;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public bool TryGetProjectileLauncher(int id, out ProjectileLauncherMO mo) => GetTable<ProjectileLauncherMO>().TryGet(id, out mo);
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
         public bool TryGetAoe(int id, out AoeMO mo) => GetTable<AoeMO>().TryGet(id, out mo);

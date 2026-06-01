@@ -13,6 +13,8 @@
         public const string AimPos = "skill.aim.pos";
         public const string AimDir = "skill.aim.dir";
 
+        public const string InputReleased = "skill.input.released";
+
         public const string FailReason = "skill.fail.reason";
         public const string CastSequence = "skill.cast.sequence";
 

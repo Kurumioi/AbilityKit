@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {
@@ -47,8 +49,43 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                         newTotalCount: plc.TotalCount);
                 }
 
+                EndProjectileTrace(evt.Projectile);
+                ReleaseSkillRuntime(evt.Projectile);
                 _sys.Registry.Unregister(actorId);
                 _sys.Links.UnlinkByProjectileId(evt.Projectile);
+            }
+        }
+
+        private void EndProjectileTrace(ProjectileId projectileId)
+        {
+            if (_sys.Links == null) return;
+            if (_sys.Trace == null) return;
+            if (!_sys.Links.TryGetSource(projectileId, out var source)) return;
+            if (source.SourceContextId == 0L) return;
+
+            try
+            {
+                _sys.Trace.EndContext(source.SourceContextId, TraceLifecycleReason.Completed);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Exception(ex, $"[MobaProjectileExitSyncHandler] End projectile trace failed (projectileId={projectileId.Value}, sourceContextId={source.SourceContextId})");
+            }
+        }
+
+        private void ReleaseSkillRuntime(ProjectileId projectileId)
+        {
+            if (_sys.Links == null) return;
+            if (_sys.SkillRuntimes == null) return;
+            if (!_sys.Links.TryGetRetain(projectileId, out var retainHandle)) return;
+
+            try
+            {
+                _sys.SkillRuntimes.ReleaseChild(in retainHandle);
+            }
+            catch (System.Exception ex)
+            {
+                Log.Exception(ex, $"[MobaProjectileExitSyncHandler] Release skill runtime retain failed (projectileId={projectileId.Value})");
             }
         }
 

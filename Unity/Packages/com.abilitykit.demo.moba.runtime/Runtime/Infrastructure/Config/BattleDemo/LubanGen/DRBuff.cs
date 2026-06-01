@@ -23,7 +23,6 @@ public sealed partial class DRBuff : Luban.BeanBase
         Id = (int)_obj.GetValue("Id");
         Name = (string)_obj.GetValue("Name");
         DurationMs = (int)_obj.GetValue("DurationMs");
-        OngoingEffectId = (int)_obj.GetValue("OngoingEffectId");
         { var __json0 = _obj.GetValue("OnAddEffects"); OnAddEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnAddEffects.Add(__v0); }   }
         { var __json0 = _obj.GetValue("OnRemoveEffects"); OnRemoveEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnRemoveEffects.Add(__v0); }   }
         { var __json0 = _obj.GetValue("OnIntervalEffects"); OnIntervalEffects = new System.Collections.Generic.List<int>((__json0 as JArray).Count); foreach(JToken __e0 in __json0) { int __v0;  __v0 = (int)__e0;  OnIntervalEffects.Add(__v0); }   }
@@ -52,10 +51,6 @@ public sealed partial class DRBuff : Luban.BeanBase
     /// 持续毫秒
     /// </summary>
     public readonly int DurationMs;
-    /// <summary>
-    /// 持续生效效果id
-    /// </summary>
-    public readonly int OngoingEffectId;
     /// <summary>
     /// 添加时效果
     /// </summary>
@@ -107,7 +102,6 @@ public sealed partial class DRBuff : Luban.BeanBase
         + "Id:" + Id + ","
         + "Name:" + Name + ","
         + "DurationMs:" + DurationMs + ","
-        + "OngoingEffectId:" + OngoingEffectId + ","
         + "OnAddEffects:" + Luban.StringUtil.CollectionToString(OnAddEffects) + ","
         + "OnRemoveEffects:" + Luban.StringUtil.CollectionToString(OnRemoveEffects) + ","
         + "OnIntervalEffects:" + Luban.StringUtil.CollectionToString(OnIntervalEffects) + ","

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Trace;
 
 using MobaTraceRegistryExtensions = AbilityKit.Trace.TraceTreeRegistryExtensions;
@@ -11,7 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
     /// MOBA 战斗溯源注册表
     /// 管理技能/效果/Buff 等执行的链路追踪
     /// </summary>
-    public sealed class MobaTraceRegistry : TraceTreeRegistry<MobaTraceMetadata>
+    [WorldService(typeof(MobaTraceRegistry))]
+    public sealed class MobaTraceRegistry : TraceTreeRegistry<MobaTraceMetadata>, IService
     {
         private readonly long _instanceId;
 
@@ -28,6 +31,90 @@ namespace AbilityKit.Demo.Moba.Services
         /// 实例ID
         /// </summary>
         public long InstanceId => _instanceId;
+
+        public long CreateNode(in TraceOrigin origin)
+        {
+            return origin.ParentContextId != 0 ? CreateChild(origin) : CreateRoot(origin);
+        }
+
+        public long CreateRootContext(
+            MobaTraceKind kind,
+            int configId,
+            int sourceActorId,
+            int targetActorId,
+            TraceEndpoint originSource = default,
+            TraceEndpoint originTarget = default)
+        {
+            var origin = new TraceOrigin(
+                kind: (int)kind,
+                sourceActorId: sourceActorId,
+                targetActorId: targetActorId,
+                originSource: originSource.IsValid ? originSource : ToOriginSource(kind, configId),
+                originTarget: originTarget.IsValid ? originTarget : TraceEndpoint.Actor(targetActorId),
+                configId: configId);
+            return CreateRoot(origin);
+        }
+
+        public long CreateChildContext(
+            long parentContextId,
+            MobaTraceKind kind,
+            int configId,
+            int sourceActorId,
+            int targetActorId,
+            TraceEndpoint originSource = default,
+            TraceEndpoint originTarget = default)
+        {
+            var origin = new TraceOrigin(
+                kind: (int)kind,
+                sourceActorId: sourceActorId,
+                targetActorId: targetActorId,
+                originSource: originSource.IsValid ? originSource : ToOriginSource(kind, configId),
+                originTarget: originTarget.IsValid ? originTarget : TraceEndpoint.Actor(targetActorId),
+                configId: configId,
+                parentContextId: parentContextId);
+            return CreateChild(origin);
+        }
+
+        public bool EndContext(long contextId, TraceLifecycleReason reason)
+        {
+            return End(contextId, (int)reason);
+        }
+
+        public bool EndContext(long contextId, MobaTraceEndReason reason)
+        {
+            return End(contextId, (int)reason);
+        }
+
+        private static TraceEndpoint ToOriginSource(MobaTraceKind kind, int configId)
+        {
+            switch (kind)
+            {
+                case MobaTraceKind.SkillCast:
+                case MobaTraceKind.SkillEffect:
+                case MobaTraceKind.SkillPhase:
+                    return TraceEndpoint.Config("Skill", configId);
+                case MobaTraceKind.EffectExecution:
+                    return TraceEndpoint.Config("Effect", configId);
+                case MobaTraceKind.EffectAction:
+                    return TraceEndpoint.Config("Action", configId);
+                case MobaTraceKind.BuffApply:
+                case MobaTraceKind.BuffTick:
+                case MobaTraceKind.BuffRemove:
+                    return TraceEndpoint.Config("Buff", configId);
+                case MobaTraceKind.ProjectileLaunch:
+                case MobaTraceKind.ProjectileHit:
+                    return TraceEndpoint.Config("Projectile", configId);
+                case MobaTraceKind.AreaSpawn:
+                case MobaTraceKind.AreaEnter:
+                case MobaTraceKind.AreaExit:
+                    return TraceEndpoint.Config("Area", configId);
+                case MobaTraceKind.SummonSpawn:
+                case MobaTraceKind.SummonDeath:
+                    return TraceEndpoint.Config("Summon", configId);
+                default:
+                    return default;
+            }
+        }
 
         /// <summary>
         /// 创建技能效果溯源根节点
@@ -57,7 +144,7 @@ namespace AbilityKit.Demo.Moba.Services
             int triggerPlanId,
             int sourceActorId,
             int targetActorId,
-            EffectContextKind contextKind = EffectContextKind.OngoingEffect)
+            EffectContextKind contextKind = EffectContextKind.ContinuousPeriodic)
         {
             return MobaTraceRegistryExtensions.CreateRootScope(
                 this,

@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     internal sealed class BuffStackingPolicyApplier
     {
-        public bool ApplyToExisting(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds, BuffContextService context)
+        public bool ApplyToExisting(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
         {
             if (existing == null) return false;
             if (buff == null) return false;
@@ -16,7 +16,6 @@ namespace AbilityKit.Demo.Moba.Services
                 case BuffStackingPolicy.IgnoreIfExists:
                     return false;
                 case BuffStackingPolicy.Replace:
-                    context?.CancelAndEnd(existing);
                     existing.SourceId = sourceActorId;
                     existing.StackCount = 0;
                     existing.Remaining = durationSeconds;

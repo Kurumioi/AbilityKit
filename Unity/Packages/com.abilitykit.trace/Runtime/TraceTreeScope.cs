@@ -202,6 +202,15 @@ namespace AbilityKit.Trace
             return new TraceRootScope(registry, rootId, registry.GetCurrentFrame());
         }
 
+        public static TraceRootScope CreateRootScope<T>(
+            this TraceTreeRegistry<T> registry,
+            in TraceOrigin origin)
+            where T : TraceMetadata
+        {
+            var rootId = registry.BeginRoot(origin);
+            return new TraceRootScope(registry, rootId, registry.GetCurrentFrame());
+        }
+
         /// <summary>
         /// 创建子节点作用域
         /// </summary>
@@ -217,6 +226,15 @@ namespace AbilityKit.Trace
             where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+            return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), 0);
+        }
+
+        public static TraceTreeScope CreateChildScope<T>(
+            this TraceTreeRegistry<T> registry,
+            in TraceOrigin origin)
+            where T : TraceMetadata
+        {
+            var childId = registry.BeginChild(origin);
             return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), 0);
         }
 
@@ -236,6 +254,16 @@ namespace AbilityKit.Trace
             where T : TraceMetadata
         {
             var childId = registry.BeginChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+            return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), endReason);
+        }
+
+        public static TraceTreeScope CreateChildScope<T>(
+            this TraceTreeRegistry<T> registry,
+            in TraceOrigin origin,
+            int endReason)
+            where T : TraceMetadata
+        {
+            var childId = registry.BeginChild(origin);
             return new TraceTreeScope(registry, childId, registry.GetCurrentFrame(), endReason);
         }
     }

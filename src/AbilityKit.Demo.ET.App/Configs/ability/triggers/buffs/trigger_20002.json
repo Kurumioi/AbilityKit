@@ -1,0 +1,20 @@
+﻿{
+    "conditions":  [
+
+                   ],
+    "id":  20002,
+    "enabled":  true,
+    "phase":  "immediate",
+    "event":  "skill.cast.complete",
+    "scope":  "owner",
+    "name":  "Trigger_20002",
+    "allowExternal":  true,
+    "actions":  [
+                    {
+                        "message":  "监听别人释放技能完成日志输出22222",
+                        "dump_args":  false,
+                        "type":  "debug_log"
+                    }
+                ],
+    "priority":  50
+}

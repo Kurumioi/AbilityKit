@@ -5,13 +5,12 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Effect;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Pipeline;
-using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -80,6 +79,85 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool HasRunning => _running.Count > 0;
 
+        public bool TryGetLatestRunningBySlot(int slot, out RunningSnapshot snapshot)
+        {
+            snapshot = default;
+            if (slot <= 0) return false;
+
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.Context == null) continue;
+                if (e.Context.SkillSlot != slot) continue;
+
+                snapshot = CreateSnapshot(in e, ToSkillCastStage(e.Stage));
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryGetRunningByInstanceId(long instanceId, out RunningSnapshot snapshot)
+        {
+            snapshot = default;
+            if (instanceId == 0L) return false;
+
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.Context == null) continue;
+                if (GetInstanceId(in e) != instanceId) continue;
+
+                snapshot = CreateSnapshot(in e, ToSkillCastStage(e.Stage));
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool UpdateInputBySlot(int slot, in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
+        {
+            if (slot <= 0) return false;
+
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.Context == null) continue;
+                if (e.Context.SkillSlot != slot) continue;
+
+                e.Context.UpdateInput(in aimPos, in aimDir, targetActorId);
+                if (e.TriggerContext != null)
+                {
+                    e.TriggerContext.AimPos = e.Context.AimPos;
+                    e.TriggerContext.AimDir = e.Context.AimDir;
+                    e.TriggerContext.TargetActorId = e.Context.TargetActorId;
+                }
+
+                _running[i] = e;
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool MarkReleaseBySlot(int slot)
+        {
+            if (slot <= 0) return false;
+
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.Context == null) continue;
+                if (e.Context.SkillSlot != slot) continue;
+
+                e.Context.MarkInputReleased();
+                _running[i] = e;
+                return true;
+            }
+
+            return false;
+        }
+
         public void FillRunningSnapshots(List<RunningSnapshot> buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
@@ -92,34 +170,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var e = _running[i];
                 if (e.Context == null) continue;
 
-                var instanceId = 0L;
-                try { instanceId = e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L; }
-                catch { instanceId = 0L; }
-
-                var stage = e.Stage == EntryStage.PreCast ? SkillCastStage.PreCast : SkillCastStage.Cast;
-
-                var elapsedMs = 0;
-                try { elapsedMs = (int)(e.Context.ElapsedTime * 1000f); }
-                catch { elapsedMs = 0; }
-
-                var nextEventIndex = 0;
-                try { nextEventIndex = e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0); }
-                catch { nextEventIndex = 0; }
-
-                buffer.Add(new RunningSnapshot(
-                    instanceId: instanceId,
-                    ownerActorId: e.Context.CasterActorId,
-                    skillId: e.Context.SkillId,
-                    skillSlot: e.Context.SkillSlot,
-                    skillLevel: e.TriggerContext != null ? e.TriggerContext.SkillLevel : 0,
-                    startFrame: e.StartFrame,
-                    sequence: e.TriggerContext != null ? e.TriggerContext.Sequence : 0,
-                    targetActorId: e.Context.TargetActorId,
-                    aimPos: e.Context.AimPos,
-                    aimDir: e.Context.AimDir,
-                    stage: stage,
-                    elapsedMs: elapsedMs,
-                    nextEventIndex: nextEventIndex));
+                buffer.Add(CreateSnapshot(in e, ToSkillCastStage(e.Stage)));
             }
         }
 
@@ -299,7 +350,7 @@ namespace AbilityKit.Demo.Moba.Services
             SkillLogger.Instance.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"PreCastFailed: {entry.FailReason}");
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastFail, entry.TriggerContext, entry.FailReason);
 
-            TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
+            TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
             try { entry.Context?.RunAndClearCleanups(); }
             catch { }
             return false;
@@ -337,14 +388,14 @@ namespace AbilityKit.Demo.Moba.Services
                 SkillLogger.Instance.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"CastFailed: {entry.FailReason}");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
 
-                TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
+                TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
             }
             else
             {
                 SkillLogger.Instance.LogSkillComplete(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
-                TryEndEffectSource(entry, EffectSourceEndReason.Completed);
+                TryEndTraceContext(entry, TraceLifecycleReason.Completed);
             }
 
             try { entry.Context?.RunAndClearCleanups(); }
@@ -353,8 +404,52 @@ namespace AbilityKit.Demo.Moba.Services
             return state == EAbilityPipelineState.Completed;
         }
 
-        private static void TryEndEffectSource(in Entry entry, EffectSourceEndReason reason)
+        private static void TryEndSkillRuntime(in Entry entry, MobaSkillRuntimeEndReason reason)
         {
+            var handle = entry.TriggerContext != null ? entry.TriggerContext.RuntimeHandle : default;
+            if (!handle.IsValid) return;
+
+            MobaSkillCastRuntimeService runtimes = null;
+            try
+            {
+                runtimes = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<MobaSkillCastRuntimeService>() : null;
+            }
+            catch
+            {
+                runtimes = null;
+            }
+
+            if (runtimes == null) return;
+            runtimes.MarkPipelineEnded(in handle, reason);
+        }
+
+        private static void TryCancelSkillRuntime(in Entry entry, MobaSkillRuntimeEndReason reason = MobaSkillRuntimeEndReason.Cancelled)
+        {
+            var handle = entry.TriggerContext != null ? entry.TriggerContext.RuntimeHandle : default;
+            if (!handle.IsValid) return;
+
+            MobaSkillCastRuntimeService runtimes = null;
+            try
+            {
+                runtimes = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<MobaSkillCastRuntimeService>() : null;
+            }
+            catch
+            {
+                runtimes = null;
+            }
+
+            if (runtimes == null) return;
+            runtimes.Cancel(in handle, reason);
+        }
+
+        private static void TryEndTraceContext(in Entry entry, TraceLifecycleReason reason)
+        {
+            if (entry.TriggerContext != null && entry.TriggerContext.RuntimeHandle.IsValid)
+            {
+                TryEndSkillRuntime(in entry, ToRuntimeEndReason(reason));
+                return;
+            }
+
             var rootId = 0L;
             try
             {
@@ -368,55 +463,60 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (rootId == 0) return;
 
-            EffectSourceRegistry effectSource = null;
+            MobaTraceRegistry trace = null;
             try
             {
-                effectSource = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<EffectSourceRegistry>() : null;
+                trace = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<MobaTraceRegistry>() : null;
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[SkillPipelineRunner] resolve EffectSourceRegistry failed");
-                effectSource = null;
+                Log.Exception(ex, "[SkillPipelineRunner] resolve MobaTraceRegistry failed");
+                trace = null;
             }
 
-            if (effectSource == null) return;
-
-            var frame = 0;
-            try
-            {
-                var ft = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<IFrameTime>() : null;
-                frame = ft != null ? ft.Frame.Value : 0;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[SkillPipelineRunner] resolve/read IFrameTime failed");
-                frame = 0;
-            }
+            if (trace == null) return;
 
             try
             {
                 try
                 {
-                    effectSource.EnsureRoot(
-                        contextId: rootId,
-                        kind: EffectSourceKind.SkillCast,
-                        configId: entry.Request.SkillId,
+                    var origin = new TraceOrigin(
+                        kind: (int)MobaTraceKind.SkillCast,
                         sourceActorId: entry.Request.CasterActorId,
                         targetActorId: entry.Request.TargetActorId,
-                        frame: frame,
-                        originSource: entry.Request.CasterActorId,
-                        originTarget: entry.Request.TargetActorId);
+                        originSource: TraceEndpoint.Actor(entry.Request.CasterActorId),
+                        originTarget: TraceEndpoint.Actor(entry.Request.TargetActorId),
+                        configId: entry.Request.SkillId);
+                    trace.EnsureRoot(rootId, in origin);
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, $"[SkillPipelineRunner] EffectSource.EnsureRoot failed (rootId={rootId}, frame={frame})");
+                    Log.Exception(ex, $"[SkillPipelineRunner] Trace.EnsureRoot failed (rootId={rootId})");
                 }
 
-                effectSource.End(rootId, frame, reason);
+                trace.EndContext(rootId, reason);
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[SkillPipelineRunner] EffectSource.End failed (rootId={rootId}, frame={frame}, reason={reason})");
+                Log.Exception(ex, $"[SkillPipelineRunner] Trace.EndContext failed (rootId={rootId}, reason={reason})");
+            }
+        }
+
+        private static MobaSkillRuntimeEndReason ToRuntimeEndReason(TraceLifecycleReason reason)
+        {
+            switch (reason)
+            {
+                case TraceLifecycleReason.Completed:
+                    return MobaSkillRuntimeEndReason.PipelineCompleted;
+                case TraceLifecycleReason.Failed:
+                    return MobaSkillRuntimeEndReason.Failed;
+                case TraceLifecycleReason.Dead:
+                    return MobaSkillRuntimeEndReason.OwnerRemoved;
+                case TraceLifecycleReason.Cancelled:
+                case TraceLifecycleReason.Interrupted:
+                    return MobaSkillRuntimeEndReason.Cancelled;
+                default:
+                    return MobaSkillRuntimeEndReason.Cancelled;
             }
         }
 
@@ -452,7 +552,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                 p?.Interrupt();
 
-                TryEndEffectSource(e, EffectSourceEndReason.Cancelled);
+                TryEndTraceContext(e, TraceLifecycleReason.Cancelled);
 
                 try { e.Context?.RunAndClearCleanups(); }
                 catch { }
@@ -460,6 +560,25 @@ namespace AbilityKit.Demo.Moba.Services
                 TryAddEndedSnapshot(in e, SkillCastStage.Cancelled);
             }
             _running.Clear();
+        }
+
+        public bool CancelBySlot(int slot)
+        {
+            if (slot <= 0) return false;
+            if (_running.Count == 0) return false;
+
+            var cancelled = false;
+            for (int i = _running.Count - 1; i >= 0; i--)
+            {
+                var e = _running[i];
+                if (e.Context == null) continue;
+                if (e.Context.SkillSlot != slot) continue;
+
+                CancelAt(i, in e, "CancelBySlot");
+                cancelled = true;
+            }
+
+            return cancelled;
         }
 
         public void CancelBySkillId(int skillId)
@@ -473,30 +592,36 @@ namespace AbilityKit.Demo.Moba.Services
                 if (e.Context == null) continue;
                 if (e.Context.SkillId != skillId) continue;
 
-                var p = e.Run;
-
-                var instanceId = e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L;
-                var stageStr = e.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
-                SkillLogger.Instance.LogSkillCancel(e.TriggerContext.CasterActorId, skillId, instanceId, $"CancelBySkillId_{stageStr}");
-
-                if (e.Stage == EntryStage.PreCast)
-                {
-                    MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastInterrupt, e.TriggerContext);
-                }
-                else
-                {
-                    MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastInterrupt, e.TriggerContext);
-                }
-
-                p?.Interrupt();
-                TryEndEffectSource(e, EffectSourceEndReason.Cancelled);
-
-                try { e.Context?.RunAndClearCleanups(); }
-                catch { }
-                TryAddEndedSnapshot(in e, SkillCastStage.Cancelled);
-
-                _running.RemoveAt(i);
+                CancelAt(i, in e, "CancelBySkillId");
             }
+        }
+
+        private void CancelAt(int index, in Entry e, string reason)
+        {
+            var p = e.Run;
+
+            var instanceId = GetInstanceId(in e);
+            var stageStr = e.Stage == EntryStage.PreCast ? "PreCast" : "Cast";
+            SkillLogger.Instance.LogSkillCancel(e.Context.CasterActorId, e.Context.SkillId, instanceId, $"{reason}_{stageStr}");
+
+            if (e.Stage == EntryStage.PreCast)
+            {
+                MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastInterrupt, e.TriggerContext);
+            }
+            else
+            {
+                MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastInterrupt, e.TriggerContext);
+            }
+
+            p?.Interrupt();
+            TryCancelSkillRuntime(in e, MobaSkillRuntimeEndReason.Cancelled);
+            TryEndTraceContext(e, TraceLifecycleReason.Cancelled);
+
+            try { e.Context?.RunAndClearCleanups(); }
+            catch { }
+            TryAddEndedSnapshot(in e, SkillCastStage.Cancelled);
+
+            _running.RemoveAt(index);
         }
 
         public void Step(float deltaTime)
@@ -552,7 +677,7 @@ namespace AbilityKit.Demo.Moba.Services
                         SkillLogger.Instance.LogSkillComplete(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
-                        TryEndEffectSource(entry, EffectSourceEndReason.Completed);
+                        TryEndTraceContext(entry, TraceLifecycleReason.Completed);
 
                         try { entry.Context?.RunAndClearCleanups(); }
                         catch { }
@@ -577,7 +702,7 @@ namespace AbilityKit.Demo.Moba.Services
                             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
                         }
 
-                        TryEndEffectSource(entry, EffectSourceEndReason.Cancelled);
+                        TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
 
                         try { entry.Context?.RunAndClearCleanups(); }
                         catch { }
@@ -594,34 +719,46 @@ namespace AbilityKit.Demo.Moba.Services
         private void TryAddEndedSnapshot(in Entry e, SkillCastStage terminalStage)
         {
             if (e.Context == null) return;
+            if (GetInstanceId(in e) == 0L) return;
 
-            var instanceId = 0L;
-            try { instanceId = e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L; }
-            catch { instanceId = 0L; }
-            if (instanceId == 0L) return;
+            _ended.Add(CreateSnapshot(in e, terminalStage));
+        }
 
+        private static SkillCastStage ToSkillCastStage(EntryStage stage)
+        {
+            return stage == EntryStage.PreCast ? SkillCastStage.PreCast : SkillCastStage.Cast;
+        }
+
+        private static long GetInstanceId(in Entry e)
+        {
+            try { return e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L; }
+            catch { return 0L; }
+        }
+
+        private static RunningSnapshot CreateSnapshot(in Entry e, SkillCastStage stage)
+        {
             var elapsedMs = 0;
-            try { elapsedMs = (int)(e.Context.ElapsedTime * 1000f); }
+            try { elapsedMs = e.Context != null ? (int)(e.Context.ElapsedTime * 1000f) : 0; }
             catch { elapsedMs = 0; }
 
             var nextEventIndex = 0;
-            try { nextEventIndex = e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0); }
+            try { nextEventIndex = e.Context != null ? e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0) : 0; }
             catch { nextEventIndex = 0; }
 
-            _ended.Add(new RunningSnapshot(
-                instanceId: instanceId,
-                ownerActorId: e.Context.CasterActorId,
-                skillId: e.Context.SkillId,
-                skillSlot: e.Context.SkillSlot,
+            return new RunningSnapshot(
+                instanceId: GetInstanceId(in e),
+                ownerActorId: e.Context != null ? e.Context.CasterActorId : 0,
+                skillId: e.Context != null ? e.Context.SkillId : 0,
+                skillSlot: e.Context != null ? e.Context.SkillSlot : 0,
                 skillLevel: e.TriggerContext != null ? e.TriggerContext.SkillLevel : 0,
                 startFrame: e.StartFrame,
                 sequence: e.TriggerContext != null ? e.TriggerContext.Sequence : 0,
-                targetActorId: e.Context.TargetActorId,
-                aimPos: e.Context.AimPos,
-                aimDir: e.Context.AimDir,
-                stage: terminalStage,
+                targetActorId: e.Context != null ? e.Context.TargetActorId : 0,
+                aimPos: e.Context != null ? e.Context.AimPos : Vec3.Zero,
+                aimDir: e.Context != null ? e.Context.AimDir : Vec3.Forward,
+                stage: stage,
                 elapsedMs: elapsedMs,
-                nextEventIndex: nextEventIndex));
+                nextEventIndex: nextEventIndex);
         }
 
         private enum EntryStage

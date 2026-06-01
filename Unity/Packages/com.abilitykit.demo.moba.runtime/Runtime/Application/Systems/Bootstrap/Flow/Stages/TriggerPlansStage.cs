@@ -44,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
                     db.Load(fsAdapter, "ability/ability_trigger_plans.json");
                     Log.Info($"[TriggerPlansStage] Main trigger plans loaded. records={db.Records?.Count ?? 0}");
+                    Log.Trace($"[AI-DIAG] [TriggerPlansStage] Main trigger plans loaded. records={db.Records?.Count ?? 0}, records={FormatRecords(db)}");
                 }
                 catch (Exception ex)
                 {
@@ -56,12 +57,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 {
                     var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
                     var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
-                    var loadedDb = directoryLoader.LoadDirectory("ability/triggers");
+                    var loadedDb = directoryLoader.LoadDirectory("ability/triggers", "**/*.json");
 
                     if (loadedDb != null && loadedDb.Records != null)
                     {
+                        Log.Trace($"[AI-DIAG] [TriggerPlansStage] Directory trigger plans loaded. records={loadedDb.Records?.Count ?? 0}, records={FormatRecords(loadedDb)}");
                         db.MergeFrom(loadedDb, replaceExisting: false);
                         Log.Info($"[TriggerPlansStage] Directory trigger plans merged. total records={db.Records?.Count ?? 0}");
+                        Log.Trace($"[AI-DIAG] [TriggerPlansStage] Directory trigger plans merged. replaceExisting=false, total records={db.Records?.Count ?? 0}, records={FormatRecords(db)}");
                     }
                 }
                 catch (Exception ex)
@@ -71,6 +74,16 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 return db;
             });
+        }
+
+        private static string FormatRecords(TriggerPlanJsonDatabase db)
+        {
+            if (db?.Records == null || db.Records.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            return string.Join(",", db.Records.Select(r => $"{r.TriggerId}:{r.EventName}:scope={(int)r.Scope}"));
         }
 
         /// <summary>

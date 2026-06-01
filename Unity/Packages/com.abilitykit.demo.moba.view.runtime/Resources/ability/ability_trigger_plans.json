@@ -110,6 +110,7 @@
     },
     {
       "TriggerId": 20001,
+      "Scope": 1,
       "EventName": "skill.cast.complete",
       "EventId": 1035494462,
       "AllowExternal": false,
@@ -196,6 +197,7 @@
     },
     {
       "TriggerId": 20002,
+      "Scope": 1,
       "EventName": "skill.cast.complete",
       "EventId": 1035494462,
       "AllowExternal": false,

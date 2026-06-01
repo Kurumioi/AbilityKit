@@ -1,6 +1,6 @@
 ﻿using Entitas;
 using Entitas.CodeGeneration.Attributes;
-using AbilityKit.Demo.Moba;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Components
 {
@@ -20,6 +20,6 @@ namespace AbilityKit.Demo.Moba.Components
     {
         public int BuffId;
         public int SourceId;
-        public EffectSourceEndReason Reason;
+        public TraceLifecycleReason Reason;
     }
 }

@@ -406,7 +406,7 @@ public sealed class BuffMO
 | `BuffStackingPolicyApplier` | 应用叠加策略（创建/刷新/替换） |
 | `BuffContextService` | EffectSourceContext 的创建和销毁 |
 | `BuffEventPublisher` | 发布 Buff 相关事件到 EventBus |
-| `BuffPeriodicEffectBinder` | 绑定周期性效果到 OngoingEffectService |
+| `BuffPeriodicEffectBinder` | 绑定周期性效果到正式 continuous periodic service |
 | `BuffStageEffectExecutor` | 执行各阶段的效果列表 |
 | `MobaBuffService` | 命令队列管理，处理命令洪泛 |
 

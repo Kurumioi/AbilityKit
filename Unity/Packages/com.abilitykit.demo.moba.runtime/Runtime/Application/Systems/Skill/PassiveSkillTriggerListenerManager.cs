@@ -4,18 +4,17 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
-using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
     internal sealed class PassiveSkillTriggerListenerManager
     {
         private readonly MobaConfigDatabase _configs;
-        private readonly EffectSourceRegistry _effectSource;
+        private readonly MobaTraceRegistry _trace;
         private readonly ITriggerActionRunner _actionRunner;
 
         internal readonly struct Registration
@@ -32,11 +31,11 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public PassiveSkillTriggerListenerManager(
             MobaConfigDatabase configs,
-            EffectSourceRegistry effectSource,
+            MobaTraceRegistry trace,
             ITriggerActionRunner actionRunner)
         {
             _configs = configs;
-            _effectSource = effectSource;
+            _trace = trace;
             _actionRunner = actionRunner;
         }
 
@@ -187,11 +186,11 @@ namespace AbilityKit.Demo.Moba.Systems
 
                 try
                 {
-                    _effectSource?.End(key, frame, EffectSourceEndReason.Cancelled);
+                    _trace?.EndContext(key, TraceLifecycleReason.Cancelled);
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] EffectSource.End failed (ownerKey={key}, frame={frame})");
+                    Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] Trace.EndContext failed (ownerKey={key}, frame={frame})");
                 }
             }
         }
@@ -215,17 +214,19 @@ namespace AbilityKit.Demo.Moba.Systems
             if (entity == null) return;
             if (l == null) return;
             if (l.SourceContextId != 0) return;
-            if (_effectSource == null) return;
+            if (_trace == null) return;
             if (!entity.hasActorId) return;
 
             try
             {
-                l.SourceContextId = _effectSource.CreateRoot(
-                    kind: EffectSourceKind.System,
-                    configId: passiveSkillId,
-                    sourceActorId: entity.actorId.Value,
-                    targetActorId: entity.actorId.Value,
-                    frame: frame);
+                var actorId = entity.actorId.Value;
+                l.SourceContextId = _trace.CreateRootContext(
+                    MobaTraceKind.SkillEffect,
+                    passiveSkillId,
+                    actorId,
+                    actorId,
+                    TraceEndpoint.Config("Skill", passiveSkillId),
+                    TraceEndpoint.Actor(actorId));
             }
             catch
             {

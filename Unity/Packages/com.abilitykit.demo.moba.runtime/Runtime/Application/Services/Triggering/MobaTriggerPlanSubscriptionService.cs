@@ -10,17 +10,19 @@ using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 
-namespace AbilityKit.Demo.Moba.Services
+namespace AbilityKit.Demo.Moba.Services.Triggering
 {
     [WorldService(typeof(MobaTriggerPlanSubscriptionService))]
-    public sealed class MobaTriggerPlanSubscriptionService : IService
+    public sealed class MobaTriggerPlanSubscriptionService : IWorldInitializable, IWorldDeinitializable
     {
-        private readonly TriggerPlanJsonDatabase _db;
-        private readonly TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner;
-        private readonly IWorldResolver _services;
+        [WorldInject] private TriggerPlanJsonDatabase _db;
+        [WorldInject] private TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner;
+        [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry;
 
         private readonly Dictionary<int, TriggerPlanJsonDatabase.Record> _byTriggerId = new Dictionary<int, TriggerPlanJsonDatabase.Record>();
+        private readonly Dictionary<int, Type> _argsTypeByTriggerId = new Dictionary<int, Type>();
         private readonly Dictionary<long, List<IDisposable>> _regsByOwnerKey = new Dictionary<long, List<IDisposable>>();
 
         private static readonly MethodInfo RegisterTypedMethod = typeof(MobaTriggerPlanSubscriptionService).GetMethod(nameof(RegisterTyped), BindingFlags.NonPublic | BindingFlags.Static);
@@ -37,12 +39,8 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var kv in _regsByOwnerKey) dest.Add(kv.Key);
         }
 
-        public MobaTriggerPlanSubscriptionService(TriggerPlanJsonDatabase db, TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> runner, IWorldResolver services)
+        public void OnInit(IWorldResolver services)
         {
-            _db = db;
-            _runner = runner;
-            _services = services;
-
             try
             {
                 var records = _db?.Records;
@@ -54,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Services
                         if (r.TriggerId <= 0) continue;
                         _byTriggerId[r.TriggerId] = r;
                     }
+                    BuildArgsTypeCache(records);
                 }
             }
             catch (Exception ex)
@@ -90,6 +89,12 @@ namespace AbilityKit.Demo.Moba.Services
                     continue;
                 }
 
+                if (record.Scope != TriggerPlanScope.OwnerBound)
+                {
+                    Log.Warning($"[MobaTriggerPlanSubscriptionService] triggerId is not owner-bound. triggerId={triggerId} scope={record.Scope}");
+                    continue;
+                }
+
                 try
                 {
                     var subReg = TryRegisterTyped(record);
@@ -110,14 +115,27 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        private void BuildArgsTypeCache(IReadOnlyList<TriggerPlanJsonDatabase.Record> records)
+        {
+            if (records == null || records.Count == 0) return;
+            if (_eventRegistry == null) return;
+
+            for (int i = 0; i < records.Count; i++)
+            {
+                var record = records[i];
+                if (record.TriggerId <= 0) continue;
+                if (string.IsNullOrEmpty(record.EventName)) continue;
+                if (!_eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null) continue;
+                _argsTypeByTriggerId[record.TriggerId] = argsType;
+            }
+        }
+
         private IDisposable TryRegisterTyped(in TriggerPlanJsonDatabase.Record record)
         {
             try
             {
-                if (string.IsNullOrEmpty(record.EventName)) return null;
-                if (_services == null) return null;
-                if (!_services.TryResolve<MobaEventSubscriptionRegistry>(out var reg) || reg == null) return null;
-                if (!reg.TryGetArgsType(record.EventName, out var argsType) || argsType == null) return null;
+                if (!_argsTypeByTriggerId.TryGetValue(record.TriggerId, out var argsType) || argsType == null) return null;
+                if (!argsType.IsClass) return null;
 
                 if (RegisterTypedMethod == null)
                 {
@@ -130,7 +148,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[MobaTriggerPlanSubscriptionService] typed register failed. eventName={record.EventName} eid={record.EventId}");
+                Log.Exception(ex, $"[MobaTriggerPlanSubscriptionService] typed register failed. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
                 return null;
             }
         }
@@ -192,10 +210,17 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        public void Dispose()
+        public void OnDeinit(IWorldResolver services)
         {
             var keys = new List<long>(_regsByOwnerKey.Keys);
             for (int i = 0; i < keys.Count; i++) Stop(keys[i]);
+        }
+
+        public void Dispose()
+        {
+            _byTriggerId.Clear();
+            _argsTypeByTriggerId.Clear();
+            _regsByOwnerKey.Clear();
         }
     }
 }

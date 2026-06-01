@@ -21,6 +21,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.Register<FunctionRegistry>(WorldLifetime.Singleton, _ => new FunctionRegistry());
             builder.Register<ActionRegistry>(WorldLifetime.Singleton, _ => new ActionRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.SkillConditionRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.SkillConditionRegistry());
+            builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry());
+            builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry());
             builder.Register<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(WorldLifetime.Singleton, r =>
                 new AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>(
                     r.Resolve<AbilityKit.Triggering.Eventing.IEventBus>(),

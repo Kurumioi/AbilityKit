@@ -4,8 +4,12 @@
     {
         Unknown = 0,
         Skill = 1,
-        OngoingEffect = 2,
+        ContinuousPeriodic = 2,
         Buff = 3,
         Trigger = 4,
+        Projectile = 5,
+        Area = 6,
+        Summon = 7,
+        Unit = 8,
     }
 }

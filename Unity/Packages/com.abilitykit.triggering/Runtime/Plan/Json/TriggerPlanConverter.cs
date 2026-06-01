@@ -74,7 +74,21 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 {
                     namedArgs[kv.Key] = new ActionArgValue(ConvertNumericValueRef(kv.Value), kv.Key);
                 }
-                return ActionCallPlan.WithArgs(id, namedArgs);
+
+                var arity = Math.Min(dto.Arity, 2);
+                var arg0 = arity > 0 ? ConvertNumericValueRef(dto.Arg0) : default;
+                var arg1 = arity > 1 ? ConvertNumericValueRef(dto.Arg1) : default;
+                return new ActionCallPlan(
+                    id,
+                    (byte)arity,
+                    arg0,
+                    arg1,
+                    namedArgs,
+                    EActionScheduleMode.Immediate,
+                    0,
+                    -1,
+                    true,
+                    EActionExecutionPolicy.Immediate);
             }
 
             switch (dto.Arity)

@@ -175,7 +175,7 @@ Services/
 ├── Spawn/             # 实体生成
 ├── FrameSync/         # 帧同步
 ├── Triggering/        # 触发器
-└── OngoingEffects/    # 持续效果
+└── ContinuousPeriodic/ # 持续周期行为
 ```
 
 ### 7.2 服务命名规范

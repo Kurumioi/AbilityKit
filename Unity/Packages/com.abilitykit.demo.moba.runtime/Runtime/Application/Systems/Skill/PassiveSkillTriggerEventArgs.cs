@@ -1,4 +1,4 @@
-﻿using AbilityKit.Demo.Moba;
+﻿using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Event;
 
@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public readonly int IsExternalEvent;
 
-        public readonly EffectSourceKind OriginKind;
+        public readonly MobaTraceKind OriginKind;
         public readonly int OriginConfigId;
         public readonly long OriginContextId;
         public readonly int OriginSourceActorId;
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Systems
             in Vec3 aimPos,
             in Vec3 aimDir,
             int isExternalEvent,
-            EffectSourceKind originKind,
+            MobaTraceKind originKind,
             int originConfigId,
             long originContextId,
             int originSourceActorId,

@@ -1,7 +1,6 @@
 ﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 
@@ -10,17 +9,11 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaAuthorityFrameService))]
     public sealed class MobaAuthorityFrameService : IService
     {
-        private readonly IWorldResolver _services;
-        private readonly IFrameTime _time;
+        [WorldInject] private IFrameTime _time;
+        [WorldInject(required: false)] private IWorldAuthorityFramesSource _authorityFrames;
 
         private WorldId _worldId;
         private bool _hasWorldId;
-
-        public MobaAuthorityFrameService(IWorldResolver services, IFrameTime time)
-        {
-            _services = services ?? throw new ArgumentNullException(nameof(services));
-            _time = time;
-        }
 
         public void BindWorld(WorldId worldId)
         {
@@ -33,9 +26,9 @@ namespace AbilityKit.Demo.Moba.Services
             predicted = default;
             confirmed = default;
 
-            if (_hasWorldId && _services != null && _services.TryResolve<IWorldAuthorityFramesSource>(out var src) && src != null)
+            if (_hasWorldId && _authorityFrames != null)
             {
-                if (src.TryGetFrames(_worldId, out confirmed, out predicted))
+                if (_authorityFrames.TryGetFrames(_worldId, out confirmed, out predicted))
                 {
                     return true;
                 }

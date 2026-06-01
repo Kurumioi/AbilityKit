@@ -109,9 +109,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
 
             // Presentation templates
             new Entry(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(MO.PresentationTemplateMO)),
-
-            // Ongoing effects
-            new Entry(MobaConfigPaths.OngoingEffectsFile, typeof(OngoingEffectDTO), typeof(MO.OngoingEffectMO)),
         };
     }
 }

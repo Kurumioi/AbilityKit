@@ -188,6 +188,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                 catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileSyncSystem] TryRegisterFromEntity failed"); }
 
                 _sys.Links.Link(evt.Projectile, projectileActorId);
+                BindProjectileSource(evt);
 
                 if (evt.LauncherActorId > 0 && _sys.Registry.TryGet(evt.LauncherActorId, out var launcherEntity) && launcherEntity != null && launcherEntity.hasProjectileLauncher)
                 {
@@ -201,6 +202,24 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                         newScheduleId: plc.ScheduleId,
                         newIntervalFrames: plc.IntervalFrames,
                         newTotalCount: plc.TotalCount);
+                }
+            }
+        }
+
+        private void BindProjectileSource(in ProjectileSpawnEvent evt)
+        {
+            if (_sys.Links == null) return;
+            if (evt.LauncherActorId <= 0) return;
+            if (!_sys.Links.TryGetLauncherSource(evt.LauncherActorId, out var source)) return;
+
+            _sys.Links.BindSource(evt.Projectile, in source);
+            if (!_sys.Links.TryGetRetain(evt.Projectile, out _) && source.SkillRuntimeHandle.IsValid && _sys.SkillRuntimes != null)
+            {
+                var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, evt.Projectile.Value, source.SourceContextId, evt.TemplateId);
+                var runtimeHandle = source.SkillRuntimeHandle;
+                if (_sys.SkillRuntimes.RetainChild(in runtimeHandle, in child, out var retainHandle))
+                {
+                    _sys.Links.BindRetain(evt.Projectile, in retainHandle);
                 }
             }
         }

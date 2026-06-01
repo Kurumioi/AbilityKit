@@ -102,10 +102,10 @@ namespace AbilityKit.Triggering.Runtime.Dsl
         }
 
         /// <summary>
-        /// 设置持续行为调度
-        /// 每帧驱动 Action 执行直到外部终止
+        /// 设置外部生命周期控制的持续调度
+        /// 按间隔驱动 Action，直到外部中断或达到执行次数
         /// </summary>
-        /// <param name="intervalMs">执行间隔（毫秒），0=每帧</param>
+        /// <param name="intervalMs">执行间隔（毫秒），0=每次 Update 都可驱动</param>
         /// <param name="maxExecutions">最大执行次数，-1=无限</param>
         /// <param name="canBeInterrupted">是否可中断</param>
         public TriggerPlanBuilder<TArgs> WithContinuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)

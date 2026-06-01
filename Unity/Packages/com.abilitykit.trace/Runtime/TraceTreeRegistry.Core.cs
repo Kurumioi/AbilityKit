@@ -266,6 +266,17 @@ namespace AbilityKit.Trace
             return contextId;
         }
 
+        public long CreateRoot(in TraceOrigin origin)
+        {
+            return CreateRoot(
+                origin.Kind,
+                origin.SourceActorId,
+                origin.TargetActorId,
+                origin.OriginSource,
+                origin.OriginTarget,
+                origin.ConfigId);
+        }
+
         /// <summary>
         /// 创建子节点
         /// </summary>
@@ -331,6 +342,18 @@ namespace AbilityKit.Trace
             return contextId;
         }
 
+        public long CreateChild(in TraceOrigin origin)
+        {
+            return CreateChild(
+                origin.ParentContextId,
+                origin.Kind,
+                origin.SourceActorId,
+                origin.TargetActorId,
+                origin.OriginSource,
+                origin.OriginTarget,
+                origin.ConfigId);
+        }
+
         /// <summary>
         /// 开始根节点作用域（相当于 CreateRoot + RetainRoot）
         /// </summary>
@@ -343,6 +366,13 @@ namespace AbilityKit.Trace
             int configId = 0)
         {
             var rootId = CreateRoot(kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+            RetainRoot(rootId);
+            return rootId;
+        }
+
+        public long BeginRoot(in TraceOrigin origin)
+        {
+            var rootId = CreateRoot(origin);
             RetainRoot(rootId);
             return rootId;
         }
@@ -361,6 +391,14 @@ namespace AbilityKit.Trace
         {
             var childId = CreateChild(parentContextId, kind, sourceActorId, targetActorId, originSource, originTarget, configId);
             var parentRecord = _contexts[parentContextId];
+            RetainRoot(parentRecord.RootId);
+            return childId;
+        }
+
+        public long BeginChild(in TraceOrigin origin)
+        {
+            var childId = CreateChild(origin);
+            var parentRecord = _contexts[origin.ParentContextId];
             RetainRoot(parentRecord.RootId);
             return childId;
         }
@@ -384,6 +422,18 @@ namespace AbilityKit.Trace
                 return record.RootId;
             }
             return CreateRoot(kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+        }
+
+        public long EnsureRoot(long contextId, in TraceOrigin origin)
+        {
+            return EnsureRoot(
+                contextId,
+                origin.Kind,
+                origin.SourceActorId,
+                origin.TargetActorId,
+                origin.OriginSource,
+                origin.OriginTarget,
+                origin.ConfigId);
         }
 
         /// <summary>
@@ -627,6 +677,8 @@ namespace AbilityKit.Trace
         private (long id, string display) ExtractOrigin(object origin)
         {
             if (origin == null) return (0, null);
+            if (origin is TraceEndpoint endpoint)
+                return (endpoint.Id, endpoint.DisplayName);
             if (_contextSource.TryExtractTraceId(origin, out var id, out var display))
                 return (id, display);
             return (origin.GetHashCode(), origin.ToString());

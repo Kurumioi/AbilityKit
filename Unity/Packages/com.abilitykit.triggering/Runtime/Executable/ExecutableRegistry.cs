@@ -41,9 +41,9 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public static ExecutableRegistry Instance => _instance.Value;
 
         private readonly Dictionary<int, ExecutableDescriptor> _executables = new();
-        private readonly Dictionary<string, int> _nameToId = new();
+        private readonly Dictionary<string, int> _nameToId = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<int, ConditionDescriptor> _conditions = new();
-        private readonly Dictionary<string, int> _conditionNameToId = new();
+        private readonly Dictionary<string, int> _conditionNameToId = new(StringComparer.OrdinalIgnoreCase);
 
         private ExecutableRegistry()
         {
@@ -111,8 +111,24 @@ namespace AbilityKit.Triggering.Runtime.Executable
             throw new KeyNotFoundException($"Condition type {typeId} not found");
         }
 
+        public ICondition CreateCondition(string typeName)
+        {
+            if (TryGetConditionTypeIdByName(typeName, out var typeId))
+                return CreateCondition(typeId);
+            throw new KeyNotFoundException($"Condition type '{typeName}' not found");
+        }
+
+        public bool TryGetConditionDescriptor(int typeId, out ConditionDescriptor descriptor)
+            => _conditions.TryGetValue(typeId, out descriptor);
+
+        public bool TryGetConditionTypeIdByName(string typeName, out int typeId)
+            => _conditionNameToId.TryGetValue(typeName, out typeId);
+
         public IEnumerable<ExecutableDescriptor> GetAllExecutables()
             => _executables.Values;
+
+        public IEnumerable<ConditionDescriptor> GetAllConditions()
+            => _conditions.Values;
 
         /// <summary>
         /// 通过 Attribute 注册 Executable 类型（供 MarkerAttribute.OnScanned 调用）

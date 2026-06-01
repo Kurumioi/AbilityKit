@@ -30,6 +30,8 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         private MobaActorSpawnSnapshotService _spawnSnapshots;
         private MobaConfigDatabase _configs;
         private MobaActorDespawnSnapshotService _despawnSnapshots;
+        private MobaSkillCastRuntimeService _skillRuntimes;
+        private MobaTraceRegistry _trace;
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
@@ -50,6 +52,8 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         internal MobaActorSpawnSnapshotService SpawnSnapshots => _spawnSnapshots;
         internal MobaConfigDatabase Configs => _configs;
         internal MobaActorDespawnSnapshotService DespawnSnapshots => _despawnSnapshots;
+        internal MobaSkillCastRuntimeService SkillRuntimes => _skillRuntimes;
+        internal MobaTraceRegistry Trace => _trace;
         internal global::ActorContext ActorContext => Contexts.Actor();
 
         public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -69,7 +73,9 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             Services.TryResolve(out _spawnSnapshots);
             Services.TryResolve(out _configs);
             Services.TryResolve(out _despawnSnapshots);
-
+            Services.TryResolve(out _skillRuntimes);
+            Services.TryResolve(out _trace);
+ 
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);
             _exitHandler = new MobaProjectileExitSyncHandler(this);

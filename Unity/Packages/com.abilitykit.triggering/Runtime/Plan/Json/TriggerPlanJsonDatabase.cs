@@ -6,6 +6,7 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -51,8 +52,10 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
-        private sealed class TriggerPlanDatabaseDto
+        internal sealed class TriggerPlanDatabaseDto
         {
+            public int FormatVersion;
+
             public List<TriggerPlanDto> Triggers;
 
             public Dictionary<int, string> Strings;
@@ -67,6 +70,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public bool AllowExternal;
             public int Phase;
             public int Priority;
+            public TriggerPlanScope Scope;
             public PredicatePlanDto Predicate;
             public List<ActionCallPlanDto> Actions;
 
@@ -136,13 +140,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public readonly int TriggerId;
             public readonly string EventName;
             public readonly int EventId;
+            public readonly TriggerPlanScope Scope;
             public readonly TriggerPlan<object> Plan;
 
-            public Record(int triggerId, string eventName, int eventId, in TriggerPlan<object> plan)
+            public Record(int triggerId, string eventName, int eventId, TriggerPlanScope scope, in TriggerPlan<object> plan)
             {
                 TriggerId = triggerId;
                 EventName = eventName;
                 EventId = eventId;
+                Scope = scope;
                 Plan = plan;
             }
         }
@@ -248,37 +254,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 throw new InvalidOperationException($"Trigger plan json is empty: {sourceName ?? "<json>"}");
             }
 
-            TriggerPlanDatabaseDto dto;
-
-            // 检测 JSON 格式
-            var jsonStart = json.TrimStart();
-            bool isSourceFormat = jsonStart.StartsWith("{\"$schema\"") ||
-                                  jsonStart.StartsWith("{\"version\"") ||
-                                  jsonStart.StartsWith("{\"triggers\":");
-
-            try
-            {
-                if (isSourceFormat)
-                {
-                    // 源格式：需要转换为运行时格式
-                    var runtimeJson = _sourceConverter.ConvertSourceToRuntimeJson(json);
-                    dto = JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(runtimeJson);
-                }
-                else
-                {
-                    // 运行时格式：直接反序列化
-                    dto = JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(json);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {ex.Message}", ex);
-            }
-
-            LoadFromDto(dto);
+            LoadFromDto(ParseRuntimeDto(json, sourceName));
         }
 
         public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner)
+        {
+            RegisterAll(runner, TriggerPlanScope.Global);
+        }
+
+        public void RegisterAll<TCtx>(TriggerRunner<TCtx> runner, TriggerPlanScope scope)
         {
             if (runner == null) throw new ArgumentNullException(nameof(runner));
 
@@ -286,12 +270,64 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 var r = _records[i];
                 if (r.EventId == 0) continue;
+                if (r.Scope != scope) continue;
                 var key = new EventKey<object>(r.EventId);
                 runner.RegisterPlan<object, TCtx>(key, r.Plan);
             }
         }
 
-        private void LoadFromDto(TriggerPlanDatabaseDto dto)
+        internal static TriggerPlanDatabaseDto ParseRuntimeDto(string json, string sourceName = null)
+        {
+            try
+            {
+                if (IsSourceFormatJson(json))
+                {
+                    var runtimeJson = _sourceConverter.ConvertSourceToRuntimeJson(json);
+                    return JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(runtimeJson);
+                }
+
+                return JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(json);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {ex.Message}", ex);
+            }
+        }
+
+        internal static bool IsSourceFormatJson(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+            {
+                return false;
+            }
+
+            var root = JObject.Parse(json);
+            if (HasProperty(root, "Triggers", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return HasProperty(root, "triggers", StringComparison.Ordinal) ||
+                   HasProperty(root, "actions", StringComparison.OrdinalIgnoreCase) ||
+                   HasProperty(root, "conditions", StringComparison.OrdinalIgnoreCase) ||
+                   HasProperty(root, "$schema", StringComparison.OrdinalIgnoreCase) ||
+                   HasProperty(root, "version", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasProperty(JObject root, string name, StringComparison comparison)
+        {
+            foreach (var property in root.Properties())
+            {
+                if (string.Equals(property.Name, name, comparison))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal void LoadFromDto(TriggerPlanDatabaseDto dto)
         {
             var next = new List<Record>();
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
@@ -311,7 +347,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     }
 
                     var plan = _converter.Convert(t);
-                    next.Add(new Record(t.TriggerId, t.EventName, eid, in plan));
+                    next.Add(new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan));
                     byTriggerId[t.TriggerId] = plan;
                 }
             }
@@ -319,6 +355,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             _records = next;
             _byTriggerId = byTriggerId;
             _strings = strings;
+        }
+
+        private static TriggerPlanScope NormalizeScope(TriggerPlanScope scope)
+        {
+            return Enum.IsDefined(typeof(TriggerPlanScope), scope) ? scope : TriggerPlanScope.Global;
         }
 
         private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();

@@ -23,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         protected internal override void Configure(WorldContainerBuilder builder)
         {
             builder.TryRegister<ITagTemplateRegistry>(WorldLifetime.Singleton, r => new MobaTagTemplateRegistry(r.Resolve<MobaConfigDatabase>()));
+            builder.TryRegister<IMobaContinuousTagTemplateRegistry>(WorldLifetime.Singleton, r => new MobaContinuousTagTemplateRegistry(r.Resolve<MobaConfigDatabase>()));
             builder.TryRegisterType<IGameplayTagService, AbilityTagService>(WorldLifetime.Scoped);
             builder.TryRegisterType<IDurableRegistry, DurableRegistry>(WorldLifetime.Scoped);
             builder.TryRegisterType<ITagEffectRouter, TagEffectRouter>(WorldLifetime.Scoped);

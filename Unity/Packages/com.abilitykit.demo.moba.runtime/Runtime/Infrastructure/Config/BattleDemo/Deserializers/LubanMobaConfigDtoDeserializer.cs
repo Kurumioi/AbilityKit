@@ -17,6 +17,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(SkillDTO),
             typeof(SkillButtonTemplateDTO),
             typeof(TagTemplateDTO),
+            typeof(ContinuousTagTemplateDTO),
             typeof(SearchQueryTemplateDTO),
             typeof(PassiveSkillDTO),
             typeof(SkillFlowDTO),
@@ -32,7 +33,6 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(SummonDTO),
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
-            typeof(OngoingEffectDTO),
             typeof(PresentationTemplateDTO),
         };
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Demo.Moba.Events.Unit;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -11,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Demo.Moba;
     [WorldService(typeof(MobaUnitDeathSubscriber))]
-    public sealed class MobaUnitDeathSubscriber : IService
+    public sealed class MobaUnitDeathSubscriber : IWorldDeinitializable
     {
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly MobaEntityManager _entities;
@@ -66,16 +67,19 @@ namespace AbilityKit.Demo.Moba.Services
             _eventBus.Publish(new EventKey<object>(eid), in boxed);
         }
 
-        public void Dispose()
+        public void OnDeinit(IWorldResolver services)
         {
-            _reported.Clear();
-
             var s = _sub;
             if (s != null)
             {
                 _sub = null;
                 s.Dispose();
             }
+        }
+
+        public void Dispose()
+        {
+            _reported.Clear();
         }
     }
 }

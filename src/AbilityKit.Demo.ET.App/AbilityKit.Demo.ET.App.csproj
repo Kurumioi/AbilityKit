@@ -31,7 +31,11 @@
 
   <!-- 复制配置文件到输出目录 -->
   <ItemGroup>
-    <Content Include="..\AbilityKit.Demo.Moba.Console\Configs\**\*">
+    <Content Include="..\AbilityKit.Demo.Moba.Console\Configs\**\*" Exclude="..\AbilityKit.Demo.Moba.Console\Configs\ability\triggers\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>Configs\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+    <Content Include="Configs\**\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>Configs\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>

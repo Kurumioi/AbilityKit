@@ -28,15 +28,20 @@ namespace ET.Logic
             // Parse EntityStates and create units
             foreach (var entity in snapshot.Entities)
             {
+                if (!TryGetEntityState(entity, out var state))
+                {
+                    continue;
+                }
+
                 var evt = new ActorSpawnEvent
                 {
                     ActorId = 0,  // ET internal ID
                     EntityCode = entity.EntityId,
-                    Kind = entity.TeamId == 1 ? ActorKind.Character : ActorKind.Monster,
+                    Kind = state.TeamId == 1 ? ActorKind.Character : ActorKind.Monster,
                     Name = $"Unit_{entity.EntityId}",
-                    X = entity.X,
-                    Y = entity.Z,
-                    MaxHp = entity.HpMax,
+                    X = state.X,
+                    Y = state.Z,
+                    MaxHp = state.HpMax,
                     IsLocalPlayer = false,
                 };
 
@@ -44,6 +49,7 @@ namespace ET.Logic
             }
 
             Log.Debug($"[ETCoordinatorViewEventSink] OnEnterGameSnapshot: {snapshot.Entities.Length} entities");
+            Log.Info($"[AI-DIAG] [ETCoordinatorViewEventSink] OnEnterGameSnapshot. entityCount={snapshot.Entities.Length}");
         }
 
         public void OnActorTransformSnapshot(in FrameSnapshotData snapshot)
@@ -51,11 +57,16 @@ namespace ET.Logic
             // Parse EntityStates and update positions
             foreach (var entity in snapshot.Entities)
             {
+                if (!TryGetEntityState(entity, out var state))
+                {
+                    continue;
+                }
+
                 var evt = new ActorMoveEvent
                 {
                     ActorId = entity.EntityId,
-                    X = entity.X,
-                    Y = entity.Z,
+                    X = state.X,
+                    Y = state.Z,
                 };
 
                 EventSystem.Instance.Publish<Scene, ActorMoveEvent>(_scene, evt);
@@ -73,13 +84,18 @@ namespace ET.Logic
             // In production, this should deserialize the actual damage format
             foreach (var entity in snapshot.Entities)
             {
-                if (entity.Hp < entity.HpMax)
+                if (!TryGetEntityState(entity, out var state))
+                {
+                    continue;
+                }
+
+                if (state.Hp < state.HpMax)
                 {
                     var evt = new ActorDamageEvent
                     {
                         ActorId = entity.EntityId,
-                        Damage = entity.HpMax - entity.Hp,
-                        CurrentHp = entity.Hp,
+                        Damage = state.HpMax - state.Hp,
+                        CurrentHp = state.Hp,
                     };
 
                     EventSystem.Instance.Publish<Scene, ActorDamageEvent>(_scene, evt);
@@ -114,6 +130,17 @@ namespace ET.Logic
 
             EventSystem.Instance.Publish<Scene, BattleEndEvent>(_scene, evt);
             Log.Debug($"[ETCoordinatorViewEventSink] Battle end at frame {frame}, winner team: {winTeamId}");
+        }
+
+        private static bool TryGetEntityState(SnapshotEntityState snapshotEntity, out EntityState state)
+        {
+            if (snapshotEntity.TryGetPayload(out state))
+            {
+                return true;
+            }
+
+            Log.Info($"[AI-DIAG] [ETCoordinatorViewEventSink] Failed to decode entity payload. entityId={snapshotEntity.EntityId}, stateType={snapshotEntity.StateType}, payloadBytes={snapshotEntity.Payload?.Length ?? 0}");
+            return false;
         }
 
         public void OnCustomEvent(string eventType, int entityId, byte[] customData)

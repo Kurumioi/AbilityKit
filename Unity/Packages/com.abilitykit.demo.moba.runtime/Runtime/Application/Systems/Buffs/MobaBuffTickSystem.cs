@@ -1,19 +1,16 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World;
-using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Ability.Triggering;
-using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Demo.Moba;
+using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Continuous;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba;
-using AbilityKit.Triggering.Eventing;
-using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.GameplayTags;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Systems.Buffs
 {
@@ -22,14 +19,11 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
     {
         private MobaConfigDatabase _configs;
         private IWorldClock _clock;
-        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        private ITriggerActionRunner _actionRunner;
-        private MobaPeriodicEffectService _ongoing;
-        private EffectSourceRegistry _effectSource;
-        private MobaEffectInvokerService _invoker;
-        private BuffContextService _buffContext;
+        private IGameplayTagService _tags;
+        private IMobaContinuousTagTemplateRegistry _tagTemplates;
         private BuffEventPublisher _buffEvents;
         private BuffStageEffectExecutor _stageEffects;
+        private BuffLifecycleExecutor _lifecycle;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBuffTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -41,17 +35,25 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
         {
             Services.TryResolve(out _configs);
             Services.TryResolve(out _clock);
-            Services.TryResolve(out _eventBus);
-            Services.TryResolve(out _actionRunner);
-            Services.TryResolve(out _ongoing);
-            Services.TryResolve(out _effectSource);
-            Services.TryResolve(out _invoker);
-
+            Services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
+            Services.TryResolve(out ITriggerActionRunner actionRunner);
+            Services.TryResolve(out MobaPeriodicEffectService ongoing);
+            Services.TryResolve(out MobaTraceRegistry trace);
+            Services.TryResolve(out MobaEffectExecutionService effects);
+            Services.TryResolve(out _tags);
+            Services.TryResolve(out _tagTemplates);
             Services.TryResolve(out IFrameTime frameTime);
+            Services.TryResolve(out IContinuousManager continuous);
+            Services.TryResolve(out MobaActorLookupService actors);
+            Services.TryResolve(out MobaSkillCastRuntimeService skillRuntimes);
 
-            _buffContext = new BuffContextService(_effectSource, _actionRunner, frameTime);
-            _buffEvents = new BuffEventPublisher(_eventBus);
-            _stageEffects = new BuffStageEffectExecutor(_invoker);
+            var repo = new BuffRepository();
+            var ctx = new BuffContextService(trace, actionRunner, frameTime);
+            _buffEvents = new BuffEventPublisher(eventBus);
+            var periodicBinder = new BuffPeriodicEffectBinder(ongoing, actionRunner);
+            _stageEffects = new BuffStageEffectExecutor(effects);
+            var stacking = new BuffStackingPolicyApplier();
+            _lifecycle = new BuffLifecycleExecutor(_configs, actors, ongoing, _tags, _tagTemplates, repo, ctx, _buffEvents, periodicBinder, _stageEffects, stacking, continuous, skillRuntimes);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
         }
 
@@ -67,127 +69,62 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
             for (int i = 0; i < entities.Length; i++)
             {
                 var e = entities[i];
-                if (e == null || !e.hasBuffs) continue;
+                if (e == null || !e.hasActorId || !e.hasBuffs) continue;
 
                 var list = e.buffs.Active;
                 if (list == null || list.Count == 0) continue;
 
                 for (int j = list.Count - 1; j >= 0; j--)
                 {
-                    var b = list[j];
-                    if (b == null)
+                    var runtime = list[j];
+                    if (runtime == null)
                     {
                         list.RemoveAt(j);
                         continue;
                     }
 
-                    // interval tick
-                    if (_configs != null && _configs.TryGetBuff(b.BuffId, out var buffCfg) && buffCfg != null)
+                    var endedByTags = false;
+                    if (_configs != null && _configs.TryGetBuff(runtime.BuffId, out var buffCfg) && buffCfg != null)
                     {
-                        TryIntervalTick(buffCfg, b, e.actorId.Value, dt);
-                    }
-
-                    b.Remaining -= dt;
-                    if (b.Remaining > 0f) continue;
-
-                    _buffContext?.EndByRuntimeNoClear(b, EffectSourceEndReason.Expired);
-
-                    var ownerKey = b.SourceContextId;
-                    if (ownerKey != 0)
-                    {
-                        try
+                        if (runtime.TagRequirements == null)
                         {
-                            _ongoing?.StopByOwnerKey(e.actorId.Value, ownerKey);
+                            runtime.TagRequirements = BuffTagLifecycle.ResolveRequirements(buffCfg, _tagTemplates);
                         }
-                        catch
-                        {
-                        }
+
+                        endedByTags = BuffTagLifecycle.ShouldEnd(_tags, e.actorId.Value, runtime.TagRequirements);
                     }
 
-                    if (b.SourceContextId != 0)
+                    if (endedByTags)
                     {
-                        RemoveOngoingTriggerPlansEntry(e, b.SourceContextId);
+                        runtime.Remaining = 0f;
                     }
-
-                    if (_configs != null)
+                    else
                     {
-                        if (_configs.TryGetBuff(b.BuffId, out var buff) && buff != null)
-                        {
-                            _buffEvents?.PublishRemove(buff, b.SourceId, e.actorId.Value, b, EffectSourceEndReason.Expired);
-                            _stageEffects?.Execute(buff.OnRemoveEffects, buff.Id, b.SourceId, e.actorId.Value, b.SourceContextId);
-                        }
+                        runtime.Continuous?.Tick(dt);
+                        SyncRemainingFromContinuous(runtime, dt);
                     }
 
-                    if (b.SourceContextId != 0 && e.hasEffectListeners)
-                    {
-                        var listeners = e.effectListeners.Active;
-                        if (listeners != null && listeners.Count > 0)
-                        {
-                            for (int k = listeners.Count - 1; k >= 0; k--)
-                            {
-                                var l = listeners[k];
-                                if (l == null) continue;
-                                if (l.SourceContextId != b.SourceContextId) continue;
-                                listeners.RemoveAt(k);
-                            }
-                        }
-                    }
+                    if (!endedByTags && runtime.Continuous != null && !runtime.Continuous.IsTerminated) continue;
+                    if (!endedByTags && runtime.Continuous == null && runtime.Remaining > 0f) continue;
 
-                    b.SourceContextId = 0;
-
-                    list.RemoveAt(j);
+                    var endReason = endedByTags ? TraceLifecycleReason.Interrupted : TraceLifecycleReason.Expired;
+                    _lifecycle?.EndRuntime(e, list, j, runtime, runtime.SourceId, endReason);
                 }
             }
         }
 
-        private static void RemoveOngoingTriggerPlansEntry(global::ActorEntity e, long ownerKey)
+        private static void SyncRemainingFromContinuous(BuffRuntime runtime, float deltaTimeSeconds)
         {
-            if (e == null) return;
-            if (ownerKey == 0) return;
-            if (!e.hasOngoingTriggerPlans) return;
+            if (runtime == null) return;
 
-            var oldList = e.ongoingTriggerPlans.Active;
-            if (oldList == null || oldList.Count == 0) return;
-
-            var newList = new List<OngoingTriggerPlanEntry>(oldList.Count);
-            var removedAny = false;
-
-            for (int i = 0; i < oldList.Count; i++)
+            if (runtime.Continuous != null)
             {
-                var it = oldList[i];
-                if (it == null) continue;
-                if (it.OwnerKey == ownerKey)
-                {
-                    removedAny = true;
-                    continue;
-                }
-                newList.Add(new OngoingTriggerPlanEntry { OwnerKey = it.OwnerKey, TriggerIds = it.TriggerIds });
+                runtime.Remaining = runtime.Continuous.RemainingSeconds;
+                return;
             }
 
-            if (!removedAny) return;
-
-            var rev = e.ongoingTriggerPlans.Revision + 1;
-            if (newList.Count == 0) e.RemoveOngoingTriggerPlans();
-            else e.ReplaceOngoingTriggerPlans(newList, rev);
+            runtime.Remaining -= deltaTimeSeconds;
         }
 
-        private void TryIntervalTick(BuffMO buff, BuffRuntime rt, int targetActorId, float dt)
-        {
-            if (buff == null) return;
-            if (rt == null) return;
-            if (buff.IntervalMs <= 0) return;
-            if (buff.OnIntervalEffects == null || buff.OnIntervalEffects.Count == 0) return;
-
-            rt.IntervalRemainingSeconds -= dt;
-            if (rt.IntervalRemainingSeconds > 0f) return;
-
-            // reset first to avoid re-entrancy issues
-            rt.IntervalRemainingSeconds = buff.IntervalMs / 1000f;
-
-            _stageEffects?.Execute(buff.OnIntervalEffects, buff.Id, rt.SourceId, targetActorId, rt.SourceContextId);
-            _buffEvents?.PublishInterval(buff, rt.SourceId, targetActorId, rt);
-            _buffEvents?.PublishPerEffect(MobaBuffTriggering.Events.Interval, buff.OnIntervalEffects, stage: "interval", sourceActorId: rt.SourceId, targetActorId: targetActorId, runtime: rt);
-        }
     }
 }
-

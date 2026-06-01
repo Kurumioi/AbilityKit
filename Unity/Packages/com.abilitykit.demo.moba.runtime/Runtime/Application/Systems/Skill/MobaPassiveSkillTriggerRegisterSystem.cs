@@ -4,7 +4,6 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
@@ -12,7 +11,6 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using Entitas;
-using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -21,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Systems
     {
         private MobaConfigDatabase _configs;
         private IFrameTime _frameTime;
-        private EffectSourceRegistry _effectSource;
+        private MobaTraceRegistry _trace;
         private ITriggerActionRunner _actionRunner;
 
         private PassiveSkillTriggerListenerManager _listenerManager;
@@ -287,12 +285,12 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             if (_configs == null) Services.TryResolve(out _configs);
             if (_frameTime == null) Services.TryResolve(out _frameTime);
-            if (_effectSource == null) Services.TryResolve(out _effectSource);
+            if (_trace == null) Services.TryResolve(out _trace);
             if (_actionRunner == null) Services.TryResolve(out _actionRunner);
 
             if (_listenerManager == null && _configs != null)
             {
-                _listenerManager = new PassiveSkillTriggerListenerManager(_configs, _effectSource, _actionRunner);
+                _listenerManager = new PassiveSkillTriggerListenerManager(_configs, _trace, _actionRunner);
             }
         }
     }

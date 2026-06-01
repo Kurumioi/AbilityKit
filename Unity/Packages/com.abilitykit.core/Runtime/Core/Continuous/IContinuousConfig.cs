@@ -10,7 +10,6 @@ namespace AbilityKit.Core.Continuous
     /// - ITagConfig: 标签配置
     /// - IMutexConfig: 互斥配置
     /// - IDurationConfig: 时长配置
-    /// - IModifierConfig: 修改器配置
     /// </summary>
     public interface IContinuousConfig
     {

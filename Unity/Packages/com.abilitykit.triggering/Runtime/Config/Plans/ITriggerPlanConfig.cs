@@ -21,5 +21,6 @@ namespace AbilityKit.Triggering.Runtime.Config.Plans
         IReadOnlyList<IActionCallConfig> Actions { get; }
         IScheduleConfig Schedule { get; }
         ICueConfig Cue { get; }
+        TriggerPlanScope Scope { get; }
     }
 }

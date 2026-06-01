@@ -27,27 +27,12 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(ISpawnService))]
     public sealed class MobaSpawnService : ILogicWorldSpawnService, ISpawnService
     {
-        private readonly MobaEnterGameFlowService _enterGameFlow;
-        private readonly MobaActorRegistry _registry;
-        private readonly MobaEntityManager _entities;
-        private readonly MobaActorSpawnSnapshotService _spawnSnapshot;
-        private readonly PlayerId _defaultPlayerId;
-        private readonly global::Entitas.IContexts _contexts;
-
-        public MobaSpawnService(
-            MobaEnterGameFlowService enterGameFlow,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            MobaActorSpawnSnapshotService spawnSnapshot,
-            global::Entitas.IContexts contexts)
-        {
-            _enterGameFlow = enterGameFlow ?? throw new ArgumentNullException(nameof(enterGameFlow));
-            _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _entities = entities ?? throw new ArgumentNullException(nameof(entities));
-            _spawnSnapshot = spawnSnapshot ?? throw new ArgumentNullException(nameof(spawnSnapshot));
-            _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
-            _defaultPlayerId = new PlayerId("default");
-        }
+        [WorldInject] private MobaEnterGameFlowService _enterGameFlow;
+        [WorldInject] private MobaActorRegistry _registry;
+        [WorldInject] private MobaEntityManager _entities;
+        [WorldInject] private MobaActorSpawnSnapshotService _spawnSnapshot;
+        [WorldInject] private global::Entitas.IContexts _contexts;
+        private readonly PlayerId _defaultPlayerId = new PlayerId("default");
 
         public bool CreateSpawns(PlayerSpawnData[] spawns)
         {

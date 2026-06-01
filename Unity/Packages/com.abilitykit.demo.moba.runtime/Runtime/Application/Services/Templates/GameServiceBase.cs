@@ -77,6 +77,26 @@ namespace AbilityKit.Demo.Moba.Services.Templates
     }
 
     /// <summary>
+    /// Base class for services that need both world initialization and world deinitialization hooks.
+    /// </summary>
+    public abstract class LogicWorldLifecycleServiceBase<TService> : LogicWorldInitializableServiceBase<TService>, IWorldDeinitializable
+        where TService : class
+    {
+        private bool _deinitialized;
+
+        public virtual void OnDeinit(IWorldResolver resolver)
+        {
+            if (_deinitialized) return;
+            _deinitialized = true;
+            OnWorldDeinit(resolver);
+        }
+
+        protected virtual void OnWorldDeinit(IWorldResolver resolver)
+        {
+        }
+    }
+
+    /// <summary>
     /// Base class for logic-world services that publish triggering events.
     /// </summary>
     public abstract class LogicWorldEventServiceBase<TService> : LogicWorldInitializableServiceBase<TService>
@@ -111,6 +131,11 @@ namespace AbilityKit.Demo.Moba.Services.Templates
     }
 
     public abstract class GameInitializableServiceBase<TService> : LogicWorldInitializableServiceBase<TService>
+        where TService : class
+    {
+    }
+
+    public abstract class GameLifecycleServiceBase<TService> : LogicWorldLifecycleServiceBase<TService>
         where TService : class
     {
     }

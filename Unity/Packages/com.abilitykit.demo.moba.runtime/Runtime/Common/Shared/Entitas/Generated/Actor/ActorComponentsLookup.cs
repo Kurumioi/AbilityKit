@@ -22,7 +22,7 @@ public static class ActorComponentsLookup {
     public const int ModelId = 11;
     public const int Motion = 12;
     public const int MoveInput = 13;
-    public const int OngoingEffects = 14;
+    public const int MobaContinuousPeriodic = 14;
     public const int OngoingTriggerPlans = 15;
     public const int OwnerLink = 16;
     public const int OwnerPlayerId = 17;
@@ -68,7 +68,7 @@ public static class ActorComponentsLookup {
         "ModelId",
         "Motion",
         "MoveInput",
-        "OngoingEffects",
+        "MobaContinuousPeriodic",
         "OngoingTriggerPlans",
         "OwnerLink",
         "OwnerPlayerId",
@@ -113,7 +113,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Demo.Moba.Components.ModelIdComponent),
         typeof(AbilityKit.Demo.Moba.Components.MotionComponent),
         typeof(AbilityKit.Demo.Moba.Components.MoveInputComponent),
-        typeof(AbilityKit.Demo.Moba.Components.OngoingEffectsComponent),
+        typeof(AbilityKit.Demo.Moba.Components.MobaContinuousPeriodicComponent),
         typeof(AbilityKit.Demo.Moba.Components.OngoingTriggerPlansComponent),
         typeof(AbilityKit.Demo.Moba.Components.OwnerLinkComponent),
         typeof(AbilityKit.Demo.Moba.Components.OwnerPlayerIdComponent),

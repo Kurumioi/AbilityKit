@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Core.Common.Log;
@@ -21,115 +22,101 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaEffectExecutionService))]
     public sealed class MobaEffectExecutionService : IService
     {
-        private readonly IWorldResolver _services;
-        private readonly TriggerPlanJsonDatabase _planDb;
-        private readonly AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> _planRunner;
-        private readonly AbilityKit.Triggering.Eventing.IEventBus _planEventBus;
-        private readonly FunctionRegistry _planFunctions;
-        private readonly ActionRegistry _planActions;
+        [WorldInject] private IWorldResolver _services;
+        [WorldInject] private TriggerPlanJsonDatabase _planDb;
+        [WorldInject] private AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> _planRunner;
+        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _planEventBus;
+        [WorldInject] private FunctionRegistry _planFunctions;
+        [WorldInject] private ActionRegistry _planActions;
+        [WorldInject(required: false)] private IFrameTime _frameTime;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
+        [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers;
+        [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions;
+
+        private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
+        private int _fallbackBudgetFrame;
+ 
+        /// <summary>
+        /// 溯源注册表（可选，用于链路追踪）。未注册时只保留核心 lineage，不创建 trace tree。
+        /// </summary>
+        [WorldInject(required: false)]
+        public MobaTraceRegistry Trace { get; private set; }
 
         /// <summary>
-        /// 从 NamedArgsDict 中提取双精度浮点参数
+        /// 当前正在执行的可选 trace 栈（用于嵌套效果和 Action 父子关系追踪）
         /// </summary>
-        private static double ExtractArg(NamedArgsDict namedArgs, string key)
-        {
-            if (namedArgs == null) return 0;
-            if (namedArgs.TryGetValue(key, out var value))
-            {
-                return value.Ref.ConstValue;
-            }
-            return 0;
-        }
-
-        /// <summary>
-        /// 溯源注册表（可选，用于链路追踪）
-        /// </summary>
-        public MobaTraceRegistry Trace { get; }
-
-        /// <summary>
-        /// 当前正在执行的溯源链路（用于父子关系追踪）
-        /// </summary>
-        private long _currentTraceRootId;
-        private readonly List<long> _currentActionContextIds = new List<long>();
-
-        public MobaEffectExecutionService(
-            IWorldResolver services,
-            TriggerPlanJsonDatabase planDb,
-            AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> planRunner,
-            AbilityKit.Triggering.Eventing.IEventBus planEventBus,
-            FunctionRegistry planFunctions,
-            ActionRegistry planActions)
-        {
-            _services = services;
-            _planDb = planDb;
-            _planRunner = planRunner;
-            _planEventBus = planEventBus;
-            _planFunctions = planFunctions;
-            _planActions = planActions;
-
-            // 初始化溯源注册表（默认启用）
-            Trace = new MobaTraceRegistry();
-        }
-
-        public MobaEffectExecutionService(
-            IWorldResolver services,
-            TriggerPlanJsonDatabase planDb,
-            AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> planRunner,
-            AbilityKit.Triggering.Eventing.IEventBus planEventBus,
-            FunctionRegistry planFunctions,
-            ActionRegistry planActions,
-            MobaTraceRegistry traceRegistry)
-        {
-            _services = services;
-            _planDb = planDb;
-            _planRunner = planRunner;
-            _planEventBus = planEventBus;
-            _planFunctions = planFunctions;
-            _planActions = planActions;
-            Trace = traceRegistry ?? new MobaTraceRegistry();
-        }
+        private readonly Stack<EffectExecutionTraceScope> _traceScopes = new Stack<EffectExecutionTraceScope>();
 
         /// <summary>
         /// 获取当前正在追踪的 Action 链路
         /// </summary>
-        public IReadOnlyList<long> CurrentActionChain => _currentActionContextIds;
+        public IReadOnlyList<long> CurrentActionChain => _traceScopes.Count > 0 ? _traceScopes.Peek().ActionContextIds : Array.Empty<long>();
 
-        /// <summary>
-        /// 提取溯源信息
-        /// </summary>
-        private (int sourceActorId, int targetActorId) ExtractTraceInfo(IEffectContext ctx)
+        public long CurrentEffectContextId => _traceScopes.Count > 0 ? _traceScopes.Peek().EffectContextId : 0;
+
+        public bool TryGetCurrentTraceScope(out MobaEffectTraceScopeSnapshot snapshot)
         {
-            return (ctx?.SourceActorId ?? 0, ctx?.TargetActorId ?? 0);
+            snapshot = default;
+            if (_traceScopes.Count == 0) return false;
+
+            var scope = _traceScopes.Peek();
+            if (scope.EffectContextId == 0) return false;
+
+            snapshot = new MobaEffectTraceScopeSnapshot(
+                scope.EffectContextId,
+                scope.EffectConfigId,
+                scope.TriggerId,
+                scope.SourceActorId,
+                scope.TargetActorId,
+                scope.IsRoot);
+            return true;
         }
 
         /// <summary>
-        /// 提取溯源信息（从 object payload）
+        /// 创建可选效果执行 trace 节点。存在父上下文时挂为子节点，否则创建根节点。
         /// </summary>
-        private (int sourceActorId, int targetActorId) ExtractTraceInfoFromPayload(object payload)
+        private EffectExecutionTraceScope BeginEffectTraceScope(int effectConfigId, int triggerId, in MobaEffectLineageInput lineageInput)
         {
-            if (payload is IEffectContext effectCtx)
+            if (Trace == null) return null;
+
+            var configId = effectConfigId > 0 ? effectConfigId : triggerId;
+            var parentContextId = lineageInput.ParentContextId;
+            var scope = new EffectExecutionTraceScope
             {
-                return (effectCtx.SourceActorId, effectCtx.TargetActorId);
+                EffectConfigId = configId,
+                TriggerId = triggerId,
+                SourceActorId = lineageInput.SourceActorId,
+                TargetActorId = lineageInput.TargetActorId,
+            };
+
+            if (parentContextId != 0)
+            {
+                scope.EffectContextId = Trace.CreateChildContext(
+                    parentContextId,
+                    MobaTraceKind.EffectExecution,
+                    configId,
+                    lineageInput.SourceActorId,
+                    lineageInput.TargetActorId,
+                    TraceEndpoint.Config("Effect", configId),
+                    TraceEndpoint.Actor(lineageInput.TargetActorId));
+                scope.IsRoot = false;
             }
-            return (0, 0);
-        }
+            else
+            {
+                var rootScope = Trace.CreateEffectRoot(
+                    effectConfigId: configId,
+                    triggerPlanId: triggerId,
+                    sourceActorId: lineageInput.SourceActorId,
+                    targetActorId: lineageInput.TargetActorId,
+                    contextKind: lineageInput.ContextKind);
 
-        /// <summary>
-        /// 创建效果执行溯源根节点并记录 Action 子节点
-        /// </summary>
-        private TraceRootScope CreateEffectTraceRoot(int effectId, int triggerId, int sourceActorId, int targetActorId, EffectContextKind contextKind)
-        {
-            if (Trace == null) return default;
+                scope.EffectContextId = rootScope.RootId;
+                scope.IsRoot = true;
+            }
 
-            var rootScope = Trace.CreateEffectRoot(
-                effectConfigId: effectId,
-                triggerPlanId: triggerId,
-                sourceActorId: sourceActorId,
-                targetActorId: targetActorId,
-                contextKind: contextKind);
-
-            _currentTraceRootId = rootScope.RootId;
-            return rootScope;
+            if (scope.EffectContextId == 0) return null;
+            _traceScopes.Push(scope);
+            return scope;
         }
 
         /// <summary>
@@ -137,22 +124,23 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         private void CreateActionChildNodes(in TriggerPlan<object> plan, int sourceActorId, int targetActorId)
         {
-            if (Trace == null || _currentTraceRootId == 0) return;
+            if (Trace == null || _traceScopes.Count == 0) return;
             if (plan.Actions == null || plan.Actions.Length == 0) return;
 
-            _currentActionContextIds.Clear();
+            var currentScope = _traceScopes.Peek();
+            currentScope.ActionContextIds.Clear();
             foreach (var actionCall in plan.Actions)
             {
                 var actionId = (int)actionCall.Id.Value;
                 if (actionId == 0) continue;
 
                 var childScope = Trace.CreateActionChild(
-                    parentRootId: _currentTraceRootId,
+                    parentRootId: currentScope.EffectContextId,
                     actionId: actionId,
                     sourceActorId: sourceActorId,
                     targetActorId: targetActorId);
 
-                _currentActionContextIds.Add(childScope.ContextId);
+                currentScope.ActionContextIds.Add(childScope.ContextId);
             }
         }
 
@@ -161,18 +149,23 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         private void EndCurrentTrace(int reason)
         {
-            if (Trace == null || _currentTraceRootId == 0) return;
+            if (Trace == null || _traceScopes.Count == 0) return;
 
-            // 结束所有子节点
-            foreach (var childId in _currentActionContextIds)
+            var scope = _traceScopes.Pop();
+            foreach (var childId in scope.ActionContextIds)
             {
                 Trace.End(childId, reason);
             }
-            _currentActionContextIds.Clear();
+            scope.ActionContextIds.Clear();
 
-            // 结束根节点
-            Trace.EndRoot(_currentTraceRootId, reason);
-            _currentTraceRootId = 0;
+            if (scope.IsRoot)
+            {
+                Trace.EndRoot(scope.EffectContextId, reason);
+            }
+            else
+            {
+                Trace.End(scope.EffectContextId, reason);
+            }
         }
 
         /// <summary>
@@ -188,143 +181,23 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             Log.Info("[MobaEffectExecutionService] InitializePlanActions: starting...");
-
-            // Register debug_log action
-            try
-            {
-                var debugLogId = new ActionId(StableStringId.Get("action:debug_log"));
-                _planActions.Register<Action0<object, IWorldResolver>>(
-                    debugLogId,
-                    static (args, ctx) =>
-                    {
-                        var ctxType = ctx.Context != null ? ctx.Context.GetType().Name : "<null>";
-                        var argsType = args != null ? args.GetType().Name : "<null>";
-                        Log.Info($"[Plan] debug_log executed. argsType={argsType}, ctxType={ctxType}");
-                    },
-                    isDeterministic: true);
-
-                _planActions.Register<Action2<object, IWorldResolver>>(
-                    debugLogId,
-                    static (args, namedArgs, ctx) =>
-                    {
-                        var a0 = ExtractArg(namedArgs, "_0");
-                        var a1 = ExtractArg(namedArgs, "_1");
-                        var msgId = (int)a0;
-                        var dump = a1 >= 0.5;
-                        var msg = string.Empty;
-                        if (ctx.Context != null && ctx.Context.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null)
-                        {
-                            if (!db.TryGetString(msgId, out msg)) msg = string.Empty;
-                        }
-
-                        Log.Info($"[Plan] debug_log: {msg}");
-                        if (dump)
-                        {
-                            var ctxType = ctx.Context != null ? ctx.Context.GetType().Name : "<null>";
-                            var argsType = args != null ? args.GetType().Name : "<null>";
-                            Log.Info($"[Plan] debug_log dump. argsType={argsType}, ctxType={ctxType}");
-                        }
-                    },
-                    isDeterministic: true);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: register debug_log action failed");
-            }
-
-            // Compatibility guard: stubs are registered before real modules so older positional
-            // actions can survive migration. New actions must use PlanActionModuleRegistry.
-            try
-            {
-                RegisterStubActionsFromPlans(_planDb, _planActions);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: RegisterStubActionsFromPlans failed");
-            }
-
-            // Register real action modules (override stubs)
-            try
-            {
-                if (_services != null
-                    && _services.TryResolve<AbilityKit.Demo.Moba.Systems.PlanActionModuleRegistry>(out var registry)
-                    && registry != null
-                    && registry.Modules != null)
-                {
-                    var modules = registry.Modules;
-                    for (int i = 0; i < modules.Length; i++)
-                    {
-                        var m = modules[i];
-                        if (m == null) continue;
-                        try { m.Register(_planActions, _services); }
-                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] InitializePlanActions: PlanActionModule register failed. module={m.GetType().Name}"); }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] InitializePlanActions: register PlanActionModules failed");
-            }
-
+            RegisterPlanActionModules("InitializePlanActions");
             Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
-        // Compatibility repair for worlds initialized before all action modules are ready.
-        // Keep this path defensive; do not use it as the normal extension point.
-        private void TryRepairMissingActions()
+        private void TryRepairMissingActions(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan)
         {
-            if (_planDb == null || _planActions == null) return;
-
-            try
-            {
-                RegisterStubActionsFromPlans(_planDb, _planActions);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions: RegisterStubActionsFromPlans failed");
-            }
-
-            try
-            {
-                if (_services != null
-                    && _services.TryResolve<AbilityKit.Demo.Moba.Systems.PlanActionModuleRegistry>(out var registry)
-                    && registry != null
-                    && registry.Modules != null)
-                {
-                    var modules = registry.Modules;
-                    for (int i = 0; i < modules.Length; i++)
-                    {
-                        var m = modules[i];
-                        if (m == null) continue;
-                        try { m.Register(_planActions, _services); }
-                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] TryRepairMissingActions: PlanActionModule register failed. module={m.GetType().Name}"); }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions: register PlanActionModules failed");
-            }
+            RegisterPlanActionModules("TryRepairMissingActions(plan)");
         }
 
-        // Compatibility repair for a single legacy plan loaded without complete registrations.
-        private void TryRepairMissingActions(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan)
+        private void RegisterPlanActionModules(string caller)
         {
             if (_planActions == null) return;
 
             try
             {
-                RegisterStubActionsFromPlan(in plan, _planActions);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions(plan): RegisterStubActionsFromPlan failed");
-            }
-
-            try
-            {
                 if (_services != null
-                    && _services.TryResolve<AbilityKit.Demo.Moba.Systems.PlanActionModuleRegistry>(out var registry)
+                    && _services.TryResolve<AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanActionModuleRegistry>(out var registry)
                     && registry != null
                     && registry.Modules != null)
                 {
@@ -334,53 +207,79 @@ namespace AbilityKit.Demo.Moba.Services
                         var m = modules[i];
                         if (m == null) continue;
                         try { m.Register(_planActions, _services); }
-                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] TryRepairMissingActions(plan): PlanActionModule register failed. module={m.GetType().Name}"); }
+                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] {caller}: PlanActionModule register failed. module={m.GetType().Name}"); }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, "[MobaEffectExecutionService] TryRepairMissingActions(plan): register PlanActionModules failed");
+                Log.Exception(ex, $"[MobaEffectExecutionService] {caller}: register PlanActionModules failed");
             }
         }
 
-        private static void RegisterStubActionsFromPlan(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan, ActionRegistry actions)
+        private int CurrentBudgetFrame
         {
-            if (actions == null) return;
-
-            var calls = plan.Actions;
-            if (calls == null || calls.Length == 0) return;
-
-            for (int i = 0; i < calls.Length; i++)
+            get
             {
-                var call = calls[i];
-                var actionId = call.Id;
-                if (actionId.Value == 0) continue;
-
-                var hasNamedArgs = call.HasNamedArgs;
-                if (hasNamedArgs)
-                {
-                    // 具名参数模式的 Action 不注册 stub
-                    // 因为 PlanActionModule 会注册正确类型的 NamedAction<TArgs> 委托
-                    // 注册 stub 会导致类型不匹配
-                    continue;
-                }
-
-                // 注册传统 Action stub（向后兼容）
-                var arity = call.Arity;
-                switch (arity)
-                {
-                    case 0:
-                        actions.Register<Action0<object, IWorldResolver>>(actionId, static (args, ctx) => { }, true);
-                        break;
-                    case 1:
-                        actions.Register<Action1<object, IWorldResolver>>(actionId, static (args, namedArgs, ctx) => { }, true);
-                        break;
-                    case 2:
-                        actions.Register<Action2<object, IWorldResolver>>(actionId, static (args, namedArgs, ctx) => { }, true);
-                        break;
-                }
+                if (_frameTime != null) return _frameTime.Frame.Value;
+                if (_executionBudget.CurrentDepth == 0) _fallbackBudgetFrame++;
+                return _fallbackBudgetFrame;
             }
+        }
+
+        public MobaTriggerConditionContext CreateConditionContext(object payload)
+        {
+            var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
+            var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, 0, 0);
+            return CreateConditionContext(payload, in lineageInput, in executionSnapshot);
+        }
+
+        private MobaTriggerConditionContext CreateConditionContext(object payload, in MobaEffectLineageInput lineageInput, in MobaTriggerExecutionSnapshot executionSnapshot)
+        {
+            var frame = executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame;
+            var snapshot = executionSnapshot.WithFrame(frame);
+            if (_payloadResolvers != null && _payloadResolvers.TryCreateContext(payload, in lineageInput, in snapshot, _skillRuntimes, frame, out var context))
+            {
+                return context;
+            }
+
+            return MobaTriggerConditionContext.Create(payload, in lineageInput, in snapshot, _skillRuntimes, frame);
+        }
+
+        private MobaTriggerExecutionSnapshot CreateExecutionSnapshot(object payload, in MobaEffectLineageInput lineageInput, int triggerId, int configId)
+        {
+            return MobaTriggerExecutionSnapshotBuilder.Create()
+                .FromLineage(in lineageInput)
+                .FromPayload(payload)
+                .WithTrigger(triggerId, configId != 0 ? configId : lineageInput.OriginConfigId)
+                .WithFrameIfMissing(CurrentBudgetFrame)
+                .Build();
+        }
+
+        private bool TryEnterExecutionBudget(int triggerId, object payload, in MobaEffectLineageInput lineageInput, in MobaTriggerExecutionSnapshot executionSnapshot, out MobaTriggerExecutionBudgetToken token, out MobaTriggerConditionContext conditionContext)
+        {
+            conditionContext = CreateConditionContext(payload, in lineageInput, in executionSnapshot);
+            var request = conditionContext.ToExecutionRequest(triggerId);
+            if (_executionBudget.TryEnter(in request, out token, out var block)) return true;
+
+            Log.Warning($"[MobaEffectExecutionService] Trigger execution blocked. reason={block.Reason}, triggerId={triggerId}, frame={request.Frame}, depth={block.CurrentDepth}, frameCount={block.CurrentFrameCount}, rootCount={block.CurrentRootCount}, sameTriggerCount={block.CurrentSameTriggerCount}, rootContextId={request.RootContextId}, parentContextId={request.ParentContextId}, sourceActorId={request.SourceActorId}, targetActorId={request.TargetActorId}");
+            return false;
+        }
+
+        private bool EvaluateTriggerConditions(int triggerId, in MobaTriggerConditionContext conditionContext)
+        {
+            if (_triggerConditions == null || !_triggerConditions.HasConditions(triggerId)) return true;
+
+            var result = _triggerConditions.Evaluate(triggerId, in conditionContext);
+            if (result.Passed) return true;
+
+            Log.Warning($"[MobaEffectExecutionService] Trigger condition failed. triggerId={triggerId}, reason={result.Reason}, failureKey={result.FailureKey}, rootContextId={conditionContext.RootContextId}, sourceActorId={conditionContext.SourceActorId}, targetActorId={conditionContext.TargetActorId}");
+            return false;
+        }
+
+        private static int ToTraceEndReason(bool executed)
+        {
+            return executed ? (int)TraceLifecycleReason.Completed : (int)TraceLifecycleReason.Failed;
         }
 
         private bool TryExecutePlanByTriggerId(int triggerId, object args)
@@ -450,58 +349,6 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private static void RegisterStubActionsFromPlans(TriggerPlanJsonDatabase db, ActionRegistry actions)
-        {
-            if (db == null || actions == null) return;
-
-            var arityById = new System.Collections.Generic.Dictionary<int, byte>();
-            var records = db.Records;
-            if (records == null) return;
-
-            for (int i = 0; i < records.Count; i++)
-            {
-                var plan = records[i].Plan;
-                var calls = plan.Actions;
-                if (calls == null) continue;
-
-                for (int j = 0; j < calls.Length; j++)
-                {
-                    var call = calls[j];
-                    var id = call.Id.Value;
-                    if (id == 0) continue;
-
-                    if (arityById.TryGetValue(id, out var existing))
-                    {
-                        if (existing != call.Arity) arityById[id] = byte.MaxValue;
-                    }
-                    else
-                    {
-                        arityById[id] = call.Arity;
-                    }
-                }
-            }
-
-            foreach (var kv in arityById)
-            {
-                var actionId = new ActionId(kv.Key);
-                var arity = kv.Value;
-                if (arity == byte.MaxValue) continue;
-
-                switch (arity)
-                {
-                    case 0:
-                        actions.Register<Action0<object, IWorldResolver>>(actionId, static (args, ctx) => { }, true);
-                        break;
-                    case 1:
-                        actions.Register<Action1<object, IWorldResolver>>(actionId, static (args, namedArgs, ctx) => { }, true);
-                        break;
-                    case 2:
-                        actions.Register<Action2<object, IWorldResolver>>(actionId, static (args, namedArgs, ctx) => { }, true);
-                        break;
-                }
-            }
-        }
-
         public void Execute(int effectId, IAbilityPipelineContext context, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
         {
             if (effectId <= 0) return;
@@ -515,32 +362,44 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Warning($"[MobaEffectExecutionService] EffectExecuteMode.{mode} is not supported (legacy publish removed). effectId={effectId}");
             }
 
-            // 提取溯源信息
             var effectCtx = (IEffectContext)wrappedContext;
-            var (sourceActorId, targetActorId) = ExtractTraceInfo(effectCtx);
-            var contextKind = effectCtx.Kind;
+            var lineageInput = MobaEffectLineageInputResolver.Resolve(effectCtx);
 
-            // 尝试获取 TriggerPlan 以便创建 Action 子节点
             TriggerPlan<object> plan = default;
             if (_planDb != null)
             {
                 _planDb.TryGetPlanByTriggerId(effectId, out plan);
             }
 
-            // 创建效果执行溯源根节点
-            var rootScope = CreateEffectTraceRoot(effectId, effectId, sourceActorId, targetActorId, contextKind);
+            var executionSnapshot = CreateExecutionSnapshot(wrappedContext, in lineageInput, effectId, effectId);
+            if (!TryEnterExecutionBudget(effectId, wrappedContext, in lineageInput, in executionSnapshot, out var budgetToken, out var conditionContext)) return;
 
-            // 为 Plan 中的所有 Action 创建子节点（父子关系）
-            if (plan.Actions != null && plan.Actions.Length > 0)
+            EffectExecutionTraceScope traceScope = null;
+            try
             {
-                CreateActionChildNodes(in plan, sourceActorId, targetActorId);
+                traceScope = BeginEffectTraceScope(effectId, effectId, in lineageInput);
+                if (plan.Actions != null && plan.Actions.Length > 0)
+                {
+                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
+                }
+ 
+                bool executed = EvaluateTriggerConditions(effectId, in conditionContext) && TryExecutePlanByTriggerId(effectId, wrappedContext);
+  
+                if (traceScope != null)
+                {
+                    EndCurrentTrace(ToTraceEndReason(executed));
+                    traceScope = null;
+                }
             }
+            finally
+            {
+                if (traceScope != null)
+                {
+                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                }
 
-            // 执行计划
-            bool executed = TryExecutePlanByTriggerId(effectId, wrappedContext);
-
-            // 结束溯源链路
-            EndCurrentTrace(executed ? 0 : -1);
+                _executionBudget.Exit(in budgetToken);
+            }
         }
 
         /// <summary>
@@ -551,30 +410,43 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (triggerId <= 0) return;
 
-            // 提取溯源信息
-            var (sourceActorId, targetActorId) = ExtractTraceInfoFromPayload(payload);
+            var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
 
-            // 尝试获取 TriggerPlan 以便创建 Action 子节点
             TriggerPlan<object> plan = default;
             if (_planDb != null)
             {
                 _planDb.TryGetPlanByTriggerId(triggerId, out plan);
             }
 
-            // 创建效果执行溯源根节点
-            var rootScope = CreateEffectTraceRoot(0, triggerId, sourceActorId, targetActorId, EffectContextKind.Unknown);
+            var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, triggerId, triggerId);
+            if (!TryEnterExecutionBudget(triggerId, payload, in lineageInput, in executionSnapshot, out var budgetToken, out var conditionContext)) return;
 
-            // 为 Plan 中的所有 Action 创建子节点（父子关系）
-            if (plan.Actions != null && plan.Actions.Length > 0)
+            EffectExecutionTraceScope traceScope = null;
+            try
             {
-                CreateActionChildNodes(in plan, sourceActorId, targetActorId);
+                traceScope = BeginEffectTraceScope(triggerId, triggerId, in lineageInput);
+                if (plan.Actions != null && plan.Actions.Length > 0)
+                {
+                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
+                }
+ 
+                bool executed = EvaluateTriggerConditions(triggerId, in conditionContext) && TryExecutePlanByTriggerId(triggerId, payload);
+  
+                if (traceScope != null)
+                {
+                    EndCurrentTrace(ToTraceEndReason(executed));
+                    traceScope = null;
+                }
             }
+            finally
+            {
+                if (traceScope != null)
+                {
+                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                }
 
-            // 执行计划
-            bool executed = TryExecutePlanByTriggerId(triggerId, payload);
-
-            // 结束溯源链路
-            EndCurrentTrace(executed ? 0 : -1);
+                _executionBudget.Exit(in budgetToken);
+            }
         }
 
         public void Dispose()

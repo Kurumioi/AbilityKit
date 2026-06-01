@@ -5,7 +5,7 @@ using AbilityKit.Pipeline;
 namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
-    public sealed class EffectContextWrapper : IEffectContext
+    public sealed class EffectContextWrapper : IEffectContext, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider
     {
         private readonly IAbilityPipelineContext _inner;
         private readonly EffectContextKind _kind;
@@ -52,6 +52,37 @@ namespace AbilityKit.Demo.Moba.Services
 
             skill = default;
             return false;
+        }
+
+        public bool TryGetSkillRuntimeHandle(out MobaSkillCastRuntimeHandle handle)
+        {
+            handle = _inner.GetSkillRuntimeHandle();
+            return handle.IsValid;
+        }
+
+        public bool TryGetExecutionSnapshot(out MobaTriggerExecutionSnapshot snapshot)
+        {
+            var handle = _inner.GetSkillRuntimeHandle();
+            _inner.TryGetData(AbilityContextKeys.TriggerId.ToKeyString(), out int triggerId);
+            _inner.TryGetData(AbilityContextKeys.SourceConfigId.ToKeyString(), out int configId);
+            _inner.TryGetData(AbilityContextKeys.OwnerKey.ToKeyString(), out long ownerContextId);
+            _inner.TryGetData(AbilityContextKeys.Frame.ToKeyString(), out int frame);
+
+            snapshot = new MobaTriggerExecutionSnapshot(
+                Kind,
+                SourceActorId,
+                TargetActorId,
+                SourceContextId,
+                SourceContextId,
+                ownerContextId,
+                triggerId,
+                configId,
+                frame,
+                handle,
+                0,
+                ElapsedTime,
+                0f);
+            return snapshot.IsValid;
         }
 
         public object AbilityInstance => _inner.AbilityInstance;

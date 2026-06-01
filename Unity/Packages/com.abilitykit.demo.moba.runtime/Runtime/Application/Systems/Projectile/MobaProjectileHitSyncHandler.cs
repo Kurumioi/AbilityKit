@@ -6,6 +6,7 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {
@@ -58,11 +59,19 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                         var onHitTriggerId = proj != null ? proj.OnHitEffectId : 0;
                         if (onHitTriggerId > 0)
                         {
+                            _sys.Links.TryGetSource(evt.Projectile, out var sourceContext);
+                            var sourceActorId = sourceContext.IsValid && sourceContext.SourceActorId > 0 ? sourceContext.SourceActorId : evt.OwnerId;
+                            var sourceContextId = sourceContext.IsValid ? sourceContext.SourceContextId : 0L;
                             var payload = new ProjectileHitArgs
                             {
-                                CasterActorId = evt.OwnerId,
+                                TriggerId = onHitTriggerId,
+                                SourceActorId = sourceActorId,
                                 TargetActorId = hitActorId,
+                                SourceContextId = sourceContextId,
+                                SourceConfigId = evt.TemplateId,
+                                SourceContext = sourceContext,
                                 Frame = evt.Frame,
+                                CasterActorId = evt.OwnerId,
                                 ProjectileTemplateId = evt.TemplateId,
                                 ProjectileId = evt.Projectile,
                                 Point = evt.Point,
@@ -70,6 +79,16 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                                 HitCollider = evt.HitCollider,
                                 Raw = evt,
                             };
+
+                            payload.Data.SyncInvocationData(payload);
+                            if (payload.TryGetTraceContext(out var traceContext)) payload.Data.SyncTraceData(traceContext);
+                            payload.Data.SetData(AbilityContextKeys.ProjectileId.ToKeyString(), evt.Projectile.Value);
+                            payload.Data.SetData(AbilityContextKeys.HitTriggerPlanId.ToKeyString(), onHitTriggerId);
+                            payload.Data.SetData(AbilityContextKeys.HitPosition.ToKeyString(), evt.Point);
+                            payload.Data.SetData(AbilityContextKeys.HitNormal.ToKeyString(), evt.Normal);
+                            payload.Data.SetData(AbilityContextKeys.Frame.ToKeyString(), evt.Frame);
+                            payload.Data.SetData("projectile.templateId", evt.TemplateId);
+                            payload.Data.SetData("projectile.hitCollider", evt.HitCollider);
 
                             effects.ExecuteTriggerId(onHitTriggerId, payload);
                         }

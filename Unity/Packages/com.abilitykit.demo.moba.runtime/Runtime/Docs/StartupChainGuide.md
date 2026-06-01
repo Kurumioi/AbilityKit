@@ -198,7 +198,7 @@ MobaSystemOrder.Base = WorldSystemOrder.CoreBase + 1000
 | 阶段 | 代表顺序 | 语义 |
 | --- | --- | --- |
 | PreExecute / Early | EntityManagerSync、MotionInit | 帧前同步、基础状态准备 |
-| Execute / Normal | Motion、PassiveSkillTriggers、SkillPipelines、Effects、Buffs、OngoingEffects | 帧内核心玩法执行 |
+| Execute / Normal | Motion、PassiveSkillTriggers、SkillPipelines、Effects、Buffs、ContinuousPeriodic | 帧内核心玩法执行 |
 | PostExecute / Late | EntityManagerCleanup、ProjectileSync、SummonLifecycle | 帧后同步、清理和生命周期收束 |
 
 新增系统检查：

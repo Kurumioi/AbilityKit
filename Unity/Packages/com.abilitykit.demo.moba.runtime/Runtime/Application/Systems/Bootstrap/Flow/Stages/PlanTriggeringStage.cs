@@ -4,6 +4,7 @@ using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
@@ -18,10 +19,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {
-            // 注册 PlanActionModuleRegistry（必须在 InitializePlanActions 之前）
-            // 注意：此注册会通过 TryRegisterType 被 MobaServicesAutoModule 的自动注册覆盖，
-            // 因为 AttributeWorldServicesModule 对 isDefault=false 的服务使用 RegisterType。
-            // 实际注册在 Install 阶段通过 MobaEffectExecutionService.InitializePlanActions 使用。
+            // Plan action modules live under Application/Services/Triggering/PlanActions.
+            // This bootstrap stage only triggers installation after service modules are configured.
         }
 
         protected internal override void Install(
@@ -40,7 +39,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                     if (services.TryResolve<TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
                     {
-                        db.RegisterAll(runner);
+                        db.RegisterAll(runner, TriggerPlanScope.Global);
                     }
                     Log.Info($"[PlanTriggeringStage] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
                 }

@@ -11,7 +11,7 @@ public partial class ActorEntity {
     public AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent removeBuffRequest { get { return (AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent)GetComponent(ActorComponentsLookup.RemoveBuffRequest); } }
     public bool hasRemoveBuffRequest { get { return HasComponent(ActorComponentsLookup.RemoveBuffRequest); } }
 
-    public void AddRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Demo.Moba.EffectSourceEndReason newReason) {
+    public void AddRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Trace.TraceLifecycleReason newReason) {
         var index = ActorComponentsLookup.RemoveBuffRequest;
         var component = (AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent));
         component.BuffId = newBuffId;
@@ -20,7 +20,7 @@ public partial class ActorEntity {
         AddComponent(index, component);
     }
 
-    public void ReplaceRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Demo.Moba.EffectSourceEndReason newReason) {
+    public void ReplaceRemoveBuffRequest(int newBuffId, int newSourceId, AbilityKit.Trace.TraceLifecycleReason newReason) {
         var index = ActorComponentsLookup.RemoveBuffRequest;
         var component = (AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.RemoveBuffRequestComponent));
         component.BuffId = newBuffId;

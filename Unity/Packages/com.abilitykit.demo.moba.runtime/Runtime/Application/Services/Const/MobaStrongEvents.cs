@@ -1,5 +1,6 @@
 ﻿using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Event;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba
 {
@@ -8,11 +9,11 @@ namespace AbilityKit.Demo.Moba
     {
         public static class Buff
         {
-            public static readonly EventKey<BuffAddedArgs> Added = new EventKey<BuffAddedArgs>("buff.added");
-            public static readonly EventKey<BuffRemovedArgs> Removed = new EventKey<BuffRemovedArgs>("buff.removed");
-            public static readonly EventKey<BuffStackChangedArgs> StackChanged = new EventKey<BuffStackChangedArgs>("buff.stack_changed");
-            public static readonly EventKey<BuffTickArgs> Tick = new EventKey<BuffTickArgs>("buff.tick");
-            public static readonly EventKey<BuffEffectTickArgs> EffectTick = new EventKey<BuffEffectTickArgs>("buff.effect_tick");
+            public static readonly EventKey<BuffAddedArgs> Added = new EventKey<BuffAddedArgs>(MobaBuffTriggering.Events.Added);
+            public static readonly EventKey<BuffRemovedArgs> Removed = new EventKey<BuffRemovedArgs>(MobaBuffTriggering.Events.Removed);
+            public static readonly EventKey<BuffStackChangedArgs> StackChanged = new EventKey<BuffStackChangedArgs>(MobaBuffTriggering.Events.StackChanged);
+            public static readonly EventKey<BuffTickArgs> Tick = new EventKey<BuffTickArgs>(MobaBuffTriggering.Events.Tick);
+            public static readonly EventKey<BuffEffectTickArgs> EffectTick = new EventKey<BuffEffectTickArgs>(MobaBuffTriggering.Events.EffectTick);
         }
 
         public static class Common

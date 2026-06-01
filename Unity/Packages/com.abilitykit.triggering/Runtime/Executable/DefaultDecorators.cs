@@ -520,7 +520,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public void OnApplied(object ctx)
         {
             if (_isTerminated) return;
-            Inner?.Execute(ctx);
         }
 
         public void OnTick(object ctx, float deltaTimeMs)
@@ -548,17 +547,15 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         public void OnAfterExecute(object ctx, ref ExecutionResult result)
         {
-            if (!_isTerminated)
-                OnApplied(ctx);
         }
 
         public ExecutionResult Execute(object ctx)
         {
             if (!OnBeforeExecute(ctx))
                 return ExecutionResult.Skipped("Continuous decorator already terminated");
-            var innerResult = Inner?.Execute(ctx) ?? ExecutionResult.Success();
+
             OnApplied(ctx);
-            return innerResult;
+            return Inner?.Execute(ctx) ?? ExecutionResult.Success();
         }
     }
 

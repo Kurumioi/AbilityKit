@@ -1,0 +1,18 @@
+﻿{
+    "conditions":  [
+
+                   ],
+    "id":  22001,
+    "enabled":  true,
+    "phase":  "immediate",
+    "event":  "",
+    "name":  "Trigger_22001",
+    "allowExternal":  false,
+    "actions":  [
+                    {
+                        "emitterId":  400001,
+                        "type":  "emit"
+                    }
+                ],
+    "priority":  50
+}

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.World.DI
@@ -105,6 +106,16 @@ namespace AbilityKit.Ability.World.DI
             return created;
         }
 
+        private void TryDeinit(object instance)
+        {
+            if (instance == null) return;
+
+            if (instance is IWorldDeinitializable deinit)
+            {
+                deinit.OnDeinit(this);
+            }
+        }
+
         private void ThrowIfDisposed()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(WorldScope));
@@ -113,13 +124,22 @@ namespace AbilityKit.Ability.World.DI
         public void Dispose()
         {
             if (_disposed) return;
-            _disposed = true;
 
             for (int i = _disposeOrder.Count - 1; i >= 0; i--)
             {
+                var instance = _disposeOrder[i];
                 try
                 {
-                    if (_disposeOrder[i] is IDisposable d) d.Dispose();
+                    TryDeinit(instance);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, "[WorldScope] scoped deinit failed");
+                }
+
+                try
+                {
+                    if (instance is IDisposable d) d.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -127,6 +147,7 @@ namespace AbilityKit.Ability.World.DI
                 }
             }
 
+            _disposed = true;
             _disposeOrder.Clear();
             _scoped.Clear();
         }

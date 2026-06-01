@@ -28,7 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Config
         External = 3,
         /// <summary>条件触发（满足条件时执行，Phase驱动）</summary>
         Conditional = 4,
-        /// <summary>持续行为（每帧驱动直到外部终止）</summary>
+        /// <summary>持续调度（按间隔驱动，生命周期由外部中断或执行次数控制）</summary>
         Continuous = 5,
     }
 
@@ -93,7 +93,7 @@ namespace AbilityKit.Triggering.Runtime.Config
         Delayed = 1,
         /// <summary>周期执行（按间隔重复，可设置最大次数）</summary>
         Periodic = 2,
-        /// <summary>持续帧执行（每帧执行直到外部终止）</summary>
+        /// <summary>持续调度执行（按间隔执行，生命周期由外部中断或执行次数控制）</summary>
         Continuous = 3,
         /// <summary>时间线执行（按时间线序列执行多个子Action）</summary>
         Timeline = 4,

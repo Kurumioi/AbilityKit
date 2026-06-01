@@ -28,7 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// Immediate: 立即执行一次
         /// Delayed: 延迟执行（等待 ScheduleParam 毫秒）
         /// Periodic: 周期执行（每 ScheduleParam 毫秒）
-        /// Continuous: 持续帧执行（每帧，直到外部终止）
+        /// Continuous: 持续调度执行（按 ScheduleParam 间隔，直到外部中断或达到执行次数）
         /// Timeline: 时间线执行（按时间轴序列）
         /// </summary>
         public readonly Config.EActionScheduleMode ScheduleMode;
@@ -468,7 +468,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly EScheduleMode Mode;
 
         /// <summary>
-        /// 执行间隔（毫秒），0=每帧
+        /// 调度间隔（毫秒），0 表示每次 Update 都可驱动
         /// </summary>
         public readonly float IntervalMs;
 
@@ -490,6 +490,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
             CanBeInterrupted = canBeInterrupted;
         }
 
+        /// <summary>
+        /// 创建外部生命周期控制的持续调度计划。
+        /// </summary>
         public static ScheduleModePlan Continuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
             => new ScheduleModePlan(EScheduleMode.Continuous, intervalMs, maxExecutions, canBeInterrupted);
 
@@ -639,7 +642,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 创建持续帧执行的动作（每帧执行直到外部终止）
+        /// 创建持续调度执行的动作（按间隔执行，直到外部中断或达到执行次数）
         /// </summary>
         /// <param name="canBeInterrupted">是否可中断</param>
         public static ActionCallPlan Continuous(this ActionId id, bool canBeInterrupted = true)

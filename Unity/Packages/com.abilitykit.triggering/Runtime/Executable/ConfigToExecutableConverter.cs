@@ -496,17 +496,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private ICondition ConvertConditionByTypeId(ConditionConfig config)
         {
-            if (ExecutableRegistry.Instance.TryGetDescriptor(config.TypeId, out _))
-            {
-                try
-                {
-                    return ExecutableRegistry.Instance.CreateCondition(config.TypeId);
-                }
-                catch
-                {
-                    // 回退到硬编码
-                }
-            }
+            if (TryCreateConditionFromRegistry(config.TypeId, config, out var condition))
+                return condition;
 
             return config.TypeId switch
             {
@@ -524,6 +515,10 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private ICondition ConvertConditionByTypeName(ConditionConfig config)
         {
+            if (ExecutableRegistry.Instance.TryGetConditionTypeIdByName(config.TypeName, out var typeId)
+                && TryCreateConditionFromRegistry(typeId, config, out var condition))
+                return condition;
+
             return config.TypeName?.ToLowerInvariant() switch
             {
                 "const" => new ConstCondition { Value = true },
@@ -536,6 +531,18 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 "multi" => ConvertMultiCondition(config),
                 _ => throw new NotSupportedException($"Condition type name '{config.TypeName}' not supported")
             };
+        }
+
+        private bool TryCreateConditionFromRegistry(int typeId, ConditionConfig config, out ICondition condition)
+        {
+            condition = null;
+            if (!ExecutableRegistry.Instance.TryGetConditionDescriptor(typeId, out _))
+                return false;
+
+            condition = ExecutableRegistry.Instance.CreateCondition(typeId);
+            if (condition is IConfigurableCondition configurable)
+                configurable.Configure(config, this);
+            return true;
         }
 
         private ICondition InferCondition(ConditionConfig config)
@@ -643,7 +650,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             };
         }
 
-        private ECompareOp ParseCompareOp(string op)
+        internal static ECompareOp ParseCompareOp(string op)
         {
             if (string.IsNullOrEmpty(op))
                 return ECompareOp.Equal;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Triggering.Eventing;
@@ -28,14 +29,63 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public void RegisterExact<TArgs>(string eventId)
         {
-            if (string.IsNullOrEmpty(eventId)) throw new ArgumentException(nameof(eventId));
-            _exact[eventId] = typeof(TArgs);
+            RegisterExact(eventId, typeof(TArgs));
         }
 
         public void RegisterPrefix<TArgs>(string prefix)
         {
+            RegisterPrefix(prefix, typeof(TArgs));
+        }
+
+        public void RegisterExact(string eventId, Type argsType)
+        {
+            if (string.IsNullOrEmpty(eventId)) throw new ArgumentException(nameof(eventId));
+            if (argsType == null) throw new ArgumentNullException(nameof(argsType));
+            _exact[eventId] = argsType;
+        }
+
+        public void RegisterPrefix(string prefix, Type argsType)
+        {
             if (string.IsNullOrEmpty(prefix)) throw new ArgumentException(nameof(prefix));
-            _prefixes.Add(new PrefixEntry(prefix, typeof(TArgs)));
+            if (argsType == null) throw new ArgumentNullException(nameof(argsType));
+
+            for (int i = 0; i < _prefixes.Count; i++)
+            {
+                var existing = _prefixes[i];
+                if (string.Equals(existing.Prefix, prefix, StringComparison.Ordinal))
+                {
+                    _prefixes[i] = new PrefixEntry(prefix, argsType);
+                    return;
+                }
+            }
+
+            _prefixes.Add(new PrefixEntry(prefix, argsType));
+        }
+
+        public void DiscoverAndRegister(Assembly assembly = null)
+        {
+            assembly ??= typeof(MobaEventSubscriptionRegistry).Assembly;
+
+            foreach (var type in assembly.GetTypes())
+            {
+                var attrs = type.GetCustomAttributes<MobaTriggerEventAttribute>(inherit: false);
+                foreach (var attr in attrs)
+                {
+                    if (attr == null || attr.ArgsType == null || string.IsNullOrEmpty(attr.EventIdOrPrefix))
+                    {
+                        continue;
+                    }
+
+                    if (attr.IsPrefix)
+                    {
+                        RegisterPrefix(attr.EventIdOrPrefix, attr.ArgsType);
+                    }
+                    else
+                    {
+                        RegisterExact(attr.EventIdOrPrefix, attr.ArgsType);
+                    }
+                }
+            }
         }
 
         public bool TryGetArgsType(string eventId, out Type argsType)

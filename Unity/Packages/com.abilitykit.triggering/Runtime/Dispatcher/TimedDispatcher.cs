@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Continuous;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime.Dispatcher
@@ -8,7 +9,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// 定时器实例
     /// 整合 ScheduledInstance、TimerInstance、ContinuousTriggerInstance 的功能
     /// </summary>
-    public class TimedInstance
+    public class TimedInstance : IContinuousTriggerInstance
     {
         public int InstanceId { get; set; }
         public int TriggerId { get; set; }
@@ -24,6 +25,17 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         public string InterruptReason { get; set; }
         public object UserData { get; set; }
 
+        float IContinuousTriggerInstance.LastExecuteAtMs => LastExecuteMs;
+        EContinuousState IContinuousTriggerInstance.CurrentState
+        {
+            get
+            {
+                if (!IsActive)
+                    return string.IsNullOrEmpty(InterruptReason) ? EContinuousState.Completed : EContinuousState.Interrupted;
+                return IsPaused ? EContinuousState.Paused : EContinuousState.Running;
+            }
+        }
+
         // 委托
         public Action<object, ITriggerDispatcherContext> OnExecute { get; set; }
         public TriggerPredicate<object> OnEvaluate { get; set; }
@@ -37,6 +49,8 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         /// 是否达到最大执行次数
         /// </summary>
         public bool IsMaxExecutionsReached => MaxExecutions > 0 && ExecutionCount >= MaxExecutions;
+        public bool IsCompleted => IsMaxExecutionsReached;
+        public bool IsTerminated => !IsActive;
     }
 
     /// <summary>
@@ -159,8 +173,16 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
                         continue;
                     }
 
-                    // 执行
-                    inst.OnExecute?.Invoke(null, context);
+                    // 执行：普通触发器走委托；持续执行器触发器走 ContinuousExecutorRegistry。
+                    if (inst.OnExecute != null)
+                    {
+                        inst.OnExecute.Invoke(null, context);
+                    }
+                    else
+                    {
+                        ContinuousExecutorRegistry.TryExecute(inst.TriggerId, deltaTimeMs, inst, inst.UserData ?? context);
+                    }
+
                     inst.LastExecuteMs = inst.ElapsedMs;
                     inst.ExecutionCount++;
 
@@ -168,6 +190,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
                     if (inst.IsMaxExecutionsReached)
                     {
                         inst.IsActive = false;
+                        ContinuousExecutorRegistry.TryTerminate(inst.TriggerId, EContinuousState.Completed, inst.UserData ?? context);
                         _toRemove.Add(inst);
                     }
                 }
@@ -238,6 +261,28 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         }
 
         /// <summary>
+        /// 注册外部生命周期控制的持续 tick 执行器。
+        /// </summary>
+        public int RegisterContinuousExecutor(int triggerId, float intervalMs, int maxExecutions = -1, object userData = null, bool canBeInterrupted = true)
+        {
+            var instance = new TimedInstance
+            {
+                InstanceId = _nextInstanceId++,
+                TriggerId = triggerId,
+                DelayMs = 0,
+                IntervalMs = intervalMs,
+                MaxExecutions = maxExecutions,
+                CanBeInterrupted = canBeInterrupted,
+                UserData = userData
+            };
+
+            ContinuousExecutorRegistry.TryStart(triggerId, userData);
+            _instances.Add(instance);
+            _registrations[triggerId] = instance;
+            return instance.InstanceId;
+        }
+ 
+        /// <summary>
         /// 中断指定实例
         /// </summary>
         public bool InterruptInstance(int instanceId, string reason)
@@ -248,6 +293,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
                 {
                     inst.IsActive = false;
                     inst.InterruptReason = reason;
+                    ContinuousExecutorRegistry.TryTerminate(inst.TriggerId, EContinuousState.Interrupted, inst.UserData);
                     _toRemove.Add(inst);
                     return true;
                 }
@@ -267,9 +313,30 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
                 {
                     inst.IsActive = false;
                     inst.InterruptReason = reason;
+                    ContinuousExecutorRegistry.TryTerminate(inst.TriggerId, EContinuousState.Interrupted, inst.UserData);
                     _toRemove.Add(inst);
                     count++;
                 }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 中断所有可中断的定时/持续实例。
+        /// </summary>
+        public int InterruptAll(string reason)
+        {
+            int count = 0;
+            foreach (var inst in _instances)
+            {
+                if (!inst.CanBeInterrupted)
+                    continue;
+
+                inst.IsActive = false;
+                inst.InterruptReason = reason;
+                ContinuousExecutorRegistry.TryTerminate(inst.TriggerId, EContinuousState.Interrupted, inst.UserData);
+                _toRemove.Add(inst);
+                count++;
             }
             return count;
         }

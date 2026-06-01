@@ -108,6 +108,27 @@ namespace AbilityKit.Demo.Moba.Services
             ctx.SetData(AbilityContextKeys.SkillLevel.ToKeyString(), level);
         }
 
+        public static long GetSkillRuntimeId(this IAbilityPipelineContext ctx)
+        {
+            return ctx.GetData(AbilityContextKeys.SkillRuntimeId.ToKeyString(), 0L);
+        }
+
+        public static MobaSkillCastRuntimeHandle GetSkillRuntimeHandle(this IAbilityPipelineContext ctx)
+        {
+            return ctx.GetData(AbilityContextKeys.SkillRuntimeHandle.ToKeyString(), default(MobaSkillCastRuntimeHandle));
+        }
+
+        public static void SetSkillRuntimeId(this IAbilityPipelineContext ctx, long runtimeId)
+        {
+            ctx.SetData(AbilityContextKeys.SkillRuntimeId.ToKeyString(), runtimeId);
+        }
+
+        public static void SetSkillRuntimeHandle(this IAbilityPipelineContext ctx, in MobaSkillCastRuntimeHandle handle)
+        {
+            ctx.SetData(AbilityContextKeys.SkillRuntimeHandle.ToKeyString(), handle);
+            ctx.SetData(AbilityContextKeys.SkillRuntimeId.ToKeyString(), handle.RuntimeId);
+        }
+
         /// <summary>
         /// 获取施法序列号
         /// </summary>

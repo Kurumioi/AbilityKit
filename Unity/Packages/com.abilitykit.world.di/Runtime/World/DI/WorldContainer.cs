@@ -203,6 +203,16 @@ namespace AbilityKit.Ability.World.DI
             }
         }
 
+        private void TryDeinit(object instance, IWorldResolver services)
+        {
+            if (instance == null) return;
+
+            if (instance is IWorldDeinitializable deinit)
+            {
+                deinit.OnDeinit(services);
+            }
+        }
+
         private sealed class ReferenceEqualityComparer : IEqualityComparer<object>
         {
             public static readonly ReferenceEqualityComparer Instance = new ReferenceEqualityComparer();
@@ -219,13 +229,22 @@ namespace AbilityKit.Ability.World.DI
         public void Dispose()
         {
             if (_disposed) return;
-            _disposed = true;
 
             for (int i = _singletonDisposeOrder.Count - 1; i >= 0; i--)
             {
+                var instance = _singletonDisposeOrder[i];
                 try
                 {
-                    if (_singletonDisposeOrder[i] is IDisposable d) d.Dispose();
+                    TryDeinit(instance, this);
+                }
+                catch (Exception ex)
+                {
+                    Log.Exception(ex, "[WorldContainer] singleton deinit failed");
+                }
+
+                try
+                {
+                    if (instance is IDisposable d) d.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -233,6 +252,7 @@ namespace AbilityKit.Ability.World.DI
                 }
             }
 
+            _disposed = true;
             _singletonDisposeOrder.Clear();
             _singletonDisposeSet.Clear();
             _singletons.Clear();

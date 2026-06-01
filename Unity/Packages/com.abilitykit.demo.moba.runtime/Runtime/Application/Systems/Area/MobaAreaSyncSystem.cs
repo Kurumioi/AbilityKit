@@ -17,21 +17,60 @@ namespace AbilityKit.Demo.Moba.Systems.Area
     [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaAreaSyncSystem : WorldSystemBase
     {
-        private sealed class AreaTriggerPayload
+        private sealed class AreaTriggerPayload : IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerDataContext
         {
-            public int TriggerId;
+            private readonly MobaTriggerDataBag _data = new MobaTriggerDataBag();
+
+            public int TriggerId { get; set; }
+            public EffectContextKind Kind => EffectContextKind.Area;
+            public int SourceActorId { get; set; }
+            public int TargetActorId { get; set; }
+            public long SourceContextId { get; set; }
+            public MobaTraceKind OriginKind { get; set; }
+            public MobaTraceKind TraceKind
+            {
+                get => OriginKind;
+                set => OriginKind = value;
+            }
+            public int SourceConfigId { get; set; }
+            public int Frame { get; set; }
+            public object Raw { get; set; }
             public AreaSpawnEvent Spawn;
             public AreaEnterEvent Enter;
             public AreaExitEvent Exit;
             public AreaExpireEvent Expire;
             public int OwnerId;
-            public int TargetActorId;
-            public int Frame;
             public Vec3 Center;
             public float Radius;
             public ColliderId Collider;
             public int CollisionLayerMask;
             public int MaxTargets;
+            public MobaTriggerDataBag Data => _data;
+            public Dictionary<string, object> SharedData => _data.SharedData;
+
+            public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
+            {
+                lineageContext = new MobaTriggerLineageContext(Kind, OriginKind, SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceConfigId, SourceConfigId);
+                return true;
+            }
+
+            public bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
+            {
+                if (TryGetLineageContext(out var lineageContext))
+                {
+                    traceContext = lineageContext.ToTraceContext();
+                    return true;
+                }
+
+                traceContext = default;
+                return false;
+            }
+
+            public T GetData<T>(string key, T defaultValue = default) => _data.GetData(key, defaultValue);
+            public void SetData<T>(string key, T value) => _data.SetData(key, value);
+            public bool TryGetData<T>(string key, out T value) => _data.TryGetData(key, out value);
+            public bool RemoveData(string key) => _data.RemoveData(key);
+            public void ClearData() => _data.ClearData();
         }
 
         private IProjectileService _projectiles;
@@ -81,19 +120,25 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnEnterTriggerId > 0)
                 {
-                    _effects.ExecuteTriggerId(entry.OnEnterTriggerId, new AreaTriggerPayload
+                    var payload = new AreaTriggerPayload
                     {
+                        OriginKind = MobaTraceKind.AreaEnter,
                         TriggerId = entry.OnEnterTriggerId,
+                        SourceActorId = evt.OwnerId,
+                        TargetActorId = hitActorId,
+                        SourceConfigId = evt.Area.Value,
+                        Frame = evt.Frame,
                         Enter = evt,
                         OwnerId = evt.OwnerId,
-                        TargetActorId = hitActorId,
-                        Frame = evt.Frame,
                         Collider = evt.Collider,
                         Center = entry.Center,
                         Radius = entry.Radius,
                         CollisionLayerMask = entry.CollisionLayerMask,
                         MaxTargets = entry.MaxTargets,
-                    });
+                        Raw = evt,
+                    };
+                    SyncAreaPayload(payload);
+                    _effects.ExecuteTriggerId(entry.OnEnterTriggerId, payload);
                 }
             }
 
@@ -108,19 +153,25 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnExitTriggerId > 0)
                 {
-                    _effects.ExecuteTriggerId(entry.OnExitTriggerId, new AreaTriggerPayload
+                    var payload = new AreaTriggerPayload
                     {
+                        OriginKind = MobaTraceKind.AreaExit,
                         TriggerId = entry.OnExitTriggerId,
+                        SourceActorId = evt.OwnerId,
+                        TargetActorId = hitActorId,
+                        SourceConfigId = evt.Area.Value,
+                        Frame = evt.Frame,
                         Exit = evt,
                         OwnerId = evt.OwnerId,
-                        TargetActorId = hitActorId,
-                        Frame = evt.Frame,
                         Collider = evt.Collider,
                         Center = entry.Center,
                         Radius = entry.Radius,
                         CollisionLayerMask = entry.CollisionLayerMask,
                         MaxTargets = entry.MaxTargets,
-                    });
+                        Raw = evt,
+                    };
+                    SyncAreaPayload(payload);
+                    _effects.ExecuteTriggerId(entry.OnExitTriggerId, payload);
                 }
             }
 
@@ -139,23 +190,44 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                         var triggerId = entry.OnExpireTriggerIds[ti];
                         if (triggerId <= 0) continue;
 
-                        _effects.ExecuteTriggerId(triggerId, new AreaTriggerPayload
+                        var payload = new AreaTriggerPayload
                         {
+                            OriginKind = MobaTraceKind.AreaExit,
                             TriggerId = triggerId,
+                            SourceActorId = evt.OwnerId,
+                            TargetActorId = 0,
+                            SourceConfigId = evt.Area.Value,
+                            Frame = evt.Frame,
                             Expire = evt,
                             OwnerId = evt.OwnerId,
-                            TargetActorId = 0,
-                            Frame = evt.Frame,
                             Center = entry.Center,
                             Radius = entry.Radius,
                             CollisionLayerMask = entry.CollisionLayerMask,
                             MaxTargets = entry.MaxTargets,
-                        });
+                            Raw = evt,
+                        };
+                        SyncAreaPayload(payload);
+                        _effects.ExecuteTriggerId(triggerId, payload);
                     }
                 }
 
                 _areaTriggers?.Unregister(evt.Area);
             }
+        }
+
+        private static void SyncAreaPayload(AreaTriggerPayload payload)
+        {
+            if (payload == null) return;
+            payload.Data.SyncInvocationData(payload);
+            if (payload.TryGetLineageContext(out var lineageContext)) payload.Data.SyncTraceData(lineageContext.ToTraceContext());
+            payload.Data.SetData(AbilityContextKeys.AreaId.ToKeyString(), payload.SourceConfigId);
+            payload.Data.SetData(AbilityContextKeys.AreaCenter.ToKeyString(), payload.Center);
+            payload.Data.SetData(AbilityContextKeys.AreaRadius.ToKeyString(), payload.Radius);
+            payload.Data.SetData(AbilityContextKeys.Frame.ToKeyString(), payload.Frame);
+            payload.Data.SetData("area.ownerId", payload.OwnerId);
+            payload.Data.SetData("area.collider", payload.Collider);
+            payload.Data.SetData("area.collisionLayerMask", payload.CollisionLayerMask);
+            payload.Data.SetData("area.maxTargets", payload.MaxTargets);
         }
 
         private void PublishAreaEvent(string eventId, object raw, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider)

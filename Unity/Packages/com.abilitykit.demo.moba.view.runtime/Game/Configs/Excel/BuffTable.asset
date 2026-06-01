@@ -16,8 +16,7 @@ MonoBehaviour:
   - Id: 0
     Name: 
     DurationMs: 0
-    OngoingEffectId: 0
-    OnAddEffects: 
+    OnAddEffects:
     OnRemoveEffects: 
     OnIntervalEffects: 
     IntervalMs: 0

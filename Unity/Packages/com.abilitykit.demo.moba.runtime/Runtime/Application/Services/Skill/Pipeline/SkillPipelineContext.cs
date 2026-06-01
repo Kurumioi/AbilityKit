@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Generic;
-using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS;
+using AbilityKit.ECS;
 using AbilityKit.Core.Math;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Services;
-using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Pipeline;
 
@@ -23,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Services
         public float StartTime { get; set; }
         public float ElapsedTime { get; private set; }
 
+        public MobaSkillCastRuntimeHandle RuntimeHandle { get; set; }
+        public long RuntimeId { get; set; }
         public long SourceContextId { get; set; }
         public string FailReason { get; set; }
 
@@ -130,13 +131,10 @@ namespace AbilityKit.Demo.Moba.Services
             _disposables.Clear();
             _cleanupActions.Clear();
 
+            RuntimeHandle = triggerContext != null ? triggerContext.RuntimeHandle : default;
+            RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
             SourceContextId = triggerContext?.SourceContextId ?? 0L;
 
-            SkillId = request.SkillId;
-            SkillSlot = request.SkillSlot;
-            CasterActorId = request.CasterActorId;
-            TargetActorId = request.TargetActorId;
-            // 先设置属性值
             SkillId = request.SkillId;
             SkillSlot = request.SkillSlot;
             CasterActorId = request.CasterActorId;
@@ -152,11 +150,38 @@ namespace AbilityKit.Demo.Moba.Services
             // 使用扩展方法填充共享数据（兼容旧代码）
             Vec3 aimPos = AimPos;
             Vec3 aimDir = AimDir;
+            var runtimeHandle = RuntimeHandle;
             this.SetSkillInfo(SkillId, SkillSlot, triggerContext?.SkillLevel ?? 0);
             this.SetParticipants(CasterActorId, TargetActorId);
             this.SetAim(in aimPos, in aimDir);
             this.SetContextKind((int)EffectContextKind.Skill);
             this.SetSourceContextId(SourceContextId);
+            this.SetSkillRuntimeHandle(in runtimeHandle);
+        }
+
+        public void UpdateInput(in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
+        {
+            if (!aimPos.Equals(Vec3.Zero)) AimPos = aimPos;
+            if (!aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
+            if (targetActorId > 0) TargetActorId = targetActorId;
+
+            var currentAimPos = AimPos;
+            var currentAimDir = AimDir;
+            this.SetAim(in currentAimPos, in currentAimDir);
+            this.SetParticipants(CasterActorId, TargetActorId);
+            SetData(MobaSkillPipelineSharedKeys.TargetActorId, TargetActorId);
+            SetData(MobaSkillPipelineSharedKeys.AimPos, AimPos);
+            SetData(MobaSkillPipelineSharedKeys.AimDir, AimDir);
+        }
+
+        public void MarkInputReleased()
+        {
+            SetData(MobaSkillPipelineSharedKeys.InputReleased, true);
+        }
+
+        public bool IsInputReleased()
+        {
+            return GetData(MobaSkillPipelineSharedKeys.InputReleased, false);
         }
 
         public void AdvanceTime(float deltaTime)
@@ -180,6 +205,8 @@ namespace AbilityKit.Demo.Moba.Services
             _disposables.Clear();
             _cleanupActions.Clear();
 
+            RuntimeHandle = default;
+            RuntimeId = 0L;
             this.SetSourceContextId(0L);
             FailReason = null;
 
@@ -233,17 +260,6 @@ namespace AbilityKit.Demo.Moba.Services
             EventBus = eventBus;
             CasterUnit = casterUnit;
             TargetUnit = targetUnit;
-        }
-    }
-
-    [WorldService(typeof(MobaSkillCastInstanceSyncSettings))]
-    public sealed class MobaSkillCastInstanceSyncSettings : AbilityKit.Ability.World.Services.IService
-    {
-        public int RetainCompletedFrames { get; set; } = 30;
-        public int DestroyConfirmGateFrames { get; set; } = 10;
-
-        public void Dispose()
-        {
         }
     }
 }

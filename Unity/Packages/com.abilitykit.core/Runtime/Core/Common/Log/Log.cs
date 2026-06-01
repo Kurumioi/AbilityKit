@@ -18,6 +18,11 @@ namespace AbilityKit.Core.Common.Log
             try { _sink.Info(message); } catch { }
         }
 
+        public static void Trace(string message)
+        {
+            try { _sink.Info(message); } catch { }
+        }
+
         public static void Warning(string message)
         {
             try { _sink.Warning(message); } catch { }

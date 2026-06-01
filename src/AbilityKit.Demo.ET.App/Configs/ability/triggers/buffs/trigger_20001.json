@@ -1,0 +1,24 @@
+﻿{
+    "conditions":  [
+
+                   ],
+    "id":  20001,
+    "enabled":  true,
+    "phase":  "immediate",
+    "event":  "skill.cast.complete",
+    "scope":  "owner",
+    "name":  "Trigger_20001",
+    "allowExternal":  false,
+    "actions":  [
+                    {
+                        "message":  "释放技能完成日志输出11111",
+                        "dump_args":  false,
+                        "type":  "debug_log"
+                    },
+                    {
+                        "emitterId":  400001,
+                        "type":  "emit"
+                    }
+                ],
+    "priority":  50
+}

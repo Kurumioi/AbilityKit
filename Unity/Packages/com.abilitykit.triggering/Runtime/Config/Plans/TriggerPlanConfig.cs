@@ -23,11 +23,13 @@ namespace AbilityKit.Triggering.Runtime.Config.Plans
         public List<ActionCallConfig> Actions { get; set; }
         public ScheduleConfig Schedule { get; set; }
         public CueConfig Cue { get; set; }
+        public TriggerPlanScope Scope { get; set; }
 
-        IReadOnlyList<IActionCallConfig> ITriggerPlanConfig.Actions => 
+        IReadOnlyList<IActionCallConfig> ITriggerPlanConfig.Actions =>
             Actions != null ? Actions.ConvertAll<IActionCallConfig>(a => a) : null;
         IScheduleConfig ITriggerPlanConfig.Schedule => Schedule;
         ICueConfig ITriggerPlanConfig.Cue => Cue;
+        TriggerPlanScope ITriggerPlanConfig.Scope => Scope;
 
         public static TriggerPlanConfig Create(
             int triggerId,
@@ -46,7 +48,8 @@ namespace AbilityKit.Triggering.Runtime.Config.Plans
                 Predicate = NonePredicateConfig.Instance,
                 Actions = new List<ActionCallConfig>(),
                 Schedule = ScheduleConfig.Transient,
-                Cue = CueConfig.None
+                Cue = CueConfig.None,
+                Scope = TriggerPlanScope.Global
             };
         }
 
@@ -71,6 +74,12 @@ namespace AbilityKit.Triggering.Runtime.Config.Plans
         public TriggerPlanConfig WithCue(CueConfig cue)
         {
             Cue = cue;
+            return this;
+        }
+
+        public TriggerPlanConfig WithScope(TriggerPlanScope scope)
+        {
+            Scope = scope;
             return this;
         }
     }

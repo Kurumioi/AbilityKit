@@ -36,7 +36,6 @@ namespace AbilityKit.Demo.Moba.Config.Core
             typeof(SummonDTO),
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
-            typeof(OngoingEffectDTO),
             typeof(PresentationTemplateDTO),
         };
 

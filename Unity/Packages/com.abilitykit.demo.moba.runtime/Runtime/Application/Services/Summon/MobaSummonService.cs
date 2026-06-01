@@ -11,7 +11,6 @@ using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Effect;
 using AbilityKit.Core.Common.Event;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -21,44 +20,19 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaSummonService))]
     public sealed class MobaSummonService : IService
     {
-        private readonly IWorldResolver _services;
-        private readonly ActorIdAllocator _actorIds;
-        private readonly MobaActorRegistry _registry;
-        private readonly MobaEntityManager _entities;
-        private readonly MobaActorLookupService _actors;
-        private readonly AbilityKit.Demo.Moba.Util.Generator.ActorEntityInitPipeline _generator;
-        private readonly MobaConfigDatabase _config;
-        private readonly MobaComponentTemplateService _componentTemplates;
-        private readonly IFrameTime _frameTime;
-        private readonly IWorldClock _clock;
-        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        [WorldInject] private ActorIdAllocator _actorIds;
+        [WorldInject] private MobaActorRegistry _registry;
+        [WorldInject] private MobaEntityManager _entities;
+        [WorldInject] private MobaActorLookupService _actors;
+        [WorldInject] private AbilityKit.Demo.Moba.Util.Generator.ActorEntityInitPipeline _generator;
+        [WorldInject] private MobaConfigDatabase _config;
+        [WorldInject] private MobaComponentTemplateService _componentTemplates;
+        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        [WorldInject(required: false)] private IFrameTime _frameTime;
+        [WorldInject(required: false)] private IWorldClock _clock;
+        [WorldInject(required: false)] private global::Entitas.IContexts _contexts;
 
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
-
-        public MobaSummonService(
-            IWorldResolver services,
-            ActorIdAllocator actorIds,
-            MobaActorRegistry registry,
-            MobaEntityManager entities,
-            MobaActorLookupService actors,
-            AbilityKit.Demo.Moba.Util.Generator.ActorEntityInitPipeline generator,
-            MobaConfigDatabase config,
-            MobaComponentTemplateService componentTemplates,
-            AbilityKit.Triggering.Eventing.IEventBus eventBus)
-        {
-            _services = services;
-            _actorIds = actorIds;
-            _registry = registry;
-            _entities = entities;
-            _actors = actors;
-            _generator = generator;
-            _config = config;
-            _componentTemplates = componentTemplates;
-            _eventBus = eventBus;
-
-            services?.TryResolve(out _frameTime);
-            services?.TryResolve(out _clock);
-        }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
@@ -298,9 +272,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private Entitas.IContexts ContextsFromServices()
         {
-            Entitas.IContexts contexts = null;
-            _services?.TryResolve(out contexts);
-            return contexts;
+            return _contexts;
         }
 
         public void Dispose()

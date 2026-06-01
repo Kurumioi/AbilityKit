@@ -55,12 +55,6 @@ namespace AbilityKit.Demo.Moba.Services
                 AttackerActorId = attack.AttackerActorId,
                 TargetActorId = attack.TargetActorId,
 
-                OriginSource = attack.OriginSource,
-                OriginTarget = attack.OriginTarget,
-                OriginKind = attack.OriginKind,
-                OriginConfigId = attack.OriginConfigId,
-                OriginContextId = attack.OriginContextId,
-
                 DamageType = attack.DamageType,
                 CritType = attack.CritType,
                 ReasonKind = attack.ReasonKind,
@@ -69,6 +63,11 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetHp = Clamp(oldHp - applied, 0f, maxHp),
                 TargetMaxHp = maxHp,
             };
+
+            if (attack.TryGetOrigin(out var origin))
+            {
+                result.SetOrigin(in origin);
+            }
 
             Publish(DamagePipelineEvents.AfterApply, result);
             return result;

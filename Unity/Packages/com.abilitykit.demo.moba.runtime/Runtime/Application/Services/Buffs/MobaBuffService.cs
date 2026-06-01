@@ -1,27 +1,20 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba.EffectSource;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Effect;
-using AbilityKit.Ability.Share.ECS;
-using AbilityKit.ECS;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
-using AbilityKit.Ability.World;
-using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Triggering.Eventing;
-using EffectSourceRegistry = AbilityKit.Demo.Moba.EffectSource.MobaTraceRegistry;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Continuous;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.GameplayTags;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaBuffService))]
-    public sealed class MobaBuffService : IService
+    public sealed class MobaBuffService : IWorldInitializable
     {
         private enum BuffCommandKind
         {
@@ -33,53 +26,38 @@ namespace AbilityKit.Demo.Moba.Services
         {
             public long Seq;
             public BuffCommandKind Kind;
+            public BuffApplyRequest ApplyRequest;
+            public BuffRemoveRequest RemoveRequest;
 
-            public global::ActorEntity Target;
-            public int BuffId;
-            public int SourceActorId;
-            public int DurationOverrideMs;
-            public object OriginSource;
-            public object OriginTarget;
-            public long ParentContextId;
-
-            public EffectSourceEndReason RemoveReason;
+            public int BuffId => ApplyRequest != null ? ApplyRequest.BuffId : RemoveRequest != null ? RemoveRequest.BuffId : 0;
         }
 
-        private readonly MobaConfigDatabase _configs;
-        private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        private readonly ITriggerActionRunner _actionRunner;
-        private readonly MobaPeriodicEffectService _ongoing;
-        private readonly EffectSourceRegistry _effectSource;
-        private readonly MobaActorLookupService _actors;
-        private readonly IWorldResolver _services;
-
-        private readonly BuffRepository _repo;
-        private readonly BuffContextService _ctx;
-        private readonly BuffEventPublisher _events;
-        private readonly BuffPeriodicEffectBinder _periodicBinder;
-        private readonly BuffStageEffectExecutor _stageEffects;
-        private readonly BuffStackingPolicyApplier _stacking;
-
+        [WorldInject] private MobaConfigDatabase _configs;
+        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        [WorldInject] private ITriggerActionRunner _actionRunner;
+        [WorldInject] private MobaPeriodicEffectService _ongoing;
+        [WorldInject] private MobaTraceRegistry _trace;
+        [WorldInject] private IFrameTime _frameTime;
+        [WorldInject] private MobaActorLookupService _actors;
+        [WorldInject] private MobaEffectExecutionService _effects;
+        [WorldInject(required: false)] private IGameplayTagService _tags;
+        [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates;
+        [WorldInject(required: false)] private IContinuousManager _continuous;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
+        private BuffLifecycleExecutor _lifecycle;
         private long _nextCommandSeq;
         private readonly List<BuffCommand> _pending = new List<BuffCommand>(32);
         private int _draining;
 
-        public MobaBuffService(MobaConfigDatabase configs, AbilityKit.Triggering.Eventing.IEventBus eventBus, ITriggerActionRunner actionRunner, MobaPeriodicEffectService ongoing, EffectSourceRegistry effectSource, IFrameTime frameTime, MobaActorLookupService actors, MobaEffectInvokerService invoker, IWorldResolver services)
+        public void OnInit(IWorldResolver services)
         {
-            _configs = configs;
-            _eventBus = eventBus;
-            _actionRunner = actionRunner;
-            _ongoing = ongoing;
-            _effectSource = effectSource;
-            _actors = actors;
-            _services = services;
-
-            _repo = new BuffRepository();
-            _ctx = new BuffContextService(effectSource, actionRunner, frameTime);
-            _events = new BuffEventPublisher(eventBus);
-            _periodicBinder = new BuffPeriodicEffectBinder(ongoing, actionRunner);
-            _stageEffects = new BuffStageEffectExecutor(invoker);
-            _stacking = new BuffStackingPolicyApplier();
+            var repo = new BuffRepository();
+            var ctx = new BuffContextService(_trace, _actionRunner, _frameTime);
+            var events = new BuffEventPublisher(_eventBus);
+            var periodicBinder = new BuffPeriodicEffectBinder(_ongoing, _actionRunner);
+            var stageEffects = new BuffStageEffectExecutor(_effects);
+            var stacking = new BuffStackingPolicyApplier();
+            _lifecycle = new BuffLifecycleExecutor(_configs, _actors, _ongoing, _tags, _tagTemplates, repo, ctx, events, periodicBinder, stageEffects, stacking, _continuous, _skillRuntimes);
         }
 
         public global::ActorEntity TryGetActorEntity(int actorId)
@@ -93,12 +71,18 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool ApplyBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs)
         {
-            return ApplyBuffImmediate(target, buffId, sourceActorId, durationOverrideMs, originSource: null, originTarget: null, parentContextId: 0);
+            if (target == null || !target.hasActorId) return false;
+            return ApplyBuffImmediate(target.actorId.Value, buffId, sourceActorId, durationOverrideMs, default(BuffOriginContext));
         }
 
-        public bool ApplyBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs, object originSource, object originTarget, long parentContextId)
+        public bool ApplyBuffImmediate(int targetActorId, int buffId, int sourceActorId, int durationOverrideMs)
         {
-            if (!EnqueueApply(target, buffId, sourceActorId, durationOverrideMs, originSource, originTarget, parentContextId))
+            return ApplyBuffImmediate(targetActorId, buffId, sourceActorId, durationOverrideMs, default(BuffOriginContext));
+        }
+
+        public bool ApplyBuffImmediate(int targetActorId, int buffId, int sourceActorId, int durationOverrideMs, in BuffOriginContext origin)
+        {
+            if (!EnqueueApply(targetActorId, buffId, sourceActorId, durationOverrideMs, origin))
             {
                 return false;
             }
@@ -107,9 +91,15 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        public bool RemoveBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, EffectSourceEndReason reason)
+        public bool RemoveBuffImmediate(global::ActorEntity target, int buffId, int sourceActorId, TraceLifecycleReason reason)
         {
-            if (!EnqueueRemove(target, buffId, sourceActorId, reason))
+            if (target == null || !target.hasActorId) return false;
+            return RemoveBuffImmediate(target.actorId.Value, buffId, sourceActorId, reason);
+        }
+
+        public bool RemoveBuffImmediate(int targetActorId, int buffId, int sourceActorId, TraceLifecycleReason reason)
+        {
+            if (!EnqueueRemove(targetActorId, buffId, sourceActorId, reason))
             {
                 return false;
             }
@@ -122,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (maxCommands <= 0) return;
 
-            // protect against re-entrancy if drain triggers effects that call ApplyBuffImmediate again.
+            // Protect against re-entrancy if drain triggers effects that call ApplyBuffImmediate again.
             if (_draining > 0) return;
 
             _draining++;
@@ -146,10 +136,10 @@ namespace AbilityKit.Demo.Moba.Services
                         switch (cmd.Kind)
                         {
                             case BuffCommandKind.Apply:
-                                ExecuteApply(cmd.Target, cmd.BuffId, cmd.SourceActorId, cmd.DurationOverrideMs, cmd.OriginSource, cmd.OriginTarget, cmd.ParentContextId);
+                                ExecuteApply(cmd.ApplyRequest);
                                 break;
                             case BuffCommandKind.Remove:
-                                ExecuteRemove(cmd.Target, cmd.BuffId, cmd.SourceActorId, cmd.RemoveReason);
+                                ExecuteRemove(cmd.RemoveRequest);
                                 break;
                         }
                     }
@@ -172,147 +162,73 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private bool EnqueueApply(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs, object originSource, object originTarget, long parentContextId)
+        private bool EnqueueApply(int targetActorId, int buffId, int sourceActorId, int durationOverrideMs, in BuffOriginContext origin)
         {
-            if (target == null) return false;
-            if (!target.hasActorId) return false;
+            if (targetActorId <= 0) return false;
             if (buffId <= 0) return false;
+
+            var request = BuffApplyRequestBuilder.Create()
+                .WithTarget(targetActorId)
+                .WithBuff(buffId)
+                .WithSource(sourceActorId)
+                .WithDurationOverride(durationOverrideMs)
+                .WithOrigin(in origin)
+                .Build();
 
             _pending.Add(new BuffCommand
             {
                 Seq = ++_nextCommandSeq,
                 Kind = BuffCommandKind.Apply,
-                Target = target,
-                BuffId = buffId,
-                SourceActorId = sourceActorId,
-                DurationOverrideMs = durationOverrideMs,
-                OriginSource = originSource,
-                OriginTarget = originTarget,
-                ParentContextId = parentContextId,
+                ApplyRequest = request,
             });
             return true;
         }
 
-        private bool EnqueueRemove(global::ActorEntity target, int buffId, int sourceActorId, EffectSourceEndReason reason)
+        private bool EnqueueRemove(int targetActorId, int buffId, int sourceActorId, TraceLifecycleReason reason)
         {
-            if (target == null) return false;
+            if (targetActorId <= 0) return false;
             if (buffId <= 0) return false;
+
+            var request = BuffRemoveRequestBuilder.Create()
+                .WithTarget(targetActorId)
+                .WithBuff(buffId)
+                .WithSource(sourceActorId)
+                .WithReason(reason)
+                .Build();
 
             _pending.Add(new BuffCommand
             {
                 Seq = ++_nextCommandSeq,
                 Kind = BuffCommandKind.Remove,
-                Target = target,
-                BuffId = buffId,
-                SourceActorId = sourceActorId,
-                RemoveReason = reason,
+                RemoveRequest = request,
             });
             return true;
         }
 
-        private bool ExecuteApply(global::ActorEntity target, int buffId, int sourceActorId, int durationOverrideMs, object originSource, object originTarget, long parentContextId)
+        private bool ExecuteApply(BuffApplyRequest request)
         {
-            if (target == null) return false;
-            if (!target.hasActorId) return false;
-            if (buffId <= 0) return false;
+            if (request == null || !request.IsValid) return false;
 
-            if (_configs == null) return false;
-            if (!_configs.TryGetBuff(buffId, out var buff) || buff == null) return false;
-
-            if (target.hasApplyBuffRequest && target.applyBuffRequest != null && target.applyBuffRequest.BuffId == buffId)
+            var target = TryGetActorEntity(request.TargetActorId);
+            if (target != null && target.hasApplyBuffRequest && target.applyBuffRequest != null && target.applyBuffRequest.BuffId == request.BuffId)
             {
                 target.RemoveApplyBuffRequest();
             }
 
-            if (!target.hasBuffs)
-            {
-                target.AddBuffs(new List<BuffRuntime>());
-            }
-
-            var list = _repo.GetOrCreateList(target);
-
-            var duration = durationOverrideMs > 0 ? durationOverrideMs : buff.DurationMs;
-            var durationSeconds = duration > 0 ? duration / 1000f : 0f;
-            var targetActorId = target.actorId.Value;
-
-            // 閫氳�?request 靂藉姞靃讹紝睛ラ�?parentContextId �?origin actorId锛堝靋滆兘瑙ｆ瀽靨勮瘽锛夈�?
-            // 涓枃娉ㄩ噴锛歰riginSource/originTarget 静兘靄?actorId(int) 鎴栧坾浠栧璞★紱杩欓噷浠呭湪靄?int 靃跺啓靝ャ€?
-            var originSourceActorId = originSource is int osi ? osi : 0;
-            var originTargetActorId = originTarget is int oti ? oti : 0;
-            target.ReplaceApplyBuffRequest(buffId, sourceActorId, durationOverrideMs, parentContextId, originSourceActorId, originTargetActorId);
-
-            var existingIndex = BuffRepository.FindExistingBuffIndex(list, buff.Id);
-            if (existingIndex >= 0)
-            {
-                var rt = list[existingIndex];
-                var applied = _stacking.ApplyToExisting(rt, buff, sourceActorId, durationSeconds, _ctx);
-                _ctx.EnsureBuffContext(rt, buff.Id, sourceActorId, targetActorId, originSource, originTarget, parentContextId);
-                _periodicBinder.TryStartPeriodicEffectByBuff(buff, rt, sourceActorId, targetActorId);
-                _events.PublishApplyOrRefresh(buff, sourceActorId, targetActorId, durationSeconds, rt);
-                if (applied)
-                {
-                    _stageEffects.Execute(buff.OnAddEffects, buff.Id, sourceActorId, targetActorId, rt.SourceContextId);
-                    _events.PublishPerEffect(MobaBuffTriggering.Events.ApplyOrRefresh, buff.OnAddEffects, stage: "add", sourceActorId: sourceActorId, targetActorId: targetActorId, rt);
-                }
-                return true;
-            }
-
-            var created = _stacking.CreateNewRuntime(buff, sourceActorId, durationSeconds);
-            {
-                _ctx.EnsureBuffContext(created, buff.Id, sourceActorId, targetActorId, originSource, originTarget, parentContextId);
-            }
-            list.Add(created);
-            _periodicBinder.TryStartPeriodicEffectByBuff(buff, created, sourceActorId, targetActorId);
-            _events.PublishApplyOrRefresh(buff, sourceActorId, targetActorId, durationSeconds, created);
-            _stageEffects.Execute(buff.OnAddEffects, buff.Id, sourceActorId, targetActorId, created.SourceContextId);
-            _events.PublishPerEffect(MobaBuffTriggering.Events.ApplyOrRefresh, buff.OnAddEffects, stage: "add", sourceActorId: sourceActorId, targetActorId: targetActorId, created);
-            return true;
+            return _lifecycle.Apply(request);
         }
 
-        private bool ExecuteRemove(global::ActorEntity target, int buffId, int sourceActorId, EffectSourceEndReason reason)
+        private bool ExecuteRemove(BuffRemoveRequest request)
         {
-            if (target == null) return false;
-            if (buffId <= 0) return false;
+            if (request == null || !request.IsValid) return false;
 
-            if (target.hasApplyBuffRequest && target.applyBuffRequest != null && target.applyBuffRequest.BuffId == buffId)
+            var target = TryGetActorEntity(request.TargetActorId);
+            if (target != null && target.hasApplyBuffRequest && target.applyBuffRequest != null && target.applyBuffRequest.BuffId == request.BuffId)
             {
                 target.RemoveApplyBuffRequest();
             }
 
-            if (!target.hasBuffs) return false;
-
-            var list = target.buffs.Active;
-            if (list == null || list.Count == 0) return false;
-
-            var removed = false;
-            for (int i = list.Count - 1; i >= 0; i--)
-            {
-                var b = list[i];
-                if (b == null) continue;
-                if (b.BuffId != buffId) continue;
-
-                removed = true;
-
-                var normalizedReason = reason;
-                if (normalizedReason == EffectSourceEndReason.None) normalizedReason = EffectSourceEndReason.Dispelled;
-
-                _ctx.EndByRuntimeNoClear(b, normalizedReason);
-
-                if (_configs != null)
-                {
-                    if (_configs.TryGetBuff(b.BuffId, out var buff) && buff != null)
-                    {
-                        _events.PublishRemove(buff, sourceActorId, target.actorId.Value, b, normalizedReason);
-                        _stageEffects.Execute(buff.OnRemoveEffects, buff.Id, sourceActorId, target.actorId.Value, b.SourceContextId);
-                    }
-                }
-
-                b.SourceContextId = 0;
-
-                list.RemoveAt(i);
-            }
-
-            return removed;
+            return _lifecycle.Remove(request);
         }
 
         public void Dispose()
