@@ -2,7 +2,7 @@ using System;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public readonly struct MobaTriggerConditionContext
+    public readonly struct MobaTriggerConditionContext : IMobaTriggerStageSnapshotProvider
     {
         private readonly object _payload;
         private readonly IMobaTriggerDataContext _dataContext;
@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Services
             MobaTriggerExecutionSnapshot executionSnapshot,
             MobaSkillCastRuntimeHandle skillRuntimeHandle,
             IMobaTriggerDataContext dataContext,
+            MobaTriggerStageSnapshot stageSnapshot,
             MobaSkillCastRuntimeService skillRuntimes,
             int frame)
         {
@@ -24,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Services
             LineageInput = lineageInput;
             Origin = origin;
             ExecutionSnapshot = executionSnapshot;
+            StageSnapshot = stageSnapshot;
             SkillRuntimeHandle = skillRuntimeHandle;
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
         }
@@ -33,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaEffectTraceInput TraceInput => LineageInput.ToTraceInput();
         public MobaGameplayOrigin Origin { get; }
         public MobaTriggerExecutionSnapshot ExecutionSnapshot { get; }
+        public MobaTriggerStageSnapshot StageSnapshot { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         public int Frame { get; }
         public EffectContextKind ContextKind => LineageInput.ContextKind != EffectContextKind.Unknown ? LineageInput.ContextKind : ExecutionSnapshot.Kind;
@@ -44,9 +47,10 @@ namespace AbilityKit.Demo.Moba.Services
         public long OwnerContextId => LineageInput.OwnerKey != 0 ? LineageInput.OwnerKey : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
-        public int StackCount => ExecutionSnapshot.StackCount;
-        public float ElapsedSeconds => ExecutionSnapshot.ElapsedSeconds;
-        public float RemainingSeconds => ExecutionSnapshot.RemainingSeconds;
+        public int StackCount => StageSnapshot.StackCount;
+        public float ElapsedSeconds => StageSnapshot.ElapsedSeconds;
+        public float RemainingSeconds => StageSnapshot.RemainingSeconds;
+        public float DurationSeconds => StageSnapshot.DurationSeconds;
         public bool HasSkillRuntime => SkillRuntimeHandle.IsValid;
 
         public bool TryGetPayload<TPayload>(out TPayload payload)
@@ -115,6 +119,12 @@ namespace AbilityKit.Demo.Moba.Services
             return snapshot.IsValid;
         }
 
+        public bool TryGetStageSnapshot(out MobaTriggerStageSnapshot snapshot)
+        {
+            snapshot = StageSnapshot;
+            return snapshot.IsValid;
+        }
+
         public static MobaTriggerConditionContext Create(
             object payload,
             in MobaEffectLineageInput lineageInput,
@@ -122,28 +132,28 @@ namespace AbilityKit.Demo.Moba.Services
             MobaSkillCastRuntimeService skillRuntimes,
             int frame)
         {
-            var origin = default(MobaGameplayOrigin);
-            payload.TryResolveOrigin(out origin);
+            var executionContext = MobaCombatExecutionContextFactory.Create(payload, in lineageInput, in executionSnapshot, frame);
+            return Create(in executionContext, skillRuntimes, frame);
+        }
 
-            var builder = MobaTriggerExecutionSnapshotBuilder.Create()
-                .FromLineage(in lineageInput)
-                .FromPayload(payload)
-                .FromSnapshot(in executionSnapshot);
-
-            if (frame != 0)
-            {
-                builder.WithFrame(frame);
-            }
-
-            var snapshot = builder.Build();
-            var handle = origin.SkillRuntimeHandle;
-            if (!handle.IsValid && snapshot.SkillRuntimeHandle.IsValid)
-            {
-                handle = snapshot.SkillRuntimeHandle;
-            }
-
+        public static MobaTriggerConditionContext Create(
+            in MobaCombatExecutionContext executionContext,
+            MobaSkillCastRuntimeService skillRuntimes,
+            int frame)
+        {
+            var payload = executionContext.Payload;
             var dataContext = payload as IMobaTriggerDataContext;
-            return new MobaTriggerConditionContext(payload, lineageInput, origin, snapshot, handle, dataContext, skillRuntimes, frame);
+            payload.TryResolveStageSnapshot(out var stageSnapshot);
+            return new MobaTriggerConditionContext(
+                payload,
+                executionContext.LineageInput,
+                executionContext.Origin,
+                executionContext.ExecutionSnapshot,
+                executionContext.SkillRuntimeHandle,
+                dataContext,
+                stageSnapshot,
+                skillRuntimes,
+                frame != 0 ? frame : executionContext.Frame);
         }
 
         public static MobaTriggerConditionContext Create(

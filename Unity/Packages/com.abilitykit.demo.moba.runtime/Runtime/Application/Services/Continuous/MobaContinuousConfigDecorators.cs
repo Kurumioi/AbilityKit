@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.GameplayTags;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -36,6 +37,12 @@ namespace AbilityKit.Demo.Moba.Services
         public const int Custom = 255;
     }
 
+    public static class MobaContinuousModifierEvaluationPolicy
+    {
+        public const int Realtime = 0;
+        public const int OnApplySnapshot = 1;
+    }
+
     /// <summary>
     /// MOBA-side state modifier declaration held by a continuous config.
     /// </summary>
@@ -45,6 +52,8 @@ namespace AbilityKit.Demo.Moba.Services
         int TargetId { get; }
         int Op { get; }
         float Value { get; }
+        MagnitudeSource Magnitude { get; }
+        int EvaluationPolicy { get; }
         int Priority { get; }
     }
 

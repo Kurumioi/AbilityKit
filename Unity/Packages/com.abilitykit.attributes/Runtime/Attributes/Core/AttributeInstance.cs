@@ -219,8 +219,8 @@ namespace AbilityKit.Attributes.Core
             // 获取活跃修改器数据
             var modifierData = GetActiveModifierData();
 
-            // 使用 ModifierCalculator 计算
-            var modifierResult = _calculator.Calculate(modifierData, slot.BaseValue);
+            // 使用完整 AttributeContext 计算，支持等级曲线、属性引用、时间衰减和管道来源。
+            var modifierResult = _calculator.Calculate(modifierData, slot.BaseValue, _ctx);
 
             // 调用公式计算（通过 Context 获取 Registry）
             var formula = _ctx.Registry.GetFormula(_id);

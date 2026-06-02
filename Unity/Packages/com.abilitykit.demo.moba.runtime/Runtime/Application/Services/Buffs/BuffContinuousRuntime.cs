@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public sealed class BuffContinuousRuntime : IContinuous
+    public sealed class BuffContinuousRuntime : IMobaTickableContinuous, IMobaContinuousIntervalState, IMobaContinuousRuntimeStateSync
     {
         private readonly BuffContinuousConfig _config;
 
@@ -25,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId { get; }
         public long SourceContextId { get; private set; }
         public int ModifierSourceId { get; private set; }
+        public BuffRuntime Runtime { get; private set; }
 
         public ContinuousTagRequirements TagRequirements => _config.TagRequirements;
         public IContinuousConfig Config => _config;
@@ -33,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool IsTerminated => State == ContinuousState.Expired || State == ContinuousState.Aborted;
         public bool IsPaused => State == ContinuousState.Paused;
         public float ElapsedSeconds { get; private set; }
+        public float IntervalRemainingSeconds { get; set; }
         public float RemainingSeconds
         {
             get
@@ -45,6 +48,11 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public event Action<IContinuous, ContinuousEndReason> OnEnded;
+
+        public void BindRuntime(BuffRuntime runtime)
+        {
+            Runtime = runtime;
+        }
 
         public void BindSourceContext(long sourceContextId)
         {
@@ -62,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
             ElapsedSeconds = 0f;
         }
 
-        public void Tick(float deltaTimeSeconds)
+        public void TickManaged(float deltaTimeSeconds)
         {
             if (!IsActive || deltaTimeSeconds <= 0f) return;
 
@@ -72,6 +80,14 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 End(ContinuousEndReason.Completed);
             }
+        }
+
+        public void SyncManagedState()
+        {
+            if (Runtime == null) return;
+
+            Runtime.IntervalRemainingSeconds = IntervalRemainingSeconds;
+            Runtime.Remaining = RemainingSeconds;
         }
 
         public void Activate()
@@ -95,17 +111,17 @@ namespace AbilityKit.Demo.Moba.Services
             State = ContinuousState.Active;
         }
 
-        public void Abort(string reason)
-        {
-            End(ContinuousEndReason.Interrupted);
-        }
-
         public void End(ContinuousEndReason reason)
         {
             if (IsTerminated) return;
 
             State = reason == ContinuousEndReason.Completed ? ContinuousState.Expired : ContinuousState.Aborted;
             OnEnded?.Invoke(this, reason);
+        }
+
+        public void Abort(string reason)
+        {
+            End(ContinuousEndReason.Interrupted);
         }
 
         private static int CreateModifierSourceId(long sourceContextId, int buffId, int targetActorId)

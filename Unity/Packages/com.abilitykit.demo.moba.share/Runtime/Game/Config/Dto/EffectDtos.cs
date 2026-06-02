@@ -11,6 +11,19 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Op;
         public float Value;
         public int Priority;
+
+        // 0/Fixed keeps existing configs compatible. Other values map to AbilityKit.Modifiers.MagnitudeSourceType.
+        public int MagnitudeSourceType;
+        public float MagnitudeBaseValue;
+        public float MagnitudeCoefficient;
+        public float MagnitudeDuration;
+        public int MagnitudeDecayType;
+        public int MagnitudeAttributeTypeId;
+        public float[] MagnitudeCurve;
+
+        // 0/Realtime recalculates from the source whenever the target value is recomputed.
+        // 1/OnApplySnapshot evaluates once when the continuous modifier is projected, then stores a fixed value.
+        public int EvaluationPolicy;
     }
 
     [Serializable]

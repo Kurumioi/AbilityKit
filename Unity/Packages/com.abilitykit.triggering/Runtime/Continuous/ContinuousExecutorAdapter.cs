@@ -75,12 +75,42 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         }
 
         /// <inheritdoc />
+        public void End(ContinuousEndReason reason)
+        {
+            if (IsTerminated)
+                return;
+
+            if (reason == ContinuousEndReason.Completed)
+            {
+                State = ContinuousState.Expired;
+                var completedCtx = CreateContext();
+                if (completedCtx != null)
+                {
+                    Terminate(EContinuousState.Completed, completedCtx);
+                }
+
+                OnExpiredCore();
+                RaiseEnded(ContinuousEndReason.Completed);
+                return;
+            }
+
+            State = ContinuousState.Aborted;
+            var interruptedCtx = CreateContext();
+            if (interruptedCtx != null)
+            {
+                Terminate(EContinuousState.Interrupted, interruptedCtx);
+            }
+
+            OnAbortedCore(reason.ToString());
+            RaiseEnded(reason);
+        }
+
+        /// <inheritdoc />
         public void Abort(string reason)
         {
             if (IsTerminated)
                 return;
 
-            var previousState = State;
             State = ContinuousState.Aborted;
 
             var ctx = CreateContext();
@@ -89,6 +119,7 @@ namespace AbilityKit.Triggering.Runtime.Continuous
                 Terminate(EContinuousState.Interrupted, ctx);
             }
 
+            OnAbortedCore(reason);
             RaiseEnded(ContinuousEndReason.Interrupted);
         }
 
@@ -175,19 +206,7 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         protected void Expire()
         {
-            if (IsTerminated)
-                return;
-
-            State = ContinuousState.Expired;
-
-            var ctx = CreateContext();
-            if (ctx != null)
-            {
-                Terminate(EContinuousState.Completed, ctx);
-            }
-
-            OnExpiredCore();
-            RaiseEnded(ContinuousEndReason.Completed);
+            End(ContinuousEndReason.Completed);
         }
 
         /// <summary>

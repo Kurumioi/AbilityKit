@@ -21,68 +21,14 @@ namespace AbilityKit.Demo.Moba.Services
             runtime.TagRequirements = ResolveRequirements(buff, registry);
         }
 
-        public static bool CanActivate(IGameplayTagService tags, int targetActorId, ContinuousTagRequirements requirements)
+        public static bool CanActivate(IMobaEffectiveTagQueryService tags, int targetActorId, ContinuousTagRequirements requirements)
         {
-            if (requirements == null) return true;
-            var current = tags?.GetTags(targetActorId);
-            return requirements.CanActivate(current);
+            return tags == null ? requirements == null : tags.CanActivate(targetActorId, requirements);
         }
-
-        public static bool ShouldEnd(IGameplayTagService tags, int targetActorId, ContinuousTagRequirements requirements)
+ 
+        public static bool ShouldEnd(IMobaEffectiveTagQueryService tags, int targetActorId, ContinuousTagRequirements requirements)
         {
-            if (requirements == null) return false;
-            var current = tags?.GetTags(targetActorId);
-            return !requirements.IsOngoingSatisfied(current) || requirements.ShouldRemove(current);
-        }
-
-        public static void ApplyApplicationTags(IGameplayTagService tags, int targetActorId, BuffRuntime runtime)
-        {
-            if (runtime == null) return;
-            ApplyTags(tags, targetActorId, runtime.TagRequirements?.ApplicationTags, CreateSource(runtime));
-        }
-
-        public static void RemoveApplicationTags(IGameplayTagService tags, int targetActorId, BuffRuntime runtime)
-        {
-            if (runtime == null) return;
-            RemoveTags(tags, targetActorId, runtime.TagRequirements?.ApplicationTags, CreateSource(runtime));
-        }
-
-        public static void ApplyRemovalTags(IGameplayTagService tags, int targetActorId, BuffRuntime runtime)
-        {
-            if (runtime == null) return;
-            ApplyTags(tags, targetActorId, runtime.TagRequirements?.RemovalTags, CreateSource(runtime));
-        }
-
-        private static GameplayTagSource CreateSource(BuffRuntime runtime)
-        {
-            if (runtime == null) return GameplayTagSource.System;
-            if (runtime.SourceContextId != 0) return new GameplayTagSource(runtime.SourceContextId);
-            if (runtime.SourceId != 0) return new GameplayTagSource(runtime.SourceId);
-            return GameplayTagSource.System;
-        }
-
-        private static void ApplyTags(IGameplayTagService tags, int targetActorId, GameplayTagContainer container, GameplayTagSource source)
-        {
-            if (tags == null) return;
-            if (targetActorId <= 0) return;
-            if (container == null || container.Count == 0) return;
-
-            foreach (var tag in container)
-            {
-                tags.AddTag(targetActorId, tag, source);
-            }
-        }
-
-        private static void RemoveTags(IGameplayTagService tags, int targetActorId, GameplayTagContainer container, GameplayTagSource source)
-        {
-            if (tags == null) return;
-            if (targetActorId <= 0) return;
-            if (container == null || container.Count == 0) return;
-
-            foreach (var tag in container)
-            {
-                tags.RemoveTag(targetActorId, tag, source);
-            }
+            return tags != null && tags.ShouldRemove(targetActorId, requirements);
         }
     }
 }

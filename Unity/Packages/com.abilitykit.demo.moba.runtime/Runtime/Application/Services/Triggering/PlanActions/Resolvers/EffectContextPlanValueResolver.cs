@@ -132,6 +132,41 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return false;
         }
 
+        public static bool TryGetLiveBuffView(object args, out BuffRuntimeView view)
+        {
+            return BuffLiveViewResolver.TryResolve(args, out view);
+        }
+
+        public static bool TryGetLiveBuffStackCount(object args, out int stackCount)
+        {
+            stackCount = 0;
+
+            if (!BuffLiveViewResolver.TryResolve(args, out var view)) return false;
+
+            stackCount = view.StackCount;
+            return true;
+        }
+
+        public static bool TryGetLiveBuffRemainingSeconds(object args, out float remainingSeconds)
+        {
+            remainingSeconds = 0f;
+
+            if (!BuffLiveViewResolver.TryResolve(args, out var view)) return false;
+
+            remainingSeconds = view.RemainingSeconds;
+            return true;
+        }
+
+        public static bool TryGetLiveBuffIntervalRemainingSeconds(object args, out float intervalRemainingSeconds)
+        {
+            intervalRemainingSeconds = 0f;
+
+            if (!BuffLiveViewResolver.TryResolve(args, out var view)) return false;
+
+            intervalRemainingSeconds = view.IntervalRemainingSeconds;
+            return true;
+        }
+
         public static bool TryGetBuffStage(object args, out string stage)
         {
             stage = null;

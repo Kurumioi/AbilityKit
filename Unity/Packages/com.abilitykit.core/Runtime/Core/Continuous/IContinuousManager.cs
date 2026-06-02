@@ -32,6 +32,26 @@ namespace AbilityKit.Core.Continuous
         bool TryActivate(IContinuous continuous);
 
         /// <summary>
+        /// 尝试暂停持续体。
+        /// </summary>
+        bool TryPause(IContinuous continuous);
+
+        /// <summary>
+        /// 尝试恢复持续体。
+        /// </summary>
+        bool TryResume(IContinuous continuous);
+
+        /// <summary>
+        /// 尝试结束持续体。
+        /// </summary>
+        bool TryEnd(IContinuous continuous, ContinuousEndReason reason = ContinuousEndReason.Completed);
+
+        /// <summary>
+        /// 尝试中断持续体。
+        /// </summary>
+        bool TryInterrupt(IContinuous continuous, string reason);
+
+        /// <summary>
         /// 获取实体的所有持续体
         /// </summary>
         IReadOnlyList<IContinuous> GetOwnerContinuous(long ownerId);

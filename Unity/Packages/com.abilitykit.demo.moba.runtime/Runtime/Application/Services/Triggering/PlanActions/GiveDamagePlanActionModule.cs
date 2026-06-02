@@ -28,27 +28,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!ctx.Context.TryResolve<DamagePipelineService>(out var pipeline) || pipeline == null)
                 return;
 
-            // �?trigger payload 瑙ｆ�?caster/target锛坱riggerArgs �?SkillHitArgs 绛変簨浠?payload�?
-            if (!PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out var attackerActorId) || attackerActorId <= 0)
-                return;
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!input.HasCasterActor) return;
+            if (!input.HasTargetActor) return;
 
-            if (!PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out var targetActorId) || targetActorId <= 0)
-                return;
-
-            var origin = triggerArgs.TryResolveOrigin(out var parentOrigin)
-                ? parentOrigin.WithActors(attackerActorId, targetActorId)
-                : MobaGameplayOrigin.FromLegacy(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0, 0);
-
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null && effects.TryGetCurrentTraceScope(out var traceScope))
-            {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(attackerActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.EffectExecution, traceScope.EffectConfigId, traceScope.EffectContextId)
-                    .WithRootContext(origin.EffectiveRootContextId)
-                    .WithOwnerContext(origin.OwnerContextId)
-                    .Build();
-            }
+            var attackerActorId = input.CasterActorId;
+            var targetActorId = input.TargetActorId;
+            var executionContext = input.ExecutionContext;
+            var traceScope = input.TraceScope;
+            var origin = MobaActionOriginBuilder.Build(
+                in executionContext,
+                in traceScope,
+                attackerActorId,
+                targetActorId,
+                MobaTraceKind.EffectExecution,
+                0);
 
             var attack = new AttackInfo
             {

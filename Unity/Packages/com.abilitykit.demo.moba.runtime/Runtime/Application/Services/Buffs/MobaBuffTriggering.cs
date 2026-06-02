@@ -44,6 +44,11 @@
             {
                 return stage == Remove;
             }
+
+            public static bool IsInterval(string stage)
+            {
+                return stage == Interval;
+            }
         }
     }
 }

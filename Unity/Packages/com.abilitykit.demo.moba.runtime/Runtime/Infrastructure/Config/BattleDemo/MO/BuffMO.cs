@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
@@ -15,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             TargetId = dto.TargetId != 0 ? dto.TargetId : dto.AttrTypeId;
             Op = dto.Op;
             Value = dto.Value;
+            Magnitude = CreateMagnitude(dto);
+            EvaluationPolicy = dto.EvaluationPolicy;
             Priority = dto.Priority;
         }
 
@@ -22,7 +25,45 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int TargetId { get; }
         public int Op { get; }
         public float Value { get; }
+        public MagnitudeSource Magnitude { get; }
+        public int EvaluationPolicy { get; }
         public int Priority { get; }
+
+        private static MagnitudeSource CreateMagnitude(ContinuousModifierDTO dto)
+        {
+            var sourceType = (MagnitudeSourceType)dto.MagnitudeSourceType;
+            var baseValue = dto.MagnitudeBaseValue != 0f ? dto.MagnitudeBaseValue : dto.Value;
+            var coefficient = dto.MagnitudeCoefficient != 0f ? dto.MagnitudeCoefficient : 1f;
+
+            switch (sourceType)
+            {
+                case MagnitudeSourceType.Scalable:
+                    return MagnitudeSource.LevelCurve(baseValue, dto.MagnitudeCurve, coefficient);
+                case MagnitudeSourceType.Attribute:
+                    var attrId = dto.MagnitudeAttributeTypeId != 0 ? dto.MagnitudeAttributeTypeId : dto.AttrTypeId;
+                    return MagnitudeSource.Attribute(CreateAttributeKey(attrId), coefficient);
+                case MagnitudeSourceType.TimeDecay:
+                    return dto.MagnitudeCurve != null && dto.MagnitudeCurve.Length > 0
+                        ? MagnitudeSource.TimeDecay(baseValue, dto.MagnitudeDuration, dto.MagnitudeCurve)
+                        : MagnitudeSource.TimeDecay(baseValue, dto.MagnitudeDuration, (DecayType)dto.MagnitudeDecayType);
+                case MagnitudeSourceType.Pipeline:
+                    return MagnitudeSource.Fixed(baseValue);
+                default:
+                    return MagnitudeSource.Fixed(dto.Value);
+            }
+        }
+
+        private static ModifierKey CreateAttributeKey(int attrTypeId)
+        {
+            return ModifierKey.Create(ModifierKey.Categories.Attribute, ToByte(attrTypeId));
+        }
+
+        private static byte ToByte(int value)
+        {
+            if (value <= 0) return 0;
+            if (value >= byte.MaxValue) return byte.MaxValue;
+            return (byte)value;
+        }
     }
 
     public sealed class BuffMO

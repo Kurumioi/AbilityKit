@@ -73,7 +73,7 @@ namespace AbilityKit.Demo.Moba.Services
             return result;
         }
 
-        private static void ApplyFormula(AttackCalcInfo calc)
+        private void ApplyFormula(AttackCalcInfo calc)
         {
             if (calc == null || calc.Attack == null) return;
 
@@ -109,15 +109,10 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            PublishStatic(DamagePipelineEvents.AfterBase, calc);
-            PublishStatic(DamagePipelineEvents.AfterMitigate, calc);
-            PublishStatic(DamagePipelineEvents.AfterShield, calc);
-            PublishStatic(DamagePipelineEvents.CalcFinal, calc);
-
-            static void PublishStatic(string _, object __)
-            {
-                // placeholder: keeps old stage ordering calls centralized in Publish() below.
-            }
+            Publish(DamagePipelineEvents.AfterBase, calc);
+            Publish(DamagePipelineEvents.AfterMitigate, calc);
+            Publish(DamagePipelineEvents.AfterShield, calc);
+            Publish(DamagePipelineEvents.CalcFinal, calc);
         }
 
         private void Publish(string eventId, object payload)

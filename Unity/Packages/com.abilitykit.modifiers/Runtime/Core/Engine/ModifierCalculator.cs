@@ -104,13 +104,36 @@ namespace AbilityKit.Modifiers
             float level,
             Func<ModifierKey, float> captureDelegate)
         {
+            return Calculate(modifiers, baseValue, recorder, new SimpleModifierContext(level, captureDelegate));
+        }
+
+        /// <summary>
+        /// 使用调用方提供的完整上下文计算修改器。
+        /// </summary>
+        public ModifierResult Calculate(
+            ReadOnlySpan<ModifierData> modifiers,
+            float baseValue,
+            IModifierContext context)
+        {
+            return Calculate(modifiers, baseValue, null, context);
+        }
+
+        /// <summary>
+        /// 使用调用方提供的完整上下文计算修改器，并可选记录来源。
+        /// </summary>
+        public ModifierResult Calculate(
+            ReadOnlySpan<ModifierData> modifiers,
+            float baseValue,
+            IModifierRecorder recorder,
+            IModifierContext context)
+        {
             int count = modifiers.Length;
 
             if (count == 0)
                 return ModifierResult.Empty(baseValue);
 
-            // 创建上下文
-            var context = new SimpleModifierContext(level, captureDelegate);
+            context ??= new SimpleModifierContext(1f, null);
+            var level = context.Level;
 
             // 尝试从缓存获取
             if (_enableCache && (recorder == null || recorder is NullRecorder))
@@ -145,8 +168,9 @@ namespace AbilityKit.Modifiers
         {
             for (int i = 0; i < bases.Length; i++)
             {
-                results[i] = Calculate(modifiers, bases[i], null, level,
-                    context != null ? key => context.GetAttribute(key) : null);
+                results[i] = context != null
+                    ? Calculate(modifiers, bases[i], null, context)
+                    : Calculate(modifiers, bases[i], null, level, null);
             }
         }
 

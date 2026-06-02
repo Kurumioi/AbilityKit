@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    internal interface IBuffTriggerContext : IMobaTriggerInvocationContext, IMobaActorContextProvider
+    internal interface IBuffTriggerContext : IMobaTriggerInvocationContext, IMobaActorContextProvider, IBuffLiveViewProvider
     {
         int BuffId { get; }
         string Stage { get; }
@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetBuffRuntime(out BuffRuntime runtime);
     }
 
-    internal sealed class BuffTriggerContext : IBuffTriggerContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaOriginContextProvider
+    internal sealed class BuffTriggerContext : IBuffTriggerContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaOriginContextProvider, IMobaTriggerStageSnapshotProvider
     {
         public int TriggerId { get; set; }
         public EffectContextKind Kind => EffectContextKind.Buff;
@@ -85,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Services
         public TraceLifecycleReason RemoveReason { get; set; }
         public BuffRuntime Runtime { get; set; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle => Runtime != null ? Runtime.SkillRuntimeHandle : default;
-        public MobaTriggerLineageContext LineageContext => new MobaTriggerLineageContext(Kind, MobaBuffTriggering.Stages.IsRemove(Stage) ? MobaTraceKind.BuffRemove : MobaTraceKind.BuffApply, SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceContextId, BuffId);
+        public MobaTriggerLineageContext LineageContext => new MobaTriggerLineageContext(Kind, ResolveTraceKind(Stage), SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceContextId, BuffId);
         public MobaTriggerTraceContext TraceContext => LineageContext.ToTraceContext();
         public MobaGameplayOrigin Origin
         {
@@ -117,6 +117,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetBuffRuntime(out BuffRuntime runtime) => TryGetRuntime(out runtime);
 
+        public bool TryGetLiveBuffView(out BuffRuntimeView view)
+        {
+            view = new BuffRuntimeView(Runtime);
+            return view.IsValid;
+        }
+
         public bool TryGetSourceActorId(out int actorId)
         {
             actorId = SourceActorId;
@@ -139,6 +145,23 @@ namespace AbilityKit.Demo.Moba.Services
         {
             handle = SkillRuntimeHandle;
             return handle.IsValid;
+        }
+
+        public bool TryGetStageSnapshot(out MobaTriggerStageSnapshot snapshot)
+        {
+            snapshot = new MobaTriggerStageSnapshot(
+                StackCountSnapshot,
+                0f,
+                RemainingSecondsSnapshot,
+                DurationSecondsSnapshot);
+            return snapshot.IsValid;
+        }
+
+        private static MobaTraceKind ResolveTraceKind(string stage)
+        {
+            if (MobaBuffTriggering.Stages.IsRemove(stage)) return MobaTraceKind.BuffRemove;
+            if (MobaBuffTriggering.Stages.IsInterval(stage)) return MobaTraceKind.BuffTick;
+            return MobaTraceKind.BuffApply;
         }
     }
 }

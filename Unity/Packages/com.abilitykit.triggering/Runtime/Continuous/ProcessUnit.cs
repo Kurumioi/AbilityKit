@@ -71,12 +71,30 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         }
 
         /// <inheritdoc />
+        public virtual void End(ContinuousEndReason reason)
+        {
+            if (IsTerminated)
+                return;
+
+            if (reason == ContinuousEndReason.Completed)
+            {
+                State = ContinuousState.Expired;
+                OnExpired();
+                RaiseEnded(ContinuousEndReason.Completed);
+                return;
+            }
+
+            State = ContinuousState.Aborted;
+            OnAborted(reason.ToString());
+            RaiseEnded(reason);
+        }
+
+        /// <inheritdoc />
         public virtual void Abort(string reason)
         {
             if (IsTerminated)
                 return;
 
-            var previousState = State;
             State = ContinuousState.Aborted;
             OnAborted(reason);
             RaiseEnded(ContinuousEndReason.Interrupted);
@@ -148,12 +166,7 @@ namespace AbilityKit.Triggering.Runtime.Continuous
         /// </summary>
         protected void Expire()
         {
-            if (IsTerminated)
-                return;
-
-            State = ContinuousState.Expired;
-            OnExpired();
-            RaiseEnded(ContinuousEndReason.Completed);
+            End(ContinuousEndReason.Completed);
         }
 
         /// <summary>

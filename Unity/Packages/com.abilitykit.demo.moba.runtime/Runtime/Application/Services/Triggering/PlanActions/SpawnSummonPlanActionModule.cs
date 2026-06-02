@@ -30,8 +30,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var casterActorId = 0;
-            PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out casterActorId);
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            var casterActorId = input.CasterActorId;
 
             Vec3 spawnPos = Vec3.Zero;
             Vec3 forward = Vec3.Forward;
@@ -50,8 +50,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     break;
 
                 case SpawnSummonPositionMode.Target:
-                    int targetActorId = 0;
-                    if (PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId) && targetActorId > 0)
+                    var targetActorId = input.TargetActorId;
+                    if (targetActorId > 0)
                     {
                         if (ctx.Context.TryResolve<MobaActorLookupService>(out var lookup) && lookup != null)
                         {
@@ -64,8 +64,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     break;
 
                 case SpawnSummonPositionMode.AimPos:
-                    if (PlanContextValueResolver.TryGetAimPos(triggerArgs, out var aimPos))
+                    if (input.HasAimPosition)
                     {
+                        var aimPos = input.AimPosition;
                         spawnPos = new Vec3(aimPos.X, 0, aimPos.Y);
                     }
                     break;

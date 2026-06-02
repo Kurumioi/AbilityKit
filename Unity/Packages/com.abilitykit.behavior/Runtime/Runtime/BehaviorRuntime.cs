@@ -96,6 +96,15 @@ namespace AbilityKit.Ability.Behavior
         void IContinuous.Resume() => Resume();
 
         /// <inheritdoc />
+        void IContinuous.End(ContinuousEndReason reason)
+        {
+            if (reason == ContinuousEndReason.Completed)
+                Complete();
+            else
+                Interrupt(reason.ToString());
+        }
+
+        /// <inheritdoc />
         void IContinuous.Abort(string reason) => Interrupt(reason);
 
         #endregion

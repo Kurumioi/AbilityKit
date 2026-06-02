@@ -124,6 +124,22 @@ namespace AbilityKit.Demo.Moba.Services
         MobaSkillRuntimeRetainHandle SkillRuntimeRetainHandle { get; }
     }
 
+    internal interface IBuffLiveViewProvider
+    {
+        bool TryGetLiveBuffView(out BuffRuntimeView view);
+    }
+
+    internal static class BuffLiveViewResolver
+    {
+        public static bool TryResolve(object payload, out BuffRuntimeView view)
+        {
+            view = default;
+            return payload is IBuffLiveViewProvider provider
+                   && provider.TryGetLiveBuffView(out view)
+                   && view.IsValid;
+        }
+    }
+
     internal interface IBuffMutableState : IBuffReadOnlyView
     {
         void SetSourceActorId(int sourceActorId);
@@ -151,8 +167,8 @@ namespace AbilityKit.Demo.Moba.Services
         public int BuffId => _runtime != null ? _runtime.BuffId : 0;
         public int SourceActorId => _runtime != null ? _runtime.SourceId : 0;
         public int StackCount => _runtime != null ? _runtime.StackCount : 0;
-        public float RemainingSeconds => _runtime != null ? _runtime.Remaining : 0f;
-        public float IntervalRemainingSeconds => _runtime != null ? _runtime.IntervalRemainingSeconds : 0f;
+        public float RemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.RemainingSeconds : _runtime != null ? _runtime.Remaining : 0f;
+        public float IntervalRemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.IntervalRemainingSeconds : _runtime != null ? _runtime.IntervalRemainingSeconds : 0f;
         public long SourceContextId => _runtime != null ? _runtime.SourceContextId : 0L;
         public BuffContinuousRuntime Continuous => _runtime != null ? _runtime.Continuous : null;
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle => _runtime != null ? _runtime.SkillRuntimeHandle : default;
@@ -179,7 +195,12 @@ namespace AbilityKit.Demo.Moba.Services
         public void SetIntervalRemainingSeconds(float intervalRemainingSeconds)
         {
             if (_runtime == null) return;
+
             _runtime.IntervalRemainingSeconds = intervalRemainingSeconds;
+            if (_runtime.Continuous != null)
+            {
+                _runtime.Continuous.IntervalRemainingSeconds = intervalRemainingSeconds;
+            }
         }
 
         public void BindSourceContext(long sourceContextId)

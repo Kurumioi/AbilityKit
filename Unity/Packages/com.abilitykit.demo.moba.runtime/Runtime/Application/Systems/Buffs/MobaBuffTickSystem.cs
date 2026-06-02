@@ -3,13 +3,11 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.GameplayTags;
 using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Systems.Buffs
@@ -18,11 +16,8 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
     public sealed class MobaBuffTickSystem : WorldSystemBase
     {
         private MobaConfigDatabase _configs;
-        private IWorldClock _clock;
-        private IGameplayTagService _tags;
+        private IMobaEffectiveTagQueryService _tags;
         private IMobaContinuousTagTemplateRegistry _tagTemplates;
-        private BuffEventPublisher _buffEvents;
-        private BuffStageEffectExecutor _stageEffects;
         private BuffLifecycleExecutor _lifecycle;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -34,10 +29,8 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
         protected override void OnInit()
         {
             Services.TryResolve(out _configs);
-            Services.TryResolve(out _clock);
             Services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
             Services.TryResolve(out ITriggerActionRunner actionRunner);
-            Services.TryResolve(out MobaPeriodicEffectService ongoing);
             Services.TryResolve(out MobaTraceRegistry trace);
             Services.TryResolve(out MobaEffectExecutionService effects);
             Services.TryResolve(out _tags);
@@ -49,20 +42,15 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
 
             var repo = new BuffRepository();
             var ctx = new BuffContextService(trace, actionRunner, frameTime);
-            _buffEvents = new BuffEventPublisher(eventBus);
-            var periodicBinder = new BuffPeriodicEffectBinder(ongoing, actionRunner);
-            _stageEffects = new BuffStageEffectExecutor(effects);
+            var buffEvents = new BuffEventPublisher(eventBus);
+            var stageEffects = new BuffStageEffectExecutor(effects);
             var stacking = new BuffStackingPolicyApplier();
-            _lifecycle = new BuffLifecycleExecutor(_configs, actors, ongoing, _tags, _tagTemplates, repo, ctx, _buffEvents, periodicBinder, _stageEffects, stacking, continuous, skillRuntimes);
+            _lifecycle = new BuffLifecycleExecutor(_configs, actors, _tags, _tagTemplates, repo, ctx, buffEvents, stageEffects, stacking, continuous, skillRuntimes);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.Buffs));
         }
 
         protected override void OnExecute()
         {
-            if (_clock == null) return;
-            var dt = _clock.DeltaTime;
-            if (dt <= 0f) return;
-
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
@@ -84,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
                     }
 
                     var endedByTags = false;
-                    if (_configs != null && _configs.TryGetBuff(runtime.BuffId, out var buffCfg) && buffCfg != null)
+                    BuffMO buffCfg = null;
+                    if (_configs != null && _configs.TryGetBuff(runtime.BuffId, out buffCfg) && buffCfg != null)
                     {
                         if (runtime.TagRequirements == null)
                         {
@@ -100,8 +89,7 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
                     }
                     else
                     {
-                        runtime.Continuous?.Tick(dt);
-                        SyncRemainingFromContinuous(runtime, dt);
+                        SyncFromContinuous(runtime);
                     }
 
                     if (!endedByTags && runtime.Continuous != null && !runtime.Continuous.IsTerminated) continue;
@@ -113,17 +101,12 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
             }
         }
 
-        private static void SyncRemainingFromContinuous(BuffRuntime runtime, float deltaTimeSeconds)
+        private static void SyncFromContinuous(BuffRuntime runtime)
         {
-            if (runtime == null) return;
+            if (runtime == null || runtime.Continuous == null) return;
 
-            if (runtime.Continuous != null)
-            {
-                runtime.Remaining = runtime.Continuous.RemainingSeconds;
-                return;
-            }
-
-            runtime.Remaining -= deltaTimeSeconds;
+            runtime.Remaining = runtime.Continuous.RemainingSeconds;
+            runtime.IntervalRemainingSeconds = runtime.Continuous.IntervalRemainingSeconds;
         }
 
     }

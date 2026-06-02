@@ -35,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
         private int _fallbackBudgetFrame;
+        private MobaTriggerPlanExecutor _planExecutor;
  
         /// <summary>
         /// 溯源注册表（可选，用于链路追踪）。未注册时只保留核心 lineage，不创建 trace tree。
@@ -46,6 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
         /// 当前正在执行的可选 trace 栈（用于嵌套效果和 Action 父子关系追踪）
         /// </summary>
         private readonly Stack<EffectExecutionTraceScope> _traceScopes = new Stack<EffectExecutionTraceScope>();
+        private readonly Stack<MobaCombatExecutionContext> _executionContexts = new Stack<MobaCombatExecutionContext>();
 
         /// <summary>
         /// 获取当前正在追踪的 Action 链路
@@ -53,6 +55,15 @@ namespace AbilityKit.Demo.Moba.Services
         public IReadOnlyList<long> CurrentActionChain => _traceScopes.Count > 0 ? _traceScopes.Peek().ActionContextIds : Array.Empty<long>();
 
         public long CurrentEffectContextId => _traceScopes.Count > 0 ? _traceScopes.Peek().EffectContextId : 0;
+
+        public bool TryGetCurrentExecutionContext(out MobaCombatExecutionContext context)
+        {
+            context = default;
+            if (_executionContexts.Count == 0) return false;
+
+            context = _executionContexts.Peek();
+            return context.IsValid;
+        }
 
         public bool TryGetCurrentTraceScope(out MobaEffectTraceScopeSnapshot snapshot)
         {
@@ -185,7 +196,7 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
-        private void TryRepairMissingActions(in AbilityKit.Triggering.Runtime.Plan.TriggerPlan<object> plan)
+        private void TryRepairMissingActions(TriggerPlan<object> plan)
         {
             RegisterPlanActionModules("TryRepairMissingActions(plan)");
         }
@@ -229,21 +240,23 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaTriggerConditionContext CreateConditionContext(object payload)
         {
-            var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
-            var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, 0, 0);
-            return CreateConditionContext(payload, in lineageInput, in executionSnapshot);
+            var executionContext = CreateCombatExecutionContext(payload, 0, 0);
+            return CreateConditionContext(in executionContext);
         }
 
-        private MobaTriggerConditionContext CreateConditionContext(object payload, in MobaEffectLineageInput lineageInput, in MobaTriggerExecutionSnapshot executionSnapshot)
+        private MobaTriggerConditionContext CreateConditionContext(in MobaCombatExecutionContext executionContext)
         {
-            var frame = executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame;
-            var snapshot = executionSnapshot.WithFrame(frame);
+            var frame = executionContext.Frame != 0 ? executionContext.Frame : CurrentBudgetFrame;
+            var snapshot = executionContext.ExecutionSnapshot.WithFrame(frame);
+            var payload = executionContext.Payload;
+            var lineageInput = executionContext.LineageInput;
             if (_payloadResolvers != null && _payloadResolvers.TryCreateContext(payload, in lineageInput, in snapshot, _skillRuntimes, frame, out var context))
             {
                 return context;
             }
 
-            return MobaTriggerConditionContext.Create(payload, in lineageInput, in snapshot, _skillRuntimes, frame);
+            var normalizedContext = MobaCombatExecutionContextFactory.WithSnapshot(in executionContext, in snapshot, frame);
+            return MobaTriggerConditionContext.Create(in normalizedContext, _skillRuntimes, frame);
         }
 
         private MobaTriggerExecutionSnapshot CreateExecutionSnapshot(object payload, in MobaEffectLineageInput lineageInput, int triggerId, int configId)
@@ -256,9 +269,16 @@ namespace AbilityKit.Demo.Moba.Services
                 .Build();
         }
 
-        private bool TryEnterExecutionBudget(int triggerId, object payload, in MobaEffectLineageInput lineageInput, in MobaTriggerExecutionSnapshot executionSnapshot, out MobaTriggerExecutionBudgetToken token, out MobaTriggerConditionContext conditionContext)
+        private MobaCombatExecutionContext CreateCombatExecutionContext(object payload, int triggerId, int configId)
         {
-            conditionContext = CreateConditionContext(payload, in lineageInput, in executionSnapshot);
+            var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
+            var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, triggerId, configId);
+            return MobaCombatExecutionContextFactory.Create(payload, in lineageInput, in executionSnapshot, executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame);
+        }
+
+        private bool TryEnterExecutionBudget(int triggerId, in MobaCombatExecutionContext executionContext, out MobaTriggerExecutionBudgetToken token, out MobaTriggerConditionContext conditionContext)
+        {
+            conditionContext = CreateConditionContext(in executionContext);
             var request = conditionContext.ToExecutionRequest(triggerId);
             if (_executionBudget.TryEnter(in request, out token, out var block)) return true;
 
@@ -282,71 +302,115 @@ namespace AbilityKit.Demo.Moba.Services
             return executed ? (int)TraceLifecycleReason.Completed : (int)TraceLifecycleReason.Failed;
         }
 
-        private bool TryExecutePlanByTriggerId(int triggerId, object args)
+        private MobaEffectExecutionSession BeginExecutionSession(
+            int effectConfigId,
+            int triggerId,
+            in MobaCombatExecutionContext executionContext,
+            in MobaEffectLineageInput lineageInput,
+            in TriggerPlan<object> plan,
+            in MobaTriggerExecutionBudgetToken budgetToken)
         {
-            if (triggerId <= 0) return false;
-            if (_planDb == null) return false;
-            if (!_planDb.TryGetPlanByTriggerId(triggerId, out var plan))
-            {
-                return false;
-            }
-
-            if (_planEventBus == null || _planFunctions == null || _planActions == null)
-            {
-                Log.Warning($"[MobaEffectExecutionService] Plan runtime deps missing; skip plan exec. triggerId={triggerId}");
-                return false;
-            }
-
-            var ctrl = new AbilityKit.Triggering.Runtime.ExecutionControl();
-            ctrl.Reset();
-
-            var execCtx = new AbilityKit.Triggering.Runtime.ExecCtx<IWorldResolver>(
-                context: _services,
-                eventBus: _planEventBus,
-                functions: _planFunctions,
-                actions: _planActions,
-                blackboards: null,
-                payloads: null,
-                idNames: null,
-                numericDomains: null,
-                numericFunctions: null,
-                policy: default,
-                control: ctrl);
-
-            bool ExecuteOnce()
-            {
-                var planned = new PlannedTrigger<object, IWorldResolver>(plan);
-                var ok = planned.Evaluate(args, execCtx);
-                if (ctrl.StopPropagation || ctrl.Cancel) return ok;
-                if (!ok) return true;
-                planned.Execute(args, execCtx);
-                return true;
-            }
-
+            EffectExecutionTraceScope traceScope = null;
+            _executionContexts.Push(executionContext);
             try
             {
-                return ExecuteOnce();
-            }
-            catch (InvalidOperationException)
-            {
-                // Common cause: actions not registered yet due to init timing.
-                // Attempt one-time repair and retry.
-                try
+                traceScope = BeginEffectTraceScope(effectConfigId, triggerId, in lineageInput);
+                if (plan.Actions != null && plan.Actions.Length > 0)
                 {
-                    TryRepairMissingActions(in plan);
-                    return ExecuteOnce();
+                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
                 }
-                catch (Exception ex2)
-                {
-                    Log.Exception(ex2, $"[MobaEffectExecutionService] Plan execution failed. triggerId={triggerId}");
-                    return false;
-                }
+
+                return new MobaEffectExecutionSession(this, traceScope, budgetToken);
             }
-            catch (Exception ex)
+            catch
             {
-                Log.Exception(ex, $"[MobaEffectExecutionService] Plan execution failed. triggerId={triggerId}");
-                return false;
+                if (traceScope != null)
+                {
+                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                }
+
+                if (_executionContexts.Count > 0)
+                {
+                    _executionContexts.Pop();
+                }
+
+                _executionBudget.Exit(in budgetToken);
+                throw;
             }
+        }
+
+        private sealed class MobaEffectExecutionSession : IDisposable
+        {
+            private readonly MobaEffectExecutionService _owner;
+            private readonly MobaTriggerExecutionBudgetToken _budgetToken;
+            private EffectExecutionTraceScope _traceScope;
+            private bool _disposed;
+
+            public MobaEffectExecutionSession(
+                MobaEffectExecutionService owner,
+                EffectExecutionTraceScope traceScope,
+                in MobaTriggerExecutionBudgetToken budgetToken)
+            {
+                _owner = owner;
+                _traceScope = traceScope;
+                _budgetToken = budgetToken;
+            }
+
+            public void Complete(bool executed)
+            {
+                if (_traceScope == null) return;
+
+                _owner.EndCurrentTrace(ToTraceEndReason(executed));
+                _traceScope = null;
+            }
+
+            public void Dispose()
+            {
+                if (_disposed) return;
+                _disposed = true;
+
+                if (_traceScope != null)
+                {
+                    _owner.EndCurrentTrace((int)TraceLifecycleReason.Failed);
+                    _traceScope = null;
+                }
+
+                if (_owner._executionContexts.Count > 0)
+                {
+                    _owner._executionContexts.Pop();
+                }
+
+                _owner._executionBudget.Exit(in _budgetToken);
+            }
+        }
+
+        private MobaTriggerPlanExecutor PlanExecutor
+        {
+            get
+            {
+                if (_planExecutor == null)
+                {
+                    _planExecutor = new MobaTriggerPlanExecutor(
+                        _services,
+                        _planDb,
+                        _planEventBus,
+                        _planFunctions,
+                        _planActions,
+                        TryRepairMissingActions);
+                }
+
+                return _planExecutor;
+            }
+        }
+
+        private bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
+        {
+            return PlanExecutor.TryGetPlan(triggerId, out plan);
+        }
+
+        private bool TryExecutePlanByTriggerId(int triggerId, object args)
+        {
+            return PlanExecutor.Execute(triggerId, args);
         }
 
         public void Execute(int effectId, IAbilityPipelineContext context, EffectExecuteMode mode = EffectExecuteMode.InternalOnly)
@@ -362,43 +426,17 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Warning($"[MobaEffectExecutionService] EffectExecuteMode.{mode} is not supported (legacy publish removed). effectId={effectId}");
             }
 
-            var effectCtx = (IEffectContext)wrappedContext;
-            var lineageInput = MobaEffectLineageInputResolver.Resolve(effectCtx);
+            var executionContext = CreateCombatExecutionContext(wrappedContext, effectId, effectId);
+            var lineageInput = executionContext.LineageInput;
 
-            TriggerPlan<object> plan = default;
-            if (_planDb != null)
+            TryGetPlanByTriggerId(effectId, out var plan);
+
+            if (!TryEnterExecutionBudget(effectId, in executionContext, out var budgetToken, out var conditionContext)) return;
+
+            using (var session = BeginExecutionSession(effectId, effectId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                _planDb.TryGetPlanByTriggerId(effectId, out plan);
-            }
-
-            var executionSnapshot = CreateExecutionSnapshot(wrappedContext, in lineageInput, effectId, effectId);
-            if (!TryEnterExecutionBudget(effectId, wrappedContext, in lineageInput, in executionSnapshot, out var budgetToken, out var conditionContext)) return;
-
-            EffectExecutionTraceScope traceScope = null;
-            try
-            {
-                traceScope = BeginEffectTraceScope(effectId, effectId, in lineageInput);
-                if (plan.Actions != null && plan.Actions.Length > 0)
-                {
-                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
-                }
- 
-                bool executed = EvaluateTriggerConditions(effectId, in conditionContext) && TryExecutePlanByTriggerId(effectId, wrappedContext);
-  
-                if (traceScope != null)
-                {
-                    EndCurrentTrace(ToTraceEndReason(executed));
-                    traceScope = null;
-                }
-            }
-            finally
-            {
-                if (traceScope != null)
-                {
-                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
-                }
-
-                _executionBudget.Exit(in budgetToken);
+                var executed = EvaluateTriggerConditions(effectId, in conditionContext) && TryExecutePlanByTriggerId(effectId, wrappedContext);
+                session.Complete(executed);
             }
         }
 
@@ -410,42 +448,17 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (triggerId <= 0) return;
 
-            var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
+            var executionContext = CreateCombatExecutionContext(payload, triggerId, triggerId);
+            var lineageInput = executionContext.LineageInput;
 
-            TriggerPlan<object> plan = default;
-            if (_planDb != null)
+            TryGetPlanByTriggerId(triggerId, out var plan);
+
+            if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return;
+
+            using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                _planDb.TryGetPlanByTriggerId(triggerId, out plan);
-            }
-
-            var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, triggerId, triggerId);
-            if (!TryEnterExecutionBudget(triggerId, payload, in lineageInput, in executionSnapshot, out var budgetToken, out var conditionContext)) return;
-
-            EffectExecutionTraceScope traceScope = null;
-            try
-            {
-                traceScope = BeginEffectTraceScope(triggerId, triggerId, in lineageInput);
-                if (plan.Actions != null && plan.Actions.Length > 0)
-                {
-                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
-                }
- 
-                bool executed = EvaluateTriggerConditions(triggerId, in conditionContext) && TryExecutePlanByTriggerId(triggerId, payload);
-  
-                if (traceScope != null)
-                {
-                    EndCurrentTrace(ToTraceEndReason(executed));
-                    traceScope = null;
-                }
-            }
-            finally
-            {
-                if (traceScope != null)
-                {
-                    EndCurrentTrace((int)TraceLifecycleReason.Failed);
-                }
-
-                _executionBudget.Exit(in budgetToken);
+                var executed = EvaluateTriggerConditions(triggerId, in conditionContext) && TryExecutePlanByTriggerId(triggerId, payload);
+                session.Complete(executed);
             }
         }
 

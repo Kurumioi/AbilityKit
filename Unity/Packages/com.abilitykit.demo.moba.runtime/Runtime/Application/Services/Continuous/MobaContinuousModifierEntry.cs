@@ -23,41 +23,34 @@ namespace AbilityKit.Demo.Moba.Services
 
     public static class MobaContinuousModifierMath
     {
-        public static float EvaluateNumeric(float baseValue, IReadOnlyList<MobaContinuousModifierEntry> entries)
+        public static float EvaluateNumeric(float baseValue, IReadOnlyList<MobaContinuousModifierEntry> entries, IModifierContext context = null)
         {
             if (entries == null || entries.Count == 0) return baseValue;
 
-            var sorted = new List<MobaContinuousModifierEntry>(entries);
-            sorted.Sort(ComparePriority);
-
-            var value = baseValue;
-            for (int i = 0; i < sorted.Count; i++)
+            var modifiers = new List<ModifierData>(entries.Count);
+            for (int i = 0; i < entries.Count; i++)
             {
-                var entry = sorted[i];
+                var entry = entries[i];
                 var spec = entry.Spec;
                 if (spec == null) continue;
 
-                var amount = spec.Value * entry.Stack;
-                var op = ToModifierOp(spec.Op);
-                if (op == ModifierOp.Mul)
+                var key = ModifierKey.Create((byte)spec.TargetKind, ToByte(spec.TargetId));
+                modifiers.Add(new ModifierData
                 {
-                    value *= amount;
-                }
-                else if (op == ModifierOp.Override)
-                {
-                    value = amount;
-                }
-                else if (op == ModifierOp.PercentAdd)
-                {
-                    value += baseValue * amount;
-                }
-                else
-                {
-                    value += amount;
-                }
+                    Key = key,
+                    Op = ToModifierOp(spec.Op),
+                    Magnitude = ApplyStack(spec.Magnitude, entry.Stack),
+                    Priority = spec.Priority,
+                    SourceId = entry.Projection?.ModifierSourceId ?? 0,
+                    SourceNameIndex = -1,
+                    Metadata = ModifierMetadata.CreateByIndex(-1, 0, entry.Projection?.ModifierSourceId ?? 0)
+                });
             }
 
-            return value;
+            if (modifiers.Count == 0) return baseValue;
+
+            var calculator = new ModifierCalculator { EnableCache = false };
+            return calculator.Calculate(modifiers.ToArray(), baseValue, context).FinalValue;
         }
 
         public static ModifierOp ToModifierOp(int op)
@@ -68,11 +61,17 @@ namespace AbilityKit.Demo.Moba.Services
             return ModifierOp.Add;
         }
 
-        private static int ComparePriority(MobaContinuousModifierEntry x, MobaContinuousModifierEntry y)
+        private static MagnitudeSource ApplyStack(MagnitudeSource magnitude, int stack)
         {
-            var xp = x.Spec?.Priority ?? 0;
-            var yp = y.Spec?.Priority ?? 0;
-            return xp.CompareTo(yp);
+            if (stack <= 1) return magnitude;
+            return magnitude.WithBaseValue(magnitude.BaseValue * stack);
+        }
+
+        private static byte ToByte(int value)
+        {
+            if (value <= 0) return 0;
+            if (value >= byte.MaxValue) return byte.MaxValue;
+            return (byte)value;
         }
     }
 }

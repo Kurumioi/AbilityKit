@@ -4,7 +4,8 @@ using AbilityKit.Demo.Moba.Services;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     using AbilityKit.Ability;
-    public static class PlanContextValueResolver
+    // Legacy fallback for action input resolvers only. Action modules should consume typed action inputs instead.
+    internal static class PlanContextValueResolver
     {
         public static bool TryGetCasterActorId(object args, out int casterActorId)
         {

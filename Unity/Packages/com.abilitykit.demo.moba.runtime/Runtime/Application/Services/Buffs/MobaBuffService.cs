@@ -8,7 +8,6 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.GameplayTags;
 using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -35,12 +34,11 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private MobaConfigDatabase _configs;
         [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         [WorldInject] private ITriggerActionRunner _actionRunner;
-        [WorldInject] private MobaPeriodicEffectService _ongoing;
         [WorldInject] private MobaTraceRegistry _trace;
         [WorldInject] private IFrameTime _frameTime;
         [WorldInject] private MobaActorLookupService _actors;
         [WorldInject] private MobaEffectExecutionService _effects;
-        [WorldInject(required: false)] private IGameplayTagService _tags;
+        [WorldInject(required: false)] private IMobaEffectiveTagQueryService _tags;
         [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates;
         [WorldInject(required: false)] private IContinuousManager _continuous;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
@@ -54,10 +52,9 @@ namespace AbilityKit.Demo.Moba.Services
             var repo = new BuffRepository();
             var ctx = new BuffContextService(_trace, _actionRunner, _frameTime);
             var events = new BuffEventPublisher(_eventBus);
-            var periodicBinder = new BuffPeriodicEffectBinder(_ongoing, _actionRunner);
             var stageEffects = new BuffStageEffectExecutor(_effects);
             var stacking = new BuffStackingPolicyApplier();
-            _lifecycle = new BuffLifecycleExecutor(_configs, _actors, _ongoing, _tags, _tagTemplates, repo, ctx, events, periodicBinder, stageEffects, stacking, _continuous, _skillRuntimes);
+            _lifecycle = new BuffLifecycleExecutor(_configs, _actors, _tags, _tagTemplates, repo, ctx, events, stageEffects, stacking, _continuous, _skillRuntimes);
         }
 
         public global::ActorEntity TryGetActorEntity(int actorId)

@@ -150,14 +150,19 @@ namespace AbilityKit.Core.Continuous
                 return false;
             }
 
+            var wasActive = continuous.IsActive;
             continuous.Activate();
             if (continuous.IsActive)
                 _active.Add(continuous);
             else
                 _active.Remove(continuous);
+ 
+            if (continuous.IsActive && !wasActive)
+            {
+                NotifyActivated(continuous);
+                OnActivated?.Invoke(continuous);
+            }
 
-            NotifyActivated(continuous);
-            OnActivated?.Invoke(continuous);
             return continuous.IsActive;
         }
 
@@ -208,13 +213,27 @@ namespace AbilityKit.Core.Continuous
         {
             var snapshot = SnapshotOwner(ownerId);
             for (int i = 0; i < snapshot.Count; i++)
-            {
-                var continuous = snapshot[i];
-                if (continuous == null || continuous.IsTerminated || !continuous.Config.CanBeInterrupted)
-                    continue;
+                TryInterrupt(snapshot[i], reason);
+        }
 
-                continuous.Abort(reason);
-            }
+        /// <inheritdoc />
+        public bool TryEnd(IContinuous continuous, ContinuousEndReason reason = ContinuousEndReason.Completed)
+        {
+            if (continuous == null || continuous.IsTerminated)
+                return false;
+
+            continuous.End(reason);
+            return continuous.IsTerminated;
+        }
+
+        /// <inheritdoc />
+        public bool TryInterrupt(IContinuous continuous, string reason)
+        {
+            if (continuous == null || continuous.IsTerminated || !continuous.Config.CanBeInterrupted)
+                return false;
+
+            continuous.Abort(reason);
+            return continuous.IsTerminated;
         }
 
         /// <inheritdoc />
@@ -222,18 +241,24 @@ namespace AbilityKit.Core.Continuous
         {
             var snapshot = SnapshotOwner(ownerId);
             for (int i = 0; i < snapshot.Count; i++)
-            {
-                var continuous = snapshot[i];
-                if (continuous == null || !continuous.IsActive || continuous.IsPaused || continuous.IsTerminated)
-                    continue;
+                TryPause(snapshot[i]);
+        }
 
-                continuous.Pause();
-                if (continuous.IsPaused)
-                {
-                    _active.Remove(continuous);
-                    NotifyPaused(continuous);
-                }
-            }
+        /// <summary>
+        /// 尝试暂停单个持续体，并维护管理器索引和生命周期通知。
+        /// </summary>
+        public bool TryPause(IContinuous continuous)
+        {
+            if (continuous == null || !continuous.IsActive || continuous.IsPaused || continuous.IsTerminated)
+                return false;
+
+            continuous.Pause();
+            if (!continuous.IsPaused)
+                return false;
+
+            _active.Remove(continuous);
+            NotifyPaused(continuous);
+            return true;
         }
 
         /// <inheritdoc />
@@ -241,51 +266,30 @@ namespace AbilityKit.Core.Continuous
         {
             var snapshot = SnapshotOwner(ownerId);
             for (int i = 0; i < snapshot.Count; i++)
-            {
-                var continuous = snapshot[i];
-                if (continuous == null || !continuous.IsPaused || continuous.IsTerminated)
-                    continue;
-
-                if (!CanActivate(continuous, out var reason))
-                {
-                    LastRejectReason = reason;
-                    continue;
-                }
-
-                continuous.Resume();
-                if (continuous.IsActive)
-                {
-                    _active.Add(continuous);
-                    NotifyResumed(continuous);
-                }
-            }
+                TryResume(snapshot[i]);
         }
 
         /// <summary>
-        /// 按标签中断 owner 下所有匹配的持续体。
+        /// 尝试恢复单个持续体，并维护管理器索引和生命周期通知。
         /// </summary>
-        public int InterruptByTags(long ownerId, ITagContainer tags, string reason)
+        public bool TryResume(IContinuous continuous)
         {
-            if (tags == null || tags.Count == 0)
-                return 0;
+            if (continuous == null || !continuous.IsPaused || continuous.IsTerminated)
+                return false;
 
-            int count = 0;
-            var snapshot = SnapshotOwner(ownerId);
-            for (int i = 0; i < snapshot.Count; i++)
+            if (!CanActivate(continuous, out var reason))
             {
-                var continuous = snapshot[i];
-                if (continuous == null || continuous.IsTerminated || !continuous.Config.CanBeInterrupted)
-                    continue;
-
-                var tagConfig = continuous.Config as ITagConfig;
-                if (tagConfig == null || tagConfig.Tags == null || !tagConfig.Tags.HasAny(tags))
-                    continue;
-
-                continuous.Abort(reason);
-                count++;
+                LastRejectReason = reason;
+                return false;
             }
 
-            return count;
+            continuous.Resume();
+            if (!continuous.IsActive)
+                return false;
+
+            _active.Add(continuous);
+            NotifyResumed(continuous);
+            return true;
         }
 
         /// <summary>

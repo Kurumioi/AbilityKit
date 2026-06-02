@@ -51,17 +51,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 FormulaKind = (int)DamageFormulaKind.Standard,
             };
 
-            origin = origin.WithActors(attackerActorId, targetActorId);
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null && effects.TryGetCurrentTraceScope(out var traceScope))
-            {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(attackerActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.EffectExecution, traceScope.EffectConfigId, traceScope.EffectContextId)
-                    .WithRootContext(origin.EffectiveRootContextId)
-                    .WithOwnerContext(origin.OwnerContextId)
-                    .Build();
-            }
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            var executionContext = input.ExecutionContext;
+            var traceScope = input.TraceScope;
+            origin = MobaActionOriginBuilder.BuildFromOrigin(
+                in origin,
+                in executionContext,
+                in traceScope,
+                attackerActorId,
+                targetActorId);
 
             attack.SetOrigin(in origin);
             attack.BaseDamage.BaseValue = baseValue;

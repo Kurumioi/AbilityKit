@@ -8,6 +8,7 @@ using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Core.Common.Log;
 using CritType = AbilityKit.Demo.Moba.CritType;
+using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 using DamageReasonKind = AbilityKit.Demo.Moba.DamageReasonKind;
 using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
 
@@ -52,14 +53,12 @@ namespace AbilityKit.Demo.Moba.Actions.Combat
                 return;
             }
 
-            int attackerActorId = 0;
-            int targetActorId = 0;
-
-            AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out attackerActorId);
-            AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId);
-
-            if (attackerActorId <= 0 || targetActorId <= 0)
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!input.HasCasterActor || !input.HasTargetActor)
                 return;
+
+            var attackerActorId = input.CasterActorId;
+            var targetActorId = input.TargetActorId;
 
             var attack = new AttackInfo
             {

@@ -5,7 +5,7 @@ using AbilityKit.Pipeline;
 namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
-    public sealed class EffectContextWrapper : IEffectContext, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider
+    public sealed class EffectContextWrapper : IEffectContext, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider, IMobaTriggerStageSnapshotProvider
     {
         private readonly IAbilityPipelineContext _inner;
         private readonly EffectContextKind _kind;
@@ -78,13 +78,16 @@ namespace AbilityKit.Demo.Moba.Services
                 triggerId,
                 configId,
                 frame,
-                handle,
-                0,
-                ElapsedTime,
-                0f);
+                handle);
             return snapshot.IsValid;
         }
 
+        public bool TryGetStageSnapshot(out MobaTriggerStageSnapshot snapshot)
+        {
+            snapshot = new MobaTriggerStageSnapshot(elapsedSeconds: ElapsedTime);
+            return snapshot.IsValid;
+        }
+ 
         public object AbilityInstance => _inner.AbilityInstance;
         public AbilityPipelinePhaseId CurrentPhaseId { get => _inner.CurrentPhaseId; set => _inner.CurrentPhaseId = value; }
         public EAbilityPipelineState PipelineState { get => _inner.PipelineState; set => _inner.PipelineState = value; }

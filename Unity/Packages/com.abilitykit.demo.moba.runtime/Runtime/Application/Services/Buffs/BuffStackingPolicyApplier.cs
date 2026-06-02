@@ -57,7 +57,13 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (rt == null) return;
             if (buff == null) return;
-            rt.IntervalRemainingSeconds = buff.IntervalMs > 0 ? buff.IntervalMs / 1000f : 0f;
+
+            var intervalRemainingSeconds = buff.IntervalMs > 0 ? buff.IntervalMs / 1000f : 0f;
+            rt.IntervalRemainingSeconds = intervalRemainingSeconds;
+            if (rt.Continuous != null)
+            {
+                rt.Continuous.IntervalRemainingSeconds = intervalRemainingSeconds;
+            }
         }
 
         private static void RefreshRemaining(BuffRuntime rt, BuffRefreshPolicy policy, float durationSeconds)

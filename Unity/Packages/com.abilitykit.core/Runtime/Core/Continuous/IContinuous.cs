@@ -58,6 +58,11 @@ namespace AbilityKit.Core.Continuous
         void Resume();
 
         /// <summary>
+        /// 结束持续体。
+        /// </summary>
+        void End(ContinuousEndReason reason);
+
+        /// <summary>
         /// 中止持续体
         /// </summary>
         /// <param name="reason">中止原因</param>

@@ -31,15 +31,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var targetId = ResolveTargetActorId(triggerArgs);
+            var input = MobaMovementActionInputResolver.Resolve(triggerArgs, ctx);
+            var targetId = input.TargetActorId;
             if (targetId <= 0)
             {
                 Log.Warning($"[Plan] pull requires valid target actor");
                 return;
             }
 
-            var casterId = ResolveCasterActorId(triggerArgs);
-            if (!ctx.Context.TryResolve<MobaActorRegistry>(out var registry) || registry == null)
+            var registry = input.Actors;
+            if (registry == null)
             {
                 Log.Warning($"[Plan] pull requires MobaActorRegistry service");
                 return;
@@ -58,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var pullDir = ResolvePullDirection(args.DirectionMode, args.TargetDistance, registry, casterId, targetId);
+            var pullDir = input.ResolvePullDirection(args.DirectionMode, targetId);
             if (pullDir.SqrMagnitude <= 0f)
             {
                 Log.Warning($"[Plan] pull cannot resolve pull direction. mode={args.DirectionMode}");
@@ -72,52 +73,5 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             m.Pipeline.AddSource(source);
         }
 
-        private static int ResolveCasterActorId(object args)
-        {
-            if (PlanContextValueResolver.TryGetCasterActorId(args, out var casterId) && casterId > 0)
-                return casterId;
-            return 0;
-        }
-
-        private static int ResolveTargetActorId(object args)
-        {
-            if (PlanContextValueResolver.TryGetTargetActorId(args, out var targetId) && targetId > 0)
-                return targetId;
-            return 0;
-        }
-
-        private static Vec3 ResolvePullDirection(int mode, float targetDistance, MobaActorRegistry registry, int casterId, int targetId)
-        {
-            if (mode == 0)
-            {
-                if (casterId <= 0 || casterId == targetId)
-                    return Vec3.Zero;
-
-                if (!registry.TryGet(casterId, out var caster) || !caster.hasTransform ||
-                    !registry.TryGet(targetId, out var target) || !target.hasTransform)
-                    return Vec3.Zero;
-
-                var delta = caster.transform.Value.Position - target.transform.Value.Position;
-                if (delta.SqrMagnitude > 0.01f)
-                    return delta.Normalized;
-
-                return Vec3.Forward;
-            }
-            else if (mode == 1)
-            {
-                if (!registry.TryGet(targetId, out var target) || !target.hasTransform)
-                    return Vec3.Zero;
-
-                var pos = target.transform.Value.Position;
-                var pullDir = new Vec3(-target.transform.Value.Forward.X, 0f, -target.transform.Value.Forward.Z).Normalized;
-                return pullDir;
-            }
-            else if (mode == 2)
-            {
-                return Vec3.Up;
-            }
-
-            return Vec3.Zero;
-        }
     }
 }

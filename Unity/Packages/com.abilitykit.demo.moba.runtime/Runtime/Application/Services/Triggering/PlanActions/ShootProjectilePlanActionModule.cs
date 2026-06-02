@@ -39,8 +39,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null) return;
             if (!ctx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return;
 
-            if (!PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out var casterActorId)) return;
-            PlanContextValueResolver.TryGetAim(triggerArgs, out var aimPos, out var aimDir);
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            if (!input.HasCasterActor) return;
+
+            var casterActorId = input.CasterActorId;
+            var aimPos = input.HasAimPosition ? input.AimPosition : Vec3.Zero;
+            var aimDir = input.HasAimDirection ? input.AimDirection : Vec3.Zero;
 
             ProjectileLauncherMO launcher = null;
             ProjectileMO projectile = null;
@@ -70,34 +74,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!aimPos.Equals(Vec3.Zero)) aimPos = casterPos + aimPos;
             if (!aimDir.Equals(Vec3.Zero)) aimDir = aimDir.Normalized;
 
-            var sourceContext = CreateSourceContext(triggerArgs, casterActorId, 0, projectile.Id, ctx);
+            var sourceContext = CreateSourceContext(in input, casterActorId, 0, projectile.Id);
             if (!projectileSvc.Launch(casterActorId, launcher, projectile, in aimPos, in aimDir, in sourceContext))
             {
                 Log.Warning($"[Plan] shoot_projectile launch failed. launcherId={launcherId} projectileId={projectileId}");
             }
         }
-        private static ProjectileSourceContext CreateSourceContext(object triggerArgs, int sourceActorId, int targetActorId, int projectileConfigId, ExecCtx<IWorldResolver> ctx)
+        private static ProjectileSourceContext CreateSourceContext(in MobaPlanActionInput input, int sourceActorId, int targetActorId, int projectileConfigId)
         {
-            var origin = triggerArgs.TryResolveOrigin(out var payloadOrigin)
-                ? payloadOrigin.WithActors(sourceActorId, targetActorId)
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId, 0);
-
-            if (triggerArgs is IMobaTriggerSkillRuntimeContext skillRuntimeProvider && !origin.SkillRuntimeHandle.IsValid)
-            {
-                skillRuntimeProvider.TryGetSkillRuntimeHandle(out var payloadSkillRuntimeHandle);
-                if (payloadSkillRuntimeHandle.IsValid) origin = origin.WithSkillRuntime(in payloadSkillRuntimeHandle);
-            }
-
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null && effects.TryGetCurrentTraceScope(out var traceScope))
-            {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(sourceActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.EffectExecution, traceScope.EffectConfigId, traceScope.EffectContextId)
-                    .WithRootContext(origin.EffectiveRootContextId)
-                    .WithOwnerContext(origin.OwnerContextId)
-                    .Build();
-            }
+            var executionContext = input.ExecutionContext;
+            var traceScope = input.TraceScope;
+            var origin = MobaActionOriginBuilder.Build(
+                in executionContext,
+                in traceScope,
+                sourceActorId,
+                targetActorId,
+                MobaTraceKind.ProjectileLaunch,
+                projectileConfigId);
 
             return ProjectileSourceContextBuilder.Create()
                 .WithActors(sourceActorId, targetActorId)

@@ -29,66 +29,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var targetActorId = args.TargetActorId;
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            var targetActorId = args.TargetActorId > 0 ? args.TargetActorId : input.TargetActorId;
             if (targetActorId <= 0)
             {
-                if (!PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId) || targetActorId <= 0)
-                {
-                    Log.Warning("[Plan] add_buff requires valid target actorId");
-                    return;
-                }
+                Log.Warning("[Plan] add_buff requires valid target actorId");
+                return;
             }
 
-            PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out var sourceActorId);
-
-            var origin = triggerArgs.TryResolveOrigin(out var payloadOrigin)
-                ? payloadOrigin.WithActors(sourceActorId, targetActorId)
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, 0, 0);
-
-            if (triggerArgs is IMobaTriggerInvocationContext invocation && !origin.IsValid)
-            {
-                origin = MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, 0, invocation.SourceContextId);
-            }
-
-            if (triggerArgs is IMobaTriggerSkillRuntimeContext skillRuntimeProvider && !origin.SkillRuntimeHandle.IsValid)
-            {
-                skillRuntimeProvider.TryGetSkillRuntimeHandle(out var skillRuntimeHandle);
-                if (skillRuntimeHandle.IsValid) origin = origin.WithSkillRuntime(in skillRuntimeHandle);
-            }
-
-            if (triggerArgs != null && triggerArgs is System.Collections.Generic.IDictionary<string, object> argsDict)
-            {
-                var parentContextId = origin.EffectiveParentContextId;
-                if (argsDict.TryGetValue("effect.sourceContextId", out var ctxIdObj) && ctxIdObj != null)
-                {
-                    if (ctxIdObj is long l) parentContextId = l;
-                    else if (ctxIdObj is int i) parentContextId = i;
-                }
-
-                var skillRuntimeHandle = origin.SkillRuntimeHandle;
-                if (!skillRuntimeHandle.IsValid && argsDict.TryGetValue(AbilityContextKeys.SkillRuntimeHandle.ToKeyString(), out var runtimeObj) && runtimeObj is MobaSkillCastRuntimeHandle handle)
-                {
-                    skillRuntimeHandle = handle;
-                }
-
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(sourceActorId, targetActorId)
-                    .WithParentContext(parentContextId)
-                    .WithSkillRuntime(in skillRuntimeHandle)
-                    .Build();
-            }
-
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null && effects.TryGetCurrentTraceScope(out var traceScope))
-            {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(sourceActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.EffectExecution, traceScope.EffectConfigId, traceScope.EffectContextId)
-                    .WithRootContext(origin.EffectiveRootContextId)
-                    .WithOwnerContext(origin.OwnerContextId)
-                    .Build();
-            }
+            var sourceActorId = input.CasterActorId;
+            var executionContext = input.ExecutionContext;
+            var traceScope = input.TraceScope;
+            var origin = MobaActionOriginBuilder.Build(
+                in executionContext,
+                in traceScope,
+                sourceActorId,
+                targetActorId,
+                MobaTraceKind.EffectExecution,
+                0);
 
             for (int i = 0; i < args.BuffIds.Length; i++)
             {

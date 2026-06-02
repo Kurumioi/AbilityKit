@@ -37,24 +37,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            int targetActorId = 0;
-            PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId);
-
-            int casterActorId = 0;
-            PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out casterActorId);
-
-            Vec3 aimPos3 = Vec3.Zero;
-            PlanContextValueResolver.TryGetAimPos(triggerArgs, out aimPos3);
-
+            var input = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
+            var targetActorId = input.TargetActorId;
+            var casterActorId = input.CasterActorId;
             var mode = (PresentationTargetMode)args.TargetMode;
 
             int[] targets = null;
             Vec3[] positions = null;
-            long sourceContextId = 0;
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null && effects.TryGetCurrentTraceScope(out var traceScope))
-            {
-                sourceContextId = traceScope.EffectContextId;
-            }
+            long sourceContextId = input.TraceScope.EffectContextId;
 
             switch (mode)
             {

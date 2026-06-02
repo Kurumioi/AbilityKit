@@ -55,15 +55,14 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int BuffsApply = Base + WorldSystemOrder.Normal + 300;
         /// <summary>Buff 移除</summary>
         public const int BuffsRemove = Base + WorldSystemOrder.Normal + 305;
-        /// <summary>Buff Tick</summary>
-        public const int BuffsTick = Base + WorldSystemOrder.Normal + 310;
 
         // ========== 持续效果系统 (Execute/Normal) ==========
+        /// <summary>持续行为统一 Tick</summary>
+        public const int ContinuousTick = Base + WorldSystemOrder.Normal + 307;
+        /// <summary>Buff 生命周期清理</summary>
+        public const int BuffsTick = Base + WorldSystemOrder.Normal + 310;
         /// <summary>持续触发器计划调和</summary>
         public const int OngoingTriggerPlansReconcile = Base + WorldSystemOrder.Normal + 312;
-        /// <summary>正式持续周期行为 Tick</summary>
-        public const int ContinuousPeriodicTick = Base + WorldSystemOrder.Normal + 315;
-
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>
         public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;

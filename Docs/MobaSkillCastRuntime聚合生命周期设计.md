@@ -1,4 +1,4 @@
-# 技能运行时聚合生命周期设计
+﻿# 技能运行时聚合生命周期设计
 
 ## 1. 背景
 
@@ -252,7 +252,7 @@ Buff 结束时会：
 - [`EffectContextWrapper`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/EffectContextWrapper.cs:1)
 - [`BuffTriggerContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/BuffStageEffectExecutor.cs:1)
 
-执行环境本身不再直接暴露为具体 `executeCtx` 对象，而是由 [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerContext.cs:136) 提供只读快照。它负责把 kind、source/target actor、source/root/owner context、triggerId、configId、frame、stack、elapsed、remaining 和 runtime handle 这些稳定字段交给条件层；底层 `EffectExecutionContext` 或 Triggering `ExecCtx<TCtx>` 仍只留在具体执行器内部。
+执行环境本身不再直接暴露为具体 `executeCtx` 对象，而是由 [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 提供只读快照。它负责把 kind、source/target actor、source/root/owner context、triggerId、configId、frame 和 runtime handle 这些稳定执行事实交给条件层；stack、elapsed、remaining、duration 这类 buff/periodic/channel 阶段事实则通过 [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs:1) 从 payload provider 单独解析。底层 `EffectExecutionContext` 或 Triggering `ExecCtx<TCtx>` 仍只留在具体执行器内部。
 
 同时保留 dictionary fallback，用于兼容已有计划动作路径。
 
@@ -378,9 +378,10 @@ key 包含：
 
 相关实现：
 
-- [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerContext.cs:136) 提供 MOBA 层执行环境快照，避免条件层依赖具体 execute context。
-- [`IMobaTriggerExecutionSnapshotProvider`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerContext.cs:145) 让 payload 或 wrapper 暴露执行环境只读视图。
-- [`MobaTriggerConditionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionContext.cs:1) 提供复杂条件只读查询视图，并统一查询 payload、origin、trace、execution snapshot 和 skill runtime blackboard。
+- [`MobaTriggerExecutionSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 提供 MOBA 层执行环境快照，避免条件层依赖具体 execute context。
+- [`IMobaTriggerExecutionSnapshotProvider`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerExecutionSnapshot.cs:1) 让 payload 或 wrapper 暴露执行环境只读视图。
+- [`MobaTriggerStageSnapshot`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Snapshots/MobaTriggerStageSnapshot.cs:1) 提供阶段/领域事实快照，避免 stack、elapsed、remaining、duration 污染基础执行快照。
+- [`MobaTriggerConditionContext`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionContext.cs:1) 提供复杂条件只读查询视图，并统一查询 payload、origin、trace、execution snapshot、stage snapshot 和 skill runtime blackboard。
 - [`MobaTriggerPayloadResolverRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerPayloadResolverRegistry.cs:1) 提供 payload 到条件上下文的可插拔解析入口。
 - [`MobaTriggerConditionRegistry`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaTriggerConditionRegistry.cs:1) 提供 MOBA trigger condition 注册、triggerId 绑定和执行入口。
 - [`MobaTriggerExecutionBudget`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaTriggerExecutionBudget.cs:1) 提供深度、帧级、root 级执行预算。

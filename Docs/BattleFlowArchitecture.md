@@ -161,7 +161,8 @@ flowchart TB
     subgraph Buff层["🛡️ Buff 层"]
         BuffSystem[("MobaBuffSystem\nBuff系统")]
         BuffApply[("ApplyBuffRequest\nBuff应用请求")]
-        BuffTick[("MobaBuffTickSystem\nBuff周期Tick")]
+        ContinuousTick[("MobaContinuousTickSystem\n持续行为统一Tick")]
+        BuffTick[("MobaBuffTickSystem\nBuff生命周期清理")]
         BuffRemove[("MobaBuffRemoveSystem\nBuff移除")]
     end
 
@@ -211,8 +212,10 @@ flowchart TB
     AttrContext --> AttrInstance
 
     BuffApply --> BuffSystem
-    BuffTick -->|周期触发| Invoker
-    BuffRemove -->|到期移除| AttrGroup
+    BuffSystem --> ContinuousTick
+    ContinuousTick -->|interval handler周期触发| Invoker
+    BuffTick -->|结束清理| AttrGroup
+    BuffRemove -->|手动移除| AttrGroup
 
     ActorEntity --> AttrGroup
     ActorEntity --> SkillLoadout
@@ -527,23 +530,31 @@ graph TB
 com.abilitykit.demo.moba.runtime/Runtime/Impl/Moba/
 ├── Services/
 │   └── Buffs/
-│       ├── BuffStageEffectExecutor.cs  # Buff 阶段效果执行器
+│       ├── BuffContinuousRuntime.cs         # Buff continuous runtime
+│       ├── BuffContinuousIntervalHandler.cs # Buff interval handler
+│       ├── BuffStageEffectExecutor.cs       # Buff 阶段效果执行器
 │       └── BuffEventArgs.cs
 └── Systems/
+    ├── Continuous/
+    │   └── MobaContinuousTickSystem.cs      # continuous 统一 Tick 入口
     └── Buffs/
-        ├── MobaBuffApplySystem.cs      # Buff 应用系统
-        ├── MobaBuffTickSystem.cs       # Buff 周期 Tick
-        └── MobaBuffRemoveSystem.cs     # Buff 移除系统
+        ├── MobaBuffApplySystem.cs           # Buff 应用系统
+        ├── MobaBuffTickSystem.cs            # Buff 生命周期清理
+        └── MobaBuffRemoveSystem.cs          # Buff 移除系统
 ```
 
 ### 8.2 核心类型
 
 | 类型 | 说明 |
 |------|------|
-| `MobaBuffApplySystem` | 处理 ApplyBuffRequest，应用 Buff |
-| `MobaBuffTickSystem` | 每帧 Tick，更新持续时间并触发周期效果 |
-| `MobaBuffRemoveSystem` | 处理 Buff 到期移除 |
-| `BuffStageEffectExecutor` | 执行 Buff 各阶段的效果 |
+| `MobaBuffApplySystem` | 处理 ApplyBuffRequest，应用 Buff 并创建 Buff continuous runtime |
+| `MobaContinuousTickSystem` | 每帧驱动 `MobaContinuousManager`，统一推进持续行为 |
+| `MobaBuffTickSystem` | 观察 Buff 标签中断与 continuous 结束状态，并执行 Buff 领域清理 |
+| `MobaBuffRemoveSystem` | 处理 Buff 手动移除 |
+| `MobaContinuousManager` | 统一 tick active continuous，只依赖 continuous 抽象接口，并按所有匹配 interval handler 分发周期触发 |
+| `BuffContinuousRuntime` | Buff 对 `IContinuous` 的领域实现，承载 duration、stack、interval config，并自行同步 Buff runtime 状态 |
+| `BuffContinuousIntervalHandler` | 承接 Buff interval 触发并调用 `BuffStageEffectExecutor` |
+| `BuffStageEffectExecutor` | 执行 Buff 各阶段的效果，并构造正式 Buff trigger context；interval 阶段使用 BuffTick trace 语义 |
 
 ### 8.3 Buff 生命周期
 
@@ -553,13 +564,16 @@ flowchart LR
         A1[添加 ApplyBuffRequest]
         A2[解析 Buff 配置]
         A3[创建 Buff 实例]
-        A4[注册时间轴事件]
+        A4[创建并注册 BuffContinuousRuntime]
     end
 
-    subgraph Tick["周期阶段"]
-        T1[更新已用时间]
-        T2[检测周期触发点]
-        T3[执行周期效果]
+    subgraph Tick["continuous tick 阶段"]
+        T0[MobaContinuousTickSystem]
+        T1[MobaContinuousManager 统一 tick]
+        T2[读取 continuous interval 抽象]
+        T3[检测 interval 触发点]
+        T4[匹配的 IMobaContinuousIntervalHandler]
+        T5[BuffStageEffectExecutor 执行周期 trigger]
     end
 
     subgraph Remove["移除阶段"]
@@ -569,9 +583,9 @@ flowchart LR
     end
 
     A1 --> A2 --> A3 --> A4
-    A4 --> T1
-    T1 --> T2 --> T3
-    T3 --> T1
+    A4 --> T0
+    T0 --> T1 --> T2 --> T3 --> T4 --> T5
+    T5 --> T1
     T1 -->|到期| R1 --> R2 --> R3
 ```
 
@@ -717,22 +731,27 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Tick as MobaBuffTickSystem
+    participant Tick as MobaContinuousTickSystem
+    participant Manager as MobaContinuousManager
+    participant Handler as BuffContinuousIntervalHandler
     participant Stage as BuffStageEffectExecutor
-    participant Invoker as MobaEffectInvokerService
-    participant TR as TriggerRunner
+    participant Invoker as MobaEffectExecutionService
+    participant TR as MobaTriggerPlanExecutor
     participant Mod as ModifierCalculator
     participant Attr as AttributeGroup
 
     loop 每帧
-        Tick->>Tick: Update(deltaTime)
+        Tick->>Manager: Tick(deltaTime)
+        Manager->>Manager: BuffContinuousRuntime.TickManaged(deltaTime)
+        Manager->>Manager: Read IMobaContinuousPeriodicConfig
 
-        alt 到达周期触发点
-            Tick->>Stage: Execute(EffectIds, BuffId)
+        alt 到达 interval 触发点
+            Manager->>Handler: OnInterval(continuous, periodicConfig)
+            Handler->>Stage: Execute(TriggerIds, BuffId, BuffTriggerContext)
 
-            loop 遍历每个 EffectId
-                Stage->>Invoker: Execute(EffectId, BuffContext)
-                Invoker->>TR: Execute(EffectId, Context)
+            loop 遍历每个 TriggerId
+                Stage->>Invoker: ExecuteTriggerId(TriggerId, BuffContext)
+                Invoker->>TR: Execute(TriggerId, Context)
                 TR->>TR: Evaluate + Execute
 
                 alt 属性修改

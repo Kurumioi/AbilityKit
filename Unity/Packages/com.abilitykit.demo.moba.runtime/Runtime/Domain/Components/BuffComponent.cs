@@ -25,6 +25,5 @@ namespace AbilityKit.Demo.Moba.Components
         public ContinuousTagRequirements TagRequirements;
         public BuffContinuousRuntime Continuous;
         public List<BuffModifierBinding> ModifierBindings;
-        public long PeriodicInstanceId;
     }
 }

@@ -5,7 +5,6 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Systems.Buffs
 {
@@ -25,10 +24,9 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
             Services.TryResolve(out MobaConfigDatabase configs);
             Services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
             Services.TryResolve(out ITriggerActionRunner actionRunner);
-            Services.TryResolve(out MobaPeriodicEffectService ongoing);
             Services.TryResolve(out MobaTraceRegistry trace);
             Services.TryResolve(out MobaEffectExecutionService effects);
-            Services.TryResolve(out IGameplayTagService tags);
+            Services.TryResolve(out IMobaEffectiveTagQueryService tags);
             Services.TryResolve(out IMobaContinuousTagTemplateRegistry tagTemplates);
             Services.TryResolve(out IFrameTime frameTime);
             Services.TryResolve(out IContinuousManager continuous);
@@ -38,10 +36,9 @@ namespace AbilityKit.Demo.Moba.Systems.Buffs
             var repo = new BuffRepository();
             var ctx = new BuffContextService(trace, actionRunner, frameTime);
             var events = new BuffEventPublisher(eventBus);
-            var periodicBinder = new BuffPeriodicEffectBinder(ongoing, actionRunner);
             var stageEffects = new BuffStageEffectExecutor(effects);
             var stacking = new BuffStackingPolicyApplier();
-            _lifecycle = new BuffLifecycleExecutor(configs, actors, ongoing, tags, tagTemplates, repo, ctx, events, periodicBinder, stageEffects, stacking, continuous, skillRuntimes);
+            _lifecycle = new BuffLifecycleExecutor(configs, actors, tags, tagTemplates, repo, ctx, events, stageEffects, stacking, continuous, skillRuntimes);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.ApplyBuffRequest));
         }
 
