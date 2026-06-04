@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Protocol.Moba.FrameSync;
+using AbilityKit.Protocol.Moba;
 
 namespace ET.Logic
 {
@@ -22,7 +22,7 @@ namespace ET.Logic
             playerCommand = new PlayerInputCommand(
                 frameIndex,
                 new PlayerId(stop.PlayerId),
-                InputOpCodes.Stop,
+                MobaOpCodes.Input.Stop,
                 null);
             Log.Debug($"[StopCommandConverter] PlayerId={stop.PlayerId}");
             return true;

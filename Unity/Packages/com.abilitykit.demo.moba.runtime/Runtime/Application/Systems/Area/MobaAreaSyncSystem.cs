@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
     [WorldSystem(order: MobaSystemOrder.ProjectileSync + 1, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaAreaSyncSystem : WorldSystemBase
     {
-        private sealed class AreaTriggerPayload : IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerDataContext
+        private sealed class AreaTriggerPayload : IMobaTriggerInvocationContext, IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaContextSourceProvider, IMobaTriggerDataContext
         {
             private readonly MobaTriggerDataBag _data = new MobaTriggerDataBag();
 
@@ -26,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             public int SourceActorId { get; set; }
             public int TargetActorId { get; set; }
             public long SourceContextId { get; set; }
+            public long RootContextId { get; set; }
+            public long OwnerContextId { get; set; }
             public MobaTraceKind OriginKind { get; set; }
             public MobaTraceKind TraceKind
             {
@@ -33,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 set => OriginKind = value;
             }
             public int SourceConfigId { get; set; }
+            public int AreaId { get; set; }
             public int Frame { get; set; }
             public object Raw { get; set; }
             public AreaSpawnEvent Spawn;
@@ -48,10 +51,38 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             public MobaTriggerDataBag Data => _data;
             public Dictionary<string, object> SharedData => _data.SharedData;
 
+            public bool TryGetSourceActorId(out int actorId)
+            {
+                actorId = SourceActorId;
+                return actorId > 0;
+            }
+
+            public bool TryGetTargetActorId(out int actorId)
+            {
+                actorId = TargetActorId;
+                return actorId > 0;
+            }
+
+            public bool TryGetOrigin(out MobaGameplayOrigin origin)
+            {
+                var traceKind = OriginKind != MobaTraceKind.None ? OriginKind : MobaTraceKind.AreaSpawn;
+                var configId = SourceConfigId != 0 ? SourceConfigId : AreaId;
+                origin = MobaGameplayOrigin.FromLegacy(SourceActorId, TargetActorId, traceKind, configId, SourceContextId);
+                return origin.IsValid;
+            }
+
             public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
             {
-                lineageContext = new MobaTriggerLineageContext(Kind, OriginKind, SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceConfigId, SourceConfigId);
-                return true;
+                if (TryGetOrigin(out var origin) && origin.IsValid)
+                {
+                    lineageContext = new MobaTriggerLineageContext(Kind, origin.ImmediateKind, origin.SourceActorId, origin.TargetActorId, origin.EffectiveParentContextId, RootContextId != 0 ? RootContextId : origin.EffectiveRootContextId, OwnerContextId, origin.ImmediateConfigId);
+                    return true;
+                }
+
+                var traceKind = OriginKind != MobaTraceKind.None ? OriginKind : MobaTraceKind.AreaSpawn;
+                var configId = SourceConfigId != 0 ? SourceConfigId : AreaId;
+                lineageContext = new MobaTriggerLineageContext(Kind, traceKind, SourceActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, configId);
+                return SourceActorId > 0 || TargetActorId > 0 || AreaId > 0 || SourceConfigId > 0 || SourceContextId != 0;
             }
 
             public bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
@@ -63,6 +94,23 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 }
 
                 traceContext = default;
+                return false;
+            }
+
+            public bool TryGetContextSource(out MobaContextSourceView source)
+            {
+                if (TryGetLineageContext(out var lineageContext))
+                {
+                    source = MobaContextSourceView.FromLineage(
+                        in lineageContext,
+                        MobaContextSourceResolveKind.DirectProvider,
+                        MobaContextSourceBoundary.Snapshot,
+                        runtimeKind: "AreaTrigger",
+                        runtimeConfigId: SourceConfigId != 0 ? SourceConfigId : AreaId);
+                    return source.IsValid;
+                }
+
+                source = default;
                 return false;
             }
 
@@ -106,7 +154,17 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var evt = _spawns[i];
-                PublishAreaEvent(AreaTriggering.Events.Spawn, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default);
+                var templateId = 0;
+                var collisionLayerMask = 0;
+                var maxTargets = 0;
+                if (_areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry))
+                {
+                    templateId = entry.TemplateId;
+                    collisionLayerMask = entry.CollisionLayerMask;
+                    maxTargets = entry.MaxTargets;
+                }
+
+                PublishAreaEvent(AreaTriggering.Events.Spawn, evt.Area.Value, templateId, MobaTraceKind.AreaSpawn, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, collisionLayerMask, maxTargets);
             }
 
             _enters.Clear();
@@ -116,7 +174,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
-                PublishAreaEvent(AreaTriggering.Events.Enter, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider);
+                PublishAreaEvent(AreaTriggering.Events.Enter, evt.Area.Value, 0, MobaTraceKind.AreaEnter, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider, 0, 0);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnEnterTriggerId > 0)
                 {
@@ -126,7 +184,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                         TriggerId = entry.OnEnterTriggerId,
                         SourceActorId = evt.OwnerId,
                         TargetActorId = hitActorId,
-                        SourceConfigId = evt.Area.Value,
+                        SourceConfigId = entry.TemplateId != 0 ? entry.TemplateId : evt.Area.Value,
+                        AreaId = evt.Area.Value,
                         Frame = evt.Frame,
                         Enter = evt,
                         OwnerId = evt.OwnerId,
@@ -149,7 +208,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var evt = _exits[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
-                PublishAreaEvent(AreaTriggering.Events.Exit, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider);
+                PublishAreaEvent(AreaTriggering.Events.Exit, evt.Area.Value, 0, MobaTraceKind.AreaExit, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: default, radius: 0f, collider: evt.Collider, 0, 0);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnExitTriggerId > 0)
                 {
@@ -159,7 +218,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                         TriggerId = entry.OnExitTriggerId,
                         SourceActorId = evt.OwnerId,
                         TargetActorId = hitActorId,
-                        SourceConfigId = evt.Area.Value,
+                        SourceConfigId = entry.TemplateId != 0 ? entry.TemplateId : evt.Area.Value,
+                        AreaId = evt.Area.Value,
                         Frame = evt.Frame,
                         Exit = evt,
                         OwnerId = evt.OwnerId,
@@ -181,7 +241,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _expires[i];
 
-                PublishAreaEvent(AreaTriggering.Events.Expire, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: default, radius: 0f, collider: default);
+                PublishAreaEvent(AreaTriggering.Events.Expire, evt.Area.Value, 0, MobaTraceKind.AreaExpire, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: default, radius: 0f, collider: default, 0, 0);
 
                 if (_effects != null && _areaTriggers != null && _areaTriggers.TryGet(evt.Area, out var entry) && entry.OnExpireTriggerIds != null && entry.OnExpireTriggerIds.Length > 0)
                 {
@@ -192,11 +252,12 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
                         var payload = new AreaTriggerPayload
                         {
-                            OriginKind = MobaTraceKind.AreaExit,
+                            OriginKind = MobaTraceKind.AreaExpire,
                             TriggerId = triggerId,
                             SourceActorId = evt.OwnerId,
                             TargetActorId = 0,
-                            SourceConfigId = evt.Area.Value,
+                            SourceConfigId = entry.TemplateId != 0 ? entry.TemplateId : evt.Area.Value,
+                            AreaId = evt.Area.Value,
                             Frame = evt.Frame,
                             Expire = evt,
                             OwnerId = evt.OwnerId,
@@ -230,22 +291,33 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             payload.Data.SetData("area.maxTargets", payload.MaxTargets);
         }
 
-        private void PublishAreaEvent(string eventId, object raw, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider)
+        private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
+
+            if (templateId == 0 && _areaTriggers != null && areaId > 0 && _areaTriggers.TryGet(new AreaId(areaId), out var entry))
+            {
+                templateId = entry.TemplateId;
+                if (collisionLayerMask == 0) collisionLayerMask = entry.CollisionLayerMask;
+                if (maxTargets == 0) maxTargets = entry.MaxTargets;
+            }
 
             var eid = TriggeringIdUtil.GetEventEid(eventId);
             var payload = new AreaEventArgs
             {
                 EventId = eventId,
-                AreaId = 0,
+                AreaId = areaId,
+                TemplateId = templateId != 0 ? templateId : areaId,
                 OwnerActorId = ownerActorId,
                 TargetActorId = targetActorId,
                 Frame = frame,
+                TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.AreaSpawn,
                 Center = center,
                 Radius = radius,
                 Collider = collider,
+                CollisionLayerMask = collisionLayerMask,
+                MaxTargets = maxTargets,
                 Raw = raw,
             };
 

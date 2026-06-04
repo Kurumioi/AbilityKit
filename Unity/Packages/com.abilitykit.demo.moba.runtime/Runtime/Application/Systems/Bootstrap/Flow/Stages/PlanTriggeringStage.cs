@@ -1,7 +1,10 @@
 using System;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Common.Event;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config.Plans;
@@ -37,9 +40,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     Log.Info("[PlanTriggeringStage] initializing plan actions...");
                     effects.InitializePlanActions();
 
+                    services.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
+                    MobaGameplayTriggerValidator.Validate(db, eventRegistry);
+
                     if (services.TryResolve<TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
                     {
-                        db.RegisterAll(runner, TriggerPlanScope.Global);
+                        RegisterGlobalPlans(services, db, runner);
                     }
                     Log.Info($"[PlanTriggeringStage] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
                 }
@@ -52,6 +58,50 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             {
                 Log.Exception(ex, "[PlanTriggeringStage] PlanTriggering init exception");
             }
+        }
+
+        private static void RegisterGlobalPlans(IWorldResolver services, TriggerPlanJsonDatabase db, TriggerRunner<IWorldResolver> runner)
+        {
+            var records = db.Records;
+            if (records == null || records.Count == 0)
+            {
+                return;
+            }
+
+            services.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
+
+            for (int i = 0; i < records.Count; i++)
+            {
+                var record = records[i];
+                if (record.EventId == 0 || record.Scope != TriggerPlanScope.Global)
+                {
+                    continue;
+                }
+
+                if (IsGameplayRecord(record))
+                {
+                    continue;
+                }
+
+                if (eventRegistry != null
+                    && !string.IsNullOrEmpty(record.EventName)
+                    && eventRegistry.TryGetArgsType(record.EventName, out var argsType)
+                    && argsType != null
+                    && argsType.IsClass)
+                {
+                    runner.RegisterPlan(record.EventId, argsType, record.Plan);
+                    continue;
+                }
+
+                var key = new EventKey<object>(record.EventId);
+                runner.RegisterPlan<object, IWorldResolver>(key, record.Plan);
+            }
+        }
+
+        private static bool IsGameplayRecord(TriggerPlanJsonDatabase.Record record)
+        {
+            return !string.IsNullOrEmpty(record.EventName)
+                   && record.EventName.StartsWith("gameplay.", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

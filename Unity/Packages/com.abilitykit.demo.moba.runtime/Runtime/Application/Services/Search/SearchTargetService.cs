@@ -4,9 +4,8 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Battle.SearchTarget;
-using AbilityKit.Battle.SearchTarget.Rules;
-using AbilityKit.Battle.SearchTarget.Scorers;
-using AbilityKit.Battle.SearchTarget.Selectors;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Core.Math;
 using ST = AbilityKit.Battle.SearchTarget;
 
@@ -14,30 +13,26 @@ namespace AbilityKit.Demo.Moba.Services.Search
 {
     /// <summary>
     /// 目标搜索服务
-    /// 提供基于规则的单位目标搜索功能
+    /// 提供基于配置模板的单位目标搜索功能
     /// </summary>
     [WorldService(typeof(SearchTargetService))]
     public sealed class SearchTargetService : IService
     {
-        /// <summary>
-        /// 默认搜索半径（当配置未指定时使用）
-        /// </summary>
-        private const float DefaultSearchRadius = 5f;
-
-        private readonly MobaActorRegistry _actors;
+        private readonly MobaConfigDatabase _configs;
         private readonly TargetSearchEngine _engine = new TargetSearchEngine();
         private readonly SearchContext _context = new SearchContext();
-        private readonly List<ITargetRule> _rules = new List<ITargetRule>(8);
         private readonly List<ST.IEntityId> _searchResults = new List<ST.IEntityId>(32);
-        private readonly List<ST.EntityId> _results = new List<ST.EntityId>(32);
         private readonly AllActorsCandidateProvider _allActorsProvider;
-        private readonly TopKByScoreSelector _selector = new TopKByScoreSelector();
+        private readonly MobaSearchQueryBuilder _queryBuilder;
 
-        public SearchTargetService(MobaActorRegistry actors)
+        public SearchTargetService(MobaActorRegistry actors, MobaConfigDatabase configs = null)
         {
-            _actors = actors ?? throw new ArgumentNullException(nameof(actors));
-            _allActorsProvider = new AllActorsCandidateProvider(_actors);
-            _context.SetService<IPositionProvider>(new RegistryPositionProvider(_actors));
+            if (actors == null) throw new ArgumentNullException(nameof(actors));
+            _configs = configs;
+            _allActorsProvider = new AllActorsCandidateProvider(actors);
+            _queryBuilder = new MobaSearchQueryBuilder(actors, _allActorsProvider);
+            _context.SetService<IPositionProvider>(new RegistryPositionProvider(actors));
+            _context.SetService<IEntityKeyProvider>(ActorIdKeyProvider.Instance);
         }
 
         /// <summary>
@@ -48,23 +43,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
             targetActorId = 0;
             if (queryTemplateId <= 0) return false;
 
-            var origin = ResolveOrigin(0, casterActorId, in aimPos);
-            var radius = DefaultSearchRadius;
-
-            _rules.Clear();
-            _rules.Add(RequireValidIdRule.Instance);
-            _rules.Add(new CircleShapeRule(new ST.Vec2(origin.x, origin.y), radius));
-            if (casterActorId > 0)
-            {
-                _rules.Add(new ExcludeEntityRule(new ST.EntityId(casterActorId)));
-            }
-
-            var query = new SearchQuery(
-                provider: _allActorsProvider,
-                rules: _rules,
-                scorer: new DistanceToEntityScorer(new ST.EntityId(casterActorId)),
-                selector: _selector,
-                maxCount: 1);
+            if (!TryBuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId: 0, maxCountOverride: 1, out var query)) return false;
 
             _searchResults.Clear();
             _engine.SearchIds(in query, _context, _searchResults);
@@ -84,29 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
             if (queryTemplateId <= 0) return false;
 
-            if (explicitTargetActorId > 0)
-            {
-                results.Add(explicitTargetActorId);
-                return true;
-            }
-
-            var origin = ResolveOrigin(0, casterActorId, in aimPos);
-            var radius = DefaultSearchRadius;
-
-            _rules.Clear();
-            _rules.Add(RequireValidIdRule.Instance);
-            _rules.Add(new CircleShapeRule(new ST.Vec2(origin.x, origin.y), radius));
-            if (casterActorId > 0)
-            {
-                _rules.Add(new ExcludeEntityRule(new ST.EntityId(casterActorId)));
-            }
-
-            var query = new SearchQuery(
-                provider: _allActorsProvider,
-                rules: _rules,
-                scorer: new DistanceToEntityScorer(new ST.EntityId(casterActorId)),
-                selector: _selector,
-                maxCount: 10);
+            if (!TryBuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query)) return false;
 
             _searchResults.Clear();
             _engine.SearchIds(in query, _context, _searchResults);
@@ -121,15 +78,25 @@ namespace AbilityKit.Demo.Moba.Services.Search
             return results.Count > 0;
         }
 
-        private (float x, float y) ResolveOrigin(int centerMode, int casterActorId, in Vec3 aimPos)
+        private bool TryBuildQuery(
+            int queryTemplateId,
+            int casterActorId,
+            in Vec3 aimPos,
+            int explicitTargetActorId,
+            int maxCountOverride,
+            out SearchQuery query)
         {
-            if (casterActorId > 0 && _actors.TryGet(casterActorId, out var caster) && caster != null && caster.hasTransform)
-            {
-                var p = caster.transform.Value.Position;
-                return (p.X, p.Z);
-            }
+            query = default;
+            if (!TryGetTemplate(queryTemplateId, out var template) || template == null) return false;
+            return _queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out query);
+        }
 
-            return (0, 0);
+        private bool TryGetTemplate(int queryTemplateId, out SearchQueryTemplateMO template)
+        {
+            template = null;
+            if (queryTemplateId <= 0) return false;
+            if (_configs == null) return false;
+            return _configs.TryGetSearchQueryTemplate(queryTemplateId, out template) && template != null;
         }
 
         private sealed class RegistryPositionProvider : IPositionProvider
@@ -153,6 +120,16 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 var p = e.transform.Value.Position;
                 position = new ST.Vec2(p.X, p.Z);
                 return true;
+            }
+        }
+
+        private sealed class ActorIdKeyProvider : IEntityKeyProvider
+        {
+            public static readonly ActorIdKeyProvider Instance = new ActorIdKeyProvider();
+
+            public ulong GetKey(ST.IEntityId id)
+            {
+                return (ulong)id.ActorId;
             }
         }
 

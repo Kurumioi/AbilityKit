@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Protocol.Moba;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
@@ -14,6 +15,11 @@ namespace ET.Logic
     public static class ETBattleEnterGameSpecBuilder
     {
         public static MobaGameStartSpec Build(IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
+        {
+            return BuildLaunchSpec(playerSpawnData).ToGameStartSpec();
+        }
+
+        public static MobaBattleLaunchSpec BuildLaunchSpec(IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
         {
             var loadouts = new MobaPlayerLoadout[playerSpawnData.Count];
             for (int i = 0; i < playerSpawnData.Count; i++)
@@ -38,17 +44,27 @@ namespace ET.Logic
                     spawnZ: spawnData.PositionZ);
             }
 
+            var matchId = $"et_demo_{Environment.TickCount}";
             var localPlayerId = playerSpawnData.Count > 0 ? new PlayerId(playerSpawnData[0].PlayerId) : default;
-            var enterReq = new EnterMobaGameReq(
-                playerId: localPlayerId,
-                matchId: $"et_demo_{Environment.TickCount}",
+            return new MobaBattleLaunchSpec(
+                battleId: matchId,
+                matchId: matchId,
+                worldId: matchId,
+                worldType: "battle",
+                clientId: "et_logic",
+                localPlayerId: localPlayerId,
                 mapId: 1,
+                gameplayId: 0,
+                ruleSetId: 0,
+                configVersion: 0,
+                protocolVersion: 0,
                 randomSeed: Environment.TickCount,
                 tickRate: 30,
                 inputDelayFrames: 0,
+                launchMode: MobaBattleLaunchMode.EtServer,
+                syncMode: MobaBattleLaunchSyncMode.FrameSync,
+                authorityMode: MobaBattleLaunchAuthorityMode.ServerAuthority,
                 players: loadouts);
-
-            return new MobaGameStartSpec(in enterReq);
         }
     }
 }

@@ -100,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
 
             if (isNew)
             {
-                PublishUnitEvent(MobaUnitTriggering.Events.Spawn, actorId, team, mainType, unitSubType, ownerPlayer, entity);
+                PublishUnitEvent(MobaUnitTriggering.Events.Spawn, actorId, team, mainType, unitSubType, ownerPlayer, entity, MobaTraceKind.UnitSpawn);
             }
         }
 
@@ -115,14 +115,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 var unitSubType = entity.hasUnitSubType ? entity.unitSubType.Value : UnitSubType.Hero;
                 var ownerPlayer = entity.hasOwnerPlayerId ? entity.ownerPlayerId.Value : default;
 
-                PublishUnitEvent(MobaUnitTriggering.Events.Despawn, actorId, team, mainType, unitSubType, ownerPlayer, entity);
+                PublishUnitEvent(MobaUnitTriggering.Events.Despawn, actorId, team, mainType, unitSubType, ownerPlayer, entity, MobaTraceKind.UnitDespawn);
             }
 
             _byActorId.Remove(actorId);
             Index.Remove(actorId);
         }
 
-        private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity)
+        private void PublishUnitEvent(string eventId, int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayer, global::ActorEntity entity, MobaTraceKind traceKind)
         {
             if (string.IsNullOrEmpty(eventId)) return;
 
@@ -136,7 +136,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 templateId = 0;
             }
 
-            var payload = new UnitEventPayload(actorId, team, mainType, unitSubType, ownerPlayer, templateId);
+            var payload = new UnitEventPayload(actorId, team, mainType, unitSubType, ownerPlayer, templateId, traceKind);
 
             var eventBus = _eventBus;
             if (eventBus == null) return;

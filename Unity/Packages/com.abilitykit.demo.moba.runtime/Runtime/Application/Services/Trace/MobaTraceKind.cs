@@ -29,10 +29,25 @@ namespace AbilityKit.Demo.Moba.Services
         AreaSpawn = 40,
         AreaEnter = 41,
         AreaExit = 42,
+        AreaExpire = 43,
 
         // 召唤物相关
         SummonSpawn = 50,
         SummonDeath = 51,
+
+        // 单位生命周期相关
+        UnitSpawn = 60,
+        UnitDespawn = 61,
+        UnitDeath = 62,
+
+        // 伤害管线相关
+        DamageAttack = 70,
+        DamageCalc = 71,
+        DamageApply = 72,
+
+        // 表现事件相关
+        PresentationPlay = 80,
+        PresentationStop = 81,
     }
 
     /// <summary>

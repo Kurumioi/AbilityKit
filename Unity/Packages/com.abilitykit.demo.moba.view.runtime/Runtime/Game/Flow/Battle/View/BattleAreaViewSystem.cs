@@ -1,5 +1,5 @@
-using System.Collections.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using System.Collections.Generic;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -118,3 +118,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

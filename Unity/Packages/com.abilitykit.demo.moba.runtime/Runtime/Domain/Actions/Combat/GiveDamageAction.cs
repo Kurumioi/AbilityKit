@@ -47,9 +47,9 @@ namespace AbilityKit.Demo.Moba.Actions.Combat
 
         public override void Execute(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
-            if (!ctx.Context.TryResolve<DamagePipelineService>(out var pipeline) || pipeline == null)
+            if (!ctx.Context.TryResolve<MobaCombatEffectService>(out var combat) || combat == null)
             {
-                Log.Warning("[GiveDamageAction] cannot resolve DamagePipelineService");
+                Log.Warning("[GiveDamageAction] cannot resolve MobaCombatEffectService");
                 return;
             }
 
@@ -77,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Actions.Combat
             };
             attack.BaseDamage.BaseValue = DamageValue;
 
-            pipeline.Execute(attack);
+            combat.DealDamage(attack);
         }
     }
 }

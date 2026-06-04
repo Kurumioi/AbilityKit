@@ -40,11 +40,14 @@ namespace AbilityKit.Demo.Moba.Session
         private HostRuntime _hostRuntime;
         private IMobaBattleInputPort _input;
         private IMobaBattleOutputPort _output;
+        private ILogicWorldDriveGate _driveGate;
         private MobaPlayerInputCommandConverter _inputConverter;
         private MobaTransformSnapshotDispatcher _transformSnapshots;
+        private MobaCoordinatorStateAdapter _stateAdapter;
         private FrameIndex _currentFrame;
         private double _logicTimeSeconds;
         private bool _isRunning;
+        private bool _missingDriveGateLogged;
 
         // 位置快照事件回调（由 ET Logic 层设置）
         private System.Action<int, MobaActorTransformSnapshotEntry[]>? _onTransformSnapshot;
@@ -64,28 +67,13 @@ namespace AbilityKit.Demo.Moba.Session
             {
                 _world.Services.TryResolve(out _input);
                 _world.Services.TryResolve(out _output);
+                _world.Services.TryResolve(out _driveGate);
             }
 
+            _missingDriveGateLogged = false;
             _inputConverter = new MobaPlayerInputCommandConverter();
             _transformSnapshots = new MobaTransformSnapshotDispatcher(_world);
-
-            SubscribeToSnapshots();
-        }
-
-        /// <summary>
-        /// 订阅快照事件
-        ///
-        /// 快照获取在 AdvanceFrame() 中进行，通过 TryGetTransformSnapshot() 方法
-        /// 在每个逻辑帧结束后（HostRuntime.Tick 之后）获取最新的快照数据
-        ///
-        /// 这种设计确保：
-        /// 1. ECS 系统已经执行完成，快照数据是最新的
-        /// 2. 快照获取与帧推进同步，不会出现竞态条件
-        /// 3. 不需要依赖 HostRuntimeOptions 的修改
-        /// </summary>
-        private void SubscribeToSnapshots()
-        {
-            Log.Info("[MobaBattleDriverHost] Snapshot subscription initialized (acquired per frame in AdvanceFrame)");
+            _stateAdapter = new MobaCoordinatorStateAdapter();
         }
 
         /// <summary>
@@ -149,7 +137,9 @@ namespace AbilityKit.Demo.Moba.Session
 
         public SnapshotEntityState[] GetAllEntityStates()
         {
-            return MobaPlayerInputCommandConverter.ToCoordinatorStates(GetLogicWorldEntityStates());
+            return _stateAdapter != null
+                ? _stateAdapter.ToCoordinatorStates(GetLogicWorldEntityStates())
+                : Array.Empty<SnapshotEntityState>();
         }
 
         public LogicWorldEntityState[] GetLogicWorldEntityStates()
@@ -185,7 +175,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void Step(float deltaTime)
         {
-            if (!_isRunning)
+            if (!_isRunning || !CanDriveLogicWorld(deltaTime))
             {
                 return;
             }
@@ -198,6 +188,22 @@ namespace AbilityKit.Demo.Moba.Session
 
             // 从战斗逻辑层输出端口获取位置快照。
             TryGetTransformSnapshot();
+        }
+
+        private bool CanDriveLogicWorld(float deltaTime)
+        {
+            if (_driveGate != null)
+            {
+                return _driveGate.CanDriveLogicWorld(deltaTime);
+            }
+
+            if (!_missingDriveGateLogged)
+            {
+                _missingDriveGateLogged = true;
+                Log.Warning("[MobaBattleDriverHost] Logic world drive blocked: ILogicWorldDriveGate not resolved");
+            }
+
+            return false;
         }
 
         /// <summary>

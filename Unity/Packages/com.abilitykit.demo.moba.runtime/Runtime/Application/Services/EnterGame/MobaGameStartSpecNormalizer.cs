@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Linq;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                         if (skillIds == null)
                         {
-                            // 从 AttributeTemplate 获取技能列表
+                            // 浠?AttributeTemplate 鑾峰彇鎶€鑳藉垪琛?
                             if (attributeTemplateId > 0 && config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) && attrTemplate != null)
                             {
                                 skillIds = attrTemplate.ActiveSkills?.ToArray() ?? Array.Empty<int>();
@@ -71,7 +71,8 @@ namespace AbilityKit.Demo.Moba.Services
                     inputDelayFrames: req.InputDelayFrames,
                     opCode: req.OpCode,
                     payload: req.Payload,
-                    players: dst);
+                    players: dst,
+                    gameplayId: req.GameplayId);
             }
             catch
             {
@@ -80,3 +81,4 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
+

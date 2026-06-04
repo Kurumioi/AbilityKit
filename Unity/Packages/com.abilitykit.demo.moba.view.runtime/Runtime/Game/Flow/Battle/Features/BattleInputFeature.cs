@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
@@ -64,10 +65,10 @@ namespace AbilityKit.Game.Flow
             if (isMoving || (wasMoving && !isMoving))
             {
                 var payload = MobaMoveCodec.Serialize(dx, dz);
-                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, MobaOpCodes.Input.Move, payload);
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
-                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.Move, payload));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, MobaOpCodes.Input.Move, payload));
 
                 if (!isMoving && wasMoving)
                 {
@@ -86,10 +87,10 @@ namespace AbilityKit.Game.Flow
                 {
                     _moveStopRepeatTicks--;
                     var payload = MobaMoveCodec.Serialize(0f, 0f);
-                    var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.Move, payload);
+                    var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, MobaOpCodes.Input.Move, payload);
                     _ctx.InputRecordWriter?.Append(in cmd);
                     _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
-                    _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.Move, payload));
+                    _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, MobaOpCodes.Input.Move, payload));
                 }
 
                 _inputDiagCooldown -= deltaTime;
@@ -101,7 +102,7 @@ namespace AbilityKit.Game.Flow
 
             if (GetSkillKeyDown(out var slot))
             {
-                var op = slot == 1 ? (int)MobaOpCode.Skill1 : slot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
+                var op = slot == 1 ? MobaOpCodes.Input.Skill1 : slot == 2 ? MobaOpCodes.Input.Skill2 : MobaOpCodes.Input.Skill3;
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
@@ -111,7 +112,7 @@ namespace AbilityKit.Game.Flow
             var hudSlot = _ctx.HudSkillClickSlot;
             if (hudSlot > 0)
             {
-                var op = hudSlot == 1 ? (int)MobaOpCode.Skill1 : hudSlot == 2 ? (int)MobaOpCode.Skill2 : (int)MobaOpCode.Skill3;
+                var op = hudSlot == 1 ? MobaOpCodes.Input.Skill1 : hudSlot == 2 ? MobaOpCodes.Input.Skill2 : MobaOpCodes.Input.Skill3;
                 var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, op, Array.Empty<byte>());
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
@@ -130,10 +131,10 @@ namespace AbilityKit.Game.Flow
                 var evt = new SkillInputEvent(slot: slot2, phase: SkillInputPhase.Release, aimPos: in aimPos, aimDir: in aimDir);
                 var payload = SkillInputCodec.Serialize(in evt);
 
-                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, (int)MobaOpCode.SkillInput, payload);
+                var cmd = new PlayerInputCommand(new FrameIndex(_ctx.LastFrame + 1), playerId, MobaOpCodes.Input.SkillInput, payload);
                 _ctx.InputRecordWriter?.Append(in cmd);
                 _ctx.Session.SubmitInput(new SubmitInputRequest(worldId, cmd));
-                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, (int)MobaOpCode.SkillInput, payload));
+                _ctx.LocalInputQueue.Enqueue(new LocalPlayerInputEvent(playerId, MobaOpCodes.Input.SkillInput, payload));
 
                 _ctx.HudSkillAimSubmit = false;
                 _ctx.HudSkillAimSubmitSlot = 0;
@@ -189,3 +190,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

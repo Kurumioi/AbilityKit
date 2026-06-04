@@ -1,9 +1,9 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
+namespace AbilityKit.Protocol.Moba.CreateWorld
 {
     [MemoryPackable]
     public readonly partial struct MobaCreateWorldInitPayload
@@ -25,6 +25,12 @@ namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
         public EnterMobaGameReq ToEnterReq()
         {
             return Spec.ToEnterReq(LocalPlayerId, OpCode, Payload);
+        }
+
+        public MobaGameStartSpec ToGameStartSpec()
+        {
+            var req = ToEnterReq();
+            return new MobaGameStartSpec(in req);
         }
     }
 }

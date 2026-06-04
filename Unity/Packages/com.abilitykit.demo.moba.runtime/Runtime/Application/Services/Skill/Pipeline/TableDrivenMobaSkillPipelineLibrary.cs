@@ -81,23 +81,118 @@ namespace AbilityKit.Demo.Moba.Services
             var list = new List<IAbilityPipelinePhase<SkillPipelineContext>>(flow.Phases.Count);
             for (int i = 0; i < flow.Phases.Count; i++)
             {
-                var p = flow.Phases[i];
-                if (p == null) continue;
-
-                var type = (SkillPhaseType)p.Type;
-                switch (type)
-                {
-                    case SkillPhaseType.Checks:
-                        list.Add(new SkillFlowChecksPhase(checksPhaseId, p.Checks, _conditionRegistry, _tags));
-                        break;
-                    case SkillPhaseType.Timeline:
-                        if (p.Timeline == null) break;
-                        list.Add(new SkillTimelinePhase(timelinePhaseId, p.Timeline.DurationMs, ToArray(p.Timeline.Events), _effects));
-                        break;
-                }
+                var phase = BuildPhase(flow.Phases[i], checksPhaseId, timelinePhaseId, $"skill.flow.{flow.Id}.{i}");
+                if (phase != null) list.Add(phase);
             }
 
             return list;
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildPhase(
+            SkillPhaseDTO phase,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            if (phase == null) return null;
+
+            var type = (SkillPhaseType)phase.Type;
+            switch (type)
+            {
+                case SkillPhaseType.Checks:
+                    return new SkillFlowChecksPhase(MakePhaseId(phase, checksPhaseId.Value), phase.Checks, _conditionRegistry, _tags);
+                case SkillPhaseType.Timeline:
+                    if (phase.Timeline == null) return null;
+                    return new SkillTimelinePhase(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, ToArray(phase.Timeline.Events), _effects);
+                case SkillPhaseType.Sequence:
+                    return BuildSequencePhase(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
+                case SkillPhaseType.Parallel:
+                    return BuildParallelPhase(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
+                case SkillPhaseType.Repeat:
+                    return BuildRepeatPhase(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
+                case SkillPhaseType.Delay:
+                    return BuildDelayPhase(phase, fallbackPhaseId);
+                default:
+                    return null;
+            }
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildSequencePhase(
+            SkillPhaseDTO phase,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            var sequence = new AbilitySequencePhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId));
+            AddChildren(sequence, phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId);
+            return sequence;
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildParallelPhase(
+            SkillPhaseDTO phase,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            var parallel = new AbilityParallelPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId));
+            AddChildren(parallel, phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId);
+            return parallel;
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildRepeatPhase(
+            SkillPhaseDTO phase,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            var repeatDto = phase.Repeat;
+            var repeatCount = repeatDto != null && repeatDto.RepeatCount != 0 ? repeatDto.RepeatCount : 1;
+            var repeat = new AbilityRepeatPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), repeatCount)
+            {
+                RepeatInterval = repeatDto != null && repeatDto.IntervalMs > 0 ? repeatDto.IntervalMs / 1000f : 0f
+            };
+
+            var child = repeatDto != null && repeatDto.Phase != null
+                ? BuildPhase(repeatDto.Phase, checksPhaseId, timelinePhaseId, fallbackPhaseId + ".repeat")
+                : BuildFirstChild(phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId + ".repeat");
+            if (child != null) repeat.SetRepeatPhase(child);
+            return repeat;
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildDelayPhase(SkillPhaseDTO phase, string fallbackPhaseId)
+        {
+            var delayMs = phase.Delay != null ? phase.Delay.DelayMs : 0;
+            return new AbilityDelayPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), delayMs > 0 ? delayMs / 1000f : 0f);
+        }
+
+        private void AddChildren(
+            AbilityCompositePhase<SkillPipelineContext> parent,
+            IReadOnlyList<SkillPhaseDTO> children,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            if (parent == null || children == null) return;
+            for (int i = 0; i < children.Count; i++)
+            {
+                var child = BuildPhase(children[i], checksPhaseId, timelinePhaseId, fallbackPhaseId + "." + i);
+                if (child != null) parent.AddSubPhase(child);
+            }
+        }
+
+        private IAbilityPipelinePhase<SkillPipelineContext> BuildFirstChild(
+            IReadOnlyList<SkillPhaseDTO> children,
+            AbilityPipelinePhaseId checksPhaseId,
+            AbilityPipelinePhaseId timelinePhaseId,
+            string fallbackPhaseId)
+        {
+            if (children == null || children.Count == 0) return null;
+            return BuildPhase(children[0], checksPhaseId, timelinePhaseId, fallbackPhaseId);
+        }
+
+        private static AbilityPipelinePhaseId MakePhaseId(SkillPhaseDTO phase, string fallback)
+        {
+            return new AbilityPipelinePhaseId(!string.IsNullOrEmpty(phase?.PhaseId) ? phase.PhaseId : fallback);
         }
 
         private static SkillTimelineEventDTO[] ToArray(IReadOnlyList<SkillTimelineEventDTO> list)

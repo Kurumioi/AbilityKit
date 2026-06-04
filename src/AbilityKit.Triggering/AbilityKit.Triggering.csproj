@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.cs" 
-             Exclude="../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.asmdef" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.triggering/Runtime/*.cs;../../Unity/Packages/com.abilitykit.triggering/Runtime/**/*.asmdef" />
   </ItemGroup>
 
   <ItemGroup>

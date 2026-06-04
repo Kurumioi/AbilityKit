@@ -1,9 +1,9 @@
-﻿using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host;
 using AbilityKit.Core.Generic;
 using AbilityKit.Ability.World.Abstractions;
 using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Struct
+namespace AbilityKit.Protocol.Moba
 {
     [MemoryPackable]
     public readonly partial struct MobaPlayerLoadout
@@ -91,6 +91,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [MemoryPackOrder(7), BinaryMember(7)] public readonly byte[] Payload;
 
         [MemoryPackOrder(8), BinaryMember(8)] public readonly MobaPlayerLoadout[] Players;
+        [MemoryPackOrder(9), BinaryMember(9)] public readonly int GameplayId;
 
         [MemoryPackConstructor]
         public EnterMobaGameReq(
@@ -102,11 +103,13 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
             int inputDelayFrames,
             int opCode = 0,
             byte[] payload = null,
-            MobaPlayerLoadout[] players = null)
+            MobaPlayerLoadout[] players = null,
+            int gameplayId = 0)
         {
             PlayerId = playerId;
             MatchId = matchId;
             MapId = mapId;
+            GameplayId = gameplayId;
 
             RandomSeed = randomSeed;
             TickRate = tickRate;

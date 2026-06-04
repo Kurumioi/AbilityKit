@@ -211,6 +211,32 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
     }
 
+    public enum ETriggerExecutionMode : byte
+    {
+        Always = 0,
+        Once = 1,
+        Cooldown = 2,
+        Repeat = 3,
+    }
+
+    public readonly struct TriggerExecutionControlPlan
+    {
+        public static TriggerExecutionControlPlan Always => default;
+
+        public readonly ETriggerExecutionMode Mode;
+        public readonly int MaxExecutions;
+        public readonly float CooldownMs;
+
+        public TriggerExecutionControlPlan(ETriggerExecutionMode mode, int maxExecutions = 0, float cooldownMs = 0f)
+        {
+            Mode = mode;
+            MaxExecutions = maxExecutions;
+            CooldownMs = cooldownMs;
+        }
+
+        public bool IsDefault => Mode == ETriggerExecutionMode.Always && MaxExecutions == 0 && CooldownMs <= 0f;
+    }
+
     /// <summary>
     /// 触发器计划（不可变数据结构）
     /// </summary>
@@ -252,6 +278,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
         /// </summary>
         public readonly ScheduleModePlan Schedule;
 
+        public readonly TriggerExecutionControlPlan ExecutionControl;
+
         // ========== 核心构造器（保留 3 个）==========
 
         /// <summary>
@@ -264,7 +292,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ActionCallPlan[] actions = null,
             int interruptPriority = 0,
             ITriggerCue cue = null,
-            in ScheduleModePlan schedule = default)
+            in ScheduleModePlan schedule = default,
+            in TriggerExecutionControlPlan executionControl = default)
         {
             Phase = phase;
             Priority = priority;
@@ -280,6 +309,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions ?? Array.Empty<ActionCallPlan>();
             Cue = cue ?? NullTriggerCue.Instance;
             Schedule = schedule;
+            ExecutionControl = executionControl;
         }
 
         /// <summary>
@@ -294,7 +324,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ActionCallPlan[] actions = null,
             int interruptPriority = 0,
             ITriggerCue cue = null,
-            in ScheduleModePlan schedule = default)
+            in ScheduleModePlan schedule = default,
+            in TriggerExecutionControlPlan executionControl = default)
         {
             Phase = phase;
             Priority = priority;
@@ -310,6 +341,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions ?? Array.Empty<ActionCallPlan>();
             Cue = cue ?? NullTriggerCue.Instance;
             Schedule = schedule;
+            ExecutionControl = executionControl;
         }
 
         /// <summary>
@@ -318,12 +350,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public TriggerPlan(
             int phase,
             int priority,
-            int triggerId = 0,
-            PredicateExprPlan predicateExpr = default,
+            int triggerId,
+            PredicateExprPlan predicateExpr,
             ActionCallPlan[] actions = null,
             int interruptPriority = 0,
             ITriggerCue cue = null,
-            in ScheduleModePlan schedule = default)
+            in ScheduleModePlan schedule = default,
+            in TriggerExecutionControlPlan executionControl = default)
         {
             Phase = phase;
             Priority = priority;
@@ -339,6 +372,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions ?? Array.Empty<ActionCallPlan>();
             Cue = cue ?? NullTriggerCue.Instance;
             Schedule = schedule;
+            ExecutionControl = executionControl;
         }
 
         // ========== 便捷工厂方法==========
@@ -405,7 +439,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 Array.Copy(Actions, newActions, Actions.Length);
             Array.Copy(actions, 0, newActions, Actions?.Length ?? 0, actions.Length);
             return new TriggerPlan<TArgs>(Phase, Priority, TriggerId, InterruptPriority, PredicateKind, HasPredicate, PredicateId,
-                PredicateArity, PredicateArg0, PredicateArg1, PredicateExpr, newActions, Cue, in Schedule);
+                PredicateArity, PredicateArg0, PredicateArg1, PredicateExpr, newActions, Cue, in Schedule, in ExecutionControl);
+        }
+
+        public TriggerPlan<TNextArgs> AsArgs<TNextArgs>()
+        {
+            return new TriggerPlan<TNextArgs>(Phase, Priority, TriggerId, InterruptPriority, PredicateKind, HasPredicate, PredicateId,
+                PredicateArity, PredicateArg0, PredicateArg1, PredicateExpr, Actions, Cue, in Schedule, in ExecutionControl);
         }
 
         internal TriggerPlan(
@@ -413,7 +453,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             EPredicateKind predicateKind, bool hasPredicate, FunctionId predicateId,
             byte predicateArity, NumericValueRef predicateArg0, NumericValueRef predicateArg1,
             PredicateExprPlan predicateExpr,
-            ActionCallPlan[] actions, ITriggerCue cue, in ScheduleModePlan schedule)
+            ActionCallPlan[] actions, ITriggerCue cue, in ScheduleModePlan schedule, in TriggerExecutionControlPlan executionControl = default)
         {
             Phase = phase;
             Priority = priority;
@@ -429,6 +469,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
             Cue = cue;
             Schedule = schedule;
+            ExecutionControl = executionControl;
         }
 
         private TriggerPlan(
@@ -436,7 +477,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             EPredicateKind predicateKind, bool hasPredicate, FunctionId predicateId,
             byte predicateArity, NumericValueRef predicateArg0, NumericValueRef predicateArg1,
             PredicateExprPlan predicateExpr,
-            ActionCallPlan[] actions, ITriggerCue cue, in ScheduleModePlan schedule)
+            ActionCallPlan[] actions, ITriggerCue cue, in ScheduleModePlan schedule, in TriggerExecutionControlPlan executionControl = default)
         {
             Phase = phase;
             Priority = priority;
@@ -452,6 +493,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Actions = actions;
             Cue = cue;
             Schedule = schedule;
+            ExecutionControl = executionControl;
         }
     }
 

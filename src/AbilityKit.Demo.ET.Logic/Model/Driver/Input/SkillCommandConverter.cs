@@ -2,10 +2,10 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
 
 namespace ET.Logic
 {
@@ -31,7 +31,7 @@ namespace ET.Logic
             playerCommand = new PlayerInputCommand(
                 frameIndex,
                 new PlayerId(skill.PlayerId),
-                (int)MobaOpCode.SkillInput,
+                MobaOpCodes.Input.SkillInput,
                 payload);
             Log.Debug($"[SkillCommandConverter] PlayerId={skill.PlayerId}, Slot={skill.SkillSlot}");
             return true;

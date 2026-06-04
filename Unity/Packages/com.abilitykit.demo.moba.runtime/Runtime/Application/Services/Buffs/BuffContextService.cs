@@ -24,31 +24,49 @@ namespace AbilityKit.Demo.Moba.Services
         public void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, in BuffOriginContext origin)
         {
             if (rt == null) return;
-            if (rt.SourceContextId != 0) return;
-            if (_trace == null) return;
 
-            var parentContextId = origin.ParentContextId;
-            if (parentContextId != 0)
+            var sourceOrigin = ResolveSourceOrigin(sourceActorId, targetActorId, buffId, in origin);
+            var parentContextId = sourceOrigin.EffectiveParentContextId;
+            var buffContextId = rt.SourceContextId;
+
+            if (buffContextId == 0 && _trace != null)
             {
-                rt.SourceContextId = _trace.CreateChildContext(
-                    parentContextId,
-                    MobaTraceKind.BuffApply,
-                    buffId,
-                    sourceActorId,
-                    targetActorId,
-                    origin.ToOriginSourceEndpoint(),
-                    origin.ToOriginTargetEndpoint());
+                buffContextId = parentContextId != 0
+                    ? _trace.CreateChildContext(
+                        parentContextId,
+                        MobaTraceKind.BuffApply,
+                        buffId,
+                        sourceActorId,
+                        targetActorId,
+                        origin.ToOriginSourceEndpoint(),
+                        origin.ToOriginTargetEndpoint())
+                    : _trace.CreateRootContext(
+                        MobaTraceKind.BuffApply,
+                        buffId,
+                        sourceActorId,
+                        targetActorId,
+                        origin.ToOriginSourceEndpoint(),
+                        origin.ToOriginTargetEndpoint());
             }
-            else
-            {
-                rt.SourceContextId = _trace.CreateRootContext(
-                    MobaTraceKind.BuffApply,
-                    buffId,
-                    sourceActorId,
-                    targetActorId,
-                    origin.ToOriginSourceEndpoint(),
-                    origin.ToOriginTargetEndpoint());
-            }
+
+            var buffOrigin = MobaGameplayOriginBuilder.Create()
+                .FromOrigin(in sourceOrigin)
+                .WithActors(sourceActorId, targetActorId)
+                .WithImmediate(MobaTraceKind.BuffApply, buffId, buffContextId)
+                .WithRootContext(sourceOrigin.EffectiveRootContextId != 0L ? sourceOrigin.EffectiveRootContextId : buffContextId)
+                .WithOwnerContext(sourceOrigin.OwnerContextId != 0L ? sourceOrigin.OwnerContextId : buffContextId)
+                .WithSkillRuntimeIfMissing(origin.SkillRuntimeHandle)
+                .Build();
+
+            rt.SourceContextId = buffContextId;
+            rt.Origin = buffOrigin;
+            rt.ContextSource = MobaContextSourceView.FromOrigin(
+                in buffOrigin,
+                MobaContextSourceResolveKind.DirectProvider,
+                MobaContextSourceBoundary.Snapshot,
+                false,
+                "Buff",
+                buffId);
         }
 
         public void CancelAndEnd(BuffRuntime rt)
@@ -75,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Exception(ex, $"[BuffContextService] Trace.End exception (sourceContextId={rt.SourceContextId})");
             }
 
-            rt.SourceContextId = 0;
+            ClearSourceSnapshot(rt);
         }
 
         public void EndByRuntime(BuffRuntime rt, TraceLifecycleReason reason)
@@ -83,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (rt == null) return;
 
             EndByRuntimeNoClear(rt, reason);
-            rt.SourceContextId = 0;
+            ClearSourceSnapshot(rt);
         }
 
         public void EndByRuntimeNoClear(BuffRuntime rt, TraceLifecycleReason reason)
@@ -109,6 +127,22 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 Log.Exception(ex, $"[BuffContextService] Trace.End exception (sourceContextId={rt.SourceContextId}, reason={reason})");
             }
+        }
+
+        private static MobaGameplayOrigin ResolveSourceOrigin(int sourceActorId, int targetActorId, int buffId, in BuffOriginContext origin)
+        {
+            var hasOrigin = origin.TryGetOrigin(out var sourceOrigin);
+            return hasOrigin
+                ? sourceOrigin.WithActors(sourceActorId, targetActorId)
+                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.BuffApply, buffId, 0, in origin.SkillRuntimeHandle);
+        }
+
+        private static void ClearSourceSnapshot(BuffRuntime rt)
+        {
+            if (rt == null) return;
+            rt.SourceContextId = 0;
+            rt.Origin = default;
+            rt.ContextSource = default;
         }
 
         private int GetFrame()

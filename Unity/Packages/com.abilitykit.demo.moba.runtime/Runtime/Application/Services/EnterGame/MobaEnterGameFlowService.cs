@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Ability.World.Abstractions;
@@ -11,8 +12,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
+using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -29,10 +29,20 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaConfigDatabase _config;
         [WorldInject(required: false)] private ActorEntityInitPipeline _generator;
         [WorldInject] private MobaActorSpawnSnapshotService _spawn;
+        [WorldInject(required: false)] private MobaGamePhaseService _phase;
+        [WorldInject(required: false)] private MobaGameplayService _gameplay;
+
+        private bool _started;
 
         public bool ApplyGameStartSpec(ActorContext actorContext, in MobaGameStartSpec spec)
         {
             if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
+
+            if (_started || (_phase != null && _phase.InGame))
+            {
+                Log.Warning("[MobaEnterGameFlowService] ApplyGameStartSpec ignored: game already started");
+                return false;
+            }
 
             var req = spec.EnterReq;
 
@@ -109,7 +119,27 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
             }
+
+            _phase?.SetInGame();
+            _started = true;
+            StartGameplay(effectiveReq.GameplayId);
             return true;
+        }
+
+        private void StartGameplay(int gameplayId)
+        {
+            if (_gameplay == null)
+            {
+                return;
+            }
+
+            if (gameplayId > 0)
+            {
+                _gameplay.Start(gameplayId);
+                return;
+            }
+
+            _gameplay.StartDefault();
         }
 
         private void BindPlayerActors(MobaPlayerActorEntry[] playerActors)

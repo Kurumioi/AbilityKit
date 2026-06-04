@@ -407,7 +407,7 @@ namespace AbilityKit.Demo.Moba.Services
         public override int GetHashCode() => (RetainId.GetHashCode() * 397) ^ Runtime.GetHashCode();
     }
 
-    public sealed class MobaSkillCastRuntime
+    public sealed class MobaSkillCastRuntime : IMobaContextSourceProvider
     {
         private readonly List<MobaSkillRuntimeChildRef> _children = new List<MobaSkillRuntimeChildRef>(8);
         private readonly Dictionary<int, IMobaSkillRuntimeStateSlot> _stateSlots = new Dictionary<int, IMobaSkillRuntimeStateSlot>();
@@ -454,6 +454,30 @@ namespace AbilityKit.Demo.Moba.Services
             if (!aimPos.Equals(Vec3.Zero)) AimPos = aimPos;
             if (!aimDir.Equals(Vec3.Zero)) AimDir = aimDir;
             if (targetActorId > 0) TargetActorId = targetActorId;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            var sourceContextId = RootTraceContextId != 0 ? RootTraceContextId : RuntimeId;
+            source = new MobaContextSourceView(
+                MobaContextSourceResolveKind.DirectProvider,
+                MobaContextSourceBoundary.LiveRuntime,
+                EffectContextKind.Skill,
+                MobaTraceKind.SkillCast,
+                CasterActorId,
+                TargetActorId,
+                sourceContextId,
+                sourceContextId,
+                RootTraceContextId != 0 ? RootTraceContextId : sourceContextId,
+                RuntimeId,
+                SkillId,
+                0,
+                0,
+                "Skill",
+                SkillId,
+                true,
+                Handle);
+            return source.IsValid;
         }
 
         internal bool RetainChild(in MobaSkillRuntimeChildRef child)

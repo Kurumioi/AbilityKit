@@ -1,12 +1,13 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Events.Unit
 {
     /// <summary>
     /// 单位事件负载
     /// </summary>
-    public readonly struct UnitEventPayload
+    public readonly struct UnitEventPayload : IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider
     {
         /// <summary>单位 ActorId</summary>
         public readonly int ActorId;
@@ -26,7 +27,14 @@ namespace AbilityKit.Demo.Moba.Events.Unit
         /// <summary>模板 ID</summary>
         public readonly int TemplateId;
 
+        public readonly MobaTraceKind TraceKind;
+
         public UnitEventPayload(int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayerId, int templateId)
+            : this(actorId, team, mainType, unitSubType, ownerPlayerId, templateId, MobaTraceKind.UnitSpawn)
+        {
+        }
+
+        public UnitEventPayload(int actorId, Team team, EntityMainType mainType, UnitSubType unitSubType, PlayerId ownerPlayerId, int templateId, MobaTraceKind traceKind)
         {
             ActorId = actorId;
             Team = team;
@@ -34,6 +42,48 @@ namespace AbilityKit.Demo.Moba.Events.Unit
             UnitSubType = unitSubType;
             OwnerPlayerId = ownerPlayerId;
             TemplateId = templateId;
+            TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.UnitSpawn;
+        }
+
+        public bool TryGetSourceActorId(out int actorId)
+        {
+            actorId = ActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetTargetActorId(out int actorId)
+        {
+            actorId = ActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        {
+            origin = MobaGameplayOrigin.FromLegacy(ActorId, ActorId, TraceKind, TemplateId, 0);
+            return origin.IsValid;
+        }
+
+        public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
+        {
+            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Unit, TraceKind, ActorId, ActorId, 0, 0, 0, TemplateId);
+            return ActorId > 0;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    MobaContextSourceResolveKind.DirectProvider,
+                    MobaContextSourceBoundary.Snapshot,
+                    runtimeKind: "Unit",
+                    runtimeConfigId: TemplateId);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
         }
     }
 }

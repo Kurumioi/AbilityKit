@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
@@ -12,50 +12,50 @@ namespace AbilityKit.Game.Flow
         [System.Serializable]
         public sealed class PlayerConfig
         {
-            [LabelText("玩家ID")]
+            [LabelText("鐜╁ID")]
             public string PlayerId;
 
-            [LabelText("队伍")]
+            [LabelText("闃熶紞")]
             public Team TeamId = Team.Team1;
 
-            [LabelText("主体类型")]
+            [LabelText("涓讳綋绫诲瀷")]
             public EntityMainType MainType = EntityMainType.Unit;
 
-            [LabelText("单位子类型")]
+            [LabelText("Unit Sub Type")]
             public UnitSubType UnitSubType = UnitSubType.Hero;
 
-            [LabelText("英雄ID")]
+            [LabelText("鑻遍泟ID")]
             public int HeroId = 10001;
 
-            [LabelText("属性模板ID")]
+            [LabelText("灞炴€фā鏉縄D")]
             public int AttributeTemplateId = 0;
 
-            [LabelText("等级")]
+            [LabelText("绛夌骇")]
             public int Level = 1;
 
-            [LabelText("普攻技能ID")]
+            [LabelText("鏅敾鎶€鑳絀D")]
             public int BasicAttackSkillId = 1;
 
-            [LabelText("技能ID列表")]
+            [LabelText("鎶€鑳絀D鍒楄〃")]
             public int[] SkillIds;
 
-            [LabelText("出生点索引")]
+            [LabelText("Spawn Index")]
             public int SpawnIndex = 0;
 
-            [LabelText("出生点位置")]
+            [LabelText("Spawn Position")]
             public Vector3 SpawnPosition = default;
         }
 
-        [LabelText("本地玩家ID")]
+        [LabelText("鏈湴鐜╁ID")]
         public string LocalPlayerId = "p1";
 
-        [LabelText("队伍1玩家")]
+        [LabelText("闃熶紞1鐜╁")]
         public List<PlayerConfig> Team1Players = new List<PlayerConfig>
         {
             new PlayerConfig { PlayerId = "p1", TeamId = Team.Team1, HeroId = 10001, SpawnIndex = 0 }
         };
 
-        [LabelText("队伍2玩家")]
+        [LabelText("闃熶紞2鐜╁")]
         public List<PlayerConfig> Team2Players = new List<PlayerConfig>
         {
             new PlayerConfig { PlayerId = "p2", TeamId = Team.Team2, HeroId = 10002, SpawnIndex = 0 }

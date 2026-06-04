@@ -52,13 +52,15 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var eventId = MobaUnitTriggering.Events.Die;
 
+            r.TryGetOrigin(out var origin);
             var payload = new UnitDieEventPayload(
                 actorId: r.TargetActorId,
                 killerActorId: r.AttackerActorId,
                 damageType: (int)r.DamageType,
                 reasonKind: (int)r.ReasonKind,
                 reasonParam: r.ReasonParam,
-                damageValue: r.Value);
+                damageValue: r.Value,
+                origin: in origin);
 
             if (_eventBus == null) return;
             var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);

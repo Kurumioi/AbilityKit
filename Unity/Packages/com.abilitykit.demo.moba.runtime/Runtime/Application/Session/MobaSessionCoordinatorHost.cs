@@ -8,12 +8,16 @@ using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Coordinator;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Generic;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.World;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Session
 {
@@ -30,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Session
     /// <summary>
     /// MOBA 会话 Host（跨平台复用）。Coordinator 接口是外层适配，逻辑世界流程使用 ILogicWorldSessionHost。
     /// </summary>
-    public sealed class MobaSessionCoordinatorHost : ILogicWorldSessionHost, ISessionCoordinatorHost
+    public sealed class MobaSessionCoordinatorHost : ILogicWorldSessionHost, ISessionCoordinatorHost, ISessionCoordinatorConfigPolicy
     {
         private readonly ITextAssetLoader _textAssetLoader;
         private HostRuntime _hostRuntime;
@@ -42,6 +46,12 @@ namespace AbilityKit.Demo.Moba.Session
         }
 
         public HostRuntime HostRuntime => _hostRuntime;
+
+        public void ConfigureSession(ref SessionConfig config)
+        {
+            config.RequireLogicWorldDriveGate = true;
+            config.UseCoordinatorSpawnService = false;
+        }
 
         public void SetPendingSpawns(PlayerSpawnData[] spawns)
         {
@@ -76,6 +86,7 @@ namespace AbilityKit.Demo.Moba.Session
                 options,
                 config.WorldType,
                 config.WorldId > 0 ? config.WorldId.ToString() : "1");
+            RegisterCreateWorldInitData(in config, options);
         }
 
         public void ConfigureLogicWorldOptions(WorldCreateOptions options, string worldType, string worldId)
@@ -146,6 +157,11 @@ namespace AbilityKit.Demo.Moba.Session
 
         public PlayerSpawnData[] CreatePlayerSpawnData(SessionConfig config)
         {
+            if (!config.UseCoordinatorSpawnService)
+            {
+                return Array.Empty<PlayerSpawnData>();
+            }
+
             var spawns = CreateLogicWorldSpawnData(config);
             return ToPlayerSpawnData(spawns);
         }
@@ -166,6 +182,51 @@ namespace AbilityKit.Demo.Moba.Session
             {
                 LogicWorldSpawnData.CreateLocalPlayer(localPlayerId, 1001, 0f, 0f)
             };
+        }
+
+        private void RegisterCreateWorldInitData(in SessionConfig config, WorldCreateOptions options)
+        {
+            var spawns = CreateLogicWorldSpawnData(config);
+            if (spawns == null || spawns.Length == 0)
+            {
+                Log.Warning("[MobaSessionCoordinatorHost] No logic world spawn data; create-world init payload skipped");
+                return;
+            }
+
+            var localPlayerId = new PlayerId(config.LocalPlayerId.ToString());
+            var req = SpawnDataConverter.ConvertToEnterGameReq(
+                spawns,
+                localPlayerId,
+                CreateMatchId(config),
+                config.MapId > 0 ? config.MapId : 1,
+                config.TickRate > 0 ? config.TickRate : 30,
+                inputDelayFrames: 0,
+                randomSeed: CreateSessionSeed(config));
+
+            var createWorldSpec = MobaCreateWorldSpec.FromEnterReq(in req);
+            var initPayload = new MobaCreateWorldInitPayload(req.PlayerId, in createWorldSpec, req.OpCode, req.Payload);
+            options.ServiceBuilder.RegisterInstance(new WorldInitData(MobaWorldBootstrapModule.InitOpCode, MobaCreateWorldInitCodec.Serialize(in initPayload)));
+            Log.Info("[MobaSessionCoordinatorHost] Create-world init payload registered for bootstrap start flow");
+        }
+
+        private static string CreateMatchId(SessionConfig config)
+        {
+            return config.SessionId.Value > 0 ? config.SessionId.ToString() : "session";
+        }
+
+        private static int CreateSessionSeed(SessionConfig config)
+        {
+            var value = config.SessionId.Value;
+            if (value == 0)
+            {
+                value = config.RoomId != 0 ? config.RoomId : config.WorldId;
+            }
+
+            unchecked
+            {
+                var seed = (int)(value ^ (value >> 32));
+                return seed != 0 ? seed : 1;
+            }
         }
 
         private static LogicWorldSpawnData[] ToLogicWorldSpawns(PlayerSpawnData[] spawns)

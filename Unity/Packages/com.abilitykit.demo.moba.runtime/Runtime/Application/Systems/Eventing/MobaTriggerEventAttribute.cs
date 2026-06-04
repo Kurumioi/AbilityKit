@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Events.Buff;
 using AbilityKit.Demo.Moba.Events.Summon;
 using AbilityKit.Demo.Moba.Events.Unit;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Ability.Share.Effect;
@@ -29,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Systems
     [MobaTriggerEvent(MobaBuffTriggering.Prefixes.Buff, typeof(BuffEventArgs), isPrefix: true)]
     [MobaTriggerEvent("area.", typeof(AreaEventArgs), isPrefix: true)]
     [MobaTriggerEvent("presentation.", typeof(AbilityKit.Demo.Moba.Triggering.PresentationEventArgs), isPrefix: true)]
+    [MobaTriggerEvent("gameplay.", typeof(GameplayLifecycleEventArgs), isPrefix: true)]
     [MobaTriggerEvent(DamagePipelineEvents.AttackCreated, typeof(AttackInfo))]
     [MobaTriggerEvent(DamagePipelineEvents.BeforeCalc, typeof(AttackInfo))]
     [MobaTriggerEvent(DamagePipelineEvents.CalcBegin, typeof(AttackCalcInfo))]

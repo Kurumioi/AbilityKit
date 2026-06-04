@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Protocol.Moba.FrameSync;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
@@ -24,7 +24,7 @@ namespace ET.Logic
             playerCommand = new PlayerInputCommand(
                 frameIndex,
                 new PlayerId(move.PlayerId),
-                InputOpCodes.Move,
+                MobaOpCodes.Input.Move,
                 payload);
             Log.Debug($"[MoveCommandConverter] PlayerId={move.PlayerId}, Dir=({move.Dx:F2}, {move.Dz:F2})");
             return true;

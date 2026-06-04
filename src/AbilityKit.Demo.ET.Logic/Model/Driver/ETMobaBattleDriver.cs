@@ -15,7 +15,6 @@ using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.StateSync;
 using ET.AbilityKit.Demo.ET.Share;
 using ActorKind = ET.AbilityKit.Demo.ET.Share.ActorKind;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba;
 

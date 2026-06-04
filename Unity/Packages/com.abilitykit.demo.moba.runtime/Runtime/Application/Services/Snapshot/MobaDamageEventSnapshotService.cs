@@ -81,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var payload = MobaDamageEventSnapshotCodec.Serialize(_events.ToArrayClearAndTrim());
-            snapshot = new WorldStateSnapshot((int)MobaOpCode.DamageEventSnapshot, payload);
+            snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.DamageEvent, payload);
             return true;
         }
 

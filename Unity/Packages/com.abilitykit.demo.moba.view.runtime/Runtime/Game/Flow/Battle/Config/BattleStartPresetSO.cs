@@ -47,6 +47,9 @@ namespace AbilityKit.Game.Flow
         [LabelText("EnableConfirmedAuthorityWorld(权威确认世界)")]
         public bool EnableConfirmedAuthorityWorld = false;
 
+        [LabelText("GameplayId(玩法配置ID)")]
+        public int GameplayId = 1;
+
         [LabelText("EnterGame配置(可复用SO)")]
         public BattleEnterGameConfigSO EnterGameSO;
 

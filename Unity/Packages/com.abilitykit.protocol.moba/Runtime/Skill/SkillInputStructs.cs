@@ -1,7 +1,8 @@
-using AbilityKit.Core.Generic;
+﻿using AbilityKit.Core.Generic;
 using AbilityKit.Core.Math;
+using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Struct
+namespace AbilityKit.Protocol.Moba
 {
     public enum SkillInputPhase
     {
@@ -11,17 +12,19 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         Cancel = 4,
     }
 
-    public readonly struct SkillInputEvent
+    [MemoryPackable]
+    public readonly partial struct SkillInputEvent
     {
-        [BinaryMember(0)] public readonly int Slot;
-        [BinaryMember(1)] public readonly SkillInputPhase Phase;
-        [BinaryMember(2)] public readonly int PointerId;
-        [BinaryMember(3)] public readonly int TargetActorId;
-        [BinaryMember(4)] public readonly Vec3 AimPos;
-        [BinaryMember(5)] public readonly Vec3 AimDir;
-        [BinaryMember(6)] public readonly int OpCode;
-        [BinaryMember(7)] public readonly byte[] Payload;
+        [MemoryPackOrder(0), BinaryMember(0)] public readonly int Slot;
+        [MemoryPackOrder(1), BinaryMember(1)] public readonly SkillInputPhase Phase;
+        [MemoryPackOrder(2), BinaryMember(2)] public readonly int PointerId;
+        [MemoryPackOrder(3), BinaryMember(3)] public readonly int TargetActorId;
+        [MemoryPackOrder(4), BinaryMember(4)] public readonly Vec3 AimPos;
+        [MemoryPackOrder(5), BinaryMember(5)] public readonly Vec3 AimDir;
+        [MemoryPackOrder(6), BinaryMember(6)] public readonly int OpCode;
+        [MemoryPackOrder(7), BinaryMember(7)] public readonly byte[] Payload;
 
+        [MemoryPackConstructor]
         public SkillInputEvent(
             int slot,
             SkillInputPhase phase,

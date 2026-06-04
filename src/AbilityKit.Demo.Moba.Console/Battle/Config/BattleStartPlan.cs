@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Demo.Moba.Share;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Config
@@ -62,6 +63,11 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
         public string InputReplayPath { get; init; }
 
         /// <summary>
+        /// 框架层正式战斗启动规格
+        /// </summary>
+        public MobaBattleLaunchSpec LaunchSpec { get; init; }
+
+        /// <summary>
         /// 是否启用客户端预测
         /// </summary>
         public bool EnableClientPrediction { get; init; }
@@ -84,7 +90,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
             string inputRecordOutputPath = "",
             bool enableInputReplay = false,
             string inputReplayPath = "",
-            bool enableClientPrediction = false)
+            bool enableClientPrediction = false,
+            MobaBattleLaunchSpec launchSpec = default)
         {
             WorldId = worldId;
             WorldType = worldType;
@@ -101,6 +108,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
             EnableInputReplay = enableInputReplay;
             InputReplayPath = inputReplayPath;
             EnableClientPrediction = enableClientPrediction;
+            LaunchSpec = launchSpec;
         }
 
         /// <summary>

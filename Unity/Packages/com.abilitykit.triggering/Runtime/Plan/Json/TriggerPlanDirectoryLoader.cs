@@ -26,16 +26,28 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         /// <inheritdoc />
         public TriggerPlanJsonDatabase LoadDirectory(string directory, string pattern = "*.json")
         {
+            return LoadDirectory(directory, pattern, null);
+        }
+
+        /// <inheritdoc />
+        public TriggerPlanJsonDatabase LoadDirectory(string directory, string pattern, TriggerPlanDirectoryLoadOptions options)
+        {
             if (string.IsNullOrEmpty(directory))
                 throw new ArgumentException("directory cannot be null or empty", nameof(directory));
 
             var files = GetFiles(directory, pattern).ToArray();
             LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] LoadDirectory. directory={directory}, pattern={pattern}, fileCount={files.Length}, files={string.Join(",", files)}");
-            return LoadFiles(files);
+            return LoadFiles(files, options);
         }
 
         /// <inheritdoc />
         public TriggerPlanJsonDatabase LoadDirectories(IEnumerable<string> directories, string pattern = "*.json")
+        {
+            return LoadDirectories(directories, pattern, null);
+        }
+
+        /// <inheritdoc />
+        public TriggerPlanJsonDatabase LoadDirectories(IEnumerable<string> directories, string pattern, TriggerPlanDirectoryLoadOptions options)
         {
             if (directories == null)
                 throw new ArgumentNullException(nameof(directories));
@@ -47,11 +59,17 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 allFiles.AddRange(GetFiles(dir, pattern));
             }
 
-            return LoadFiles(allFiles);
+            return LoadFiles(allFiles, options);
         }
 
         /// <inheritdoc />
         public TriggerPlanJsonDatabase LoadWithManifest(string manifestPath, string moduleDirectory)
+        {
+            return LoadWithManifest(manifestPath, moduleDirectory, null);
+        }
+
+        /// <inheritdoc />
+        public TriggerPlanJsonDatabase LoadWithManifest(string manifestPath, string moduleDirectory, TriggerPlanDirectoryLoadOptions options)
         {
             if (string.IsNullOrEmpty(manifestPath))
                 throw new ArgumentException("manifestPath cannot be null or empty", nameof(manifestPath));
@@ -77,7 +95,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 allFiles.Add(fullPath);
             }
 
-            return LoadFiles(allFiles);
+            return LoadFiles(allFiles, options);
         }
 
         /// <inheritdoc />
@@ -114,8 +132,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             return _textLoader.TryLoad(path, out content);
         }
 
-        private TriggerPlanJsonDatabase LoadFiles(IEnumerable<string> files)
+        private TriggerPlanJsonDatabase LoadFiles(IEnumerable<string> files, TriggerPlanDirectoryLoadOptions options)
         {
+            options = options ?? TriggerPlanDirectoryLoadOptions.Default;
+            var parseOptions = options.ToParseOptions();
+            var parser = new TriggerPlanJsonParser();
             var db = new TriggerPlanJsonDatabase();
             var mergedDto = new TriggerPlanJsonDatabase.TriggerPlanDatabaseDto
             {
@@ -128,13 +149,35 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 if (!_textLoader.TryLoad(file, out var content) || string.IsNullOrEmpty(content))
                 {
+                    var diagnostic = new TriggerPlanJsonDiagnostic(
+                        TriggerPlanJsonDiagnosticSeverity.Warning,
+                        "Trigger plan file is empty or missing",
+                        file);
+                    options.AddDiagnostic(diagnostic);
                     LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] Skip empty/missing file. file={file}");
                     continue;
                 }
 
                 try
                 {
-                    var runtimeDto = TriggerPlanJsonDatabase.ParseRuntimeDto(content, file);
+                    var parseResult = parser.Parse(content, file, parseOptions);
+                    options.AddDiagnostics(parseResult.Diagnostics);
+                    if (!parseResult.Success || parseResult.Dto == null)
+                    {
+                        var error = parseResult.FirstError;
+                        var message = string.IsNullOrEmpty(error.Message)
+                            ? "Unknown trigger plan json parse error"
+                            : error.Message;
+                        if (options.ThrowOnFileParseError)
+                        {
+                            throw new InvalidOperationException($"Failed to load trigger plan file {file}: {message}", error.Exception);
+                        }
+
+                        LogWarning($"[TriggerPlanDirectoryLoader] Failed to load file {file}: {message}");
+                        continue;
+                    }
+
+                    var runtimeDto = parseResult.Dto;
                     var triggerCount = runtimeDto?.Triggers?.Count ?? 0;
                     var triggerSummary = runtimeDto?.Triggers == null
                         ? string.Empty
@@ -155,6 +198,17 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
                 catch (Exception ex)
                 {
+                    var diagnostic = new TriggerPlanJsonDiagnostic(
+                        TriggerPlanJsonDiagnosticSeverity.Error,
+                        ex.Message,
+                        file,
+                        exception: ex);
+                    options.AddDiagnostic(diagnostic);
+                    if (options.ThrowOnFileParseError)
+                    {
+                        throw;
+                    }
+
                     LogWarning($"[TriggerPlanDirectoryLoader] Failed to load file {file}: {ex.Message}");
                 }
             }

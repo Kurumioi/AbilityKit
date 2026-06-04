@@ -57,7 +57,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var hash = ComputeStateHash();
             var payload = MobaStateHashSnapshotCodec.Serialize(frame.Value, hash);
-            snapshot = new WorldStateSnapshot((int)MobaOpCode.StateHashSnapshot, payload);
+            snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.StateHash, payload);
             return true;
         }
 

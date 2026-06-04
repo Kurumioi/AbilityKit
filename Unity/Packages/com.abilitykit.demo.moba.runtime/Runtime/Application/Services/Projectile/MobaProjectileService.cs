@@ -5,8 +5,10 @@ using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Services.Projectile.Launch;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Core.Math;
 using AbilityKit.Core.Common.Log;
@@ -17,7 +19,7 @@ using AbilityKit.Protocol.Moba.StateSync;
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
     [WorldService(typeof(MobaProjectileService))]
-    public sealed class MobaProjectileService : IService
+    public sealed class MobaProjectileService : IService, IMobaProjectileLaunchExecutor, IMobaProjectileLaunchRuntime
     {
         private const int CollisionLayer_Unit = 1 << 0;
         private const int CollisionLayer_World = 1 << 2;
@@ -27,11 +29,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject] private MobaActorRegistry _registry;
         [WorldInject] private MobaEntityManager _entities;
         [WorldInject] private MobaProjectileLinkService _links;
-        [WorldInject(required: false)] private global::Entitas.IContexts _contexts;
         [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots;
         [WorldInject(required: false)] private IFrameTime _frameTime;
         [WorldInject(required: false)] private MobaTraceRegistry _trace;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
+        [WorldInject(required: false)] private MobaSkillParamModifierService _skillParamModifiers;
+        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn;
+        [WorldInject(required: false)] private IContinuousManager _continuous;
 
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
         {
@@ -56,18 +60,24 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             dir = dir.Normalized;
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
+            if (_actorSpawn == null) return false;
+
             var projectileActorId = _actorIds.Next();
-
-            var actorContext = (_contexts as global::Contexts)?.actor;
-            if (actorContext == null) return false;
-
             var spec = MobaConverter.ToProjectileActorBuildSpec(projectileActorId, projectileCode, caster, in spawnPos, in dir);
-            var bullet = ActorSpawnPipeline.BuildActor(actorContext, in spec).Entity;
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.PostSetup = new MobaActorSpawnPostSetup
+            {
+                SetFlyingProjectileTag = true,
+            };
+
+            if (!_actorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)
+            {
+                Log.Warning($"[MobaProjectileService] projectile actor spawn failed. projectileCode={projectileCode} actorId={projectileActorId} casterActorId={casterActorId} error={spawnResult.Error}");
+                return false;
+            }
+
+            var bullet = spawnResult.Entity;
             if (bullet == null) return false;
-
-            bullet.isFlyingProjectileTag = true;
-
-            _registry?.Register(projectileActorId, bullet);
 
             if (_spawnSnapshots != null)
             {
@@ -82,10 +92,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     Z = spawnPos.Z
                 });
             }
-
-            // Optional: register immediately, otherwise MobaEntityManagerSyncSystem will pick it up next tick.
-            try { _entities?.TryRegisterFromEntity(bullet); }
-            catch (Exception ex) { Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed"); }
 
             var ignore = default(ColliderId);
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
@@ -192,6 +198,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
         {
+            return Launch(casterActorId, launcher, projectile, launcher?.CountPerShot ?? 1, launcher?.FanAngleDeg ?? 0f, in aimPos, in aimDir, in sourceContext);
+        }
+
+        public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
+        {
             if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (launcher == null) return false;
@@ -207,7 +218,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             dir = dir.Normalized;
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
-            return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir, in sourceContext);
+            return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, in spawnPos, in dir, in sourceContext);
         }
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
@@ -217,27 +228,61 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
         {
-            if (_projectiles == null) return false;
-            if (_actorIds == null) return false;
-            if (_registry == null) return false;
-            if (_entities == null) return false;
-            if (casterActorId <= 0) return false;
-            if (launcher == null) return false;
-            if (projectile == null) return false;
+            return LaunchFromSpawn(casterActorId, launcher, projectile, launcher?.CountPerShot ?? 1, launcher?.FanAngleDeg ?? 0f, in spawnPos, in dir, in sourceContext);
+        }
 
+        public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
+        {
+            var request = new MobaProjectileLaunchRequest(
+                casterActorId,
+                launcher,
+                projectile,
+                countPerShot,
+                fanAngleDeg,
+                in spawnPos,
+                in dir,
+                in sourceContext);
+
+            var continuous = new MobaProjectileLaunchContinuous(in request, this);
+            if (_continuous != null)
+            {
+                if (!_continuous.TryActivate(continuous))
+                {
+                    Log.Warning($"[MobaProjectileService] projectile launch continuous rejected. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0}");
+                    return false;
+                }
+
+                return true;
+            }
+
+            return TryStartLaunch(in request, out var directResult) && directResult.Success;
+        }
+
+        public bool TryStartLaunch(in MobaProjectileLaunchRequest request, out MobaProjectileLaunchResult result)
+        {
+            result = default;
+            if (_projectiles == null) { result = MobaProjectileLaunchResult.Failed("Projectile service is null"); return false; }
+            if (_actorIds == null) { result = MobaProjectileLaunchResult.Failed("Actor id allocator is null"); return false; }
+            if (_registry == null) { result = MobaProjectileLaunchResult.Failed("Actor registry is null"); return false; }
+            if (_entities == null) { result = MobaProjectileLaunchResult.Failed("Entity manager is null"); return false; }
+            if (_actorSpawn == null) { result = MobaProjectileLaunchResult.Failed("Actor spawn service is null"); return false; }
+            if (request.CasterActorId <= 0) { result = MobaProjectileLaunchResult.Failed("Caster actor id is invalid"); return false; }
+            if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); return false; }
+            if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); return false; }
+
+            var casterActorId = request.CasterActorId;
+            var launcher = request.Launcher;
+            var projectile = request.Projectile;
             if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
             {
+                result = MobaProjectileLaunchResult.Failed("Caster entity is missing transform");
                 return false;
             }
 
-            var d = dir.SqrMagnitude > 0f ? dir.Normalized : caster.transform.Value.Forward.Normalized;
+            var d = request.Direction.SqrMagnitude > 0f ? request.Direction.Normalized : caster.transform.Value.Forward.Normalized;
             if (d.SqrMagnitude <= 0f) d = Vec3.Forward;
 
-            var sp = spawnPos.SqrMagnitude > 0f ? spawnPos : caster.transform.Value.Position;
-
-            var actorContext = _contexts != null ? _contexts.Actor() : null;
-            if (actorContext == null) return false;
-
+            var sp = request.SpawnPosition.SqrMagnitude > 0f ? request.SpawnPosition : caster.transform.Value.Position;
             var frameTime = _frameTime;
             var nowMs = 0L;
             if (frameTime != null)
@@ -245,31 +290,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 nowMs = (long)System.MathF.Round(frameTime.Time * 1000f);
             }
 
-            var intervalFrames = 1;
-            if (launcher.IntervalMs > 0)
-            {
-                if (frameTime != null && frameTime.DeltaTime > 0f)
-                {
-                    intervalFrames = System.Math.Max(1, (int)System.MathF.Round(launcher.IntervalMs / (frameTime.DeltaTime * 1000f)));
-                }
-                else
-                {
-                    intervalFrames = System.Math.Max(1, (int)System.MathF.Round(launcher.IntervalMs / 33.333f));
-                }
-            }
-
-            var returnAfterFrames = 0;
-            if (projectile.ReturnAfterMs > 0)
-            {
-                if (frameTime != null && frameTime.DeltaTime > 0f)
-                {
-                    returnAfterFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.ReturnAfterMs / (frameTime.DeltaTime * 1000f)));
-                }
-                else
-                {
-                    returnAfterFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.ReturnAfterMs / 33.333f));
-                }
-            }
+            var intervalFrames = ResolveFramesFromMs(launcher.IntervalMs, frameTime, defaultFrames: 1);
+            var returnAfterFrames = ResolveFramesFromMs(projectile.ReturnAfterMs, frameTime, defaultFrames: 0);
             var returnSpeed = projectile.ReturnSpeed;
             var returnStopDistance = projectile.ReturnStopDistance;
 
@@ -279,56 +301,32 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 count = System.Math.Max(1, (launcher.DurationMs / launcher.IntervalMs) + 1);
             }
 
-            var lifetimeFrames = 0;
-            if (projectile.LifetimeMs > 0)
-            {
-                if (frameTime != null && frameTime.DeltaTime > 0f)
-                {
-                    lifetimeFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.LifetimeMs / (frameTime.DeltaTime * 1000f)));
-                }
-                else
-                {
-                    lifetimeFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.LifetimeMs / 33.333f));
-                }
-            }
+            var bulletsPerShot = System.Math.Max(1, request.CountPerShot);
+            var resolvedFanAngleDeg = request.FanAngleDeg < 0f ? 0f : request.FanAngleDeg;
+            var lifetimeFrames = ResolveFramesFromMs(projectile.LifetimeMs, frameTime, defaultFrames: 0);
 
             var launcherActorId = _actorIds.Next();
             var launcherSpec = MobaConverter.ToProjectileLauncherActorBuildSpec(launcherActorId, launcher.Id, caster, in sp, in d);
-            var launcherEntity = ActorSpawnPipeline.BuildActorAndRegister(actorContext, _registry, null, in launcherSpec).Entity;
-            if (launcherEntity == null) return false;
-
-            try { _entities.TryRegisterFromEntity(launcherEntity); }
-            catch (Exception ex) { AbilityKit.Core.Common.Log.Log.Exception(ex, "[MobaProjectileService] TryRegisterFromEntity failed (launcher)"); }
-
-            var hitCooldownFrames = 0;
-            if (projectile.HitCooldownMs > 0)
+            var launcherRequest = MobaActorSpawnRequest.FromSpec(in launcherSpec);
+            if (!_actorSpawn.TrySpawn(in launcherRequest, out var launcherSpawnResult) || !launcherSpawnResult.Success)
             {
-                if (frameTime != null && frameTime.DeltaTime > 0f)
-                {
-                    hitCooldownFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.HitCooldownMs / (frameTime.DeltaTime * 1000f)));
-                }
-                else
-                {
-                    hitCooldownFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.HitCooldownMs / 33.333f));
-                }
+                var error = $"launcher actor spawn failed. launcherId={launcher.Id} actorId={launcherActorId} casterActorId={casterActorId} error={launcherSpawnResult.Error}";
+                Log.Warning($"[MobaProjectileService] {error}");
+                result = MobaProjectileLaunchResult.Failed(error);
+                return false;
             }
 
-            var tickIntervalFrames = 0;
-            if (projectile.TickIntervalMs > 0)
+            var launcherEntity = launcherSpawnResult.Entity;
+            if (launcherEntity == null)
             {
-                if (frameTime != null && frameTime.DeltaTime > 0f)
-                {
-                    tickIntervalFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.TickIntervalMs / (frameTime.DeltaTime * 1000f)));
-                }
-                else
-                {
-                    tickIntervalFrames = System.Math.Max(1, (int)System.MathF.Round(projectile.TickIntervalMs / 33.333f));
-                }
+                result = MobaProjectileLaunchResult.Failed("Launcher actor spawn returned null entity");
+                return false;
             }
 
+            var hitCooldownFrames = ResolveFramesFromMs(projectile.HitCooldownMs, frameTime, defaultFrames: 0);
+            var tickIntervalFrames = ResolveFramesFromMs(projectile.TickIntervalMs, frameTime, defaultFrames: 0);
             if (returnAfterFrames > 0)
             {
-                // Ensure Tick events exist for transform sync; do not rely on MotionSystem for returning projectiles.
                 tickIntervalFrames = 1;
             }
 
@@ -337,14 +335,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (caster.hasCollisionId) ignore = caster.collisionId.Value;
 
             var startFrame = frameTime != null ? frameTime.Frame.Value : 0;
-
             var hitPolicyKind = projectile.HitPolicyKind;
             var hitPolicyParam = 0;
             var hitsRemaining = 1;
             if (hitPolicyKind == ProjectileHitPolicyKind.Pierce)
             {
                 hitPolicyParam = projectile.HitsRemaining == -1 ? -1 : (projectile.HitsRemaining > 0 ? projectile.HitsRemaining : 1);
-                // Let PierceHitPolicy initialize remaining hits from MaxHits.
                 hitsRemaining = 0;
             }
 
@@ -372,37 +368,70 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames);
 
-            IProjectileSpawnPattern pattern = null;
-            if (launcher.EmitterType == ProjectileEmitterType.Linear)
-            {
-                pattern = new SingleShotPattern();
-            }
-            else
-            {
-                pattern = new SingleShotPattern();
-            }
-
-            var schedule = ProjectileScheduleParams.Repeat(startFrame, intervalFrames: intervalFrames, count: count);
+            var sourceContext = request.SourceContext;
             var launcherSource = CreateLaunchSource(casterActorId, 0, projectile.Id, in sourceContext);
-            if (_links != null && launcherSource.IsValid)
+            var endTimeMs = launcher.DurationMs > 0 ? nowMs + launcher.DurationMs : nowMs;
+            var sequence = CreateLaunchSequence(in request);
+            var context = new MobaProjectileLaunchContext(
+                in request,
+                launcher,
+                projectile,
+                launcherActorId,
+                launcherEntity,
+                in baseSpawn,
+                in launcherSource,
+                startFrame,
+                endTimeMs,
+                intervalFrames,
+                count,
+                bulletsPerShot,
+                resolvedFanAngleDeg,
+                _projectiles,
+                _links,
+                _skillParamModifiers,
+                this);
+
+            return sequence.TryStart(in context, out result);
+        }
+
+        public bool IsLaunchComplete(in MobaProjectileLaunchResult result)
+        {
+            return result.Sequence == null || result.Sequence.IsComplete(in result);
+        }
+
+        public void StopLaunch(in MobaProjectileLaunchResult result, ContinuousEndReason reason)
+        {
+            result.Sequence?.Stop(in result, reason);
+        }
+
+        public int CurrentFrame => _frameTime != null ? _frameTime.Frame.Value : 0;
+        public long NowMs => GetNowMs();
+
+        public bool TryGetLauncherEntity(int launcherActorId, out global::ActorEntity launcherEntity)
+        {
+            launcherEntity = null;
+            return launcherActorId > 0 && _registry != null && _registry.TryGet(launcherActorId, out launcherEntity);
+        }
+
+        private static IMobaProjectileLaunchSequence CreateLaunchSequence(in MobaProjectileLaunchRequest request)
+        {
+            return new RepeatProjectileLaunchSequence();
+        }
+
+        private static int ResolveFramesFromMs(int milliseconds, IFrameTime frameTime, int defaultFrames)
+        {
+            if (milliseconds <= 0) return defaultFrames;
+            if (frameTime != null && frameTime.DeltaTime > 0f)
             {
-                _links.BindLauncherSource(launcherActorId, in launcherSource);
+                return System.Math.Max(1, (int)System.MathF.Round(milliseconds / (frameTime.DeltaTime * 1000f)));
             }
 
-            var scheduleId = _projectiles.ScheduleEmit(pattern, in baseSpawn, in schedule);
+            return System.Math.Max(1, (int)System.MathF.Round(milliseconds / 33.333f));
+        }
 
-            var endTimeMs = launcher.DurationMs > 0 ? nowMs + launcher.DurationMs : nowMs;
-            launcherEntity.AddProjectileLauncher(
-                newLauncherId: launcher.Id,
-                newProjectileId: projectile.Id,
-                newRootActorId: casterActorId,
-                newEndTimeMs: endTimeMs,
-                newActiveBullets: 0,
-                newScheduleId: scheduleId.Value,
-                newIntervalFrames: intervalFrames,
-                newTotalCount: count);
-
-            return true;
+        private long GetNowMs()
+        {
+            return _frameTime != null ? (long)System.MathF.Round(_frameTime.Time * 1000f) : 0L;
         }
 
         private void BindProjectileSource(ProjectileId projectileId, int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)

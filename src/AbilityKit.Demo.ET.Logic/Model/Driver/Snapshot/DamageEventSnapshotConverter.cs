@@ -1,14 +1,15 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
 {
-    [RuntimeSnapshotConverter(MobaOpCode.DamageEventSnapshot)]
+    [RuntimeSnapshotConverter(MobaOpCodes.Snapshot.DamageEvent)]
     public sealed class DamageEventSnapshotConverter : IRuntimeSnapshotConverter
     {
-        public int OpCode => MobaOpCode.DamageEventSnapshot;
+        public int OpCode => MobaOpCodes.Snapshot.DamageEvent;
 
         public bool TryConvert(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {

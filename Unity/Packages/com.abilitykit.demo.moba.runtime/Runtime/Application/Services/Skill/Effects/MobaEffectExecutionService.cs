@@ -196,11 +196,6 @@ namespace AbilityKit.Demo.Moba.Services
             Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
-        private void TryRepairMissingActions(TriggerPlan<object> plan)
-        {
-            RegisterPlanActionModules("TryRepairMissingActions(plan)");
-        }
-
         private void RegisterPlanActionModules(string caller)
         {
             if (_planActions == null) return;
@@ -395,8 +390,7 @@ namespace AbilityKit.Demo.Moba.Services
                         _planDb,
                         _planEventBus,
                         _planFunctions,
-                        _planActions,
-                        TryRepairMissingActions);
+                        _planActions);
                 }
 
                 return _planExecutor;

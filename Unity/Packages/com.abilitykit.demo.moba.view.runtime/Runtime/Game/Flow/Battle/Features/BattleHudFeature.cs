@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Battle.View;
@@ -84,8 +84,8 @@ namespace AbilityKit.Game.Flow
 
             if (_ctx?.FrameSnapshots != null)
             {
-                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot);
-                _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotEntry[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot);
+                _subEnterGame = _ctx.FrameSnapshots.Subscribe<EnterMobaGameRes>(MobaOpCodes.Snapshot.EnterGame, OnEnterGameSnapshot);
+                _subDamageEvents = _ctx.FrameSnapshots.Subscribe<MobaDamageEventSnapshotEntry[]>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot);
             }
         }
 
@@ -837,3 +837,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

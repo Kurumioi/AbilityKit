@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using AbilityKit.Protocol.Moba.StateSync;
+using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 
 namespace AbilityKit.Game.Battle.Transport.Moba.Client
 {
     /// <summary>
-    /// StateSync 快照编解码器
-    /// 使用简化实现，替代对 world.statesync 包的依赖
+    /// StateSync 快照编解码器。
     /// </summary>
     public static class StateSyncCodec
     {
@@ -15,134 +15,176 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
 
         public static byte[] EncodeWorldSnapshot(IWorldSnapshot snapshot)
         {
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-
-            writer.Write(snapshot.WorldId);
-            writer.Write(snapshot.Frame);
-            writer.Write(snapshot.Timestamp);
-            writer.Write(snapshot.IsFullSnapshot);
-
-            var actors = snapshot.Actors;
-            writer.Write(actors.Count);
-
-            foreach (var actor in actors)
+            if (snapshot == null)
             {
-                writer.Write(actor.ActorId);
-                writer.Write(actor.PositionX);
-                writer.Write(actor.PositionY);
-                writer.Write(actor.PositionZ);
-                writer.Write(actor.Rotation);
-                writer.Write(actor.VelocityX);
-                writer.Write(actor.VelocityZ);
-                writer.Write(actor.Hp);
-                writer.Write(actor.HpMax);
-                writer.Write(actor.TeamId);
+                var empty = new MobaWorldSnapshotPayload(0, 0, 0, false, Array.Empty<MobaActorSnapshotEntry>());
+                return MobaWorldSnapshotCodec.Serialize(in empty);
             }
 
-            return ms.ToArray();
+            var actors = snapshot.Actors;
+            var entries = actors == null || actors.Count == 0
+                ? Array.Empty<MobaActorSnapshotEntry>()
+                : new MobaActorSnapshotEntry[actors.Count];
+
+            if (actors != null)
+            {
+                for (int i = 0; i < actors.Count; i++)
+                {
+                    entries[i] = ToProtocolEntry(actors[i]);
+                }
+            }
+
+            var payload = new MobaWorldSnapshotPayload(
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.Timestamp,
+                snapshot.IsFullSnapshot,
+                entries);
+
+            return MobaWorldSnapshotCodec.Serialize(in payload);
         }
 
         public static WorldSnapshot DecodeWorldSnapshot(byte[] data)
         {
-            if (data == null || data.Length < 21)
-            {
-                return new WorldSnapshot();
-            }
+            var payload = MobaWorldSnapshotCodec.Deserialize(data);
+            var actors = payload.Actors == null || payload.Actors.Length == 0
+                ? new List<IActorSnapshot>()
+                : new List<IActorSnapshot>(payload.Actors.Length);
 
-            using var ms = new MemoryStream(data);
-            using var reader = new BinaryReader(ms);
-
-            var snapshot = new WorldSnapshot
+            if (payload.Actors != null)
             {
-                WorldId = reader.ReadUInt64(),
-                Frame = reader.ReadInt32(),
-                Timestamp = reader.ReadInt64(),
-                IsFullSnapshot = reader.ReadBoolean(),
-                Actors = new List<IActorSnapshot>()
-            };
-
-            var actorCount = reader.ReadInt32();
-            for (int i = 0; i < actorCount; i++)
-            {
-                snapshot.Actors.Add(new ActorSnapshot
+                for (int i = 0; i < payload.Actors.Length; i++)
                 {
-                    ActorId = reader.ReadInt32(),
-                    PositionX = reader.ReadSingle(),
-                    PositionY = reader.ReadSingle(),
-                    PositionZ = reader.ReadSingle(),
-                    Rotation = reader.ReadSingle(),
-                    VelocityX = reader.ReadSingle(),
-                    VelocityZ = reader.ReadSingle(),
-                    Hp = reader.ReadSingle(),
-                    HpMax = reader.ReadSingle(),
-                    TeamId = reader.ReadInt32()
-                });
+                    actors.Add(ToActorSnapshot(in payload.Actors[i]));
+                }
             }
 
-            return snapshot;
+            return new WorldSnapshot
+            {
+                WorldId = payload.WorldId,
+                Frame = payload.Frame,
+                Timestamp = payload.Timestamp,
+                IsFullSnapshot = payload.IsFullSnapshot,
+                Actors = actors
+            };
         }
 
-        public static byte[] EncodeFrameInput(string roomId, ulong worldId, int frame,
-            IEnumerable<IFrameInput> inputs)
+        public static byte[] EncodeFrameInput(string roomId, ulong worldId, int frame, IEnumerable<IFrameInput> inputs)
         {
-            using var ms = new MemoryStream();
-            using var writer = new BinaryWriter(ms);
-
-            writer.Write(roomId ?? string.Empty);
-            writer.Write(worldId);
-            writer.Write(frame);
-
-            var inputList = new List<IFrameInput>(inputs);
-            writer.Write(inputList.Count);
-
-            foreach (var input in inputList)
-            {
-                writer.Write(input.PlayerId);
-                writer.Write(input.OpCode);
-                var payload = input.Payload ?? Array.Empty<byte>();
-                writer.Write(payload.Length);
-                if (payload.Length > 0) writer.Write(payload);
-            }
-
-            return ms.ToArray();
+            var inputItems = ToWireInputs(inputs);
+            var push = new WireFramePushedPush(ParseRoomId(roomId), worldId, frame, inputItems);
+            var bytes = WireCustomBinary.Serialize(in push);
+            return bytes.Array == null || bytes.Offset != 0 || bytes.Count != bytes.Array.Length
+                ? CopySegment(bytes)
+                : bytes.Array;
         }
 
         public static FrameData DecodeFrameData(byte[] payload)
         {
-            var frameData = new FrameData();
-            var inputs = new List<IFrameInput>();
-
-            if (payload == null || payload.Length < 16) return frameData;
-
-            using var ms = new MemoryStream(payload);
-            using var reader = new BinaryReader(ms);
-
-            var roomId = reader.ReadString();
-            var worldId = reader.ReadUInt64();
-            var frame = reader.ReadInt32();
-
-            var inputCount = reader.ReadInt32();
-            for (int i = 0; i < inputCount; i++)
+            if (payload == null || payload.Length == 0)
             {
-                var playerId = reader.ReadUInt32();
-                var opCode = reader.ReadUInt32();
-                var payloadLen = reader.ReadInt32();
-                var inputPayload = payloadLen > 0 ? reader.ReadBytes(payloadLen) : Array.Empty<byte>();
+                return new FrameData();
+            }
 
-                inputs.Add(new FrameInput
+            var push = WireCustomBinary.DeserializeFramePushedPush(payload);
+            var inputs = push.Inputs == null || push.Inputs.Length == 0
+                ? new List<IFrameInput>()
+                : new List<IFrameInput>(push.Inputs.Length);
+
+            if (push.Inputs != null)
+            {
+                for (int i = 0; i < push.Inputs.Length; i++)
                 {
-                    PlayerId = playerId,
-                    OpCode = opCode,
-                    Payload = inputPayload
-                });
+                    var input = push.Inputs[i];
+                    inputs.Add(new FrameInput
+                    {
+                        PlayerId = input.PlayerId,
+                        OpCode = unchecked((uint)input.OpCode),
+                        Payload = input.Payload ?? Array.Empty<byte>()
+                    });
+                }
             }
 
             return new FrameData
             {
-                Frame = frame,
+                Frame = push.Frame,
                 Inputs = inputs
             };
+        }
+
+        private static MobaActorSnapshotEntry ToProtocolEntry(IActorSnapshot actor)
+        {
+            if (actor == null)
+            {
+                return default;
+            }
+
+            return new MobaActorSnapshotEntry(
+                actor.ActorId,
+                actor.PositionX,
+                actor.PositionY,
+                actor.PositionZ,
+                actor.Rotation,
+                actor.VelocityX,
+                actor.VelocityZ,
+                actor.Hp,
+                actor.HpMax,
+                actor.TeamId);
+        }
+
+        private static ActorSnapshot ToActorSnapshot(in MobaActorSnapshotEntry actor)
+        {
+            return new ActorSnapshot
+            {
+                ActorId = actor.ActorId,
+                PositionX = actor.PositionX,
+                PositionY = actor.PositionY,
+                PositionZ = actor.PositionZ,
+                Rotation = actor.Rotation,
+                VelocityX = actor.VelocityX,
+                VelocityZ = actor.VelocityZ,
+                Hp = actor.Hp,
+                HpMax = actor.HpMax,
+                TeamId = actor.TeamId
+            };
+        }
+
+        private static WireInputItem[] ToWireInputs(IEnumerable<IFrameInput> inputs)
+        {
+            if (inputs == null)
+            {
+                return Array.Empty<WireInputItem>();
+            }
+
+            var items = new List<WireInputItem>();
+            foreach (var input in inputs)
+            {
+                if (input == null)
+                {
+                    continue;
+                }
+
+                items.Add(new WireInputItem(input.PlayerId, unchecked((int)input.OpCode), input.Payload ?? Array.Empty<byte>()));
+            }
+
+            return items.Count == 0 ? Array.Empty<WireInputItem>() : items.ToArray();
+        }
+
+        private static ulong ParseRoomId(string roomId)
+        {
+            return ulong.TryParse(roomId, out var parsed) ? parsed : 0UL;
+        }
+
+        private static byte[] CopySegment(ArraySegment<byte> segment)
+        {
+            if (segment.Array == null || segment.Count <= 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            var bytes = new byte[segment.Count];
+            Buffer.BlockCopy(segment.Array, segment.Offset, bytes, 0, segment.Count);
+            return bytes;
         }
     }
 }

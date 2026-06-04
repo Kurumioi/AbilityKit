@@ -1,8 +1,6 @@
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Demo.Moba.Systems;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -22,30 +20,21 @@ namespace AbilityKit.Game.Flow
             var cfg = LoadConfig();
             _config = cfg;
 
-            EnterMobaGameReq req;
+            MobaBattleLaunchSpec launchSpec;
             if (cfg.UseRoomGameStartSpec)
             {
                 var roomSpec = cfg.BuildRoomGameStartSpec();
-                req = cfg.BuildEnterMobaGameReq(in roomSpec);
+                launchSpec = cfg.BuildLaunchSpec(in roomSpec);
             }
             else
             {
-                req = cfg.BuildEnterMobaGameReq();
+                launchSpec = cfg.BuildLaunchSpec();
             }
 
-            byte[] payload;
-            if (cfg.UseRoomGameStartSpec)
-            {
-                var spec = MobaCreateWorldSpec.FromEnterReq(in req);
-                var initPayload = new MobaCreateWorldInitPayload(req.PlayerId, in spec, req.OpCode, req.Payload);
-                payload = MobaCreateWorldInitCodec.Serialize(in initPayload);
-            }
-            else
-            {
-                payload = EnterMobaGameCodec.SerializeReq(req);
-            }
+            var req = launchSpec.ToEnterReq();
+            var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
 
-            var options = cfg.BuildPlanOptions(req, payload, MobaWorldBootstrapModule.InitOpCode);
+            var options = cfg.BuildPlanOptions(req, initData.Payload, initData.OpCode, launchSpec);
             return new BattleStartPlan(options);
         }
 

@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -51,14 +51,14 @@ namespace AbilityKit.Game.Flow
                     default:
                         try
                         {
-                            _subActorSpawn = _ctx.FrameSnapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>((int)MobaOpCode.ActorSpawnSnapshot, OnActorSpawnSnapshot);
+                            _subActorSpawn = _ctx.FrameSnapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>(MobaOpCodes.Snapshot.ActorSpawn, OnActorSpawnSnapshot);
                         }
                         catch (Exception ex)
                         {
                             Log.Exception(ex, "[BattleSyncFeature] Failed to subscribe ActorSpawnSnapshot");
                         }
-                        _subActorTransform = _ctx.FrameSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot);
-                        _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotPayload>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot);
+                        _subActorTransform = _ctx.FrameSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(MobaOpCodes.Snapshot.ActorTransform, OnActorTransformSnapshot);
+                        _subStateHash = _ctx.FrameSnapshots.Subscribe<MobaStateHashSnapshotPayload>(MobaOpCodes.Snapshot.StateHash, OnStateHashSnapshot);
                         break;
                 }
             }
@@ -268,3 +268,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

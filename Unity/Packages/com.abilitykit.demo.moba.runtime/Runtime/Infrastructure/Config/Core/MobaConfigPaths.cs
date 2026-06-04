@@ -36,5 +36,7 @@
         public const string SpawnSummonActionTemplatesFile = "spawn_summon_action_templates";
 
         public const string PresentationTemplatesFile = "presentation_templates";
+
+        public const string GameplaysFile = "gameplays";
     }
 }

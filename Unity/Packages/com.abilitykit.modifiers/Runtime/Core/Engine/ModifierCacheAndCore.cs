@@ -131,7 +131,6 @@ namespace AbilityKit.Modifiers
 
         private static int ComputeHash(ReadOnlySpan<ModifierData> modifiers)
         {
-            // 简单的哈希计算：基于 Key, Op, Priority, SourceId
             int hash = 17;
             for (int i = 0; i < modifiers.Length; i++)
             {
@@ -140,7 +139,55 @@ namespace AbilityKit.Modifiers
                 hash = hash * 31 + (int)mod.Op;
                 hash = hash * 31 + mod.Priority;
                 hash = hash * 31 + mod.SourceId;
+                hash = hash * 31 + ComputeMagnitudeHash(in mod.Magnitude);
+                hash = hash * 31 + ComputeCustomDataHash(in mod.CustomData);
             }
+            return hash;
+        }
+
+        private static int ComputeMagnitudeHash(in MagnitudeSource magnitude)
+        {
+            int hash = 17;
+            hash = hash * 31 + (int)magnitude.Type;
+            hash = hash * 31 + magnitude.Data0.GetHashCode();
+            hash = hash * 31 + magnitude.Data1.GetHashCode();
+            hash = hash * 31 + magnitude.Data2.GetHashCode();
+
+            var array = magnitude.ArrayData;
+            if (array != null)
+            {
+                hash = hash * 31 + array.Length;
+                for (int i = 0; i < array.Length; i++)
+                {
+                    hash = hash * 31 + array[i].GetHashCode();
+                }
+            }
+
+            hash = hash * 31 + magnitude.PipelineData.Count;
+            hash = hash * 31 + magnitude.PipelineData.Modifier0.GetHashCode();
+            hash = hash * 31 + magnitude.PipelineData.Modifier1.GetHashCode();
+            hash = hash * 31 + magnitude.PipelineData.Modifier2.GetHashCode();
+            hash = hash * 31 + magnitude.PipelineData.Modifier3.GetHashCode();
+            return hash;
+        }
+
+        private static int ComputeCustomDataHash(in CustomModifierData customData)
+        {
+            int hash = 17;
+            hash = hash * 31 + customData.CustomTypeId;
+            hash = hash * 31 + customData.IntValue;
+            hash = hash * 31 + (customData.StringValue != null ? customData.StringValue.GetHashCode() : 0);
+
+            var rawData = customData.RawData;
+            if (rawData != null)
+            {
+                hash = hash * 31 + rawData.Length;
+                for (int i = 0; i < rawData.Length; i++)
+                {
+                    hash = hash * 31 + rawData[i];
+                }
+            }
+
             return hash;
         }
 

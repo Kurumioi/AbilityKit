@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Share
 {
@@ -71,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchEnterGame(int frameIndex, in EnterGameData data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.EnterGameSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.EnterGame, data);
         }
 
         /// <summary>
@@ -79,7 +80,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchActorTransform(int frameIndex, in ActorTransformData[] data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.ActorTransformSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorTransform, data);
         }
 
         /// <summary>
@@ -87,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchProjectileEvent(int frameIndex, in ProjectileEventData[] data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.ProjectileEventSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.ProjectileEvent, data);
         }
 
         /// <summary>
@@ -95,7 +96,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchAreaEvent(int frameIndex, in AreaEventData[] data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.AreaEventSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.AreaEvent, data);
         }
 
         /// <summary>
@@ -103,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchDamageEvent(int frameIndex, in DamageEventData[] data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.DamageEventSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.DamageEvent, data);
         }
 
         /// <summary>
@@ -111,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchStateHash(int frameIndex, in StateHashData data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.StateHashSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.StateHash, data);
         }
 
         /// <summary>
@@ -119,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// </summary>
         public void DispatchActorSpawn(int frameIndex, in ActorSpawnData[] data)
         {
-            Dispatch(frameIndex, (int)MobaOpCode.ActorSpawnSnapshot, data);
+            Dispatch(frameIndex, MobaOpCodes.Snapshot.ActorSpawn, data);
         }
 
         /// <summary>
@@ -228,23 +229,4 @@ namespace AbilityKit.Demo.Moba.Share
         }
     }
 
-    /// <summary>
-    /// MOBA 操作码
-    /// 注意：这些值必须与 Runtime 层的 AbilityKit.Demo.Moba.Services.MobaOpCode 保持一致
-    /// </summary>
-    public static class MobaOpCode
-    {
-        public const int EnterGameSnapshot = 4002;
-        public const int ActorTransformSnapshot = 4003;
-        public const int StateHashSnapshot = 4004;
-        public const int ActorSpawnSnapshot = 4005;
-        public const int ProjectileEventSnapshot = 4006;
-        public const int DamageEventSnapshot = 4007;
-        public const int ActorDespawnSnapshot = 4008;
-        public const int AreaEventSnapshot = 4009;
-        public const int SkillCastSnapshot = 2001;
-        public const int SkillHitSnapshot = 2002;
-        public const int UnitDeathSnapshot = 3001;
-        public const int UnitReviveSnapshot = 3002;
-    }
 }

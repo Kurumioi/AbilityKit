@@ -12,6 +12,11 @@ namespace AbilityKit.Coordinator
     /// - Creates WorldHost, registers services, loads config
     /// - Implemented by game projects (ET Demo, Console Demo, etc.)
     /// </summary>
+    public interface ISessionCoordinatorConfigPolicy
+    {
+        void ConfigureSession(ref SessionConfig config);
+    }
+
     public interface ISessionCoordinatorHost
     {
         /// <summary>

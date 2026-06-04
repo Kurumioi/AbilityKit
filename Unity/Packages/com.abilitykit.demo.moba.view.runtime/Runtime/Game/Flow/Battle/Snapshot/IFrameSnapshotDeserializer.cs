@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -12,3 +12,4 @@ namespace AbilityKit.Game.Flow.Snapshot
         bool TryDeserializeStateHash(in WorldStateSnapshot snap, out MobaStateHashSnapshotPayload payload);
     }
 }
+

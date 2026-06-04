@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
 {
@@ -68,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessEnterGame(int frame, EnterGameData data)
         {
-            InvokeStages(MobaOpCode.EnterGameSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.EnterGame, frame, data);
         }
 
         /// <summary>
@@ -76,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessActorSpawn(int frame, List<ActorSpawnData> data)
         {
-            InvokeStages(MobaOpCode.ActorSpawnSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.ActorSpawn, frame, data);
         }
 
         /// <summary>
@@ -84,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessActorTransform(int frame, List<ActorTransformData> data)
         {
-            InvokeStages(MobaOpCode.ActorTransformSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.ActorTransform, frame, data);
         }
 
         /// <summary>
@@ -92,7 +93,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessProjectileEvent(int frame, List<ProjectileEventData> data)
         {
-            InvokeStages(MobaOpCode.ProjectileEventSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.ProjectileEvent, frame, data);
         }
 
         /// <summary>
@@ -100,7 +101,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessAreaEvent(int frame, List<AreaEventData> data)
         {
-            InvokeStages(MobaOpCode.AreaEventSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.AreaEvent, frame, data);
         }
 
         /// <summary>
@@ -108,7 +109,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessDamageEvent(int frame, List<DamageEventData> data)
         {
-            InvokeStages(MobaOpCode.DamageEventSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.DamageEvent, frame, data);
         }
 
         /// <summary>
@@ -116,7 +117,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Snapshot
         /// </summary>
         public void ProcessStateHash(int frame, StateHashData data)
         {
-            InvokeStages(MobaOpCode.StateHashSnapshot, frame, data);
+            InvokeStages(MobaOpCodes.Snapshot.StateHash, frame, data);
         }
 
         private void InvokeStages(int opCode, int frame, object data)

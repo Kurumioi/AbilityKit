@@ -228,12 +228,75 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
-                CenterMode = obj["CenterMode"]?.Value<int>() ?? 0,
-                Radius = obj["Radius"]?.Value<float>() ?? 0,
                 MaxCount = obj["MaxCount"]?.Value<int>() ?? 0,
-                ExcludeCaster = obj["ExcludeCaster"]?.Value<bool>() ?? false
+                ExplicitTargetPolicy = obj["ExplicitTargetPolicy"]?.Value<int>() ?? 0,
+                Provider = DeserializeSearchTargetProvider(obj["Provider"]),
+                Rules = DeserializeSearchTargetRules(obj["Rules"]),
+                Scorer = DeserializeSearchTargetScorer(obj["Scorer"]),
+                Selector = DeserializeSearchTargetSelector(obj["Selector"])
             };
             return dto;
+        }
+
+        private static SearchTargetProviderDTO DeserializeSearchTargetProvider(JToken token)
+        {
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SearchTargetProviderDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? 0,
+                Kind = obj["Kind"]?.Value<int>() ?? 0
+            };
+        }
+
+        private static SearchTargetRuleDTO[] DeserializeSearchTargetRules(JToken token)
+        {
+            if (token == null || token.Type != JTokenType.Array) return Array.Empty<SearchTargetRuleDTO>();
+            var array = token as JArray;
+            var result = new List<SearchTargetRuleDTO>();
+            foreach (var item in array)
+            {
+                var obj = item as JObject;
+                if (obj == null) continue;
+                result.Add(new SearchTargetRuleDTO
+                {
+                    Id = obj["Id"]?.Value<int>() ?? 0,
+                    Kind = obj["Kind"]?.Value<int>() ?? 0,
+                    Center = obj["Center"]?.Value<int>() ?? 0,
+                    Forward = obj["Forward"]?.Value<int>() ?? 0,
+                    Radius = obj["Radius"]?.Value<float>() ?? 0,
+                    HalfAngleDeg = obj["HalfAngleDeg"]?.Value<float>() ?? 0,
+                    ActorIds = obj["ActorIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
+                });
+            }
+            return result.ToArray();
+        }
+
+        private static SearchTargetScorerDTO DeserializeSearchTargetScorer(JToken token)
+        {
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SearchTargetScorerDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? 0,
+                Kind = obj["Kind"]?.Value<int>() ?? 0,
+                Source = obj["Source"]?.Value<int>() ?? 0,
+                RandomSeed = obj["RandomSeed"]?.Value<int>() ?? 0
+            };
+        }
+
+        private static SearchTargetSelectorDTO DeserializeSearchTargetSelector(JToken token)
+        {
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SearchTargetSelectorDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? 0,
+                Kind = obj["Kind"]?.Value<int>() ?? 0
+            };
         }
 
         private static BuffDTO DeserializeBuff(JObject obj)
@@ -446,12 +509,59 @@ namespace AbilityKit.Demo.Moba.Config.Core
                     result.Add(new SkillPhaseDTO
                     {
                         Type = obj["Type"]?.Value<int>() ?? 0,
+                        PhaseId = obj["PhaseId"]?.Value<string>() ?? obj["Name"]?.Value<string>() ?? string.Empty,
                         Checks = DeserializeSkillChecks(obj["Checks"]),
-                        Timeline = DeserializeSkillTimeline(obj["Timeline"])
+                        Timeline = DeserializeSkillTimeline(obj["Timeline"]),
+                        Children = DeserializeSkillPhases(obj["Children"]),
+                        Repeat = DeserializeSkillRepeat(obj["Repeat"]),
+                        Delay = DeserializeSkillDelay(obj["Delay"])
                     });
                 }
             }
             return result.ToArray();
+        }
+
+        private static SkillRepeatPhaseDTO DeserializeSkillRepeat(JToken token)
+        {
+            if (token == null) return null;
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillRepeatPhaseDTO
+            {
+                RepeatCount = obj["RepeatCount"]?.Value<int>() ?? 0,
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                Phase = DeserializeSkillPhase(obj["Phase"])
+            };
+        }
+
+        private static SkillDelayPhaseDTO DeserializeSkillDelay(JToken token)
+        {
+            if (token == null) return null;
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillDelayPhaseDTO
+            {
+                DelayMs = obj["DelayMs"]?.Value<int>() ?? 0
+            };
+        }
+
+        private static SkillPhaseDTO DeserializeSkillPhase(JToken token)
+        {
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillPhaseDTO
+            {
+                Type = obj["Type"]?.Value<int>() ?? 0,
+                PhaseId = obj["PhaseId"]?.Value<string>() ?? obj["Name"]?.Value<string>() ?? string.Empty,
+                Checks = DeserializeSkillChecks(obj["Checks"]),
+                Timeline = DeserializeSkillTimeline(obj["Timeline"]),
+                Children = DeserializeSkillPhases(obj["Children"]),
+                Repeat = DeserializeSkillRepeat(obj["Repeat"]),
+                Delay = DeserializeSkillDelay(obj["Delay"])
+            };
         }
 
         private static SkillChecksPhaseDTO DeserializeSkillChecks(JToken token)

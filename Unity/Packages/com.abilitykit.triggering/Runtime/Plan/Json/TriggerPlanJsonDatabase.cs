@@ -7,8 +7,6 @@ using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Config.Plans;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
@@ -20,7 +18,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     /// </summary>
     public sealed class TriggerPlanJsonDatabase
     {
-        private static readonly TriggerPlanSourceConverter _sourceConverter = new TriggerPlanSourceConverter();
+        private static readonly TriggerPlanJsonParser _parser = new TriggerPlanJsonParser();
         /// <summary>
         /// Cue 工厂接口
         /// 负责将 JSON 中的 CueKind / CueVfxId / CueSfxId 解析为具体的 ITriggerCue 实例
@@ -73,7 +71,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public TriggerPlanScope Scope;
             public PredicatePlanDto Predicate;
             public List<ActionCallPlanDto> Actions;
-
+            public ExecutionControlPlanDto ExecutionControl;
+            public ExecutionNodeDto ExecutionRoot;
+ 
             /// <summary>
             /// 表现 Cue 类型名，由 ICueFactory 解析为 ITriggerCue 实例
             /// </summary>
@@ -123,6 +123,32 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         [Serializable]
+        internal sealed class ExecutionControlPlanDto
+        {
+            public string Mode;
+            public int MaxExecutions;
+            public float CooldownMs;
+        }
+
+        [Serializable]
+        internal sealed class ExecutionNodeDto
+        {
+            public string Kind;
+            public ActionCallPlanDto Action;
+            public PredicatePlanDto Condition;
+            public PredicatePlanDto UntilCondition;
+            public List<ExecutionNodeDto> Children;
+            public List<ExecutionNodeDto> ElseChildren;
+            public int Count = 1;
+            public int MaxIterations = 1;
+            public float Weight = 1f;
+            public string Reason;
+            public string SourceKind;
+            public string SourceId;
+            public string SourcePath;
+        }
+
+        [Serializable]
         internal sealed class NumericValueRefDto
         {
             public string Kind;
@@ -142,19 +168,23 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public readonly int EventId;
             public readonly TriggerPlanScope Scope;
             public readonly TriggerPlan<object> Plan;
-
-            public Record(int triggerId, string eventName, int eventId, TriggerPlanScope scope, in TriggerPlan<object> plan)
+            public readonly ITriggerPlanExecutable ExecutionRoot;
+ 
+            public Record(int triggerId, string eventName, int eventId, TriggerPlanScope scope, in TriggerPlan<object> plan, ITriggerPlanExecutable executionRoot = null)
             {
                 TriggerId = triggerId;
                 EventName = eventName;
                 EventId = eventId;
                 Scope = scope;
                 Plan = plan;
+                ExecutionRoot = executionRoot;
             }
         }
 
         private List<Record> _records = new List<Record>();
+        private Dictionary<int, Record> _recordsByTriggerId = new Dictionary<int, Record>();
         private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+        private Dictionary<int, ITriggerPlanExecutable> _executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
         private Dictionary<int, string> _strings = new Dictionary<int, string>();
         private ICueFactory _cueFactory = DefaultCueFactory.Instance;
 
@@ -167,11 +197,25 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             return _strings != null && _strings.TryGetValue(id, out value);
         }
 
+        public bool TryGetRecordByTriggerId(int triggerId, out Record record)
+        {
+            record = default;
+            if (triggerId <= 0) return false;
+            return _recordsByTriggerId != null && _recordsByTriggerId.TryGetValue(triggerId, out record);
+        }
+
         public bool TryGetPlanByTriggerId(int triggerId, out TriggerPlan<object> plan)
         {
             plan = default;
             if (triggerId <= 0) return false;
             return _byTriggerId != null && _byTriggerId.TryGetValue(triggerId, out plan);
+        }
+
+        public bool TryGetExecutionRootByTriggerId(int triggerId, out ITriggerPlanExecutable root)
+        {
+            root = null;
+            if (triggerId <= 0) return false;
+            return _executionRootsByTriggerId != null && _executionRootsByTriggerId.TryGetValue(triggerId, out root) && root != null;
         }
 
         public void AddString(int id, string value, bool replaceExisting = true)
@@ -188,7 +232,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (record.TriggerId <= 0) return;
             if (_records == null) _records = new List<Record>();
+            if (_recordsByTriggerId == null) _recordsByTriggerId = new Dictionary<int, Record>();
             if (_byTriggerId == null) _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+            if (_executionRootsByTriggerId == null) _executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
 
             var existingIndex = -1;
             for (int i = 0; i < _records.Count; i++)
@@ -210,7 +256,16 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 _records.Add(record);
             }
 
+            _recordsByTriggerId[record.TriggerId] = record;
             _byTriggerId[record.TriggerId] = record.Plan;
+            if (record.ExecutionRoot != null)
+            {
+                _executionRootsByTriggerId[record.TriggerId] = record.ExecutionRoot;
+            }
+            else
+            {
+                _executionRootsByTriggerId.Remove(record.TriggerId);
+            }
         }
 
         public void MergeFrom(TriggerPlanJsonDatabase source, bool replaceExisting = true)
@@ -278,59 +333,29 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
         internal static TriggerPlanDatabaseDto ParseRuntimeDto(string json, string sourceName = null)
         {
-            try
+            var result = _parser.Parse(json, sourceName);
+            if (result.Success && result.Dto != null)
             {
-                if (IsSourceFormatJson(json))
-                {
-                    var runtimeJson = _sourceConverter.ConvertSourceToRuntimeJson(json);
-                    return JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(runtimeJson);
-                }
+                return result.Dto;
+            }
 
-                return JsonConvert.DeserializeObject<TriggerPlanDatabaseDto>(json);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {ex.Message}", ex);
-            }
+            var error = result.FirstError;
+            var message = string.IsNullOrEmpty(error.Message)
+                ? "Unknown trigger plan json parse error"
+                : error.Message;
+            throw new InvalidOperationException($"Failed to parse trigger plan json: {sourceName ?? "<json>"}. {message}", error.Exception);
         }
 
         internal static bool IsSourceFormatJson(string json)
         {
-            if (string.IsNullOrEmpty(json))
-            {
-                return false;
-            }
-
-            var root = JObject.Parse(json);
-            if (HasProperty(root, "Triggers", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            return HasProperty(root, "triggers", StringComparison.Ordinal) ||
-                   HasProperty(root, "actions", StringComparison.OrdinalIgnoreCase) ||
-                   HasProperty(root, "conditions", StringComparison.OrdinalIgnoreCase) ||
-                   HasProperty(root, "$schema", StringComparison.OrdinalIgnoreCase) ||
-                   HasProperty(root, "version", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool HasProperty(JObject root, string name, StringComparison comparison)
-        {
-            foreach (var property in root.Properties())
-            {
-                if (string.Equals(property.Name, name, comparison))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return _parser.DetectFormat(json) == TriggerPlanJsonFormat.Source;
         }
 
         internal void LoadFromDto(TriggerPlanDatabaseDto dto)
         {
             var next = new List<Record>();
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
+            var executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
             var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
             if (dto?.Triggers != null)
             {
@@ -347,13 +372,19 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     }
 
                     var plan = _converter.Convert(t);
-                    next.Add(new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan));
+                    var executionRoot = _converter.ConvertExecutionRoot(t);
+                    next.Add(new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan, executionRoot));
                     byTriggerId[t.TriggerId] = plan;
+                    if (executionRoot != null)
+                    {
+                        executionRootsByTriggerId[t.TriggerId] = executionRoot;
+                    }
                 }
             }
 
             _records = next;
             _byTriggerId = byTriggerId;
+            _executionRootsByTriggerId = executionRootsByTriggerId;
             _strings = strings;
         }
 

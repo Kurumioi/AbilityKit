@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Share
 {
@@ -32,12 +33,12 @@ namespace AbilityKit.Demo.Moba.Share
 
         private void Subscribe()
         {
-            _subscriptions.Add(_snapshots.Subscribe<EnterGameData>((int)MobaOpCode.EnterGameSnapshot, OnEnterGameSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<ActorTransformData[]>((int)MobaOpCode.ActorTransformSnapshot, OnActorTransformSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<ProjectileEventData[]>((int)MobaOpCode.ProjectileEventSnapshot, OnProjectileEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<AreaEventData[]>((int)MobaOpCode.AreaEventSnapshot, OnAreaEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>((int)MobaOpCode.DamageEventSnapshot, OnDamageEventSnapshot));
-            _subscriptions.Add(_snapshots.Subscribe<StateHashData>((int)MobaOpCode.StateHashSnapshot, OnStateHashSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<EnterGameData>(MobaOpCodes.Snapshot.EnterGame, OnEnterGameSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<ActorTransformData[]>(MobaOpCodes.Snapshot.ActorTransform, OnActorTransformSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<ProjectileEventData[]>(MobaOpCodes.Snapshot.ProjectileEvent, OnProjectileEventSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<AreaEventData[]>(MobaOpCodes.Snapshot.AreaEvent, OnAreaEventSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<DamageEventData[]>(MobaOpCodes.Snapshot.DamageEvent, OnDamageEventSnapshot));
+            _subscriptions.Add(_snapshots.Subscribe<StateHashData>(MobaOpCodes.Snapshot.StateHash, OnStateHashSnapshot));
         }
 
         private void OnEnterGameSnapshot(int frameIndex, EnterGameData data)

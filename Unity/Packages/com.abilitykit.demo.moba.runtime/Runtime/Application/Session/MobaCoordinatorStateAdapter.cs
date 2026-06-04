@@ -1,7 +1,43 @@
+using System;
 using AbilityKit.Coordinator;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Session
 {
-    // Coordinator state conversion currently lives in MobaBattleDriverHost for generated project compatibility.
+    /// <summary>
+    /// Converts logic-world entity state snapshots into coordinator-facing state records.
+    /// </summary>
+    public sealed class MobaCoordinatorStateAdapter
+    {
+        public SnapshotEntityState[] ToCoordinatorStates(LogicWorldEntityState[] states)
+        {
+            if (states == null || states.Length == 0)
+            {
+                return Array.Empty<SnapshotEntityState>();
+            }
+
+            var result = new SnapshotEntityState[states.Length];
+            for (int i = 0; i < states.Length; i++)
+            {
+                var state = states[i];
+                var entityState = new EntityState
+                {
+                    EntityId = state.EntityId,
+                    X = state.X,
+                    Y = state.Y,
+                    Z = state.Z,
+                    Rotation = state.Rotation,
+                    VelocityX = state.VelocityX,
+                    VelocityZ = state.VelocityZ,
+                    Hp = state.Hp,
+                    HpMax = state.HpMax,
+                    TeamId = state.TeamId,
+                    IsDead = state.IsDead
+                };
+                result[i] = entityState.ToSnapshotEntityState();
+            }
+
+            return result;
+        }
+    }
 }

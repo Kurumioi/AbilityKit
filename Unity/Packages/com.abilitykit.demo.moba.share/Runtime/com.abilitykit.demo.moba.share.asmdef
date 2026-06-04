@@ -5,7 +5,8 @@
         "Unity.Mathematics",
         "AbilityKit.Core",
         "AbilityKit.Host",
-        "AbilityKit.World.FrameSync"
+        "AbilityKit.World.FrameSync",
+        "AbilityKit.Protocol.Moba"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

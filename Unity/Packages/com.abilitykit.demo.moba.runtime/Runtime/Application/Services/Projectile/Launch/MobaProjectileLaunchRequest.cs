@@ -1,0 +1,41 @@
+using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+
+namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
+{
+    public readonly struct MobaProjectileLaunchRequest
+    {
+        public MobaProjectileLaunchRequest(
+            int casterActorId,
+            ProjectileLauncherMO launcher,
+            ProjectileMO projectile,
+            int countPerShot,
+            float fanAngleDeg,
+            in Vec3 spawnPosition,
+            in Vec3 direction,
+            in ProjectileSourceContext sourceContext)
+        {
+            CasterActorId = casterActorId;
+            Launcher = launcher;
+            Projectile = projectile;
+            CountPerShot = countPerShot;
+            FanAngleDeg = fanAngleDeg;
+            SpawnPosition = spawnPosition;
+            Direction = direction;
+            SourceContext = sourceContext;
+        }
+
+        public int CasterActorId { get; }
+        public ProjectileLauncherMO Launcher { get; }
+        public ProjectileMO Projectile { get; }
+        public int CountPerShot { get; }
+        public float FanAngleDeg { get; }
+        public Vec3 SpawnPosition { get; }
+        public Vec3 Direction { get; }
+        public ProjectileSourceContext SourceContext { get; }
+
+        public int LauncherId => Launcher != null ? Launcher.Id : 0;
+        public int ProjectileId => Projectile != null ? Projectile.Id : 0;
+        public int DurationMs => Launcher != null ? Launcher.DurationMs : 0;
+    }
+}

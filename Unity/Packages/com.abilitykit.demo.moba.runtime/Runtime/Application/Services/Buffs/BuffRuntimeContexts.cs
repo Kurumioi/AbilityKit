@@ -119,6 +119,8 @@ namespace AbilityKit.Demo.Moba.Services
         float RemainingSeconds { get; }
         float IntervalRemainingSeconds { get; }
         long SourceContextId { get; }
+        MobaGameplayOrigin Origin { get; }
+        MobaContextSourceView ContextSource { get; }
         BuffContinuousRuntime Continuous { get; }
         MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         MobaSkillRuntimeRetainHandle SkillRuntimeRetainHandle { get; }
@@ -147,6 +149,8 @@ namespace AbilityKit.Demo.Moba.Services
         void SetRemainingSeconds(float remainingSeconds);
         void SetIntervalRemainingSeconds(float intervalRemainingSeconds);
         void BindSourceContext(long sourceContextId);
+        void BindOrigin(in MobaGameplayOrigin origin);
+        void BindContextSource(in MobaContextSourceView source);
         void SetContinuous(BuffContinuousRuntime continuous);
         void SetTagRequirements(ContinuousTagRequirements requirements);
         void BindSkillRuntime(in MobaSkillCastRuntimeHandle runtimeHandle, in MobaSkillRuntimeRetainHandle retainHandle);
@@ -170,6 +174,8 @@ namespace AbilityKit.Demo.Moba.Services
         public float RemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.RemainingSeconds : _runtime != null ? _runtime.Remaining : 0f;
         public float IntervalRemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.IntervalRemainingSeconds : _runtime != null ? _runtime.IntervalRemainingSeconds : 0f;
         public long SourceContextId => _runtime != null ? _runtime.SourceContextId : 0L;
+        public MobaGameplayOrigin Origin => _runtime != null ? _runtime.Origin : default;
+        public MobaContextSourceView ContextSource => _runtime != null ? _runtime.ContextSource : default;
         public BuffContinuousRuntime Continuous => _runtime != null ? _runtime.Continuous : null;
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle => _runtime != null ? _runtime.SkillRuntimeHandle : default;
         public MobaSkillRuntimeRetainHandle SkillRuntimeRetainHandle => _runtime != null ? _runtime.SkillRuntimeRetainHandle : default;
@@ -209,6 +215,18 @@ namespace AbilityKit.Demo.Moba.Services
             _runtime.SourceContextId = sourceContextId;
         }
 
+        public void BindOrigin(in MobaGameplayOrigin origin)
+        {
+            if (_runtime == null) return;
+            _runtime.Origin = origin;
+        }
+
+        public void BindContextSource(in MobaContextSourceView source)
+        {
+            if (_runtime == null) return;
+            _runtime.ContextSource = source;
+        }
+
         public void SetContinuous(BuffContinuousRuntime continuous)
         {
             if (_runtime == null) return;
@@ -239,6 +257,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (_runtime == null) return;
             _runtime.SourceContextId = 0;
+            _runtime.Origin = default;
+            _runtime.ContextSource = default;
             _runtime.Continuous = null;
             _runtime.TagRequirements = null;
             ClearSkillRuntimeBinding();

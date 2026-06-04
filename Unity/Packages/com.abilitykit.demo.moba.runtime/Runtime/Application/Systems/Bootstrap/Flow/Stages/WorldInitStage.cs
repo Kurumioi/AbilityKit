@@ -1,7 +1,5 @@
-using System;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Common.Log;
@@ -14,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
     /// WorldInit Install Stage
-    /// 初始化世界（设置进入游戏请求）
+    /// 鍒濆鍖栦笘鐣岋紙璁剧疆杩涘叆娓告垙璇锋眰锛?
     /// </summary>
     [MobaBootstrapStage]
     public sealed class WorldInitStage : MobaBootstrapStageBase
@@ -43,50 +41,30 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return;
             }
 
-            // CreateWorld stage: store game start spec for later StartGame (server adjudication)
-            EnterMobaGameReq req;
-            if (MobaCreateWorldInitCodec.TryDeserializeReq(init.Payload, out var initReq))
+            if (!MobaCreateWorldInitCodec.TryDeserialize(init.Payload, out var initPayload))
             {
-                req = initReq;
+                Log.Error("[WorldInitStage] WorldInitData payload is not a valid create-world init payload");
+                return;
+            }
+
+            var spec = initPayload.ToGameStartSpec();
+            if (services.TryResolve<MobaGameStartSpecService>(out var specService))
+            {
+                specService.Set(in spec);
+                Log.Info("[WorldInitStage] WorldInitData decoded; game start spec stored");
             }
             else
             {
-                req = EnterMobaGameCodec.DeserializeReq(init.Payload);
+                Log.Error("[WorldInitStage] MobaGameStartSpecService not found; cannot store game start spec");
             }
 
             // Seed deterministic world random as early as possible.
             if (services.TryResolve<IWorldRandom>(out var random) && random is RollbackWorldRandom rr)
             {
-                rr.SetSeed(req.RandomSeed);
-                Log.Info($"[WorldInitStage] Seed world random success (seed={req.RandomSeed})");
-            }
-
-            var spec = new MobaGameStartSpec(in req);
-            if (services.TryResolve<MobaEnterGameFlowService>(out var flow) && flow != null)
-            {
-                try
-                {
-                    var ctx = services.Resolve<Entitas.IContexts>();
-                    var actorContext = ((Contexts)ctx).actor;
-                    flow.ApplyGameStartSpec(actorContext, in spec);
-                    Log.Info("[WorldInitStage] ApplyGameStartSpec success");
-
-                    if (services.TryResolve<MobaGamePhaseService>(out var phase) && phase != null)
-                    {
-                        phase.SetInGame();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // ET Demo provides player data via OnAllPlayersReady, not via WorldInitData
-                    // Empty players in WorldInitData is expected and should not be treated as error
-                    Log.Warning($"[WorldInitStage] ApplyGameStartSpec skipped (ET Demo uses OnAllPlayersReady): {ex.Message}");
-                }
-            }
-            else
-            {
-                Log.Info("[WorldInitStage] MobaEnterGameFlowService not found; cannot ApplyGameStartSpec");
+                rr.SetSeed(initPayload.Spec.RandomSeed);
+                Log.Info($"[WorldInitStage] Seed world random success (seed={initPayload.Spec.RandomSeed})");
             }
         }
     }
 }
+

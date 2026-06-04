@@ -21,6 +21,9 @@ namespace AbilityKit.Demo.Moba.Util.Generator
         Minion = 2,
         Monster = 3,
         Projectile = 4,
+        Summon = 5,
+        ProjectileLauncher = 6,
+        Area = 7,
     }
 
     /* 生成 ActorEntity 骨架所需的最小信息集合。 */
@@ -75,6 +78,9 @@ namespace AbilityKit.Demo.Moba.Util.Generator
             { MobaEntityKind.Minion, CreateMinion },
             { MobaEntityKind.Monster, CreateMonster },
             { MobaEntityKind.Projectile, CreateProjectile },
+            { MobaEntityKind.Summon, CreateSummon },
+            { MobaEntityKind.ProjectileLauncher, CreateProjectileLauncher },
+            { MobaEntityKind.Area, CreateArea },
         };
 
         public static void Register(MobaEntityKind kind, CreateHandler handler)
@@ -142,6 +148,47 @@ namespace AbilityKit.Demo.Moba.Util.Generator
                 .WithActorId(info.ActorId)
                 .WithTransform(info.Transform)
                 .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.15f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Projectile);
+
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
+        }
+
+        private static ActorEntity CreateSummon(ActorContext context, in MobaEntityInfo info)
+        {
+            /* Summon 默认按可移动单位骨架创建，具体属性/技能由 Spawn 后置初始化负责。 */
+            var b = ActorEntityFactory.Create(context)
+                .WithActorId(info.ActorId)
+                .WithTransform(info.Transform)
+                .WithMotion()
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
+                .WithCollisionLayer(layerMask: CollisionLayer_Unit);
+
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
+        }
+
+        private static ActorEntity CreateProjectileLauncher(ActorContext context, in MobaEntityInfo info)
+        {
+            /* Launcher 是逻辑承载实体，保留 Transform/Meta，不参与碰撞。 */
+            var b = ActorEntityFactory.Create(context)
+                .WithActorId(info.ActorId)
+                .WithTransform(info.Transform);
+
+            var e = b.Build();
+            ApplyMeta(e, in info);
+            return e;
+        }
+
+        private static ActorEntity CreateArea(ActorContext context, in MobaEntityInfo info)
+        {
+            /* Area/AOE 预留为 ActorEntity 时使用的骨架；当前 Area 事件系统仍可独立运行。 */
+            var b = ActorEntityFactory.Create(context)
+                .WithActorId(info.ActorId)
+                .WithTransform(info.Transform)
+                .WithCollider(ColliderShape.CreateSphere(new Sphere(Vec3.Zero, 0.5f)))
                 .WithCollisionLayer(layerMask: CollisionLayer_Projectile);
 
             var e = b.Build();

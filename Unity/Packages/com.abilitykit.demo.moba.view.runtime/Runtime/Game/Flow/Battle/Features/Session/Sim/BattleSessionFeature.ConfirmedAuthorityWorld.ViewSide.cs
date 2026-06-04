@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using AbilityKit.Core.Common.SnapshotRouting;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.World.ECS;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -55,13 +55,13 @@ namespace AbilityKit.Game.Flow
 
                 // Apply snapshots to confirmed view-side entity world (same logic as BattleSyncFeature subscriptions).
                 _confirmedViewSubActorTransform = _confirmedViewSnapshots.Subscribe<MobaActorTransformSnapshotEntry[]>(
-                    (int)MobaOpCode.ActorTransformSnapshot,
+                    MobaOpCodes.Snapshot.ActorTransform,
                     (packet, entries) => ApplyConfirmedViewTransformSnapshot(entries));
                 _confirmedViewSubStateHash = _confirmedViewSnapshots.Subscribe<MobaStateHashSnapshotPayload>(
-                    (int)MobaOpCode.StateHashSnapshot,
+                    MobaOpCodes.Snapshot.StateHash,
                     (packet, snap) => ApplyConfirmedViewStateHashSnapshot(snap));
                 _confirmedViewSubActorSpawn = _confirmedViewSnapshots.Subscribe<MobaActorSpawnSnapshotEntry[]>(
-                    (int)MobaOpCode.ActorSpawnSnapshot,
+                    MobaOpCodes.Snapshot.ActorSpawn,
                     (packet, entries) => ApplyConfirmedViewSpawnSnapshot(entries));
 
                 _confirmedViewCtx.FrameSnapshots = _confirmedViewSnapshots;
@@ -276,3 +276,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

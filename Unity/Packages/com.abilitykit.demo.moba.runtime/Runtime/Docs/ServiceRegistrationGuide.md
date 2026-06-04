@@ -46,11 +46,12 @@ namespace AbilityKit.Demo.Moba.Services
 
 ```csharp
 /// <summary>
-/// 同时注册为 IWorldInputSink 和具体类型
+/// 输入协调器同时作为玩法输入入口和 Host 帧同步输入落点。
 /// </summary>
 [WorldService(typeof(IWorldInputSink))]
-[WorldService(typeof(MobaLobbyInputSink))]
-public sealed class MobaLobbyInputSink : IWorldInputSink, IWorldInitializable
+[WorldService(typeof(IMobaInputCoordinator))]
+[WorldService(typeof(MobaInputCoordinator))]
+public sealed class MobaInputCoordinator : IWorldInputSink, IMobaInputCoordinator
 {
     // 实现
 }
@@ -170,7 +171,7 @@ Services/
 ├── Entity/             # 实体管理（MobaEntityManager）
 ├── Actor/              # Actor管理（MobaActorRegistry）
 ├── Snapshot/           # 快照服务（MobaSnapshotRouter）
-├── Input/              # 输入处理（MobaLobbyInputSink）
+├── Input/              # 输入处理（MobaInputCoordinator）
 ├── Projectile/        # 投射物服务
 ├── Spawn/             # 实体生成
 ├── FrameSync/         # 帧同步

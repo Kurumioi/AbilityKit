@@ -1,114 +1,17 @@
-using System;
-using System.IO;
-using System.Text;
-using AbilityKit.Core.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using AbilityKit.Protocol.Serialization;
-using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
+namespace AbilityKit.Protocol.Moba.CreateWorld
 {
-    [MemoryPackable]
-    internal readonly partial struct MobaCreateWorldLegacyReqPayload
-    {
-        [MemoryPackOrder(0), BinaryMember(0)] public readonly EnterMobaGameReq Req;
-
-        [MemoryPackConstructor]
-        public MobaCreateWorldLegacyReqPayload(in EnterMobaGameReq req)
-        {
-            Req = req;
-        }
-    }
-
     public static class MobaCreateWorldInitCodec
     {
-        private const uint Magic = 0x4D434957; // 'MCIW'
-        private const int CurrentVersion = 2;
-
         public static byte[] Serialize(in MobaCreateWorldInitPayload payload)
         {
-            var body = WireSerializer.Serialize(in payload);
-
-            using var ms = new MemoryStream(body.Length + 8);
-            using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
-            bw.Write(Magic);
-            bw.Write(CurrentVersion);
-            bw.Write(body);
-            bw.Flush();
-            return ms.ToArray();
-        }
-
-        public static byte[] SerializeLegacyReq(in EnterMobaGameReq req)
-        {
-            var legacy = new MobaCreateWorldLegacyReqPayload(in req);
-            var body = WireSerializer.Serialize(in legacy);
-
-            using var ms = new MemoryStream(body.Length + 8);
-            using var bw = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
-            bw.Write(Magic);
-            bw.Write(1);
-            bw.Write(body);
-            bw.Flush();
-            return ms.ToArray();
-        }
-
-        public static bool TryDeserializeReq(byte[] bytes, out EnterMobaGameReq req)
-        {
-            if (bytes == null || bytes.Length < 12)
-            {
-                req = default;
-                return false;
-            }
-
-            try
-            {
-                using var ms = new MemoryStream(bytes);
-                using var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
-
-                var magic = br.ReadUInt32();
-                if (magic != Magic)
-                {
-                    req = default;
-                    return false;
-                }
-
-                var ver = br.ReadInt32();
-                var remaining = (int)(ms.Length - ms.Position);
-                if (remaining <= 0)
-                {
-                    req = default;
-                    return false;
-                }
-
-                var body = br.ReadBytes(remaining);
-
-                if (ver == 1)
-                {
-                    var p1 = WireSerializer.Deserialize<MobaCreateWorldLegacyReqPayload>(body);
-                    req = p1.Req;
-                    return true;
-                }
-
-                if (ver == 2)
-                {
-                    var p2 = WireSerializer.Deserialize<MobaCreateWorldInitPayload>(body);
-                    req = p2.ToEnterReq();
-                    return true;
-                }
-
-                req = default;
-                return false;
-            }
-            catch
-            {
-                req = default;
-                return false;
-            }
+            return WireSerializer.Serialize(in payload);
         }
 
         public static bool TryDeserialize(byte[] bytes, out MobaCreateWorldInitPayload payload)
         {
-            if (bytes == null || bytes.Length < 12)
+            if (bytes == null || bytes.Length == 0)
             {
                 payload = default;
                 return false;
@@ -116,32 +19,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
 
             try
             {
-                using var ms = new MemoryStream(bytes);
-                using var br = new BinaryReader(ms, Encoding.UTF8, leaveOpen: true);
-
-                var magic = br.ReadUInt32();
-                if (magic != Magic)
-                {
-                    payload = default;
-                    return false;
-                }
-
-                var ver = br.ReadInt32();
-                if (ver != 2)
-                {
-                    payload = default;
-                    return false;
-                }
-
-                var remaining = (int)(ms.Length - ms.Position);
-                if (remaining <= 0)
-                {
-                    payload = default;
-                    return false;
-                }
-
-                var body = br.ReadBytes(remaining);
-                payload = WireSerializer.Deserialize<MobaCreateWorldInitPayload>(body);
+                payload = WireSerializer.Deserialize<MobaCreateWorldInitPayload>(bytes);
                 return true;
             }
             catch

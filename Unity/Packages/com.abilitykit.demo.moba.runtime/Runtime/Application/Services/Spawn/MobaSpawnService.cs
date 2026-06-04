@@ -1,14 +1,11 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Coordinator;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Generic;
-using AbilityKit.Demo.Moba.Services.EntityManager;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
 using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -18,9 +15,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Logic-world spawn service implementation.
-    /// Coordinator hosts can still reach it through ISpawnService, while server/headless hosts
-    /// can use ILogicWorldSpawnService without depending on coordinator DTOs.
+    /// Legacy fallback that converts spawn data into a game-start request.
+    /// The formal MOBA startup path provides WorldInitData before bootstrap and uses StartGameStage.
     /// </summary>
     [WorldService(typeof(MobaSpawnService))]
     [WorldService(typeof(ILogicWorldSpawnService))]
@@ -28,9 +24,6 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaSpawnService : ILogicWorldSpawnService, ISpawnService
     {
         [WorldInject] private MobaEnterGameFlowService _enterGameFlow;
-        [WorldInject] private MobaActorRegistry _registry;
-        [WorldInject] private MobaEntityManager _entities;
-        [WorldInject] private MobaActorSpawnSnapshotService _spawnSnapshot;
         [WorldInject] private global::Entitas.IContexts _contexts;
         private readonly PlayerId _defaultPlayerId = new PlayerId("default");
 
@@ -47,11 +40,10 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            Log.Info($"[MobaSpawnService] Creating {spawns.Length} player spawns");
+            Log.Warning("[MobaSpawnService] Legacy spawn fallback is starting battle directly; prefer create-world init payload");
 
             try
             {
-                // 使用 SpawnDataConverter 转换数据
                 var spec = SpawnDataConverter.ConvertToGameStartSpec(
                     spawns,
                     _defaultPlayerId,
@@ -62,7 +54,6 @@ namespace AbilityKit.Demo.Moba.Services
                     randomSeed: Environment.TickCount
                 );
 
-                // Get ActorContext from contexts
                 var actorContext = (_contexts as global::Contexts)?.actor;
                 if (actorContext == null)
                 {
@@ -70,16 +61,15 @@ namespace AbilityKit.Demo.Moba.Services
                     return false;
                 }
 
-                // Apply game start spec (creates entities)
                 var result = _enterGameFlow.ApplyGameStartSpec(actorContext, in spec);
 
                 if (result)
                 {
-                    Log.Info($"[MobaSpawnService] Successfully created {spawns.Length} player spawns");
+                    Log.Info($"[MobaSpawnService] Legacy spawn fallback started battle with {spawns.Length} spawns");
                 }
                 else
                 {
-                    Log.Warning($"[MobaSpawnService] Failed to create player spawns");
+                    Log.Warning("[MobaSpawnService] Legacy spawn fallback did not start battle");
                 }
 
                 return result;

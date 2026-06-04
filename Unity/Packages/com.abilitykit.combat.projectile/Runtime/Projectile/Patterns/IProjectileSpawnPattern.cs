@@ -6,4 +6,9 @@ namespace AbilityKit.Core.Common.Projectile
     {
         void Build(in ProjectileSpawnParams baseSpawn, List<ProjectileSpawnParams> results);
     }
+
+    public interface IProjectileSpawnPatternProvider
+    {
+        IProjectileSpawnPattern GetPattern(in ProjectileSpawnParams baseSpawn, int frame);
+    }
 }

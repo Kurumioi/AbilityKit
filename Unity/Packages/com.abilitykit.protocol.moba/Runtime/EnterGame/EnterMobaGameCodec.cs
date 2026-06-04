@@ -1,7 +1,7 @@
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Serialization;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.CreateWorld
+namespace AbilityKit.Protocol.Moba.CreateWorld
 {
     public static class EnterMobaGameCodec
     {

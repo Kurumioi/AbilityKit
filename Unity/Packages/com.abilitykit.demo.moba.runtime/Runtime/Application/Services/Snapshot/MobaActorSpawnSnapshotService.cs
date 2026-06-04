@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_hasSnapshot && !_sent)
             {
-                snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorSpawnSnapshot, _snapshotPayload);
+                snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorSpawn, _snapshotPayload);
                 _sent = true;
                 return true;
             }
@@ -57,7 +57,7 @@ namespace AbilityKit.Demo.Moba.Services
                 try
                 {
                     var payload = MobaActorSpawnSnapshotCodec.Serialize(_pending.ToArrayClearAndTrim());
-                    snapshot = new WorldStateSnapshot((int)MobaOpCode.ActorSpawnSnapshot, payload);
+                    snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorSpawn, payload);
                     return true;
                 }
                 catch

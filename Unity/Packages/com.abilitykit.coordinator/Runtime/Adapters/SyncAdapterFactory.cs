@@ -51,8 +51,8 @@ namespace AbilityKit.Coordinator
                 throw new ArgumentNullException(nameof(world), "World cannot be null");
             }
 
-            var mode = config.HostMode == HostMode.Local ? Core.SyncMode.Lockstep : config.SyncMode;
-            if (_creators.TryGetValue(mode, out var creator))
+            var policy = config.ResolveRuntimePolicy();
+            if (_creators.TryGetValue(policy.EffectiveSyncMode, out var creator))
             {
                 return creator(world, in config);
             }

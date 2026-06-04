@@ -3,20 +3,12 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Protocol.Moba.StateSync;
 
-/// <summary>
-/// 文件名称: MobaMoveInputCommandHandler.cs
-/// 
-/// 功能描述: 处理 MOBA 移动输入命令。
-/// 
-/// 创建日期: 2026-05-27
-/// 修改日期: 2026-05-27
-/// </summary>
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// 移动输入处理器。
+    /// 处理 MOBA 移动输入命令。
     /// </summary>
-    [MobaInputCommandHandler((int)MobaOpCode.Move)]
+    [MobaInputCommandHandler(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move)]
     public sealed class MobaMoveInputCommandHandler : IMobaInputCommandHandler
     {
         public void Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)

@@ -1,8 +1,8 @@
-﻿using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host;
 using AbilityKit.Core.Generic;
 using MemoryPack;
 
-namespace AbilityKit.Ability.Share.Impl.Moba.Struct
+namespace AbilityKit.Protocol.Moba
 {
     [MemoryPackable]
     public readonly partial struct MobaCreateWorldSpec
@@ -15,12 +15,14 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
         [MemoryPackOrder(4), BinaryMember(4)] public readonly int InputDelayFrames;
 
         [MemoryPackOrder(5), BinaryMember(5)] public readonly MobaPlayerLoadout[] Players;
+        [MemoryPackOrder(6), BinaryMember(6)] public readonly int GameplayId;
 
         [MemoryPackConstructor]
-        public MobaCreateWorldSpec(string matchId, int mapId, int randomSeed, int tickRate, int inputDelayFrames, MobaPlayerLoadout[] players)
+        public MobaCreateWorldSpec(string matchId, int mapId, int randomSeed, int tickRate, int inputDelayFrames, MobaPlayerLoadout[] players, int gameplayId = 0)
         {
             MatchId = matchId;
             MapId = mapId;
+            GameplayId = gameplayId;
             RandomSeed = randomSeed;
             TickRate = tickRate;
             InputDelayFrames = inputDelayFrames;
@@ -38,7 +40,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
                 inputDelayFrames: InputDelayFrames,
                 opCode: opCode,
                 payload: payload,
-                players: Players);
+                players: Players,
+                gameplayId: GameplayId);
         }
 
         public static MobaCreateWorldSpec FromEnterReq(in EnterMobaGameReq req)
@@ -49,7 +52,8 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Struct
                 randomSeed: req.RandomSeed,
                 tickRate: req.TickRate,
                 inputDelayFrames: req.InputDelayFrames,
-                players: req.Players);
+                players: req.Players,
+                gameplayId: req.GameplayId);
         }
     }
 }

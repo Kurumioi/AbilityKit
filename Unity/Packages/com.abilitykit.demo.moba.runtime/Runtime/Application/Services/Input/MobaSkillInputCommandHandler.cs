@@ -1,21 +1,12 @@
-using AbilityKit.Ability.FrameSync;
+﻿using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 
-/// <summary>
-/// 文件名称: MobaSkillInputCommandHandler.cs
-/// 
-/// 功能描述: 处理 MOBA 技能输入命令。
-/// 
-/// 创建日期: 2026-05-27
-/// 修改日期: 2026-05-27
-/// </summary>
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// 技能输入处理器。
-    /// </summary>
-    [MobaInputCommandHandler((int)MobaOpCode.SkillInput)]
+    /// 澶勭悊 MOBA 鎶€鑳借緭鍏ュ懡浠ゃ€?    /// </summary>
+    [MobaInputCommandHandler(AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput)]
     public sealed class MobaSkillInputCommandHandler : IMobaInputCommandHandler
     {
         public void Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)
@@ -31,3 +22,4 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
+

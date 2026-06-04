@@ -5,7 +5,7 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context);
     }
 
-    public readonly struct MobaCombatExecutionContext
+    public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider
     {
         public MobaCombatExecutionContext(
             object payload,
@@ -92,6 +92,29 @@ namespace AbilityKit.Demo.Moba.Services
         {
             snapshot = ExecutionSnapshot;
             return snapshot.IsValid;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            source = new MobaContextSourceView(
+                MobaContextSourceResolveKind.CombatExecutionContext,
+                MobaContextSourceBoundary.Execution,
+                ContextKind,
+                OriginKind,
+                SourceActorId,
+                TargetActorId,
+                ParentContextId,
+                ParentContextId,
+                RootContextId,
+                OwnerContextId,
+                ConfigId,
+                TriggerId,
+                Frame,
+                null,
+                0,
+                false,
+                SkillRuntimeHandle);
+            return source.IsValid;
         }
 
         public static MobaCombatExecutionContext Create(

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.Core;
 using BattleDemo = AbilityKit.Demo.Moba.Config.BattleDemo;
@@ -14,16 +14,16 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Util.Generator
 {
     /*
-     * 鍒濆鍖栫绾匡細鎶婂凡 Spawn 鍑烘潵鐨?ActorEntity 鏍规嵁閰嶇疆/Loadout 濉厖涓哄彲鎴樻枟鎬併€?
+     * 閸掓繂顫愰崠鏍吀缁惧尅绱伴幎濠傚嚒 Spawn 閸戠儤娼甸惃?ActorEntity 閺嶈宓侀柊宥囩枂/Loadout 婵夘偄鍘栨稉鍝勫讲閹存ɑ鏋熼幀浣碘偓?
      *
-     * 鑱岃矗杈圭晫锛?
-     * - 鍏稿瀷宸ヤ綔锛氬睘鎬фā鏉垮垵濮嬪寲銆佹妧鑳借閰嶃€佽祫婧愬鍣?灞炴€у鍣ㄥ厹搴曠瓑銆?
-     * - 涓嶈礋璐ｅ垱寤哄疄浣擄紙鍒涘缓鐢?ActorArchetypeFactory/ActorSpawnPipeline 璐熻矗锛夈€?
+     * 閼卞矁鐭楁潏鍦櫕閿?
+     * - 閸忕鐎峰銉ょ稊閿涙艾鐫橀幀褎膩閺夊灝鍨垫慨瀣閵嗕焦濡ч懗鍊燁棅闁板秲鈧浇绁┃鎰啇閸?鐏炵偞鈧冾啇閸ｃ劌鍘规惔鏇犵搼閵?
+     * - 娑撳秷绀嬬拹锝呭灡瀵ゅ搫鐤勬担鎿勭礄閸掓稑缂撻悽?ActorArchetypeFactory/ActorSpawnPipeline 鐠愮喕鐭楅敍澶堚偓?
      */
     [WorldService(typeof(ActorEntityInitPipeline), WorldLifetime.Scoped)]
     public sealed class ActorEntityInitPipeline : IService
@@ -195,7 +195,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
                 var activeSkillIds = loadout.SkillIds;
                 int[] passiveSkillIds = null;
 
-                // 濡傛灉 loadout 涓病鏈夋妧鑳斤紝浠?AttributeTemplate 鑾峰彇
+                // 婵″倹鐏?loadout 娑擃厽鐥呴張澶嬪Η閼虫枻绱濇禒?AttributeTemplate 閼惧嘲褰?
                 if (activeSkillIds == null || activeSkillIds.Length == 0)
                 {
                     var attributeTemplateId = loadout.AttributeTemplateId > 0 ? loadout.AttributeTemplateId :
@@ -365,3 +365,4 @@ namespace AbilityKit.Demo.Moba.Util.Generator
         }
     }
 }
+

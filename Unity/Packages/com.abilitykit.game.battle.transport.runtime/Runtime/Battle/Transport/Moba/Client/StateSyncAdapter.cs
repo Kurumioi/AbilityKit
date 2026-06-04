@@ -3,28 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Battle.Transport;
+using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using StateSyncOpCodes = AbilityKit.Protocol.Moba.StateSync.OpCodes;
 
 namespace AbilityKit.Game.Battle.Transport.Moba.Client
 {
-    /// <summary>
-    /// StateSync 操作码 (本地定义，替代 AbilityKit.Protocol.Moba.StateSync.OpCodes)
-    /// </summary>
-    internal static class StateSyncOpCodes
-    {
-        public const uint SnapshotPushed = 9002;
-        public const uint DeltaSnapshotPushed = 9003;
-        public const uint StateHashRequest = 9004;
-        public const uint StateHashResponse = 9005;
-    }
-
-    /// <summary>
-    /// Gateway FrameSync 操作码 (本地定义，替代 AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.OpCodes)
-    /// </summary>
-    internal static class GatewayFrameSyncOpCodes
-    {
-        public const uint FramePushed = 9001;
-    }
-
     /// <summary>
     /// 服务器推送处理器：快照
     /// </summary>
@@ -51,7 +34,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba.Client
     /// </summary>
     public sealed class FrameInputPushHandler : IServerPushHandler
     {
-        public uint OpCode => GatewayFrameSyncOpCodes.FramePushed;
+        public uint OpCode => OpCodes.FramePushed;
 
         private readonly Action<IFrameData> _onFrameInput;
 

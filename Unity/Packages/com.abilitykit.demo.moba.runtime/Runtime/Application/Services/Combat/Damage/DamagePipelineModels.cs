@@ -3,7 +3,7 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba
 {
-    public sealed class AttackInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider
+    public sealed class AttackInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
     {
         public int AttackerActorId;
         public int TargetActorId;
@@ -64,6 +64,35 @@ namespace AbilityKit.Demo.Moba
             return origin.IsValid;
         }
 
+        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        {
+            if (TryGetOrigin(out var origin) && origin.IsValid)
+            {
+                lineageContext = origin.ToLineageContext(Services.EffectContextKind.Trigger);
+                return true;
+            }
+
+            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageAttack, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, OriginConfigId);
+            return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
+        }
+
+        public bool TryGetContextSource(out Services.MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = Services.MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    Services.MobaContextSourceResolveKind.DirectProvider,
+                    Services.MobaContextSourceBoundary.Snapshot,
+                    runtimeKind: "DamageAttack",
+                    runtimeConfigId: OriginConfigId);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
+        }
+
         public void SetOrigin(in Services.MobaGameplayOrigin origin)
         {
             Origin = origin;
@@ -75,7 +104,7 @@ namespace AbilityKit.Demo.Moba
         }
     }
 
-    public sealed class AttackCalcInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider
+    public sealed class AttackCalcInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
     {
         public AttackInfo Attack;
 
@@ -113,9 +142,33 @@ namespace AbilityKit.Demo.Moba
             origin = default;
             return false;
         }
+
+        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        {
+            if (Attack != null && Attack.TryGetLineageContext(out lineageContext)) return true;
+            lineageContext = default;
+            return false;
+        }
+
+        public bool TryGetContextSource(out Services.MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = Services.MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    Services.MobaContextSourceResolveKind.DirectProvider,
+                    Services.MobaContextSourceBoundary.Snapshot,
+                    runtimeKind: "DamageCalc",
+                    runtimeConfigId: lineageContext.SourceConfigId);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
+        }
     }
 
-    public sealed class DamageResult : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider
+    public sealed class DamageResult : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
     {
         public int AttackerActorId;
         public int TargetActorId;
@@ -162,6 +215,36 @@ namespace AbilityKit.Demo.Moba
             var targetActorId = OriginTarget is int target ? target : TargetActorId;
             origin = Services.MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, OriginKind, OriginConfigId, OriginContextId);
             return origin.IsValid;
+        }
+
+        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        {
+            if (TryGetOrigin(out var origin) && origin.IsValid)
+            {
+                var damageOrigin = origin.WithImmediate(Services.MobaTraceKind.DamageApply, ReasonParam, origin.EffectiveParentContextId);
+                lineageContext = damageOrigin.ToLineageContext(Services.EffectContextKind.Trigger);
+                return true;
+            }
+
+            lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageApply, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, ReasonParam);
+            return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
+        }
+
+        public bool TryGetContextSource(out Services.MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = Services.MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    Services.MobaContextSourceResolveKind.DirectProvider,
+                    Services.MobaContextSourceBoundary.Snapshot,
+                    runtimeKind: "DamageResult",
+                    runtimeConfigId: ReasonParam);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
         }
 
         public void SetOrigin(in Services.MobaGameplayOrigin origin)

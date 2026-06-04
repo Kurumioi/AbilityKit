@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Game.Flow
@@ -74,3 +74,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

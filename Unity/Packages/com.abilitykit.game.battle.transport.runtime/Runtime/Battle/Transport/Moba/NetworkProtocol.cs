@@ -206,7 +206,7 @@ namespace AbilityKit.Game.Battle.Transport.Moba
         }
 
         /// <summary>
-        /// 解码帧推送数据（兼容旧版 BinaryReader 格式）
+        /// 解码帧推送数据。
         /// </summary>
         public static void DecodeFramePushed(byte[] payload, out int frame, out List<Tuple<uint, int, byte[]>> inputs)
         {
@@ -215,49 +215,13 @@ namespace AbilityKit.Game.Battle.Transport.Moba
 
             if (payload == null || payload.Length == 0) return;
 
-            try
+            var wire = MemoryPackSerializer.Deserialize<FramePushed>(payload);
+            frame = wire.Frame;
+            if (wire.Inputs == null) return;
+
+            foreach (var input in wire.Inputs)
             {
-                var wire = MemoryPackSerializer.Deserialize<FramePushed>(payload);
-                frame = wire.Frame;
-                if (wire.Inputs != null)
-                {
-                    foreach (var input in wire.Inputs)
-                    {
-                        inputs.Add(new Tuple<uint, int, byte[]>(input.PlayerId, input.OpCode, input.Payload));
-                    }
-                }
-            }
-            catch
-            {
-                DecodeFramePushedLegacy(payload, out frame, out inputs);
-            }
-        }
-
-        /// <summary>
-        /// 兼容旧版 BinaryReader 格式的解码
-        /// </summary>
-        private static void DecodeFramePushedLegacy(byte[] payload, out int frame, out List<Tuple<uint, int, byte[]>> inputs)
-        {
-            frame = 0;
-            inputs = new List<Tuple<uint, int, byte[]>>();
-
-            if (payload == null || payload.Length < 16) return;
-
-            using var ms = new System.IO.MemoryStream(payload);
-            using var reader = new System.IO.BinaryReader(ms);
-
-            var roomIdStr = reader.ReadString();
-            var worldId = reader.ReadUInt64();
-            frame = reader.ReadInt32();
-            var inputCount = reader.ReadInt32();
-
-            for (int i = 0; i < inputCount; i++)
-            {
-                var playerId = reader.ReadUInt32();
-                var opCode = reader.ReadInt32();
-                var payloadLen = reader.ReadInt32();
-                var inputPayload = payloadLen > 0 ? reader.ReadBytes(payloadLen) : Array.Empty<byte>();
-                inputs.Add(new Tuple<uint, int, byte[]>(playerId, opCode, inputPayload));
+                inputs.Add(new Tuple<uint, int, byte[]>(input.PlayerId, input.OpCode, input.Payload));
             }
         }
     }

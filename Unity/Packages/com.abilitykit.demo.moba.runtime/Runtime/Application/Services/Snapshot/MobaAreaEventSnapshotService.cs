@@ -88,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var payload = MobaAreaEventSnapshotCodec.Serialize(_areaEntries.ToArrayClearAndTrim());
-            snapshot = new WorldStateSnapshot((int)MobaOpCode.AreaEventSnapshot, payload);
+            snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.AreaEvent, payload);
             return true;
         }
 

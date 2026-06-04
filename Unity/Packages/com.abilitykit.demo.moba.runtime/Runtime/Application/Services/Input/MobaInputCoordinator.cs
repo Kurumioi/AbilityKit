@@ -18,9 +18,10 @@ namespace AbilityKit.Demo.Moba.Services
     /// <summary>
     /// MOBA 逻辑世界输入协调器：保留玩法侧上下文构建、热更路由和命令处理器分发。
     /// </summary>
+    [WorldService(typeof(IWorldInputSink))]
     [WorldService(typeof(IMobaInputCoordinator))]
     [WorldService(typeof(MobaInputCoordinator))]
-    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator
+    public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator, IWorldInputSink
     {
         private readonly MobaGamePhaseService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;

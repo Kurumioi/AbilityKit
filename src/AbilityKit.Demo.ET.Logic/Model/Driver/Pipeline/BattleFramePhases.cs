@@ -6,7 +6,6 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Pipeline;
-using AbilityKit.Protocol.Moba.FrameSync;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Config.Core;

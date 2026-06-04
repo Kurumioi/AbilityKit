@@ -32,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Services
         protected override WorldStateSnapshot CreateSnapshot(MobaActorDespawnSnapshotEntry[] entries)
         {
             var payload = MobaActorDespawnSnapshotCodec.Serialize(entries);
-            return new WorldStateSnapshot((int)MobaOpCode.ActorDespawnSnapshot, payload);
+            return new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorDespawn, payload);
         }
     }
 }

@@ -107,10 +107,14 @@ namespace AbilityKit.Demo.Moba.Services
                 case MobaTraceKind.AreaSpawn:
                 case MobaTraceKind.AreaEnter:
                 case MobaTraceKind.AreaExit:
+                case MobaTraceKind.AreaExpire:
                     return TraceEndpoint.Config("Area", configId);
                 case MobaTraceKind.SummonSpawn:
                 case MobaTraceKind.SummonDeath:
                     return TraceEndpoint.Config("Summon", configId);
+                case MobaTraceKind.PresentationPlay:
+                case MobaTraceKind.PresentationStop:
+                    return TraceEndpoint.Config("Presentation", configId);
                 default:
                     return default;
             }
@@ -393,7 +397,13 @@ namespace AbilityKit.Demo.Moba.Services
                 case MobaTraceKind.AreaSpawn:
                 case MobaTraceKind.AreaEnter:
                 case MobaTraceKind.AreaExit:
+                case MobaTraceKind.AreaExpire:
                     metadata.Description = $"Area: {originDisplay}";
+                    break;
+
+                case MobaTraceKind.PresentationPlay:
+                case MobaTraceKind.PresentationStop:
+                    metadata.Description = $"Presentation: {originDisplay}";
                     break;
             }
 

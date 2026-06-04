@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
@@ -10,7 +10,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Trace;
 
@@ -384,3 +384,4 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
+

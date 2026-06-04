@@ -1,5 +1,5 @@
-using System;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using System;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Demo.Moba.Config;
@@ -67,3 +67,4 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
         }
     }
 }
+

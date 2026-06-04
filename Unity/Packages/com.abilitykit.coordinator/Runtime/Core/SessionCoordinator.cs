@@ -21,6 +21,7 @@ namespace AbilityKit.Coordinator
         // ============== State ==============
 
         private SessionConfig _config;
+        private SessionRuntimePolicy _runtimePolicy;
         private ISessionCoordinatorHost _host;
         private SessionState _state = SessionState.Idle;
 
@@ -72,6 +73,7 @@ namespace AbilityKit.Coordinator
         public SessionCoordinator()
         {
             _config = SessionConfig.Default;
+            _runtimePolicy = _config.ResolveRuntimePolicy();
             _state = SessionState.Idle;
         }
 
@@ -87,30 +89,35 @@ namespace AbilityKit.Coordinator
             _state = SessionState.Initializing;
             _config = config;
             _host = host;
+            if (_host is ISessionCoordinatorConfigPolicy policy)
+            {
+                policy.ConfigureSession(ref _config);
+            }
+            _runtimePolicy = _config.ResolveRuntimePolicy();
 
             try
             {
                 // Create WorldHost
-                _worldHost = host.CreateWorldHost(config);
+                _worldHost = host.CreateWorldHost(_config);
 
                 // Create World
-                var worldOptions = CreateWorldOptions(config);
-                _host.ConfigureWorldCreateOptions(in config, worldOptions);
+                var worldOptions = CreateWorldOptions(_config);
+                _host.ConfigureWorldCreateOptions(in _config, worldOptions);
                 _world = _worldHost.CreateWorld(worldOptions);
                 _world.Initialize();
                 _worldResolver = _world.Services;
 
                 // Load config
-                host.LoadConfig(_world, config);
+                host.LoadConfig(_world, _config);
 
                 // Register services
-                host.RegisterServices(_world, config);
+                host.RegisterServices(_world, _config);
 
                 // Create ViewTimeline
                 _viewTimeline = new Timeline.ViewTimeline();
 
                 // Create SyncAdapter
-                _syncAdapter = SyncAdapterFactory.Create(_world, config);
+                _syncAdapter = SyncAdapterFactory.Create(_world, _config);
                 _syncAdapter.Attach(this);
 
                 // Attach driver host if available
@@ -120,7 +127,7 @@ namespace AbilityKit.Coordinator
                 }
 
                 // Invoke hooks
-                _hooks.InvokeSessionStarting(config);
+                _hooks.InvokeSessionStarting(_config);
 
                 _state = SessionState.Idle;
             }
@@ -141,9 +148,11 @@ namespace AbilityKit.Coordinator
 
             _state = SessionState.Running;
 
-            // Create player spawns
-            var spawns = _host.CreatePlayerSpawnData(_config);
-            CreatePlayerSpawns(spawns);
+            if (_runtimePolicy.UseCoordinatorSpawnService)
+            {
+                var spawns = _host.CreatePlayerSpawnData(_config);
+                CreatePlayerSpawns(spawns);
+            }
 
             // Start SyncAdapter
             _syncAdapter?.Attach(this, _driverHost);
@@ -338,7 +347,10 @@ namespace AbilityKit.Coordinator
             _syncAdapter?.Tick(deltaTime);
 
             // World Tick
-            _worldHost?.Tick(deltaTime);
+            if (CanDriveLogicWorld(deltaTime))
+            {
+                _worldHost?.Tick(deltaTime);
+            }
 
             // SubFeature PostTick
             foreach (var sf in _subFeatures)
@@ -368,6 +380,16 @@ namespace AbilityKit.Coordinator
         }
 
         // ============== Private Methods ==============
+
+        private bool CanDriveLogicWorld(float deltaTime)
+        {
+            if (_worldResolver != null && _worldResolver.TryResolve<ILogicWorldDriveGate>(out var gate) && gate != null)
+            {
+                return gate.CanDriveLogicWorld(deltaTime);
+            }
+
+            return !_runtimePolicy.RequireLogicWorldDriveGate;
+        }
 
         private WorldCreateOptions CreateWorldOptions(SessionConfig config)
         {

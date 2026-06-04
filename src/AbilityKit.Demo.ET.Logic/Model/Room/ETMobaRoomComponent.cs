@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
 
 namespace ET.Logic

@@ -7,7 +7,7 @@ using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public sealed class BuffContinuousRuntime : IMobaTickableContinuous, IMobaContinuousIntervalState, IMobaContinuousRuntimeStateSync
+    public sealed class BuffContinuousRuntime : IMobaTickableContinuous, IMobaContinuousIntervalState, IMobaContinuousRuntimeStateSync, IMobaContinuousRuntimeDebugSource, IMobaContextSourceProvider
     {
         private readonly BuffContinuousConfig _config;
 
@@ -122,6 +122,66 @@ namespace AbilityKit.Demo.Moba.Services
         public void Abort(string reason)
         {
             End(ContinuousEndReason.Interrupted);
+        }
+
+        public bool TryGetRuntimeDebugInfo(out MobaContinuousRuntimeDebugInfo info)
+        {
+            TryGetContextSource(out var source);
+            var handle = Runtime != null ? Runtime.SkillRuntimeHandle : default;
+            var sourceContextId = source.SourceContextId != 0 ? source.SourceContextId : SourceContextId;
+            info = new MobaContinuousRuntimeDebugInfo(
+                "Buff",
+                BuffId,
+                SourceActorId,
+                TargetActorId,
+                sourceContextId,
+                source.ParentContextId,
+                source.RootContextId,
+                source.OwnerContextId,
+                handle,
+                source);
+            return BuffId > 0 || SourceActorId > 0 || TargetActorId > 0 || sourceContextId != 0 || handle.IsValid;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            if (Runtime != null && Runtime.ContextSource.IsValid)
+            {
+                source = new MobaContextSourceView(
+                    MobaContextSourceResolveKind.DirectProvider,
+                    MobaContextSourceBoundary.LiveRuntime,
+                    Runtime.ContextSource.ContextKind != EffectContextKind.Unknown ? Runtime.ContextSource.ContextKind : EffectContextKind.Buff,
+                    Runtime.ContextSource.TraceKind,
+                    Runtime.ContextSource.SourceActorId != 0 ? Runtime.ContextSource.SourceActorId : SourceActorId,
+                    Runtime.ContextSource.TargetActorId != 0 ? Runtime.ContextSource.TargetActorId : TargetActorId,
+                    Runtime.ContextSource.SourceContextId != 0 ? Runtime.ContextSource.SourceContextId : SourceContextId,
+                    Runtime.ContextSource.ParentContextId,
+                    Runtime.ContextSource.RootContextId,
+                    Runtime.ContextSource.OwnerContextId,
+                    Runtime.ContextSource.ConfigId != 0 ? Runtime.ContextSource.ConfigId : BuffId,
+                    Runtime.ContextSource.TriggerId,
+                    Runtime.ContextSource.Frame,
+                    "Buff",
+                    BuffId,
+                    true,
+                    Runtime.ContextSource.SkillRuntimeHandle.IsValid ? Runtime.ContextSource.SkillRuntimeHandle : Runtime.SkillRuntimeHandle);
+                return source.IsValid;
+            }
+
+            var handle = Runtime != null ? Runtime.SkillRuntimeHandle : default;
+            var origin = Runtime != null && Runtime.Origin.IsValid
+                ? Runtime.Origin
+                : MobaGameplayOrigin.FromLegacy(SourceActorId, TargetActorId, MobaTraceKind.BuffApply, BuffId, SourceContextId, in handle);
+            var lineageContext = origin.ToLineageContext(EffectContextKind.Buff);
+            source = MobaContextSourceView.FromLineage(
+                in lineageContext,
+                MobaContextSourceResolveKind.DirectProvider,
+                MobaContextSourceBoundary.LiveRuntime,
+                handle.IsValid ? handle : origin.SkillRuntimeHandle,
+                Runtime != null,
+                "Buff",
+                BuffId);
+            return source.IsValid;
         }
 
         private static int CreateModifierSourceId(long sourceContextId, int buffId, int targetActorId)

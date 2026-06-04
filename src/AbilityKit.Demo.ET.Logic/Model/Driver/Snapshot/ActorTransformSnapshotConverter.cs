@@ -1,13 +1,14 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace ET.Logic
 {
-    [RuntimeSnapshotConverter(MobaOpCode.ActorTransformSnapshot)]
+    [RuntimeSnapshotConverter(MobaOpCodes.Snapshot.ActorTransform)]
     public sealed class ActorTransformSnapshotConverter : IRuntimeSnapshotConverter
     {
-        public int OpCode => MobaOpCode.ActorTransformSnapshot;
+        public int OpCode => MobaOpCodes.Snapshot.ActorTransform;
 
         public bool TryConvert(in WorldStateSnapshot snapshot, int frameIndex, double timestamp, out FrameSnapshotData frameSnapshot)
         {

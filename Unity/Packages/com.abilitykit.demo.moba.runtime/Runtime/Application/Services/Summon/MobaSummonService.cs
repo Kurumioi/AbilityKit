@@ -13,6 +13,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Effect;
 using AbilityKit.Core.Common.Event;
+using AbilityKit.Trace;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -30,21 +31,32 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         [WorldInject(required: false)] private IFrameTime _frameTime;
         [WorldInject(required: false)] private IWorldClock _clock;
-        [WorldInject(required: false)] private global::Entitas.IContexts _contexts;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace;
+        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn;
 
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: default);
         }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: default);
         }
 
-        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward)
+        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in SummonSourceContext sourceContext)
+        {
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: in sourceContext);
+        }
+
+        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward, in SummonSourceContext sourceContext)
+        {
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext);
+        }
+
+        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext)
         {
             if (casterActorId <= 0) return false;
             if (summonId <= 0) return false;
@@ -58,33 +70,37 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
+            if (_actorSpawn == null) return false;
+
             var actorId = _actorIds.Next();
-
-            var contexts = ContextsFromServices();
-            var actorContext = (contexts as global::Contexts)?.actor;
-            if (actorContext == null) return false;
-
-            var spec = MobaConverter.ToSummonActorBuildSpec(actorId, summonId, summon, caster, in pos, hasForward, in forward);
-            var result = ActorSpawnPipeline.BuildActor(actorContext, in spec);
-            var entity = result.Entity;
-            if (entity == null) return false;
-
             var rootOwner = OwnerLinkUtil.ResolveRootOwner(caster);
             if (rootOwner <= 0) rootOwner = casterActorId;
 
-            entity.AddOwnerLink(casterActorId, rootOwner);
-            entity.AddSummonMeta(summonId, summon.DespawnOnOwnerDie);
-
-            if (summon.LifetimeMs > 0)
+            var spec = MobaConverter.ToSummonActorBuildSpec(actorId, summonId, summon, caster, in pos, hasForward, in forward);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.PostSetup = new MobaActorSpawnPostSetup
             {
-                var endMs = NowMs() + summon.LifetimeMs;
-                entity.AddLifetime(endMs);
+                SetOwnerLink = true,
+                OwnerActorId = casterActorId,
+                RootOwnerActorId = rootOwner,
+                SetSummonMeta = true,
+                SummonId = summonId,
+                DespawnOnOwnerDie = summon.DespawnOnOwnerDie,
+                SetLifetime = summon.LifetimeMs > 0,
+                LifetimeEndTimeMs = summon.LifetimeMs > 0 ? NowMs() + summon.LifetimeMs : 0L,
+                SetModelId = summon.ModelId > 0,
+                ModelId = summon.ModelId,
+            };
+
+            if (!_actorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)
+            {
+                Log.Warning($"[MobaSummonService] spawn failed. summonId={summonId} actorId={actorId} casterActorId={casterActorId} error={spawnResult.Error}");
+                return false;
             }
 
-            if (summon.ModelId > 0)
-            {
-                entity.AddModelId(summon.ModelId);
-            }
+            var entity = spawnResult.Entity;
+            if (entity == null) return false;
+            var spawnSourceContext = CreateSpawnSourceContext(casterActorId, actorId, summonId, in sourceContext);
 
             if (_generator != null)
             {
@@ -95,14 +111,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             TryInitSkillLoadout(entity, summon.SkillIds, summon.PassiveSkillIds);
 
-            _registry.Register(actorId, entity);
-            try { _entities.TryRegisterFromEntity(entity); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] TryRegisterFromEntity failed (summonId={summonId}, actorId={actorId}, casterActorId={casterActorId})"); }
-
             TrackSummon(rootOwner, actorId, summon.MaxAlivePerOwner, summon.OverflowPolicy);
 
-            PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None);
-            PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None);
+            PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
+            PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
 
             return true;
         }
@@ -152,17 +164,17 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (reason == SummonDespawnReason.Killed)
             {
-                PublishSummonEvent(MobaSummonTriggering.Events.Died, rootOwner, owner, summonActorId, summonId, (int)reason);
+                PublishSummonEvent(MobaSummonTriggering.Events.Died, rootOwner, owner, summonActorId, summonId, (int)reason, sourceContext: default);
                 if (rootOwner > 0)
                 {
-                    PublishSummonEvent(MobaSummonTriggering.Events.DiedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason);
+                    PublishSummonEvent(MobaSummonTriggering.Events.DiedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason, sourceContext: default);
                 }
             }
 
-            PublishSummonEvent(MobaSummonTriggering.Events.Despawned, rootOwner, owner, summonActorId, summonId, (int)reason);
+            PublishSummonEvent(MobaSummonTriggering.Events.Despawned, rootOwner, owner, summonActorId, summonId, (int)reason, sourceContext: default);
             if (rootOwner > 0)
             {
-                PublishSummonEvent(MobaSummonTriggering.Events.DespawnedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason);
+                PublishSummonEvent(MobaSummonTriggering.Events.DespawnedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason, sourceContext: default);
             }
 
             return true;
@@ -200,7 +212,7 @@ namespace AbilityKit.Demo.Moba.Services
             list.Remove(summonActorId);
         }
 
-        private void PublishSummonEvent(string eventId, int rootOwnerActorId, int ownerActorId, int summonActorId, int summonId, int reason)
+        private void PublishSummonEvent(string eventId, int rootOwnerActorId, int ownerActorId, int summonActorId, int summonId, int reason, in SummonSourceContext sourceContext)
         {
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
@@ -212,12 +224,49 @@ namespace AbilityKit.Demo.Moba.Services
                 OwnerActorId = ownerActorId,
                 RootOwnerActorId = rootOwnerActorId,
                 Reason = reason,
+                SourceContext = sourceContext,
             };
 
             var eid = TriggeringIdUtil.GetEventEid(eventId);
             _eventBus.Publish(new EventKey<SummonEventPayload>(eid), in payload);
             object boxed = payload;
             _eventBus.Publish(new EventKey<object>(eid), in boxed);
+        }
+
+        private SummonSourceContext CreateSpawnSourceContext(int casterActorId, int summonActorId, int summonId, in SummonSourceContext sourceContext)
+        {
+            var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
+                ? sourceOrigin.WithActors(casterActorId, summonActorId)
+                : MobaGameplayOrigin.FromLegacy(casterActorId, summonActorId, MobaTraceKind.SummonSpawn, summonId, 0);
+
+            var parentContextId = origin.EffectiveParentContextId;
+            var spawnContextId = 0L;
+            if (_trace != null)
+            {
+                spawnContextId = parentContextId != 0L
+                    ? _trace.CreateChildContext(parentContextId, MobaTraceKind.SummonSpawn, summonId, casterActorId, summonActorId, TraceEndpoint.Actor(casterActorId), TraceEndpoint.Actor(summonActorId))
+                    : _trace.CreateRootContext(MobaTraceKind.SummonSpawn, summonId, casterActorId, summonActorId, TraceEndpoint.Actor(casterActorId), TraceEndpoint.Actor(summonActorId));
+            }
+
+            if (spawnContextId != 0L)
+            {
+                origin = MobaGameplayOriginBuilder.Create()
+                    .FromOrigin(in origin)
+                    .WithActors(casterActorId, summonActorId)
+                    .WithImmediate(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
+                    .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : spawnContextId)
+                    .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : spawnContextId)
+                    .Build();
+            }
+
+            return SummonSourceContextBuilder.Create()
+                .WithActors(casterActorId, summonActorId)
+                .WithSummonConfig(summonId)
+                .WithSourceContext(spawnContextId)
+                .WithRootContext(origin.EffectiveRootContextId)
+                .WithOwnerContext(origin.OwnerContextId)
+                .WithOrigin(in origin)
+                .Build();
         }
 
         private void TryInitSkillLoadout(global::ActorEntity entity, IReadOnlyList<int> skillIds, IReadOnlyList<int> passiveSkillIds)
@@ -268,11 +317,6 @@ namespace AbilityKit.Demo.Moba.Services
                 return (long)System.MathF.Round(_clock.Time * 1000f);
             }
             return 0L;
-        }
-
-        private Entitas.IContexts ContextsFromServices()
-        {
-            return _contexts;
         }
 
         public void Dispose()

@@ -69,7 +69,6 @@ namespace AbilityKit.Triggering.Runtime
     public interface ITriggerRegistry
     {
         int Count { get; }
-        ITriggerHandle Register<TArgs>(object config) where TArgs : class;
         bool Unregister(int triggerId);
         bool TryGet(int triggerId, out ITriggerInstance trigger);
         IEnumerable<ITriggerInstance> GetAllTriggers();

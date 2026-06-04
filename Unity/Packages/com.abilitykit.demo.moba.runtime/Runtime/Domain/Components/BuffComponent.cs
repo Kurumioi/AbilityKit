@@ -20,6 +20,8 @@ namespace AbilityKit.Demo.Moba.Components
         public int SourceId;
         public int StackCount;
         public long SourceContextId;
+        public MobaGameplayOrigin Origin;
+        public MobaContextSourceView ContextSource;
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle;
         public MobaSkillRuntimeRetainHandle SkillRuntimeRetainHandle;
         public ContinuousTagRequirements TagRequirements;

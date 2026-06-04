@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            snapshot = new WorldStateSnapshot((int)MobaOpCode.EnterGameSnapshot, _snapshotPayload);
+            snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.EnterGame, _snapshotPayload);
             _sent = true;
             return true;
         }

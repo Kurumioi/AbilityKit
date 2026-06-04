@@ -1,6 +1,6 @@
-using AbilityKit.Ability.Host;
+﻿using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering;
@@ -219,3 +219,4 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         }
     }
 }
+

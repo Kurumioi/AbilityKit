@@ -8,6 +8,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -80,7 +81,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                     var files = adapter.GetFiles(_triggerPlansDir, "*.json").ToList();
                     var converter = new TriggerPlanSourceConverter();
                     var records = new List<TriggerPlanJsonDatabase.Record>();
-                    var byId = new Dictionary<int, TriggerPlan<object>>();
                     var strings = new Dictionary<int, string>();
 
                     foreach (var file in files)
@@ -132,15 +132,22 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                                         cue: null,
                                         schedule: default);
 
-                                    records.Add(new TriggerPlanJsonDatabase.Record(triggerId, eventName, eventId, plan));
-                                    byId[triggerId] = plan;
+                                    records.Add(new TriggerPlanJsonDatabase.Record(triggerId, eventName, eventId, TriggerPlanScope.Global, in plan));
                                 }
                             }
                         }
                         catch { }
                     }
 
-                    SetDatabaseRecords(db, records, byId, strings);
+                    foreach (var record in records)
+                    {
+                        db.AddRecord(in record);
+                    }
+
+                    foreach (var pair in strings)
+                    {
+                        db.AddString(pair.Key, pair.Value);
+                    }
                     Platform.Log.System($"[ConsoleConfigModule] Loaded {records.Count} triggers from directory");
                 }
                 catch (Exception ex)
@@ -212,20 +219,6 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             }
         }
 
-        private static void SetDatabaseRecords(
-            TriggerPlanJsonDatabase db,
-            List<TriggerPlanJsonDatabase.Record> records,
-            Dictionary<int, TriggerPlan<object>> byId,
-            Dictionary<int, string> strings)
-        {
-            var type = typeof(TriggerPlanJsonDatabase);
-            var recordsField = type.GetField("_records", BindingFlags.NonPublic | BindingFlags.Instance);
-            recordsField?.SetValue(db, records);
-            var byIdField = type.GetField("_byTriggerId", BindingFlags.NonPublic | BindingFlags.Instance);
-            byIdField?.SetValue(db, byId);
-            var stringsField = type.GetField("_strings", BindingFlags.NonPublic | BindingFlags.Instance);
-            stringsField?.SetValue(db, strings);
-        }
     }
 
     internal sealed class TextAssetLoaderAdapter : TriggerPlanJsonDatabase.ITextLoader, IFileSystemTextLoader

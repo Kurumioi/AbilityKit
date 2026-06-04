@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Util.Converter;
 
 namespace AbilityKit.Demo.Moba.Util.Generator
@@ -268,3 +268,4 @@ namespace AbilityKit.Demo.Moba.Util.Generator
         }
     }
 }
+

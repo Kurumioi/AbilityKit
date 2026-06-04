@@ -9,7 +9,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     /// 复制此文件创建新的 Bootstrap Stage。
     /// 参考文档: Docs/BootstrapFlowGuide.md
     /// </summary>
-    [MobaBootstrapStage]
     public sealed class TemplateFeatureStage : MobaBootstrapStageBase
     {
         public override string Name => "TemplateFeature";

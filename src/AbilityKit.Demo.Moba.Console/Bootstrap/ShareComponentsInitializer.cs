@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.View;
-using ShareMobaOpCode = AbilityKit.Demo.Moba.Share.MobaOpCode;
+using AbilityKit.Protocol.Moba;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using ShareFrameSnapshotData = AbilityKit.Demo.Moba.Share.FrameSnapshotData;
 using ShareSnapshotType = AbilityKit.Demo.Moba.Share.SnapshotType;
@@ -61,43 +61,43 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
 
             var dispatcher = _snapshotDispatcher;
 
-            dispatcher.Subscribe(ShareMobaOpCode.EnterGameSnapshot, (int frame, ShareEnterGameData data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.EnterGame, (int frame, ShareEnterGameData data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, enterGame: data);
                 _viewEventSink.OnEnterGameSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ActorSpawnSnapshot, (int frame, ShareActorSpawnData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ActorSpawn, (int frame, ShareActorSpawnData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, actorSpawns: data);
                 _viewEventSink.OnActorSpawnSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ActorTransformSnapshot, (int frame, ShareActorTransformData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ActorTransform, (int frame, ShareActorTransformData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, actorTransforms: data);
                 _viewEventSink.OnActorTransformSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ProjectileEventSnapshot, (int frame, ShareProjectileEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ProjectileEvent, (int frame, ShareProjectileEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, projectileEvents: data);
                 _viewEventSink.OnProjectileEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.AreaEventSnapshot, (int frame, ShareAreaEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.AreaEvent, (int frame, ShareAreaEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, areaEvents: data);
                 _viewEventSink.OnAreaEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.DamageEventSnapshot, (int frame, ShareDamageEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.DamageEvent, (int frame, ShareDamageEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, damageEvents: data);
                 _viewEventSink.OnDamageEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.StateHashSnapshot, (int frame, ShareStateHashData data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.StateHash, (int frame, ShareStateHashData data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, stateHash: data);
                 _viewEventSink.OnStateHashSnapshot(in snapshotData);

@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Core.Generic;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Features;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
 using Platform = AbilityKit.Demo.Moba.Console.Platform;
 using ECSComponents = AbilityKit.Demo.Moba.Console.Battle.ECS.Components;
@@ -100,11 +101,11 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
                     new PlayerId(Context.LocalActorId.ToString()),
-                    ConsoleOpCode.Move,
+                    MobaOpCodes.Input.Move,
                     payload);
 
                 _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
-                _inputQueue.Enqueue(new LocalPlayerInputEvent(Context.LocalActorId, ConsoleOpCode.Move, payload));
+                _inputQueue.Enqueue(new LocalPlayerInputEvent(Context.LocalActorId, MobaOpCodes.Input.Move, payload));
 
                 Platform.Log.Input($"[Input] Move: dx={dx:F2}, dz={dz:F2}");
             }
@@ -123,7 +124,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
                     new PlayerId(Context.LocalActorId.ToString()),
-                    ConsoleOpCode.SkillInput,
+                    MobaOpCodes.Input.SkillInput,
                     payload);
 
                 _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
@@ -141,7 +142,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
                     new PlayerId(Context.LocalActorId.ToString()),
-                    ConsoleOpCode.SkillInput,
+                    MobaOpCodes.Input.SkillInput,
                     payload);
 
                 _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
@@ -285,8 +286,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
     {
         public static byte[] Serialize(int slot, SkillInputPhase phase, Vec3 aimPos = default)
         {
-            var json = $"{{\"slot\":{slot},\"phase\":{(int)phase},\"aimX\":{aimPos.X:F2},\"aimZ\":{aimPos.Z:F2}}}";
-            return System.Text.Encoding.UTF8.GetBytes(json);
+            var evt = new SkillInputEvent(slot, phase, aimPos: in aimPos);
+            return BinaryObjectCodec.Encode(evt);
         }
     }
 }

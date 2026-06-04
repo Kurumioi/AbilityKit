@@ -1,5 +1,5 @@
 ﻿using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
 {
@@ -38,7 +38,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
             Overrides = overrides;
         }
 
-        public MobaPlayerLoadout ToLegacyLoadout(int spawnIndexFallback)
+        public MobaPlayerLoadout ToPlayerLoadout(int spawnIndexFallback)
         {
             var ov = Overrides;
 
@@ -63,6 +63,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
     {
         public readonly string MatchId;
         public readonly int MapId;
+        public readonly int GameplayId;
 
         public readonly int RandomSeed;
         public readonly int TickRate;
@@ -70,17 +71,18 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
 
         public readonly MobaRoomPlayerSlot[] Players;
 
-        public MobaRoomGameStartSpec(string matchId, int mapId, int randomSeed, int tickRate, int inputDelayFrames, MobaRoomPlayerSlot[] players)
+        public MobaRoomGameStartSpec(string matchId, int mapId, int randomSeed, int tickRate, int inputDelayFrames, MobaRoomPlayerSlot[] players, int gameplayId = 0)
         {
             MatchId = matchId;
             MapId = mapId;
+            GameplayId = gameplayId;
             RandomSeed = randomSeed;
             TickRate = tickRate;
             InputDelayFrames = inputDelayFrames;
             Players = players;
         }
 
-        public EnterMobaGameReq ToLegacyEnterReq(PlayerId localPlayerId)
+        public EnterMobaGameReq ToEnterReq(PlayerId localPlayerId)
         {
             var ps = Players;
             if (ps == null || ps.Length == 0)
@@ -94,13 +96,14 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
                     inputDelayFrames: InputDelayFrames,
                     opCode: 0,
                     payload: null,
-                    players: null);
+                    players: null,
+                    gameplayId: GameplayId);
             }
 
             var loadouts = new MobaPlayerLoadout[ps.Length];
             for (int i = 0; i < ps.Length; i++)
             {
-                loadouts[i] = ps[i].ToLegacyLoadout(spawnIndexFallback: i);
+                loadouts[i] = ps[i].ToPlayerLoadout(spawnIndexFallback: i);
             }
 
             return new EnterMobaGameReq(
@@ -112,7 +115,10 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
                 inputDelayFrames: InputDelayFrames,
                 opCode: 0,
                 payload: null,
-                players: loadouts);
+                players: loadouts,
+                gameplayId: GameplayId);
         }
+
     }
 }
+

@@ -49,6 +49,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private readonly TriggerPlan<TArgs> _plan;
         private bool _resolved;
         private ExecCtx<TCtx> _execCtx;
+        private int _executionCount;
+        private float _lastExecutionTimeMs;
+        private bool _hasLastExecutionTime;
 
         private ExecCtx<TCtx> ExecCtx => _execCtx;
 
@@ -127,7 +130,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             var actions = _plan.Actions;
             var hasActions = actions != null && actions.Length > 0;
 
-            if (!hasActions) return;
+            if (!hasActions || !CanExecuteByControl(in ctx)) return;
 
             // 检查是否启用新 Action 调度模式
             bool useActionScheduler = ctx.ActionSchedulerManager != null && 
@@ -166,6 +169,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 );
             }
 
+            MarkExecutedByControl(in ctx);
+
             // 执行成功后：如果声明了 InterruptPriority，自动设置优先级打断
             if (control != null && _plan.InterruptPriority > 0)
             {
@@ -184,35 +189,76 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private void ExecuteImmediate(in TArgs args, in ExecCtx<TCtx> ctx)
         {
             var actions = _plan.Actions;
-            for (int i = 0; i < actions.Length; i++)
+            try
             {
-                var call = actions[i];
-
-                if (_useNamedArgs[i])
+                for (int i = 0; i < actions.Length; i++)
                 {
-                    // 具名参数模式
-                    var rawArgs = ResolveNamedArgs(in args, in call, in ctx);
-                    switch (call.Arity)
+                    var call = actions[i];
+
+                    if (_useNamedArgs[i])
                     {
-                        case 0:
-                            _actions0[i]?.Invoke(args, rawArgs, ctx);
-                            break;
-                        case 1:
-                            _actions1[i]?.Invoke(args, rawArgs, ctx);
-                            break;
-                        case 2:
-                            _actions2[i]?.Invoke(args, rawArgs, ctx);
-                            break;
+                        // 具名参数模式
+                        var rawArgs = ResolveNamedArgs(in args, in call, in ctx);
+                        switch (call.Arity)
+                        {
+                            case 0:
+                                _actions0[i]?.Invoke(args, rawArgs, ctx);
+                                break;
+                            case 1:
+                                _actions1[i]?.Invoke(args, rawArgs, ctx);
+                                break;
+                            case 2:
+                                _actions2[i]?.Invoke(args, rawArgs, ctx);
+                                break;
+                        }
                     }
-                }
-                else
-                {
-                    // 向后兼容的位置参数模式（使用 Arg0/Arg1）
-                    ExecuteLegacy(in args, in call, in ctx, i);
-                }
+                    else
+                    {
+                        // 向后兼容的位置参数模式（使用 Arg0/Arg1）
+                        ExecuteLegacy(in args, in call, in ctx, i);
+                    }
 
-                if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
+                    if (ctx.Control != null && (ctx.Control.StopPropagation || ctx.Control.Cancel)) return;
+                }
             }
+            finally
+            {
+                MarkExecutedByControl(in ctx);
+            }
+        }
+
+        private bool CanExecuteByControl(in ExecCtx<TCtx> ctx)
+        {
+            var control = _plan.ExecutionControl;
+            switch (control.Mode)
+            {
+                case ETriggerExecutionMode.Once:
+                    return _executionCount <= 0;
+                case ETriggerExecutionMode.Repeat:
+                    return control.MaxExecutions <= 0 || _executionCount < control.MaxExecutions;
+                case ETriggerExecutionMode.Cooldown:
+                    if (control.CooldownMs <= 0f || !_hasLastExecutionTime)
+                    {
+                        return true;
+                    }
+                    return ctx.Policy.TotalTimeMs - _lastExecutionTimeMs >= control.CooldownMs;
+                case ETriggerExecutionMode.Always:
+                default:
+                    return true;
+            }
+        }
+
+        private void MarkExecutedByControl(in ExecCtx<TCtx> ctx)
+        {
+            var control = _plan.ExecutionControl;
+            if (control.Mode == ETriggerExecutionMode.Always && control.MaxExecutions <= 0 && control.CooldownMs <= 0f)
+            {
+                return;
+            }
+
+            _executionCount++;
+            _lastExecutionTimeMs = ctx.Policy.TotalTimeMs;
+            _hasLastExecutionTime = true;
         }
 
         /// <summary>

@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 
@@ -30,7 +30,7 @@ namespace AbilityKit.Game.Flow
                 if (_plan.AutoReady)
                 {
                     Log.Info($"[BattleSessionFeature] GatewayRemote AutoReady -> SubmitInput(Ready). worldId='{_plan.WorldId}' playerId={_plan.PlayerId} frame={_lastFrame + 1}");
-                    var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: (int)MobaOpCode.Ready, payload: Array.Empty<byte>());
+                    var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: MobaOpCodes.Input.Ready, payload: Array.Empty<byte>());
                     _session?.SubmitInput(new SubmitInputRequest(new WorldId(_plan.WorldId), cmd));
                 }
                 return;
@@ -47,9 +47,10 @@ namespace AbilityKit.Game.Flow
             }
             if (_plan.AutoReady)
             {
-                var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: (int)MobaOpCode.Ready, payload: Array.Empty<byte>());
+                var cmd = new PlayerInputCommand(new FrameIndex(_lastFrame + 1), new PlayerId(_plan.PlayerId), opCode: MobaOpCodes.Input.Ready, payload: Array.Empty<byte>());
                 _session?.SubmitInput(new SubmitInputRequest(new WorldId(_plan.WorldId), cmd));
             }
         }
     }
 }
+

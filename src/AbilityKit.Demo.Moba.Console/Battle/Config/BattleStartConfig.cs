@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Transport.Moba.Client;
+using AbilityKit.Protocol.Moba;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
 using ShareRunMode = AbilityKit.Demo.Moba.Share.RunMode;
 
@@ -38,6 +41,36 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
         /// 本地玩家 ID（字符串）
         /// </summary>
         public string PlayerId { get; set; } = "player_1";
+
+        /// <summary>
+        /// 地图 ID
+        /// </summary>
+        public int MapId { get; set; } = 1;
+
+        /// <summary>
+        /// 玩法配置 ID
+        /// </summary>
+        public int GameplayId { get; set; } = 1;
+
+        /// <summary>
+        /// 规则集 ID
+        /// </summary>
+        public int RuleSetId { get; set; } = 0;
+
+        /// <summary>
+        /// 配置版本
+        /// </summary>
+        public int ConfigVersion { get; set; } = 0;
+
+        /// <summary>
+        /// 协议版本
+        /// </summary>
+        public int ProtocolVersion { get; set; } = 0;
+
+        /// <summary>
+        /// 随机种子
+        /// </summary>
+        public int RandomSeed { get; set; } = 10001;
 
         /// <summary>
         /// Tick 率
@@ -132,7 +165,34 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                 inputRecordOutputPath: InputRecordOutputPath,
                 enableInputReplay: EnableInputReplay,
                 inputReplayPath: InputReplayPath,
-                enableClientPrediction: EnableClientPrediction);
+                enableClientPrediction: EnableClientPrediction,
+                launchSpec: BuildLaunchSpec());
+        }
+
+        /// <summary>
+        /// 构建框架层正式战斗启动规格
+        /// </summary>
+        public MobaBattleLaunchSpec BuildLaunchSpec()
+        {
+            return new MobaBattleLaunchSpec(
+                battleId: WorldId,
+                matchId: WorldId,
+                worldId: WorldId,
+                worldType: WorldType,
+                clientId: ClientId,
+                localPlayerId: new PlayerId(PlayerId),
+                mapId: MapId,
+                gameplayId: GameplayId,
+                ruleSetId: RuleSetId,
+                configVersion: ConfigVersion,
+                protocolVersion: ProtocolVersion,
+                randomSeed: RandomSeed,
+                tickRate: TickRate,
+                inputDelayFrames: InputDelayFrames,
+                launchMode: MobaBattleLaunchMode.ConsoleSimulation,
+                syncMode: ToLaunchSyncMode(SyncMode),
+                authorityMode: EnableClientPrediction ? MobaBattleLaunchAuthorityMode.ClientPrediction : MobaBattleLaunchAuthorityMode.LocalAuthority,
+                players: BuildPlayerLoadouts());
         }
 
         /// <summary>
@@ -155,6 +215,45 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                 }
             };
             return config;
+        }
+
+        private MobaPlayerLoadout[] BuildPlayerLoadouts()
+        {
+            if (Players == null || Players.Count == 0) return null;
+
+            var loadouts = new MobaPlayerLoadout[Players.Count];
+            for (int i = 0; i < Players.Count; i++)
+            {
+                var player = Players[i];
+                loadouts[i] = new MobaPlayerLoadout(
+                    playerId: new PlayerId(player.PlayerId),
+                    teamId: player.TeamId,
+                    heroId: player.HeroId,
+                    attributeTemplateId: 0,
+                    level: player.Level,
+                    basicAttackSkillId: 0,
+                    skillIds: null,
+                    spawnIndex: i,
+                    unitSubType: 1,
+                    mainType: 1,
+                    hasSpawnPosition: 1,
+                    spawnX: player.PositionX,
+                    spawnY: player.PositionY,
+                    spawnZ: player.PositionZ);
+            }
+
+            return loadouts;
+        }
+
+        private static MobaBattleLaunchSyncMode ToLaunchSyncMode(ShareSyncMode syncMode)
+        {
+            return syncMode switch
+            {
+                ShareSyncMode.Lockstep => MobaBattleLaunchSyncMode.FrameSync,
+                ShareSyncMode.SnapshotAuthority => MobaBattleLaunchSyncMode.StateSync,
+                ShareSyncMode.Hybrid => MobaBattleLaunchSyncMode.Hybrid,
+                _ => MobaBattleLaunchSyncMode.Unspecified,
+            };
         }
 
         /// <summary>

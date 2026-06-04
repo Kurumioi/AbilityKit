@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 
 namespace AbilityKit.Ability.Host.Extensions.Moba.Room
@@ -250,3 +250,4 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
         }
     }
 }
+

@@ -22,6 +22,7 @@ namespace AbilityKit.Coordinator
     {
         private readonly IWorld _world;
         private readonly SessionConfig _config;
+        private readonly SessionRuntimePolicy _runtimePolicy;
         private ISessionCoordinator _coordinator;
         private ILogicWorldDriverBridge _driverHost;
 
@@ -65,7 +66,7 @@ namespace AbilityKit.Coordinator
 
         public bool IsPredictionEnabled => _predictionEnabled;
 
-        public int PredictionAheadFrames => _predictionEnabled ? _config.MaxPredictionAheadFrames : 0;
+        public int PredictionAheadFrames => _predictionEnabled ? _runtimePolicy.MaxPredictionAheadFrames : 0;
 
         // ============== Events ==============
 
@@ -77,10 +78,11 @@ namespace AbilityKit.Coordinator
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _config = config;
+            _runtimePolicy = config.ResolveRuntimePolicy();
             _localPlayerId = config.LocalPlayerId;
             _renderTime = 0;
             _isConnected = false;
-            _predictionEnabled = config.EnableClientPrediction;
+            _predictionEnabled = _runtimePolicy.EnableClientPrediction;
             _lastConfirmedFrame = 0;
             _predictedFrame = 0;
             _needsReconciliation = false;
@@ -106,7 +108,7 @@ namespace AbilityKit.Coordinator
 
         public void SetPredictionEnabled(bool enabled)
         {
-            _predictionEnabled = enabled;
+            _predictionEnabled = enabled && _runtimePolicy.SupportsPrediction;
         }
 
         public void TriggerReconciliation(int confirmedFrame, SnapshotEntityState[] serverState)

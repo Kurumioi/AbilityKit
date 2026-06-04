@@ -4,7 +4,7 @@ using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Game.Battle.Transport.Moba;
-using AbilityKit.Protocol.Moba.FrameSync;
+using AbilityKit.Protocol.Moba;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Sync;
@@ -258,7 +258,7 @@ public sealed class StateSyncAdapter : IBattleSyncAdapter
 
                 foreach (var input in frameData.Inputs)
                 {
-                    if (input.OpCode == InputOpCodes.Move && input.Payload != null && input.Payload.Length > 0)
+                    if (input.OpCode == MobaOpCodes.Input.Move && input.Payload != null && input.Payload.Length > 0)
                     {
                         Platform.Log.Sync($"[StateSync] Remote input - Frame:{frameData.Frame} OpCode:{input.OpCode}");
                     }

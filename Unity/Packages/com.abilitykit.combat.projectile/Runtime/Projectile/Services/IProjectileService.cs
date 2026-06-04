@@ -22,6 +22,7 @@ namespace AbilityKit.Core.Common.Projectile
         void ImportRollback(FrameIndex frame, byte[] payload);
 
         ProjectileScheduleId ScheduleEmit(IProjectileSpawnPattern pattern, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule);
+        ProjectileScheduleId ScheduleEmit(IProjectileSpawnPatternProvider patternProvider, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule);
         bool CancelSchedule(ProjectileScheduleId id);
 
         AreaId SpawnArea(in AreaSpawnParams p, int frame);

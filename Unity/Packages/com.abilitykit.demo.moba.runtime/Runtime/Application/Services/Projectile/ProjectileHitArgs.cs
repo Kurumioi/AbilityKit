@@ -4,7 +4,7 @@ using AbilityKit.Core.Math;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
-    public sealed class ProjectileHitArgs : IMobaActorContextProvider, IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerDataContext, IMobaOriginContextProvider, IMobaTriggerSkillRuntimeContext
+    public sealed class ProjectileHitArgs : IMobaActorContextProvider, IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerDataContext, IMobaOriginContextProvider, IMobaTriggerSkillRuntimeContext, IMobaContextSourceProvider
     {
         private readonly MobaTriggerDataBag _data = new MobaTriggerDataBag();
 
@@ -85,6 +85,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         {
             handle = SourceContext.SkillRuntimeHandle;
             return handle.IsValid;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    MobaContextSourceResolveKind.DirectProvider,
+                    MobaContextSourceBoundary.Snapshot,
+                    SourceContext.SkillRuntimeHandle,
+                    false,
+                    "ProjectileHit",
+                    ProjectileTemplateId != 0 ? ProjectileTemplateId : SourceConfigId);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
         }
 
         public T GetData<T>(string key, T defaultValue = default) => _data.GetData(key, defaultValue);

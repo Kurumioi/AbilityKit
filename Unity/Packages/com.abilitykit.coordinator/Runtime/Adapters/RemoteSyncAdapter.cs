@@ -20,6 +20,7 @@ namespace AbilityKit.Coordinator
     {
         private readonly IWorld _world;
         private readonly SessionConfig _config;
+        private readonly SessionRuntimePolicy _runtimePolicy;
         private ISessionCoordinator _coordinator;
         private ILogicWorldDriverBridge _driverHost;
 
@@ -35,7 +36,7 @@ namespace AbilityKit.Coordinator
 
         // ============== ISyncAdapter Implementation ==============
 
-        public Core.SyncMode Mode => _config.SyncMode;
+        public Core.SyncMode Mode => _runtimePolicy.EffectiveSyncMode;
 
         public int CurrentFrame => _driverHost?.CurrentFrame ?? 0;
 
@@ -58,6 +59,7 @@ namespace AbilityKit.Coordinator
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _config = config;
+            _runtimePolicy = config.ResolveRuntimePolicy();
             _localPlayerId = config.LocalPlayerId;
             _renderTime = 0;
             _isConnected = false;

@@ -1,5 +1,5 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -21,3 +21,4 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
     }
 }
+

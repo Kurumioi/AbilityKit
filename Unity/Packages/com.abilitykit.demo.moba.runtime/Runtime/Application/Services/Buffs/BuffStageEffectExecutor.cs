@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetBuffRuntime(out BuffRuntime runtime);
     }
 
-    internal sealed class BuffTriggerContext : IBuffTriggerContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaOriginContextProvider, IMobaTriggerStageSnapshotProvider
+    internal sealed class BuffTriggerContext : IBuffTriggerContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaOriginContextProvider, IMobaTriggerStageSnapshotProvider, IMobaContextSourceProvider
     {
         public int TriggerId { get; set; }
         public EffectContextKind Kind => EffectContextKind.Buff;
@@ -85,12 +85,14 @@ namespace AbilityKit.Demo.Moba.Services
         public TraceLifecycleReason RemoveReason { get; set; }
         public BuffRuntime Runtime { get; set; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle => Runtime != null ? Runtime.SkillRuntimeHandle : default;
-        public MobaTriggerLineageContext LineageContext => new MobaTriggerLineageContext(Kind, ResolveTraceKind(Stage), SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceContextId, BuffId);
+        public MobaTriggerLineageContext LineageContext => ResolveLineageContext();
         public MobaTriggerTraceContext TraceContext => LineageContext.ToTraceContext();
         public MobaGameplayOrigin Origin
         {
             get
             {
+                if (Runtime != null && Runtime.Origin.IsValid) return Runtime.Origin;
+
                 var lineageContext = LineageContext;
                 var handle = SkillRuntimeHandle;
                 return MobaGameplayOrigin.FromLineageContext(in lineageContext, in handle);
@@ -155,6 +157,62 @@ namespace AbilityKit.Demo.Moba.Services
                 RemainingSecondsSnapshot,
                 DurationSecondsSnapshot);
             return snapshot.IsValid;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            if (Runtime != null && Runtime.ContextSource.IsValid)
+            {
+                source = new MobaContextSourceView(
+                    MobaContextSourceResolveKind.DirectProvider,
+                    MobaContextSourceBoundary.LiveRuntime,
+                    Runtime.ContextSource.ContextKind != EffectContextKind.Unknown ? Runtime.ContextSource.ContextKind : EffectContextKind.Buff,
+                    Runtime.ContextSource.TraceKind,
+                    Runtime.ContextSource.SourceActorId != 0 ? Runtime.ContextSource.SourceActorId : SourceActorId,
+                    Runtime.ContextSource.TargetActorId != 0 ? Runtime.ContextSource.TargetActorId : TargetActorId,
+                    Runtime.ContextSource.SourceContextId != 0 ? Runtime.ContextSource.SourceContextId : SourceContextId,
+                    Runtime.ContextSource.ParentContextId,
+                    Runtime.ContextSource.RootContextId,
+                    Runtime.ContextSource.OwnerContextId,
+                    Runtime.ContextSource.ConfigId != 0 ? Runtime.ContextSource.ConfigId : BuffId,
+                    TriggerId,
+                    Runtime.ContextSource.Frame,
+                    "Buff",
+                    BuffId,
+                    true,
+                    Runtime.ContextSource.SkillRuntimeHandle.IsValid ? Runtime.ContextSource.SkillRuntimeHandle : SkillRuntimeHandle);
+                return source.IsValid;
+            }
+
+            var lineageContext = LineageContext;
+            source = MobaContextSourceView.FromLineage(
+                in lineageContext,
+                MobaContextSourceResolveKind.DirectProvider,
+                Runtime != null ? MobaContextSourceBoundary.LiveRuntime : MobaContextSourceBoundary.Snapshot,
+                SkillRuntimeHandle,
+                Runtime != null,
+                "Buff",
+                BuffId);
+            return source.IsValid;
+        }
+
+        private MobaTriggerLineageContext ResolveLineageContext()
+        {
+            if (Runtime != null && Runtime.Origin.IsValid)
+            {
+                var origin = Runtime.Origin;
+                return new MobaTriggerLineageContext(
+                    Kind,
+                    ResolveTraceKind(Stage),
+                    origin.SourceActorId != 0 ? origin.SourceActorId : SourceActorId,
+                    origin.TargetActorId != 0 ? origin.TargetActorId : TargetActorId,
+                    origin.EffectiveParentContextId != 0 ? origin.EffectiveParentContextId : SourceContextId,
+                    origin.EffectiveRootContextId != 0 ? origin.EffectiveRootContextId : SourceContextId,
+                    origin.OwnerContextId,
+                    BuffId);
+            }
+
+            return new MobaTriggerLineageContext(Kind, ResolveTraceKind(Stage), SourceActorId, TargetActorId, SourceContextId, SourceContextId, SourceContextId, BuffId);
         }
 
         private static MobaTraceKind ResolveTraceKind(string stage)

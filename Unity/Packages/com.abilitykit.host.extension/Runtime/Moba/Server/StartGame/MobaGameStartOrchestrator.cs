@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Ability.World.Services;
 
@@ -78,3 +78,4 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartGame
         }
     }
 }
+

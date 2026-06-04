@@ -23,8 +23,10 @@ using ComponentTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ComponentT
 using SkillButtonTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillButtonTemplateMO;
 using TagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.TagTemplateMO;
 using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousTagTemplateMO;
-
-namespace AbilityKit.Demo.Moba.Config.Core
+using SearchQueryTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SearchQueryTemplateMO;
+using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
+ 
+ namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
     /// MOBA runtime configuration facade.
@@ -508,7 +510,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
         public bool TryGetProjectile(int id, out ProjectileMO mo) => GetTable<ProjectileMO>().TryGet(id, out mo);
         public bool TryGetAoe(int id, out AoeMO mo) => GetTable<AoeMO>().TryGet(id, out mo);
         public bool TryGetEmitter(int id, out EmitterMO mo) => GetTable<EmitterMO>().TryGet(id, out mo);
-
+        public bool TryGetSearchQueryTemplate(int id, out SearchQueryTemplateMO mo) => GetTable<SearchQueryTemplateMO>().TryGet(id, out mo);
+        public bool TryGetGameplay(int id, out GameplayMO mo) => GetTable<GameplayMO>().TryGet(id, out mo);
+ 
         // ==================== Internal adapter for MOBA deserializer ====================
 
         /// <summary>

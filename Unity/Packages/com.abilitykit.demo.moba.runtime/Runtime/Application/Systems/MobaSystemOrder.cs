@@ -63,6 +63,9 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int BuffsTick = Base + WorldSystemOrder.Normal + 310;
         /// <summary>持续触发器计划调和</summary>
         public const int OngoingTriggerPlansReconcile = Base + WorldSystemOrder.Normal + 312;
+        /// <summary>玩法规则 Tick</summary>
+        public const int GameplayTick = Base + WorldSystemOrder.Normal + 320;
+
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>
         public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;

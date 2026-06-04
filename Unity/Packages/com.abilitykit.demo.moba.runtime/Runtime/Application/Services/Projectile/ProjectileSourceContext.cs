@@ -3,7 +3,7 @@ using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
-    public readonly struct ProjectileSourceContext : IMobaOriginContextProvider, IMobaTriggerLineageContextProvider
+    public readonly struct ProjectileSourceContext : IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider
     {
         public readonly int SourceActorId;
         public readonly int InitialTargetActorId;
@@ -80,6 +80,25 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 OwnerContextId != 0 ? OwnerContextId : SourceContextId,
                 ProjectileConfigId);
             return lineageContext.SourceActorId > 0 || lineageContext.SourceContextId != 0;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                source = MobaContextSourceView.FromLineage(
+                    in lineageContext,
+                    MobaContextSourceResolveKind.DirectProvider,
+                    MobaContextSourceBoundary.Snapshot,
+                    SkillRuntimeHandle,
+                    false,
+                    "Projectile",
+                    ProjectileConfigId);
+                return source.IsValid;
+            }
+
+            source = default;
+            return false;
         }
 
         public ProjectileSourceContext WithLaunchContext(long sourceContextId)

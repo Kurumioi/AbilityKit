@@ -1,7 +1,8 @@
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using AbilityKit.Ability.Host;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -27,69 +28,72 @@ namespace AbilityKit.Game.Flow
         }
 
         [Header("Preset")]
-        [LabelText("Preset(模板/完全覆盖)")]
+        [LabelText("Preset(妯℃澘/瀹屽叏瑕嗙洊)")]
         public BattleStartPresetSO Preset;
 
-        [LabelText("RuntimeOverrides(少量运行时覆盖)")]
+        [LabelText("RuntimeOverrides(灏戦噺杩愯鏃惰鐩?")]
         public BattleStartRuntimeOverrides RuntimeOverrides;
 
         [Header("Formal Start Profile")]
-        [LabelText("WorldId(世界ID/房间ID)")]
+        [LabelText("WorldId(涓栫晫ID/鎴块棿ID)")]
         public string WorldId = "room_1";
 
-        [LabelText("WorldType(世界类型)")]
+        [LabelText("WorldType(涓栫晫绫诲瀷)")]
         public string WorldType = "battle";
 
-        [LabelText("ClientId(客户端ID)")]
+        [LabelText("ClientId(瀹㈡埛绔疘D)")]
         public string ClientId = "battle_client";
 
-        [LabelText("HostMode(主机模式)")]
+        [LabelText("HostMode(涓绘満妯″紡)")]
         public BattleHostMode HostMode = BattleHostMode.Local;
 
-        [LabelText("AutoConnect(自动连接)")]
+        [LabelText("AutoConnect(鑷姩杩炴帴)")]
         public bool AutoConnect = true;
 
-        [LabelText("AutoCreateWorld(自动创建World)")]
+        [LabelText("AutoCreateWorld(鑷姩鍒涘缓World)")]
         public bool AutoCreateWorld = true;
 
-        [LabelText("AutoJoin(自动加入)")]
+        [LabelText("AutoJoin(鑷姩鍔犲叆)")]
         public bool AutoJoin = true;
 
-        [LabelText("AutoReady(自动准备)")]
+        [LabelText("AutoReady(鑷姩鍑嗗)")]
         public bool AutoReady = true;
 
-        [LabelText("SyncMode(同步模式)")]
+        [LabelText("SyncMode(鍚屾妯″紡)")]
         public BattleSyncMode SyncMode = BattleSyncMode.Lockstep;
 
-        [LabelText("ViewEventSourceMode(View事件源模式)")]
+        [LabelText("ViewEventSourceMode(View浜嬩欢婧愭ā寮?")]
         public BattleViewEventSourceMode ViewEventSourceMode = BattleViewEventSourceMode.SnapshotOnly;
 
         [LabelText("EnabledSnapshotRegistryIds(Snapshot Registries)")]
         public string[] EnabledSnapshotRegistryIds;
 
-        [LabelText("EnableClientPrediction(客户端预测)")]
+        [LabelText("EnableClientPrediction(瀹㈡埛绔娴?")]
         public bool EnableClientPrediction = true;
 
-        [LabelText("EnableConfirmedAuthorityWorld(权威确认世界)")]
+        [LabelText("EnableConfirmedAuthorityWorld(鏉冨▉纭涓栫晫)")]
         public bool EnableConfirmedAuthorityWorld = false;
 
-        [LabelText("EnterGame配置(可复用SO)")]
+        [LabelText("GameplayId(鐜╂硶閰嶇疆ID)")]
+        public int GameplayId = 1;
+
+        [LabelText("EnterGame閰嶇疆(鍙鐢⊿O)")]
         public BattleEnterGameConfigSO EnterGameSO;
 
-        [LabelText("玩家配置(可复用SO)")]
+        [LabelText("鐜╁閰嶇疆(鍙鐢⊿O)")]
         public BattlePlayersConfigSO PlayersSO;
 
-        [LabelText("UseRoomGameStartSpec(用外部RoomSpec生成CreateWorldPayload)")]
+        [LabelText("UseRoomGameStartSpec(鐢ㄥ閮≧oomSpec鐢熸垚CreateWorldPayload)")]
         public bool UseRoomGameStartSpec;
 
-        [LabelText("运行模式配置(可复用SO)")]
+        [LabelText("杩愯妯″紡閰嶇疆(鍙鐢⊿O)")]
         public BattleRunModeConfigSO RunModeSO;
 
-        [LabelText("网关配置(可复用SO)")]
+        [LabelText("缃戝叧閰嶇疆(鍙鐢⊿O)")]
         public BattleGatewayConfigSO GatewaySO;
 
         [Header("Composition")]
-        [LabelText("FeatureSet(战斗阶段Feature组合)")]
+        [LabelText("FeatureSet(鎴樻枟闃舵Feature缁勫悎)")]
         public BattleFeatureSetConfig FeatureSet;
 
         public BattleFeatureSetConfig EffectiveFeatureSet => Preset != null ? Preset.FeatureSet : FeatureSet;
@@ -125,6 +129,11 @@ namespace AbilityKit.Game.Flow
 
         public EnterMobaGameReq BuildEnterMobaGameReq()
         {
+            return BuildLaunchSpec().ToEnterReq();
+        }
+
+        public MobaBattleLaunchSpec BuildLaunchSpec()
+        {
             var playersSo = Preset != null ? Preset.PlayersSO : PlayersSO;
             var enterGameSo = Preset != null ? Preset.EnterGameSO : EnterGameSO;
 
@@ -132,22 +141,30 @@ namespace AbilityKit.Game.Flow
             if (enterGameSo == null) throw new InvalidOperationException("EnterGameSO is required.");
 
             var playerId = !string.IsNullOrEmpty(playersSo.LocalPlayerId) ? playersSo.LocalPlayerId : "p1";
-            var loadouts = BuildPlayersLoadout(playersSo);
-
             byte[] payload = null;
             TryBuildCreateWorldPayload(out _, out payload);
 
-            return new EnterMobaGameReq(
-                playerId: new PlayerId(playerId),
+            return new MobaBattleLaunchSpec(
+                battleId: GetEffectiveWorldId(),
                 matchId: GetEffectiveWorldId(),
+                worldId: GetEffectiveWorldId(),
+                worldType: Preset != null ? Preset.WorldType : WorldType,
+                clientId: GetEffectiveClientId(),
+                localPlayerId: new PlayerId(playerId),
                 mapId: enterGameSo.MapId,
+                gameplayId: GetEffectiveGameplayId(),
+                ruleSetId: 0,
+                configVersion: 0,
+                protocolVersion: 0,
                 randomSeed: enterGameSo.RandomSeed,
                 tickRate: enterGameSo.TickRate,
                 inputDelayFrames: enterGameSo.InputDelayFrames,
-                opCode: enterGameSo.OpCode,
-                payload: payload,
-                players: loadouts
-            );
+                launchMode: MobaBattleLaunchMode.ViewFastEnter,
+                syncMode: ToLaunchSyncMode(Preset != null ? Preset.SyncMode : SyncMode),
+                authorityMode: ResolveAuthorityMode(),
+                players: BuildPlayersLoadout(playersSo),
+                enterGameOpCode: enterGameSo.OpCode,
+                enterGamePayload: payload);
         }
 
         public MobaRoomGameStartSpec BuildRoomGameStartSpec()
@@ -190,10 +207,16 @@ namespace AbilityKit.Game.Flow
                 randomSeed: enterGameSo.RandomSeed,
                 tickRate: enterGameSo.TickRate,
                 inputDelayFrames: enterGameSo.InputDelayFrames,
-                players: slots.Count == 0 ? null : slots.ToArray());
+                players: slots.Count == 0 ? null : slots.ToArray(),
+                gameplayId: GetEffectiveGameplayId());
         }
 
         public EnterMobaGameReq BuildEnterMobaGameReq(in MobaRoomGameStartSpec roomSpec)
+        {
+            return BuildLaunchSpec(in roomSpec).ToEnterReq();
+        }
+
+        public MobaBattleLaunchSpec BuildLaunchSpec(in MobaRoomGameStartSpec roomSpec)
         {
             var playersSo = Preset != null ? Preset.PlayersSO : PlayersSO;
             var enterGameSo = Preset != null ? Preset.EnterGameSO : EnterGameSO;
@@ -202,15 +225,21 @@ namespace AbilityKit.Game.Flow
             if (enterGameSo == null) throw new InvalidOperationException("EnterGameSO is required.");
 
             var playerId = !string.IsNullOrEmpty(playersSo.LocalPlayerId) ? playersSo.LocalPlayerId : "p1";
-
             byte[] payload = null;
             TryBuildCreateWorldPayload(out _, out payload);
 
-            var spec = AbilityKit.Demo.Moba.CreateWorld.MobaCreateWorldSpec.FromRoomSpec(in roomSpec);
-            return spec.ToLegacyEnterReq(new PlayerId(playerId), enterGameSo.OpCode, payload);
+            var startPlan = MobaBattleStartPlan.FromRoomSpec(new PlayerId(playerId), in roomSpec, enterGameSo.OpCode, payload);
+            return MobaBattleLaunchSpecBuilder.FromStartPlan(
+                in startPlan,
+                worldId: GetEffectiveWorldId(),
+                worldType: Preset != null ? Preset.WorldType : WorldType,
+                clientId: GetEffectiveClientId(),
+                launchMode: MobaBattleLaunchMode.RoomFlow,
+                syncMode: ToLaunchSyncMode(Preset != null ? Preset.SyncMode : SyncMode),
+                authorityMode: ResolveAuthorityMode());
         }
 
-        public BattleStartPlanOptions BuildPlanOptions(in EnterMobaGameReq req, byte[] createWorldPayload, int createWorldOpCode)
+        public BattleStartPlanOptions BuildPlanOptions(in EnterMobaGameReq req, byte[] createWorldPayload, int createWorldOpCode, MobaBattleLaunchSpec launchSpec = default)
         {
             var runModeSo = Preset != null ? Preset.RunModeSO : RunModeSO;
             var gatewaySo = Preset != null ? Preset.GatewaySO : GatewaySO;
@@ -308,7 +337,13 @@ namespace AbilityKit.Game.Flow
                 auto: autoOptions,
                 runMode: runModeOptions,
                 createWorld: createWorldOptions,
-                timeSync: timeSyncOptions);
+                timeSync: timeSyncOptions,
+                launchSpec: launchSpec);
+        }
+
+        private int GetEffectiveGameplayId()
+        {
+            return Preset != null ? Preset.GameplayId : GameplayId;
         }
 
         private string GetEffectiveWorldId()
@@ -321,6 +356,25 @@ namespace AbilityKit.Game.Flow
         {
             if (RuntimeOverrides != null && RuntimeOverrides.HasClientId) return RuntimeOverrides.ClientId;
             return Preset != null ? Preset.ClientId : ClientId;
+        }
+
+        private MobaBattleLaunchAuthorityMode ResolveAuthorityMode()
+        {
+            var hostMode = Preset != null ? Preset.HostMode : HostMode;
+            var enableClientPrediction = Preset != null ? Preset.EnableClientPrediction : EnableClientPrediction;
+            if (hostMode == BattleHostMode.GatewayRemote) return MobaBattleLaunchAuthorityMode.ServerAuthority;
+            return enableClientPrediction ? MobaBattleLaunchAuthorityMode.ClientPrediction : MobaBattleLaunchAuthorityMode.LocalAuthority;
+        }
+
+        private static MobaBattleLaunchSyncMode ToLaunchSyncMode(BattleSyncMode syncMode)
+        {
+            return syncMode switch
+            {
+                BattleSyncMode.Lockstep => MobaBattleLaunchSyncMode.FrameSync,
+                BattleSyncMode.SnapshotAuthority => MobaBattleLaunchSyncMode.StateSync,
+                BattleSyncMode.HybridPredictReconcile => MobaBattleLaunchSyncMode.Hybrid,
+                _ => MobaBattleLaunchSyncMode.Unspecified,
+            };
         }
 
         private static MobaPlayerLoadout[] BuildPlayersLoadout(BattlePlayersConfigSO cfg)
@@ -381,3 +435,4 @@ namespace AbilityKit.Game.Flow
         }
     }
 }
+

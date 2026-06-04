@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -39,19 +39,19 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// 数据结构转换器
+    /// 鏁版嵁缁撴瀯杞崲鍣?
     ///
-    /// 负责将外部生成计划转换为 moba.core 进场数据结构
+    /// 璐熻矗灏嗗閮ㄧ敓鎴愯鍒掕浆鎹负 moba.core 杩涘満鏁版嵁缁撴瀯
     ///
     /// Design:
-    /// - 提供静态转换方法，可独立使用
-    /// - 封装逻辑世界生成数据到 moba.core 层的转换逻辑
-    /// - 外部协议或协调层数据应先由 adapter 转换为 LogicWorldSpawnData
+    /// - 鎻愪緵闈欐€佽浆鎹㈡柟娉曪紝鍙嫭绔嬩娇鐢?
+    /// - 灏佽閫昏緫涓栫晫鐢熸垚鏁版嵁鍒?moba.core 灞傜殑杞崲閫昏緫
+    /// - 澶栭儴鍗忚鎴栧崗璋冨眰鏁版嵁搴斿厛鐢?adapter 杞崲涓?LogicWorldSpawnData
     /// </summary>
     public static class SpawnDataConverter
     {
         /// <summary>
-        /// 将 LogicWorldSpawnData[] 转换为 MobaPlayerLoadout[]
+        /// 灏?LogicWorldSpawnData[] 杞崲涓?MobaPlayerLoadout[]
         /// </summary>
         public static MobaPlayerLoadout[] ConvertToLoadouts(LogicWorldSpawnData[] spawns, int startIndex = 0)
         {
@@ -70,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将单个 LogicWorldSpawnData 转换为 MobaPlayerLoadout
+        /// 灏嗗崟涓?LogicWorldSpawnData 杞崲涓?MobaPlayerLoadout
         /// </summary>
         public static MobaPlayerLoadout ConvertToLoadout(LogicWorldSpawnData spawn, int spawnIndex)
         {
@@ -95,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将 LogicWorldSpawnData[] 转换为 EnterMobaGameReq
+        /// 灏?LogicWorldSpawnData[] 杞崲涓?EnterMobaGameReq
         /// </summary>
         public static EnterMobaGameReq ConvertToEnterGameReq(
             LogicWorldSpawnData[] spawns,
@@ -130,7 +130,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 将 LogicWorldSpawnData[] 转换为 MobaGameStartSpec
+        /// 灏?LogicWorldSpawnData[] 杞崲涓?MobaGameStartSpec
         /// </summary>
         public static MobaGameStartSpec ConvertToGameStartSpec(
             LogicWorldSpawnData[] spawns,
@@ -146,3 +146,4 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
+

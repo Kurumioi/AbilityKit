@@ -1,5 +1,5 @@
 ﻿using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Core.Math;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -110,7 +110,7 @@ namespace AbilityKit.Demo.Moba.Util.Converter
             return new MobaActorBuildSpec(
                 new MobaEntityInfo(
                     actorId: actorId,
-                    kind: ActorArchetypeFactory.CreateKindFromType(EntityMainType.Unit, unitSubType),
+                    kind: MobaEntityKind.Summon,
                     transform: new Transform3(spawnPos, rotation, Vec3.One),
                     team: team,
                     mainType: EntityMainType.Unit,
@@ -129,7 +129,7 @@ namespace AbilityKit.Demo.Moba.Util.Converter
             in Vec3 spawnPos,
             in Vec3 direction)
         {
-            return ToProjectileSpec(actorId, projectileCode, caster, in spawnPos, in direction, MobaActorBuildSourceKind.Projectile);
+            return ToProjectileSpec(actorId, projectileCode, caster, in spawnPos, in direction, MobaActorBuildSourceKind.Projectile, MobaEntityKind.Projectile);
         }
 
         public static MobaActorBuildSpec ToProjectileLauncherActorBuildSpec(
@@ -139,7 +139,7 @@ namespace AbilityKit.Demo.Moba.Util.Converter
             in Vec3 spawnPos,
             in Vec3 direction)
         {
-            return ToProjectileSpec(actorId, launcherId, caster, in spawnPos, in direction, MobaActorBuildSourceKind.ProjectileLauncher);
+            return ToProjectileSpec(actorId, launcherId, caster, in spawnPos, in direction, MobaActorBuildSourceKind.ProjectileLauncher, MobaEntityKind.ProjectileLauncher);
         }
 
         private static MobaActorBuildSpec ToProjectileSpec(
@@ -148,7 +148,8 @@ namespace AbilityKit.Demo.Moba.Util.Converter
             global::ActorEntity caster,
             in Vec3 spawnPos,
             in Vec3 direction,
-            MobaActorBuildSourceKind sourceKind)
+            MobaActorBuildSourceKind sourceKind,
+            MobaEntityKind entityKind)
         {
             var d = direction.SqrMagnitude > 0f ? direction.Normalized : Vec3.Forward;
             var rotation = Quat.LookRotation(d, Vec3.Up);
@@ -158,7 +159,7 @@ namespace AbilityKit.Demo.Moba.Util.Converter
             return new MobaActorBuildSpec(
                 new MobaEntityInfo(
                     actorId: actorId,
-                    kind: MobaEntityKind.Projectile,
+                    kind: entityKind,
                     transform: new Transform3(spawnPos, rotation, Vec3.One),
                     team: team,
                     mainType: EntityMainType.Projectile,
@@ -171,3 +172,4 @@ namespace AbilityKit.Demo.Moba.Util.Converter
         }
     }
 }
+

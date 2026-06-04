@@ -115,7 +115,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         /// </summary>
         public static IEnumerable<MobaBootstrapStageBase> GetConfigureStages()
         {
-            return _stages;
+            return GetSortedStages();
         }
 
         /// <summary>
@@ -123,7 +123,70 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
         /// </summary>
         public static IEnumerable<MobaBootstrapStageBase> GetInstallStages()
         {
-            return _stages;
+            return GetSortedStages();
+        }
+
+        private static IReadOnlyList<MobaBootstrapStageBase> GetSortedStages()
+        {
+            var sorted = new List<MobaBootstrapStageBase>(_stages.Count);
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var byName = new Dictionary<string, MobaBootstrapStageBase>(StringComparer.Ordinal);
+
+            for (int i = 0; i < _stages.Count; i++)
+            {
+                var stage = _stages[i];
+                if (!byName.ContainsKey(stage.Name))
+                {
+                    byName.Add(stage.Name, stage);
+                }
+            }
+
+            for (int i = 0; i < _stages.Count; i++)
+            {
+                Visit(_stages[i], byName, visiting, visited, sorted);
+            }
+
+            return sorted;
+        }
+
+        private static void Visit(
+            MobaBootstrapStageBase stage,
+            Dictionary<string, MobaBootstrapStageBase> byName,
+            HashSet<string> visiting,
+            HashSet<string> visited,
+            List<MobaBootstrapStageBase> sorted)
+        {
+            var name = stage.Name;
+            if (visited.Contains(name)) return;
+            if (!visiting.Add(name))
+            {
+                Log.Warning($"[MobaBootstrapStageRegistry] Circular dependency detected at stage: {name}");
+                return;
+            }
+
+            var dependencies = stage.Dependencies;
+            if (dependencies != null)
+            {
+                for (int i = 0; i < dependencies.Length; i++)
+                {
+                    var dependencyName = dependencies[i];
+                    if (string.IsNullOrEmpty(dependencyName)) continue;
+
+                    if (byName.TryGetValue(dependencyName, out var dependency))
+                    {
+                        Visit(dependency, byName, visiting, visited, sorted);
+                    }
+                    else
+                    {
+                        Log.Warning($"[MobaBootstrapStageRegistry] Stage dependency not found: {name} -> {dependencyName}");
+                    }
+                }
+            }
+
+            visiting.Remove(name);
+            visited.Add(name);
+            sorted.Add(stage);
         }
 
         /// <summary>

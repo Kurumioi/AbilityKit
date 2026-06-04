@@ -1,5 +1,5 @@
-using AbilityKit.Core.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+﻿using AbilityKit.Core.Generic;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -16,3 +16,4 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 }
+

@@ -29,8 +29,7 @@
 | `Runtime/Infrastructure/Config/Core/MobaConfigGroups.cs` | Legacy | `LegacyJson` 配置组 | 新配置进入明确的 config group |
 | `Runtime/Infrastructure/Config/Core/ConfigGroupNames.cs` | Legacy | `LegacyJson` 配置组名 | 逐步停止新增旧 JSON 聚合入口 |
 | `Runtime/Infrastructure/Config/Core/LegacyJsonConfigGroupDeserializer.cs` | Legacy | 旧 JSON 反序列化兼容 | 仅保留加载旧数据，新增 DTO 使用专属反序列化 |
-| `Runtime/Application/Systems/Bootstrap/MobaWorldBootstrapModule.PlanActions.StubActions.cs` | Stub / Compatibility | 从计划中补注册传统 Action stub | 用正式 `PlanActionModule` 注册替代 |
-| `Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` | Stub / Compatibility | 修复缺失 action、注册 stub、兼容旧 plan | 让 `TriggerPlansStage` 与 `PlanActionModuleRegistry` 成为唯一注册入口 |
+| `Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` | Compatibility | 已移除执行期修复缺失 action；仅在初始化阶段注册 PlanActionModule | 继续让 `TriggerPlansStage` 与 `PlanActionModuleRegistry` 成为唯一注册入口 |
 | `Runtime/Application/Services/Skill/Pipeline/DefaultMobaSkillPipelineLibrary.cs` | Fallback | 默认技能管线兜底 | 新技能使用 `TableDrivenMobaSkillPipelineLibrary` |
 | `Runtime/Application/Services/Skill/Handlers/BuiltInSkillHandlers.cs` | Legacy / TODO | 旧 Handler 流程痕迹与若干 TODO | 新效果走 SkillFlow + PlanAction |
 | `Runtime/Application/Services/Skill/DTO/SkillHandlerDTO.cs` | Legacy | 旧技能 Handler DTO | 新配置走 SkillFlow、TimelineEvent、PlanAction 参数 |
@@ -38,7 +37,6 @@
 | `Runtime/Application/Systems/Bootstrap/PlanActions/ConsumeResourcePlanActionModule.cs` | TODO Placeholder | 资源扣除尚未接入正式资源系统 | 接入资源/能量服务并补失败语义 |
 | `Runtime/Application/Services/Skill/Conditions/BuiltInSkillConditions.cs` | TODO Placeholder | 施法状态、沉默/禁用检查未完整实现 | 与 Buff/Tag/State 查询能力合流 |
 | `Runtime/Application/Services/Skill/Phases/SkillFlowChecksPhase.cs` | TODO Placeholder | required/blocking tag 检查未实现 | 与 TagQuery 或 Buff/State 查询合流 |
-| `Runtime/Application/Services/Input/MobaLobbyInputSink.cs` | Compatibility | 兼容旧 `IWorldInputSink` | Host 输入入口稳定后收敛为单一适配层 |
 | `Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs` | Compatibility | 填充兼容 shared data key | 保留读旧 key，新增代码优先使用强类型上下文 |
 | `Runtime/Application/Services/Effect/EffectPipelineContext.cs` | Compatibility | `FillSkillCompatibleKeys` | 与 `SkillPipelineContext` 统一兼容策略 |
 | `Runtime/Application/Systems/Skill/PassiveSkillTriggerListenerManager.cs` | False Positive | `RemoveObsoleteListeners` 表示移除失效监听 | 不按 Legacy 处理，可保留当前命名 |
@@ -98,19 +96,18 @@
 
 涉及文件：
 
-- `Runtime/Application/Systems/Bootstrap/MobaWorldBootstrapModule.PlanActions.StubActions.cs`
 - `Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs`
 
 现状：
 
-运行时存在从 TriggerPlan 反向补注册传统 Action stub 的逻辑，目的是让旧 plan 在 action 没有正式注册时仍能执行或至少不崩溃。这个机制对迁移期有用，但如果继续扩散，会让 PlanAction 的正式注册边界变模糊。
+旧的 `MobaWorldBootstrapModule.PlanActions.StubActions.cs` 已删除，运行时不再保留空壳 stub 注册入口。`MobaTriggerPlanExecutor` 已移除执行期捕获 `InvalidOperationException` 后修复并重试的路径。PlanAction 的正式边界是初始化阶段发现强类型模块并注册到 `ActionRegistry`。
 
 治理规则：
 
 - 新 PlanAction 必须通过 `IPlanActionModule` + `[PlanActionModule]` 注册。
 - `PlanActionModuleRegistry` 应是模块发现入口。
 - `TriggerPlansStage` 应负责把配置里的 plan/action 注册到 `ActionRegistry`。
-- `MobaEffectExecutionService` 不应长期承担“修复注册表”的职责。
+- `MobaEffectExecutionService` 不应重新引入“修复注册表”的职责。
 
 推荐路径：
 
@@ -124,10 +121,9 @@ TriggerPlan config
 
 建议后续动作：
 
-1. 将 stub 注册标记为迁移期保护。
-2. 统计哪些 action id 只能靠 stub 执行。
-3. 为这些 action 补正式 `PlanActionModule`。
-4. 删除 `MobaEffectExecutionService` 中的注册修复职责。
+1. 继续统计哪些 action id 缺少正式 `PlanActionModule`。
+2. 为缺失 action 补正式强类型模块和 schema。
+3. 把 PlanAction 注册时机进一步前移到 bootstrap stage 的明确安装步骤，减少服务初始化里的隐式注册。
 
 ## Fallback 技能管线路径
 
@@ -224,20 +220,21 @@ SkillDTO
 
 ## 兼容适配层
 
-### Lobby 输入适配
+### Host 输入入口收敛
 
 涉及文件：
 
-- `Runtime/Application/Services/Input/MobaLobbyInputSink.cs`
+- `Runtime/Application/Services/Input/MobaInputCoordinator.cs`
 
 现状：
 
-该类兼容旧 `IWorldInputSink`。这类适配在 Host/Input 边界稳定前可以保留，但不宜继续向业务逻辑扩散。
+旧的 `MobaLobbyInputSink` 适配器已删除。正式输入协调器 `MobaInputCoordinator` 直接注册 `IWorldInputSink`、`IMobaInputCoordinator` 和具体类型，Host 帧同步输入与玩法输入协调不再分成两条实现路径。
 
 治理规则：
 
-- 输入兼容只停留在边界层。
+- Host 输入入口统一落到 `MobaInputCoordinator`。
 - 业务系统应依赖稳定后的命令或事件模型。
+- 不再新增独立的 `IWorldInputSink` 兼容适配器。
 
 ### Skill/Effect compatible keys
 

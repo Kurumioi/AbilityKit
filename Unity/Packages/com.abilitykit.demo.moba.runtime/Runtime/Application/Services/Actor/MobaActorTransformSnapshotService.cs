@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
         protected override WorldStateSnapshot CreateSnapshot(MobaActorTransformSnapshotEntry[] entries)
         {
             var payload = MobaActorTransformSnapshotCodec.Serialize(entries);
-            return new WorldStateSnapshot((int)MobaOpCode.ActorTransformSnapshot, payload);
+            return new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorTransform, payload);
         }
 
         private void BuildEntries()

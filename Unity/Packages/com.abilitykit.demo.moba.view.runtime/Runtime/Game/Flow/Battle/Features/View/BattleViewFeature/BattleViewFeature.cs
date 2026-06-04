@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Battle.Component;
@@ -40,3 +40,4 @@ namespace AbilityKit.Game.Flow
         private BattleTriggerEventViewAdapter _triggerAdapter;
     }
 }
+

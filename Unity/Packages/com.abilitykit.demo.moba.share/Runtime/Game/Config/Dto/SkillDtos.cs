@@ -59,14 +59,36 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         Checks = 1,
         Timeline = 2,
+        Sequence = 10,
+        Parallel = 11,
+        Repeat = 12,
+        Delay = 13,
     }
 
     [Serializable]
     public sealed class SkillPhaseDTO
     {
         public int Type;
+        public string PhaseId;
         public SkillChecksPhaseDTO Checks;
         public SkillTimelinePhaseDTO Timeline;
+        public SkillPhaseDTO[] Children;
+        public SkillRepeatPhaseDTO Repeat;
+        public SkillDelayPhaseDTO Delay;
+    }
+
+    [Serializable]
+    public sealed class SkillRepeatPhaseDTO
+    {
+        public int RepeatCount;
+        public int IntervalMs;
+        public SkillPhaseDTO Phase;
+    }
+
+    [Serializable]
+    public sealed class SkillDelayPhaseDTO
+    {
+        public int DelayMs;
     }
 
     [Serializable]

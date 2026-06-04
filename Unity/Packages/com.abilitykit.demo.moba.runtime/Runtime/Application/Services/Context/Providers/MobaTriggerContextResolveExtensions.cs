@@ -2,6 +2,70 @@ namespace AbilityKit.Demo.Moba.Services
 {
     public static class MobaTriggerContextResolveExtensions
     {
+        public static bool TryResolveContextSource(this object payload, out MobaContextSourceView source)
+        {
+            source = default;
+            if (payload == null) return false;
+
+            if (payload is MobaContextSourceView direct && direct.IsValid)
+            {
+                source = direct;
+                return true;
+            }
+
+            if (payload is IMobaContextSourceProvider sourceProvider && sourceProvider.TryGetContextSource(out source) && source.IsValid)
+                return true;
+
+            if (payload.TryResolveCombatExecutionContext(out var executionContext))
+            {
+                source = new MobaContextSourceView(
+                    MobaContextSourceResolveKind.CombatExecutionContext,
+                    MobaContextSourceBoundary.Execution,
+                    executionContext.ContextKind,
+                    executionContext.OriginKind,
+                    executionContext.SourceActorId,
+                    executionContext.TargetActorId,
+                    executionContext.ParentContextId,
+                    executionContext.ParentContextId,
+                    executionContext.RootContextId,
+                    executionContext.OwnerContextId,
+                    executionContext.ConfigId,
+                    executionContext.TriggerId,
+                    executionContext.Frame,
+                    null,
+                    0,
+                    false,
+                    executionContext.SkillRuntimeHandle);
+                return source.IsValid;
+            }
+
+            if (payload.TryResolveOrigin(out var origin))
+            {
+                source = MobaContextSourceView.FromOrigin(in origin);
+                return source.IsValid;
+            }
+
+            if (payload.TryResolveLineageContext(out var lineageContext))
+            {
+                var handle = default(MobaSkillCastRuntimeHandle);
+                if (payload is IMobaTriggerSkillRuntimeContext skillRuntimeProvider)
+                {
+                    skillRuntimeProvider.TryGetSkillRuntimeHandle(out handle);
+                }
+
+                source = MobaContextSourceView.FromLineage(in lineageContext, skillRuntimeHandle: handle);
+                return source.IsValid;
+            }
+
+            if (payload.TryResolveExecutionSnapshot(out var snapshot))
+            {
+                source = MobaContextSourceView.FromExecutionSnapshot(in snapshot);
+                return source.IsValid;
+            }
+
+            return false;
+        }
+
         public static bool TryResolveExecutionSnapshot(this object payload, out MobaTriggerExecutionSnapshot snapshot)
         {
             snapshot = default;

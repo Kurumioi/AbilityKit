@@ -1,3 +1,5 @@
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+
 namespace AbilityKit.Game.Flow
 {
     public enum BattleViewEventSourceMode
@@ -171,6 +173,7 @@ namespace AbilityKit.Game.Flow
         public readonly BattleStartPlanRunModeOptions RunMode;
         public readonly BattleStartPlanCreateWorldOptions CreateWorld;
         public readonly BattleStartPlanTimeSyncOptions TimeSync;
+        public readonly MobaBattleLaunchSpec LaunchSpec;
 
         public BattleStartPlanOptions(
             string worldId,
@@ -189,7 +192,8 @@ namespace AbilityKit.Game.Flow
             BattleStartPlanAutoOptions auto,
             BattleStartPlanRunModeOptions runMode,
             BattleStartPlanCreateWorldOptions createWorld,
-            BattleStartPlanTimeSyncOptions timeSync)
+            BattleStartPlanTimeSyncOptions timeSync,
+            MobaBattleLaunchSpec launchSpec = default)
         {
             WorldId = worldId;
             WorldType = worldType;
@@ -208,6 +212,7 @@ namespace AbilityKit.Game.Flow
             RunMode = runMode;
             CreateWorld = createWorld;
             TimeSync = timeSync;
+            LaunchSpec = launchSpec;
         }
     }
 
@@ -274,6 +279,8 @@ namespace AbilityKit.Game.Flow
         public readonly int IdealFrameSafetyMinMarginFrames;
         public readonly int IdealFrameSafetyMaxMarginFrames;
 
+        public readonly MobaBattleLaunchSpec LaunchSpec;
+
         public BattleStartPlan(in BattleStartPlanOptions options)
             : this(
                 worldId: options.WorldId,
@@ -318,7 +325,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyRttFactor: options.TimeSync.IdealFrameSafetyRttFactor,
                 idealFrameSafetyMinMarginFrames: options.TimeSync.IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: options.TimeSync.IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: options.EnabledSnapshotRegistryIds)
+                enabledSnapshotRegistryIds: options.EnabledSnapshotRegistryIds,
+                launchSpec: options.LaunchSpec)
         {
         }
 
@@ -367,7 +375,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyRttFactor: IdealFrameSafetyRttFactor,
                 idealFrameSafetyMinMarginFrames: IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: EnabledSnapshotRegistryIds);
+                enabledSnapshotRegistryIds: EnabledSnapshotRegistryIds,
+                launchSpec: LaunchSpec);
         }
 
         public BattleStartPlan WithGatewayRoom(string worldId, ulong numericRoomId)
@@ -415,7 +424,8 @@ namespace AbilityKit.Game.Flow
                 idealFrameSafetyRttFactor: IdealFrameSafetyRttFactor,
                 idealFrameSafetyMinMarginFrames: IdealFrameSafetyMinMarginFrames,
                 idealFrameSafetyMaxMarginFrames: IdealFrameSafetyMaxMarginFrames,
-                enabledSnapshotRegistryIds: EnabledSnapshotRegistryIds);
+                enabledSnapshotRegistryIds: EnabledSnapshotRegistryIds,
+                launchSpec: LaunchSpec);
         }
 
         public BattleStartPlan(
@@ -461,7 +471,8 @@ namespace AbilityKit.Game.Flow
             double idealFrameSafetyRttFactor = 1.0,
             int idealFrameSafetyMinMarginFrames = 0,
             int idealFrameSafetyMaxMarginFrames = 30,
-            string[] enabledSnapshotRegistryIds = null)
+            string[] enabledSnapshotRegistryIds = null,
+            MobaBattleLaunchSpec launchSpec = default)
         {
             WorldId = worldId;
             WorldType = worldType;
@@ -519,6 +530,7 @@ namespace AbilityKit.Game.Flow
             IdealFrameSafetyRttFactor = idealFrameSafetyRttFactor;
             IdealFrameSafetyMinMarginFrames = idealFrameSafetyMinMarginFrames;
             IdealFrameSafetyMaxMarginFrames = idealFrameSafetyMaxMarginFrames;
+            LaunchSpec = launchSpec;
         }
 
         public BattleStartPlan(

@@ -97,6 +97,17 @@ namespace AbilityKit.Core.Common.Projectile
         public ProjectileScheduleId ScheduleEmit(IProjectileSpawnPattern pattern, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule)
         {
             if (pattern == null) throw new ArgumentNullException(nameof(pattern));
+            return ScheduleEmit(pattern, patternProvider: null, in baseSpawn, in schedule);
+        }
+
+        public ProjectileScheduleId ScheduleEmit(IProjectileSpawnPatternProvider patternProvider, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule)
+        {
+            if (patternProvider == null) throw new ArgumentNullException(nameof(patternProvider));
+            return ScheduleEmit(pattern: null, patternProvider: patternProvider, in baseSpawn, in schedule);
+        }
+
+        private ProjectileScheduleId ScheduleEmit(IProjectileSpawnPattern pattern, IProjectileSpawnPatternProvider patternProvider, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule)
+        {
             var id = new ProjectileScheduleId(_nextScheduleId++);
 
             var interval = schedule.IntervalFrames;
@@ -105,6 +116,7 @@ namespace AbilityKit.Core.Common.Projectile
             _schedules.Add(new ScheduledEmit(
                 id: id,
                 pattern: pattern,
+                patternProvider: patternProvider,
                 baseSpawn: baseSpawn,
                 nextFrame: schedule.StartFrame,
                 intervalFrames: interval,
@@ -133,10 +145,15 @@ namespace AbilityKit.Core.Common.Projectile
                 var s = _schedules[i];
                 if (frame < s.NextFrame) continue;
 
+                var pattern = s.PatternProvider != null
+                    ? s.PatternProvider.GetPattern(in s.BaseSpawn, frame)
+                    : s.Pattern;
+                if (pattern == null) continue;
+
                 var list = s_spawnListPool.Get();
                 try
                 {
-                    s.Pattern.Build(in s.BaseSpawn, list);
+                    pattern.Build(in s.BaseSpawn, list);
                     for (int j = 0; j < list.Count; j++)
                     {
                         var spawn = list[j].WithSpawnFrame(frame);
@@ -180,15 +197,17 @@ namespace AbilityKit.Core.Common.Projectile
         {
             public ProjectileScheduleId Id;
             public IProjectileSpawnPattern Pattern;
+            public IProjectileSpawnPatternProvider PatternProvider;
             public ProjectileSpawnParams BaseSpawn;
             public int NextFrame;
             public int IntervalFrames;
             public int Remaining;
 
-            public ScheduledEmit(ProjectileScheduleId id, IProjectileSpawnPattern pattern, in ProjectileSpawnParams baseSpawn, int nextFrame, int intervalFrames, int remaining)
+            public ScheduledEmit(ProjectileScheduleId id, IProjectileSpawnPattern pattern, IProjectileSpawnPatternProvider patternProvider, in ProjectileSpawnParams baseSpawn, int nextFrame, int intervalFrames, int remaining)
             {
                 Id = id;
                 Pattern = pattern;
+                PatternProvider = patternProvider;
                 BaseSpawn = baseSpawn;
                 NextFrame = nextFrame;
                 IntervalFrames = intervalFrames;

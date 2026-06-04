@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World;
@@ -258,7 +258,7 @@ namespace AbilityKit.Game.Test.FrameSync
 
             Log($"OnFrame world={packet.WorldId.Value}, frame={packet.Frame.Value}, inputs={(packet.Inputs?.Count ?? 0)}, snapshot={(packet.Snapshot.HasValue ? packet.Snapshot.Value.OpCode.ToString() : "null")}");
 
-            if (packet.Snapshot.HasValue && packet.Snapshot.Value.OpCode == (int)MobaOpCode.StateHashSnapshot)
+            if (packet.Snapshot.HasValue && packet.Snapshot.Value.OpCode == MobaOpCodes.Snapshot.StateHash)
             {
                 try
                 {

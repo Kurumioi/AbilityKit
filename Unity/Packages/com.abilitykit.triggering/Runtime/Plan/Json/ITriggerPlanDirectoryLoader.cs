@@ -17,10 +17,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         /// <returns>合并后的触发器数据库</returns>
         TriggerPlanJsonDatabase LoadDirectory(string directory, string pattern = "*.json");
 
+        TriggerPlanJsonDatabase LoadDirectory(string directory, string pattern, TriggerPlanDirectoryLoadOptions options);
+
         /// <summary>
         /// 加载多个目录下的触发器文件
         /// </summary>
         TriggerPlanJsonDatabase LoadDirectories(IEnumerable<string> directories, string pattern = "*.json");
+
+        TriggerPlanJsonDatabase LoadDirectories(IEnumerable<string> directories, string pattern, TriggerPlanDirectoryLoadOptions options);
 
         /// <summary>
         /// 加载主索引文件 + 模块目录
@@ -30,6 +34,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         /// <param name="moduleDirectory">模块目录路径</param>
         /// <returns>合并后的触发器数据库</returns>
         TriggerPlanJsonDatabase LoadWithManifest(string manifestPath, string moduleDirectory);
+
+        TriggerPlanJsonDatabase LoadWithManifest(string manifestPath, string moduleDirectory, TriggerPlanDirectoryLoadOptions options);
     }
 
     /// <summary>

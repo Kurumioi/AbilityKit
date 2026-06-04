@@ -63,6 +63,16 @@ namespace AbilityKit.Coordinator
         // ============== Features ==============
 
         /// <summary>
+        /// Require an ILogicWorldDriveGate before the coordinator or local sync adapter can drive the logic world.
+        /// </summary>
+        public bool RequireLogicWorldDriveGate;
+
+        /// <summary>
+        /// Create player spawns through ISpawnService when the coordinator starts.
+        /// </summary>
+        public bool UseCoordinatorSpawnService;
+
+        /// <summary>
         /// Enable replay recording
         /// </summary>
         public bool EnableReplayRecording;
@@ -101,6 +111,14 @@ namespace AbilityKit.Coordinator
         /// </summary>
         public List<SubFeatureConfigItem> SubFeatures;
 
+        /// <summary>
+        /// Resolve the effective runtime policy from user-facing session options.
+        /// </summary>
+        public SessionRuntimePolicy ResolveRuntimePolicy()
+        {
+            return SessionRuntimePolicy.FromConfig(in this);
+        }
+
         // ============== Factory Methods ==============
 
         /// <summary>
@@ -113,6 +131,7 @@ namespace AbilityKit.Coordinator
             TickRate = 30,
             SyncMode = SyncMode.Lockstep,
             HostMode = HostMode.Local,
+            UseCoordinatorSpawnService = true,
             EnableReplayRecording = false,
             EnableReplayPlayback = false,
             EnableClientPrediction = false,
@@ -136,6 +155,7 @@ namespace AbilityKit.Coordinator
                 SyncMode = SyncMode.Lockstep,
                 HostMode = HostMode.Local,
                 TickRate = tickRate,
+                UseCoordinatorSpawnService = true,
                 EnableReplayRecording = false,
                 EnableReplayPlayback = false,
                 EnableClientPrediction = false,
@@ -159,6 +179,7 @@ namespace AbilityKit.Coordinator
                 SyncMode = SyncMode.StateSync,
                 HostMode = HostMode.Client,
                 TickRate = 30,
+                UseCoordinatorSpawnService = true,
                 EnableReplayRecording = true,
                 EnableReplayPlayback = false,
                 EnableClientPrediction = false,
@@ -182,6 +203,7 @@ namespace AbilityKit.Coordinator
                 SyncMode = SyncMode.Hybrid,
                 HostMode = HostMode.Client,
                 TickRate = 30,
+                UseCoordinatorSpawnService = true,
                 EnableReplayRecording = true,
                 EnableReplayPlayback = false,
                 EnableClientPrediction = true,
@@ -206,6 +228,7 @@ namespace AbilityKit.Coordinator
                 SyncMode = SyncMode.Lockstep,
                 HostMode = HostMode.Host,
                 TickRate = tickRate,
+                UseCoordinatorSpawnService = true,
                 EnableReplayRecording = true,
                 EnableReplayPlayback = false,
                 EnableClientPrediction = false,
@@ -213,6 +236,64 @@ namespace AbilityKit.Coordinator
                 ServerEndpoint = NetworkEndpoint.None,
                 RoomId = SessionId.New().Value
             };
+        }
+    }
+
+    /// <summary>
+    /// Effective runtime policy derived from SessionConfig.
+    /// </summary>
+    public readonly struct SessionRuntimePolicy
+    {
+        public readonly SyncMode RequestedSyncMode;
+        public readonly SyncMode EffectiveSyncMode;
+        public readonly HostMode HostMode;
+        public readonly bool RequiresNetwork;
+        public readonly bool SupportsPrediction;
+        public readonly bool EnableClientPrediction;
+        public readonly int MaxPredictionAheadFrames;
+        public readonly bool RequireLogicWorldDriveGate;
+        public readonly bool UseCoordinatorSpawnService;
+
+        public SessionRuntimePolicy(
+            SyncMode requestedSyncMode,
+            SyncMode effectiveSyncMode,
+            HostMode hostMode,
+            bool requiresNetwork,
+            bool supportsPrediction,
+            bool enableClientPrediction,
+            int maxPredictionAheadFrames,
+            bool requireLogicWorldDriveGate,
+            bool useCoordinatorSpawnService)
+        {
+            RequestedSyncMode = requestedSyncMode;
+            EffectiveSyncMode = effectiveSyncMode;
+            HostMode = hostMode;
+            RequiresNetwork = requiresNetwork;
+            SupportsPrediction = supportsPrediction;
+            EnableClientPrediction = enableClientPrediction;
+            MaxPredictionAheadFrames = maxPredictionAheadFrames;
+            RequireLogicWorldDriveGate = requireLogicWorldDriveGate;
+            UseCoordinatorSpawnService = useCoordinatorSpawnService;
+        }
+
+        public static SessionRuntimePolicy FromConfig(in SessionConfig config)
+        {
+            var effectiveSyncMode = config.HostMode == HostMode.Local
+                ? SyncMode.Lockstep
+                : config.SyncMode;
+            var supportsPrediction = effectiveSyncMode == SyncMode.Hybrid;
+            var enablePrediction = supportsPrediction && config.EnableClientPrediction;
+
+            return new SessionRuntimePolicy(
+                requestedSyncMode: config.SyncMode,
+                effectiveSyncMode: effectiveSyncMode,
+                hostMode: config.HostMode,
+                requiresNetwork: effectiveSyncMode != SyncMode.Lockstep,
+                supportsPrediction: supportsPrediction,
+                enableClientPrediction: enablePrediction,
+                maxPredictionAheadFrames: enablePrediction ? Math.Max(0, config.MaxPredictionAheadFrames) : 0,
+                requireLogicWorldDriveGate: config.RequireLogicWorldDriveGate,
+                useCoordinatorSpawnService: config.UseCoordinatorSpawnService);
         }
     }
 

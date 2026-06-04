@@ -16,22 +16,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IEventBus _eventBus;
         private readonly FunctionRegistry _functions;
         private readonly ActionRegistry _actions;
-        private readonly Action<TriggerPlan<object>> _repairMissingActions;
-
         public MobaTriggerPlanExecutor(
             IWorldResolver services,
             TriggerPlanJsonDatabase planDb,
             IEventBus eventBus,
             FunctionRegistry functions,
-            ActionRegistry actions,
-            Action<TriggerPlan<object>> repairMissingActions)
+            ActionRegistry actions)
         {
             _services = services;
             _planDb = planDb;
             _eventBus = eventBus;
             _functions = functions;
             _actions = actions;
-            _repairMissingActions = repairMissingActions;
         }
 
         public bool TryGetPlan(int triggerId, out TriggerPlan<object> plan)
@@ -66,6 +62,8 @@ namespace AbilityKit.Demo.Moba.Services
                 policy: default,
                 control: ctrl);
 
+            var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
+
             bool ExecuteOnce()
             {
                 var planned = new PlannedTrigger<object, IWorldResolver>(plan);
@@ -73,26 +71,21 @@ namespace AbilityKit.Demo.Moba.Services
                 if (ctrl.StopPropagation || ctrl.Cancel) return ok;
                 if (!ok) return true;
 
-                planned.Execute(args, execCtx);
+                if (hasExecutionRoot && executionRoot != null)
+                {
+                    executionRoot.Execute(args, in execCtx);
+                }
+                else
+                {
+                    planned.Execute(args, execCtx);
+                }
+
                 return true;
             }
 
             try
             {
                 return ExecuteOnce();
-            }
-            catch (InvalidOperationException)
-            {
-                try
-                {
-                    _repairMissingActions?.Invoke(plan);
-                    return ExecuteOnce();
-                }
-                catch (Exception ex)
-                {
-                    Log.Exception(ex, $"[MobaTriggerPlanExecutor] Plan execution failed. triggerId={triggerId}");
-                    return false;
-                }
             }
             catch (Exception ex)
             {

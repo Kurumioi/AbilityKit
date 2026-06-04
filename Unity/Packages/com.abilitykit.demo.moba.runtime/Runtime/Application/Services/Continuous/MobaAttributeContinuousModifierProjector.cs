@@ -30,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!CanProject(spec)) continue;
  
                 var attr = AttributeId.FromRaw(spec.TargetId);
-                var data = CreateModifierData(spec, projection.ModifierSourceId, stack, ctx);
+                var data = CreateModifierData(continuous, spec, projection, stack, ctx);
                 if (ctx != null) ctx.AddModifier(attr, data);
                 else group?.AddModifier(attr, data);
             }
@@ -44,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (ctx != null) ctx.ClearModifiers(projection.ModifierSourceId);
             else group?.ClearModifiers(projection.ModifierSourceId);
+            MobaContinuousModifierCaptureStore.Clear(projection.ModifierSourceId);
         }
 
         private bool TryGetAttributeTarget(int actorId, out AttributeContext ctx, out AttributeGroup group)
@@ -60,10 +61,31 @@ namespace AbilityKit.Demo.Moba.Services
             return ctx != null || group != null;
         }
 
-        private static ModifierData CreateModifierData(IMobaContinuousModifierSpec spec, int sourceId, int stack, AttributeContext context)
+        private static ModifierData CreateModifierData(IContinuous continuous, IMobaContinuousModifierSpec spec, IMobaContinuousProjectionConfig projection, int stack, AttributeContext context)
         {
             var key = ModifierKey.Create(ModifierKey.Categories.Attribute, ToByte(spec.TargetId));
-            var magnitude = ApplyEvaluationPolicy(ApplyStack(spec.Magnitude, stack), spec.EvaluationPolicy, context);
+            var sourceId = projection?.ModifierSourceId ?? 0;
+            var stacked = ApplyStack(spec.Magnitude, stack);
+            var magnitude = ApplyEvaluationPolicy(stacked, spec.EvaluationPolicy, context, out var capturedValue, out var hasCapturedValue);
+            MobaContinuousModifierCaptureStore.Record(new MobaContinuousModifierCaptureRecord(
+                continuous,
+                projection?.OwnerActorId ?? 0,
+                spec.TargetKind,
+                spec.TargetId,
+                spec.Op,
+                spec.Value,
+                spec.EvaluationPolicy,
+                spec.Priority,
+                stack,
+                sourceId,
+                spec.Magnitude,
+                stacked,
+                magnitude,
+                capturedValue,
+                hasCapturedValue,
+                spec.EvaluationPolicy == MobaContinuousModifierEvaluationPolicy.OnApplySnapshot ? "OnApplySnapshot" : "Realtime",
+                hasCapturedValue ? "Captured when continuous modifier was projected" : "Realtime magnitude kept for attribute calculation"));
+
             return new ModifierData
             {
                 Key = key,
@@ -82,12 +104,15 @@ namespace AbilityKit.Demo.Moba.Services
             return magnitude.WithBaseValue(magnitude.BaseValue * stack);
         }
 
-        private static MagnitudeSource ApplyEvaluationPolicy(MagnitudeSource magnitude, int policy, AttributeContext context)
+        private static MagnitudeSource ApplyEvaluationPolicy(MagnitudeSource magnitude, int policy, AttributeContext context, out float capturedValue, out bool hasCapturedValue)
         {
+            capturedValue = 0f;
+            hasCapturedValue = false;
             if (policy != MobaContinuousModifierEvaluationPolicy.OnApplySnapshot) return magnitude;
 
-            var value = magnitude.Calculate(context?.Level ?? 1f, context);
-            return MagnitudeSource.Fixed(value);
+            capturedValue = magnitude.Calculate(context?.Level ?? 1f, context);
+            hasCapturedValue = true;
+            return MagnitudeSource.Fixed(capturedValue);
         }
 
         private static bool CanProject(IMobaContinuousModifierSpec spec)

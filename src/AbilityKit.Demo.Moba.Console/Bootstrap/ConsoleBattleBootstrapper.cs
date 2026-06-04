@@ -22,6 +22,7 @@ using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Protocol.Moba;
 using BattleConfig = AbilityKit.Demo.Moba.Console.Battle.Config;
 using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
 using ShareSyncMode = AbilityKit.Demo.Moba.Share.SyncMode;
@@ -33,7 +34,6 @@ using ShareProjectileEventData = AbilityKit.Demo.Moba.Share.ProjectileEventData;
 using ShareAreaEventData = AbilityKit.Demo.Moba.Share.AreaEventData;
 using ShareDamageEventData = AbilityKit.Demo.Moba.Share.DamageEventData;
 using ShareStateHashData = AbilityKit.Demo.Moba.Share.StateHashData;
-using ShareMobaOpCode = AbilityKit.Demo.Moba.Share.MobaOpCode;
 using ShareFrameSnapshotDispatcher = AbilityKit.Demo.Moba.Share.FrameSnapshotDispatcher;
 using ShareActorSpawnData = AbilityKit.Demo.Moba.Share.ActorSpawnData;
 using EC = AbilityKit.World.ECS;
@@ -192,43 +192,43 @@ namespace AbilityKit.Demo.Moba.Console
 
             var dispatcher = _snapshotDispatcher;
 
-            dispatcher.Subscribe(ShareMobaOpCode.EnterGameSnapshot, (int frame, ShareEnterGameData data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.EnterGame, (int frame, ShareEnterGameData data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, enterGame: data);
                 _shareViewEventSink.OnEnterGameSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ActorSpawnSnapshot, (int frame, ShareActorSpawnData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ActorSpawn, (int frame, ShareActorSpawnData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, actorSpawns: data);
                 _shareViewEventSink.OnActorSpawnSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ActorTransformSnapshot, (int frame, ShareActorTransformData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ActorTransform, (int frame, ShareActorTransformData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, actorTransforms: data);
                 _shareViewEventSink.OnActorTransformSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.ProjectileEventSnapshot, (int frame, ShareProjectileEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.ProjectileEvent, (int frame, ShareProjectileEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, projectileEvents: data);
                 _shareViewEventSink.OnProjectileEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.AreaEventSnapshot, (int frame, ShareAreaEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.AreaEvent, (int frame, ShareAreaEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, areaEvents: data);
                 _shareViewEventSink.OnAreaEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.DamageEventSnapshot, (int frame, ShareDamageEventData[] data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.DamageEvent, (int frame, ShareDamageEventData[] data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, damageEvents: data);
                 _shareViewEventSink.OnDamageEventSnapshot(in snapshotData);
             });
 
-            dispatcher.Subscribe(ShareMobaOpCode.StateHashSnapshot, (int frame, ShareStateHashData data) =>
+            dispatcher.Subscribe(MobaOpCodes.Snapshot.StateHash, (int frame, ShareStateHashData data) =>
             {
                 var snapshotData = new ShareFrameSnapshotData(frame, 0, ShareSnapshotType.Full, stateHash: data);
                 _shareViewEventSink.OnStateHashSnapshot(in snapshotData);

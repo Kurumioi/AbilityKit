@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Ability.Share.Impl.Moba.Struct;
-using AbilityKit.Ability.Share.Impl.Moba.CreateWorld;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World;
@@ -153,15 +153,24 @@ namespace AbilityKit.Game.Test.FrameSync
             var reg = new WorldTypeRegistry().RegisterEntitasWorld(worldType);
             var manager = new WorldManager(new RegistryWorldFactory(reg));
 
-            var enterReq = new EnterMobaGameReq(
-                playerId: new PlayerId(playerId),
+            var launchSpec = new MobaBattleLaunchSpec(
+                battleId: "test",
                 matchId: "test",
+                worldId: id.Value,
+                worldType: worldType,
+                clientId: "client_prediction_test",
+                localPlayerId: new PlayerId(playerId),
                 mapId: 1,
+                gameplayId: 0,
+                ruleSetId: 0,
+                configVersion: 0,
+                protocolVersion: 0,
                 randomSeed: 123,
                 tickRate: 30,
                 inputDelayFrames: 0,
-                opCode: 0,
-                payload: Array.Empty<byte>(),
+                launchMode: MobaBattleLaunchMode.ViewFastEnter,
+                syncMode: MobaBattleLaunchSyncMode.Hybrid,
+                authorityMode: MobaBattleLaunchAuthorityMode.ClientPrediction,
                 players: new[]
                 {
                     new MobaPlayerLoadout(
@@ -179,7 +188,8 @@ namespace AbilityKit.Game.Test.FrameSync
                         spawnX: 0f,
                         spawnY: 0f,
                         spawnZ: 0f)
-                });
+                },
+                enterGamePayload: Array.Empty<byte>());
 
             var builder = WorldServiceContainerFactory.CreateWithAttributes(
                 WorldServiceProfile.Client,
@@ -192,7 +202,7 @@ namespace AbilityKit.Game.Test.FrameSync
                 new[] { "AbilityKit" }
             );
 
-            builder.RegisterInstance(new WorldInitData(MobaWorldBootstrapModule.InitOpCode, EnterMobaGameCodec.SerializeReq(enterReq)));
+            builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
 
             var options = new WorldCreateOptions(id, worldType)
             {
@@ -213,7 +223,7 @@ namespace AbilityKit.Game.Test.FrameSync
             if ((next.Value % 20) < 10) dz = 1f; else dz = -1f;
 
             var payload = MobaMoveCodec.Serialize(dx, dz);
-            var move = new PlayerInputCommand(next, p, (int)MobaOpCode.Move, payload);
+            var move = new PlayerInputCommand(next, p, MobaOpCodes.Input.Move, payload);
 
             var authInputs = new[] { move };
             _authInput.Submit(next, authInputs);
@@ -225,7 +235,7 @@ namespace AbilityKit.Game.Test.FrameSync
                 // NOTE: Dropping the input would keep the previous non-zero input inside MobaMoveService,
                 // so both worlds may still move identically. Use an opposite input to guarantee divergence.
                 var oppositePayload = MobaMoveCodec.Serialize(-dx, -dz);
-                predInputs = new[] { new PlayerInputCommand(next, p, (int)MobaOpCode.Move, oppositePayload) };
+                predInputs = new[] { new PlayerInputCommand(next, p, MobaOpCodes.Input.Move, oppositePayload) };
                 Debug.Log($"[ClientPredictionTestHarness] Force desync at frame {next.Value} (opposite input)");
             }
 

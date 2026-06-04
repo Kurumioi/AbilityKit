@@ -22,6 +22,7 @@ namespace AbilityKit.Coordinator
     {
         private readonly IWorld _world;
         private readonly SessionConfig _config;
+        private readonly SessionRuntimePolicy _runtimePolicy;
         private ISessionCoordinator _coordinator;
         private ILogicWorldDriverBridge _driverHost;
 
@@ -51,6 +52,7 @@ namespace AbilityKit.Coordinator
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _config = config;
+            _runtimePolicy = config.ResolveRuntimePolicy();
             _lastTickTime = GetTimeSeconds();
             _renderTime = 0;
             _currentFrame = 0;
@@ -126,6 +128,11 @@ namespace AbilityKit.Coordinator
                 _pendingInputs.Clear();
             }
 
+            if (!CanDriveLogicWorld(deltaTime))
+            {
+                return;
+            }
+
             // Submit inputs through driver host
             if (_driverHost != null && inputsToSubmit.Length > 0)
             {
@@ -149,6 +156,16 @@ namespace AbilityKit.Coordinator
 
             // Trigger frame sync event
             OnFrameSync?.Invoke(CurrentFrame, LogicTimeSeconds);
+        }
+
+        private bool CanDriveLogicWorld(float deltaTime)
+        {
+            if (_world?.Services != null && _world.Services.TryResolve<ILogicWorldDriveGate>(out var gate) && gate != null)
+            {
+                return gate.CanDriveLogicWorld(deltaTime);
+            }
+
+            return !_runtimePolicy.RequireLogicWorldDriveGate;
         }
 
         private static double GetTimeSeconds()
