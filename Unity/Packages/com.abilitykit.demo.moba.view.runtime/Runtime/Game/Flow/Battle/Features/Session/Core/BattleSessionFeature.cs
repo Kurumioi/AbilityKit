@@ -4,6 +4,7 @@ using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
@@ -14,6 +15,8 @@ namespace AbilityKit.Game.Flow
 #endif
 
         private readonly IBattleBootstrapper _bootstrapper;
+        private readonly Func<BattleStartPlan, IConnection> _gatewayConnectionFactory;
+        private readonly IAbilityKitConnectionRegistry _connectionRegistry;
 
         private readonly BattleSessionState _state = new BattleSessionState();
         private readonly BattleSessionHandles _handles = new BattleSessionHandles();
@@ -39,9 +42,11 @@ namespace AbilityKit.Game.Flow
         private static bool _editorPlayModeHookInstalled;
 #endif
 
-        public BattleSessionFeature(IBattleBootstrapper bootstrapper)
+        public BattleSessionFeature(IBattleBootstrapper bootstrapper, Func<BattleStartPlan, IConnection> gatewayConnectionFactory = null, IAbilityKitConnectionRegistry connectionRegistry = null)
         {
             _bootstrapper = bootstrapper;
+            _gatewayConnectionFactory = gatewayConnectionFactory;
+            _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
             _orchestrator = new SessionOrchestrator(_state, _handles, this);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();

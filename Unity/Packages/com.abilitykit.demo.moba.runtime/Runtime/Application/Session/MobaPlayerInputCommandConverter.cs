@@ -16,7 +16,7 @@ using AbilityKit.Protocol.Moba.StateSync;
 namespace AbilityKit.Demo.Moba.Session
 {
     /// <summary>
-    /// 表现层输入命令转换器，保持 BattleDriverHost 只负责调度生命周期。
+    /// 表现层输入命令转换器，保持逻辑世界驱动桥只负责调度生命周期。
     /// </summary>
     public sealed class MobaPlayerInputCommandConverter
     {
@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Session
         /// 将 Coordinator 输入批量转换为世界输入命令。
         /// </summary>
         /// <param name="inputs">Coordinator 输入数组</param>
-        /// <returns>可提交到 IMobaBattleInputPort 的命令列表</returns>
+        /// <returns>可提交到 IMobaBattleRuntimePort 的命令列表</returns>
         public IReadOnlyList<PlayerInputCommand> Convert(PlayerInput[] inputs)
         {
             if (inputs == null || inputs.Length == 0)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Protocol.Moba;
 
@@ -74,8 +75,9 @@ namespace AbilityKit.Demo.Moba.Services
                     players: dst,
                     gameplayId: req.GameplayId);
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[MobaGameStartSpecNormalizer] Normalize failed. playerId={req.PlayerId.Value}, matchId={req.MatchId}, mapId={req.MapId}, players={(req.Players != null ? req.Players.Length : 0)}, gameplayId={req.GameplayId}");
                 return req;
             }
         }

@@ -75,7 +75,7 @@ namespace AbilityKit.Game.Flow
             set => _handles.Net.Ctx = value;
         }
 
-        private ConnectionManager _gatewayConn
+        private IConnection _gatewayConn
         {
             get => _handles.GatewayRoom.Conn;
             set => _handles.GatewayRoom.Conn = value;

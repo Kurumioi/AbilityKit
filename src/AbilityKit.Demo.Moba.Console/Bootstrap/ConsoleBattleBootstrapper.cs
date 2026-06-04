@@ -272,9 +272,16 @@ namespace AbilityKit.Demo.Moba.Console
 
         private void CreateBattleSession()
         {
+            if (_worldResolver != null && _worldResolver.TryResolve<IMobaBattleInputPort>(out var inputPort) && inputPort != null)
+            {
+                _inputFeature.SetInputSink(new Bootstrap.RuntimePortInputSink(inputPort));
+                Log.System($"[Bootstrapper] RuntimePort InputSink initialized");
+                return;
+            }
+
             var inputSink = new Bootstrap.DirectCallInputSink();
             _inputFeature.SetInputSink(inputSink);
-            Log.System($"[Bootstrapper] DirectCall InputSink initialized");
+            Log.System($"[Bootstrapper] DirectCall InputSink initialized; runtime input port is not registered");
         }
 
         private void LogBattleConfig()

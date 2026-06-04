@@ -10,13 +10,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartGame
     {
         private readonly IMobaRoomOrchestrator _room;
         private readonly IMobaGameStartOrchestrator _orchestrator;
-        private readonly Entitas.IContexts _contexts;
 
-        public MobaWorldAutoStartHandler(IMobaRoomOrchestrator room, IMobaGameStartOrchestrator orchestrator, Entitas.IContexts contexts)
+        public MobaWorldAutoStartHandler(IMobaRoomOrchestrator room, IMobaGameStartOrchestrator orchestrator)
         {
             _room = room ?? throw new ArgumentNullException(nameof(room));
             _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
-            _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         }
 
         public bool TryAutoStart(IWorld world, float deltaTime)
@@ -25,8 +23,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartGame
 
             try
             {
-                var actorContext = ((global::Contexts)_contexts).actor;
-                return _orchestrator.TryStartGame(actorContext);
+                return _orchestrator.TryStartGame(world);
             }
             catch (Exception ex)
             {

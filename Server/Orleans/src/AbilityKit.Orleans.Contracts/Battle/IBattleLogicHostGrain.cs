@@ -53,6 +53,15 @@ public class BattleInitParams
     [Id(0)] public ulong WorldId { get; set; }
     [Id(1)] public int TickRate { get; set; }
     [Id(2)] public List<PlayerInitInfo>? Players { get; set; }
+    [Id(3)] public int MapId { get; set; } = 1;
+    [Id(4)] public int GameplayId { get; set; }
+    [Id(5)] public int RuleSetId { get; set; }
+    [Id(6)] public int ConfigVersion { get; set; }
+    [Id(7)] public int ProtocolVersion { get; set; }
+    [Id(8)] public int RandomSeed { get; set; }
+    [Id(9)] public int InputDelayFrames { get; set; }
+    [Id(10)] public string? WorldType { get; set; }
+    [Id(11)] public string? ClientId { get; set; }
 }
 
 /// <summary>

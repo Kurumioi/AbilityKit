@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Networking;
@@ -21,6 +22,11 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         _router = router;
     }
 
+    public void OnConnected(TcpTransportSession session)
+    {
+        RegisterSession(session);
+    }
+
     public void OnRequest(long connectionId, uint opCode, uint seq, byte[] payload)
     {
         if (!_sessions.TryGetValue(connectionId, out var session))
@@ -31,17 +37,23 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
             try
             {
                 var response = await _router.RouteAsync(session.Context, opCode, seq, payload, CancellationToken.None);
-
-                // 发送响应
-                var responsePayload = MemoryPack.MemoryPackSerializer.Serialize(response);
-                var header = new NetworkPacketHeader(NetworkPacketFlags.Response, opCode, seq, (uint)responsePayload.Length);
-                // 注意：这里需要通过网络层发送响应，但由于是内部调用，实际发送由 TcpTransportSession 处理
+                var responsePayload = BuildResponsePayload(response);
+                await session.SendResponseAsync(opCode, response.Seq, responsePayload, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Route error: {ex.Message}");
             }
         });
+    }
+
+    private static byte[] BuildResponsePayload(GatewayResponse response)
+    {
+        var payload = response.Payload ?? Array.Empty<byte>();
+        var responsePayload = new byte[sizeof(int) + payload.Length];
+        BinaryPrimitives.WriteInt32LittleEndian(responsePayload.AsSpan(0, sizeof(int)), response.StatusCode);
+        payload.CopyTo(responsePayload.AsSpan(sizeof(int)));
+        return responsePayload;
     }
 
     public void OnClosed(long connectionId)

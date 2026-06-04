@@ -12,5 +12,11 @@ public interface IRoomGrain : IGrainWithStringKey
 
     Task LeaveAsync(string accountId);
 
+    Task SetReadyAsync(RoomReadyRequest request);
+
+    Task PickHeroAsync(RoomPickHeroRequest request);
+
+    Task<StartRoomBattleResponse> StartBattleAsync(StartRoomBattleRequest request);
+
     Task CloseAsync(string accountId);
 }

@@ -1,23 +1,21 @@
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
+using AbilityKit.Protocol.Moba.Room;
 using Orleans;
-using Orleans.Serialization;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
 /// 加入房间 Handler
 /// </summary>
-[Core.GatewayHandler(102)]
+[Core.GatewayHandler(RoomGatewayOpCodes.JoinRoom)]
 public sealed class JoinRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
-    private readonly Serializer _serializer;
 
-    public JoinRoomHandler(IClusterClient clusterClient, Serializer serializer)
+    public JoinRoomHandler(IClusterClient clusterClient)
     {
         _clusterClient = clusterClient;
-        _serializer = serializer;
     }
 
     public override async ValueTask<GatewayResponse> HandleAsync(
@@ -28,22 +26,27 @@ public sealed class JoinRoomHandler : GatewayRequestHandlerBase
         if (request.Payload == null || request.Payload.Length == 0)
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
-        var req = _serializer.Deserialize<JoinRoomRequest>(request.Payload);
-        if (req == null)
+        var req = WireRoomGatewayBinary.Deserialize<WireJoinRoomReq>(request.Payload);
+        if (string.IsNullOrWhiteSpace(req.SessionToken) || string.IsNullOrWhiteSpace(req.RoomId))
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
         try
         {
+            var accountId = await RoomGatewayWireMapper.ValidateAccountAsync(_clusterClient, req.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+
             var room = _clusterClient.GetGrain<IRoomGrain>(req.RoomId);
-            await room.JoinAsync(req.AccountId);
+            await room.JoinAsync(accountId);
 
             var snapshot = await room.GetSnapshotAsync();
-            var responsePayload = _serializer.SerializeToArray(snapshot);
+            var wire = RoomGatewayWireMapper.ToJoinRoomRes(snapshot);
+            var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 
             context.RoomId = req.RoomId;
-            context.AccountId = req.AccountId;
+            context.AccountId = accountId;
 
-            return GatewayResponse.Ok(request.Seq, responsePayload);
+            return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
         }
         catch (Exception)
         {

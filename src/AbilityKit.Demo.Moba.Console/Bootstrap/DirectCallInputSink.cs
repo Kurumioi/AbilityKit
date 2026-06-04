@@ -3,20 +3,16 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Console.Bootstrap
 {
     /// <summary>
-    /// 直接调用模式的输入转发表层
+    /// Console 本地输入占位 Sink。
     ///
-    /// 实现 IWorldInputSink（框架接口），处理输入命令
-    /// 适用于本地开发/测试，零网络开销
-    ///
-    /// 架构说明：
-    /// - InputFeature 调用此 Sink
-    /// - 此 Sink 直接调用逻辑层服务处理输入
-    /// - 无任何网络传输开销
+    /// 当前 Console 启动链路没有创建正式 runtime world，因此这里仅记录输入。
+    /// 需要接入真实战斗逻辑时，应由 bootstrapper 注入 IMobaBattleInputPort backed sink。
     /// </summary>
     public sealed class DirectCallInputSink : IWorldInputSink
     {
@@ -33,9 +29,40 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return;
             }
 
-            // 输入命令由逻辑层服务处理
-            // 这里只是转发，具体处理逻辑由 MobaLobbyInputSink 或其他逻辑层服务执行
-            Platform.Log.Input($"[DirectCallInputSink] Submit {inputs.Count} commands at frame {frame}");
+            Platform.Log.Input($"[DirectCallInputSink] Runtime input port is not wired; recorded {inputs.Count} local commands at frame {frame}");
+        }
+
+        public void Dispose()
+        {
+            _disposed = true;
+        }
+    }
+
+    /// <summary>
+    /// Console 输入到正式运行时输入端口的转发 Sink。
+    /// </summary>
+    public sealed class RuntimePortInputSink : IWorldInputSink
+    {
+        private readonly IMobaBattleInputPort _inputPort;
+        private bool _disposed;
+
+        public RuntimePortInputSink(IMobaBattleInputPort inputPort)
+        {
+            _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
+        }
+
+        public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (_disposed || inputs == null || inputs.Count == 0)
+            {
+                return;
+            }
+
+            var result = _inputPort.Submit(frame, inputs);
+            if (!result.Succeeded)
+            {
+                Platform.Log.Input($"[RuntimePortInputSink] Submit rejected. {result}");
+            }
         }
 
         public void Dispose()

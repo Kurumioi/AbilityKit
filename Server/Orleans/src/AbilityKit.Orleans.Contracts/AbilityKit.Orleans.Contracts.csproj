@@ -7,32 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 排除有 Unity/Orleans WireSerializer 依赖的文件 -->
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol\Runtime\**\*.cs" 
-      Exclude="..\..\..\..\Unity\Packages\com.abilitykit.protocol\Runtime\Serialization\WireSerializer.cs" />
-    <!-- 排除有 WireSerializer 和 MemoryPack 依赖的文件 -->
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\**\*.cs"
-      Exclude="
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\EnterGame\EnterMobaGameCodec.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\CreateWorld\MobaCreateWorldInitCodec.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\EnterGame\EnterMobaGameStructs.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Skill\SkillInputStructs.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\Room\MobaRoomCommand.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\CreateWorld\MobaCreateWorldInitPayload.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\CreateWorld\MobaCreateWorldSpec.cs;
-        ..\..\..\..\Unity\Packages\com.abilitykit.protocol.moba\Runtime\RoomSync\MobaRoomSyncMessages.cs" />
-
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.world.framesync\Runtime\Host\PlayerId.cs" Link="World.FrameSync\Host\PlayerId.cs" />
-
-    <!-- Note: WorldId is not needed in Contracts - we use ulong for serialization -->
-
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Generic\BinaryObjectCodec.cs" Link="AbilityKit.Core\Generic\BinaryObjectCodec.cs" />
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Common\Pool\*.cs" Link="AbilityKit.Core\Common\Pool\%(Filename)%(Extension)" />
-
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.core\Runtime\Core\Math\*.cs" Link="AbilityKit.Core\Math\%(Filename)%(Extension)" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.21.4" />
     <PackageReference Include="Microsoft.Orleans.Core.Abstractions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Sdk" Version="8.0.0" PrivateAssets="all" />

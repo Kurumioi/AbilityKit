@@ -70,7 +70,7 @@ namespace AbilityKit.Coordinator
             _driverHost = driverHost;
         }
 
-        public void SetDriverHost(ILogicWorldDriverBridge driverHost)
+        public void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
         }

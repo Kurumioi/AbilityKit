@@ -14,6 +14,7 @@ namespace ET.Logic
         public void Handle(ETMobaBattleDriver driver)
         {
             driver.IsRunning = false;
+            driver.RuntimeGameStarted = false;
             Log.Info("[StopHandler] Done");
         }
     }

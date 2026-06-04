@@ -5,10 +5,12 @@ namespace AbilityKit.Game.Flow
     public sealed class BattlePhase : IGamePhase
     {
         private readonly IBattleBootstrapper _bootstrapper;
+        private readonly Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> _gatewayConnectionFactory;
 
-        public BattlePhase(IBattleBootstrapper bootstrapper)
+        public BattlePhase(IBattleBootstrapper bootstrapper, Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection> gatewayConnectionFactory = null)
         {
             _bootstrapper = bootstrapper;
+            _gatewayConnectionFactory = gatewayConnectionFactory;
         }
 
         public void Enter(in GamePhaseContext ctx)
@@ -20,7 +22,7 @@ namespace AbilityKit.Game.Flow
             if (set == null || set.FeatureIds == null || set.FeatureIds.Count == 0)
             {
                 flow.Attach(new BattleContextFeature());
-                flow.Attach(new BattleSessionFeature(_bootstrapper));
+                flow.Attach(new BattleSessionFeature(_bootstrapper, _gatewayConnectionFactory));
                 flow.Attach(new BattleEntityFeature());
                 flow.Attach(new BattleSyncFeature());
                 flow.Attach(new BattleInputFeature());
@@ -41,7 +43,7 @@ namespace AbilityKit.Game.Flow
                         flow.Attach(new BattleContextFeature());
                         break;
                     case "session":
-                        flow.Attach(new BattleSessionFeature(_bootstrapper));
+                        flow.Attach(new BattleSessionFeature(_bootstrapper, _gatewayConnectionFactory));
                         break;
                     case "entity":
                         flow.Attach(new BattleEntityFeature());

@@ -1,13 +1,13 @@
 using System;
-using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
-using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Common.Log;
+using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Systems;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -52,22 +52,29 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            // TODO: 实现实际的资源扣除逻辑
-            // 目前是占位实现，后续需要：
-            // 1. 根据 ResourceType 获取对应属�?
-            // 2. 检查当前值是否足�?
-            // 3. 扣除资源
-            // 4. 如果失败，应该抛出异常或返回失败状�?
-            
-            Log.Info($"[Plan] consume_resource: actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}");
+            if (args.ResourceType == ResourceType.None)
+            {
+                throw new InvalidOperationException($"[Plan] consume_resource failed: invalid resource type. actorId={casterActorId}, amount={args.Amount}");
+            }
 
-            // 示例实现（需要与属性系统对接）�?
-            // var attribute = GetAttribute(entity, args.ResourceType);
-            // if (attribute.CurrentValue < args.Amount)
-            // {
-            //     throw new InvalidOperationException(args.FailMessageKey);
-            // }
-            // attribute.CurrentValue -= args.Amount;
+            if (!entity.hasResourceContainer || entity.resourceContainer.Value == null || entity.resourceContainer.Value.Map == null)
+            {
+                throw new InvalidOperationException($"[Plan] consume_resource failed: resource container not found. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}");
+            }
+
+            var resources = entity.resourceContainer.Value.Map;
+            if (!resources.TryGetValue(args.ResourceType, out var state) || state == null)
+            {
+                throw new InvalidOperationException($"[Plan] consume_resource failed: resource state not found. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}");
+            }
+
+            if (state.Current < args.Amount)
+            {
+                throw new InvalidOperationException($"[Plan] consume_resource failed: {args.FailMessageKey}. actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}, current={state.Current}");
+            }
+
+            state.Current -= args.Amount;
+            Log.Info($"[Plan] consume_resource: actorId={casterActorId}, type={args.ResourceType}, amount={args.Amount}, remaining={state.Current}");
         }
     }
 }

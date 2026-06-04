@@ -3,31 +3,30 @@ using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Ability.Host.Extensions.Moba.StartGame
 {
     public interface IMobaGameStartOrchestrator : IService
     {
-        bool TryStartGame(ActorContext actorContext);
+        bool TryStartGame(IWorld world);
     }
 
     public sealed class MobaGameStartOrchestrator : IMobaGameStartOrchestrator
     {
         private readonly IMobaRoomOrchestrator _room;
-        private readonly MobaEnterGameFlowService _flow;
 
         private bool _started;
 
-        public MobaGameStartOrchestrator(IMobaRoomOrchestrator room, MobaEnterGameFlowService flow)
+        public MobaGameStartOrchestrator(IMobaRoomOrchestrator room)
         {
             _room = room ?? throw new ArgumentNullException(nameof(room));
-            _flow = flow ?? throw new ArgumentNullException(nameof(flow));
         }
 
-        public bool TryStartGame(ActorContext actorContext)
+        public bool TryStartGame(IWorld world)
         {
-            if (actorContext == null) throw new ArgumentNullException(nameof(actorContext));
+            if (world == null) throw new ArgumentNullException(nameof(world));
 
             if (_started)
             {
@@ -47,9 +46,21 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartGame
                 return false;
             }
 
-            var ok = _flow.ApplyGameStartSpec(actorContext, in spec);
-            if (ok) _started = true;
-            return ok;
+            if (world.Services?.TryResolve<IMobaBattleRuntimePort>(out var runtime) != true || runtime == null)
+            {
+                Log.Error("[MobaGameStartOrchestrator] TryStartGame: IMobaBattleRuntimePort not found");
+                return false;
+            }
+
+            var result = runtime.TryStartGame(in spec);
+            if (!result.Succeeded)
+            {
+                Log.Warning($"[MobaGameStartOrchestrator] TryStartGame rejected. {result}");
+                return false;
+            }
+
+            _started = true;
+            return true;
         }
 
         private static bool CanStartGame(IMobaRoomOrchestrator room)

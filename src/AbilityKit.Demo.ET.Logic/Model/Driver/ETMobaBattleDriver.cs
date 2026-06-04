@@ -25,7 +25,7 @@ namespace ET.Logic
     ///
     /// Responsibilities:
     /// - Host the AbilityKit world and ET-side lifecycle state.
-    /// - Route input through handlers and Runtime input ports.
+    /// - Route input, startup, and snapshots through the Runtime port.
     /// - Dispatch snapshots and view events back to ET presentation.
     ///
     /// Boundary:
@@ -44,6 +44,7 @@ namespace ET.Logic
         public bool IsRunning { get; set; }
         public IBattleViewEventSink ViewEventSink { get; set; }
         public BattleStartPlan Plan { get; set; }
+        public bool RuntimeGameStarted { get; set; }
 
         // ============== Core (World Management) ==============
 
@@ -80,19 +81,6 @@ namespace ET.Logic
         /// 由 EnterGameHandler 在创建实体时填充
         /// </summary>
         public Dictionary<int, ETUnit> Units { get; } = new Dictionary<int, ETUnit>();
-
-        // ============== Sync Adapter (for Coordinator) ==============
-
-        public IETBattleSyncAdapter SyncAdapter { get; set; }
-
-        // ============== Battle Logic IO Ports ==============
-
-        private IMobaBattleInputPort _inputPort;
-        public IMobaBattleInputPort InputPort
-        {
-            get => _inputPort;
-            set => _inputPort = value;
-        }
 
         // ============== State ==============
 
@@ -178,34 +166,6 @@ namespace ET.Logic
             }
         }
 
-        // ============== IBattleDriver Compatibility Surface ==============
-        // These members keep the legacy demo-facing IBattleDriver contract alive.
-        // New battle logic should go through Runtime ports/services instead of
-        // adding direct rule implementations here.
-
-        public void CreateActor(int actorId, int characterId, int teamId, float x, float y, float z) { }
-        public ActorTransformData? GetActorTransform(int actorId) => null;
-        public IReadOnlyList<ActorTransformData> GetAllActorTransforms() => null;
-        public IReadOnlyList<int> GetAliveActorIds() => null;
-        public float GetActorAttribute(int actorId, ActorAttributeType attributeType) => 0;
-        public void SetActorAttribute(int actorId, ActorAttributeType attributeType, float value) { }
-        public float ModifyActorAttribute(int actorId, ActorAttributeType attributeType, float delta) => 0;
-        public bool IsActorDead(int actorId) => false;
-        public void MarkActorDead(int actorId, int killerId) { }
-        public void MoveActor(int actorId, float targetX, float targetZ) { }
-        public bool CanCastSkill(int actorId, int slot) => false;
-        public bool CastSkill(int actorId, int slot, float targetX, float targetZ) => false;
-        public bool CastSkillOnTarget(int actorId, int slot, int targetActorId) => false;
-        public float GetSkillCooldown(int actorId, int slot) => 0;
-        public bool IsSkillReady(int actorId, int slot) => false;
-        public int AddBuff(int actorId, int casterId, int buffId) => -1;
-        public void RemoveBuff(int actorId, int buffInstanceId) { }
-        public int GetBuffStack(int actorId, int buffId) => 0;
-        public IReadOnlyList<int> FindActorsInRange(float x, float z, float radius, int teamFilter = -1) => null;
-        public int FindNearestActor(float x, float z, float radius, int teamFilter = -1) => -1;
-        public float ApplyDamage(int attackerId, int targetId, float damage, int damageType) => 0;
-        public float ApplyHeal(int healerId, int targetId, float heal) => 0;
-
         // ============== Service Resolution ==============
 
         public bool TryResolve<T>(out T service) where T : class
@@ -230,17 +190,23 @@ namespace ET.Logic
             Stop();
         }
 
-        public void OnAllPlayersReady(List<ETPlayerSpawnData> players)
+        public bool OnAllPlayersReady(List<ETPlayerSpawnData> players)
         {
+            if (RuntimeGameStarted)
+            {
+                return true;
+            }
+
             PlayerSpawnData.Clear();
             if (players != null)
             {
                 PlayerSpawnData.AddRange(players);
             }
-
-            ETBattleEnterGameCoordinator.Trigger(this);
+ 
+            var started = ETBattleEnterGameCoordinator.Trigger(this);
             // Note: OnBattleStart is called by StartBattle in DemoProcessComponentSystem.
             // Demo test fixtures must be enabled by the demo/test entry, not by the formal battle driver.
+            return started;
         }
     }
 }

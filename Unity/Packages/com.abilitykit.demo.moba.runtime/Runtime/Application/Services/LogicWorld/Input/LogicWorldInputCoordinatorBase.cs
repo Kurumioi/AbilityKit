@@ -4,6 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Services.LogicWorld
 {
@@ -13,11 +14,16 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
     /// </summary>
     public abstract class LogicWorldInputCoordinatorBase<TContext> : IService, IWorldInitializable, ILogicWorldInputCoordinator where TContext : class
     {
+        private IFrameTime _frameTime;
+        private bool _missingFrameTimeLogged;
+        private bool _futureFrameLogged;
+
         protected IWorldResolver Services { get; private set; }
 
         public void OnInit(IWorldResolver services)
         {
             Services = services;
+            services?.TryResolve(out _frameTime);
             OnServicesReady(services);
         }
 
@@ -40,6 +46,36 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
 
         protected virtual bool CanSubmit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
+            if (frame.Value < 0)
+            {
+                Log.Warning($"[{GetType().Name}] Input batch rejected: targetFrame={frame.Value} is negative, count={inputs.Count}.");
+                return false;
+            }
+
+            if (_frameTime == null)
+            {
+                if (!_missingFrameTimeLogged)
+                {
+                    _missingFrameTimeLogged = true;
+                    Log.Warning($"[{GetType().Name}] Input frame validation degraded: IFrameTime not resolved.");
+                }
+
+                return true;
+            }
+
+            int currentFrame = _frameTime.Frame.Value;
+            if (frame.Value < currentFrame)
+            {
+                Log.Warning($"[{GetType().Name}] Input batch rejected: targetFrame={frame.Value}, currentFrame={currentFrame}, count={inputs.Count}.");
+                return false;
+            }
+
+            if (frame.Value > currentFrame + 1 && !_futureFrameLogged)
+            {
+                _futureFrameLogged = true;
+                Log.Warning($"[{GetType().Name}] Input batch accepted with future target frame: targetFrame={frame.Value}, currentFrame={currentFrame}, count={inputs.Count}.");
+            }
+
             return true;
         }
 

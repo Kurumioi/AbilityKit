@@ -58,18 +58,95 @@ public static class GatewayHttpApi
                 return Results.BadRequest("SessionToken and RoomId are required");
             }
 
-            var session = client.GetGrain<ISessionGrain>("global");
-            var v = await session.ValidateAsync(new ValidateSessionRequest(wire.SessionToken));
-            if (!v.IsValid || string.IsNullOrWhiteSpace(v.AccountId))
+            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
             {
                 return Results.BadRequest("Invalid session");
             }
 
             var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-            await room.JoinAsync(v.AccountId);
+            await room.JoinAsync(accountId);
             var snapshot = await room.GetSnapshotAsync();
             return Results.Ok(snapshot);
         });
+
+        app.MapPost("/api/rooms/ready", async (RoomReadyHttpRequest wire, IClusterClient client) =>
+        {
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            {
+                return Results.BadRequest("SessionToken and RoomId are required");
+            }
+
+            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return Results.BadRequest("Invalid session");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(wire.RoomId);
+            await room.SetReadyAsync(new RoomReadyRequest(accountId, wire.Ready));
+            var snapshot = await room.GetSnapshotAsync();
+            return Results.Ok(snapshot);
+        });
+
+        app.MapPost("/api/rooms/pick-hero", async (RoomPickHeroHttpRequest wire, IClusterClient client) =>
+        {
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            {
+                return Results.BadRequest("SessionToken and RoomId are required");
+            }
+
+            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return Results.BadRequest("Invalid session");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(wire.RoomId);
+            await room.PickHeroAsync(new RoomPickHeroRequest(
+                accountId,
+                wire.HeroId,
+                wire.TeamId,
+                wire.SpawnPointId,
+                wire.Level,
+                wire.AttributeTemplateId,
+                wire.BasicAttackSkillId,
+                wire.SkillIds == null ? null : new List<int>(wire.SkillIds)));
+            var snapshot = await room.GetSnapshotAsync();
+            return Results.Ok(snapshot);
+        });
+
+        app.MapPost("/api/rooms/start-battle", async (StartRoomBattleHttpRequest wire, IClusterClient client) =>
+        {
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            {
+                return Results.BadRequest("SessionToken and RoomId are required");
+            }
+
+            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return Results.BadRequest("Invalid session");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(wire.RoomId);
+            var resp = await room.StartBattleAsync(new StartRoomBattleRequest(
+                accountId,
+                wire.GameplayId,
+                wire.RuleSetId,
+                wire.ConfigVersion,
+                wire.ProtocolVersion,
+                wire.WorldType,
+                wire.ClientId));
+            return Results.Ok(resp);
+        });
+    }
+
+    private static async Task<string?> ValidateAccountAsync(IClusterClient client, string sessionToken)
+    {
+        var session = client.GetGrain<ISessionGrain>("global");
+        var v = await session.ValidateAsync(new ValidateSessionRequest(sessionToken));
+        return v.IsValid && !string.IsNullOrWhiteSpace(v.AccountId) ? v.AccountId : null;
     }
 
     public sealed record CreateRoomHttpRequest(
@@ -85,4 +162,30 @@ public static class GatewayHttpApi
     public sealed record JoinRoomHttpRequest(
         string SessionToken,
         string RoomId);
+
+    public sealed record RoomReadyHttpRequest(
+        string SessionToken,
+        string RoomId,
+        bool Ready);
+
+    public sealed record RoomPickHeroHttpRequest(
+        string SessionToken,
+        string RoomId,
+        int HeroId,
+        int TeamId,
+        int SpawnPointId,
+        int Level,
+        int AttributeTemplateId,
+        int BasicAttackSkillId,
+        IReadOnlyList<int>? SkillIds);
+
+    public sealed record StartRoomBattleHttpRequest(
+        string SessionToken,
+        string RoomId,
+        int GameplayId,
+        int RuleSetId,
+        int ConfigVersion,
+        int ProtocolVersion,
+        string? WorldType,
+        string? ClientId);
 }

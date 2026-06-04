@@ -2,9 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Extensions.Server.BattleHost;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Grains.Battle.Protocol;
 using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 using IWorld = AbilityKit.Ability.World.Abstractions.IWorld;
 
@@ -18,20 +22,23 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 {
     private readonly ILogger<BattleLogicHostGrain> _logger;
     private readonly ServerMobaWorldManager _worldManager;
+    private readonly IOrleansBattleProtocolMapper _protocolMapper;
+    private readonly BattleHostState _battleHostState = new();
+    private readonly IBattleInputBuffer<BattleInputItem> _inputBuffer = new BattleInputBuffer<BattleInputItem>();
+    private readonly IBattleTickDriver<BattleInputItem> _tickDriver;
+    private readonly BattleObserverRegistry<IStateSyncObserver> _observerRegistry = new();
+    private readonly BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
+    private readonly BattleSnapshotPublisher<IStateSyncObserver, StateSyncPush> _snapshotPublisher;
+    private readonly BattleHostLifecycleRunner _lifecycleRunner;
 
     private IDisposable? _timer;
-    private int _frame;
     private int _tickRate = 30;
     private ulong _worldId;
+    private string _battleId = string.Empty;
     private bool _initialized;
     private IWorld? _battleWorld;
     private IWorldStateSnapshotProvider? _snapshotProvider;
-
-    // 每帧的输入缓冲
-    private readonly Dictionary<int, List<BattleInputItem>> _inputsByFrame = new();
-
-    // 观察者列表
-    private readonly List<IStateSyncObserver> _observers = new();
+    private IMobaBattleRuntimePort? _runtimePort;
 
     private TimeSpan _tickInterval;
     private const int MaxCatchUpFramesPerTimer = 5;
@@ -42,6 +49,22 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     {
         _logger = logger;
         _worldManager = worldManager;
+        _protocolMapper = DefaultOrleansBattleProtocolMapper.Instance;
+        _tickDriver = new BattleTickDriver<BattleInputItem>(SubmitRuntimeInputs, TickBattleWorld);
+        _snapshotPublisher = new BattleSnapshotPublisher<IStateSyncObserver, StateSyncPush>(
+            BuildStateSyncPush,
+            SendStateSyncPush,
+            HandleSnapshotPublishError);
+        _lifecycleRunner = new BattleHostLifecycleRunner(
+            _battleHostState,
+            CreateBattleWorld,
+            ResolveRuntimePort,
+            ValidateRuntimeStart,
+            StartRuntime,
+            ResolveSnapshotProvider,
+            PublishInitialSnapshot,
+            StartBattleTimer,
+            CleanupBattleWorld);
     }
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
@@ -54,9 +77,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         _logger.LogInformation("[BattleLogicHost] Deactivated: {Reason}", reason);
-        _timer?.Dispose();
-        _timer = null;
-        CleanupBattleWorld();
+        _lifecycleRunner.Stop();
         return Task.CompletedTask;
     }
 
@@ -69,30 +90,19 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         var roomId = this.GetPrimaryKeyString();
-        _worldId = initParams.WorldId;
-        _tickRate = initParams.TickRate > 0 ? initParams.TickRate : 30;
-        _frame = 0;
-        _tickInterval = TimeSpan.FromMilliseconds(1000.0 / _tickRate);
-
+        var context = new BattleHostStartContext(initParams.WorldId, roomId, initParams.TickRate);
         _logger.LogInformation(
             "[BattleLogicHost] Initializing battle - RoomId: {RoomId}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}",
-            roomId, _worldId, _tickRate, initParams.Players?.Count ?? 0);
+            context.BattleId, context.WorldId, context.TickRate, initParams.Players?.Count ?? 0);
 
-        // 创建 Moba 战斗世界
-        _battleWorld = _worldManager.CreateBattleWorld(roomId, _tickRate);
-        _snapshotProvider = _battleWorld.Services.Resolve<IWorldStateSnapshotProvider>();
-
-        // TODO: 使用 initParams 初始化战斗世界
-        // InitializeMobaWorld(initParams);
-
-        // 立即推送初始快照
-        if (_observers.Count > 0)
+        _pendingInitParams = initParams;
+        var result = _lifecycleRunner.Start(context);
+        _pendingInitParams = null;
+        if (!result.Succeeded)
         {
-            PushSnapshot(isFullSnapshot: true);
+            _logger.LogError("[BattleLogicHost] Battle initialization failed. Result: {Result}", result.ToString());
+            return Task.CompletedTask;
         }
-
-        // 启动帧循环
-        _timer = RegisterTimer(_ => OnTickAsync(), state: null, dueTime: _tickInterval, period: _tickInterval);
 
         _initialized = true;
         _logger.LogInformation("[BattleLogicHost] Battle initialized successfully");
@@ -112,14 +122,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.CompletedTask;
         }
 
-        // 存储输入
-        if (!_inputsByFrame.TryGetValue(frame, out var list))
+        if (!_inputBuffer.Enqueue(frame, input))
         {
-            list = new List<BattleInputItem>(8);
-            _inputsByFrame[frame] = list;
+            _logger.LogWarning("[BattleLogicHost] Input rejected by host input buffer. Frame: {Frame}, PlayerId: {PlayerId}", frame, input.PlayerId);
+            return Task.CompletedTask;
         }
-
-        list.Add(input);
 
         _logger.LogDebug(
             "[BattleLogicHost] Input received - Frame: {Frame}, PlayerId: {PlayerId}, OpCode: {OpCode}",
@@ -130,7 +137,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     public Task<int> GetCurrentFrameAsync()
     {
-        return Task.FromResult(_frame);
+        return Task.FromResult(_battleHostState.Frame);
     }
 
     public Task<BattleSnapshot?> GetSnapshotAsync()
@@ -140,11 +147,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.FromResult<BattleSnapshot?>(null);
         }
 
-        var frameIndex = new AbilityKit.Ability.FrameSync.FrameIndex(_frame);
+        var frame = _battleHostState.Frame;
+        var frameIndex = new FrameIndex(frame);
         if (_snapshotProvider.TryGetSnapshot(frameIndex, out var snapshot))
         {
-            // 解析快照
-            var battleSnapshot = ParseWorldSnapshot(snapshot);
+            var battleSnapshot = _protocolMapper.CreateBattleSnapshot(frame, snapshot, _runtimePort?.GetAllEntityStates());
             return Task.FromResult<BattleSnapshot?>(battleSnapshot);
         }
 
@@ -158,10 +165,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             throw new ArgumentNullException(nameof(observer));
         }
 
-        if (!_observers.Contains(observer))
+        if (_observerRegistry.Subscribe(observer))
         {
-            _observers.Add(observer);
-            _logger.LogInformation("[BattleLogicHost] Observer subscribed. Total observers: {Count}", _observers.Count);
+            _logger.LogInformation("[BattleLogicHost] Observer subscribed. Total observers: {Count}", _observerRegistry.Count);
 
             // 新订阅者加入时，发送当前完整状态
             if (_initialized && _battleWorld != null)
@@ -180,9 +186,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.CompletedTask;
         }
 
-        if (_observers.Remove(observer))
+        if (_observerRegistry.Unsubscribe(observer))
         {
-            _logger.LogInformation("[BattleLogicHost] Observer unsubscribed. Total observers: {Count}", _observers.Count);
+            _logger.LogInformation("[BattleLogicHost] Observer unsubscribed. Total observers: {Count}", _observerRegistry.Count);
         }
 
         return Task.CompletedTask;
@@ -192,13 +198,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     {
         _logger.LogInformation("[BattleLogicHost] Destroying battle - WorldId: {WorldId}", _worldId);
 
-        _timer?.Dispose();
-        _timer = null;
-        _inputsByFrame.Clear();
-        _observers.Clear();
-        _initialized = false;
-
-        CleanupBattleWorld();
+        _observerRegistry.Clear();
+        _lifecycleRunner.Stop();
 
         DeactivateOnIdle();
 
@@ -209,33 +210,20 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     {
         try
         {
-            // 获取当前帧的输入
-            List<BattleInputItem>? inputs = null;
-            if (_inputsByFrame.TryGetValue(_frame, out var list) && list != null && list.Count > 0)
+            var tickResult = _tickDriver.Tick(_battleHostState, _inputBuffer);
+            if (!tickResult.InputSubmitted)
             {
-                inputs = list;
+                _logger.LogWarning("[BattleLogicHost] Runtime input rejected. Frame: {Frame}", tickResult.Frame);
             }
 
-            _inputsByFrame.Remove(_frame);
-
-            // Tick 战斗世界
-            if (_battleWorld != null)
+            if (_snapshotSyncPolicy.ShouldPublish(_observerRegistry.Count, tickResult.WorldTicked))
             {
-                var deltaTime = 1.0f / _tickRate;
-                _battleWorld.Tick(deltaTime);
-            }
-
-            // 推送快照
-            if (_observers.Count > 0 && _battleWorld != null)
-            {
-                PushSnapshot(isFullSnapshot: _frame % 30 == 0);
+                PushSnapshot(tickResult.Frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(tickResult.Frame));
             }
 
             _logger.LogDebug(
-                "[BattleLogicHost] Tick - Frame: {Frame}, Inputs: {InputCount}, Observers: {ObserverCount}",
-                _frame, inputs?.Count ?? 0, _observers.Count);
-
-            _frame++;
+                "[BattleLogicHost] Tick - Frame: {Frame}, Inputs: {InputCount}, Commands: {CommandCount}, Observers: {ObserverCount}",
+                tickResult.Frame, tickResult.InputCount, tickResult.CommandCount, _observerRegistry.Count);
         }
         catch (Exception ex)
         {
@@ -243,72 +231,180 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
     }
 
+    private int SubmitRuntimeInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
+    {
+        if (inputs == null || inputs.Count == 0 || _runtimePort == null)
+        {
+            return 0;
+        }
+
+        var commands = _protocolMapper.CreatePlayerInputCommands(frame, inputs);
+        if (commands.Count == 0)
+        {
+            return 0;
+        }
+
+        var result = _runtimePort.Submit(new FrameIndex(frame), commands);
+        if (!result.Succeeded)
+        {
+            _logger.LogWarning("[BattleLogicHost] Runtime input rejected. Frame: {Frame}, Result: {Result}", frame, result.ToString());
+            return 0;
+        }
+
+        return commands.Count;
+    }
+
+    private bool TickBattleWorld(int frame, int tickRate, float deltaTime)
+    {
+        if (_battleWorld == null)
+        {
+            return false;
+        }
+
+        _battleWorld.Tick(deltaTime);
+        return true;
+    }
+
     private void PushSnapshot(bool isFullSnapshot)
     {
-        if (_observers.Count == 0 || _snapshotProvider == null)
-            return;
+        PushSnapshot(_battleHostState.Frame, isFullSnapshot);
+    }
 
-        var frameIndex = new AbilityKit.Ability.FrameSync.FrameIndex(_frame);
-        if (!_snapshotProvider.TryGetSnapshot(frameIndex, out var snapshot))
-            return;
+    private void PushSnapshot(int frame, bool isFullSnapshot)
+    {
+        _snapshotPublisher.Publish(_observerRegistry.Snapshot(), frame, isFullSnapshot);
+    }
 
-        var push = ConvertToStateSyncPush(snapshot, isFullSnapshot);
-
-        // 复制观察者列表，避免在推送过程中修改集合
-        var observersCopy = _observers.ToArray();
-        foreach (var observer in observersCopy)
+    private StateSyncPush BuildStateSyncPush(int frame, bool isFullSnapshot)
+    {
+        var frameIndex = new FrameIndex(frame);
+        WorldStateSnapshot snapshot = default;
+        var hasSnapshot = _runtimePort?.TryGetSnapshot(frameIndex, out snapshot) == true;
+        if (!hasSnapshot && _snapshotProvider != null)
         {
-            try
-            {
-                observer.OnSnapshotPushed(push);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[BattleLogicHost] Error pushing snapshot to observer");
-            }
+            hasSnapshot = _snapshotProvider.TryGetSnapshot(frameIndex, out snapshot);
         }
+
+        return _protocolMapper.CreateStateSyncPush(
+            _worldId,
+            frame,
+            hasSnapshot ? snapshot : null,
+            _runtimePort?.GetAllEntityStates(),
+            isFullSnapshot);
     }
 
-    private StateSyncPush ConvertToStateSyncPush(WorldStateSnapshot snapshot, bool isFullSnapshot)
+    private static void SendStateSyncPush(IStateSyncObserver observer, StateSyncPush push)
     {
-        // 解析 snapshot.Payload 获取 Actor 状态
-        // 这里需要根据 OpCode 解析不同的快照类型
-        var actors = new List<ActorSnapshot>();
+        observer.OnSnapshotPushed(push);
+    }
 
-        // TODO: 根据 OpCode 解析正确的快照格式
-        // if (snapshot.OpCode == MobaOpCode.ActorTransformSnapshot)
-        // {
-        //     var entries = MobaActorTransformSnapshotCodec.Deserialize(snapshot.Payload);
-        //     foreach (var entry in entries)
-        //     {
-        //         actors.Add(new ActorSnapshot { ... });
-        //     }
-        // }
+    private void HandleSnapshotPublishError(IStateSyncObserver observer, Exception exception)
+    {
+        _logger.LogError(exception, "[BattleLogicHost] Error pushing snapshot to observer");
+    }
 
-        return new StateSyncPush
+    private BattleInitParams? _pendingInitParams;
+
+    private BattleHostLifecycleResult CreateBattleWorld(BattleHostStartContext context)
+    {
+        _worldId = context.WorldId;
+        _battleId = context.BattleId;
+        _tickRate = context.TickRate;
+        _tickInterval = context.TickInterval;
+        _battleWorld = _worldManager.CreateBattleWorld(context.BattleId, context.TickRate);
+        return _battleWorld != null
+            ? BattleHostLifecycleResult.Success()
+            : BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.CreateHostFailed, "Battle world creation returned null.");
+    }
+
+    private BattleHostLifecycleResult ResolveRuntimePort(BattleHostStartContext context)
+    {
+        if (_battleWorld == null || !_battleWorld.Services.TryResolve<IMobaBattleRuntimePort>(out _runtimePort) || _runtimePort == null)
         {
-            WorldId = _worldId,
-            Frame = _frame,
-            Timestamp = DateTime.UtcNow.Ticks,
-            Actors = actors,
-            IsFullSnapshot = isFullSnapshot
-        };
+            return BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.RuntimeNotResolved, "IMobaBattleRuntimePort not resolved.");
+        }
+
+        return BattleHostLifecycleResult.Success();
     }
 
-    private BattleSnapshot? ParseWorldSnapshot(WorldStateSnapshot snapshot)
+    private BattleHostLifecycleResult ValidateRuntimeStart(BattleHostStartContext context)
     {
-        // TODO: 根据 OpCode 解析快照
-        return null;
+        if (_runtimePort == null || !_runtimePort.Status.IsReadyForGameStart)
+        {
+            return BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.RuntimeNotReadyForStart, _runtimePort?.Status.ToString() ?? "Runtime port is null.");
+        }
+
+        return BattleHostLifecycleResult.Success();
     }
 
-    private void CleanupBattleWorld()
+    private BattleHostLifecycleResult StartRuntime(BattleHostStartContext context)
     {
+        if (_runtimePort == null || _pendingInitParams == null)
+        {
+            return BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.StartRuntimeRejected, "Runtime port or init params are missing.");
+        }
+
+        var startSpec = _protocolMapper.CreateGameStartSpec(context.BattleId, context.TickRate, _pendingInitParams);
+        var startResult = _runtimePort.TryStartGame(in startSpec);
+        return startResult.Succeeded
+            ? BattleHostLifecycleResult.Success()
+            : BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.StartRuntimeRejected, startResult.ToString());
+    }
+
+    private BattleHostLifecycleResult ResolveSnapshotProvider(BattleHostStartContext context)
+    {
+        if (_battleWorld == null)
+        {
+            return BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.SnapshotProviderNotResolved, "Battle world is null.");
+        }
+
+        _snapshotProvider = _battleWorld.Services.Resolve<IWorldStateSnapshotProvider>();
+        if (_snapshotProvider == null)
+        {
+            return BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.SnapshotProviderNotResolved, "IWorldStateSnapshotProvider not resolved.");
+        }
+
+        if (_runtimePort != null && !_runtimePort.Status.IsReadyForBattleLoop)
+        {
+            _logger.LogWarning("[BattleLogicHost] Runtime battle-loop capabilities are incomplete. Status: {Status}", _runtimePort.Status.ToString());
+        }
+
+        return BattleHostLifecycleResult.Success();
+    }
+
+    private BattleHostLifecycleResult PublishInitialSnapshot(BattleHostStartContext context)
+    {
+        if (_observerRegistry.Count > 0)
+        {
+            PushSnapshot(isFullSnapshot: true);
+        }
+
+        return BattleHostLifecycleResult.Success();
+    }
+
+    private BattleHostLifecycleResult StartBattleTimer(BattleHostStartContext context, TimeSpan tickInterval)
+    {
+        _timer = RegisterTimer(_ => OnTickAsync(), state: null, dueTime: tickInterval, period: tickInterval);
+        return _timer != null
+            ? BattleHostLifecycleResult.Success()
+            : BattleHostLifecycleResult.Fail(BattleHostLifecycleErrorCode.TimerStartFailed, "RegisterTimer returned null.");
+    }
+
+    private void CleanupBattleWorld(BattleHostLifecycleErrorCode reason)
+    {
+        _timer?.Dispose();
+        _timer = null;
         if (_battleWorld != null)
         {
-            var roomId = this.GetPrimaryKeyString();
-            _worldManager.DestroyBattleWorld(roomId);
-            _battleWorld = null;
-            _snapshotProvider = null;
+            _worldManager.DestroyBattleWorld(string.IsNullOrEmpty(_battleId) ? this.GetPrimaryKeyString() : _battleId);
         }
+
+        _battleWorld = null;
+        _battleId = string.Empty;
+        _snapshotProvider = null;
+        _runtimePort = null;
+        _pendingInitParams = null;
+        _initialized = false;
+        _inputBuffer.Clear();
     }
 }

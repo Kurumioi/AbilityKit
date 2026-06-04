@@ -42,6 +42,32 @@ namespace AbilityKit.Game.Battle.Agent
         }
     }
 
+    public readonly struct GatewayRoomSnapshotResult
+    {
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+
+        public GatewayRoomSnapshotResult(string roomId, ulong numericRoomId)
+        {
+            RoomId = roomId;
+            NumericRoomId = numericRoomId;
+        }
+    }
+
+    public readonly struct GatewayStartBattleResult
+    {
+        public readonly string BattleId;
+        public readonly ulong WorldId;
+        public readonly bool Started;
+
+        public GatewayStartBattleResult(string battleId, ulong worldId, bool started)
+        {
+            BattleId = battleId;
+            WorldId = worldId;
+            Started = started;
+        }
+    }
+
     public readonly struct GatewayTimeSyncResult
     {
         public readonly long ClientSendTicks;

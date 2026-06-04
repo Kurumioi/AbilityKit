@@ -1,4 +1,5 @@
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Protocol.Moba.StateSync;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Serialization;
@@ -97,9 +98,8 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             var payload = _serializer.SerializeToArray(push);
 
             // 通过 Gateway Push Target Grain 向客户端发送快照
-            // OpCode 9002 用于状态快照推送
             var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
-            var success = await gatewayPush.PushToAccountAsync(_accountId, 9002, payload);
+            var success = await gatewayPush.PushToAccountAsync(_accountId, OpCodes.SnapshotPushed, payload);
 
             if (!success)
             {

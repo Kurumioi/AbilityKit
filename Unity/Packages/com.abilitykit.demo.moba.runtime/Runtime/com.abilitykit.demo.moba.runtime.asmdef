@@ -13,6 +13,7 @@
         "AbilityKit.Host",
         "AbilityKit.Coordinator",
         "AbilityKit.Host.Extensions",
+        "AbilityKit.Host.Extensions.Moba",
         "AbilityKit.Combat.Motion",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",

@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Generic;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -39,64 +38,21 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// 鏁版嵁缁撴瀯杞崲鍣?
-    ///
-    /// 璐熻矗灏嗗閮ㄧ敓鎴愯鍒掕浆鎹负 moba.core 杩涘満鏁版嵁缁撴瀯
-    ///
-    /// Design:
-    /// - 鎻愪緵闈欐€佽浆鎹㈡柟娉曪紝鍙嫭绔嬩娇鐢?
-    /// - 灏佽閫昏緫涓栫晫鐢熸垚鏁版嵁鍒?moba.core 灞傜殑杞崲閫昏緫
-    /// - 澶栭儴鍗忚鎴栧崗璋冨眰鏁版嵁搴斿厛鐢?adapter 杞崲涓?LogicWorldSpawnData
+    /// Legacy compatibility adapter for runtime spawn fallback.
+    /// Formal startup plan construction lives in host.extension.
     /// </summary>
     public static class SpawnDataConverter
     {
-        /// <summary>
-        /// 灏?LogicWorldSpawnData[] 杞崲涓?MobaPlayerLoadout[]
-        /// </summary>
         public static MobaPlayerLoadout[] ConvertToLoadouts(LogicWorldSpawnData[] spawns, int startIndex = 0)
         {
-            if (spawns == null || spawns.Length == 0)
-            {
-                return Array.Empty<MobaPlayerLoadout>();
-            }
-
-            var loadouts = new List<MobaPlayerLoadout>(spawns.Length);
-            for (int i = 0; i < spawns.Length; i++)
-            {
-                var loadout = ConvertToLoadout(spawns[i], startIndex + i);
-                loadouts.Add(loadout);
-            }
-            return loadouts.ToArray();
+            return MobaHostSpawnPlanBuilder.ToLoadouts(ToHostSpawns(spawns), startIndex);
         }
 
-        /// <summary>
-        /// 灏嗗崟涓?LogicWorldSpawnData 杞崲涓?MobaPlayerLoadout
-        /// </summary>
         public static MobaPlayerLoadout ConvertToLoadout(LogicWorldSpawnData spawn, int spawnIndex)
         {
-            var playerId = new PlayerId(spawn.PlayerId.ToString());
-
-            return new MobaPlayerLoadout(
-                playerId: playerId,
-                teamId: spawn.TeamId,
-                heroId: spawn.CharacterId,
-                attributeTemplateId: 1, // Default attribute template
-                level: 1,
-                basicAttackSkillId: 1001, // Default basic attack
-                skillIds: new int[] { 1001, 1002, 1003, 1004 }, // Default skills
-                spawnIndex: spawnIndex,
-                unitSubType: (int)UnitSubType.Hero,
-                mainType: (int)EntityMainType.Unit,
-                hasSpawnPosition: 1,
-                spawnX: spawn.X,
-                spawnY: spawn.Y,
-                spawnZ: spawn.Z
-            );
+            return MobaHostSpawnPlanBuilder.ToLoadout(ToHostSpawn(spawn), spawnIndex);
         }
 
-        /// <summary>
-        /// 灏?LogicWorldSpawnData[] 杞崲涓?EnterMobaGameReq
-        /// </summary>
         public static EnterMobaGameReq ConvertToEnterGameReq(
             LogicWorldSpawnData[] spawns,
             PlayerId playerId,
@@ -106,32 +62,16 @@ namespace AbilityKit.Demo.Moba.Services
             int inputDelayFrames = 0,
             int randomSeed = 0)
         {
-            if (spawns == null || spawns.Length == 0)
-            {
-                throw new ArgumentException("Spawns cannot be null or empty", nameof(spawns));
-            }
-
-            var loadouts = ConvertToLoadouts(spawns);
-
-            // Use provided random seed or generate a new one
-            var seed = randomSeed != 0 ? randomSeed : Environment.TickCount;
-
-            return new EnterMobaGameReq(
-                playerId: playerId,
-                matchId: matchId,
-                mapId: mapId,
-                randomSeed: seed,
-                tickRate: tickRate,
-                inputDelayFrames: inputDelayFrames,
-                opCode: 0,
-                payload: null,
-                players: loadouts
-            );
+            return MobaHostSpawnPlanBuilder.ToEnterReq(
+                ToHostSpawns(spawns),
+                playerId,
+                matchId,
+                mapId,
+                tickRate,
+                inputDelayFrames,
+                randomSeed);
         }
 
-        /// <summary>
-        /// 灏?LogicWorldSpawnData[] 杞崲涓?MobaGameStartSpec
-        /// </summary>
         public static MobaGameStartSpec ConvertToGameStartSpec(
             LogicWorldSpawnData[] spawns,
             PlayerId playerId,
@@ -141,8 +81,44 @@ namespace AbilityKit.Demo.Moba.Services
             int inputDelayFrames = 0,
             int randomSeed = 0)
         {
-            var req = ConvertToEnterGameReq(spawns, playerId, matchId, mapId, tickRate, inputDelayFrames, randomSeed);
-            return new MobaGameStartSpec(in req);
+            var startPlan = MobaBattleStartPlanBuilder.FromHostSpawns(
+                ToHostSpawns(spawns),
+                playerId,
+                matchId,
+                mapId,
+                tickRate,
+                inputDelayFrames,
+                randomSeed);
+
+            return startPlan.ToGameStartSpec();
+        }
+
+        private static MobaHostSpawnData[] ToHostSpawns(LogicWorldSpawnData[] spawns)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<MobaHostSpawnData>();
+            }
+
+            var result = new MobaHostSpawnData[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                result[i] = ToHostSpawn(spawns[i]);
+            }
+
+            return result;
+        }
+
+        private static MobaHostSpawnData ToHostSpawn(LogicWorldSpawnData spawn)
+        {
+            return new MobaHostSpawnData(
+                spawn.PlayerId,
+                spawn.CharacterId,
+                spawn.TeamId,
+                spawn.X,
+                spawn.Y,
+                spawn.Z,
+                spawn.Name);
         }
     }
 }

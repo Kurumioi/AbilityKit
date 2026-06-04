@@ -88,5 +88,58 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
         {
             return MobaBattleStartPlan.FromEnterReq(in req);
         }
+
+        public static MobaBattleStartPlan FromHostSpawns(
+            MobaHostSpawnData[] spawns,
+            PlayerId localPlayerId,
+            string matchId,
+            int mapId,
+            int tickRate = 30,
+            int inputDelayFrames = 0,
+            int randomSeed = 0,
+            int gameplayId = 0,
+            int enterGameOpCode = 0,
+            byte[] enterGamePayload = null)
+        {
+            return MobaHostSpawnPlanBuilder.ToStartPlan(
+                spawns,
+                localPlayerId,
+                matchId,
+                mapId,
+                tickRate,
+                inputDelayFrames,
+                randomSeed,
+                gameplayId,
+                enterGameOpCode,
+                enterGamePayload);
+        }
+
+        public static WorldInitData CreateWorldInitDataFromHostSpawns(
+            MobaHostSpawnData[] spawns,
+            PlayerId localPlayerId,
+            string matchId,
+            int mapId,
+            int initOpCode,
+            int tickRate = 30,
+            int inputDelayFrames = 0,
+            int randomSeed = 0,
+            int gameplayId = 0,
+            int enterGameOpCode = 0,
+            byte[] enterGamePayload = null)
+        {
+            var startPlan = FromHostSpawns(
+                spawns,
+                localPlayerId,
+                matchId,
+                mapId,
+                tickRate,
+                inputDelayFrames,
+                randomSeed,
+                gameplayId,
+                enterGameOpCode,
+                enterGamePayload);
+
+            return startPlan.ToWorldInitData(initOpCode);
+        }
     }
 }

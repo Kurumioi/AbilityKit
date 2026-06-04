@@ -97,7 +97,7 @@ namespace ET.Logic
             Log.Info($"[MobaLogicWorldCreator] World created successfully: Id={world.Id}, Type={world.WorldType}");
             Log.Info($"[MobaLogicWorldCreator] World services available: {world.Services != null}");
 
-            // 验证关键服务是否已注册
+            // 验证正式入口端口和运行时关键服务是否已注册
             ValidateServices(driver.World);
         }
 
@@ -112,24 +112,14 @@ namespace ET.Logic
                 return;
             }
 
-            // 验证关键服务
-            ValidateService<MobaEnterGameFlowService>(world.Services, "MobaEnterGameFlowService");
-            ValidateService<MobaActorRegistry>(world.Services, "MobaActorRegistry");
-            ValidateService<MobaPlayerActorMapService>(world.Services, "MobaPlayerActorMapService");
-            ValidateService<MobaGamePhaseService>(world.Services, "MobaGamePhaseService");
-            ValidateService<IMobaBattleInputPort>(world.Services, "IMobaBattleInputPort");
+            if (world.Services.TryResolve<IMobaBattleRuntimePort>(out var runtime) && runtime != null)
+            {
+                Log.Info("[MobaLogicWorldCreator] Runtime port validated: " + runtime.Status);
+                return;
+            }
+
+            Log.Warning("[MobaLogicWorldCreator] IMobaBattleRuntimePort not found; runtime adapter integration will be unavailable");
         }
 
-        private void ValidateService<T>(IWorldResolver resolver, string serviceName) where T : class
-        {
-            if (resolver.TryResolve<T>(out var service) && service != null)
-            {
-                Log.Info($"[MobaLogicWorldCreator] Service validated: {serviceName}");
-            }
-            else
-            {
-                Log.Warning($"[MobaLogicWorldCreator] Service not found or null: {serviceName}");
-            }
-        }
     }
 }

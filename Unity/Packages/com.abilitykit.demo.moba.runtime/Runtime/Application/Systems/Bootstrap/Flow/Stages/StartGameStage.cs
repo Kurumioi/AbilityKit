@@ -25,24 +25,21 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return;
             }
 
-            if (!services.TryResolve<MobaEnterGameFlowService>(out var enterGame))
+            if (!services.TryResolve<IMobaGameStartPort>(out var gameStart))
             {
-                Log.Error("[StartGameStage] MobaEnterGameFlowService not found; cannot start game");
+                Log.Error("[StartGameStage] IMobaGameStartPort not found; cannot start game");
                 return;
             }
 
-            var actorContext = (contexts as global::Contexts)?.actor;
-            if (actorContext == null)
-            {
-                Log.Error("[StartGameStage] ActorContext is null; cannot start game");
-                return;
-            }
-
-            if (enterGame.ApplyGameStartSpec(actorContext, in spec))
+            var result = gameStart.TryStartGame(in spec);
+            if (result.Succeeded)
             {
                 specs.Clear();
                 Log.Info("[StartGameStage] game start spec applied");
+                return;
             }
+
+            Log.Error($"[StartGameStage] game start spec rejected. {result}");
         }
     }
 }

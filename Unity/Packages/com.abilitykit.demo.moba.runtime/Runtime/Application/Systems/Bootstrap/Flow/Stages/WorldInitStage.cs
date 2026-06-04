@@ -35,15 +35,28 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             var payloadLen = init.Payload != null ? init.Payload.Length : 0;
             Log.Info($"[WorldInitStage] WorldInitData found. opCode={init.OpCode}, payloadLen={payloadLen}");
 
+            if (init.OpCode != MobaWorldBootstrapModule.InitOpCode)
+            {
+                Log.Error($"[WorldInitStage] WorldInitData opCode mismatch. expected={MobaWorldBootstrapModule.InitOpCode}, actual={init.OpCode}");
+                return;
+            }
+
             if (payloadLen == 0)
             {
                 Log.Info("[WorldInitStage] WorldInitData payload is empty; skip SetEnterGameReq");
                 return;
             }
 
-            if (!MobaCreateWorldInitCodec.TryDeserialize(init.Payload, out var initPayload))
+            if (!MobaCreateWorldInitCodec.TryDeserialize(init.Payload, out var initPayload, out var deserializeError))
             {
-                Log.Error("[WorldInitStage] WorldInitData payload is not a valid create-world init payload");
+                Log.Error($"[WorldInitStage] WorldInitData payload is not a valid create-world init payload. error={deserializeError}");
+                return;
+            }
+
+            var validation = MobaProtocolValidation.ValidateCreateWorldSpecEnvelope(initPayload.LocalPlayerId, in initPayload.Spec);
+            if (!validation.IsValid)
+            {
+                Log.Error($"[WorldInitStage] WorldInitData payload validation failed. {validation}");
                 return;
             }
 

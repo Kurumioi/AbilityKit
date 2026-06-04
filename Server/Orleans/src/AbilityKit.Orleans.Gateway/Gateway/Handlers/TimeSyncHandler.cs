@@ -8,7 +8,7 @@ namespace AbilityKit.Orleans.Gateway.Handlers;
 /// <summary>
 /// 时间同步 Handler
 /// </summary>
-[Core.GatewayHandler(50)]
+[Core.GatewayHandler(OpCodes.TimeSync)]
 public sealed class TimeSyncHandler : GatewayRequestHandlerBase
 {
     public override ValueTask<GatewayResponse> HandleAsync(

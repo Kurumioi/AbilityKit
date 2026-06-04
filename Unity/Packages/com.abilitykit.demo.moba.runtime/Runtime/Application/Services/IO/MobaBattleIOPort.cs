@@ -10,8 +10,9 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IMobaBattleInputPort))]
     [WorldService(typeof(IMobaBattleOutputPort))]
+    [WorldService(typeof(IMobaLogicWorldStateReadModel))]
     [WorldService(typeof(MobaBattleIOPort))]
-    public sealed class MobaBattleIOPort : IService, IMobaBattleInputPort, IMobaBattleOutputPort
+    public sealed class MobaBattleIOPort : IService, IMobaBattleInputPort, IMobaBattleOutputPort, IMobaLogicWorldStateReadModel
     {
         private readonly IMobaInputCoordinator _input;
         private readonly IWorldStateSnapshotProvider _snapshots;
@@ -24,15 +25,28 @@ namespace AbilityKit.Demo.Moba.Services
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
         }
 
-        public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        public MobaInputSubmitResult Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
-            if (inputs != null && inputs.Count > 0)
+            if (_input == null)
             {
-                PlayerInputCommand first = inputs[0];
-                Log.Info($"[MobaBattleIOPort] Submit: Frame={frame.Value}, Count={inputs.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.MissingInputCoordinator, "IMobaInputCoordinator is not resolved");
             }
 
+            if (inputs == null || inputs.Count == 0)
+            {
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.NullOrEmptyCommands, "input command batch is null or empty");
+            }
+
+            if (frame.Value < 0)
+            {
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.InvalidFrame, $"target frame is negative: {frame.Value}");
+            }
+
+            PlayerInputCommand first = inputs[0];
+            Log.Info($"[MobaBattleIOPort] Submit: Frame={frame.Value}, Count={inputs.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
+
             _input.Submit(frame, inputs);
+            return MobaInputSubmitResult.Accepted(inputs.Count);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -44,14 +58,15 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (snapshots == null || maxSnapshots <= 0) return 0;
 
-            int count = 0;
-            while (count < maxSnapshots && _snapshots.TryGetSnapshot(frame, out WorldStateSnapshot snapshot))
+            if (_snapshots is IMobaSnapshotBatchProvider batchProvider)
             {
-                snapshots.Add(snapshot);
-                count++;
+                return batchProvider.CollectSnapshots(frame, snapshots, maxSnapshots);
             }
 
-            return count;
+            if (!_snapshots.TryGetSnapshot(frame, out WorldStateSnapshot snapshot)) return 0;
+
+            snapshots.Add(snapshot);
+            return 1;
         }
 
         public LogicWorldEntityState[] GetAllEntityStates()

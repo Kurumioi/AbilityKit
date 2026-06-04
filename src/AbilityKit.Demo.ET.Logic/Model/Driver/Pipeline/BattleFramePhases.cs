@@ -70,10 +70,15 @@ namespace ET.Logic
                 return;
             }
 
-            // 获取战斗逻辑层输入端口
-            if (!ctx.Driver.TryResolve(out IMobaBattleInputPort inputPort) || inputPort == null)
+            if (!ctx.Driver.TryResolve(out IMobaBattleRuntimePort runtime) || runtime == null)
             {
-                Log.Warning("[ProcessETInputPhase] IMobaBattleInputPort not resolved");
+                Log.Warning("[ProcessETInputPhase] IMobaBattleRuntimePort not resolved");
+                return;
+            }
+
+            if (!runtime.Status.Has(MobaBattleRuntimeCapability.Input))
+            {
+                Log.Warning($"[ProcessETInputPhase] Runtime input capability is not ready. {runtime.Status}");
                 return;
             }
 
@@ -87,12 +92,18 @@ namespace ET.Logic
                 }
             }
 
-            // 提交到战斗逻辑层输入端口
+            // 提交到战斗运行时统一端口
             if (playerCommands.Count > 0)
             {
                 PlayerInputCommand first = playerCommands[0];
                 Log.Info($"[ProcessETInputPhase] Submit: Frame={ctx.CurrentFrame}, Count={playerCommands.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
-                inputPort.Submit(new FrameIndex(ctx.CurrentFrame), playerCommands);
+                var result = runtime.Submit(new FrameIndex(ctx.CurrentFrame), playerCommands);
+                if (!result.Succeeded)
+                {
+                    Log.Warning($"[ProcessETInputPhase] Submit rejected. {result}");
+                    return;
+                }
+
                 LogRuntimeInputState(ctx, first);
             }
         }
@@ -222,14 +233,20 @@ namespace ET.Logic
                 return;
             }
 
-            if (!ctx.Driver.TryResolve(out IMobaBattleOutputPort outputPort) || outputPort == null)
+            if (!ctx.Driver.TryResolve(out IMobaBattleRuntimePort runtime) || runtime == null)
             {
-                Log.Warning("[CollectSnapshotPhase] IMobaBattleOutputPort not resolved");
+                Log.Warning("[CollectSnapshotPhase] IMobaBattleRuntimePort not resolved");
+                return;
+            }
+
+            if (!runtime.Status.Has(MobaBattleRuntimeCapability.SnapshotOutput))
+            {
+                Log.Warning($"[CollectSnapshotPhase] Runtime snapshot capability is not ready. {runtime.Status}");
                 return;
             }
 
             _runtimeSnapshots.Clear();
-            outputPort.CollectSnapshots(new FrameIndex(ctx.CurrentFrame), _runtimeSnapshots);
+            runtime.CollectSnapshots(new FrameIndex(ctx.CurrentFrame), _runtimeSnapshots);
 
             for (int i = 0; i < _runtimeSnapshots.Count; i++)
             {

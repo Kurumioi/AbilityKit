@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using AbilityKit.Network.Protocol;
 using AbilityKit.Orleans.Gateway.Abstractions;
 
 namespace AbilityKit.Orleans.Gateway.Networking;
@@ -34,6 +35,22 @@ public sealed class TcpTransportSession : IGatewayTransportSession
         _server = server;
         _stream = stream;
         Context = new GatewaySessionContext(connectionId);
+    }
+
+    public async Task SendResponseAsync(uint opCode, uint seq, byte[] payload, CancellationToken cancellationToken = default)
+    {
+        if (!_stream.CanWrite) return;
+
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            var header = new NetworkPacketHeader(NetworkPacketFlags.Response, opCode, seq, (uint)payload.Length);
+            await WriteFrameAsync(header, payload, cancellationToken);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     public async Task SendServerPushAsync(uint opCode, byte[] payload, CancellationToken cancellationToken = default)
@@ -129,6 +146,7 @@ public sealed class TcpTransportServer : IGatewayTransportServer
     {
         var connectionId = GenerateConnectionId();
         var session = new TcpTransportSession(connectionId, this, client.GetStream());
+        _events.OnConnected(session);
 
         _logger.LogInformation("TCP client connected: ConnectionId={ConnectionId}", connectionId);
 
@@ -149,18 +167,20 @@ public sealed class TcpTransportServer : IGatewayTransportServer
                 {
                     if (!NetworkFrameCodec.TryParseFrame(
                         new ReadOnlySpan<byte>(buffer, offset, buffered - offset),
-                        out var totalSize, out var header, out var payload))
+                        out var header,
+                        out var payloadSpan))
                     {
                         break;
                     }
 
+                    var totalSize = NetworkFrameCodec.GetFrameSize((int)header.PayloadLength);
                     if (totalSize > _options.MaxFrameLength)
                     {
                         _logger.LogError("Frame too large: {Size}", totalSize);
                         break;
                     }
 
-                    _events.OnRequest(connectionId, header.OpCode, header.Seq, payload);
+                    _events.OnRequest(connectionId, header.OpCode, header.Seq, payloadSpan.ToArray());
 
                     offset += totalSize;
                     if (offset >= buffered) break;
@@ -198,6 +218,7 @@ public sealed class TcpTransportServer : IGatewayTransportServer
 /// </summary>
 public interface IGatewayTransportEvents
 {
+    void OnConnected(TcpTransportSession session);
     void OnRequest(long connectionId, uint opCode, uint seq, byte[] payload);
     void OnClosed(long connectionId);
 }

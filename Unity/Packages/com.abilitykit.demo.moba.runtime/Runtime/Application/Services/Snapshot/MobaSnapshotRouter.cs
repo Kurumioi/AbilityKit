@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSnapshotRouter))]
     [WorldService(typeof(IWorldStateSnapshotProvider))]
-    public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IWorldInitializable
+    public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IMobaSnapshotBatchProvider, IWorldInitializable
     {
         private readonly MobaEnterGameSnapshotService _enter;
         private readonly MobaActorSpawnSnapshotService _spawn;
@@ -56,6 +56,22 @@ namespace AbilityKit.Demo.Moba.Services
 
             snapshot = default;
             return false;
+        }
+
+        public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
+        {
+            if (snapshots == null || maxSnapshots <= 0) return 0;
+
+            int count = 0;
+            for (int i = 0; i < _emitters.Count && count < maxSnapshots; i++)
+            {
+                if (!_emitters[i].TryGetSnapshot(frame, out WorldStateSnapshot snapshot)) continue;
+
+                snapshots.Add(snapshot);
+                count++;
+            }
+
+            return count;
         }
 
         private void AddFallbackEmitters()

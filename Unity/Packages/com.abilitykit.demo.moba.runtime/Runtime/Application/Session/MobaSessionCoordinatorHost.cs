@@ -16,8 +16,9 @@ using AbilityKit.Ability.World;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Session
 {
@@ -32,7 +33,9 @@ namespace AbilityKit.Demo.Moba.Session
     }
 
     /// <summary>
-    /// MOBA 会话 Host（跨平台复用）。Coordinator 接口是外层适配，逻辑世界流程使用 ILogicWorldSessionHost。
+    /// MOBA 会话接入适配器（跨平台复用）。
+    /// 负责把 coordinator 的通用会话宿主接口转换为 moba.runtime 的建世、配置注入和初始化数据注册流程。
+    /// 房间、匹配、网络协议编排仍应放在 host.extension 或具体运行环境中。
     /// </summary>
     public sealed class MobaSessionCoordinatorHost : ILogicWorldSessionHost, ISessionCoordinatorHost, ISessionCoordinatorConfigPolicy
     {
@@ -193,19 +196,17 @@ namespace AbilityKit.Demo.Moba.Session
                 return;
             }
 
-            var localPlayerId = new PlayerId(config.LocalPlayerId.ToString());
-            var req = SpawnDataConverter.ConvertToEnterGameReq(
-                spawns,
-                localPlayerId,
+            var initData = MobaBattleStartPlanBuilder.CreateWorldInitDataFromHostSpawns(
+                ToHostSpawns(spawns),
+                new PlayerId(config.LocalPlayerId.ToString()),
                 CreateMatchId(config),
                 config.MapId > 0 ? config.MapId : 1,
+                MobaWorldBootstrapModule.InitOpCode,
                 config.TickRate > 0 ? config.TickRate : 30,
                 inputDelayFrames: 0,
                 randomSeed: CreateSessionSeed(config));
 
-            var createWorldSpec = MobaCreateWorldSpec.FromEnterReq(in req);
-            var initPayload = new MobaCreateWorldInitPayload(req.PlayerId, in createWorldSpec, req.OpCode, req.Payload);
-            options.ServiceBuilder.RegisterInstance(new WorldInitData(MobaWorldBootstrapModule.InitOpCode, MobaCreateWorldInitCodec.Serialize(in initPayload)));
+            options.ServiceBuilder.RegisterInstance(initData);
             Log.Info("[MobaSessionCoordinatorHost] Create-world init payload registered for bootstrap start flow");
         }
 
@@ -227,6 +228,30 @@ namespace AbilityKit.Demo.Moba.Session
                 var seed = (int)(value ^ (value >> 32));
                 return seed != 0 ? seed : 1;
             }
+        }
+
+        private static MobaHostSpawnData[] ToHostSpawns(LogicWorldSpawnData[] spawns)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<MobaHostSpawnData>();
+            }
+
+            var result = new MobaHostSpawnData[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                var spawn = spawns[i];
+                result[i] = new MobaHostSpawnData(
+                    spawn.PlayerId,
+                    spawn.CharacterId,
+                    spawn.TeamId,
+                    spawn.X,
+                    spawn.Y,
+                    spawn.Z,
+                    spawn.Name);
+            }
+
+            return result;
         }
 
         private static LogicWorldSpawnData[] ToLogicWorldSpawns(PlayerSpawnData[] spawns)

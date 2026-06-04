@@ -2,16 +2,15 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Protocol.Moba;
 
 namespace ET.Logic
 {
     /// <summary>
-    /// Coordinates moba.core game start, ET presentation unit creation, and enter-game snapshot dispatch.
+    /// Builds ET host startup data and submits it to the runtime game-start port.
     /// </summary>
     public static class ETBattleEnterGameCoordinator
     {
-        public static void Trigger(ETMobaBattleDriver driver)
+        public static bool Trigger(ETMobaBattleDriver driver)
         {
             try
             {
@@ -19,39 +18,37 @@ namespace ET.Logic
                 if (scene == null)
                 {
                     Log.Error("[ETMobaBattleDriver] Scene is null, cannot spawn entities");
-                    return;
+                    return false;
                 }
-
-                if (!driver.TryResolve<MobaEnterGameFlowService>(out var enterGameService) || enterGameService == null)
+ 
+                if (!driver.TryResolve<IMobaBattleRuntimePort>(out var runtime) || runtime == null)
                 {
-                    Log.Error("[ETMobaBattleDriver] MobaEnterGameFlowService not found");
-                    return;
+                    Log.Error("[ETMobaBattleDriver] IMobaBattleRuntimePort not found");
+                    return false;
                 }
-
-                if (!driver.TryResolve<global::Entitas.IContexts>(out var contexts) || contexts == null)
+ 
+                if (!runtime.Status.IsReadyForGameStart)
                 {
-                    Log.Error("[ETMobaBattleDriver] Entitas IContexts not found");
-                    return;
+                    Log.Error($"[ETMobaBattleDriver] Runtime is not ready for game start. {runtime.Status}");
+                    return false;
                 }
-
-                var actorContext = ((global::Contexts)contexts).actor;
-                var spec = ETBattleEnterGameSpecBuilder.Build(driver.PlayerSpawnData);
-
-                enterGameService.ApplyGameStartSpec(actorContext, in spec);
-                SetGamePhaseInGame(driver);
+ 
+                var spec = ETBattleEnterGameSpecBuilder.Build(driver.Plan, driver.PlayerSpawnData);
+                var result = runtime.TryStartGame(in spec);
+                if (!result.Succeeded)
+                {
+                    Log.Warning($"[ETBattleEnterGameCoordinator] Game start rejected. {result}");
+                    return false;
+                }
+ 
+                driver.RuntimeGameStarted = true;
                 LogEnterGameState(driver);
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Error($"[ETMobaBattleDriver] TriggerEnterGameSnapshot failed: {ex}");
-            }
-        }
-
-        private static void SetGamePhaseInGame(ETMobaBattleDriver driver)
-        {
-            if (driver.TryResolve<MobaGamePhaseService>(out var phaseService) && phaseService != null)
-            {
-                phaseService.SetInGame();
+                return false;
             }
         }
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using AbilityKit.Ability.Config;
 using ET.AbilityKit.Demo.ET.Share;
 using BattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
@@ -135,6 +135,12 @@ namespace ET.Logic
             if (self.State != BattleState.Ready)
             {
                 Log.Warning($"[ETBattle] Cannot start battle, current state: {self.State}");
+                return;
+            }
+
+            if (self.BattleDriver is ETMobaBattleDriver driver && !driver.RuntimeGameStarted)
+            {
+                Log.Warning("[ETBattle] Cannot start battle before runtime game start succeeds");
                 return;
             }
 

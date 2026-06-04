@@ -7,10 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\..\Unity\Packages\com.abilitykit.world.statesync\Runtime\**\*.cs"
-             Exclude="..\..\..\..\Unity\Packages\com.abilitykit.world.statesync\Runtime\**\*.asmdef" />
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
   </ItemGroup>
 
   <ItemGroup>

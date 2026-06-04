@@ -6,6 +6,11 @@ namespace AbilityKit.Protocol.Moba.StateSync
     public static class OpCodes
     {
         /// <summary>
+        /// 订阅状态同步 - 客户端请求通过 Gateway 订阅服务器战斗快照。
+        /// </summary>
+        public const uint SubscribeStateSync = 103;
+
+        /// <summary>
         /// 快照推送 - 服务器向客户端推送世界状态快照
         /// </summary>
         public const uint SnapshotPushed = 9002;

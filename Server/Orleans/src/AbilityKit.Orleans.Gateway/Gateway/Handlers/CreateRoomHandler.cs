@@ -1,23 +1,21 @@
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
+using AbilityKit.Protocol.Moba.Room;
 using Orleans;
-using Orleans.Serialization;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
 /// 创建房间 Handler
 /// </summary>
-[Core.GatewayHandler(101)]
+[Core.GatewayHandler(RoomGatewayOpCodes.CreateRoom)]
 public sealed class CreateRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
-    private readonly Serializer _serializer;
 
-    public CreateRoomHandler(IClusterClient clusterClient, Serializer serializer)
+    public CreateRoomHandler(IClusterClient clusterClient)
     {
         _clusterClient = clusterClient;
-        _serializer = serializer;
     }
 
     public override async ValueTask<GatewayResponse> HandleAsync(
@@ -28,25 +26,44 @@ public sealed class CreateRoomHandler : GatewayRequestHandlerBase
         if (request.Payload == null || request.Payload.Length == 0)
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
-        var req = _serializer.Deserialize<CreateRoomRequest>(request.Payload);
-        if (req == null)
+        var req = WireRoomGatewayBinary.Deserialize<WireCreateRoomReq>(request.Payload);
+        if (string.IsNullOrWhiteSpace(req.SessionToken) || string.IsNullOrWhiteSpace(req.Region) || string.IsNullOrWhiteSpace(req.ServerId))
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
         try
         {
+            var accountId = await RoomGatewayWireMapper.ValidateAccountAsync(_clusterClient, req.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+
             var directoryKey = $"{req.Region}:{req.ServerId}";
             var directory = _clusterClient.GetGrain<IRoomDirectoryGrain>(directoryKey);
 
-            var resp = await directory.CreateRoomAsync(req);
-
-            var responsePayload = _serializer.SerializeToArray(resp);
+            var resp = await directory.CreateRoomAsync(new CreateRoomRequest(
+                accountId,
+                req.Region,
+                req.ServerId,
+                string.IsNullOrWhiteSpace(req.RoomType) ? "battle" : req.RoomType,
+                req.Title ?? string.Empty,
+                req.IsPublic,
+                req.MaxPlayers,
+                req.Tags));
 
             if (!string.IsNullOrEmpty(resp.RoomId))
             {
                 context.RoomId = resp.RoomId;
+                context.AccountId = accountId;
             }
 
-            return GatewayResponse.Ok(request.Seq, responsePayload);
+            var wire = new WireCreateRoomRes
+            {
+                Success = true,
+                RoomId = resp.RoomId ?? string.Empty,
+                NumericRoomId = RoomGatewayIds.CreateNumericRoomId(resp.RoomId),
+                Message = string.Empty
+            };
+            var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
+            return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
         }
         catch (Exception)
         {

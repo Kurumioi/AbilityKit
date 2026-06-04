@@ -33,19 +33,46 @@ namespace AbilityKit.Game.Flow
         {
             StopGatewayRoomPreparation();
 
-            var connOptions = new ConnectionOptions
-            {
-                FrameCodec = LengthPrefixedFrameCodec.Instance,
-                KickPushOpCode = 9000
-            };
-
-            _gatewayConn = new ConnectionManager(() => new TcpTransport(), connOptions, _unityDispatcher, _networkIoDispatcher);
+            _gatewayConn = CreateGatewayRoomConnection(_plan);
             _gatewayConn.Open(_plan.GatewayHost, _plan.GatewayPort);
 
             var opCodes = new GatewayRoomOpCodes(_plan.GatewayCreateRoomOpCode, _plan.GatewayJoinRoomOpCode);
             _gatewayClient = new GatewayRoomClient(_gatewayConn, opCodes);
 
             _gatewayTask = PrepareRoomAsync();
+        }
+
+        private IConnection CreateGatewayRoomConnection(BattleStartPlan plan)
+        {
+            var descriptor = new AbilityKitConnectionDescriptor(
+                AbilityKitConnectionRole.GatewayReliable,
+                plan.GatewayHost,
+                plan.GatewayPort,
+                "tcp");
+
+            return _connectionRegistry.GetOrCreate(descriptor, CreateGatewayRoomConnectionForDescriptor);
+        }
+
+        private IConnection CreateGatewayRoomConnectionForDescriptor(AbilityKitConnectionDescriptor descriptor)
+        {
+            if (_gatewayConnectionFactory != null)
+            {
+                var connection = _gatewayConnectionFactory(_plan);
+                if (connection == null)
+                {
+                    throw new InvalidOperationException("Gateway connection factory returned null.");
+                }
+
+                return connection;
+            }
+
+            var connOptions = new ConnectionOptions
+            {
+                FrameCodec = LengthPrefixedFrameCodec.Instance,
+                KickPushOpCode = 9000
+            };
+
+            return new ConnectionManager(() => new TcpTransport(), connOptions, _unityDispatcher, _networkIoDispatcher);
         }
 
         private void StopTimeSyncLoop()
@@ -191,11 +218,12 @@ namespace AbilityKit.Game.Flow
             StopTimeSyncLoop();
             _gatewayWorldStartAnchors.Clear();
 
-            if (_gatewayConn != null)
+            if (_connectionRegistry != null)
             {
-                _gatewayConn.Dispose();
-                _gatewayConn = null;
+                _connectionRegistry.Remove(AbilityKitConnectionRole.GatewayReliable);
             }
+
+            _gatewayConn = null;
         }
 
         private void StartTimeSyncLoop()

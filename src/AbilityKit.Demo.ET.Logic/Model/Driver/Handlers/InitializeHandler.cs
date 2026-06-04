@@ -24,6 +24,7 @@ namespace ET.Logic
                 throw new ArgumentNullException(nameof(viewSink));
 
             driver.Plan = plan;
+            driver.RuntimeGameStarted = false;
             driver.ViewSink = viewSink;
             driver.TextAssetLoader = null;
             driver.TickRate = plan.TickRate > 0 ? plan.TickRate : 30;

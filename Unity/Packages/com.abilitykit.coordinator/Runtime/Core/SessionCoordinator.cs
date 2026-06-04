@@ -63,7 +63,6 @@ namespace AbilityKit.Coordinator
         public Timeline.IViewTimeline ViewTimeline => _viewTimeline;
 
         public ILogicWorldDriverBridge? LogicWorldDriver => _driverHost;
-        public IBattleDriverHost? DriverHost => _driverHost as IBattleDriverHost;
         public IViewEventSink? ViewEventSink => _viewEventSink;
 
         public SessionHooks Hooks => _hooks;
@@ -123,7 +122,7 @@ namespace AbilityKit.Coordinator
                 // Attach driver host if available
                 if (_driverHost != null)
                 {
-                    _syncAdapter.SetDriverHost(_driverHost);
+                    _syncAdapter.SetLogicWorldDriver(_driverHost);
                 }
 
                 // Invoke hooks
@@ -218,13 +217,8 @@ namespace AbilityKit.Coordinator
             _driverHost = driverHost;
             if (_syncAdapter != null)
             {
-                _syncAdapter.SetDriverHost(driverHost);
+                _syncAdapter.SetLogicWorldDriver(driverHost);
             }
-        }
-
-        public void SetDriverHost(IBattleDriverHost driverHost)
-        {
-            SetLogicWorldDriver(driverHost);
         }
 
         public void SetViewEventSink(IViewEventSink sink)

@@ -28,7 +28,7 @@ namespace AbilityKit.Coordinator
 
         private double _renderTime;
         private int _localPlayerId;
-        private bool _isConnected;
+        private IRemoteBattleSyncTransport _transport;
         private bool _predictionEnabled;
         private NetworkEndpoint _endpoint;
         private long _roomId;
@@ -60,7 +60,7 @@ namespace AbilityKit.Coordinator
 
         // ============== IRemoteSyncAdapter Implementation ==============
 
-        public bool IsConnected => _isConnected;
+        public bool IsConnected => _transport?.IsConnected == true;
 
         // ============== IPredictionSyncAdapter Implementation ==============
 
@@ -81,7 +81,7 @@ namespace AbilityKit.Coordinator
             _runtimePolicy = config.ResolveRuntimePolicy();
             _localPlayerId = config.LocalPlayerId;
             _renderTime = 0;
-            _isConnected = false;
+            BindTransport(ResolveTransport(world));
             _predictionEnabled = _runtimePolicy.EnableClientPrediction;
             _lastConfirmedFrame = 0;
             _predictedFrame = 0;
@@ -99,7 +99,7 @@ namespace AbilityKit.Coordinator
             _driverHost = driverHost;
         }
 
-        public void SetDriverHost(ILogicWorldDriverBridge driverHost)
+        public void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost)
         {
             _driverHost = driverHost;
         }
@@ -133,19 +133,17 @@ namespace AbilityKit.Coordinator
             _playerId = playerId;
             _localPlayerId = (int)playerId;
 
-            // TODO: Integrate with actual network transport
-            _isConnected = true;
-            OnConnectionChanged?.Invoke(true);
+            var connected = _transport.Connect(endpoint, roomId, playerId, _runtimePolicy.EffectiveSyncMode);
+            if (!connected)
+            {
+                OnConnectionChanged?.Invoke(false);
+            }
         }
 
         public void Disconnect()
         {
-            if (!_isConnected)
-                return;
-
-            _isConnected = false;
+            _transport?.Disconnect();
             _inputBuffer.Clear();
-            OnConnectionChanged?.Invoke(false);
         }
 
         // ============== Input Handling ==============
@@ -165,9 +163,9 @@ namespace AbilityKit.Coordinator
             }
 
             // Send to server
-            if (_isConnected)
+            if (_transport?.IsConnected == true)
             {
-                // TODO: Send to server via network transport
+                _transport.SubmitInput(input);
             }
         }
 
@@ -178,7 +176,9 @@ namespace AbilityKit.Coordinator
             // Update render time
             _renderTime += deltaTime;
 
-            if (!_isConnected)
+            _transport?.Tick(deltaTime);
+
+            if (_transport?.IsConnected != true)
                 return;
 
             // Process local prediction
@@ -244,6 +244,7 @@ namespace AbilityKit.Coordinator
         public void Dispose()
         {
             Disconnect();
+            UnbindTransport();
             _coordinator = null;
             _driverHost = null;
             _inputBuffer.Clear();
@@ -253,6 +254,49 @@ namespace AbilityKit.Coordinator
             OnConnectionChanged = null;
             OnFrameSync = null;
             OnServerSnapshot = null;
+        }
+
+        private static IRemoteBattleSyncTransport ResolveTransport(IWorld world)
+        {
+            if (world?.Services != null && world.Services.TryResolve<IRemoteBattleSyncTransport>(out var transport) && transport != null)
+            {
+                return transport;
+            }
+
+            return NullRemoteBattleSyncTransport.Instance;
+        }
+
+        private void BindTransport(IRemoteBattleSyncTransport transport)
+        {
+            _transport = transport ?? NullRemoteBattleSyncTransport.Instance;
+            _transport.OnConnectionChanged += HandleConnectionChanged;
+            _transport.OnServerSnapshot += HandleServerSnapshot;
+            _transport.OnServerConfirmation += FeedServerConfirmation;
+        }
+
+        private void UnbindTransport()
+        {
+            if (_transport == null)
+            {
+                return;
+            }
+
+            _transport.OnConnectionChanged -= HandleConnectionChanged;
+            _transport.OnServerSnapshot -= HandleServerSnapshot;
+            _transport.OnServerConfirmation -= FeedServerConfirmation;
+            _transport = NullRemoteBattleSyncTransport.Instance;
+        }
+
+        private void HandleConnectionChanged(bool connected)
+        {
+            OnConnectionChanged?.Invoke(connected);
+        }
+
+        private void HandleServerSnapshot(int serverFrame, SnapshotEntityState[] states)
+        {
+            TriggerReconciliation(serverFrame, states);
+            OnServerSnapshot?.Invoke(states);
+            OnFrameSync?.Invoke(serverFrame, 0);
         }
     }
 }

@@ -14,7 +14,6 @@ namespace ET.Logic
         public void Handle(ETMobaBattleDriver driver)
         {
             // 清理资源
-            driver.InputPort = null;
             driver.ConfigLoader = null;
             driver.SnapshotDispatcher = null;
             driver.Units.Clear();
@@ -23,6 +22,7 @@ namespace ET.Logic
             driver.WorldManager = null;
             driver.ViewSink = null;
 
+            driver.RuntimeGameStarted = false;
             driver.IsRunning = false;
             driver.CurrentFrame = 0;
 

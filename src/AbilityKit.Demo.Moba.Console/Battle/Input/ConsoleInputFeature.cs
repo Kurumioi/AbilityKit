@@ -104,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                     MobaOpCodes.Input.Move,
                     payload);
 
-                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
+                SubmitToSink(new FrameIndex(Context.LastFrame), cmd);
                 _inputQueue.Enqueue(new LocalPlayerInputEvent(Context.LocalActorId, MobaOpCodes.Input.Move, payload));
 
                 Platform.Log.Input($"[Input] Move: dx={dx:F2}, dz={dz:F2}");
@@ -127,7 +127,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                     MobaOpCodes.Input.SkillInput,
                     payload);
 
-                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
+                SubmitToSink(new FrameIndex(Context.LastFrame), cmd);
                 Platform.Log.Input($"[Input] Skill{slot} pressed");
                 Context.HudSkillClickSlot = 0;
             }
@@ -145,10 +145,21 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                     MobaOpCodes.Input.SkillInput,
                     payload);
 
-                _inputSink?.Submit(new FrameIndex(Context.LastFrame), new[] { cmd });
+                SubmitToSink(new FrameIndex(Context.LastFrame), cmd);
                 Platform.Log.Input($"[Input] Skill{Context.HudSkillAimSubmitSlot} aim released at ({aimX:F1}, {aimZ:F1})");
                 Context.HudSkillAimSubmit = false;
             }
+        }
+
+        private void SubmitToSink(FrameIndex frame, PlayerInputCommand command)
+        {
+            if (_inputSink == null)
+            {
+                Platform.Log.Input($"[Input] Submit skipped: input sink is not set. OpCode={command.OpCode}");
+                return;
+            }
+
+            _inputSink.Submit(frame, new[] { command });
         }
 
         public void SetMoveInput(float dx, float dz)

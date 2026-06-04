@@ -70,6 +70,18 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             return true;
         }
 
+        public bool TrySetTeam(PlayerId playerId, int teamId)
+        {
+            if (string.IsNullOrEmpty(playerId.Value)) return false;
+            if (!_players.TryGetValue(playerId.Value, out var slot)) return false;
+            if (slot.TeamId == teamId) return false;
+
+            slot = slot.WithTeam(teamId);
+            _players[playerId.Value] = slot;
+            Revision++;
+            return true;
+        }
+
         public bool TrySetSpawnPoint(PlayerId playerId, int spawnPointId)
         {
             if (string.IsNullOrEmpty(playerId.Value)) return false;
@@ -236,6 +248,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             public PlayerSlot WithReady(bool ready)
             {
                 return new PlayerSlot(PlayerId, TeamId, ready, HeroId, SpawnPointId, AttributeTemplateId, Level, BasicAttackSkillId, SkillIds);
+            }
+
+            public PlayerSlot WithTeam(int teamId)
+            {
+                return new PlayerSlot(PlayerId, teamId, Ready, HeroId, SpawnPointId, AttributeTemplateId, Level, BasicAttackSkillId, SkillIds);
             }
 
             public PlayerSlot WithHero(int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)

@@ -3,7 +3,6 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Host.Extensions",
-        "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Host",
         "AbilityKit.Core",

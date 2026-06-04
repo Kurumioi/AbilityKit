@@ -23,9 +23,7 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(ISpawnService))]
     public sealed class MobaSpawnService : ILogicWorldSpawnService, ISpawnService
     {
-        [WorldInject] private MobaEnterGameFlowService _enterGameFlow;
-        [WorldInject] private global::Entitas.IContexts _contexts;
-        private readonly PlayerId _defaultPlayerId = new PlayerId("default");
+        [WorldInject] private IMobaGameStartPort _gameStart;
 
         public bool CreateSpawns(PlayerSpawnData[] spawns)
         {
@@ -40,13 +38,19 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
+            if (_gameStart == null)
+            {
+                Log.Error("[MobaSpawnService] IMobaGameStartPort not found, cannot create spawns");
+                return false;
+            }
+
             Log.Warning("[MobaSpawnService] Legacy spawn fallback is starting battle directly; prefer create-world init payload");
 
             try
             {
                 var spec = SpawnDataConverter.ConvertToGameStartSpec(
                     spawns,
-                    _defaultPlayerId,
+                    new PlayerId(spawns[0].PlayerId.ToString()),
                     "session_spawn",
                     mapId: 1,
                     tickRate: 30,
@@ -54,25 +58,18 @@ namespace AbilityKit.Demo.Moba.Services
                     randomSeed: Environment.TickCount
                 );
 
-                var actorContext = (_contexts as global::Contexts)?.actor;
-                if (actorContext == null)
-                {
-                    Log.Error("[MobaSpawnService] ActorContext is null, cannot create spawns");
-                    return false;
-                }
+                var result = _gameStart.TryStartGame(in spec);
 
-                var result = _enterGameFlow.ApplyGameStartSpec(actorContext, in spec);
-
-                if (result)
+                if (result.Succeeded)
                 {
                     Log.Info($"[MobaSpawnService] Legacy spawn fallback started battle with {spawns.Length} spawns");
                 }
                 else
                 {
-                    Log.Warning("[MobaSpawnService] Legacy spawn fallback did not start battle");
+                    Log.Warning($"[MobaSpawnService] Legacy spawn fallback did not start battle. {result}");
                 }
 
-                return result;
+                return result.Succeeded;
             }
             catch (Exception ex)
             {

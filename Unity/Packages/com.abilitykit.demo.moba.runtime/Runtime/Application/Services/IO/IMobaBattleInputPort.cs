@@ -4,8 +4,51 @@ using AbilityKit.Ability.Host;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public enum MobaInputSubmitFailureCode
+    {
+        None = 0,
+        NotRunning = 1,
+        MissingInputPort = 2,
+        MissingInputCoordinator = 3,
+        NullOrEmptyCommands = 4,
+        InvalidFrame = 5,
+    }
+
+    public readonly struct MobaInputSubmitResult
+    {
+        public static readonly MobaInputSubmitResult Success = new MobaInputSubmitResult(true, MobaInputSubmitFailureCode.None, null, 0);
+
+        public readonly bool Succeeded;
+        public readonly MobaInputSubmitFailureCode FailureCode;
+        public readonly string Message;
+        public readonly int CommandCount;
+
+        public MobaInputSubmitResult(bool succeeded, MobaInputSubmitFailureCode failureCode, string message, int commandCount)
+        {
+            Succeeded = succeeded;
+            FailureCode = failureCode;
+            Message = message;
+            CommandCount = commandCount;
+        }
+
+        public static MobaInputSubmitResult Accepted(int commandCount)
+        {
+            return new MobaInputSubmitResult(true, MobaInputSubmitFailureCode.None, null, commandCount);
+        }
+
+        public static MobaInputSubmitResult Fail(MobaInputSubmitFailureCode failureCode, string message)
+        {
+            return new MobaInputSubmitResult(false, failureCode, message, 0);
+        }
+
+        public override string ToString()
+        {
+            return Succeeded ? $"Success: Commands={CommandCount}" : $"{FailureCode}: {Message}";
+        }
+    }
+
     public interface IMobaBattleInputPort
     {
-        void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
+        MobaInputSubmitResult Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
     }
 }

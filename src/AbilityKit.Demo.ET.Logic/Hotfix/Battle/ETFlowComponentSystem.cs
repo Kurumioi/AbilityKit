@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
@@ -180,8 +180,16 @@ namespace ET.Logic
                     break;
 
                 case FlowStep.InMatch_StartBattle:
-                    // ???????
                     var battleComponent = self.Scene().GetComponent<ETBattleComponent>();
+                    if (battleComponent?.BattleDriver is ETMobaBattleDriver driver && !driver.RuntimeGameStarted)
+                    {
+                        if (!driver.OnAllPlayersReady(driver.PlayerSpawnData))
+                        {
+                            Log.Warning("[ETFlow] Runtime game start is not ready; stay in InMatch_StartBattle");
+                            return;
+                        }
+                    }
+
                     battleComponent?.StartBattle();
                     self.TransitionTo(FlowPhase.InMatch, FlowStep.InMatch_BattleLoop);
                     break;

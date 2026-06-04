@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 
@@ -23,5 +24,13 @@ namespace AbilityKit.Demo.Moba.Services
         /// <param name="snapshot">输出快照</param>
         /// <returns>是否生成了快照</returns>
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
+    }
+
+    /// <summary>
+    /// Provides an explicit batch snapshot collection path for routers that aggregate multiple emitters.
+    /// </summary>
+    public interface IMobaSnapshotBatchProvider
+    {
+        int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
     }
 }

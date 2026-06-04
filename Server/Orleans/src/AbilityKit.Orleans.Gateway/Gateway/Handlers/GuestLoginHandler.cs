@@ -1,7 +1,7 @@
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Serialization;
-using MemoryPack;
+using AbilityKit.Protocol.Moba.Room;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
@@ -31,7 +31,7 @@ public sealed class GuestLoginHandler : GatewayRequestHandlerBase
         if (request.Payload == null || request.Payload.Length == 0)
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
-        var req = GatewaySerializer.Deserialize<GuestLoginReq>(request.Payload);
+        var req = GatewaySerializer.Deserialize<WireRoomGuestLoginReq>(request.Payload);
         if (string.IsNullOrEmpty(req.GuestId))
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
@@ -40,28 +40,15 @@ public sealed class GuestLoginHandler : GatewayRequestHandlerBase
 
         _registry.BindToken(resp.SessionToken, context.ConnectionId);
 
-        var responsePayload = GatewaySerializer.Serialize(new GuestLoginRes
+        var responsePayload = GatewaySerializer.Serialize(new WireRoomGuestLoginRes
         {
             SessionToken = resp.SessionToken,
             AccountId = resp.AccountId,
-            Success = true
+            Success = true,
+            Message = string.Empty
         });
 
         return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());
     }
 }
 
-[MemoryPackable]
-public readonly partial struct GuestLoginReq
-{
-    [MemoryPackOrder(0)] public string GuestId { get; init; }
-}
-
-[MemoryPackable]
-public readonly partial struct GuestLoginRes
-{
-    [MemoryPackOrder(0)] public bool Success { get; init; }
-    [MemoryPackOrder(1)] public string SessionToken { get; init; }
-    [MemoryPackOrder(2)] public string AccountId { get; init; }
-    [MemoryPackOrder(3)] public string Message { get; init; }
-}

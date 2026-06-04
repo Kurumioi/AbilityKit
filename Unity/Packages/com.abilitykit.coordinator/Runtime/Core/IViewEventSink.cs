@@ -12,7 +12,7 @@ namespace AbilityKit.Coordinator
     /// - Business-specific events are passed as raw data for application to interpret
     ///
     /// This interface is optional. If not set, the coordinator still works but
-    /// applications need to query states manually via IBattleDriverHost.
+    /// applications need to query states manually via ILogicWorldDriverBridge.
     /// </summary>
     public interface IViewEventSink
     {

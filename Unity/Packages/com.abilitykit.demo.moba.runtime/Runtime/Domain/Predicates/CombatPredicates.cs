@@ -26,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Predicates
         protected override string PredicateType => "has_buff";
         protected override int Order => 10;
 
+        private static bool _notImplementedLogged;
+
         public override void ParseFrom(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
             BuffId = AutoPredicateExtensions.ResolveInt(this, namedArgs, "buff_id", 0);
@@ -34,14 +36,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         public override bool Evaluate(IBehaviorContext context)
         {
-            // TODO: 根据实际上下文结构获取 targetActorId
-            int targetActorId = 0;
+            if (!_notImplementedLogged)
+            {
+                _notImplementedLogged = true;
+                Log.Warning($"[HasBuffPredicate] Predicate is not wired to BuffService yet; returning false. buffId={BuffId}, checkStack={CheckStack}");
+            }
 
-            Log.Info($"[HasBuffPredicate] Checking buff {BuffId} on actor {targetActorId}");
-
-            // TODO: 调用实际的 BuffService 进行检查
-            // 示例：return buffService.HasBuff(targetActorId, BuffId);
-            return true;
+            return false;
         }
     }
 
@@ -63,6 +64,8 @@ namespace AbilityKit.Demo.Moba.Predicates
         protected override string PredicateType => "health_percent";
         protected override int Order => 10;
 
+        private static bool _notImplementedLogged;
+
         public override void ParseFrom(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
             Threshold = AutoPredicateExtensions.ResolveFloat(this, namedArgs, "threshold", 50f);
@@ -71,14 +74,13 @@ namespace AbilityKit.Demo.Moba.Predicates
 
         public override bool Evaluate(IBehaviorContext context)
         {
-            // TODO: 根据实际上下文结构获取生命值
-            var currentHp = 500f;
-            var maxHp = 1000f;
+            if (!_notImplementedLogged)
+            {
+                _notImplementedLogged = true;
+                Log.Warning($"[HealthPercentPredicate] Predicate is not wired to actor attributes yet; returning false. threshold={Threshold}, compareType={CompareType}");
+            }
 
-            var percent = (currentHp / maxHp) * 100f;
-
-            // CompareType: 0=小于, 1=大于
-            return CompareType == 0 ? percent < Threshold : percent > Threshold;
+            return false;
         }
     }
 }

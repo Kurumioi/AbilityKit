@@ -44,7 +44,10 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
 
         int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
+    }
 
+    public interface IMobaLogicWorldStateReadModel
+    {
         LogicWorldEntityState[] GetAllEntityStates();
     }
 }

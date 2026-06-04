@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
@@ -229,14 +229,16 @@ namespace ET.Logic
             // 从 RoomState 构建玩家列表
             var playerSpawnList = ConvertPlayersToSpawnList(players, roomComponent.LocalPlayerId);
 
-            // 先启动战斗（设置 _isRunning = true）
+            Log.Info($"[DemoProcess] Calling battleDriver.OnAllPlayersReady with {playerSpawnList.Count} players");
+            if (!battleDriver.OnAllPlayersReady(playerSpawnList))
+            {
+                Log.Error($"[DemoProcess] Runtime game start failed; battle state remains Ready");
+                return;
+            }
+ 
             Log.Info($"[DemoProcess] Calling battleComponent.StartBattle()");
             battleComponent.StartBattle();
-
-            // 再调用 OnAllPlayersReady（此时 _isRunning 已经为 true）
-            Log.Info($"[DemoProcess] Calling battleDriver.OnAllPlayersReady with {playerSpawnList.Count} players");
-            battleDriver.OnAllPlayersReady(playerSpawnList);
-
+ 
             Log.Info($"[DemoProcess] ========== Battle started! ==========");
         }
 

@@ -210,8 +210,107 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
         }
     }
 
+    public readonly struct MobaBattleLaunchProfile
+    {
+        public readonly string WorldType;
+        public readonly string ClientId;
+        public readonly MobaBattleLaunchMode LaunchMode;
+        public readonly MobaBattleLaunchSyncMode SyncMode;
+        public readonly MobaBattleLaunchAuthorityMode AuthorityMode;
+        public readonly int RuleSetId;
+        public readonly int ConfigVersion;
+        public readonly int ProtocolVersion;
+        public readonly int TickRate;
+        public readonly int InputDelayFrames;
+
+        public MobaBattleLaunchProfile(
+            string worldType,
+            string clientId,
+            MobaBattleLaunchMode launchMode,
+            MobaBattleLaunchSyncMode syncMode,
+            MobaBattleLaunchAuthorityMode authorityMode,
+            int ruleSetId = 0,
+            int configVersion = 0,
+            int protocolVersion = 0,
+            int tickRate = 30,
+            int inputDelayFrames = 0)
+        {
+            WorldType = string.IsNullOrEmpty(worldType) ? "battle" : worldType;
+            ClientId = clientId;
+            LaunchMode = launchMode;
+            SyncMode = syncMode;
+            AuthorityMode = authorityMode;
+            RuleSetId = ruleSetId;
+            ConfigVersion = configVersion;
+            ProtocolVersion = protocolVersion;
+            TickRate = tickRate <= 0 ? 30 : tickRate;
+            InputDelayFrames = inputDelayFrames < 0 ? 0 : inputDelayFrames;
+        }
+
+        public static MobaBattleLaunchProfile Create(
+            string clientId,
+            MobaBattleLaunchMode launchMode,
+            MobaBattleLaunchSyncMode syncMode,
+            MobaBattleLaunchAuthorityMode authorityMode,
+            string worldType = "battle",
+            int tickRate = 30,
+            int inputDelayFrames = 0,
+            int ruleSetId = 0,
+            int configVersion = 0,
+            int protocolVersion = 0)
+        {
+            return new MobaBattleLaunchProfile(
+                worldType,
+                clientId,
+                launchMode,
+                syncMode,
+                authorityMode,
+                ruleSetId,
+                configVersion,
+                protocolVersion,
+                tickRate,
+                inputDelayFrames);
+        }
+    }
+
     public static class MobaBattleLaunchSpecBuilder
     {
+        public static MobaBattleLaunchSpec FromLoadouts(
+            string battleId,
+            PlayerId localPlayerId,
+            int mapId,
+            MobaPlayerLoadout[] players,
+            in MobaBattleLaunchProfile profile,
+            string matchId = null,
+            string worldId = null,
+            int gameplayId = 0,
+            int randomSeed = 0)
+        {
+            var effectiveBattleId = string.IsNullOrEmpty(battleId) ? matchId : battleId;
+            var effectiveMatchId = string.IsNullOrEmpty(matchId) ? effectiveBattleId : matchId;
+            var seed = randomSeed != 0 ? randomSeed : System.Environment.TickCount;
+
+            return new MobaBattleLaunchSpec(
+                battleId: effectiveBattleId,
+                matchId: effectiveMatchId,
+                worldId: string.IsNullOrEmpty(worldId) ? effectiveBattleId : worldId,
+                worldType: profile.WorldType,
+                clientId: profile.ClientId,
+                localPlayerId: localPlayerId,
+                mapId: mapId > 0 ? mapId : 1,
+                gameplayId: gameplayId,
+                ruleSetId: profile.RuleSetId,
+                configVersion: profile.ConfigVersion,
+                protocolVersion: profile.ProtocolVersion,
+                randomSeed: seed,
+                tickRate: profile.TickRate,
+                inputDelayFrames: profile.InputDelayFrames,
+                launchMode: profile.LaunchMode,
+                syncMode: profile.SyncMode,
+                authorityMode: profile.AuthorityMode,
+                players: players ?? System.Array.Empty<MobaPlayerLoadout>());
+        }
+
         public static MobaBattleLaunchSpec FromEnterReq(
             in EnterMobaGameReq req,
             string worldId = null,

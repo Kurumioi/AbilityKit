@@ -1,29 +1,25 @@
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
-using MemoryPack;
+using AbilityKit.Orleans.Gateway.Serialization;
+using AbilityKit.Protocol.Moba.StateSync;
 using Orleans;
-using Orleans.Serialization;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
 /// 订阅状态同步 Handler
 /// </summary>
-[Core.GatewayHandler(103)]
+[Core.GatewayHandler(OpCodes.SubscribeStateSync)]
 public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
-    private readonly Serializer _serializer;
-
     public SubscribeStateSyncHandler(
         IClusterClient clusterClient,
-        IGatewaySessionRegistry sessionRegistry,
-        Serializer serializer)
+        IGatewaySessionRegistry sessionRegistry)
     {
         _clusterClient = clusterClient;
         _sessionRegistry = sessionRegistry;
-        _serializer = serializer;
     }
 
     public override async ValueTask<GatewayResponse> HandleAsync(
@@ -34,7 +30,7 @@ public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
         if (request.Payload == null || request.Payload.Length == 0)
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
-        var req = _serializer.Deserialize<SubscribeStateSyncReq>(request.Payload);
+        var req = GatewaySerializer.Deserialize<WireSubscribeStateSyncReq>(request.Payload);
         if (string.IsNullOrEmpty(req.BattleGrainKey))
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
@@ -53,7 +49,7 @@ public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
                 _sessionRegistry.BindAccount(context.AccountId, context.ConnectionId);
             }
 
-            var responsePayload = _serializer.SerializeToArray(new SubscribeStateSyncRes
+            var responsePayload = GatewaySerializer.Serialize(new WireSubscribeStateSyncRes
             {
                 Success = true,
                 Message = "Subscribed to state sync"
@@ -68,16 +64,3 @@ public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
     }
 }
 
-[MemoryPackable]
-public readonly partial struct SubscribeStateSyncReq
-{
-    [MemoryPackOrder(0)] public string BattleGrainKey { get; init; }
-    [MemoryPackOrder(1)] public string RoomId { get; init; }
-}
-
-[MemoryPackable]
-public readonly partial struct SubscribeStateSyncRes
-{
-    [MemoryPackOrder(0)] public bool Success { get; init; }
-    [MemoryPackOrder(1)] public string Message { get; init; }
-}

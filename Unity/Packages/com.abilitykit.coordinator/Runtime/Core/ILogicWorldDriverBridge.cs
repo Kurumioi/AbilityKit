@@ -45,12 +45,4 @@ namespace AbilityKit.Coordinator
         /// </summary>
         SnapshotEntityState[] GetAllEntityStates();
     }
-
-    /// <summary>
-    /// Legacy battle driver host interface retained for source compatibility.
-    /// New code should depend on ILogicWorldDriverBridge.
-    /// </summary>
-    public interface IBattleDriverHost : ILogicWorldDriverBridge
-    {
-    }
 }

@@ -132,7 +132,7 @@ namespace AbilityKit.Game.Flow
 
         internal sealed class GatewayRoomHandles
         {
-            internal ConnectionManager Conn;
+            internal IConnection Conn;
             internal GatewayRoomClient Client;
             internal System.Threading.Tasks.Task Task;
 
@@ -167,7 +167,7 @@ namespace AbilityKit.Game.Flow
 
                 if (Conn != null)
                 {
-                    var conn = Conn;
+                    IDisposable conn = Conn;
                     Conn = null;
                     DisposeUtils.TryDispose(ref conn, ex => Log.Exception(ex));
                 }

@@ -1,3 +1,4 @@
+using AbilityKit.Orleans.Gateway.HttpApi;
 using Orleans.Configuration;
 using Orleans.Hosting;
 using GatewayAbstractions = AbilityKit.Orleans.Gateway.Abstractions;
@@ -26,6 +27,9 @@ builder.Services.AddSingleton<GatewayHandlers.GuestLoginHandler>();
 builder.Services.AddSingleton<GatewayHandlers.TimeSyncHandler>();
 builder.Services.AddSingleton<GatewayHandlers.CreateRoomHandler>();
 builder.Services.AddSingleton<GatewayHandlers.JoinRoomHandler>();
+builder.Services.AddSingleton<GatewayHandlers.RoomReadyHandler>();
+builder.Services.AddSingleton<GatewayHandlers.RoomPickHeroHandler>();
+builder.Services.AddSingleton<GatewayHandlers.StartRoomBattleHandler>();
 builder.Services.AddSingleton<GatewayHandlers.SubscribeStateSyncHandler>();
 
 // 注册 Handler Registry（需要 DI 容器）
@@ -72,6 +76,7 @@ _ = Task.Run(() => transportServer.StartAsync());
 app.UseStaticFiles();
 
 app.MapGet("/health", () => Results.Ok("OK"));
+app.MapGatewayHttpApi();
 
 // 使用端口 5001
 app.Run("http://localhost:5001");

@@ -145,11 +145,9 @@ namespace AbilityKit.Protocol.Moba
         [MemoryPackOrder(5), BinaryMember(5)] public readonly int InputDelayFrames;
 
         [MemoryPackOrder(6), BinaryMember(6)] public readonly MobaPlayerEntry[] Players;
-
-        [MemoryPackOrder(9), BinaryMember(9)] public readonly MobaPlayerLoadout[] PlayersLoadout;
-
         [MemoryPackOrder(7), BinaryMember(7)] public readonly int OpCode;
         [MemoryPackOrder(8), BinaryMember(8)] public readonly byte[] Payload;
+        [MemoryPackOrder(9), BinaryMember(9)] public readonly MobaPlayerLoadout[] PlayersLoadout;
 
         [MemoryPackConstructor]
         public EnterMobaGameRes(
@@ -176,4 +174,263 @@ namespace AbilityKit.Protocol.Moba
             PlayersLoadout = playersLoadout;
         }
     }
+    
+        public enum MobaProtocolValidationCode
+        {
+            Ok = 0,
+            MissingLocalPlayerId = 1,
+            MissingMatchId = 2,
+            InvalidMapId = 3,
+            InvalidRandomSeed = 4,
+            InvalidTickRate = 5,
+            InvalidInputDelayFrames = 6,
+            MissingPlayers = 7,
+            MissingPlayerId = 8,
+            InvalidTeamId = 9,
+            InvalidHeroId = 10,
+            InvalidLevel = 11,
+            InvalidAttributeTemplateId = 12,
+            InvalidBasicAttackSkillId = 13,
+            MissingSkillIds = 14,
+            InvalidSkillId = 15,
+            InvalidSpawnIndex = 16,
+            InvalidSpawnPositionFlag = 17,
+            MissingLocalPlayerLoadout = 18,
+        }
+    
+        public readonly struct MobaProtocolValidationResult
+        {
+            public static readonly MobaProtocolValidationResult Ok = new MobaProtocolValidationResult(MobaProtocolValidationCode.Ok, null, -1);
+    
+            public readonly MobaProtocolValidationCode Code;
+            public readonly string Message;
+            public readonly int PlayerIndex;
+    
+            public bool IsValid => Code == MobaProtocolValidationCode.Ok;
+    
+            public MobaProtocolValidationResult(MobaProtocolValidationCode code, string message, int playerIndex = -1)
+            {
+                Code = code;
+                Message = message;
+                PlayerIndex = playerIndex;
+            }
+    
+            public override string ToString()
+            {
+                if (IsValid)
+                {
+                    return nameof(MobaProtocolValidationCode.Ok);
+                }
+    
+                return PlayerIndex >= 0
+                    ? $"{Code}: {Message} (playerIndex={PlayerIndex})"
+                    : $"{Code}: {Message}";
+            }
+        }
+    
+        public static class MobaProtocolValidation
+        {
+            public const int MinTickRate = 1;
+            public const int MaxTickRate = 120;
+            public const int MaxInputDelayFrames = 30;
+    
+            public static MobaProtocolValidationResult ValidateGameStartSpec(in MobaGameStartSpec spec)
+            {
+                return ValidateEnterGameReq(in spec.EnterReq);
+            }
+    
+            public static MobaProtocolValidationResult ValidateEnterGameReqEnvelope(in EnterMobaGameReq req)
+            {
+                var header = ValidateEnterGameHeader(in req);
+                if (!header.IsValid)
+                {
+                    return header;
+                }
+    
+                if (req.Players == null || req.Players.Length == 0)
+                {
+                    return Fail(MobaProtocolValidationCode.MissingPlayers, "players are required");
+                }
+    
+                bool containsLocalPlayer = false;
+                for (int i = 0; i < req.Players.Length; i++)
+                {
+                    var loadout = req.Players[i];
+                    if (IsEmpty(loadout.PlayerId))
+                    {
+                        return Fail(MobaProtocolValidationCode.MissingPlayerId, "player id is required", i);
+                    }
+    
+                    if (loadout.TeamId <= 0)
+                    {
+                        return Fail(MobaProtocolValidationCode.InvalidTeamId, $"team id must be positive, actual={loadout.TeamId}", i);
+                    }
+    
+                    if (loadout.HeroId <= 0)
+                    {
+                        return Fail(MobaProtocolValidationCode.InvalidHeroId, $"hero id must be positive, actual={loadout.HeroId}", i);
+                    }
+    
+                    if (loadout.SpawnIndex < 0)
+                    {
+                        return Fail(MobaProtocolValidationCode.InvalidSpawnIndex, $"spawn index cannot be negative, actual={loadout.SpawnIndex}", i);
+                    }
+    
+                    if (loadout.HasSpawnPosition != 0 && loadout.HasSpawnPosition != 1)
+                    {
+                        return Fail(MobaProtocolValidationCode.InvalidSpawnPositionFlag, $"has spawn position must be 0 or 1, actual={loadout.HasSpawnPosition}", i);
+                    }
+    
+                    if (loadout.PlayerId.Value == req.PlayerId.Value)
+                    {
+                        containsLocalPlayer = true;
+                    }
+                }
+    
+                return containsLocalPlayer
+                    ? MobaProtocolValidationResult.Ok
+                    : Fail(MobaProtocolValidationCode.MissingLocalPlayerLoadout, $"local player id was not found in players, playerId={req.PlayerId.Value}");
+            }
+    
+            public static MobaProtocolValidationResult ValidateEnterGameReq(in EnterMobaGameReq req)
+            {
+                var envelope = ValidateEnterGameReqEnvelope(in req);
+                if (!envelope.IsValid)
+                {
+                    return envelope;
+                }
+    
+                bool containsLocalPlayer = false;
+                for (int i = 0; i < req.Players.Length; i++)
+                {
+                    var result = ValidatePlayerLoadout(in req.Players[i], i);
+                    if (!result.IsValid)
+                    {
+                        return result;
+                    }
+    
+                    if (req.Players[i].PlayerId.Value == req.PlayerId.Value)
+                    {
+                        containsLocalPlayer = true;
+                    }
+                }
+    
+                return containsLocalPlayer
+                    ? MobaProtocolValidationResult.Ok
+                    : Fail(MobaProtocolValidationCode.MissingLocalPlayerLoadout, $"local player id was not found in players, playerId={req.PlayerId.Value}");
+            }
+    
+            public static MobaProtocolValidationResult ValidateCreateWorldSpecEnvelope(PlayerId localPlayerId, in MobaCreateWorldSpec spec)
+            {
+                return ValidateEnterGameReqEnvelope(spec.ToEnterReq(localPlayerId, opCode: 0, payload: null));
+            }
+    
+            public static MobaProtocolValidationResult ValidateCreateWorldSpec(PlayerId localPlayerId, in MobaCreateWorldSpec spec)
+            {
+                return ValidateEnterGameReq(spec.ToEnterReq(localPlayerId, opCode: 0, payload: null));
+            }
+    
+            public static MobaProtocolValidationResult ValidatePlayerLoadout(in MobaPlayerLoadout loadout, int playerIndex = -1)
+            {
+                if (IsEmpty(loadout.PlayerId))
+                {
+                    return Fail(MobaProtocolValidationCode.MissingPlayerId, "player id is required", playerIndex);
+                }
+    
+                if (loadout.TeamId <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidTeamId, $"team id must be positive, actual={loadout.TeamId}", playerIndex);
+                }
+    
+                if (loadout.HeroId <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidHeroId, $"hero id must be positive, actual={loadout.HeroId}", playerIndex);
+                }
+    
+                if (loadout.Level <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidLevel, $"level must be positive, actual={loadout.Level}", playerIndex);
+                }
+    
+                if (loadout.AttributeTemplateId <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidAttributeTemplateId, $"attribute template id must be positive, actual={loadout.AttributeTemplateId}", playerIndex);
+                }
+    
+                if (loadout.BasicAttackSkillId <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidBasicAttackSkillId, $"basic attack skill id must be positive, actual={loadout.BasicAttackSkillId}", playerIndex);
+                }
+    
+                if (loadout.SkillIds == null || loadout.SkillIds.Length == 0)
+                {
+                    return Fail(MobaProtocolValidationCode.MissingSkillIds, "skill ids are required", playerIndex);
+                }
+    
+                for (int i = 0; i < loadout.SkillIds.Length; i++)
+                {
+                    if (loadout.SkillIds[i] <= 0)
+                    {
+                        return Fail(MobaProtocolValidationCode.InvalidSkillId, $"skill id must be positive, index={i}, actual={loadout.SkillIds[i]}", playerIndex);
+                    }
+                }
+    
+                if (loadout.SpawnIndex < 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidSpawnIndex, $"spawn index cannot be negative, actual={loadout.SpawnIndex}", playerIndex);
+                }
+    
+                if (loadout.HasSpawnPosition != 0 && loadout.HasSpawnPosition != 1)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidSpawnPositionFlag, $"has spawn position must be 0 or 1, actual={loadout.HasSpawnPosition}", playerIndex);
+                }
+    
+                return MobaProtocolValidationResult.Ok;
+            }
+    
+            private static MobaProtocolValidationResult ValidateEnterGameHeader(in EnterMobaGameReq req)
+            {
+                if (IsEmpty(req.PlayerId))
+                {
+                    return Fail(MobaProtocolValidationCode.MissingLocalPlayerId, "local player id is required");
+                }
+    
+                if (string.IsNullOrWhiteSpace(req.MatchId))
+                {
+                    return Fail(MobaProtocolValidationCode.MissingMatchId, "match id is required");
+                }
+    
+                if (req.MapId <= 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidMapId, $"map id must be positive, actual={req.MapId}");
+                }
+    
+                if (req.RandomSeed == 0)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidRandomSeed, "random seed must be non-zero");
+                }
+    
+                if (req.TickRate < MinTickRate || req.TickRate > MaxTickRate)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidTickRate, $"tick rate must be in [{MinTickRate}, {MaxTickRate}], actual={req.TickRate}");
+                }
+    
+                if (req.InputDelayFrames < 0 || req.InputDelayFrames > MaxInputDelayFrames)
+                {
+                    return Fail(MobaProtocolValidationCode.InvalidInputDelayFrames, $"input delay frames must be in [0, {MaxInputDelayFrames}], actual={req.InputDelayFrames}");
+                }
+    
+                return MobaProtocolValidationResult.Ok;
+            }
+    
+            private static bool IsEmpty(PlayerId playerId)
+            {
+                return string.IsNullOrWhiteSpace(playerId.Value);
+            }
+    
+            private static MobaProtocolValidationResult Fail(MobaProtocolValidationCode code, string message, int playerIndex = -1)
+            {
+                return new MobaProtocolValidationResult(code, message, playerIndex);
+            }
+        }
 }

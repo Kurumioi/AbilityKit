@@ -11,20 +11,28 @@ namespace AbilityKit.Protocol.Moba.CreateWorld
 
         public static bool TryDeserialize(byte[] bytes, out MobaCreateWorldInitPayload payload)
         {
+            return TryDeserialize(bytes, out payload, out _);
+        }
+
+        public static bool TryDeserialize(byte[] bytes, out MobaCreateWorldInitPayload payload, out string error)
+        {
             if (bytes == null || bytes.Length == 0)
             {
                 payload = default;
+                error = "payload is empty";
                 return false;
             }
 
             try
             {
                 payload = WireSerializer.Deserialize<MobaCreateWorldInitPayload>(bytes);
+                error = null;
                 return true;
             }
-            catch
+            catch (System.Exception ex)
             {
                 payload = default;
+                error = ex.Message;
                 return false;
             }
         }

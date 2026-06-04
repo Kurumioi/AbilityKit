@@ -3,6 +3,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -12,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly MobaDamageService _damage;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        private static bool _formulaLimitLogged;
 
         public DamagePipelineService(MobaActorLookupService actors, MobaDamageService damage, AbilityKit.Triggering.Eventing.IEventBus eventBus)
         {
@@ -81,6 +83,12 @@ namespace AbilityKit.Demo.Moba.Services
             var kind = (DamageFormulaKind)attack.FormulaKind;
             if (kind == DamageFormulaKind.None) kind = DamageFormulaKind.Standard;
 
+            if (!_formulaLimitLogged)
+            {
+                _formulaLimitLogged = true;
+                Log.Warning("[DamagePipelineService] Damage mitigation and shield stages are currently pass-through; production formulas should wire mitigation/shield services before enabling advanced damage configs.");
+            }
+
             switch (kind)
             {
                 case DamageFormulaKind.Standard:
@@ -91,10 +99,10 @@ namespace AbilityKit.Demo.Moba.Services
                     var scaled = baseValue * attack.DamageRate.Value + attack.FlatBonus.Value;
                     calc.RawDamage.BaseValue = scaled;
 
-                    // Step: mitigate (placeholder: no mitigation yet)
+                    // Step: mitigate. Current runtime keeps this pass-through until mitigation services are wired.
                     calc.MitigatedDamage.BaseValue = calc.RawDamage.Value;
 
-                    // Step: shield (placeholder: none)
+                    // Step: shield. Current runtime has no shield absorption service wired.
                     calc.ShieldAbsorb.BaseValue = 0f;
                     var hpDamage = System.Math.Max(0f, calc.MitigatedDamage.Value - calc.ShieldAbsorb.Value);
                     calc.HpDamage.BaseValue = hpDamage;

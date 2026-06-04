@@ -59,9 +59,9 @@ namespace AbilityKit.Coordinator
         void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost);
 
         /// <summary>
-        /// Set the driver host after initial attachment
+        /// Set the logic-world driver after initial attachment.
         /// </summary>
-        void SetDriverHost(ILogicWorldDriverBridge driverHost);
+        void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost);
 
         /// <summary>
         /// Frame update (called by tick loop)

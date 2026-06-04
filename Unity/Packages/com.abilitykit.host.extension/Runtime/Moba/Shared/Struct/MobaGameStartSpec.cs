@@ -1,4 +1,6 @@
-﻿using AbilityKit.Ability.Host;
+﻿using System;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
@@ -19,6 +21,33 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
         }
 
         public bool HasAnyOverride => Level > 0 || AttributeTemplateId > 0 || BasicAttackSkillId > 0 || (SkillIds != null && SkillIds.Length > 0);
+    }
+
+    public readonly struct MobaHostSpawnData
+    {
+        public readonly int PlayerId;
+        public readonly int HeroId;
+        public readonly int TeamId;
+        public readonly float X;
+        public readonly float Y;
+        public readonly float Z;
+        public readonly string Name;
+
+        public MobaHostSpawnData(int playerId, int heroId, int teamId, float x, float y, float z, string name = null)
+        {
+            PlayerId = playerId;
+            HeroId = heroId;
+            TeamId = teamId;
+            X = x;
+            Y = y;
+            Z = z;
+            Name = name;
+        }
+
+        public static MobaHostSpawnData CreateLocalPlayer(int playerId, int heroId, float x, float z)
+        {
+            return new MobaHostSpawnData(playerId, heroId, 1, x, 0f, z, "LocalPlayer");
+        }
     }
 
     public readonly struct MobaRoomPlayerSlot
@@ -119,6 +148,116 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
                 gameplayId: GameplayId);
         }
 
+    }
+
+    public static class MobaHostSpawnPlanBuilder
+    {
+        public const int DefaultLevel = 1;
+        public const int DefaultUnitSubType = 1;
+        public const int DefaultMainType = 1;
+        public const int DefaultBasicAttackSkillId = 1001;
+
+        private static readonly int[] DefaultSkillIds = { 1001, 1002, 1003, 1004 };
+
+        public static MobaPlayerLoadout[] ToLoadouts(MobaHostSpawnData[] spawns, int startIndex = 0)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                return Array.Empty<MobaPlayerLoadout>();
+            }
+
+            var loadouts = new MobaPlayerLoadout[spawns.Length];
+            for (int i = 0; i < spawns.Length; i++)
+            {
+                loadouts[i] = ToLoadout(spawns[i], startIndex + i);
+            }
+
+            return loadouts;
+        }
+
+        public static MobaPlayerLoadout ToLoadout(MobaHostSpawnData spawn, int spawnIndex)
+        {
+            return new MobaPlayerLoadout(
+                playerId: new PlayerId(spawn.PlayerId.ToString()),
+                teamId: spawn.TeamId,
+                heroId: spawn.HeroId,
+                attributeTemplateId: 0,
+                level: DefaultLevel,
+                basicAttackSkillId: DefaultBasicAttackSkillId,
+                skillIds: CloneDefaultSkillIds(),
+                spawnIndex: spawnIndex,
+                unitSubType: DefaultUnitSubType,
+                mainType: DefaultMainType,
+                hasSpawnPosition: 1,
+                spawnX: spawn.X,
+                spawnY: spawn.Y,
+                spawnZ: spawn.Z);
+        }
+
+        public static EnterMobaGameReq ToEnterReq(
+            MobaHostSpawnData[] spawns,
+            PlayerId localPlayerId,
+            string matchId,
+            int mapId,
+            int tickRate = 30,
+            int inputDelayFrames = 0,
+            int randomSeed = 0,
+            int gameplayId = 0,
+            int enterGameOpCode = 0,
+            byte[] enterGamePayload = null)
+        {
+            if (spawns == null || spawns.Length == 0)
+            {
+                throw new ArgumentException("Spawns cannot be null or empty", nameof(spawns));
+            }
+
+            var seed = randomSeed != 0 ? randomSeed : Environment.TickCount;
+            return new EnterMobaGameReq(
+                playerId: localPlayerId,
+                matchId: matchId,
+                mapId: mapId,
+                randomSeed: seed,
+                tickRate: tickRate,
+                inputDelayFrames: inputDelayFrames,
+                opCode: enterGameOpCode,
+                payload: enterGamePayload,
+                players: ToLoadouts(spawns),
+                gameplayId: gameplayId);
+        }
+
+        public static MobaBattleStartPlan ToStartPlan(
+            MobaHostSpawnData[] spawns,
+            PlayerId localPlayerId,
+            string matchId,
+            int mapId,
+            int tickRate = 30,
+            int inputDelayFrames = 0,
+            int randomSeed = 0,
+            int gameplayId = 0,
+            int enterGameOpCode = 0,
+            byte[] enterGamePayload = null)
+        {
+            var req = ToEnterReq(
+                spawns,
+                localPlayerId,
+                matchId,
+                mapId,
+                tickRate,
+                inputDelayFrames,
+                randomSeed,
+                gameplayId,
+                enterGameOpCode,
+                enterGamePayload);
+
+            return MobaBattleStartPlan.FromEnterReq(in req);
+        }
+
+        private static int[] CloneDefaultSkillIds()
+        {
+            var skills = new int[DefaultSkillIds.Length];
+            Array.Copy(DefaultSkillIds, skills, DefaultSkillIds.Length);
+            return skills;
+        }
     }
 }
 

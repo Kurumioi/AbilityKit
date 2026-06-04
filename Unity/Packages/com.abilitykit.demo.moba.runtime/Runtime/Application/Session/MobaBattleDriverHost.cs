@@ -18,28 +18,27 @@ namespace AbilityKit.Demo.Moba.Session
         void BindLogicWorld(IWorld world, HostRuntime hostRuntime);
         void Start();
         void Stop();
-        void SubmitCommands(IReadOnlyList<PlayerInputCommand> commands);
+        MobaInputSubmitResult SubmitCommands(IReadOnlyList<PlayerInputCommand> commands);
+        MobaInputSubmitResult SubmitCommands(FrameIndex targetFrame, IReadOnlyList<PlayerInputCommand> commands);
         LogicWorldEntityState[] GetLogicWorldEntityStates();
         bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
         int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
     }
 
     /// <summary>
-    /// MOBA 逻辑世界驱动 Host（跨平台复用）
-    /// 将外部输入提交到 moba.core 逻辑世界
+    /// MOBA 逻辑世界驱动适配器（跨平台复用）。
+    /// 连接 coordinator 的通用驱动桥与 moba.runtime 的统一运行时端口，不承载战斗规则。
     ///
     /// 设计原则（单一入口）：
-    /// - 只通过战斗逻辑层端口与 moba.core 交互
-    /// - 输入：通过 IMobaBattleInputPort 提交
-    /// - 输出：通过 IMobaBattleOutputPort 获取快照
+    /// - 只通过 IMobaBattleRuntimePort 与 moba.runtime 交互
+    /// - 输入、快照和状态读取都由统一运行时端口承载
     /// - 禁止直接访问 MobaEntityManager 或实体
     /// </summary>
-    public sealed class MobaBattleDriverHost : ILogicWorldDriverHost, IBattleDriverHost
+    public sealed class MobaBattleDriverHost : ILogicWorldDriverHost, ILogicWorldDriverBridge
     {
         private IWorld _world;
         private HostRuntime _hostRuntime;
-        private IMobaBattleInputPort _input;
-        private IMobaBattleOutputPort _output;
+        private IMobaBattleRuntimePort _runtime;
         private ILogicWorldDriveGate _driveGate;
         private MobaPlayerInputCommandConverter _inputConverter;
         private MobaTransformSnapshotDispatcher _transformSnapshots;
@@ -62,11 +61,10 @@ namespace AbilityKit.Demo.Moba.Session
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _hostRuntime = hostRuntime;
 
-            // 获取逻辑世界 IO 端口，外部模块不直接依赖内部输入/快照服务。
+            // 获取逻辑世界统一运行时端口，外部模块不直接依赖内部输入/快照服务。
             if (_world?.Services != null)
             {
-                _world.Services.TryResolve(out _input);
-                _world.Services.TryResolve(out _output);
+                _world.Services.TryResolve(out _runtime);
                 _world.Services.TryResolve(out _driveGate);
             }
 
@@ -114,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void SubmitInputs(PlayerInput[] inputs)
         {
-            if (!_isRunning || inputs == null || inputs.Length == 0 || _input == null)
+            if (!_isRunning || inputs == null || inputs.Length == 0 || _runtime == null)
             {
                 return;
             }
@@ -125,14 +123,30 @@ namespace AbilityKit.Demo.Moba.Session
             SubmitCommands(commands);
         }
 
-        public void SubmitCommands(IReadOnlyList<PlayerInputCommand> commands)
+        public MobaInputSubmitResult SubmitCommands(IReadOnlyList<PlayerInputCommand> commands)
         {
-            if (!_isRunning || commands == null || commands.Count == 0 || _input == null)
+            return SubmitCommands(GetDefaultInputTargetFrame(), commands);
+        }
+
+        public MobaInputSubmitResult SubmitCommands(FrameIndex targetFrame, IReadOnlyList<PlayerInputCommand> commands)
+        {
+            if (!_isRunning)
             {
-                return;
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.NotRunning, "battle driver is not running");
             }
 
-            _input.Submit(_currentFrame, commands);
+            if (_runtime == null)
+            {
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.MissingInputPort, "IMobaBattleRuntimePort is not resolved");
+            }
+
+            var result = _runtime.Submit(targetFrame, commands);
+            if (!result.Succeeded)
+            {
+                Log.Warning($"[MobaBattleDriverHost] SubmitCommands rejected. {result}");
+            }
+
+            return result;
         }
 
         public SnapshotEntityState[] GetAllEntityStates()
@@ -144,28 +158,28 @@ namespace AbilityKit.Demo.Moba.Session
 
         public LogicWorldEntityState[] GetLogicWorldEntityStates()
         {
-            return _output?.GetAllEntityStates() ?? Array.Empty<LogicWorldEntityState>();
+            return _runtime?.GetAllEntityStates() ?? Array.Empty<LogicWorldEntityState>();
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
-            if (_output == null)
+            if (_runtime == null)
             {
                 snapshot = default;
                 return false;
             }
 
-            return _output.TryGetSnapshot(frame, out snapshot);
+            return _runtime.TryGetSnapshot(frame, out snapshot);
         }
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (_output == null || snapshots == null)
+            if (_runtime == null || snapshots == null)
             {
                 return 0;
             }
 
-            return _output.CollectSnapshots(frame, snapshots, maxSnapshots);
+            return _runtime.CollectSnapshots(frame, snapshots, maxSnapshots);
         }
 
         public void AdvanceFrame(float deltaTime)
@@ -186,8 +200,13 @@ namespace AbilityKit.Demo.Moba.Session
             // 驱动 moba.core Tick
             _hostRuntime?.Tick(deltaTime);
 
-            // 从战斗逻辑层输出端口获取位置快照。
+            // 从战斗逻辑层统一运行时端口获取位置快照。
             TryGetTransformSnapshot();
+        }
+
+        private FrameIndex GetDefaultInputTargetFrame()
+        {
+            return new FrameIndex(_currentFrame.Value + 1);
         }
 
         private bool CanDriveLogicWorld(float deltaTime)
@@ -207,7 +226,7 @@ namespace AbilityKit.Demo.Moba.Session
         }
 
         /// <summary>
-        /// 从战斗逻辑层输出端口获取位置快照。
+        /// 从战斗逻辑层统一运行时端口获取位置快照。
         /// </summary>
         private void TryGetTransformSnapshot()
         {
@@ -227,7 +246,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         private void HandleMoveInput(PlayerInput input)
         {
-            // 移动输入通过 SubmitInputs -> IMobaBattleInputPort.Submit() 处理
+            // 移动输入通过 SubmitInputs -> IMobaBattleRuntimePort.Submit() 处理
             // 不在这里直接操作实体
             if (!input.TryGetMoveTarget(out float x, out float z))
             {
