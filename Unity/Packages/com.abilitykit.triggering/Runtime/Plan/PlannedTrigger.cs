@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
@@ -202,13 +203,19 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         switch (call.Arity)
                         {
                             case 0:
+                                if (_actions0[i] == null) Log.Warning($"[PlannedTrigger] Named action slot missing. triggerId={_plan.TriggerId}, index={i}, id={FormatActionId(in ctx, call.Id)}, arity=0");
                                 _actions0[i]?.Invoke(args, rawArgs, ctx);
                                 break;
                             case 1:
+                                if (_actions1[i] == null) Log.Warning($"[PlannedTrigger] Named action slot missing. triggerId={_plan.TriggerId}, index={i}, id={FormatActionId(in ctx, call.Id)}, arity=1");
                                 _actions1[i]?.Invoke(args, rawArgs, ctx);
                                 break;
                             case 2:
+                                if (_actions2[i] == null) Log.Warning($"[PlannedTrigger] Named action slot missing. triggerId={_plan.TriggerId}, index={i}, id={FormatActionId(in ctx, call.Id)}, arity=2");
                                 _actions2[i]?.Invoke(args, rawArgs, ctx);
+                                break;
+                            default:
+                                Log.Warning($"[PlannedTrigger] Unsupported named action arity during execute. triggerId={_plan.TriggerId}, index={i}, id={FormatActionId(in ctx, call.Id)}, arity={call.Arity}");
                                 break;
                         }
                     }

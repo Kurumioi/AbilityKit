@@ -21,6 +21,10 @@ namespace AbilityKit.Demo.Moba.Services
         public float HpMax;
         public int TeamId;
         public bool IsDead;
+        public bool HasAttributeGroup;
+        public bool HasResourceContainer;
+        public bool HasSkillLoadout;
+        public int ActiveSkillCount;
 
         public LogicWorldEntityState(int entityId)
         {
@@ -31,6 +35,10 @@ namespace AbilityKit.Demo.Moba.Services
             Hp = HpMax = 0f;
             TeamId = 0;
             IsDead = true;
+            HasAttributeGroup = false;
+            HasResourceContainer = false;
+            HasSkillLoadout = false;
+            ActiveSkillCount = 0;
         }
 
         public static LogicWorldEntityState Empty(int entityId)

@@ -29,19 +29,82 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
 
         public void Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
-            if (inputs == null || inputs.Count == 0) return;
-            if (!CanSubmit(frame, inputs)) return;
+            TrySubmit(frame, inputs);
+        }
+
+        public LogicWorldInputSubmitResult TrySubmit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (inputs == null || inputs.Count == 0)
+            {
+                return LogicWorldInputSubmitResult.Rejected("input command batch is null or empty");
+            }
+
+            if (!CanSubmit(frame, inputs))
+            {
+                return LogicWorldInputSubmitResult.Rejected($"input batch rejected by frame validation: targetFrame={frame.Value}, count={inputs.Count}");
+            }
 
             TContext context = CreateContext(frame, inputs);
-            if (context == null) return;
+            if (context == null)
+            {
+                return LogicWorldInputSubmitResult.Rejected("input context creation returned null");
+            }
 
+            var handledCount = 0;
+            var dispatchTrace = string.Empty;
             for (int i = 0; i < inputs.Count; i++)
             {
                 PlayerInputCommand command = inputs[i];
-                if (TryHandleBeforeDispatch(context, frame, command)) continue;
+                bool handledBeforeDispatch = TryHandleBeforeDispatch(context, frame, command);
+                bool handledByDispatch = false;
+                if (handledBeforeDispatch)
+                {
+                    handledCount++;
+                }
+                else
+                {
+                    handledByDispatch = Dispatch(context, frame, command, out var failureReason);
+                    if (handledByDispatch)
+                    {
+                        handledCount++;
+                    }
+                    else if (!string.IsNullOrEmpty(failureReason))
+                    {
+                        if (i > 0) dispatchTrace += ";";
+                        dispatchTrace += $"#{i}:Before={handledBeforeDispatch},Dispatch={handledByDispatch},Reason={failureReason}";
+                        continue;
+                    }
 
-                Dispatch(context, frame, command);
+                    if (i > 0) dispatchTrace += ";";
+                    dispatchTrace += $"#{i}:Before={handledBeforeDispatch},Dispatch={handledByDispatch}";
+                    if (!string.IsNullOrEmpty(failureReason))
+                    {
+                        dispatchTrace += $",Reason={failureReason}";
+                    }
+                    continue;
+                }
+
+                if (i > 0) dispatchTrace += ";";
+                dispatchTrace += $"#{i}:Before={handledBeforeDispatch},Dispatch={handledByDispatch}";
             }
+
+            if (handledCount < inputs.Count)
+            {
+                string message = $"Coordinator={GetType().Name}, Frame={frame.Value}, Count={inputs.Count}, Handled={handledCount}, Commands={FormatCommands(inputs)}, DispatchTrace={dispatchTrace}";
+                if (handledCount == 0)
+                {
+                    Log.Warning($"[{GetType().Name}] Input batch accepted but no command was handled. {message}");
+                }
+                else
+                {
+                    Log.Warning($"[{GetType().Name}] Input batch partially handled. {message}");
+                }
+
+                return LogicWorldInputSubmitResult.Accepted(inputs.Count, handledCount, message);
+            }
+
+            string successMessage = $"Coordinator={GetType().Name}, Frame={frame.Value}, Count={inputs.Count}, Handled={handledCount}, Commands={FormatCommands(inputs)}, DispatchTrace={dispatchTrace}";
+            return LogicWorldInputSubmitResult.Accepted(inputs.Count, handledCount, successMessage);
         }
 
         protected virtual bool CanSubmit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
@@ -90,7 +153,22 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
             return false;
         }
 
-        protected abstract void Dispatch(TContext context, FrameIndex frame, PlayerInputCommand command);
+        protected abstract bool Dispatch(TContext context, FrameIndex frame, PlayerInputCommand command, out string failureReason);
+
+        private static string FormatCommands(IReadOnlyList<PlayerInputCommand> inputs)
+        {
+            if (inputs == null || inputs.Count == 0) return "empty";
+
+            var text = string.Empty;
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                PlayerInputCommand command = inputs[i];
+                if (i > 0) text += ";";
+                text += $"#{i}:Player={command.Player.Value},Op={command.OpCode},Payload={command.Payload?.Length ?? 0}";
+            }
+
+            return text;
+        }
 
         public virtual void Dispose()
         {

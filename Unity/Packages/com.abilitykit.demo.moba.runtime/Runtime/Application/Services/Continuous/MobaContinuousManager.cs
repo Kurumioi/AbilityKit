@@ -20,13 +20,13 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaContinuousLifecycleBinder _lifecycleBinder;
         private IMobaEffectiveTagQueryService _effectiveTags;
         private IMobaContinuousTagRuleService _tagRules;
+        private IWorldResolver _services;
 
         public void OnInit(IWorldResolver services)
         {
             if (services == null) return;
 
-            services.TryResolve(out _effectiveTags);
-            services.TryResolve(out _tagRules);
+            _services = services;
             RegisterDefaultModifierProjectors(services);
             RegisterDefaultIntervalHandlers(services);
         }
@@ -45,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Services
             SyncManagedState(continuous);
             ReprojectModifiers(continuous);
             MarkEffectiveTagsDirty(continuous);
-            _tagRules?.ReconcileOwnerFor(continuous);
+            ResolveTagRules()?.ReconcileOwnerFor(continuous);
         }
 
         public void Tick(float deltaTimeSeconds)
@@ -155,7 +155,7 @@ namespace AbilityKit.Demo.Moba.Services
             var ownerId = continuous?.Config?.OwnerId ?? 0L;
             if (ownerId <= 0 || ownerId > int.MaxValue) return;
 
-            _effectiveTags?.MarkDirty((int)ownerId);
+            ResolveEffectiveTags()?.MarkDirty((int)ownerId);
         }
 
         /// <summary>
@@ -173,7 +173,28 @@ namespace AbilityKit.Demo.Moba.Services
             _modifierProjectors = null;
             _effectiveTags = null;
             _tagRules = null;
+            _services = null;
             Clear();
+        }
+
+        private IMobaEffectiveTagQueryService ResolveEffectiveTags()
+        {
+            if (_effectiveTags == null)
+            {
+                _services?.TryResolve(out _effectiveTags);
+            }
+
+            return _effectiveTags;
+        }
+
+        private IMobaContinuousTagRuleService ResolveTagRules()
+        {
+            if (_tagRules == null)
+            {
+                _services?.TryResolve(out _tagRules);
+            }
+
+            return _tagRules;
         }
     }
 }

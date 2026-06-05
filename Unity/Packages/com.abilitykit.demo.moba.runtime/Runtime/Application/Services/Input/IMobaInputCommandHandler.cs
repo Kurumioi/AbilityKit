@@ -22,6 +22,6 @@ namespace AbilityKit.Demo.Moba.Services
         /// <param name="context">输入处理上下文</param>
         /// <param name="frame">当前帧</param>
         /// <param name="command">输入命令</param>
-        void Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command);
+        bool Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out string failureReason);
     }
 }

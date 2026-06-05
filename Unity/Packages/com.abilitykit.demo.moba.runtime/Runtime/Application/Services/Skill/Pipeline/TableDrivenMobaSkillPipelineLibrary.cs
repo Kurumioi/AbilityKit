@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Generic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -103,7 +104,8 @@ namespace AbilityKit.Demo.Moba.Services
                     return new SkillFlowChecksPhase(MakePhaseId(phase, checksPhaseId.Value), phase.Checks, _conditionRegistry, _tags);
                 case SkillPhaseType.Timeline:
                     if (phase.Timeline == null) return null;
-                    return new SkillTimelinePhase(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, ToArray(phase.Timeline.Events), _effects);
+                    var events = ToArray(phase.Timeline.Events);
+                    return new SkillTimelinePhase(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, events, _effects);
                 case SkillPhaseType.Sequence:
                     return BuildSequencePhase(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
                 case SkillPhaseType.Parallel:

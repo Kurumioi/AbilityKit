@@ -18,7 +18,7 @@ namespace ET.Logic
     /// <summary>
     /// 输入命令 - 技能命令
     /// </summary>
-    public sealed record SkillCommand(int Frame, string PlayerId, int SkillSlot, float TargetX, float TargetY);
+    public sealed record SkillCommand(int Frame, string PlayerId, int SkillSlot, float TargetX, float TargetY, int TargetActorId = 0);
 
     /// <summary>
     /// 输入命令 - 停止命令

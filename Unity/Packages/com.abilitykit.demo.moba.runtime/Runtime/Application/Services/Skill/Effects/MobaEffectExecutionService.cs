@@ -191,29 +191,54 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            Log.Info("[MobaEffectExecutionService] InitializePlanActions: starting...");
             RegisterPlanActionModules("InitializePlanActions");
-            Log.Info("[MobaEffectExecutionService] InitializePlanActions: completed");
         }
 
         private void RegisterPlanActionModules(string caller)
         {
-            if (_planActions == null) return;
+            if (_planActions == null)
+            {
+                Log.Warning($"[MobaEffectExecutionService] {caller}: PlanActionModule register skipped. _planActions is null");
+                return;
+            }
+
+            if (_services == null)
+            {
+                Log.Warning($"[MobaEffectExecutionService] {caller}: PlanActionModule register skipped. _services is null");
+                return;
+            }
 
             try
             {
-                if (_services != null
-                    && _services.TryResolve<AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanActionModuleRegistry>(out var registry)
-                    && registry != null
-                    && registry.Modules != null)
+                if (!_services.TryResolve<AbilityKit.Demo.Moba.Services.Triggering.PlanActions.PlanActionModuleRegistry>(out var registry) || registry == null)
                 {
-                    var modules = registry.Modules;
-                    for (int i = 0; i < modules.Length; i++)
+                    Log.Warning($"[MobaEffectExecutionService] {caller}: PlanActionModuleRegistry not resolved");
+                    return;
+                }
+
+                if (registry.Modules == null)
+                {
+                    Log.Warning($"[MobaEffectExecutionService] {caller}: PlanActionModuleRegistry.Modules is null");
+                    return;
+                }
+
+                var modules = registry.Modules;
+                for (int i = 0; i < modules.Length; i++)
+                {
+                    var m = modules[i];
+                    if (m == null)
                     {
-                        var m = modules[i];
-                        if (m == null) continue;
-                        try { m.Register(_planActions, _services); }
-                        catch (Exception ex) { Log.Exception(ex, $"[MobaEffectExecutionService] {caller}: PlanActionModule register failed. module={m.GetType().Name}"); }
+                        Log.Warning($"[MobaEffectExecutionService] {caller}: PlanActionModule null. index={i}");
+                        continue;
+                    }
+
+                    try
+                    {
+                        m.Register(_planActions, _services);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, $"[MobaEffectExecutionService] {caller}: PlanActionModule register failed. module={m.GetType().Name}");
                     }
                 }
             }
@@ -423,14 +448,19 @@ namespace AbilityKit.Demo.Moba.Services
             var executionContext = CreateCombatExecutionContext(wrappedContext, effectId, effectId);
             var lineageInput = executionContext.LineageInput;
 
-            TryGetPlanByTriggerId(effectId, out var plan);
+            var hasPlan = TryGetPlanByTriggerId(effectId, out var plan);
+            if (!hasPlan)
+            {
+                Log.Warning($"[MobaEffectExecutionService] Missing trigger plan. effectId={effectId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+            }
 
             if (!TryEnterExecutionBudget(effectId, in executionContext, out var budgetToken, out var conditionContext)) return;
 
             using (var session = BeginExecutionSession(effectId, effectId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var executed = EvaluateTriggerConditions(effectId, in conditionContext) && TryExecutePlanByTriggerId(effectId, wrappedContext);
-                session.Complete(executed);
+                var conditionsPassed = EvaluateTriggerConditions(effectId, in conditionContext);
+                var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(effectId, wrappedContext);
+                session.Complete(planExecuted);
             }
         }
 
@@ -445,14 +475,19 @@ namespace AbilityKit.Demo.Moba.Services
             var executionContext = CreateCombatExecutionContext(payload, triggerId, triggerId);
             var lineageInput = executionContext.LineageInput;
 
-            TryGetPlanByTriggerId(triggerId, out var plan);
+            var hasPlan = TryGetPlanByTriggerId(triggerId, out var plan);
+            if (!hasPlan)
+            {
+                Log.Warning($"[MobaEffectExecutionService] Missing trigger plan. triggerId={triggerId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+            }
 
             if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return;
 
             using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var executed = EvaluateTriggerConditions(triggerId, in conditionContext) && TryExecutePlanByTriggerId(triggerId, payload);
-                session.Complete(executed);
+                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(triggerId, payload);
+                session.Complete(planExecuted);
             }
         }
 

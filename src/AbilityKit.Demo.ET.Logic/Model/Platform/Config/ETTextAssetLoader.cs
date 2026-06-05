@@ -25,7 +25,6 @@ namespace ET.Logic
         {
             _basePath = string.IsNullOrEmpty(basePath) ? GetDefaultBasePath() : basePath;
             Log.Info($"[ETTextAssetLoader] Created with basePath: {_basePath}");
-            Log.Info($"[AI-DIAG] [ETTextAssetLoader] Created. basePath={_basePath}, exists={Directory.Exists(_basePath)}");
         }
 
         public bool TryLoadText(string path, out string text)
@@ -85,7 +84,6 @@ namespace ET.Logic
             var fullDir = GetFullPath(directory);
             if (!Directory.Exists(fullDir))
             {
-                Log.Info($"[AI-DIAG] [ETTextAssetLoader] Directory missing. directory={directory}, fullDir={fullDir}, pattern={pattern}");
                 return Array.Empty<string>();
             }
 
@@ -102,7 +100,6 @@ namespace ET.Logic
                     .Where(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     .Select(GetRelativePath)
                     .ToArray();
-                Log.Info($"[AI-DIAG] [ETTextAssetLoader] Enumerated. directory={directory}, fullDir={fullDir}, pattern={pattern}, searchPattern={searchPattern}, searchOption={searchOption}, count={files.Length}, files={string.Join(",", files)}");
                 return files;
             }
             catch (Exception ex)

@@ -49,7 +49,6 @@ namespace ET.Logic
             }
 
             Log.Debug($"[ETCoordinatorViewEventSink] OnEnterGameSnapshot: {snapshot.Entities.Length} entities");
-            Log.Info($"[AI-DIAG] [ETCoordinatorViewEventSink] OnEnterGameSnapshot. entityCount={snapshot.Entities.Length}");
         }
 
         public void OnActorTransformSnapshot(in FrameSnapshotData snapshot)
@@ -139,7 +138,6 @@ namespace ET.Logic
                 return true;
             }
 
-            Log.Info($"[AI-DIAG] [ETCoordinatorViewEventSink] Failed to decode entity payload. entityId={snapshotEntity.EntityId}, stateType={snapshotEntity.StateType}, payloadBytes={snapshotEntity.Payload?.Length ?? 0}");
             return false;
         }
 

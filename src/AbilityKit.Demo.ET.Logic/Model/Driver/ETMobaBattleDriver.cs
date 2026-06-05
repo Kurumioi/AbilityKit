@@ -12,6 +12,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using ET.AbilityKit.Demo.ET.Share;
 using ActorKind = ET.AbilityKit.Demo.ET.Share.ActorKind;
@@ -157,6 +158,8 @@ namespace ET.Logic
 
         public void HandleSnapshot(in FrameSnapshotData snapshot)
         {
+            DispatchFrameSnapshot(in snapshot);
+
             foreach (var handler in SnapshotHandlers)
             {
                 if (handler.CanHandle(in snapshot))
@@ -164,6 +167,66 @@ namespace ET.Logic
                     handler.Handle(this, in snapshot);
                 }
             }
+        }
+
+        private void DispatchFrameSnapshot(in FrameSnapshotData snapshot)
+        {
+            var dispatcher = SnapshotDispatcher;
+            if (dispatcher == null)
+            {
+                return;
+            }
+
+            if (snapshot.ActorTransforms != null && snapshot.ActorTransforms.Count > 0)
+            {
+                dispatcher.DispatchActorTransform(snapshot.FrameIndex, ToArray(snapshot.ActorTransforms));
+            }
+
+            if (snapshot.ProjectileEvents != null && snapshot.ProjectileEvents.Count > 0)
+            {
+                dispatcher.DispatchProjectileEvent(snapshot.FrameIndex, ToArray(snapshot.ProjectileEvents));
+            }
+
+            if (snapshot.AreaEvents != null && snapshot.AreaEvents.Count > 0)
+            {
+                dispatcher.DispatchAreaEvent(snapshot.FrameIndex, ToArray(snapshot.AreaEvents));
+            }
+
+            if (snapshot.DamageEvents != null && snapshot.DamageEvents.Count > 0)
+            {
+                dispatcher.DispatchDamageEvent(snapshot.FrameIndex, ToArray(snapshot.DamageEvents));
+            }
+
+            if (snapshot.StateHash.HasValue)
+            {
+                dispatcher.DispatchStateHash(snapshot.FrameIndex, snapshot.StateHash);
+            }
+
+            if (snapshot.ActorSpawns != null && snapshot.ActorSpawns.Count > 0)
+            {
+                dispatcher.DispatchActorSpawn(snapshot.FrameIndex, ToArray(snapshot.ActorSpawns));
+            }
+        }
+
+        private static T[] ToArray<T>(IReadOnlyList<T> source)
+        {
+            if (source == null || source.Count == 0)
+            {
+                return Array.Empty<T>();
+            }
+
+            if (source is T[] array)
+            {
+                return array;
+            }
+
+            var copy = new T[source.Count];
+            for (int i = 0; i < source.Count; i++)
+            {
+                copy[i] = source[i];
+            }
+
+            return copy;
         }
 
         // ============== Service Resolution ==============

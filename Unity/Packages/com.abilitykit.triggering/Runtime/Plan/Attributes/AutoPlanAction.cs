@@ -104,7 +104,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         private void ExecuteSafe(object triggerArgs, Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
-            if (ctx.Context == null) return;
+            if (ctx.Context == null)
+            {
+                Log.Warning($"[Plan] {GetType().Name} skipped. ctx.Context is null");
+                return;
+            }
+
             try
             {
                 ParseFrom(namedArgs, ctx);

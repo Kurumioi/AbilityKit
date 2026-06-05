@@ -13,6 +13,7 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Trace;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -89,47 +90,101 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool HandleInput(int actorId, in SkillInputEvent evt)
         {
-            if (actorId <= 0) return false;
-            if (evt.Slot <= 0) return false;
+            return TryHandleInput(actorId, in evt, out _);
+        }
+
+        public bool TryHandleInput(int actorId, in SkillInputEvent evt, out string failReason)
+        {
+            failReason = null;
+            if (actorId <= 0)
+            {
+                failReason = "Invalid actor id.";
+                return false;
+            }
+
+            if (evt.Slot <= 0)
+            {
+                failReason = "Invalid skill slot.";
+                return false;
+            }
 
             switch (evt.Phase)
             {
                 case SkillInputPhase.Press:
                     if (TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
                     {
+                        failReason = $"UpdatedRunningInput(Slot={evt.Slot},Target={evt.TargetActorId})";
                         return true;
                     }
-                    return CastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, out _);
+                    {
+                        var cast = CastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId, out failReason);
+                        if (cast && string.IsNullOrEmpty(failReason))
+                        {
+                            failReason = $"CastBySlotStarted(Slot={evt.Slot},Target={evt.TargetActorId})";
+                        }
+                        return cast;
+                    }
                 case SkillInputPhase.Hold:
-                    return TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId);
+                    if (TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
+                    {
+                        failReason = $"UpdatedRunningInput(Slot={evt.Slot},Target={evt.TargetActorId})";
+                        return true;
+                    }
+                    failReason = "No running skill for hold input.";
+                    return false;
                 case SkillInputPhase.Release:
                     if (TryReleaseRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
                     {
+                        failReason = $"ReleasedRunningInput(Slot={evt.Slot},Target={evt.TargetActorId})";
                         return true;
                     }
-                    return CastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, out _);
+                    {
+                        var cast = CastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId, out failReason);
+                        if (cast && string.IsNullOrEmpty(failReason))
+                        {
+                            failReason = $"CastBySlotStarted(Slot={evt.Slot},Target={evt.TargetActorId})";
+                        }
+                        return cast;
+                    }
                 case SkillInputPhase.Cancel:
-                    return CancelBySlot(actorId, evt.Slot);
+                    if (CancelBySlot(actorId, evt.Slot))
+                    {
+                        failReason = $"CancelledRunningInput(Slot={evt.Slot})";
+                        return true;
+                    }
+                    failReason = "No running skill for cancel input.";
+                    return false;
                 default:
+                    failReason = $"Unsupported skill input phase: {evt.Phase}.";
                     return false;
             }
         }
 
         public bool CastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
         {
-            var result = TryCastBySlot(actorId, slot, in aimPos, in aimDir);
+            return CastBySlot(actorId, slot, in aimPos, in aimDir, targetActorId: 0, out failReason);
+        }
+
+        public bool CastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, int targetActorId, out string failReason)
+        {
+            var result = TryCastBySlot(actorId, slot, in aimPos, in aimDir, targetActorId);
             failReason = result.FailReason;
             return result.Success;
         }
 
         public MobaSkillCastResult TryCastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir)
         {
+            return TryCastBySlot(actorId, slot, in aimPos, in aimDir, targetActorId: 0);
+        }
+
+        public MobaSkillCastResult TryCastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
+        {
             if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
             {
                 return MobaSkillCastResult.Failed("Skill not found in slot.");
             }
 
-            return TryCastSkill(actorId, skillId, slot, in aimPos, in aimDir);
+            return TryCastSkill(actorId, skillId, slot, in aimPos, in aimDir, targetActorId);
         }
 
         public bool CastSkill(int actorId, int skillId)
@@ -163,10 +218,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaSkillCastResult TryCastSkill(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir)
         {
-            return CastSkillInternal(actorId, skillId, slot, aimPos, aimDir, hasAim: true);
+            return TryCastSkill(actorId, skillId, slot, in aimPos, in aimDir, targetActorId: 0);
         }
 
-        private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim)
+        public MobaSkillCastResult TryCastSkill(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, int targetActorId)
+        {
+            return CastSkillInternal(actorId, skillId, slot, aimPos, aimDir, hasAim: true, targetActorId);
+        }
+
+        private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim, int targetActorId = 0)
         {
             string failReason = null;
             if (actorId <= 0) return MobaSkillCastResult.Failed(null);
@@ -192,9 +252,17 @@ namespace AbilityKit.Demo.Moba.Services
             if (finalAimDir.Equals(Vec3.Zero)) finalAimDir = casterForward;
             if (finalAimPos.Equals(Vec3.Zero)) finalAimPos = casterPos;
 
+            var finalTargetActorId = targetActorId > 0 ? targetActorId : actorId;
+            var targetUnit = caster;
+            if (finalTargetActorId != actorId && _units.TryResolve(new EcsEntityId(finalTargetActorId), out var resolvedTarget) && resolvedTarget != null)
+            {
+                targetUnit = resolvedTarget;
+            }
+
             if (!_library.TryGet(skillId, out var preConfig, out var prePhases, out var castConfig, out var castPhases))
             {
                 failReason = "Skill pipeline not found.";
+                Log.Warning($"[SkillExecutor] Cast failed: pipeline missing. actor={actorId}, skillId={skillId}, slot={slot}, target={finalTargetActorId}");
                 return MobaSkillCastResult.Failed(failReason);
             }
 
@@ -202,13 +270,13 @@ namespace AbilityKit.Demo.Moba.Services
                 skillId: skillId,
                 skillSlot: slot,
                 casterActorId: actorId,
-                targetActorId: actorId,
+                targetActorId: finalTargetActorId,
                 aimPos: in finalAimPos,
                 aimDir: in finalAimDir,
                 worldServices: _services,
                 eventBus: _eventBus,
                 casterUnit: caster,
-                targetUnit: caster
+                targetUnit: targetUnit
             );
 
             var skillLevel = 0;
@@ -244,9 +312,9 @@ namespace AbilityKit.Demo.Moba.Services
                         MobaTraceKind.SkillCast,
                         skillId,
                         actorId,
-                        actorId,
+                        finalTargetActorId,
                         TraceEndpoint.Actor(actorId),
-                        TraceEndpoint.Actor(actorId));
+                        TraceEndpoint.Actor(finalTargetActorId));
                 }
             }
             catch
@@ -339,7 +407,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (!_runners.TryGetValue(actorId, out var r) || r == null) return;
 
             var dt = _clock.DeltaTime;
-            if (dt <= 0f) return;
+            if (dt <= 0f)
+            {
+                Log.Warning($"[SkillExecutor] Step skipped: deltaTime={dt:0.####}, actor={actorId}, hasRunning={r.HasRunning}");
+                return;
+            }
 
             r.Step(dt);
         }

@@ -36,7 +36,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 throw new ArgumentException("directory cannot be null or empty", nameof(directory));
 
             var files = GetFiles(directory, pattern).ToArray();
-            LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] LoadDirectory. directory={directory}, pattern={pattern}, fileCount={files.Length}, files={string.Join(",", files)}");
             return LoadFiles(files, options);
         }
 
@@ -154,7 +153,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         "Trigger plan file is empty or missing",
                         file);
                     options.AddDiagnostic(diagnostic);
-                    LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] Skip empty/missing file. file={file}");
                     continue;
                 }
 
@@ -178,11 +176,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     }
 
                     var runtimeDto = parseResult.Dto;
-                    var triggerCount = runtimeDto?.Triggers?.Count ?? 0;
-                    var triggerSummary = runtimeDto?.Triggers == null
-                        ? string.Empty
-                        : string.Join(",", runtimeDto.Triggers.Select(t => $"{t.TriggerId}:{t.EventName}:scope={(int)t.Scope}"));
-                    LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] Parsed file. file={file}, triggerCount={triggerCount}, triggers={triggerSummary}");
                     if (runtimeDto?.Triggers != null)
                     {
                         mergedDto.Triggers.AddRange(runtimeDto.Triggers);
@@ -213,7 +206,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
             }
 
-            LogTrace($"[AI-DIAG] [TriggerPlanDirectoryLoader] Merged dto. triggerCount={mergedDto.Triggers.Count}, stringCount={mergedDto.Strings.Count}");
             db.LoadFromDto(mergedDto);
             return db;
         }
@@ -230,15 +222,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             UnityEngine.Debug.LogWarning(message);
 #else
             Console.Error.WriteLine(message);
-#endif
-        }
-
-        private static void LogTrace(string message)
-        {
-#if UNITY_EDITOR
-            UnityEngine.Debug.Log(message);
-#else
-            Console.WriteLine(message);
 #endif
         }
 

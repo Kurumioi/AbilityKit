@@ -6,35 +6,52 @@ using AbilityKit.Protocol.Moba.StateSync;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// 处理 MOBA 移动输入命令。
-    /// </summary>
+    /// 处理 MOBA 移动输入命令�?    /// </summary>
     [MobaInputCommandHandler(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move)]
     public sealed class MobaMoveInputCommandHandler : IMobaInputCommandHandler
     {
-        public void Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)
+        public bool Handle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out string failureReason)
         {
-            if (!context.Phase.InGame) return;
-            if (!context.PlayerActorMap.TryGetActorId(command.Player, out int actorId))
+            failureReason = null;
+            if (context == null)
             {
-                Log.Info($"[MobaMoveInputCommandHandler] PlayerId={command.Player} not found in actor map");
-                return;
+                failureReason = $"ContextMissing(Frame={frame.Value},Player={command.Player.Value})";
+                Log.Warning($"[MobaMoveInputCommandHandler] Context missing. Frame={frame.Value}, PlayerId={command.Player}");
+                return false;
+            }
+
+            if (context.Phase == null || !context.Phase.InGame)
+            {
+                failureReason = $"NotInGame(Frame={frame.Value},Player={command.Player.Value},HasPhase={context.Phase != null})";
+                Log.Warning($"[MobaMoveInputCommandHandler] Not in game. Frame={frame.Value}, PlayerId={command.Player}, HasPhase={context.Phase != null}");
+                return false;
+            }
+
+            if (context.PlayerActorMap == null || !context.PlayerActorMap.TryGetActorId(command.Player, out int actorId))
+            {
+                failureReason = $"ActorMapMissing(Player={command.Player.Value},HasMap={context.PlayerActorMap != null})";
+                Log.Warning($"[MobaMoveInputCommandHandler] PlayerId={command.Player} not found in actor map. Frame={frame.Value}, HasMap={context.PlayerActorMap != null}");
+                return false;
             }
             if (!context.TryGetEntity(actorId, out ActorEntity entity) || entity == null)
             {
-                Log.Info($"[MobaMoveInputCommandHandler] Entity for ActorId={actorId} not found");
-                return;
+                failureReason = $"ActorEntityMissing(Actor={actorId})";
+                Log.Warning($"[MobaMoveInputCommandHandler] Entity for ActorId={actorId} not found");
+                return false;
             }
             if (!entity.hasTransform)
             {
-                Log.Info($"[MobaMoveInputCommandHandler] Entity ActorId={actorId} has no Transform");
-                return;
+                failureReason = $"TransformMissing(Actor={actorId})";
+                Log.Warning($"[MobaMoveInputCommandHandler] Entity ActorId={actorId} has no Transform");
+                return false;
             }
 
             MobaMoveCodec.Deserialize(command.Payload, out float dx, out float dz);
             if (!entity.hasMoveInput) entity.AddMoveInput(dx, dz);
             else entity.ReplaceMoveInput(dx, dz);
 
-            Log.Info($"[MobaMoveInputCommandHandler] ActorId={actorId}, MoveInput=({dx:F2}, {dz:F2})");
+            failureReason = $"MoveAccepted(Player={command.Player.Value},Actor={actorId},Dx={dx:0.###},Dz={dz:0.###})";
+            return true;
         }
     }
 }

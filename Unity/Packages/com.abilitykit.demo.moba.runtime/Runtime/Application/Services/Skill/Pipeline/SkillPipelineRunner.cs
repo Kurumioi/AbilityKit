@@ -404,6 +404,19 @@ namespace AbilityKit.Demo.Moba.Services
             return state == EAbilityPipelineState.Completed;
         }
 
+        private static int ReadNextEventIndex(SkillPipelineContext context)
+        {
+            if (context == null) return -1;
+            try
+            {
+                return context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), -1);
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
         private static void TryEndSkillRuntime(in Entry entry, MobaSkillRuntimeEndReason reason)
         {
             var handle = entry.TriggerContext != null ? entry.TriggerContext.RuntimeHandle : default;

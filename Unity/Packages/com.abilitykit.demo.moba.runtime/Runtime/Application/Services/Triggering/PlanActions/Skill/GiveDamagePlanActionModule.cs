@@ -28,11 +28,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         protected override void Execute(object triggerArgs, GiveDamageArgs args, ExecCtx<IWorldResolver> ctx)
         {
             if (!ctx.Context.TryResolve<MobaCombatEffectService>(out var combat) || combat == null)
+            {
+                Log.Warning("[Plan] give_damage cannot resolve MobaCombatEffectService.");
                 return;
+            }
 
             var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
             var effectInput = new MobaEffectActionInput(in coreInput);
-            if (!effectInput.HasCasterActor) return;
+            if (!effectInput.HasCasterActor)
+            {
+                Log.Warning($"[Plan] give_damage missing caster. target={effectInput.TargetActorId}, damage={args.DamageValue:0.###}, reasonParam={args.ReasonParam}");
+                return;
+            }
 
             var attackerActorId = effectInput.CasterActorId;
             if (args.QueryTemplateId > 0)
@@ -57,13 +64,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            if (!effectInput.HasTargetActor) return;
+            if (!effectInput.HasTargetActor)
+            {
+                Log.Warning($"[Plan] give_damage missing target. attacker={attackerActorId}, damage={args.DamageValue:0.###}, reasonParam={args.ReasonParam}");
+                return;
+            }
+
             ExecuteDamage(combat, args, effectInput, attackerActorId, effectInput.TargetActorId);
         }
 
         private static void ExecuteDamage(MobaCombatEffectService combat, GiveDamageArgs args, MobaEffectActionInput input, int attackerActorId, int targetActorId)
         {
-            if (targetActorId <= 0) return;
+            if (targetActorId <= 0)
+            {
+                Log.Warning($"[Plan] give_damage invalid target. attacker={attackerActorId}, target={targetActorId}, damage={args.DamageValue:0.###}, reasonParam={args.ReasonParam}");
+                return;
+            }
 
             var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
             var attack = new AttackInfo

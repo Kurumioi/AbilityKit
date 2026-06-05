@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
@@ -127,16 +127,24 @@ namespace ET.Logic
             if (RoomOrchestrator == null)
                 return;
 
+            var localPlayerId = int.Parse(LocalPlayerId.Value);
+            var enemyPlayerId = localPlayerId == 2 ? 3 : 2;
+
             // Join local player
-            JoinRoom(int.Parse(LocalPlayerId.Value), teamId: 1);
+            JoinRoom(localPlayerId, teamId: 1);
 
-            // Pick hero
-            PickHero(int.Parse(LocalPlayerId.Value), heroId, attributeTemplateId);
+            // Pick local hero
+            PickHero(localPlayerId, heroId, attributeTemplateId, basicAttackSkillId: ETPlayerSpawnData.DefaultBasicAttackSkillId, skillIds: ETPlayerSpawnData.CloneDefaultSkillIds());
 
-            // Set ready
-            SetPlayerReady(int.Parse(LocalPlayerId.Value), ready: true);
+            // Add a deterministic opponent so smoke can verify formal target-driven event snapshots.
+            JoinRoom(enemyPlayerId, teamId: 2);
+            PickHero(enemyPlayerId, heroId, attributeTemplateId, basicAttackSkillId: ETPlayerSpawnData.DefaultBasicAttackSkillId, skillIds: ETPlayerSpawnData.CloneDefaultSkillIds());
+            SetPlayerReady(enemyPlayerId, ready: true);
 
-            Log.Info($"[ETMobaRoom] AutoSetupForLocalTest: HeroId={heroId}, AttrTemplateId={attributeTemplateId}");
+            // Set local ready last. The room can start as soon as min player rules are satisfied.
+            SetPlayerReady(localPlayerId, ready: true);
+
+            Log.Info($"[ETMobaRoom] AutoSetupForLocalTest: HeroId={heroId}, AttrTemplateId={attributeTemplateId}, LocalPlayer={localPlayerId}, EnemyPlayer={enemyPlayerId}");
         }
 
         /// <summary>

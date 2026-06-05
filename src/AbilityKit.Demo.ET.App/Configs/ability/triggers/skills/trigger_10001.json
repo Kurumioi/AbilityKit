@@ -10,14 +10,17 @@
     "allowExternal":  false,
     "actions":  [
                     {
-                        "message":  "测试日志输出1111122233333",
+                        "message":  "skill_10010101_damage_smoke",
                         "dump_args":  false,
                         "type":  "debug_log"
                     },
                     {
-                        "projectileId":  200001,
-                        "launcherId":  100001,
-                        "type":  "shoot_projectile"
+                        "damage_type":  1,
+                        "type":  "give_damage",
+                        "reason_param":  0,
+                        "damage_value":  50.0,
+                        "target_mode":  "Explicit",
+                        "reason_kind":  1
                     }
                 ],
     "priority":  50

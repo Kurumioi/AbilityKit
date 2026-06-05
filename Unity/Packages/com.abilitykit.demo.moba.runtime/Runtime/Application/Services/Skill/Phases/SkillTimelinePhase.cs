@@ -51,6 +51,8 @@ namespace AbilityKit.Demo.Moba.Services
                     if (e == null)
                     {
                         _nextIndex++;
+                        try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
+                        catch { }
                         continue;
                     }
 

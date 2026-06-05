@@ -67,9 +67,15 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        protected override void Dispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)
+        protected override bool Dispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out string failureReason)
         {
-            _handlers.TryHandle(context, frame, command);
+            bool handled = _handlers.TryHandle(context, frame, command, out failureReason);
+            if (!handled)
+            {
+                Log.Warning($"[MobaInputCoordinator] Dispatch rejected. Frame={frame.Value}, Player={command.Player.Value}, OpCode={command.OpCode}, Payload={command.Payload?.Length ?? 0}, HandlerCount={_handlers.HandlerCount}, Reason={failureReason ?? string.Empty}");
+            }
+
+            return handled;
         }
 
         private void ResolveSkillExecutor(IWorldResolver services)

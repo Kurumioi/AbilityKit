@@ -80,7 +80,7 @@ namespace ET.Logic
                 float maxHp = (attrs?.MaxHp > 0 ? attrs.MaxHp : hp);
 
                 string playerIdStr = playerIdBase.ToString();
-                var spawnData = new ETPlayerSpawnData(playerIdStr, heroConfig.Id, heroConfig.Name, 1, 0f, 0f, 0f);
+                var spawnData = new ETPlayerSpawnData(playerIdStr, heroConfig.Id, heroConfig.AttributeTemplateId, heroConfig.Name, 1, 0f, 0f, 0f, 0f, 1f, hp, maxHp);
                 players.Add(spawnData);
                 Log.Info($"[PlayerSpawnBuilder] Loaded player: {heroConfig.Name} (Team 1, PlayerId={playerIdStr})");
             }
@@ -96,7 +96,7 @@ namespace ET.Logic
                     float maxHp = (aiAttr?.MaxHp > 0 ? aiAttr.MaxHp : hp);
 
                     string aiPlayerId = (playerIdBase + i).ToString();
-                    var spawnData = new ETPlayerSpawnData(aiPlayerId, aiConfig.Id, aiConfig.Name, 1, 10f * (i - 1), 0f, 0f);
+                    var spawnData = new ETPlayerSpawnData(aiPlayerId, aiConfig.Id, aiConfig.AttributeTemplateId, aiConfig.Name, 1, 10f * (i - 1), 0f, 0f, 0f, 1f, hp, maxHp);
                     players.Add(spawnData);
                     Log.Info($"[PlayerSpawnBuilder] Loaded AI: {aiConfig.Name} (Team 1, PlayerId={aiPlayerId})");
                 }
@@ -113,7 +113,7 @@ namespace ET.Logic
                     float maxHp = (enemyAttr?.MaxHp > 0 ? enemyAttr.MaxHp : hp);
 
                     string enemyPlayerId = (2000 + i).ToString();
-                    var spawnData = new ETPlayerSpawnData(enemyPlayerId, enemyConfig.Id, enemyConfig.Name, 2, 0f, 0f, 50f + 10f * (i - 1));
+                    var spawnData = new ETPlayerSpawnData(enemyPlayerId, enemyConfig.Id, enemyConfig.AttributeTemplateId, enemyConfig.Name, 2, 0f, 0f, 50f + 10f * (i - 1), 0f, 1f, hp, maxHp);
                     players.Add(spawnData);
                     Log.Info($"[PlayerSpawnBuilder] Loaded enemy: {enemyConfig.Name} (Team 2, PlayerId={enemyPlayerId})");
                 }

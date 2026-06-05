@@ -5,6 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Log;
+using AbilityKit.Demo.Moba.Services.LogicWorld;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -45,8 +46,25 @@ namespace AbilityKit.Demo.Moba.Services
             PlayerInputCommand first = inputs[0];
             Log.Info($"[MobaBattleIOPort] Submit: Frame={frame.Value}, Count={inputs.Count}, FirstPlayer={first.Player.Value}, FirstOp={first.OpCode}");
 
-            _input.Submit(frame, inputs);
-            return MobaInputSubmitResult.Accepted(inputs.Count);
+            LogicWorldInputSubmitResult result = _input.TrySubmit(frame, inputs);
+            if (!result.Succeeded)
+            {
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.RejectedByInputCoordinator, result.Message);
+            }
+
+            if (result.HandledCount <= 0)
+            {
+                string detail = string.IsNullOrEmpty(result.Message) ? $"frame={frame.Value}, count={inputs.Count}" : result.Message;
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.NoCommandHandled, $"input batch accepted but no command was handled: {detail}");
+            }
+
+            if (result.HandledCount < inputs.Count)
+            {
+                string detail = string.IsNullOrEmpty(result.Message) ? $"frame={frame.Value}, count={inputs.Count}, handled={result.HandledCount}" : result.Message;
+                return MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.PartialCommandHandled, $"input batch partially handled: {detail}");
+            }
+
+            return MobaInputSubmitResult.Accepted(result.HandledCount, result.Message);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -92,6 +110,25 @@ namespace AbilityKit.Demo.Moba.Services
                 if (entity.hasTeam)
                 {
                     state.TeamId = (int)entity.team.Value;
+                }
+
+                state.HasAttributeGroup = entity.hasAttributeGroup;
+                state.HasResourceContainer = entity.hasResourceContainer && entity.resourceContainer.Value != null;
+                state.HasSkillLoadout = entity.hasSkillLoadout;
+                state.ActiveSkillCount = entity.hasSkillLoadout && entity.skillLoadout.ActiveSkills != null
+                    ? entity.skillLoadout.ActiveSkills.Length
+                    : 0;
+
+                if (state.HasAttributeGroup && state.HasResourceContainer)
+                {
+                    var attrs = entity.GetMobaAttrs();
+                    state.Hp = attrs.Hp;
+                    state.HpMax = attrs.MaxHp;
+                    state.IsDead = attrs.Hp <= 0f;
+                }
+                else
+                {
+                    state.IsDead = false;
                 }
 
                 states.Add(state);

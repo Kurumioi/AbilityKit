@@ -56,6 +56,7 @@ namespace ET.AbilityKit.Demo.ET.App
             Log.Info($"[DemoEntry] Registering Logger...");
             var logger = global::ET.World.Instance.AddSingleton<global::ET.Logger>();
             logger.Log = new global::ET.NLogger("Demo", 1, 0);
+            global::AbilityKit.Core.Common.Log.Log.SetSink(new global::ET.Logic.ETLogSink());
 
             // 加载程序集并初始化 CodeTypes
             var assemblies = new Assembly[]

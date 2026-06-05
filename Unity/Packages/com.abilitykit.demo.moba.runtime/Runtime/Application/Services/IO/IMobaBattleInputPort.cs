@@ -12,6 +12,9 @@ namespace AbilityKit.Demo.Moba.Services
         MissingInputCoordinator = 3,
         NullOrEmptyCommands = 4,
         InvalidFrame = 5,
+        RejectedByInputCoordinator = 6,
+        NoCommandHandled = 7,
+        PartialCommandHandled = 8,
     }
 
     public readonly struct MobaInputSubmitResult
@@ -33,7 +36,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static MobaInputSubmitResult Accepted(int commandCount)
         {
-            return new MobaInputSubmitResult(true, MobaInputSubmitFailureCode.None, null, commandCount);
+            return Accepted(commandCount, null);
+        }
+
+        public static MobaInputSubmitResult Accepted(int commandCount, string message)
+        {
+            return new MobaInputSubmitResult(true, MobaInputSubmitFailureCode.None, message, commandCount);
         }
 
         public static MobaInputSubmitResult Fail(MobaInputSubmitFailureCode failureCode, string message)
@@ -43,7 +51,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         public override string ToString()
         {
-            return Succeeded ? $"Success: Commands={CommandCount}" : $"{FailureCode}: {Message}";
+            return Succeeded
+                ? $"Success: Commands={CommandCount}, Message={Message}"
+                : $"{FailureCode}: {Message}";
         }
     }
 

@@ -22,6 +22,8 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly Dictionary<int, IMobaInputCommandHandler> _handlers = new Dictionary<int, IMobaInputCommandHandler>();
 
+        public int HandlerCount => _handlers.Count;
+
         public MobaInputCommandHandlerRegistry() : base(4)
         {
         }
@@ -33,7 +35,14 @@ namespace AbilityKit.Demo.Moba.Services
         {
             MobaInputCommandHandlerRegistry registry = new MobaInputCommandHandlerRegistry();
             MarkerScanner<MobaInputCommandHandlerAttribute>.ScanAll(registry);
+            registry.RegisterCoreHandlers();
             return registry;
+        }
+
+        private void RegisterCoreHandlers()
+        {
+            Register(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move, typeof(MobaMoveInputCommandHandler));
+            Register(AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput, typeof(MobaSkillInputCommandHandler));
         }
 
         /// <summary>
@@ -50,16 +59,22 @@ namespace AbilityKit.Demo.Moba.Services
         /// <summary>
         /// 尝试处理输入命令。
         /// </summary>
-        public bool TryHandle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)
+        public bool TryHandle(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out string failureReason)
         {
             if (!_handlers.TryGetValue(command.OpCode, out IMobaInputCommandHandler handler))
             {
-                Log.Warning($"[MobaInputCommandHandlerRegistry] Missing input handler: OpCode={command.OpCode}");
+                failureReason = $"MissingHandler(OpCode={command.OpCode},Registered={_handlers.Count})";
+                Log.Warning($"[MobaInputCommandHandlerRegistry] Missing input handler: OpCode={command.OpCode}, Registered={_handlers.Count}");
                 return false;
             }
 
-            handler.Handle(context, frame, command);
-            return true;
+            bool handled = handler.Handle(context, frame, command, out failureReason);
+            if (!handled && string.IsNullOrEmpty(failureReason))
+            {
+                failureReason = $"HandlerRejected({handler.GetType().Name})";
+            }
+
+            return handled;
         }
     }
 }

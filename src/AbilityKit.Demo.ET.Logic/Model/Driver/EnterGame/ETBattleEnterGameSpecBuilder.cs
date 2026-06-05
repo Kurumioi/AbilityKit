@@ -59,10 +59,10 @@ namespace ET.Logic
                         playerId: new PlayerId(spawnData.PlayerId),
                         teamId: spawnData.TeamId,
                         heroId: spawnData.CharacterId,
-                        attributeTemplateId: 0,
+                        attributeTemplateId: spawnData.AttributeTemplateId,
                         level: 1,
-                        basicAttackSkillId: 0,
-                        skillIds: Array.Empty<int>(),
+                        basicAttackSkillId: spawnData.BasicAttackSkillId,
+                        skillIds: spawnData.SkillIds != null && spawnData.SkillIds.Length > 0 ? (int[])spawnData.SkillIds.Clone() : ETPlayerSpawnData.CloneDefaultSkillIds(),
                         spawnIndex: i,
                         unitSubType: (int)UnitSubType.Hero,
                         mainType: (int)EntityMainType.Unit,
@@ -75,33 +75,7 @@ namespace ET.Logic
                 return loadouts;
             }
 
-            var playerIds = plan.PlayerIds;
-            if (playerIds == null || playerIds.Count == 0)
-            {
-                return Array.Empty<MobaPlayerLoadout>();
-            }
-
-            var fallbackLoadouts = new MobaPlayerLoadout[playerIds.Count];
-            for (int i = 0; i < playerIds.Count; i++)
-            {
-                fallbackLoadouts[i] = new MobaPlayerLoadout(
-                    playerId: new PlayerId(playerIds[i].ToString()),
-                    teamId: 0,
-                    heroId: 0,
-                    attributeTemplateId: 0,
-                    level: 1,
-                    basicAttackSkillId: 0,
-                    skillIds: Array.Empty<int>(),
-                    spawnIndex: i,
-                    unitSubType: (int)UnitSubType.Hero,
-                    mainType: (int)EntityMainType.Unit,
-                    hasSpawnPosition: 0,
-                    spawnX: 0f,
-                    spawnY: 0f,
-                    spawnZ: 0f);
-            }
-
-            return fallbackLoadouts;
+            return Array.Empty<MobaPlayerLoadout>();
         }
 
         private static MobaBattleLaunchSyncMode ToLaunchSyncMode(SyncMode syncMode)

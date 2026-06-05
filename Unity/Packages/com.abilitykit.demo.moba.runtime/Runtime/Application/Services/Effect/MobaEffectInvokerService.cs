@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Generic;
 using AbilityKit.Effect;
 using AbilityKit.Ability.World.DI;
@@ -19,8 +20,11 @@ namespace AbilityKit.Demo.Moba.Services
         public void Execute(int effectId, int sourceActorId, int targetActorId, int contextKind, long sourceContextId, IWorldResolver worldServices = null, Action<MobaEffectPipelineContext> configure = null)
         {
             if (effectId <= 0) return;
-            if (_effects == null) return;
-
+            if (_effects == null)
+            {
+                Log.Warning($"[MobaEffectInvokerService] Skip effect: MobaEffectExecutionService not injected. effectId={effectId}, source={sourceActorId}, target={targetActorId}");
+                return;
+            }
             var ctx = new MobaEffectPipelineContext();
             ctx.Initialize(
                 abilityInstance: null,
@@ -39,8 +43,11 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (effectId <= 0) return;
             if (context == null) return;
-            if (_effects == null) return;
-
+            if (_effects == null)
+            {
+                Log.Warning($"[MobaEffectInvokerService] Skip effect: MobaEffectExecutionService not injected. effectId={effectId}, context={context.GetType().Name}");
+                return;
+            }
             _effects.Execute(effectId, context, EffectExecuteMode.InternalOnly);
         }
 

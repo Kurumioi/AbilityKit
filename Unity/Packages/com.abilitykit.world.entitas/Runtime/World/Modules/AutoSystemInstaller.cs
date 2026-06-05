@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Ability.World
 {
@@ -70,7 +71,12 @@ namespace AbilityKit.Ability.World
                 }
             }
 
-            if (candidates.Count == 0) return;
+            if (candidates.Count == 0)
+            {
+                Log.Warning("[AutoSystemInstaller] No world systems discovered.");
+                return;
+            }
+
             candidates.Sort((a, b) =>
             {
                 var c = ((int)a.phase).CompareTo((int)b.phase);

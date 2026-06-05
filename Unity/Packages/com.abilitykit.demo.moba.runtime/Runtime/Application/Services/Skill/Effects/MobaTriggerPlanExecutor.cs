@@ -42,7 +42,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_eventBus == null || _functions == null || _actions == null)
             {
-                Log.Warning($"[MobaTriggerPlanExecutor] Plan runtime deps missing; skip plan exec. triggerId={triggerId}");
+                Log.Warning($"[MobaTriggerPlanExecutor] Plan runtime deps missing; skip plan exec. triggerId={triggerId}, hasEventBus={_eventBus != null}, hasFunctions={_functions != null}, hasActions={_actions != null}");
+                return false;
+            }
+
+            if (_services == null)
+            {
+                Log.Warning($"[MobaTriggerPlanExecutor] Plan runtime services missing; skip plan exec. triggerId={triggerId}");
                 return false;
             }
 
@@ -73,13 +79,11 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (hasExecutionRoot && executionRoot != null)
                 {
-                    executionRoot.Execute(args, in execCtx);
-                }
-                else
-                {
-                    planned.Execute(args, execCtx);
+                    var result = executionRoot.Execute(args, in execCtx);
+                    return result.IsSuccess && result.ExecutedCount > 0;
                 }
 
+                planned.Execute(args, execCtx);
                 return true;
             }
 

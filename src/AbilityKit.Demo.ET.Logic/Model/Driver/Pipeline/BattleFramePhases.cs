@@ -63,8 +63,8 @@ namespace ET.Logic
                 return;
             }
 
-            // 获取帧的输入
-            var commands = inputComponent.GetInputsForFrame(ctx.CurrentFrame);
+            // 获取所有到期输入，避免本地桥接输入因错过精确帧而永久滞留。
+            var commands = inputComponent.GetInputsUpToFrame(ctx.CurrentFrame);
             if (commands == null || commands.Count == 0)
             {
                 return;
@@ -104,42 +104,8 @@ namespace ET.Logic
                     return;
                 }
 
-                LogRuntimeInputState(ctx, first);
+                inputComponent.ClearProcessedInputs(ctx.CurrentFrame);
             }
-        }
-
-        private static void LogRuntimeInputState(BattleFrameContext ctx, PlayerInputCommand first)
-        {
-            ctx.Driver.TryResolve(out MobaGamePhaseService phase);
-            ctx.Driver.TryResolve(out MobaPlayerActorMapService playerActorMap);
-            ctx.Driver.TryResolve(out MobaActorRegistry registry);
-            ctx.Driver.TryResolve(out MobaConfigDatabase config);
-
-            var inGame = phase != null && phase.InGame;
-            var actorId = 0;
-            var hasActor = playerActorMap != null && playerActorMap.TryGetActorId(first.Player, out actorId);
-            var hasEntity = false;
-            var dx = 0f;
-            var dz = 0f;
-            var speed = 0f;
-            var hasConfig = config != null;
-
-            if (hasActor && registry != null && registry.TryGet(actorId, out var entity) && entity != null)
-            {
-                hasEntity = true;
-                if (entity.hasMoveInput)
-                {
-                    dx = entity.moveInput.Dx;
-                    dz = entity.moveInput.Dz;
-                }
-
-                if (entity.hasAttributeGroup)
-                {
-                    speed = new MobaAttrs(entity).MoveSpeed;
-                }
-            }
-
-            Log.Info($"[ProcessETInputPhase] Runtime input state: Frame={ctx.CurrentFrame}, InGame={inGame}, HasPlayerMap={playerActorMap != null}, Player={first.Player.Value}, HasActor={hasActor}, ActorId={(hasActor ? actorId : 0)}, HasEntity={hasEntity}, Move=({dx:F3},{dz:F3}), Speed={speed:F3}, HasConfig={hasConfig}");
         }
     }
 
@@ -149,8 +115,6 @@ namespace ET.Logic
     /// </summary>
     public sealed class DriveWorldPhase : AbilityInstantPhaseBase<BattleFrameContext>
     {
-        private int _sampleLogCount;
-
         public DriveWorldPhase() : base(BattleFramePhaseIds.DriveWorld) { }
 
         protected override void OnInstantExecute(BattleFrameContext ctx)
@@ -163,51 +127,6 @@ namespace ET.Logic
             // 驱动 World Tick
             ctx.Driver.World.Tick(ctx.DeltaTime);
 
-            _sampleLogCount++;
-            if (_sampleLogCount <= 5 || _sampleLogCount % 60 == 0)
-            {
-                LogRuntimeActorState(ctx);
-            }
-        }
-
-        private static void LogRuntimeActorState(BattleFrameContext ctx)
-        {
-            if (!ctx.Driver.TryResolve(out MobaActorRegistry registry) || registry == null)
-            {
-                Log.Info($"[DriveWorldPhase] Runtime actor registry not resolved: Frame={ctx.CurrentFrame}");
-                return;
-            }
-
-            ctx.Driver.TryResolve(out IWorldClock clock);
-
-            foreach (var kv in registry.Entries)
-            {
-                var actorId = kv.Key;
-                var e = kv.Value;
-                if (e == null) continue;
-
-                var x = 0f;
-                var y = 0f;
-                var z = 0f;
-                if (e.hasTransform)
-                {
-                    var p = e.transform.Value.Position;
-                    x = p.X;
-                    y = p.Y;
-                    z = p.Z;
-                }
-
-                var dx = e.hasMoveInput ? e.moveInput.Dx : 0f;
-                var dz = e.hasMoveInput ? e.moveInput.Dz : 0f;
-                var speed = 0f;
-                if (e.hasAttributeGroup)
-                {
-                    speed = new MobaAttrs(e).MoveSpeed;
-                }
-
-                Log.Info($"[DriveWorldPhase] Runtime actor: Frame={ctx.CurrentFrame}, ActorId={actorId}, Pos=({x:F3},{y:F3},{z:F3}), HasMoveInput={e.hasMoveInput}, Move=({dx:F3},{dz:F3}), HasMotion={e.hasMotion}, MotionInit={(e.hasMotion && e.motion.Initialized)}, Speed={speed:F3}, ClockDt={(clock != null ? clock.DeltaTime : -1f):F4}");
-                break;
-            }
         }
 
         public override bool ShouldExecute(BattleFrameContext ctx)
@@ -251,7 +170,6 @@ namespace ET.Logic
             for (int i = 0; i < _runtimeSnapshots.Count; i++)
             {
                 var runtimeSnapshot = _runtimeSnapshots[i];
-                Log.Info($"[CollectSnapshotPhase] Runtime snapshot: Frame={ctx.CurrentFrame}, OpCode={runtimeSnapshot.OpCode}");
                 if (ETBattleWorldSnapshotAdapter.TryConvert(
                     in runtimeSnapshot,
                     ctx.CurrentFrame,

@@ -30,12 +30,13 @@ namespace AbilityKit.Demo.Moba.Services
         private IContinuousManager _continuous;
         private DefaultContinuousManager _continuousEvents;
         private IMobaContinuousTagRuleService _tagRules;
+        private IWorldResolver _services;
 
         public void OnInit(IWorldResolver services)
         {
+            _services = services;
             services?.TryResolve(out _baseTags);
             services?.TryResolve(out _continuous);
-            services?.TryResolve(out _tagRules);
 
             if (_baseTags != null)
             {
@@ -59,6 +60,7 @@ namespace AbilityKit.Demo.Moba.Services
             _continuous = null;
             _continuousEvents = null;
             _tagRules = null;
+            _services = null;
         }
 
         public GameplayTagContainer GetEffectiveTags(int ownerActorId)
@@ -163,7 +165,7 @@ namespace AbilityKit.Demo.Moba.Services
         private void OnBaseTagsChanged(int ownerActorId, GameplayTagDelta delta, GameplayTagSource source)
         {
             MarkDirty(ownerActorId);
-            _tagRules?.ReconcileOwner(ownerActorId);
+            ResolveTagRules()?.ReconcileOwner(ownerActorId);
         }
 
         private void MarkDirty(IContinuous continuous)
@@ -172,6 +174,16 @@ namespace AbilityKit.Demo.Moba.Services
             if (ownerId <= 0 || ownerId > int.MaxValue) return;
 
             MarkDirty((int)ownerId);
+        }
+
+        private IMobaContinuousTagRuleService ResolveTagRules()
+        {
+            if (_tagRules == null)
+            {
+                _services?.TryResolve(out _tagRules);
+            }
+
+            return _tagRules;
         }
 
         private static GameplayTagContainer CopyTags(GameplayTagContainer tags)

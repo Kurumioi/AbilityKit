@@ -102,7 +102,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 try
                 {
-                    if (ctx.Context == null) return;
+                    if (ctx.Context == null)
+                    {
+                        Log.Warning($"[Plan] Action {ActionId.Value} ({typeof(TActionArgs).Name}) skipped. ctx.Context is null");
+                        return;
+                    }
+
                     Execute(triggerArgs, default, ctx);
                 }
                 catch (Exception ex)
@@ -118,7 +123,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 try
                 {
-                    if (ctx.Context == null) return;
+                    if (ctx.Context == null)
+                    {
+                        Log.Warning($"[Plan] Action {ActionId.Value} ({typeof(TActionArgs).Name}) skipped. ctx.Context is null");
+                        return;
+                    }
+
                     var parsedArgs = ParseActionArgs(ctx, actionArgs);
                     Execute(triggerArgs, parsedArgs, ctx);
                 }
@@ -135,7 +145,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 try
                 {
-                    if (ctx.Context == null) return;
+                    if (ctx.Context == null)
+                    {
+                        Log.Warning($"[Plan] Action {ActionId.Value} ({typeof(TActionArgs).Name}) skipped. ctx.Context is null");
+                        return;
+                    }
+
                     var parsedArgs = ParseActionArgs(ctx, actionArgs);
                     Execute(triggerArgs, parsedArgs, ctx);
                 }

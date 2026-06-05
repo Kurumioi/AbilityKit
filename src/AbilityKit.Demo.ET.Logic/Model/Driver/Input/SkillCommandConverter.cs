@@ -25,7 +25,7 @@ namespace ET.Logic
             var skillEvent = new SkillInputEvent(
                 slot: skill.SkillSlot,
                 phase: SkillInputPhase.Press,
-                targetActorId: 0,
+                targetActorId: skill.TargetActorId,
                 aimPos: new Vec3(skill.TargetX, 0, skill.TargetY));
             var payload = SkillInputCodec.Serialize(in skillEvent);
             playerCommand = new PlayerInputCommand(
@@ -33,7 +33,7 @@ namespace ET.Logic
                 new PlayerId(skill.PlayerId),
                 MobaOpCodes.Input.SkillInput,
                 payload);
-            Log.Debug($"[SkillCommandConverter] PlayerId={skill.PlayerId}, Slot={skill.SkillSlot}");
+            Log.Debug($"[SkillCommandConverter] PlayerId={skill.PlayerId}, Slot={skill.SkillSlot}, TargetActorId={skill.TargetActorId}");
             return true;
         }
     }

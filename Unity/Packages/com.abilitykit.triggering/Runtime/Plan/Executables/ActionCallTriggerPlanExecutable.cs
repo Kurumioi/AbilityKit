@@ -21,7 +21,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             var trigger = new PlannedTrigger<object, TCtx>(_plan);
             trigger.Execute(args, in ctx);
-            return TriggerPlanExecutionResult.Success();
+            return TriggerPlanExecutionResult.Success(_plan.Actions?.Length ?? 0);
         }
     }
 }

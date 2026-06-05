@@ -1,0 +1,10 @@
+[
+  {
+    "Id": 1,
+    "Name": "Default Moba Battle",
+    "TriggerIds": [],
+    "DefaultDurationMs": 600000,
+    "WinPolicy": 0,
+    "Tags": []
+  }
+]

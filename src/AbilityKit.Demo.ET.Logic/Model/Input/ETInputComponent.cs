@@ -13,6 +13,8 @@ namespace ET.Logic
         // 输入缓冲 (帧号 -> 命令列表)
         private readonly Dictionary<int, List<object>> _inputBuffer = new Dictionary<int, List<object>>();
 
+        public int PendingFrameCount => _inputBuffer.Count;
+
         // 当前移动方向（用于 Stop 命令检测）
         public float LastMoveDx { get; set; }
         public float LastMoveDz { get; set; }
@@ -45,14 +47,14 @@ namespace ET.Logic
         /// <summary>
         /// 添加技能命令
         /// </summary>
-        public void AddSkillCommand(int frame, string playerId, int skillSlot, float targetX, float targetY)
+        public void AddSkillCommand(int frame, string playerId, int skillSlot, float targetX, float targetY, int targetActorId = 0)
         {
             if (!_inputBuffer.TryGetValue(frame, out var commands))
             {
                 commands = new List<object>();
                 _inputBuffer[frame] = commands;
             }
-            commands.Add(new SkillCommand(frame, playerId, skillSlot, targetX, targetY));
+            commands.Add(new SkillCommand(frame, playerId, skillSlot, targetX, targetY, targetActorId));
         }
 
         /// <summary>
@@ -78,6 +80,35 @@ namespace ET.Logic
         public List<object>? GetInputsForFrame(int frame)
         {
             return _inputBuffer.TryGetValue(frame, out var commands) ? commands : null;
+        }
+
+        public List<object>? GetInputsUpToFrame(int frame)
+        {
+            List<object> result = null;
+            foreach (var kv in _inputBuffer)
+            {
+                if (kv.Key > frame || kv.Value == null || kv.Value.Count == 0)
+                {
+                    continue;
+                }
+
+                result ??= new List<object>();
+                result.AddRange(kv.Value);
+            }
+
+            return result;
+        }
+
+        public string FormatPendingFrames()
+        {
+            if (_inputBuffer.Count == 0)
+            {
+                return "empty";
+            }
+
+            var frames = new List<int>(_inputBuffer.Keys);
+            frames.Sort();
+            return string.Join(",", frames);
         }
 
         /// <summary>
