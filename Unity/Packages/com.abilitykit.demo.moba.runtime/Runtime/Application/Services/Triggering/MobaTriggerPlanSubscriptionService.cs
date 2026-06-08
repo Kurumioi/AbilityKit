@@ -97,16 +97,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
                 try
                 {
-                    var subReg = TryRegisterTyped(record);
-                    if (subReg != null)
-                    {
-                        regs.Add(subReg);
-                        continue;
-                    }
-
-                    var key = new EventKey<object>(record.EventId);
-                    var reg = _runner.RegisterPlan<object, AbilityKit.Ability.World.DI.IWorldResolver>(key, record.Plan);
-                    regs.Add(reg);
+                    regs.Add(RegisterTyped(record));
                 }
                 catch (Exception ex)
                 {
@@ -118,39 +109,50 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         private void BuildArgsTypeCache(IReadOnlyList<TriggerPlanJsonDatabase.Record> records)
         {
             if (records == null || records.Count == 0) return;
-            if (_eventRegistry == null) return;
+            if (_eventRegistry == null)
+            {
+                throw new InvalidOperationException("MobaTriggerPlanSubscriptionService requires MobaEventSubscriptionRegistry for owner-bound typed trigger registration.");
+            }
 
             for (int i = 0; i < records.Count; i++)
             {
                 var record = records[i];
                 if (record.TriggerId <= 0) continue;
                 if (string.IsNullOrEmpty(record.EventName)) continue;
-                if (!_eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null) continue;
+                if (!_eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null)
+                {
+                    throw new InvalidOperationException($"Owner-bound trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
+                }
+
+                if (!argsType.IsClass)
+                {
+                    throw new InvalidOperationException($"Owner-bound trigger event args type must be a class. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
+                }
+
                 _argsTypeByTriggerId[record.TriggerId] = argsType;
             }
         }
 
-        private IDisposable TryRegisterTyped(in TriggerPlanJsonDatabase.Record record)
+        private IDisposable RegisterTyped(in TriggerPlanJsonDatabase.Record record)
         {
-            try
+            if (!_argsTypeByTriggerId.TryGetValue(record.TriggerId, out var argsType) || argsType == null)
             {
-                if (!_argsTypeByTriggerId.TryGetValue(record.TriggerId, out var argsType) || argsType == null) return null;
-                if (!argsType.IsClass) return null;
-
-                if (RegisterTypedMethod == null)
-                {
-                    Log.Warning("[MobaTriggerPlanSubscriptionService] RegisterTyped method not found; fallback to object channel");
-                    return null;
-                }
-
-                var mi = RegisterTypedMethod.MakeGenericMethod(argsType);
-                return (IDisposable)mi.Invoke(null, new object[] { _runner, record.EventId, record.Plan });
+                throw new InvalidOperationException($"Owner-bound trigger missing typed event args mapping. triggerId={record.TriggerId} eventName={record.EventName}");
             }
-            catch (Exception ex)
+
+            if (RegisterTypedMethod == null)
             {
-                Log.Exception(ex, $"[MobaTriggerPlanSubscriptionService] typed register failed. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
-                return null;
+                throw new MissingMethodException(nameof(MobaTriggerPlanSubscriptionService), nameof(RegisterTyped));
             }
+
+            var mi = RegisterTypedMethod.MakeGenericMethod(argsType);
+            var registration = (IDisposable)mi.Invoke(null, new object[] { _runner, record.EventId, record.Plan });
+            if (registration == null)
+            {
+                throw new InvalidOperationException($"Owner-bound trigger typed registration returned null. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
+            }
+
+            return registration;
         }
 
         private static IDisposable RegisterTyped<TArgs>(TriggerRunner<IWorldResolver> runner, int eid, TriggerPlan<object> planObj) where TArgs : class

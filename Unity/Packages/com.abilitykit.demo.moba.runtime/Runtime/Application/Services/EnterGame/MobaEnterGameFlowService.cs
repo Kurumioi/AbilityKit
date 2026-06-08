@@ -28,6 +28,10 @@ namespace AbilityKit.Demo.Moba.Services
         PublishEnterGameSnapshotFailed = 7,
         PublishSpawnSnapshotFailed = 8,
         MissingGameStartPort = 9,
+        MissingGameplayService = 10,
+        InvalidGameplayId = 11,
+        GameplayStartFailed = 12,
+        InvalidGamePhase = 13,
     }
 
     public readonly struct MobaGameStartResult
@@ -99,9 +103,9 @@ namespace AbilityKit.Demo.Moba.Services
                 return Fail(MobaGameStartFailureCode.MissingActorContext, "ActorContext is null");
             }
 
-            if (_started || (_phase != null && _phase.InGame))
+            if (_started || (_phase != null && !_phase.CanStartGame))
             {
-                return Fail(MobaGameStartFailureCode.AlreadyStarted, "game already started");
+                return Fail(MobaGameStartFailureCode.AlreadyStarted, "game already started or not startable. phase=" + _phase);
             }
 
             var validation = MobaProtocolValidation.ValidateEnterGameReqEnvelope(in spec.EnterReq);
@@ -115,11 +119,27 @@ namespace AbilityKit.Demo.Moba.Services
                 return Fail(MobaGameStartFailureCode.MissingActorEntityInitPipeline, "ActorEntityInitPipeline not resolved; battle start is blocked to avoid partially initialized actors");
             }
 
-            var effectiveReq = MobaGameStartSpecNormalizer.Normalize(_config, in spec.EnterReq);
+            EnterMobaGameReq effectiveReq;
+            try
+            {
+                effectiveReq = MobaGameStartSpecNormalizer.Normalize(_config, in spec.EnterReq);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaEnterGameFlowService] Normalize enter game request failed");
+                return Fail(MobaGameStartFailureCode.InvalidProtocol, ex.Message);
+            }
+
             var effectiveValidation = MobaProtocolValidation.ValidateEnterGameReq(in effectiveReq);
             if (!effectiveValidation.IsValid)
             {
                 return Fail(MobaGameStartFailureCode.InvalidProtocol, $"normalized request is invalid. {effectiveValidation}");
+            }
+
+            var initializing = TrySetPhase(MobaGamePhase.Initializing, "enter game actor build started");
+            if (!initializing.Succeeded)
+            {
+                return initializing;
             }
 
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
@@ -162,18 +182,22 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex)
             {
                 Log.Exception(ex, "[MobaEnterGameFlowService] BuildEnterGameActors failed");
-                return Fail(MobaGameStartFailureCode.ActorBuildFailed, ex.Message);
+                return FailAfterStart(MobaGameStartFailureCode.ActorBuildFailed, ex.Message);
             }
 
             var buildValidation = ValidateBuildResult(in built, effectiveReq.Players.Length);
             if (!buildValidation.Succeeded)
             {
-                return buildValidation;
+                return FailAfterStart(buildValidation);
             }
 
             Log.Info($"[MobaEnterGameFlowService] TryStartGame: BuildEnterGameActors done (localActorId={built.LocalActorId})");
 
-            BindPlayerActors(built.PlayerActors);
+            var bindResult = BindPlayerActors(built.PlayerActors);
+            if (!bindResult.Succeeded)
+            {
+                return FailAfterStart(bindResult);
+            }
 
             var p = built.LocalActorTransform.Position;
             var payload = MobaEnterGamePayloadCodec.Serialize(in p);
@@ -198,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex)
             {
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish enter-game snapshot failed");
-                return Fail(MobaGameStartFailureCode.PublishEnterGameSnapshotFailed, ex.Message);
+                return FailAfterStart(MobaGameStartFailureCode.PublishEnterGameSnapshotFailed, ex.Message);
             }
 
             try
@@ -209,13 +233,63 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex)
             {
                 Log.Exception(ex, "[MobaEnterGameFlowService] publish spawn payload failed");
-                return Fail(MobaGameStartFailureCode.PublishSpawnSnapshotFailed, ex.Message);
+                return FailAfterStart(MobaGameStartFailureCode.PublishSpawnSnapshotFailed, ex.Message);
             }
 
-            _phase?.SetInGame();
+            var ready = TrySetPhase(MobaGamePhase.Ready, "enter game data prepared");
+            if (!ready.Succeeded)
+            {
+                return FailAfterStart(ready);
+            }
+
+            var gameplayStart = StartGameplay(effectiveReq.GameplayId);
+            if (!gameplayStart.Succeeded)
+            {
+                return FailAfterStart(gameplayStart);
+            }
+
+            var inGame = TrySetPhase(MobaGamePhase.InGame, "gameplay started");
+            if (!inGame.Succeeded)
+            {
+                return FailAfterStart(inGame);
+            }
+
             _started = true;
-            StartGameplay(effectiveReq.GameplayId);
             return MobaGameStartResult.Success;
+        }
+
+        private MobaGameStartResult FailAfterStart(MobaGameStartFailureCode failureCode, string message)
+        {
+            var result = Fail(failureCode, message);
+            TrySetFaulted("game start failed. " + result);
+            return result;
+        }
+
+        private MobaGameStartResult FailAfterStart(in MobaGameStartResult result)
+        {
+            TrySetFaulted("game start failed. " + result);
+            return result;
+        }
+
+        private MobaGameStartResult TrySetPhase(MobaGamePhase phase, string reason)
+        {
+            if (_phase == null) return MobaGameStartResult.Success;
+
+            var result = _phase.TryTransition(phase, reason);
+            if (result.Succeeded) return MobaGameStartResult.Success;
+
+            return Fail(MobaGameStartFailureCode.InvalidGamePhase, result.ToString());
+        }
+
+        private void TrySetFaulted(string reason)
+        {
+            if (_phase == null) return;
+
+            var result = _phase.TryTransition(MobaGamePhase.Faulted, reason);
+            if (!result.Succeeded)
+            {
+                MobaRuntimeLog.Warning(MobaRuntimeLogModule.Session, MobaRuntimeLogPurpose.Validation, nameof(MobaEnterGameFlowService), "Failed to mark game phase as faulted. " + result);
+            }
         }
 
         private static MobaGameStartResult ValidateBuildResult(in BuildActorsResult built, int expectedPlayerCount)
@@ -245,27 +319,32 @@ namespace AbilityKit.Demo.Moba.Services
             return result;
         }
 
-        private void StartGameplay(int gameplayId)
+        private MobaGameStartResult StartGameplay(int gameplayId)
         {
             if (_gameplay == null)
             {
-                return;
+                return Fail(MobaGameStartFailureCode.MissingGameplayService, "MobaGameplayService is required to start battle gameplay.");
             }
 
-            if (gameplayId > 0)
+            if (gameplayId <= 0)
             {
-                _gameplay.Start(gameplayId);
-                return;
+                return Fail(MobaGameStartFailureCode.InvalidGameplayId, $"gameplay id must be positive for formal battle start. gameplayId={gameplayId}");
             }
 
-            _gameplay.StartDefault();
+            _gameplay.Start(gameplayId);
+            if (!_gameplay.IsRunning || _gameplay.CurrentGameplayId != gameplayId)
+            {
+                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay start failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}");
+            }
+
+            return MobaGameStartResult.Success;
         }
 
-        private void BindPlayerActors(MobaPlayerActorEntry[] playerActors)
+        private MobaGameStartResult BindPlayerActors(MobaPlayerActorEntry[] playerActors)
         {
             if (playerActors == null)
             {
-                return;
+                return Fail(MobaGameStartFailureCode.InvalidActorBuildResult, "player actor entries are null");
             }
 
             for (int i = 0; i < playerActors.Length; i++)
@@ -273,11 +352,13 @@ namespace AbilityKit.Demo.Moba.Services
                 var entry = playerActors[i];
                 if (entry.ActorId <= 0)
                 {
-                    continue;
+                    return Fail(MobaGameStartFailureCode.InvalidActorBuildResult, $"player actor id is invalid. index={i}, playerId={entry.PlayerId.Value}, actorId={entry.ActorId}");
                 }
 
                 _playerActorMap.Bind(entry.PlayerId, entry.ActorId);
             }
+
+            return MobaGameStartResult.Success;
         }
 
         public void Dispose()

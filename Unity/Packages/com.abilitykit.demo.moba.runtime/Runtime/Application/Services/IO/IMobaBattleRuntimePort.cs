@@ -108,8 +108,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (_output == null)
             {
-                snapshot = default;
-                return false;
+                throw new InvalidOperationException("MobaBattleRuntimePort requires IMobaBattleOutputPort for snapshot output.");
             }
 
             return _output.TryGetSnapshot(frame, out snapshot);
@@ -117,9 +116,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (_output == null || snapshots == null)
+            if (_output == null)
             {
-                return 0;
+                throw new InvalidOperationException("MobaBattleRuntimePort requires IMobaBattleOutputPort for snapshot output.");
+            }
+
+            if (snapshots == null)
+            {
+                throw new ArgumentNullException(nameof(snapshots));
             }
 
             return _output.CollectSnapshots(frame, snapshots, maxSnapshots);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -16,11 +17,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly Dictionary<int, ProjectileSourceContext> _sourceByLauncherActorId = new Dictionary<int, ProjectileSourceContext>();
         private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _retainByLauncherActorId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
 
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
+
+        public int ActiveCount => _actorIdByProjectile.Count;
+
         public void Link(ProjectileId projectileId, int actorId)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             _projectileByActorId[actorId] = projectileId;
             _actorIdByProjectile[projectileId] = actorId;
+            _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
         }
 
         public void BindSource(ProjectileId projectileId, in ProjectileSourceContext source)
@@ -90,19 +96,23 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _actorIdByProjectile.Remove(pid);
                 _sourceByProjectile.Remove(pid);
                 _retainByProjectile.Remove(pid);
+                _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
             }
         }
 
         public void UnlinkByProjectileId(ProjectileId projectileId)
         {
+            var removed = false;
             if (_actorIdByProjectile.TryGetValue(projectileId, out var actorId))
             {
                 _actorIdByProjectile.Remove(projectileId);
                 _projectileByActorId.Remove(actorId);
+                removed = true;
             }
 
             _sourceByProjectile.Remove(projectileId);
             _retainByProjectile.Remove(projectileId);
+            if (removed) _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
         }
 
         public void UnlinkLauncher(int launcherActorId)
@@ -120,6 +130,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _retainByProjectile.Clear();
             _sourceByLauncherActorId.Clear();
             _retainByLauncherActorId.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
         }
 
         public void Dispose()

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Ability.Host;
@@ -32,6 +34,9 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaTraceRegistry _trace;
+        private IMobaTemporaryEntityLifecycleService _lifecycle;
+        private MobaAuthorityFrameService _authority;
+        private IFrameTime _time;
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
@@ -75,7 +80,10 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _skillRuntimes);
             Services.TryResolve(out _trace);
- 
+            Services.TryResolve(out _lifecycle);
+            Services.TryResolve(out _authority);
+            Services.TryResolve(out _time);
+  
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);
             _exitHandler = new MobaProjectileExitSyncHandler(this);
@@ -103,6 +111,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         {
             _ticks.Clear();
             _projectiles.DrainTickEvents(_ticks);
+            if (_ticks.Count > 0) _lifecycle?.RecordTickEvents(MobaTemporaryEntityKind.Projectile, _ticks.Count);
             _tickHandler?.HandleTicks(_ticks);
         }
 
@@ -110,6 +119,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         {
             _exits.Clear();
             _projectiles.DrainExitEvents(_exits);
+            if (_exits.Count > 0) _lifecycle?.RecordExitEvents(MobaTemporaryEntityKind.Projectile, _exits.Count);
             _exitHandler?.HandleExits(_exits);
         }
 
@@ -117,6 +127,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         {
             _hits.Clear();
             _projectiles.DrainHitEvents(_hits);
+            if (_hits.Count > 0) _lifecycle?.RecordHitEvents(MobaTemporaryEntityKind.Projectile, _hits.Count);
             _hitHandler?.HandleHits(_hits);
         }
 
@@ -140,6 +151,36 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             catch (System.Exception ex)
             {
                 Log.Exception(ex, "[MobaProjectileSyncSystem] ResolveActorIdByCollider failed");
+            }
+
+            return 0;
+        }
+
+        internal void RequestDespawn(global::ActorEntity entity, ActorDespawnReason reason, int sourceActorId, long sourceContextId)
+        {
+            if (entity == null) return;
+
+            var frame = GetFrame();
+            if (entity.hasActorDespawnRequest)
+            {
+                entity.ReplaceActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
+            }
+            else
+            {
+                entity.AddActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
+            }
+        }
+
+        private int GetFrame()
+        {
+            try
+            {
+                if (_authority != null) return _authority.PredictedFrame.Value;
+                if (_time != null) return _time.Frame.Value;
+            }
+            catch
+            {
+                return 0;
             }
 
             return 0;

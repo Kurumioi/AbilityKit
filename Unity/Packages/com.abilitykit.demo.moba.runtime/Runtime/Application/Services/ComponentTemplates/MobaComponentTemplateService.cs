@@ -15,48 +15,78 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryApply(global::ActorEntity entity, int templateId)
         {
-            if (entity == null) return false;
-            if (templateId <= 0) return false;
-            if (_config == null) return false;
+            Apply(entity, templateId);
+            return true;
+        }
 
-            if (!_config.TryGetComponentTemplate(templateId, out var template) || template == null) return false;
-            if (template.Ops == null || template.Ops.Count == 0) return true;
+        public void Apply(global::ActorEntity entity, int templateId)
+        {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
+
+            if (templateId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(templateId), templateId, "Component template id must be positive.");
+            }
+
+            if (_config == null)
+            {
+                throw new InvalidOperationException("MobaComponentTemplateService requires MobaConfigDatabase.");
+            }
+
+            if (!_config.TryGetComponentTemplate(templateId, out var template) || template == null)
+            {
+                throw new InvalidOperationException($"Component template not found. templateId={templateId}");
+            }
+
+            if (template.Ops == null || template.Ops.Count == 0)
+            {
+                throw new InvalidOperationException($"Component template requires at least one operation. templateId={templateId}");
+            }
 
             for (int i = 0; i < template.Ops.Count; i++)
             {
                 var op = template.Ops[i];
-                if (op == null) continue;
-                ApplyOp(entity, op.Kind, op.IntValue, op.FloatValue, op.BoolValue);
-            }
+                if (op == null)
+                {
+                    throw new InvalidOperationException($"Component template operation is null. templateId={templateId}, opIndex={i}");
+                }
 
-            return true;
+                ApplyOp(entity, templateId, i, op.Kind, op.IntValue, op.FloatValue, op.BoolValue);
+            }
         }
 
-        private void ApplyOp(global::ActorEntity entity, int kind, int intValue, float floatValue, bool boolValue)
+        private void ApplyOp(global::ActorEntity entity, int templateId, int opIndex, int kind, int intValue, float floatValue, bool boolValue)
         {
             switch ((MobaComponentOpKind)kind)
             {
                 case MobaComponentOpKind.SetModelId:
                 {
-                    if (intValue > 0)
+                    if (intValue <= 0)
                     {
-                        if (entity.hasModelId) entity.ReplaceModelId(intValue);
-                        else entity.AddModelId(intValue);
+                        throw new InvalidOperationException($"SetModelId operation requires positive model id. templateId={templateId}, opIndex={opIndex}, value={intValue}");
                     }
+
+                    if (entity.hasModelId) entity.ReplaceModelId(intValue);
+                    else entity.AddModelId(intValue);
                     break;
                 }
                 case MobaComponentOpKind.SetLifetimeMs:
                 {
-                    if (intValue > 0)
+                    if (intValue <= 0)
                     {
-                        var endMs = NowMs() + intValue;
-                        if (entity.hasLifetime) entity.ReplaceLifetime(endMs);
-                        else entity.AddLifetime(endMs);
+                        throw new InvalidOperationException($"SetLifetimeMs operation requires positive lifetime ms. templateId={templateId}, opIndex={opIndex}, value={intValue}");
                     }
+
+                    var endMs = NowMs() + intValue;
+                    if (entity.hasLifetime) entity.ReplaceLifetime(endMs);
+                    else entity.AddLifetime(endMs);
                     break;
                 }
                 default:
-                    break;
+                    throw new InvalidOperationException($"Unsupported component template operation. templateId={templateId}, opIndex={opIndex}, kind={kind}");
             }
         }
 
@@ -70,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return (long)MathF.Round(_clock.Time * 1000f);
             }
-            return 0L;
+            throw new InvalidOperationException("MobaComponentTemplateService requires IFrameTime or IWorldClock for current time.");
         }
 
         public void Dispose()

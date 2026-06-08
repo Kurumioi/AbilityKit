@@ -1,13 +1,9 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Continuous;
-using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -31,17 +27,7 @@ namespace AbilityKit.Demo.Moba.Services
             public int BuffId => ApplyRequest != null ? ApplyRequest.BuffId : RemoveRequest != null ? RemoveRequest.BuffId : 0;
         }
 
-        [WorldInject] private MobaConfigDatabase _configs;
-        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        [WorldInject] private ITriggerActionRunner _actionRunner;
-        [WorldInject] private MobaTraceRegistry _trace;
-        [WorldInject] private IFrameTime _frameTime;
         [WorldInject] private MobaActorLookupService _actors;
-        [WorldInject] private MobaEffectExecutionService _effects;
-        [WorldInject(required: false)] private IMobaEffectiveTagQueryService _tags;
-        [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates;
-        [WorldInject(required: false)] private IContinuousManager _continuous;
-        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics;
         [WorldInject(required: false)] private IMobaBattleExceptionPolicy _exceptions;
         private BuffLifecycleExecutor _lifecycle;
@@ -51,12 +37,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void OnInit(IWorldResolver services)
         {
-            var repo = new BuffRepository();
-            var ctx = new BuffContextService(_trace, _actionRunner, _frameTime);
-            var events = new BuffEventPublisher(_eventBus);
-            var stageEffects = new BuffStageEffectExecutor(_effects);
-            var stacking = new BuffStackingPolicyApplier();
-            _lifecycle = new BuffLifecycleExecutor(_configs, _actors, _tags, _tagTemplates, repo, ctx, events, stageEffects, stacking, _continuous, _skillRuntimes);
+            _lifecycle = BuffLifecycleExecutorFactory.Create(services);
         }
 
         public global::ActorEntity TryGetActorEntity(int actorId)

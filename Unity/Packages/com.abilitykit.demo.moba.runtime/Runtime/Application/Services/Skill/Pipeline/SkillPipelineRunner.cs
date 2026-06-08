@@ -197,7 +197,7 @@ namespace AbilityKit.Demo.Moba.Services
             object abilityInstance,
             in SkillCastRequest request)
         {
-            return Start(preCastConfig, preCastPhases, castConfig, castPhases, abilityInstance, in request, out _);
+            return Start(preCastConfig, preCastPhases, castConfig, castPhases, abilityInstance, in request, triggerContext: null, out _);
         }
 
         public bool Start(
@@ -257,18 +257,28 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
+            if (triggerContext == null)
+            {
+                failReason = "Skill cast context is required.";
+                LastFailReason = failReason;
+                SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, 0L, failReason);
+                return false;
+            }
+
             if (castConfig == null)
             {
-                SkillLogger.Instance.LogWarning($"Start failed: castConfig is null. Caster={request.CasterActorId} SkillId={request.SkillId}");
+                failReason = "Skill cast pipeline config is missing.";
+                LastFailReason = failReason;
+                SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, triggerContext.SourceContextId, failReason);
                 return false;
             }
             if (castPhases == null || castPhases.Count == 0)
             {
-                SkillLogger.Instance.LogWarning($"Start failed: castPhases is null or empty. Caster={request.CasterActorId} SkillId={request.SkillId}");
+                failReason = "Skill cast pipeline phases are missing.";
+                LastFailReason = failReason;
+                SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, triggerContext.SourceContextId, failReason);
                 return false;
             }
-
-            triggerContext ??= SkillCastContext.FromRequest(in request, skillLevel: 0);
 
             SkillLogger.Instance.LogSkillStart(
                 request.CasterActorId,
@@ -292,11 +302,23 @@ namespace AbilityKit.Demo.Moba.Services
             try
             {
                 var ft = request.WorldServices != null ? request.WorldServices.Resolve<IFrameTime>() : null;
-                entry.StartFrame = ft != null ? ft.Frame.Value : 0;
+                if (ft == null)
+                {
+                    failReason = "IFrameTime is required to start skill pipeline.";
+                    LastFailReason = failReason;
+                    SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, triggerContext.SourceContextId, failReason);
+                    return false;
+                }
+
+                entry.StartFrame = ft.Frame.Value;
             }
-            catch
+            catch (Exception ex)
             {
-                entry.StartFrame = 0;
+                failReason = "Failed to resolve skill pipeline start frame.";
+                LastFailReason = failReason;
+                Log.Exception(ex, $"[SkillPipelineRunner] {failReason} actor={request.CasterActorId} skillId={request.SkillId}");
+                SkillLogger.Instance.LogSkillFail(request.CasterActorId, request.SkillId, triggerContext.SourceContextId, failReason);
+                return false;
             }
 
             // If PreCast is missing, go straight to Cast.
@@ -851,19 +873,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         private static long GetInstanceId(in Entry e)
         {
-            try { return e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L; }
-            catch { return 0L; }
+            return e.TriggerContext != null ? e.TriggerContext.SourceContextId : 0L;
         }
 
         private static RunningSnapshot CreateSnapshot(in Entry e, SkillCastStage stage)
         {
-            var elapsedMs = 0;
-            try { elapsedMs = e.Context != null ? (int)(e.Context.ElapsedTime * 1000f) : 0; }
-            catch { elapsedMs = 0; }
-
-            var nextEventIndex = 0;
-            try { nextEventIndex = e.Context != null ? e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0) : 0; }
-            catch { nextEventIndex = 0; }
+            var elapsedMs = e.Context != null ? (int)(e.Context.ElapsedTime * 1000f) : 0;
+            var nextEventIndex = e.Context != null ? e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0) : 0;
 
             return new RunningSnapshot(
                 instanceId: GetInstanceId(in e),

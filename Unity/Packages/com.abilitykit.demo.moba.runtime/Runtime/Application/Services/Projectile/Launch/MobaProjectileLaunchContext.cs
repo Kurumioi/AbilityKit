@@ -18,12 +18,17 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             int intervalFrames,
             int repeatCount,
             int bulletsPerShot,
-            float fallbackFanAngleDeg,
+            float requestFanAngleDeg,
             IProjectileService projectiles,
             MobaProjectileLinkService links,
             MobaSkillParamModifierService skillParamModifiers,
             IMobaProjectileLaunchRuntime runtime)
         {
+            if (repeatCount <= 0) throw new System.ArgumentOutOfRangeException(nameof(repeatCount), repeatCount, "Projectile repeat count must be positive.");
+            if (repeatCount > 1 && intervalFrames <= 0) throw new System.ArgumentOutOfRangeException(nameof(intervalFrames), intervalFrames, "Repeated projectile launch requires a positive interval.");
+            if (bulletsPerShot <= 0) throw new System.ArgumentOutOfRangeException(nameof(bulletsPerShot), bulletsPerShot, "Projectile bullets per shot must be positive.");
+            if (requestFanAngleDeg < 0f) throw new System.ArgumentOutOfRangeException(nameof(requestFanAngleDeg), requestFanAngleDeg, "Projectile fan angle cannot be negative.");
+
             Request = request;
             Launcher = launcher;
             Projectile = projectile;
@@ -35,8 +40,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             EndTimeMs = endTimeMs;
             IntervalFrames = intervalFrames;
             RepeatCount = repeatCount;
-            BulletsPerShot = bulletsPerShot < 1 ? 1 : bulletsPerShot;
-            FallbackFanAngleDeg = fallbackFanAngleDeg < 0f ? 0f : fallbackFanAngleDeg;
+            BulletsPerShot = bulletsPerShot;
+            RequestFanAngleDeg = requestFanAngleDeg;
             Projectiles = projectiles;
             Links = links;
             SkillParamModifiers = skillParamModifiers;
@@ -55,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         public int IntervalFrames { get; }
         public int RepeatCount { get; }
         public int BulletsPerShot { get; }
-        public float FallbackFanAngleDeg { get; }
+        public float RequestFanAngleDeg { get; }
         public IProjectileService Projectiles { get; }
         public MobaProjectileLinkService Links { get; }
         public MobaSkillParamModifierService SkillParamModifiers { get; }

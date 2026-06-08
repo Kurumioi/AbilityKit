@@ -23,6 +23,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!RequireAny(args, "skill_id", out error, "skill_id", "skillid")) return false;
+            if (!RequireAny(args, "skill_slot", out error, "skill_slot", "skillslot", "slot")) return false;
+            if (!RequireAny(args, "cooldown_ms", out error, "cooldown_ms", "cooldownms", "duration_ms", "durationms")) return false;
             error = null;
             return true;
         }

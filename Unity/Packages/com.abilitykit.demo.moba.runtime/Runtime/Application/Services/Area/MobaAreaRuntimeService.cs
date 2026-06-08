@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Core.Math;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Services.Area
 {
@@ -12,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
     {
         [WorldInject(required: false)] private IProjectileService _projectiles;
         [WorldInject(required: false)] private IFrameTime _frameTime;
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
 
         private readonly Dictionary<int, MobaAreaRuntimeInfo> _areas = new Dictionary<int, MobaAreaRuntimeInfo>();
         private readonly Dictionary<int, List<int>> _areasByOwner = new Dictionary<int, List<int>>();
@@ -50,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _areas[areaId.Value] = info;
             Index(_areasByOwner, ownerActorId, areaId.Value);
             Index(_areasByTemplate, templateId, areaId.Value);
+            _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Area, ActiveCount, frame);
         }
 
         public bool Unregister(AreaId areaId)
@@ -59,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
             _areas.Remove(areaId.Value);
             Unindex(info);
+            _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
             return true;
         }
 
@@ -129,9 +134,17 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _areasByOwner.Clear();
             _areasByTemplate.Clear();
             _queryBuffer.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Area, 0, CurrentFrame);
         }
 
-        private int CurrentFrame => _frameTime != null ? _frameTime.Frame.Value : 0;
+        private int CurrentFrame
+        {
+            get
+            {
+                if (_frameTime != null) return _frameTime.Frame.Value;
+                throw new InvalidOperationException("MobaAreaRuntimeService requires IFrameTime for current frame.");
+            }
+        }
 
         private void CollectAreaIds(List<int> results, int ownerActorId, int templateId)
         {

@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.Demo.Shooter.View.Runtime",
+  "rootNamespace": "AbilityKit.Demo.Shooter.View",
+  "references": [
+    "AbilityKit.Core",
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Shooter.Runtime",
+    "AbilityKit.Demo.Shooter.Share",
+    "AbilityKit.Protocol.Room",
+    "AbilityKit.Protocol.Shooter"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

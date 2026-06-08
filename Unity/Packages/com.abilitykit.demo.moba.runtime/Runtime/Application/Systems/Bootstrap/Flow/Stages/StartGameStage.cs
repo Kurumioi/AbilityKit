@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Services;
@@ -19,16 +20,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             Entitas.Systems systems,
             IWorldResolver services)
         {
-            if (!services.TryResolve<MobaGameStartSpecService>(out var specs) || !specs.TryGet(out var spec))
+            if (!services.TryResolve<MobaGameStartSpecService>(out var specs) || specs == null || !specs.TryGet(out var spec))
             {
-                Log.Info("[StartGameStage] no pending game start spec; skip start game");
-                return;
+                throw new InvalidOperationException("StartGameStage requires a pending MobaGameStartSpec produced by WorldInitStage.");
             }
 
-            if (!services.TryResolve<IMobaGameStartPort>(out var gameStart))
+            if (!services.TryResolve<IMobaGameStartPort>(out var gameStart) || gameStart == null)
             {
-                Log.Error("[StartGameStage] IMobaGameStartPort not found; cannot start game");
-                return;
+                throw new InvalidOperationException("StartGameStage requires IMobaGameStartPort to start the battle.");
             }
 
             var result = gameStart.TryStartGame(in spec);
@@ -39,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return;
             }
 
-            Log.Error($"[StartGameStage] game start spec rejected. {result}");
+            throw new InvalidOperationException($"StartGameStage game start spec rejected. {result}");
         }
     }
 }

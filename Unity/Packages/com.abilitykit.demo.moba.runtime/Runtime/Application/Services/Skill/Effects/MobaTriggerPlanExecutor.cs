@@ -64,14 +64,24 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_eventBus == null || _functions == null || _actions == null || _payloads == null)
             {
-                Log.Warning($"[MobaTriggerPlanExecutor] Plan runtime deps missing; skip plan exec. triggerId={triggerId}, hasEventBus={_eventBus != null}, hasFunctions={_functions != null}, hasActions={_actions != null}, hasPayloads={_payloads != null}");
-                return false;
+                MobaRuntimeGuard.ThrowRequired(
+                    _services,
+                    nameof(MobaTriggerPlanExecutor),
+                    "trigger.plan.execute",
+                    "Trigger plan runtime dependencies",
+                    MobaBattleExceptionDomain.Triggering,
+                    detail: $"triggerId={triggerId}, hasEventBus={_eventBus != null}, hasFunctions={_functions != null}, hasActions={_actions != null}, hasPayloads={_payloads != null}");
             }
 
             if (_services == null)
             {
-                Log.Warning($"[MobaTriggerPlanExecutor] Plan runtime services missing; skip plan exec. triggerId={triggerId}");
-                return false;
+                MobaRuntimeGuard.ThrowRequired(
+                    null,
+                    nameof(MobaTriggerPlanExecutor),
+                    "trigger.plan.execute",
+                    nameof(IWorldResolver),
+                    MobaBattleExceptionDomain.Triggering,
+                    detail: $"triggerId={triggerId}");
             }
 
             var ctrl = new ExecutionControl();
@@ -116,7 +126,13 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
-                Log.Exception(ex, $"[MobaTriggerPlanExecutor] Plan execution failed. triggerId={triggerId}");
+                MobaRuntimeGuard.ReportAndThrow(
+                    _services,
+                    ex,
+                    MobaBattleExceptionDomain.Triggering,
+                    "trigger.plan.execute",
+                    MobaBattleExceptionSeverity.Critical,
+                    detail: $"triggerId={triggerId}");
                 return false;
             }
         }

@@ -4,6 +4,7 @@ using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Payload;
@@ -26,7 +27,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.Register<FunctionRegistry>(WorldLifetime.Singleton, _ => new FunctionRegistry());
             builder.Register<ActionRegistry>(WorldLifetime.Singleton, _ => new ActionRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry.CreateDefault());
-            builder.Register<AbilityKit.Demo.Moba.Services.SkillConditionRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.SkillConditionRegistry());
+            builder.Register<AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry.CreateDefault());
+            builder.TryRegister<MobaGameplayConfigSettings>(WorldLifetime.Scoped, _ => new MobaGameplayConfigSettings());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerPayloadResolverRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry>(WorldLifetime.Singleton, _ => new AbilityKit.Demo.Moba.Services.MobaTriggerConditionRegistry());
             builder.Register<IPayloadAccessorRegistry>(WorldLifetime.Singleton, _ =>

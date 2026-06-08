@@ -234,9 +234,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var actors = ResolveActors(context);
             if (context == null || actors == null) return 0d;
-            if (!SkillHandlerRuntimeAccess.TryGetActiveSkill(actors, context.CasterActorId, context.SkillSlot, context.SkillId, out var runtime) || runtime == null) return 0d;
+            if (!MobaSkillRuntimeAccess.TryGetActiveSkill(actors, context.CasterActorId, context.SkillSlot, context.SkillId, out var runtime) || runtime == null) return 0d;
 
-            var now = SkillHandlerRuntimeAccess.GetCurrentTimeMs(ResolveTime(context));
+            var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(ResolveTime(context));
             return Math.Max(0d, runtime.CooldownEndTimeMs - now);
         }
 

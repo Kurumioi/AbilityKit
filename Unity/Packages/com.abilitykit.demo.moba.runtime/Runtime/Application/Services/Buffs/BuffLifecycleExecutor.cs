@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -455,6 +458,48 @@ namespace AbilityKit.Demo.Moba.Services
                 if (listener.SourceContextId != ownerKey) continue;
                 listeners.RemoveAt(i);
             }
+        }
+    }
+
+    internal static class BuffLifecycleExecutorFactory
+    {
+        public static BuffLifecycleExecutor Create(IWorldResolver services)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services), "Buff lifecycle executor requires a world service resolver.");
+            }
+
+            services.TryResolve(out MobaConfigDatabase configs);
+            services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
+            services.TryResolve(out ITriggerActionRunner actionRunner);
+            services.TryResolve(out MobaTraceRegistry trace);
+            services.TryResolve(out MobaEffectExecutionService effects);
+            services.TryResolve(out IMobaEffectiveTagQueryService tags);
+            services.TryResolve(out IMobaContinuousTagTemplateRegistry tagTemplates);
+            services.TryResolve(out IFrameTime frameTime);
+            services.TryResolve(out IContinuousManager continuous);
+            services.TryResolve(out MobaActorLookupService actors);
+            services.TryResolve(out MobaSkillCastRuntimeService skillRuntimes);
+
+            var repo = new BuffRepository();
+            var ctx = new BuffContextService(trace, actionRunner, frameTime);
+            var events = new BuffEventPublisher(eventBus);
+            var stageEffects = new BuffStageEffectExecutor(effects);
+            var stacking = new BuffStackingPolicyApplier();
+
+            return new BuffLifecycleExecutor(
+                configs,
+                actors,
+                tags,
+                tagTemplates,
+                repo,
+                ctx,
+                events,
+                stageEffects,
+                stacking,
+                continuous,
+                skillRuntimes);
         }
     }
 }

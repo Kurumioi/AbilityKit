@@ -42,9 +42,12 @@ namespace AbilityKit.Demo.Moba.Services.Search
         public bool TrySearchFirstActorId(int queryTemplateId, int casterActorId, in Vec3 aimPos, out int targetActorId)
         {
             targetActorId = 0;
-            if (queryTemplateId <= 0) return false;
+            if (queryTemplateId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryTemplateId), queryTemplateId, "Search query template id must be positive.");
+            }
 
-            if (!TryBuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId: 0, maxCountOverride: 1, out var query)) return false;
+            var query = BuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId: 0, maxCountOverride: 1);
 
             _searchResults.Clear();
             _engine.SearchIds(in query, _context, _searchResults);
@@ -62,9 +65,12 @@ namespace AbilityKit.Demo.Moba.Services.Search
             if (results == null) throw new ArgumentNullException(nameof(results));
             results.Clear();
 
-            if (queryTemplateId <= 0) return false;
+            if (queryTemplateId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryTemplateId), queryTemplateId, "Search query template id must be positive.");
+            }
 
-            if (!TryBuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query)) return false;
+            var query = BuildQuery(queryTemplateId, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0);
             return ExecuteSearch(in query, results);
         }
 
@@ -73,8 +79,16 @@ namespace AbilityKit.Demo.Moba.Services.Search
             if (results == null) throw new ArgumentNullException(nameof(results));
             results.Clear();
 
-            if (template == null) return false;
-            if (!_queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query)) return false;
+            if (template == null)
+            {
+                throw new ArgumentNullException(nameof(template));
+            }
+
+            if (!_queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride: 0, out var query))
+            {
+                throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={template.Id}");
+            }
+
             return ExecuteSearch(in query, results);
         }
 
@@ -93,25 +107,40 @@ namespace AbilityKit.Demo.Moba.Services.Search
             return results.Count > 0;
         }
 
-        private bool TryBuildQuery(
+        private SearchQuery BuildQuery(
             int queryTemplateId,
             int casterActorId,
             in Vec3 aimPos,
             int explicitTargetActorId,
-            int maxCountOverride,
-            out SearchQuery query)
+            int maxCountOverride)
         {
-            query = default;
-            if (!TryGetTemplate(queryTemplateId, out var template) || template == null) return false;
-            return _queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out query);
+            var template = GetTemplate(queryTemplateId);
+            if (!_queryBuilder.TryBuild(template, _context, casterActorId, in aimPos, explicitTargetActorId, maxCountOverride, out var query))
+            {
+                throw new InvalidOperationException($"Search query builder failed without diagnostics. templateId={queryTemplateId}");
+            }
+
+            return query;
         }
 
-        private bool TryGetTemplate(int queryTemplateId, out SearchQueryTemplateMO template)
+        private SearchQueryTemplateMO GetTemplate(int queryTemplateId)
         {
-            template = null;
-            if (queryTemplateId <= 0) return false;
-            if (_configs == null) return false;
-            return _configs.TryGetSearchQueryTemplate(queryTemplateId, out template) && template != null;
+            if (queryTemplateId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryTemplateId), queryTemplateId, "Search query template id must be positive.");
+            }
+
+            if (_configs == null)
+            {
+                throw new InvalidOperationException("SearchTargetService requires MobaConfigDatabase for template queries.");
+            }
+
+            if (!_configs.TryGetSearchQueryTemplate(queryTemplateId, out var template) || template == null)
+            {
+                throw new InvalidOperationException($"Search query template not found. templateId={queryTemplateId}");
+            }
+
+            return template;
         }
 
         private sealed class RegistryPositionProvider : IPositionProvider

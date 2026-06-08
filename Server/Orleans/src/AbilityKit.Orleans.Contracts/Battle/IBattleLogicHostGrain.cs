@@ -62,6 +62,7 @@ public class BattleInitParams
     [Id(9)] public int InputDelayFrames { get; set; }
     [Id(10)] public string? WorldType { get; set; }
     [Id(11)] public string? ClientId { get; set; }
+    [Id(12)] public string? RoomType { get; set; }
 }
 
 /// <summary>

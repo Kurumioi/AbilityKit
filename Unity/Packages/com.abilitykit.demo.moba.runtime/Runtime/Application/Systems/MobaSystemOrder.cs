@@ -89,6 +89,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int ShieldLifecycle = Base + WorldSystemOrder.Late + 13;
         /// <summary>召唤物生命周期</summary>
         public const int SummonLifecycle = Base + WorldSystemOrder.Late + 14;
+        /// <summary>Actor 统一移除清理</summary>
+        public const int ActorDespawnCleanup = Base + WorldSystemOrder.Late + 18;
 
         public static OrderCheckResult ValidateKeyDependencies()
         {
@@ -127,9 +129,9 @@ namespace AbilityKit.Demo.Moba.Systems
                 return new OrderCheckResult(false, "Continuous order must be ContinuousTick < BuffsTick < OngoingTriggerPlansReconcile < GameplayTick.");
             }
 
-            if (ProjectileSync >= ProjectileLauncherCleanup || ProjectileLauncherCleanup >= ShieldLifecycle || ShieldLifecycle >= SummonLifecycle)
+            if (ProjectileSync >= ProjectileLauncherCleanup || ProjectileLauncherCleanup >= ShieldLifecycle || ShieldLifecycle >= SummonLifecycle || SummonLifecycle >= ActorDespawnCleanup)
             {
-                return new OrderCheckResult(false, "Late cleanup order must be ProjectileSync < ProjectileLauncherCleanup < ShieldLifecycle < SummonLifecycle.");
+                return new OrderCheckResult(false, "Late cleanup order must be ProjectileSync < ProjectileLauncherCleanup < ShieldLifecycle < SummonLifecycle < ActorDespawnCleanup.");
             }
 
             return new OrderCheckResult(true, null);

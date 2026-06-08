@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private SkillExecutor _skills;
         private MobaAuthorityFrameService _authority;
         private IFrameTime _time;
+        private MobaWorldSystemServices _systemServices;
 
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
@@ -26,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _skills);
             Services.TryResolve(out _authority);
             Services.TryResolve(out _time);
+            _systemServices = MobaWorldSystemExecution.Resolve(Services);
 
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(
                 ActorComponentsLookup.SkillCastCancelRequest,
@@ -35,11 +37,15 @@ namespace AbilityKit.Demo.Moba.Systems
 
         protected override void OnExecute()
         {
-            if (_skills == null || _group == null) return;
+            MobaWorldSystemExecution.Require(
+                _skills != null && _group != null,
+                Services,
+                nameof(MobaSkillCastCancelRequestSystem),
+                "skill.cast.cancel.execute",
+                "SkillExecutor and cancel request group",
+                $"hasSkills={_skills != null}, hasGroup={_group != null}");
 
-            var frame = 0;
-            try { frame = _authority != null ? _authority.PredictedFrame.Value : (_time != null ? _time.Frame.Value : 0); }
-            catch { frame = 0; }
+            var frame = ResolveFrame();
 
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
@@ -54,18 +60,61 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (req.Frame == int.MinValue) continue;
                 if (req.Frame > 0 && frame > 0 && req.Frame > frame) continue;
 
-                try { _skills.CancelBySkillId(e.skillCastOwnerActorId.Value, e.skillCastSkillId.Value); }
-                catch { }
+                try
+                {
+                    _skills.CancelBySkillId(e.skillCastOwnerActorId.Value, e.skillCastSkillId.Value);
+                }
+                catch (Exception ex)
+                {
+                    ReportException(ex, "skill.cast.cancel.request", e.skillCastOwnerActorId.Value, e.skillCastSkillId.Value);
+                }
 
-                try { e.ReplaceSkillCastCancelRequest(int.MinValue, req.Reason); }
-                catch { }
+                try
+                {
+                    e.ReplaceSkillCastCancelRequest(int.MinValue, req.Reason);
+                }
+                catch (Exception ex)
+                {
+                    ReportException(ex, "skill.cast.cancel.markConsumed", e.skillCastOwnerActorId.Value, e.skillCastSkillId.Value);
+                }
 
                 if (e.hasSkillCastStage)
                 {
-                    try { e.ReplaceSkillCastStage(SkillCastStage.Cancelled); }
-                    catch { }
+                    try
+                    {
+                        e.ReplaceSkillCastStage(SkillCastStage.Cancelled);
+                    }
+                    catch (Exception ex)
+                    {
+                        ReportException(ex, "skill.cast.cancel.markStage", e.skillCastOwnerActorId.Value, e.skillCastSkillId.Value);
+                    }
                 }
             }
+        }
+
+        private int ResolveFrame()
+        {
+            MobaWorldSystemExecution.Require(
+                _authority != null || _time != null,
+                Services,
+                nameof(MobaSkillCastCancelRequestSystem),
+                "skill.cast.cancel.resolveFrame",
+                "MobaAuthorityFrameService or IFrameTime",
+                $"hasAuthority={_authority != null}, hasFrameTime={_time != null}");
+
+            if (_authority != null) return _authority.PredictedFrame.Value;
+            return _time.Frame.Value;
+        }
+
+        private void ReportException(Exception ex, string operation, int actorId = 0, int skillId = 0)
+        {
+            MobaWorldSystemExecution.HandleException(
+                in _systemServices,
+                ex,
+                nameof(MobaSkillCastCancelRequestSystem),
+                operation,
+                actorId: actorId,
+                skillId: skillId);
         }
     }
 }

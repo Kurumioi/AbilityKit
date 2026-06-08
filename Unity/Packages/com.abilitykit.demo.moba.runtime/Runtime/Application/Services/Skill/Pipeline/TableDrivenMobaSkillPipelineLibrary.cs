@@ -8,8 +8,6 @@ using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Pipeline;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.GameplayTags;
-
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IMobaSkillPipelineLibrary), WorldLifetime.Scoped)]
@@ -22,25 +20,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly MobaConfigDatabase _configs;
         private readonly MobaEffectInvokerService _effects;
-        private readonly SkillConditionRegistry _conditionRegistry;
-        private readonly SkillHandlerRegistry _handlerRegistry;
-        private readonly IGameplayTagService _tags;
         private readonly IWorldResolver _services;
         private MobaTriggerPlanExecutor _rulePlanExecutor;
 
         public TableDrivenMobaSkillPipelineLibrary(
             MobaConfigDatabase configs,
             MobaEffectInvokerService effects,
-            SkillConditionRegistry conditionRegistry = null,
-            SkillHandlerRegistry handlerRegistry = null,
-            IGameplayTagService tags = null,
             IWorldResolver services = null)
         {
             _configs = configs;
             _effects = effects;
-            _conditionRegistry = conditionRegistry;
-            _handlerRegistry = handlerRegistry;
-            _tags = tags;
             _services = services;
         }
 
@@ -81,16 +70,21 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityPipelinePhaseId checksPhaseId,
             AbilityPipelinePhaseId timelinePhaseId)
         {
-            if (flow == null || flow.Phases == null || flow.Phases.Count == 0)
+            if (flow == null)
             {
-                return System.Array.Empty<IAbilityPipelinePhase<SkillPipelineContext>>();
+                throw new InvalidOperationException("Skill flow is missing.");
+            }
+
+            if (flow.Phases == null || flow.Phases.Count == 0)
+            {
+                throw new InvalidOperationException($"Skill flow requires at least one phase. flowId={flow.Id}");
             }
 
             var list = new List<IAbilityPipelinePhase<SkillPipelineContext>>(flow.Phases.Count);
             for (int i = 0; i < flow.Phases.Count; i++)
             {
                 var phase = BuildPhase(flow.Phases[i], checksPhaseId, timelinePhaseId, $"skill.flow.{flow.Id}.{i}");
-                if (phase != null) list.Add(phase);
+                list.Add(phase);
             }
 
             return list;
@@ -102,22 +96,27 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityPipelinePhaseId timelinePhaseId,
             string fallbackPhaseId)
         {
-            if (phase == null) return null;
+            if (phase == null) throw new InvalidOperationException($"Skill flow phase is missing. phaseId={fallbackPhaseId}");
 
             var type = (SkillPhaseType)phase.Type;
             switch (type)
             {
                 case SkillPhaseType.Checks:
-                    return new SkillFlowChecksPhase(MakePhaseId(phase, checksPhaseId.Value), phase.Checks, _conditionRegistry, _tags);
+                    throw new InvalidOperationException($"Skill Checks phase is deprecated. Use RulePlan trigger conditions instead. phaseId={MakePhaseId(phase, checksPhaseId.Value).Value}");
                 case SkillPhaseType.Timeline:
-                    if (phase.Timeline == null) return null;
+                    if (phase.Timeline == null)
+                    {
+                        throw new InvalidOperationException($"Timeline skill phase requires timeline config. phaseId={MakePhaseId(phase, timelinePhaseId.Value).Value}");
+                    }
                     var events = ToArray(phase.Timeline.Events);
                     return new SkillTimelinePhase(MakePhaseId(phase, timelinePhaseId.Value), phase.Timeline.DurationMs, events, _effects);
                 case SkillPhaseType.Handlers:
-                    if (phase.Handlers == null || _handlerRegistry == null) return null;
-                    return new SkillFlowHandlersPhase(MakePhaseId(phase, fallbackPhaseId), phase.Handlers, _handlerRegistry);
+                    throw new InvalidOperationException($"Skill Handlers phase is deprecated. Use RulePlan trigger actions instead. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
                 case SkillPhaseType.RulePlan:
-                    if (phase.RulePlan == null) return null;
+                    if (phase.RulePlan == null)
+                    {
+                        throw new InvalidOperationException($"RulePlan skill phase requires rule plan config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    }
                     return new SkillRulePlanPhase(MakePhaseId(phase, fallbackPhaseId), phase.RulePlan, GetOrCreateRulePlanExecutor());
                 case SkillPhaseType.Sequence:
                     return BuildSequencePhase(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
@@ -128,7 +127,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case SkillPhaseType.Delay:
                     return BuildDelayPhase(phase, fallbackPhaseId);
                 default:
-                    return null;
+                    throw new InvalidOperationException($"Unsupported skill phase type. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, type={phase.Type}");
             }
         }
 
@@ -161,23 +160,49 @@ namespace AbilityKit.Demo.Moba.Services
             string fallbackPhaseId)
         {
             var repeatDto = phase.Repeat;
-            var repeatCount = repeatDto != null && repeatDto.RepeatCount != 0 ? repeatDto.RepeatCount : 1;
-            var repeat = new AbilityRepeatPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), repeatCount)
+            if (repeatDto == null)
             {
-                RepeatInterval = repeatDto != null && repeatDto.IntervalMs > 0 ? repeatDto.IntervalMs / 1000f : 0f
+                throw new InvalidOperationException($"Repeat skill phase requires repeat config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+            }
+
+            if (repeatDto.RepeatCount <= 0)
+            {
+                throw new InvalidOperationException($"Repeat skill phase repeat count must be positive. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, repeatCount={repeatDto.RepeatCount}");
+            }
+
+            if (repeatDto.IntervalMs < 0)
+            {
+                throw new InvalidOperationException($"Repeat skill phase interval cannot be negative. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, intervalMs={repeatDto.IntervalMs}");
+            }
+
+            if (repeatDto.Phase == null)
+            {
+                throw new InvalidOperationException($"Repeat skill phase requires an explicit child phase. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+            }
+
+            var repeat = new AbilityRepeatPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), repeatDto.RepeatCount)
+            {
+                RepeatInterval = repeatDto.IntervalMs > 0 ? repeatDto.IntervalMs / 1000f : 0f
             };
 
-            var child = repeatDto != null && repeatDto.Phase != null
-                ? BuildPhase(repeatDto.Phase, checksPhaseId, timelinePhaseId, fallbackPhaseId + ".repeat")
-                : BuildFirstChild(phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId + ".repeat");
-            if (child != null) repeat.SetRepeatPhase(child);
+            repeat.SetRepeatPhase(BuildPhase(repeatDto.Phase, checksPhaseId, timelinePhaseId, fallbackPhaseId + ".repeat"));
             return repeat;
         }
 
         private IAbilityPipelinePhase<SkillPipelineContext> BuildDelayPhase(SkillPhaseDTO phase, string fallbackPhaseId)
         {
-            var delayMs = phase.Delay != null ? phase.Delay.DelayMs : 0;
-            return new AbilityDelayPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), delayMs > 0 ? delayMs / 1000f : 0f);
+            if (phase.Delay == null)
+            {
+                throw new InvalidOperationException($"Delay skill phase requires delay config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+            }
+
+            var delayMs = phase.Delay.DelayMs;
+            if (delayMs < 0)
+            {
+                throw new InvalidOperationException($"Delay skill phase delay cannot be negative. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, delayMs={delayMs}");
+            }
+
+            return new AbilityDelayPhase<SkillPipelineContext>(MakePhaseId(phase, fallbackPhaseId), delayMs / 1000f);
         }
 
         private void AddChildren(
@@ -187,22 +212,21 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityPipelinePhaseId timelinePhaseId,
             string fallbackPhaseId)
         {
-            if (parent == null || children == null) return;
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+
+            if (children == null || children.Count == 0)
+            {
+                throw new InvalidOperationException($"Composite skill phase requires at least one child phase. phaseId={fallbackPhaseId}");
+            }
+
             for (int i = 0; i < children.Count; i++)
             {
                 var child = BuildPhase(children[i], checksPhaseId, timelinePhaseId, fallbackPhaseId + "." + i);
-                if (child != null) parent.AddSubPhase(child);
+                parent.AddSubPhase(child);
             }
-        }
-
-        private IAbilityPipelinePhase<SkillPipelineContext> BuildFirstChild(
-            IReadOnlyList<SkillPhaseDTO> children,
-            AbilityPipelinePhaseId checksPhaseId,
-            AbilityPipelinePhaseId timelinePhaseId,
-            string fallbackPhaseId)
-        {
-            if (children == null || children.Count == 0) return null;
-            return BuildPhase(children[0], checksPhaseId, timelinePhaseId, fallbackPhaseId);
         }
 
         private MobaTriggerPlanExecutor GetOrCreateRulePlanExecutor()

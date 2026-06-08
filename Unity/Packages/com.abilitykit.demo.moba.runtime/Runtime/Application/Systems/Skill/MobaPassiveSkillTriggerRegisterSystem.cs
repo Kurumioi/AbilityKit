@@ -241,14 +241,8 @@ namespace AbilityKit.Demo.Moba.Systems
 
         private int GetFrame()
         {
-            try
-            {
-                return _frameTime != null ? _frameTime.Frame.Value : 0;
-            }
-            catch
-            {
-                return 0;
-            }
+            if (_frameTime != null) return _frameTime.Frame.Value;
+            throw new InvalidOperationException("MobaPassiveSkillTriggerRegisterSystem requires IFrameTime for passive trigger listener frames.");
         }
 
         protected override void OnTearDown()

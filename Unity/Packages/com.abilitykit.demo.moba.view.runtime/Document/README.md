@@ -75,6 +75,7 @@
 - [MOBA 技能管线](../com.abilitykit.demo.moba.runtime/Document/MOBA技能管线模块开发设计文档.md) - 技能执行
 - [Host 模块](../com.abilitykit.host.extension/Document/Host模块开发设计文档.md) - 扩展框架
 - [Flow 模块](../com.abilitykit.flow/Document/Flow模块开发设计文档.md) - 流程编排
+- [View Runtime 目录职责](./ViewRuntimeDirectoryLayout.md) - 表现层包内目录边界
 
 ---
 
@@ -93,21 +94,23 @@
 
 ```
 com.abilitykit.demo.moba.view.runtime/Runtime/Game/
-├── GameEntry.cs                    # 游戏入口
-├── GameFlowDomain.cs              # 根状态机
-├── Flow/
-│   ├── GameFlowDomain.cs         # 流程域
-│   └── Battle/
-│       ├── Features/
-│       │   ├── BattleContext.cs  # 战斗上下文
-│       │   ├── BattleSessionFeature/  # 会话核心
-│       │   ├── BattleViewFeature/    # 视图系统
-│       │   ├── BattleInputFeature.cs # 输入系统
-│       │   └── BattleHudFeature.cs  # HUD
-│       └── Session/
-│           ├── Core/             # 会话核心
-│           └── SubFeatures/      # 子特性
-└── ViewEvents/                   # 视图事件
+├── App/                           # Unity 入口与根流程
+│   ├── Entry/                     # GameEntry / GameManager
+│   ├── Flow/                      # GameFlowDomain / phase contracts
+│   └── Config/                    # 运行时配置 codec
+├── Battle/
+│   ├── Bootstrap/                 # BattlePhase 与启动装配
+│   ├── Client/                    # session / transport / gateway / replay
+│   ├── Presentation/              # view / HUD / VFX / view events
+│   ├── Input/                     # input sources / mapping / submission
+│   ├── EntityViewModel/           # 表现层实体与组件
+│   ├── Shared/                    # context / hooks / module host
+│   ├── Debug/                     # debug facade / OnGUI
+│   └── Legacy/                    # 待迁移兼容代码
+├── UI/                            # 通用 UI 基础设施
+├── EntityCreation/                # 实体创建辅助
+├── EntityDebug/                   # 实体调试可视化
+└── Test/                          # 运行期测试与调试入口
 ```
 
 ---

@@ -6,7 +6,7 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Common.Projectile;
-using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly MobaGamePhaseService _phase;
         private readonly IProjectileService _projectiles;
-        private readonly MobaAreaTriggerRegistry _areaTriggers;
+        private readonly MobaAreaRuntimeService _areaRuntime;
 
         private FrameIndex _lastFrame;
 
@@ -25,11 +25,11 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
         private readonly MobaSnapshotBuffer<MobaAreaEventSnapshotEntry> _areaEntries = new MobaSnapshotBuffer<MobaAreaEventSnapshotEntry>(32, 512);
 
-        public MobaAreaEventSnapshotService(MobaGamePhaseService phase, IProjectileService projectiles, MobaAreaTriggerRegistry areaTriggers)
+        public MobaAreaEventSnapshotService(MobaGamePhaseService phase, IProjectileService projectiles, MobaAreaRuntimeService areaRuntime)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
-            _areaTriggers = areaTriggers;
+            _areaRuntime = areaRuntime ?? throw new ArgumentNullException(nameof(areaRuntime));
             _lastFrame = new FrameIndex(-999999);
         }
 
@@ -73,11 +73,7 @@ namespace AbilityKit.Demo.Moba.Services
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var e = _spawns[i];
-                var templateId = 0;
-                if (_areaTriggers != null && _areaTriggers.TryGet(e.Area, out var entry))
-                {
-                    templateId = entry.TemplateId;
-                }
+                var templateId = RequireTemplateId(e.Area.Value);
                 _areaEntries.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Spawn, e.Area.Value, e.OwnerId, templateId, e.Center.X, e.Center.Y, e.Center.Z, e.Radius));
             }
 
@@ -90,6 +86,21 @@ namespace AbilityKit.Demo.Moba.Services
             var payload = MobaAreaEventSnapshotCodec.Serialize(_areaEntries.ToArrayClearAndTrim());
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.AreaEvent, payload);
             return true;
+        }
+
+        private int RequireTemplateId(int areaId)
+        {
+            if (!_areaRuntime.TryGetArea(areaId, out var info))
+            {
+                throw new InvalidOperationException($"Area snapshot missing runtime metadata. areaId={areaId}");
+            }
+
+            if (info.TemplateId <= 0)
+            {
+                throw new InvalidOperationException($"Area snapshot missing template id. areaId={areaId}");
+            }
+
+            return info.TemplateId;
         }
 
         public void Dispose()

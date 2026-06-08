@@ -344,6 +344,7 @@ namespace AbilityKit.Game.Editor
             if (!_enableKeyboardInput) return;
             if (!_root.IsValid) return;
             if (!_root.TryGetComponent(out BattleContext ctx) || ctx == null) return;
+            IBattleHudInputSink hudInput = ctx;
 
             float dx = 0f;
             float dz = 0f;
@@ -359,14 +360,20 @@ namespace AbilityKit.Game.Editor
            
 
             var hasMove = Math.Abs(dx) > 0.0001f || Math.Abs(dz) > 0.0001f;
-            ctx.HudHasMove = hasMove;
-            ctx.HudMoveDx = dx;
-            ctx.HudMoveDz = dz;
+            if (hasMove)
+            {
+                hudInput.BeginHudMove();
+                hudInput.SetHudMove(dx, dz);
+            }
+            else
+            {
+                hudInput.EndHudMove();
+            }
 
             var slot = _queuedSkillSlot;
             if (slot > 0)
             {
-                ctx.HudSkillClickSlot = slot;
+                hudInput.SubmitHudSkillClick(slot);
                 _queuedSkillSlot = 0;
             }
         }

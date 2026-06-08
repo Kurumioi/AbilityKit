@@ -24,9 +24,11 @@
         "AbilityKit.World.NetworkFragments",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Share",
+        "AbilityKit.Demo.Common",
         "AbilityKit.Pipeline",
         "AbilityKit.Network.Runtime",
-        "AbilityKit.Protocol.Moba"
+        "AbilityKit.Protocol.Moba",
+        "AbilityKit.Protocol.Room"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

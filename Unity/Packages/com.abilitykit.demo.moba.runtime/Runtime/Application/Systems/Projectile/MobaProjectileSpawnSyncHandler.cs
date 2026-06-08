@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Util.Generator;
@@ -9,13 +10,14 @@ using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Math;
 using AbilityKit.Protocol.Moba.StateSync;
-// [REMOVED] using AbilityKit.Demo.Moba.Effects.Runtime;
-// [REMOVED] using AbilityKit.Effects.Core;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {
     internal sealed class MobaProjectileSpawnSyncHandler : IProjectileSyncHandler
     {
+        private const float MinMotionDistance = 0.001f;
+        private const float MinMotionDuration = 0.001f;
+
         private readonly MobaProjectileSyncSystem _sys;
 
         public MobaProjectileSpawnSyncHandler(MobaProjectileSyncSystem sys)
@@ -69,42 +71,6 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
                 bullet.isFlyingProjectileTag = true;
 
-                // [REMOVED] Effects 包已删除，弹丸效果快照功能待重构
-                // if (_sys.EffectRegistry != null)
-                // {
-                //     try
-                //     {
-                //         var launcherId = 0;
-                //         if (evt.LauncherActorId > 0
-                //             && _sys.Registry.TryGet(evt.LauncherActorId, out var launcherEntityForEffect)
-                //             && launcherEntityForEffect != null
-                //             && launcherEntityForEffect.hasProjectileLauncher)
-                //         {
-                //             launcherId = launcherEntityForEffect.projectileLauncher.LauncherId;
-                //         }
-                //
-                //         var ctx = MobaEffectQueryContext.CreateForProjectile(
-                //             actorId: evt.RootActorId > 0 ? evt.RootActorId : evt.OwnerId,
-                //             skillId: 0,
-                //             launcherId: launcherId,
-                //             projectileId: evt.TemplateId);
-                //
-                //         var snapshot = MobaEffectSnapshotBuilder.BuildProjectileSnapshot(_sys.EffectRegistry, in ctx);
-                //         if (bullet.hasProjectileEffectSnapshot)
-                //         {
-                //             bullet.ReplaceProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
-                //         }
-                //         else
-                //         {
-                //             bullet.AddProjectileEffectSnapshot(snapshot.DamageMul, snapshot.SpeedMul, snapshot.Pierce);
-                //         }
-                //     }
-                //     catch (System.Exception ex)
-                //     {
-                //         Log.Exception(ex, "[MobaProjectileSyncSystem] init projectile effect snapshot failed");
-                //     }
-                // }
-
                 // Use MotionSystem to drive projectile movement (scheme B simplified).
                 // Trajectory duration is derived from projectile config (lifetime/maxDistance/speed).
                 try
@@ -136,10 +102,10 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
                     var distByLifetime = (speed > 0f && lifetimeSec > 0f) ? speed * lifetimeSec : 0f;
                     var dist = maxDistance > 0f ? maxDistance : distByLifetime;
-                    if (dist <= 0f) dist = distByLifetime > 0f ? distByLifetime : 0.001f;
+                    if (dist <= 0f) dist = distByLifetime > 0f ? distByLifetime : MinMotionDistance;
 
-                    var duration = lifetimeSec > 0f ? lifetimeSec : (speed > 0f ? dist / speed : 0.001f);
-                    if (duration <= 0f) duration = 0.001f;
+                    var duration = lifetimeSec > 0f ? lifetimeSec : (speed > 0f ? dist / speed : MinMotionDuration);
+                    if (duration <= 0f) duration = MinMotionDuration;
 
                     var end = start + fwd * dist;
                     var traj = new LinearTrajectory3D(start, end, duration);
@@ -184,8 +150,10 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                     });
                 }
 
-                try { _sys.Entities.TryRegisterFromEntity(bullet); }
-                catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileSyncSystem] TryRegisterFromEntity failed"); }
+                if (!_sys.Entities.TryRegisterFromEntity(bullet))
+                {
+                    throw new InvalidOperationException($"Projectile entity registration failed. actorId={projectileActorId} projectileId={evt.Projectile.Value} templateId={evt.TemplateId}");
+                }
 
                 _sys.Links.Link(evt.Projectile, projectileActorId);
                 BindProjectileSource(evt);

@@ -4,11 +4,17 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public MobaResolvedShootProjectileParams(int launcherId, int projectileId, int countPerShot, float fanAngleDeg, int durationMs)
         {
+            if (launcherId <= 0) throw new System.ArgumentOutOfRangeException(nameof(launcherId), launcherId, "Projectile launcher id must be positive.");
+            if (projectileId <= 0) throw new System.ArgumentOutOfRangeException(nameof(projectileId), projectileId, "Projectile id must be positive.");
+            if (countPerShot <= 0) throw new System.ArgumentOutOfRangeException(nameof(countPerShot), countPerShot, "Projectile count per shot must be positive.");
+            if (fanAngleDeg < 0f) throw new System.ArgumentOutOfRangeException(nameof(fanAngleDeg), fanAngleDeg, "Projectile fan angle cannot be negative.");
+            if (durationMs < 0) throw new System.ArgumentOutOfRangeException(nameof(durationMs), durationMs, "Projectile duration cannot be negative.");
+
             LauncherId = launcherId;
             ProjectileId = projectileId;
-            CountPerShot = countPerShot < 1 ? 1 : countPerShot;
-            FanAngleDeg = fanAngleDeg < 0f ? 0f : fanAngleDeg;
-            DurationMs = durationMs < 0 ? 0 : durationMs;
+            CountPerShot = countPerShot;
+            FanAngleDeg = fanAngleDeg;
+            DurationMs = durationMs;
         }
 
         public int LauncherId { get; }

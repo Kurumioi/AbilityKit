@@ -253,7 +253,10 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     sink.Write(entry);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    MobaRuntimeLog.Error(MobaRuntimeLogModule.Skill, MobaRuntimeLogPurpose.Runtime, nameof(SkillLogSink), "Skill log sink failed: " + ex.Message);
+                }
             }
         }
     }

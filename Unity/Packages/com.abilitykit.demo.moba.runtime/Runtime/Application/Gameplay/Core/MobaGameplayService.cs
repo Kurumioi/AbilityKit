@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.DI;
@@ -150,7 +151,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         private int GetCurrentFrame()
         {
-            return _frameTime != null ? _frameTime.Frame.Value : 0;
+            if (_frameTime != null) return _frameTime.Frame.Value;
+            throw new InvalidOperationException("MobaGameplayService requires IFrameTime for gameplay lifecycle frames.");
         }
 
         private void Publish(string eventName, GameplayLifecycleEventArgs args)

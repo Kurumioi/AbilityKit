@@ -126,15 +126,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         {
             if (string.IsNullOrEmpty(eventId)) return;
 
-            var templateId = 0;
-            try
-            {
-                if (entity != null && entity.hasModelId) templateId = entity.modelId.Value;
-            }
-            catch
-            {
-                templateId = 0;
-            }
+            var templateId = entity != null && entity.hasModelId ? entity.modelId.Value : 0;
 
             var payload = new UnitEventPayload(actorId, team, mainType, unitSubType, ownerPlayer, templateId, traceKind);
 

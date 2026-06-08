@@ -34,8 +34,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             }
 
             Log.Warning($"[MobaProjectileEmitterManager] No projectile emitter sequence registered. launcherId={launcher.Id} emitterType={launcher.EmitterType}");
-            sequence = _registry.CreateDefault();
-            return sequence != null;
+            return false;
         }
 
         public void Dispose()

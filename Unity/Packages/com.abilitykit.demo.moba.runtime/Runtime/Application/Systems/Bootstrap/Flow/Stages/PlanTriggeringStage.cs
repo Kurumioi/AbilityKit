@@ -1,6 +1,5 @@
 using System;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Event;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
@@ -34,55 +33,70 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             try
             {
                 Log.Info("[PlanTriggeringStage] starting...");
-                if (services.TryResolve<TriggerPlanJsonDatabase>(out var db) && db != null
-                    && services.TryResolve<MobaEffectExecutionService>(out var effects) && effects != null)
+                if (!services.TryResolve<TriggerPlanJsonDatabase>(out var db) || db == null)
                 {
-                    Log.Info("[PlanTriggeringStage] initializing plan actions...");
-                    effects.InitializePlanActions();
-
-                    services.TryResolve<MobaEventSubscriptionRegistry>(out var eventRegistry);
-                    RunRuntimeValidation(services);
-
-                    if (services.TryResolve<TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
-                    {
-                        RegisterGlobalPlans(services, db, runner);
-                    }
-                    Log.Info($"[PlanTriggeringStage] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
+                    throw new InvalidOperationException("PlanTriggeringStage requires TriggerPlanJsonDatabase.");
                 }
-                else
+
+                if (!services.TryResolve<MobaEffectExecutionService>(out var effects) || effects == null)
                 {
-                    Log.Warning("[PlanTriggeringStage] init skipped (missing deps: db or effects)");
+                    throw new InvalidOperationException("PlanTriggeringStage requires MobaEffectExecutionService.");
                 }
+
+                Log.Info("[PlanTriggeringStage] initializing plan actions...");
+                effects.InitializePlanActions();
+
+                RunRuntimeValidation(services);
+
+                if (services.TryResolve<TriggerRunner<IWorldResolver>>(out var runner) && runner != null)
+                {
+                    RegisterGlobalPlans(services, db, runner);
+                }
+
+                Log.Info($"[PlanTriggeringStage] PlanTriggering initialized. records={db.Records?.Count ?? 0}");
             }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[PlanTriggeringStage] PlanTriggering init exception");
+                throw;
             }
         }
 
         private static void RunRuntimeValidation(IWorldResolver services)
         {
-            if (services == null) return;
+            if (services == null)
+            {
+                throw new InvalidOperationException("PlanTriggeringStage requires world services for runtime validation.");
+            }
 
             if (!services.TryResolve<IMobaRuntimeValidationRegistry>(out var registry) || registry == null)
             {
-                MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Validation, nameof(PlanTriggeringStage), "Runtime validation skipped: registry not resolved.");
-                return;
+                throw new InvalidOperationException("PlanTriggeringStage requires IMobaRuntimeValidationRegistry.");
             }
 
-            registry.Register(new MobaGameplayTriggerRuntimeValidator());
+            var validatorContract = MobaRuntimeValidatorContract.CreateDefault();
+            validatorContract.RegisterInto(registry);
+            var contractValidation = validatorContract.Validate(registry);
+            if (!contractValidation.Succeeded)
+            {
+                throw new InvalidOperationException("Runtime validator contract validation failed. " + string.Join("; ", contractValidation.Errors));
+            }
 
             if (!services.TryResolve<IMobaRuntimeValidationRunner>(out var runner) || runner == null)
             {
-                MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Validation, nameof(PlanTriggeringStage), "Runtime validation skipped: runner not resolved.");
-                return;
+                throw new InvalidOperationException("PlanTriggeringStage requires IMobaRuntimeValidationRunner.");
             }
 
             var context = new MobaRuntimeValidationContext(services, nameof(PlanTriggeringStage));
             var report = runner.ValidateAll(in context);
+            if (services.TryResolve<IMobaRuntimeValidationHistory>(out var history) && history != null && history.TryGetLastReport(out var lastReport))
+            {
+                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Validation, nameof(PlanTriggeringStage), $"Runtime validation history updated. runs={history.RunCount}, stage={history.LastStageName}, {lastReport.FormatSummary()}");
+            }
+
             if (report != null && report.ShouldBlockStartup)
             {
-                MobaRuntimeLog.Error(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Validation, nameof(PlanTriggeringStage), "Runtime validation has blocking errors. " + report.FormatSummary());
+                throw new InvalidOperationException("Runtime validation has blocking errors. " + report.FormatSummary() + "\n" + report.FormatAllEntries());
             }
         }
 
@@ -109,18 +123,24 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                     continue;
                 }
 
-                if (eventRegistry != null
-                    && !string.IsNullOrEmpty(record.EventName)
-                    && eventRegistry.TryGetArgsType(record.EventName, out var argsType)
-                    && argsType != null
-                    && argsType.IsClass)
+                if (eventRegistry == null)
                 {
-                    runner.RegisterPlan(record.EventId, argsType, record.Plan);
-                    continue;
+                    throw new InvalidOperationException("PlanTriggeringStage requires MobaEventSubscriptionRegistry for typed global trigger registration.");
                 }
 
-                var key = new EventKey<object>(record.EventId);
-                runner.RegisterPlan<object, IWorldResolver>(key, record.Plan);
+                if (string.IsNullOrEmpty(record.EventName)
+                    || !eventRegistry.TryGetArgsType(record.EventName, out var argsType)
+                    || argsType == null)
+                {
+                    throw new InvalidOperationException($"Global trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
+                }
+
+                if (!argsType.IsClass)
+                {
+                    throw new InvalidOperationException($"Global trigger event args type must be a class. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
+                }
+
+                runner.RegisterPlan(record.EventId, argsType, record.Plan);
             }
         }
 

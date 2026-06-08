@@ -14,12 +14,25 @@ using AbilityKit.Core.Common.Marker;
 /// </summary>
 namespace AbilityKit.Demo.Moba.Services
 {
+    public readonly struct MobaInputCommandHandlerDescriptor
+    {
+        public MobaInputCommandHandlerDescriptor(int opCode, Type handlerType)
+        {
+            OpCode = opCode;
+            HandlerType = handlerType;
+        }
+
+        public int OpCode { get; }
+        public Type HandlerType { get; }
+    }
+
     /// <summary>
     /// 输入命令处理器注册表。
     /// </summary>
     public sealed class MobaInputCommandHandlerRegistry : MobaMarkerRegistryBase<IMobaInputCommandHandler>
     {
         private readonly Dictionary<int, IMobaInputCommandHandler> _handlers = new Dictionary<int, IMobaInputCommandHandler>();
+        private readonly Dictionary<int, MobaInputCommandHandlerDescriptor> _descriptors = new Dictionary<int, MobaInputCommandHandlerDescriptor>();
 
         public int HandlerCount => _handlers.Count;
 
@@ -53,6 +66,12 @@ namespace AbilityKit.Demo.Moba.Services
             IMobaInputCommandHandler handler = Activator.CreateInstance(implType) as IMobaInputCommandHandler;
             if (handler == null) return;
             _handlers[opCode] = handler;
+            _descriptors[opCode] = new MobaInputCommandHandlerDescriptor(opCode, implType);
+        }
+
+        public bool TryGetHandlerDescriptor(int opCode, out MobaInputCommandHandlerDescriptor descriptor)
+        {
+            return _descriptors.TryGetValue(opCode, out descriptor);
         }
 
         /// <summary>

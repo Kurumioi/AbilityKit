@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Serialization;
-using AbilityKit.Protocol.Moba.GatewayTimeSync;
+using AbilityKit.Protocol.GatewayTimeSync;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;
 

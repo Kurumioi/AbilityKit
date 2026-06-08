@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Event;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Systems;
@@ -96,20 +95,26 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 return false;
             }
 
-            IDisposable registration;
-            if (_eventRegistry != null
-                && !string.IsNullOrEmpty(record.EventName)
-                && _eventRegistry.TryGetArgsType(record.EventName, out var argsType)
-                && argsType != null
-                && argsType.IsClass)
+            if (_eventRegistry == null)
             {
-                registration = _runner.RegisterPlan(record.EventId, argsType, record.Plan);
+                throw new InvalidOperationException("MobaGameplayTriggerBindingService requires MobaEventSubscriptionRegistry for typed trigger registration.");
             }
-            else
+
+            if (string.IsNullOrEmpty(record.EventName)
+                || !_eventRegistry.TryGetArgsType(record.EventName, out var argsType)
+                || argsType == null)
             {
-                var key = new EventKey<object>(record.EventId);
-                registration = _runner.RegisterPlan<object, IWorldResolver>(key, record.Plan);
+                Log.Error($"[MobaGameplayTriggerBindingService] gameplay trigger event is not registered. gameplayId={gameplayId}, triggerId={triggerId}, eventName={record.EventName}");
+                return false;
             }
+
+            if (!argsType.IsClass)
+            {
+                Log.Error($"[MobaGameplayTriggerBindingService] gameplay trigger event args type must be a class. gameplayId={gameplayId}, triggerId={triggerId}, eventName={record.EventName}, argsType={argsType.FullName}");
+                return false;
+            }
+
+            var registration = _runner.RegisterPlan(record.EventId, argsType, record.Plan);
 
             if (registration == null)
             {

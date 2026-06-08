@@ -131,18 +131,19 @@ public readonly struct DamageEvent
 
 ```
 Runtime/Game/
-├── Flow/
-│   ├── Battle/Features/
-│   │   ├── BattleContextFeature.cs
-│   │   ├── BattleSessionFeature/     # 帧同步引擎
-│   │   ├── BattleSyncFeature.cs      # 同步系统
-│   │   ├── BattleInputFeature.cs     # 输入系统
-│   │   ├── BattleViewFeature/        # 视图系统
-│   │   └── BattleHudFeature.cs       # HUD
-│   └── GameFlowDomain.cs             # 根状态机
+├── App/
+│   ├── Entry/                         # Unity 入口
+│   └── Flow/GameFlowDomain.cs         # 根状态机
 └── Battle/
-    ├── Vfx/BattleVfxManager.cs       # 特效管理
-    └── View/BattleViewBinder.cs       # 实体绑定
+    ├── Client/Session/Features/       # 会话与帧同步客户端
+    ├── Input/Sources/                 # 输入采集
+    ├── Input/Mapping/                 # 输入命令映射
+    ├── Input/Submission/              # 输入提交
+    ├── Presentation/Features/View/    # 视图系统
+    ├── Presentation/Hud/              # HUD
+    ├── Presentation/Vfx/              # 特效管理
+    ├── Presentation/View/             # 实体绑定
+    └── Shared/Context/                # 战斗上下文
 ```
 
 #### 与逻辑层交互

@@ -147,14 +147,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private int GetFrame()
         {
-            try
-            {
-                return _frameTime != null ? _frameTime.Frame.Value : 0;
-            }
-            catch
-            {
-                return 0;
-            }
+            if (_frameTime != null) return _frameTime.Frame.Value;
+            throw new InvalidOperationException("BuffContextService requires IFrameTime for buff context frames.");
         }
     }
 }

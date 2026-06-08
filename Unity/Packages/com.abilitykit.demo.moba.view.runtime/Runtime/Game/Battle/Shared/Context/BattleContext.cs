@@ -1,0 +1,87 @@
+using AbilityKit.Ability.Host;
+using AbilityKit.Core.Common.Pool;
+
+namespace AbilityKit.Game.Flow
+{
+    public sealed partial class BattleContext : IPoolable, IBattleHudInputSink
+    {
+        private static readonly ObjectPool<BattleContext> Pool = Pools.GetPool(
+            key: "BattleContext",
+            createFunc: () => new BattleContext(),
+            defaultCapacity: 1,
+            maxSize: 8);
+
+        public static BattleContext Rent()
+        {
+            return Pool.Get();
+        }
+
+        public static void Return(BattleContext ctx)
+        {
+            if (ctx == null) return;
+            Pool.Release(ctx);
+        }
+
+        void IPoolable.OnPoolGet()
+        {
+        }
+
+        void IPoolable.OnPoolRelease()
+        {
+            Reset(disposeOwnedResources: true, destroyCollections: false);
+        }
+
+        void IPoolable.OnPoolDestroy()
+        {
+            Reset(disposeOwnedResources: true, destroyCollections: true);
+        }
+
+        private void Reset(bool disposeOwnedResources, bool destroyCollections)
+        {
+            Session = null;
+            Plan = default;
+            LastFrame = 0;
+            LogicTimeSeconds = 0d;
+
+            LocalActorId = 0;
+
+            Hooks = null;
+
+            ClearSnapshotRouting();
+
+            if (disposeOwnedResources)
+            {
+                InputRecordWriter?.Dispose();
+                LocalInputQueue?.Dispose();
+            }
+
+            InputRecordWriter = null;
+            LocalInputQueue = null;
+
+            PredictionStats = null;
+            PredictionReconcileTarget = null;
+            PredictionReconcileControl = null;
+            PredictionTuningControl = null;
+
+            RuntimeWorldId = default;
+            HasRuntimeWorldId = false;
+
+            EntityNode = default;
+            EntityWorld = null;
+            EntityLookup = null;
+            EntityFactory = null;
+            EntityQuery = null;
+
+            if (destroyCollections)
+            {
+                DirtyEntities = null;
+            }
+            else
+            {
+                DirtyEntities?.Clear();
+            }
+
+            ResetHudInput();
+        }
+    }
+}

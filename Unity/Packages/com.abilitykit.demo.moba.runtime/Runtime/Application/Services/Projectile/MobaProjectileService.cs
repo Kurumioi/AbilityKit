@@ -99,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var collisionMask = CollisionLayer_Unit | CollisionLayer_World;
 
-            var spawnFrame = _frameTime != null ? _frameTime.Frame.Value : 0;
+            var spawnFrame = GetCurrentFrame();
 
             var spawn = new ProjectileSpawnParams(
                 ownerId: casterActorId,
@@ -281,10 +281,15 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (request.CasterActorId <= 0) { result = MobaProjectileLaunchResult.Failed("Caster actor id is invalid"); return false; }
             if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); return false; }
             if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); return false; }
-
+            if (request.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Projectile count per shot is invalid. countPerShot={request.CountPerShot}"); return false; }
+            if (request.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Projectile fan angle is invalid. fanAngleDeg={request.FanAngleDeg}"); return false; }
+            if (request.DurationMs < 0) { result = MobaProjectileLaunchResult.Failed($"Projectile duration is invalid. durationMs={request.DurationMs}"); return false; }
+ 
             var casterActorId = request.CasterActorId;
             var launcher = request.Launcher;
             var projectile = request.Projectile;
+            if (launcher.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Launcher count per shot is invalid. launcherId={launcher.Id} countPerShot={launcher.CountPerShot}"); return false; }
+            if (launcher.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Launcher fan angle is invalid. launcherId={launcher.Id} fanAngleDeg={launcher.FanAngleDeg}"); return false; }
             if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
             {
                 result = MobaProjectileLaunchResult.Failed("Caster entity is missing transform");
@@ -296,27 +301,28 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             var sp = request.SpawnPosition.SqrMagnitude > 0f ? request.SpawnPosition : caster.transform.Value.Position;
             var frameTime = _frameTime;
-            var nowMs = 0L;
-            if (frameTime != null)
+            if (frameTime == null || frameTime.DeltaTime <= 0f)
             {
-                nowMs = (long)System.MathF.Round(frameTime.Time * 1000f);
+                result = MobaProjectileLaunchResult.Failed("Projectile launch requires valid frame time.");
+                return false;
             }
 
-            var intervalFrames = ResolveFramesFromMs(launcher.IntervalMs, frameTime, defaultFrames: 1);
-            var returnAfterFrames = ResolveFramesFromMs(projectile.ReturnAfterMs, frameTime, defaultFrames: 0);
+            var nowMs = (long)System.MathF.Round(frameTime.Time * 1000f);
+            var durationMs = request.DurationMs;
+
+            var repeatCount = ResolveRepeatCount(durationMs, launcher.IntervalMs, launcher.Id);
+            var intervalFrames = repeatCount > 1
+                ? ResolveRequiredFramesFromMs(launcher.IntervalMs, frameTime, $"projectile launcher interval. launcherId={launcher.Id}")
+                : 0;
+            var returnAfterFrames = ResolveOptionalFramesFromMs(projectile.ReturnAfterMs, frameTime);
             var returnSpeed = projectile.ReturnSpeed;
             var returnStopDistance = projectile.ReturnStopDistance;
 
-            var durationMs = request.DurationMs;
-            var count = 1;
-            if (durationMs > 0 && launcher.IntervalMs > 0)
-            {
-                count = System.Math.Max(1, (durationMs / launcher.IntervalMs) + 1);
-            }
+            var count = repeatCount;
 
-            var bulletsPerShot = System.Math.Max(1, request.CountPerShot);
-            var resolvedFanAngleDeg = request.FanAngleDeg < 0f ? 0f : request.FanAngleDeg;
-            var lifetimeFrames = ResolveFramesFromMs(projectile.LifetimeMs, frameTime, defaultFrames: 0);
+            var bulletsPerShot = request.CountPerShot;
+            var requestFanAngleDeg = request.FanAngleDeg;
+            var lifetimeFrames = ResolveOptionalFramesFromMs(projectile.LifetimeMs, frameTime);
 
             var launcherActorId = _actorIds.Next();
             var launcherSpec = MobaConverter.ToProjectileLauncherActorBuildSpec(launcherActorId, launcher.Id, caster, in sp, in d);
@@ -336,8 +342,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return false;
             }
 
-            var hitCooldownFrames = ResolveFramesFromMs(projectile.HitCooldownMs, frameTime, defaultFrames: 0);
-            var tickIntervalFrames = ResolveFramesFromMs(projectile.TickIntervalMs, frameTime, defaultFrames: 0);
+            var hitCooldownFrames = ResolveOptionalFramesFromMs(projectile.HitCooldownMs, frameTime);
+            var tickIntervalFrames = ResolveOptionalFramesFromMs(projectile.TickIntervalMs, frameTime);
             if (returnAfterFrames > 0)
             {
                 tickIntervalFrames = 1;
@@ -384,7 +390,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var sourceContext = request.SourceContext;
             var launcherSource = CreateLaunchSource(casterActorId, 0, projectile.Id, in sourceContext);
             var endTimeMs = durationMs > 0 ? nowMs + durationMs : nowMs;
-            var sequence = CreateLaunchSequence(in request, launcher);
+            if (!TryCreateLaunchSequence(launcher, out var sequence, out var sequenceError))
+            {
+                result = MobaProjectileLaunchResult.Failed(sequenceError);
+                return false;
+            }
+
             var context = new MobaProjectileLaunchContext(
                 in request,
                 launcher,
@@ -398,7 +409,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 intervalFrames,
                 count,
                 bulletsPerShot,
-                resolvedFanAngleDeg,
+                requestFanAngleDeg,
                 _projectiles,
                 _links,
                 _skillParamModifiers,
@@ -417,7 +428,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             result.Sequence?.Stop(in result, reason);
         }
 
-        public int CurrentFrame => _frameTime != null ? _frameTime.Frame.Value : 0;
+        public int CurrentFrame => GetCurrentFrame();
         public long NowMs => GetNowMs();
 
         public bool TryGetLauncherEntity(int launcherActorId, out global::ActorEntity launcherEntity)
@@ -426,30 +437,67 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return launcherActorId > 0 && _registry != null && _registry.TryGet(launcherActorId, out launcherEntity);
         }
 
-        private IMobaProjectileLaunchSequence CreateLaunchSequence(in MobaProjectileLaunchRequest request, ProjectileLauncherMO launcher)
+        private bool TryCreateLaunchSequence(ProjectileLauncherMO launcher, out IMobaProjectileLaunchSequence sequence, out string error)
         {
-            if (_emitters != null && _emitters.TryCreateSequence(launcher, out var sequence) && sequence != null)
+            sequence = null;
+            if (_emitters == null)
             {
-                return sequence;
+                error = "Projectile emitter manager is null";
+                return false;
             }
 
-            return new RepeatProjectileLaunchSequence();
+            if (!_emitters.TryCreateSequence(launcher, out sequence) || sequence == null)
+            {
+                error = $"Projectile emitter sequence is not registered. launcherId={launcher?.Id ?? 0} emitterType={launcher?.EmitterType}";
+                return false;
+            }
+
+            error = null;
+            return true;
         }
 
-        private static int ResolveFramesFromMs(int milliseconds, IFrameTime frameTime, int defaultFrames)
+        private static int ResolveRepeatCount(int durationMs, int intervalMs, int launcherId)
         {
-            if (milliseconds <= 0) return defaultFrames;
-            if (frameTime != null && frameTime.DeltaTime > 0f)
+            if (durationMs <= 0) return 1;
+            if (intervalMs <= 0)
             {
-                return System.Math.Max(1, (int)System.MathF.Round(milliseconds / (frameTime.DeltaTime * 1000f)));
+                throw new InvalidOperationException($"Projectile launcher duration requires a positive interval. launcherId={launcherId} durationMs={durationMs} intervalMs={intervalMs}");
             }
 
-            return System.Math.Max(1, (int)System.MathF.Round(milliseconds / 33.333f));
+            return System.Math.Max(1, (durationMs / intervalMs) + 1);
+        }
+
+        private static int ResolveOptionalFramesFromMs(int milliseconds, IFrameTime frameTime)
+        {
+            if (milliseconds <= 0) return 0;
+            return ResolveRequiredFramesFromMs(milliseconds, frameTime, "projectile optional duration");
+        }
+
+        private static int ResolveRequiredFramesFromMs(int milliseconds, IFrameTime frameTime, string field)
+        {
+            if (milliseconds <= 0)
+            {
+                throw new InvalidOperationException($"Projectile frame conversion requires a positive duration. field={field} milliseconds={milliseconds}");
+            }
+
+            if (frameTime == null || frameTime.DeltaTime <= 0f)
+            {
+                throw new InvalidOperationException($"Projectile frame conversion requires valid frame time. field={field}");
+            }
+
+            return System.Math.Max(1, (int)System.MathF.Round(milliseconds / (frameTime.DeltaTime * 1000f)));
+        }
+
+        private int GetCurrentFrame()
+        {
+            if (_frameTime != null) return _frameTime.Frame.Value;
+            throw new InvalidOperationException("MobaProjectileService requires IFrameTime for current frame.");
         }
 
         private long GetNowMs()
         {
-            return _frameTime != null ? (long)System.MathF.Round(_frameTime.Time * 1000f) : 0L;
+            if (_frameTime != null) return (long)System.MathF.Round(_frameTime.Time * 1000f);
+            throw new InvalidOperationException("MobaProjectileService requires IFrameTime for current time.");
         }
 
         private void BindProjectileSource(ProjectileId projectileId, int sourceActorId, int targetActorId, int projectileConfigId, in ProjectileSourceContext sourceContext)

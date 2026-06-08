@@ -6,6 +6,7 @@ using AbilityKit.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 
@@ -22,8 +23,7 @@ namespace AbilityKit.Demo.Moba.Systems.Effects
         private IEventBus _eventBus;
         private IUnitResolver _units;
 
-        private IMobaBattleDiagnosticsService _diagnostics;
-        private IMobaBattleExceptionPolicy _exceptions;
+        private MobaWorldSystemServices _systemServices;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaEffectsStepSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -36,20 +36,24 @@ namespace AbilityKit.Demo.Moba.Systems.Effects
             Services.TryResolve(out _units);
             Services.TryResolve(out _time);
             Services.TryResolve(out _eventBus);
-            Services.TryResolve(out _diagnostics);
-            Services.TryResolve(out _exceptions);
+            _systemServices = MobaWorldSystemExecution.Resolve(Services);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId));
         }
 
         protected override void OnExecute()
         {
-            if (_units == null || _time == null) return;
+            MobaWorldSystemExecution.Require(
+                _units != null && _time != null && _group != null,
+                Services,
+                nameof(MobaEffectsStepSystem),
+                "effects.step.dependencies",
+                "IUnitResolver, IFrameTime and actor group",
+                $"hasUnits={_units != null}, hasFrameTime={_time != null}, hasGroup={_group != null}");
 
             var entities = _group.GetEntities();
             if (entities == null || entities.Length == 0) return;
 
-            var diagnostics = _diagnostics;
-            var start = diagnostics != null ? diagnostics.GetTimestamp() : 0L;
+            var start = _systemServices.StartTimestamp;
             var processed = 0;
             var sp = new WorldServiceProviderAdapter(Services);
 
@@ -78,34 +82,23 @@ namespace AbilityKit.Demo.Moba.Systems.Effects
                 }
                 catch (Exception ex)
                 {
-                    var exceptions = _exceptions;
-                    if (exceptions != null)
-                    {
-                        exceptions.Handle(
-                            ex,
-                            new MobaBattleExceptionContext(
-                                MobaBattleExceptionDomain.WorldSystem,
-                                "effects.step",
-                                actorId: actorId),
-                            MobaBattleExceptionSeverity.Recoverable);
-                    }
-                    else
-                    {
-                        AbilityKit.Core.Common.Log.Log.Exception(ex, $"[MobaEffectsStepSystem] Effects.Step failed. actor={actorId}");
-                    }
+                    MobaWorldSystemExecution.HandleException(
+                        in _systemServices,
+                        ex,
+                        nameof(MobaEffectsStepSystem),
+                        "effects.step",
+                        actorId: actorId);
                 }
             }
 
-            if (diagnostics != null)
-            {
-                diagnostics.Sample("moba.effects.actorCandidates", entities.Length);
-                diagnostics.Sample("moba.effects.processed", processed);
-                diagnostics.RecordDuration(
-                    MobaBattleDiagnosticMetric.EffectsStep,
-                    start,
-                    MobaBattleDiagnosticsDefaults.EffectsStepWarnMs,
-                    $"candidates={entities.Length} processed={processed}");
-            }
+            MobaWorldSystemExecution.Sample(in _systemServices, "moba.effects.actorCandidates", entities.Length);
+            MobaWorldSystemExecution.Sample(in _systemServices, "moba.effects.processed", processed);
+            MobaWorldSystemExecution.RecordDuration(
+                in _systemServices,
+                MobaBattleDiagnosticMetric.EffectsStep,
+                start,
+                MobaBattleDiagnosticsDefaults.EffectsStepWarnMs,
+                $"candidates={entities.Length} processed={processed}");
         }
     }
 }

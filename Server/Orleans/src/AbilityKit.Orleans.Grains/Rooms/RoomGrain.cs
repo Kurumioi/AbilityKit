@@ -1,22 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.Moba.Room;
-using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 using Orleans;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
 public sealed class RoomGrain : Grain, IRoomGrain
 {
-    private static readonly DefaultMobaRoomGameStartSpecBuilder StartSpecBuilder = new();
+    private static readonly RoomGameplayRegistry GameplayRegistry = new();
 
     private RoomSummary? _summary;
     private string? _directoryKey;
-    private MobaRoomState? _roomState;
+    private IRoomGameplayAdapter? _gameplay;
+    private object? _gameplayState;
     private readonly HashSet<string> _members = new(StringComparer.Ordinal);
     private bool _closed;
     private string? _battleId;
@@ -31,25 +30,29 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         _summary = summary;
         _directoryKey = directoryKey;
-        _roomState = CreateRoomState(summary);
+        _gameplay = GameplayRegistry.Resolve(summary.RoomType);
+        _gameplayState = _gameplay.CreateState(summary);
         return Task.CompletedTask;
     }
 
     public Task<RoomSnapshot> GetSnapshotAsync()
     {
         var summary = RequireSummary();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         return Task.FromResult(new RoomSnapshot(
             summary with { PlayerCount = _members.Count },
             _members.ToList(),
-            BuildPlayerSnapshots(),
-            _roomState?.CanStart() == true,
+            gameplay.BuildPlayerSnapshots(gameplayState),
+            gameplay.CanStart(gameplayState),
             _battleId));
     }
 
     public async Task JoinAsync(string accountId)
     {
         var summary = RequireSummary();
-        var roomState = RequireRoomState();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         EnsureOpen();
         EnsureAccountId(accountId);
 
@@ -64,14 +67,15 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
 
         _members.Add(accountId);
-        roomState.TryJoin(new PlayerId(accountId), GuessTeamId(_members.Count));
+        gameplay.Join(gameplayState, summary, _members, accountId);
         await NotifyRoomChangedAsync();
     }
 
     public async Task LeaveAsync(string accountId)
     {
         RequireSummary();
-        var roomState = RequireRoomState();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         EnsureAccountId(accountId);
 
         if (!_members.Remove(accountId))
@@ -79,7 +83,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return;
         }
 
-        roomState.TryLeave(new PlayerId(accountId));
+        gameplay.Leave(gameplayState, accountId);
         await NotifyRoomChangedAsync();
 
         if (_members.Count == 0)
@@ -93,11 +97,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         RequireSummary();
-        var roomState = RequireRoomState();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         EnsureOpen();
         EnsureMember(request.AccountId);
 
-        roomState.TrySetReady(new PlayerId(request.AccountId), request.Ready);
+        gameplay.SetReady(gameplayState, request);
         return Task.CompletedTask;
     }
 
@@ -105,21 +110,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         RequireSummary();
-        var roomState = RequireRoomState();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         EnsureOpen();
         EnsureMember(request.AccountId);
 
-        var playerId = new PlayerId(request.AccountId);
-        roomState.TrySetTeam(playerId, request.TeamId);
-        roomState.TrySetSpawnPoint(playerId, request.SpawnPointId);
-        roomState.TryPickHero(
-            playerId,
-            request.HeroId,
-            request.AttributeTemplateId,
-            request.Level > 0 ? request.Level : 1,
-            request.BasicAttackSkillId,
-            request.SkillIds?.ToArray());
-
+        gameplay.PickHero(gameplayState, request);
         return Task.CompletedTask;
     }
 
@@ -127,7 +123,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         var summary = RequireSummary();
-        var roomState = RequireRoomState();
+        var gameplay = RequireGameplay();
+        var gameplayState = RequireGameplayState();
         EnsureOwner(request.AccountId, summary);
 
         if (!string.IsNullOrEmpty(_battleId))
@@ -137,29 +134,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         EnsureOpen();
 
-        if (!StartSpecBuilder.TryBuild(roomState, out var roomSpec))
-        {
-            throw new InvalidOperationException("Room is not ready to start battle.");
-        }
-
-        roomSpec = new MobaRoomGameStartSpec(
-            roomSpec.MatchId,
-            roomSpec.MapId,
-            roomSpec.RandomSeed,
-            roomSpec.TickRate,
-            roomSpec.InputDelayFrames,
-            roomSpec.Players,
-            request.GameplayId);
-
         _battleId = summary.RoomId;
-        var initParams = OrleansRoomBattleStartMapper.ToBattleInitParams(
-            summary.RoomId,
-            in roomSpec,
-            request.RuleSetId,
-            request.ConfigVersion,
-            request.ProtocolVersion,
-            request.WorldType,
-            request.ClientId);
+        var initParams = gameplay.BuildBattleInitParams(gameplayState, summary, request);
         _worldId = initParams.WorldId;
 
         var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
@@ -173,6 +149,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
     public async Task CloseAsync(string accountId)
     {
         var summary = RequireSummary();
+        var gameplay = RequireGameplay();
         EnsureOwner(accountId, summary);
 
         if (_closed && string.IsNullOrEmpty(_battleId))
@@ -182,50 +159,11 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         _closed = true;
         _members.Clear();
-        _roomState = CreateRoomState(summary);
+        _gameplayState = gameplay.CreateState(summary);
 
         await NotifyRoomChangedAsync();
         await RemoveFromDirectoryAsync();
         DeactivateOnIdle();
-    }
-
-    private MobaRoomState CreateRoomState(RoomSummary summary)
-    {
-        var roomState = new MobaRoomState(
-            summary.RoomId,
-            ReadIntTag(summary, "mapId", 1),
-            ReadIntTag(summary, "randomSeed", Environment.TickCount),
-            ReadIntTag(summary, "tickRate", 30),
-            ReadIntTag(summary, "inputDelayFrames", 0));
-        roomState.Configure(ReadIntTag(summary, "minPlayers", 1), summary.MaxPlayers);
-        return roomState;
-    }
-
-    private List<RoomPlayerSnapshot> BuildPlayerSnapshots()
-    {
-        var roomState = _roomState;
-        if (roomState == null || roomState.Players.Count == 0)
-        {
-            return new List<RoomPlayerSnapshot>();
-        }
-
-        var players = new List<RoomPlayerSnapshot>(roomState.Players.Count);
-        foreach (var kv in roomState.Players)
-        {
-            var slot = kv.Value;
-            players.Add(new RoomPlayerSnapshot(
-                kv.Key,
-                slot.TeamId,
-                slot.Ready,
-                slot.HeroId,
-                slot.SpawnPointId,
-                slot.Level,
-                slot.AttributeTemplateId,
-                slot.BasicAttackSkillId,
-                slot.SkillIds == null ? null : slot.SkillIds.ToList()));
-        }
-
-        return players;
     }
 
     private RoomSummary RequireSummary()
@@ -238,14 +176,24 @@ public sealed class RoomGrain : Grain, IRoomGrain
         return _summary;
     }
 
-    private MobaRoomState RequireRoomState()
+    private IRoomGameplayAdapter RequireGameplay()
     {
-        if (_roomState is null)
+        if (_gameplay is null)
         {
-            throw new InvalidOperationException("Room state not initialized.");
+            throw new InvalidOperationException("Room gameplay adapter not initialized.");
         }
 
-        return _roomState;
+        return _gameplay;
+    }
+
+    private object RequireGameplayState()
+    {
+        if (_gameplayState is null)
+        {
+            throw new InvalidOperationException("Room gameplay state not initialized.");
+        }
+
+        return _gameplayState;
     }
 
     private void EnsureOpen()
@@ -304,20 +252,5 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         var directory = GrainFactory.GetGrain<IRoomDirectoryGrain>(_directoryKey);
         await directory.RemoveRoomAsync(summary.RoomId);
-    }
-
-    private static int GuessTeamId(int memberCount)
-    {
-        return memberCount % 2 == 0 ? 2 : 1;
-    }
-
-    private static int ReadIntTag(RoomSummary summary, string key, int fallback)
-    {
-        if (summary.Tags != null && summary.Tags.TryGetValue(key, out var value) && int.TryParse(value, out var parsed))
-        {
-            return parsed;
-        }
-
-        return fallback;
     }
 }

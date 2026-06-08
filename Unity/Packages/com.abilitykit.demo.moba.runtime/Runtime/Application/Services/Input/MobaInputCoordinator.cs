@@ -25,16 +25,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaGamePhaseService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaEntityManager _entities;
+        private readonly MobaInputCommandContractRegistry _contracts;
         private readonly MobaInputCommandHandlerRegistry _handlers;
 
         private SkillExecutor _skills;
 
-        public MobaInputCoordinator(MobaGamePhaseService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities)
+        public MobaInputCoordinator(MobaGamePhaseService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
-            _handlers = MobaInputCommandHandlerRegistry.CreateDefault();
+            _contracts = contracts ?? throw new ArgumentNullException(nameof(contracts));
+            _handlers = _contracts.HandlerRegistry;
         }
 
         protected override void OnServicesReady(IWorldResolver services)
@@ -62,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex)
             {
                 MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Input, MobaRuntimeLogPurpose.Exception, nameof(MobaInputCoordinator), "Hotfix router TryHandle failed.");
-                return false;
+                throw new InvalidOperationException($"Hotfix router failed while handling input command. frame={frame.Value}, player={command.Player.Value}, opCode={command.OpCode}", ex);
             }
         }
 

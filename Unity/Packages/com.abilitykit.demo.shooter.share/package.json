@@ -1,0 +1,15 @@
+{
+  "name": "com.abilitykit.demo.shooter.share",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Demo Shooter Shared",
+  "unity": "2022.3",
+  "description": "Shared constants and small domain models for the Shooter demo.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.core": "0.0.1",
+    "com.abilitykit.demo.common": "0.1.0",
+    "com.abilitykit.protocol.shooter": "0.1.0"
+  }
+}

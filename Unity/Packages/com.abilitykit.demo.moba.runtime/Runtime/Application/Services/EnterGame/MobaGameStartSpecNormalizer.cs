@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Protocol.Moba;
 
@@ -10,43 +9,47 @@ namespace AbilityKit.Demo.Moba.Services
     {
         public static EnterMobaGameReq Normalize(MobaConfigDatabase config, in EnterMobaGameReq req)
         {
-            if (config == null) return req;
+            if (config == null) throw new InvalidOperationException("MobaGameStartSpecNormalizer requires MobaConfigDatabase.");
             if (req.Players == null || req.Players.Length == 0) return req;
 
-            try
+            var src = req.Players;
+            var dst = new MobaPlayerLoadout[src.Length];
+
+            for (int i = 0; i < src.Length; i++)
             {
-                var src = req.Players;
-                var dst = new MobaPlayerLoadout[src.Length];
+                var p = src[i];
 
-                for (int i = 0; i < src.Length; i++)
+                var attributeTemplateId = p.AttributeTemplateId;
+                int[] skillIds = p.SkillIds;
+
+                if (attributeTemplateId <= 0 || skillIds == null)
                 {
-                    var p = src[i];
-
-                    var attributeTemplateId = p.AttributeTemplateId;
-                    int[] skillIds = p.SkillIds;
-
-                    if ((attributeTemplateId <= 0 || skillIds == null) && config.TryGetCharacter(p.HeroId, out var character) && character != null)
+                    if (!config.TryGetCharacter(p.HeroId, out var character) || character == null)
                     {
+                        throw new InvalidOperationException($"Player loadout cannot be normalized because character config is missing. playerId={p.PlayerId.Value}, heroId={p.HeroId}");
+                    }
+
+                    if (attributeTemplateId <= 0)
+                    {
+                        attributeTemplateId = character.AttributeTemplateId;
                         if (attributeTemplateId <= 0)
                         {
-                            attributeTemplateId = character.AttributeTemplateId;
-                        }
-
-                        if (skillIds == null)
-                        {
-                            // 浠?AttributeTemplate 鑾峰彇鎶€鑳藉垪琛?
-                            if (attributeTemplateId > 0 && config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) && attrTemplate != null)
-                            {
-                                skillIds = attrTemplate.ActiveSkills?.ToArray() ?? Array.Empty<int>();
-                            }
-                            else
-                            {
-                                skillIds = Array.Empty<int>();
-                            }
+                            throw new InvalidOperationException($"Player loadout cannot be normalized because character attribute template id is invalid. playerId={p.PlayerId.Value}, heroId={p.HeroId}, attributeTemplateId={attributeTemplateId}");
                         }
                     }
 
-                    dst[i] = new MobaPlayerLoadout(
+                    if (skillIds == null)
+                    {
+                        if (!config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) || attrTemplate == null)
+                        {
+                            throw new InvalidOperationException($"Player loadout cannot be normalized because attribute template config is missing. playerId={p.PlayerId.Value}, heroId={p.HeroId}, attributeTemplateId={attributeTemplateId}");
+                        }
+
+                        skillIds = attrTemplate.ActiveSkills != null ? attrTemplate.ActiveSkills.ToArray() : Array.Empty<int>();
+                    }
+                }
+
+                dst[i] = new MobaPlayerLoadout(
                         playerId: p.PlayerId,
                         teamId: p.TeamId,
                         heroId: p.HeroId,
@@ -61,25 +64,19 @@ namespace AbilityKit.Demo.Moba.Services
                         spawnX: p.SpawnX,
                         spawnY: p.SpawnY,
                         spawnZ: p.SpawnZ);
-                }
+            }
 
-                return new EnterMobaGameReq(
-                    playerId: req.PlayerId,
-                    matchId: req.MatchId,
-                    mapId: req.MapId,
-                    randomSeed: req.RandomSeed,
-                    tickRate: req.TickRate,
-                    inputDelayFrames: req.InputDelayFrames,
-                    opCode: req.OpCode,
-                    payload: req.Payload,
-                    players: dst,
-                    gameplayId: req.GameplayId);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[MobaGameStartSpecNormalizer] Normalize failed. playerId={req.PlayerId.Value}, matchId={req.MatchId}, mapId={req.MapId}, players={(req.Players != null ? req.Players.Length : 0)}, gameplayId={req.GameplayId}");
-                return req;
-            }
+            return new EnterMobaGameReq(
+                playerId: req.PlayerId,
+                matchId: req.MatchId,
+                mapId: req.MapId,
+                randomSeed: req.RandomSeed,
+                tickRate: req.TickRate,
+                inputDelayFrames: req.InputDelayFrames,
+                opCode: req.OpCode,
+                payload: req.Payload,
+                players: dst,
+                gameplayId: req.GameplayId);
         }
     }
 }

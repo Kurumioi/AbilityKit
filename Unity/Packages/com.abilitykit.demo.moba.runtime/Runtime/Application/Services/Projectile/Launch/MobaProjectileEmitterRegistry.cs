@@ -10,13 +10,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
     {
         void Register(ProjectileEmitterType emitterType, Func<IMobaProjectileLaunchSequence> factory, int priority = 0, bool isDefault = false);
         bool TryCreate(ProjectileEmitterType emitterType, out IMobaProjectileLaunchSequence sequence);
-        IMobaProjectileLaunchSequence CreateDefault();
     }
 
     public sealed class MobaProjectileEmitterRegistry : IMobaProjectileEmitterRegistry
     {
         private readonly Dictionary<ProjectileEmitterType, Entry> _entries = new Dictionary<ProjectileEmitterType, Entry>();
-        private Entry _defaultEntry;
 
         public MobaProjectileEmitterRegistry()
         {
@@ -31,12 +29,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         {
             var registry = new MobaProjectileEmitterRegistry();
             registry.RegisterFromAssembly(assembly ?? typeof(MobaProjectileEmitterRegistry).Assembly);
-
-            if (registry._defaultEntry.Factory == null)
-            {
-                registry.Register(ProjectileEmitterType.Linear, () => new RepeatProjectileLaunchSequence(), isDefault: true);
-            }
-
             return registry;
         }
 
@@ -50,28 +42,18 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
                 _entries[emitterType] = entry;
             }
 
-            if (isDefault || _defaultEntry.Factory == null)
-            {
-                _defaultEntry = entry;
-            }
         }
 
         public bool TryCreate(ProjectileEmitterType emitterType, out IMobaProjectileLaunchSequence sequence)
         {
             sequence = null;
-            if (_entries.TryGetValue(emitterType, out var entry))
+            if (!_entries.TryGetValue(emitterType, out var entry))
             {
-                sequence = entry.Factory?.Invoke();
-                return sequence != null;
+                return false;
             }
 
-            sequence = CreateDefault();
+            sequence = entry.Factory?.Invoke();
             return sequence != null;
-        }
-
-        public IMobaProjectileLaunchSequence CreateDefault()
-        {
-            return _defaultEntry.Factory != null ? _defaultEntry.Factory() : new RepeatProjectileLaunchSequence();
         }
 
         public void RegisterFromAssembly(Assembly assembly)

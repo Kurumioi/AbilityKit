@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Protocol.Shooter</RootNamespace>
+    <AssemblyName>AbilityKit.Protocol.Shooter</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.protocol.shooter/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.protocol.shooter/Runtime/**/*.asmdef" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AbilityKit.Core/AbilityKit.Core.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Protocol/AbilityKit.Protocol.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
+  </ItemGroup>
+
+</Project>

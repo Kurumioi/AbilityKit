@@ -28,6 +28,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (!RequireAny(args, "launcher_id", out error, "launcher_id", "launcherid", "launcher")) return false;
+            if (!RequireAny(args, "projectile_id", out error, "projectile_id", "projectileid", "projectile")) return false;
             error = null;
             return true;
         }

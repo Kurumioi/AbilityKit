@@ -22,8 +22,13 @@ namespace AbilityKit.Demo.Moba.Services
             if (effectId <= 0) return;
             if (_effects == null)
             {
-                Log.Warning($"[MobaEffectInvokerService] Skip effect: MobaEffectExecutionService not injected. effectId={effectId}, source={sourceActorId}, target={targetActorId}");
-                return;
+                MobaRuntimeGuard.ThrowRequired(
+                    worldServices ?? _services,
+                    nameof(MobaEffectInvokerService),
+                    "effect.invoke",
+                    nameof(MobaEffectExecutionService),
+                    MobaBattleExceptionDomain.Service,
+                    detail: $"effectId={effectId}, source={sourceActorId}, target={targetActorId}");
             }
             var ctx = new MobaEffectPipelineContext();
             ctx.Initialize(
@@ -45,8 +50,13 @@ namespace AbilityKit.Demo.Moba.Services
             if (context == null) return;
             if (_effects == null)
             {
-                Log.Warning($"[MobaEffectInvokerService] Skip effect: MobaEffectExecutionService not injected. effectId={effectId}, context={context.GetType().Name}");
-                return;
+                MobaRuntimeGuard.ThrowRequired(
+                    _services,
+                    nameof(MobaEffectInvokerService),
+                    "effect.invoke.context",
+                    nameof(MobaEffectExecutionService),
+                    MobaBattleExceptionDomain.Service,
+                    detail: $"effectId={effectId}, context={context.GetType().Name}");
             }
             _effects.Execute(effectId, context, EffectExecuteMode.InternalOnly);
         }

@@ -45,58 +45,75 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                     var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
 
                     eventBus.Publish(new EventKey<ProjectileHitEvent>(eid), in evt);
-                    object boxed = evt;
-                    eventBus.Publish(new EventKey<object>(eid), in boxed);
                 }
 
                 var effects = _sys.Effects;
                 var cfgs = _sys.Configs;
-                if (effects != null && cfgs != null)
+                try
                 {
-                    try
+                    if (cfgs == null)
                     {
-                        var proj = cfgs.GetProjectile(evt.TemplateId);
-                        var onHitTriggerId = proj != null ? proj.OnHitEffectId : 0;
-                        if (onHitTriggerId > 0)
-                        {
-                            _sys.Links.TryGetSource(evt.Projectile, out var sourceContext);
-                            var sourceActorId = sourceContext.IsValid && sourceContext.SourceActorId > 0 ? sourceContext.SourceActorId : evt.OwnerId;
-                            var sourceContextId = sourceContext.IsValid ? sourceContext.SourceContextId : 0L;
-                            var payload = new ProjectileHitArgs
-                            {
-                                TriggerId = onHitTriggerId,
-                                SourceActorId = sourceActorId,
-                                TargetActorId = hitActorId,
-                                SourceContextId = sourceContextId,
-                                SourceConfigId = evt.TemplateId,
-                                SourceContext = sourceContext,
-                                Frame = evt.Frame,
-                                CasterActorId = evt.OwnerId,
-                                ProjectileTemplateId = evt.TemplateId,
-                                ProjectileId = evt.Projectile,
-                                Point = evt.Point,
-                                Normal = evt.Normal,
-                                HitCollider = evt.HitCollider,
-                                Raw = evt,
-                            };
-
-                            payload.Data.SyncInvocationData(payload);
-                            if (payload.TryGetTraceContext(out var traceContext)) payload.Data.SyncTraceData(traceContext);
-                            payload.Data.SetData(AbilityContextKeys.ProjectileId.ToKeyString(), evt.Projectile.Value);
-                            payload.Data.SetData(AbilityContextKeys.HitTriggerPlanId.ToKeyString(), onHitTriggerId);
-                            payload.Data.SetData(AbilityContextKeys.HitPosition.ToKeyString(), evt.Point);
-                            payload.Data.SetData(AbilityContextKeys.HitNormal.ToKeyString(), evt.Normal);
-                            payload.Data.SetData(AbilityContextKeys.Frame.ToKeyString(), evt.Frame);
-                            payload.Data.SetData("projectile.templateId", evt.TemplateId);
-                            payload.Data.SetData("projectile.hitCollider", evt.HitCollider);
-
-                            effects.ExecuteTriggerId(onHitTriggerId, payload);
-                        }
+                        throw new System.InvalidOperationException($"Projectile hit requires MobaConfigDatabase. templateId={evt.TemplateId} projectileId={evt.Projectile.Value}");
                     }
-                    catch (System.Exception ex)
+
+                    var proj = cfgs.GetProjectile(evt.TemplateId);
+                    if (proj == null)
                     {
-                        Log.Exception(ex, "[MobaProjectileHitSyncHandler] Execute projectile OnHitEffectId failed");
+                        throw new System.InvalidOperationException($"Projectile hit requires a valid projectile config. templateId={evt.TemplateId} projectileId={evt.Projectile.Value}");
                     }
+
+                    var onHitTriggerId = proj.OnHitEffectId;
+                    if (onHitTriggerId <= 0) continue;
+
+                    if (effects == null)
+                    {
+                        throw new System.InvalidOperationException($"Projectile hit effect requires MobaEffectExecutionService. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
+                    }
+
+                    if (_sys.Links == null || !_sys.Links.TryGetSource(evt.Projectile, out var sourceContext))
+                    {
+                        throw new System.InvalidOperationException($"Projectile hit effect requires a bound source context. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
+                    }
+
+                    if (!sourceContext.IsValid || sourceContext.SourceActorId <= 0)
+                    {
+                        throw new System.InvalidOperationException($"Projectile hit effect source context is invalid. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
+                    }
+
+                    var payload = new ProjectileHitArgs
+                    {
+                        TriggerId = onHitTriggerId,
+                        SourceActorId = sourceContext.SourceActorId,
+                        TargetActorId = hitActorId,
+                        SourceContextId = sourceContext.SourceContextId,
+                        SourceConfigId = evt.TemplateId,
+                        SourceContext = sourceContext,
+                        Frame = evt.Frame,
+                        CasterActorId = evt.OwnerId,
+                        ProjectileTemplateId = evt.TemplateId,
+                        ProjectileId = evt.Projectile,
+                        Point = evt.Point,
+                        Normal = evt.Normal,
+                        HitCollider = evt.HitCollider,
+                        Raw = evt,
+                    };
+
+                    payload.Data.SyncInvocationData(payload);
+                    if (payload.TryGetTraceContext(out var traceContext)) payload.Data.SyncTraceData(traceContext);
+                    payload.Data.SetData(AbilityContextKeys.ProjectileId.ToKeyString(), evt.Projectile.Value);
+                    payload.Data.SetData(AbilityContextKeys.HitTriggerPlanId.ToKeyString(), onHitTriggerId);
+                    payload.Data.SetData(AbilityContextKeys.HitPosition.ToKeyString(), evt.Point);
+                    payload.Data.SetData(AbilityContextKeys.HitNormal.ToKeyString(), evt.Normal);
+                    payload.Data.SetData(AbilityContextKeys.Frame.ToKeyString(), evt.Frame);
+                    payload.Data.SetData("projectile.templateId", evt.TemplateId);
+                    payload.Data.SetData("projectile.hitCollider", evt.HitCollider);
+
+                    effects.ExecuteTriggerId(onHitTriggerId, payload);
+                }
+                catch (System.Exception ex)
+                {
+                    Log.Exception(ex, "[MobaProjectileHitSyncHandler] Execute projectile OnHitEffectId failed");
+                    throw;
                 }
             }
         }

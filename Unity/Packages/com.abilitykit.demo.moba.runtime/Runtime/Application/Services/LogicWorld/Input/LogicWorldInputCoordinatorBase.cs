@@ -126,10 +126,10 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
                 if (!_missingFrameTimeLogged)
                 {
                     _missingFrameTimeLogged = true;
-                    MobaInputDiagnostics.RecordBatchWarning(_diagnostics, "input.batch.frameValidationDegraded", "Input frame validation degraded: IFrameTime not resolved.", GetType().Name);
+                    MobaInputDiagnostics.RecordBatchWarning(_diagnostics, "input.batch.frameValidationMissing", "Input batch rejected: IFrameTime is required for deterministic frame validation.", GetType().Name);
                 }
 
-                return true;
+                return false;
             }
 
             int currentFrame = _frameTime.Frame.Value;

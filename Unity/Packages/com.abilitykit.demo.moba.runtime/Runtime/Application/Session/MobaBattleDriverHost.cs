@@ -111,15 +111,32 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void SubmitInputs(PlayerInput[] inputs)
         {
-            if (!_isRunning || inputs == null || inputs.Length == 0 || _runtime == null)
+            if (!_isRunning)
             {
+                LogInputSubmitFailure(MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.NotRunning, "battle driver is not running"));
+                return;
+            }
+
+            if (inputs == null || inputs.Length == 0)
+            {
+                LogInputSubmitFailure(MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.NullOrEmptyCommands, "player input batch is null or empty"));
+                return;
+            }
+
+            if (_runtime == null)
+            {
+                LogInputSubmitFailure(MobaInputSubmitResult.Fail(MobaInputSubmitFailureCode.MissingInputPort, "IMobaBattleRuntimePort is not resolved"));
                 return;
             }
 
             MobaRuntimeLog.Trace(MobaRuntimeLogModule.Input, MobaRuntimeLogPurpose.RuntimeTrace, nameof(MobaBattleDriverHost), $"SubmitInputs: {inputs.Length} inputs");
 
             var commands = _inputConverter.Convert(inputs);
-            SubmitCommands(commands);
+            var result = SubmitCommands(commands);
+            if (!result.Succeeded)
+            {
+                LogInputSubmitFailure(result);
+            }
         }
 
         public MobaInputSubmitResult SubmitCommands(IReadOnlyList<PlayerInputCommand> commands)
@@ -164,8 +181,7 @@ namespace AbilityKit.Demo.Moba.Session
         {
             if (_runtime == null)
             {
-                snapshot = default;
-                return false;
+                throw new InvalidOperationException("MobaBattleDriverHost requires IMobaBattleRuntimePort for snapshot output.");
             }
 
             return _runtime.TryGetSnapshot(frame, out snapshot);
@@ -173,9 +189,14 @@ namespace AbilityKit.Demo.Moba.Session
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (_runtime == null || snapshots == null)
+            if (_runtime == null)
             {
-                return 0;
+                throw new InvalidOperationException("MobaBattleDriverHost requires IMobaBattleRuntimePort for snapshot output.");
+            }
+
+            if (snapshots == null)
+            {
+                throw new ArgumentNullException(nameof(snapshots));
             }
 
             return _runtime.CollectSnapshots(frame, snapshots, maxSnapshots);
@@ -206,6 +227,11 @@ namespace AbilityKit.Demo.Moba.Session
         private FrameIndex GetDefaultInputTargetFrame()
         {
             return new FrameIndex(_currentFrame.Value + 1);
+        }
+
+        private static void LogInputSubmitFailure(MobaInputSubmitResult result)
+        {
+            MobaRuntimeLog.Warning(MobaRuntimeLogModule.Input, MobaRuntimeLogPurpose.Rejection, nameof(MobaBattleDriverHost), $"SubmitInputs rejected. {result}");
         }
 
         private bool CanDriveLogicWorld(float deltaTime)

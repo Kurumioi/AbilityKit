@@ -14,8 +14,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     [PlanActionModule(order: 24)]
     public sealed class SpawnAreaPlanActionModule : MobaPlanActionModuleBase<SpawnAreaArgs, SpawnAreaPlanActionModule>
     {
-        private const int DefaultLifetimeFrames = 30;
-
         protected override IActionSchema<SpawnAreaArgs, IWorldResolver> Schema => SpawnAreaSchema.Instance;
 
         protected override void Execute(object triggerArgs, SpawnAreaArgs args, ExecCtx<IWorldResolver> ctx)
@@ -74,24 +72,30 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (args.DurationFrames > 0) return args.DurationFrames;
 
             var durationMs = args.DurationMs > 0 ? args.DurationMs : configDurationMs;
-            if (durationMs > 0 && services != null && services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
+            if (durationMs <= 0)
             {
-                var seconds = durationMs / 1000f;
-                var now = frameTime.Frame.Value;
-                return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+                throw new InvalidOperationException($"SpawnArea requires a positive duration. areaId={args.AreaId}");
             }
 
-            return DefaultLifetimeFrames;
+            var frameTime = ResolveFrameTime(services);
+            var seconds = durationMs / 1000f;
+            var now = frameTime.Frame.Value;
+            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
         }
 
         private static int ResolveFrame(IWorldResolver services)
         {
+            return ResolveFrameTime(services).Frame.Value;
+        }
+
+        private static IFrameTime ResolveFrameTime(IWorldResolver services)
+        {
             if (services != null && services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
             {
-                return frameTime.Frame.Value;
+                return frameTime;
             }
 
-            return 0;
+            throw new InvalidOperationException("SpawnArea requires IFrameTime for deterministic frame resolution.");
         }
     }
 }

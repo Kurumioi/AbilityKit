@@ -44,10 +44,22 @@ namespace AbilityKit.Demo.Moba.Services.Search
             out SearchQuery query)
         {
             query = default;
-            if (template == null || context == null) return false;
+            if (template == null)
+            {
+                throw new ArgumentNullException(nameof(template));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             context.ClearData();
             var maxCount = maxCountOverride > 0 ? maxCountOverride : template.MaxCount;
+            if (maxCount <= 0)
+            {
+                throw new InvalidOperationException($"Search query requires positive max count. templateId={template.Id}, maxCount={maxCount}");
+            }
 
             var explicitPolicy = (SearchQueryExplicitTargetPolicy)template.ExplicitTargetPolicy;
             if (explicitTargetActorId > 0 && explicitPolicy == SearchQueryExplicitTargetPolicy.PreferExplicitTarget)
@@ -74,15 +86,19 @@ namespace AbilityKit.Demo.Moba.Services.Search
                 _streamingTopKSelector);
 
             var provider = _factories.CreateSource(template.Provider, in buildContext);
-            if (provider == null) return false;
 
             _rules.Clear();
             AddDefaultRules(casterActorId);
             var configuredRules = template.Rules ?? Array.Empty<SearchTargetRuleConfig>();
             for (int i = 0; i < configuredRules.Length; i++)
             {
-                var rule = _factories.CreateFilter(configuredRules[i], in buildContext);
-                if (rule != null) _rules.Add(rule);
+                var ruleConfig = configuredRules[i];
+                if (ruleConfig == null)
+                {
+                    throw new InvalidOperationException($"Search query rule config is null. templateId={template.Id}, ruleIndex={i}");
+                }
+
+                _rules.Add(_factories.CreateFilter(ruleConfig, in buildContext));
             }
 
             var scorer = _factories.CreateOrder(template.Scorer, in buildContext);

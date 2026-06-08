@@ -5,89 +5,158 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Demo.Moba.Services.Projectile;
 
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSnapshotRouter))]
     [WorldService(typeof(IWorldStateSnapshotProvider))]
-    public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IMobaSnapshotBatchProvider, IWorldInitializable
+    [WorldService(typeof(IMobaSnapshotHealthProvider))]
+    public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IMobaSnapshotBatchProvider, IMobaSnapshotHealthProvider, IWorldInitializable
     {
-        private readonly MobaEnterGameSnapshotService _enter;
-        private readonly MobaActorSpawnSnapshotService _spawn;
-        private readonly MobaActorDespawnSnapshotService _despawn;
-        private readonly MobaProjectileEventSnapshotService _projectileEvents;
-        private readonly MobaAreaEventSnapshotService _areaEvents;
-        private readonly MobaDamageEventSnapshotService _damageEvents;
-        private readonly MobaActorTransformSnapshotService _transform;
-        private readonly MobaStateHashSnapshotService _hash;
+        private const string MetricRequest = "moba.snapshot.request";
+        private const string MetricBatchRequest = "moba.snapshot.batch.request";
+        private const string MetricHit = "moba.snapshot.hit";
+        private const string MetricEmpty = "moba.snapshot.empty";
+        private const string MetricEmitterCount = "moba.snapshot.emitters";
+        private const string MetricBatchSize = "moba.snapshot.batch.size";
+        private const string WarningNoEmitters = "snapshot.no.emitters";
+
         private List<IMobaSnapshotEmitter> _emitters;
+        private List<MobaSnapshotEmitterHealthEntry> _emitterHealthEntries;
+        private IMobaBattleDiagnosticsService _diagnostics;
+        private long _singleRequests;
+        private long _batchRequests;
+        private long _hitCount;
+        private long _emptyCount;
+        private int _lastFrame;
+        private int _lastSnapshotOpCode;
+        private int _lastBatchSnapshotCount;
+        private bool _usedAttributeRegistry;
 
-        public MobaSnapshotRouter(MobaEnterGameSnapshotService enter, MobaActorSpawnSnapshotService spawn, MobaActorDespawnSnapshotService despawn, MobaProjectileEventSnapshotService projectileEvents, MobaAreaEventSnapshotService areaEvents, MobaDamageEventSnapshotService damageEvents, MobaActorTransformSnapshotService transform, MobaStateHashSnapshotService hash)
+        public MobaSnapshotRouter()
         {
-            _enter = enter ?? throw new ArgumentNullException(nameof(enter));
-            _spawn = spawn ?? throw new ArgumentNullException(nameof(spawn));
-            _despawn = despawn ?? throw new ArgumentNullException(nameof(despawn));
-            _projectileEvents = projectileEvents ?? throw new ArgumentNullException(nameof(projectileEvents));
-            _areaEvents = areaEvents ?? throw new ArgumentNullException(nameof(areaEvents));
-            _damageEvents = damageEvents ?? throw new ArgumentNullException(nameof(damageEvents));
-            _transform = transform ?? throw new ArgumentNullException(nameof(transform));
-            _hash = hash ?? throw new ArgumentNullException(nameof(hash));
             _emitters = new List<IMobaSnapshotEmitter>(8);
-            AddFallbackEmitters();
+            _emitterHealthEntries = new List<MobaSnapshotEmitterHealthEntry>(8);
+            _lastFrame = -1;
+            _lastSnapshotOpCode = 0;
+            _lastBatchSnapshotCount = 0;
         }
-
+ 
         public void OnInit(IWorldResolver services)
         {
+            services?.TryResolve(out _diagnostics);
+
             var registry = MobaSnapshotEmitterRegistry.CreateDefault();
             var resolved = registry.ResolveEmitters(services);
-            if (resolved.Count > 0)
-            {
-                _emitters = resolved;
-            }
-        }
+            _emitters = resolved;
+            RebuildEmitterHealthEntries();
+            _usedAttributeRegistry = resolved.Count > 0;
 
+            RecordEmitterCount();
+        }
+ 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
         {
+            _singleRequests++;
+            _lastFrame = frame.Value;
+            _diagnostics?.Counter(MetricRequest);
+
             for (int i = 0; i < _emitters.Count; i++)
             {
-                if (_emitters[i].TryGetSnapshot(frame, out snapshot)) return true;
-            }
+                if (!_emitters[i].TryGetSnapshot(frame, out snapshot)) continue;
 
+                RecordHit(snapshot.OpCode, 1);
+                return true;
+            }
+ 
             snapshot = default;
+            RecordEmpty();
             return false;
         }
-
+ 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (snapshots == null || maxSnapshots <= 0) return 0;
+            _batchRequests++;
+            _lastFrame = frame.Value;
+            _diagnostics?.Counter(MetricBatchRequest);
 
+            if (snapshots == null)
+            {
+                throw new ArgumentNullException(nameof(snapshots));
+            }
+
+            if (maxSnapshots <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxSnapshots), maxSnapshots, "maxSnapshots must be positive.");
+            }
+ 
             int count = 0;
+            int lastOpCode = 0;
             for (int i = 0; i < _emitters.Count && count < maxSnapshots; i++)
             {
                 if (!_emitters[i].TryGetSnapshot(frame, out WorldStateSnapshot snapshot)) continue;
-
+ 
                 snapshots.Add(snapshot);
                 count++;
+                lastOpCode = snapshot.OpCode;
             }
 
+            if (count > 0) RecordHit(lastOpCode, count);
+            else RecordEmpty();
+ 
             return count;
         }
 
-        private void AddFallbackEmitters()
+        public MobaSnapshotRouterHealth GetHealth()
         {
-            _emitters.Add(_enter);
-            _emitters.Add(_spawn);
-            _emitters.Add(_despawn);
-            _emitters.Add(_projectileEvents);
-            _emitters.Add(_areaEvents);
-            _emitters.Add(_damageEvents);
-            _emitters.Add(_hash);
-            _emitters.Add(_transform);
+            return new MobaSnapshotRouterHealth(_emitters.Count, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries);
         }
 
+        private void RecordHit(int opCode, int batchCount)
+        {
+            _hitCount++;
+            _lastSnapshotOpCode = opCode;
+            _lastBatchSnapshotCount = batchCount;
+            _diagnostics?.Counter(MetricHit);
+            _diagnostics?.Gauge(MetricBatchSize, batchCount);
+        }
+
+        private void RecordEmpty()
+        {
+            _emptyCount++;
+            _lastBatchSnapshotCount = 0;
+            _diagnostics?.Counter(MetricEmpty);
+        }
+
+        private void RebuildEmitterHealthEntries()
+        {
+            _emitterHealthEntries.Clear();
+            if (_emitters == null) return;
+
+            for (int i = 0; i < _emitters.Count; i++)
+            {
+                var emitter = _emitters[i];
+                if (emitter == null) continue;
+
+                _emitterHealthEntries.Add(new MobaSnapshotEmitterHealthEntry(emitter.GetType()));
+            }
+        }
+
+        private void RecordEmitterCount()
+        {
+            var count = _emitters != null ? _emitters.Count : 0;
+            _diagnostics?.Gauge(MetricEmitterCount, count);
+            if (count == 0)
+            {
+                _diagnostics?.Warning(WarningNoEmitters, "[MobaSnapshotRouter] No snapshot emitters resolved; battle state output will be empty.");
+            }
+        }
+ 
         public void Dispose()
         {
+            _diagnostics = null;
+            _emitters?.Clear();
+            _emitterHealthEntries?.Clear();
         }
     }
 }

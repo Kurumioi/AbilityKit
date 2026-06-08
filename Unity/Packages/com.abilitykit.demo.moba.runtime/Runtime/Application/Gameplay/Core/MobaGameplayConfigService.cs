@@ -10,13 +10,17 @@ namespace AbilityKit.Demo.Moba.Gameplay
     [WorldService(typeof(MobaGameplayConfigService), WorldLifetime.Scoped)]
     public sealed class MobaGameplayConfigService : IService
     {
-        private const int BuiltInDefaultGameplayId = 1;
-
         [WorldInject(required: false)] private MobaConfigDatabase _configs;
+        [WorldInject(required: false)] private MobaGameplayConfigSettings _settings;
 
         public int ResolveDefaultGameplayId()
         {
-            return BuiltInDefaultGameplayId;
+            if (_settings == null)
+            {
+                throw new System.InvalidOperationException("MobaGameplayConfigSettings is required to resolve default gameplay id.");
+            }
+
+            return _settings.ResolveDefaultGameplayId();
         }
 
         public GameplayMO GetDefaultGameplay()
@@ -44,6 +48,26 @@ namespace AbilityKit.Demo.Moba.Gameplay
             }
 
             return _configs.TryGetGameplay(gameplayId, out gameplay);
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
+    [WorldService(typeof(MobaGameplayConfigSettings), WorldLifetime.Scoped)]
+    public sealed class MobaGameplayConfigSettings : IService
+    {
+        public int DefaultGameplayId { get; set; }
+
+        public int ResolveDefaultGameplayId()
+        {
+            if (DefaultGameplayId <= 0)
+            {
+                throw new System.InvalidOperationException($"DefaultGameplayId must be configured with a positive value. DefaultGameplayId={DefaultGameplayId}");
+            }
+
+            return DefaultGameplayId;
         }
 
         public void Dispose()

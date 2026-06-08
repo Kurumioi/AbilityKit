@@ -4,6 +4,7 @@ using System.Text;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -152,15 +153,139 @@ namespace AbilityKit.Demo.Moba.Services
         MobaRuntimeValidationReport ValidateAll(in MobaRuntimeValidationContext context);
     }
 
+    public readonly struct MobaRequiredRuntimeValidatorContract
+    {
+        public readonly string Name;
+        public readonly Type ValidatorType;
+
+        public MobaRequiredRuntimeValidatorContract(string name, Type validatorType)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("name is required.", nameof(name));
+            ValidatorType = validatorType ?? throw new ArgumentNullException(nameof(validatorType));
+            Name = name;
+        }
+    }
+
+    public sealed class MobaRuntimeValidatorContractValidationResult
+    {
+        private readonly List<string> _errors = new List<string>(8);
+
+        public IReadOnlyList<string> Errors => _errors;
+        public bool Succeeded => _errors.Count == 0;
+
+        public void AddError(string error)
+        {
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                _errors.Add(error);
+            }
+        }
+    }
+
+    public sealed class MobaRuntimeValidatorContract
+    {
+        private readonly List<MobaRequiredRuntimeValidatorContract> _requiredValidators = new List<MobaRequiredRuntimeValidatorContract>(8);
+
+        public IReadOnlyList<MobaRequiredRuntimeValidatorContract> RequiredValidators => _requiredValidators;
+
+        public static MobaRuntimeValidatorContract CreateDefault()
+        {
+            var contract = new MobaRuntimeValidatorContract();
+            contract.Require<MobaRuntimeDependencyHealthValidator>("runtime.dependencies");
+            contract.Require<MobaBattleMainFlowHealthValidator>("battle.main_flow");
+            contract.Require<MobaBattleRuntimeReadinessValidator>("runtime.readiness");
+            contract.Require<MobaTemporaryEntityLifecycleReadinessValidator>("temp_entity.lifecycle.readiness");
+            contract.Require<MobaBattleConfigReferenceValidator>("battle.config.references");
+            contract.Require<MobaGameplayTriggerRuntimeValidator>("gameplay.trigger.runtime");
+            return contract;
+        }
+
+        public void Require<TValidator>(string name)
+            where TValidator : IMobaRuntimeValidator, new()
+        {
+            _requiredValidators.Add(new MobaRequiredRuntimeValidatorContract(name, typeof(TValidator)));
+        }
+
+        public void RegisterInto(IMobaRuntimeValidationRegistry registry)
+        {
+            if (registry == null) throw new ArgumentNullException(nameof(registry));
+
+            for (int i = 0; i < _requiredValidators.Count; i++)
+            {
+                var validator = (IMobaRuntimeValidator)Activator.CreateInstance(_requiredValidators[i].ValidatorType);
+                registry.Register(validator);
+            }
+        }
+
+        public MobaRuntimeValidatorContractValidationResult Validate(IMobaRuntimeValidationRegistry registry)
+        {
+            var result = new MobaRuntimeValidatorContractValidationResult();
+            if (registry == null)
+            {
+                result.AddError("runtime validator registry is missing.");
+                return result;
+            }
+
+            for (int i = 0; i < _requiredValidators.Count; i++)
+            {
+                var required = _requiredValidators[i];
+                if (HasValidator(registry.Validators, required)) continue;
+
+                result.AddError($"missing required runtime validator. name={required.Name}, expected={required.ValidatorType.Name}.");
+            }
+
+            return result;
+        }
+
+        private static bool HasValidator(IReadOnlyList<IMobaRuntimeValidator> validators, in MobaRequiredRuntimeValidatorContract required)
+        {
+            if (validators == null) return false;
+
+            for (int i = 0; i < validators.Count; i++)
+            {
+                var validator = validators[i];
+                if (validator == null) continue;
+                if (validator.GetType() == required.ValidatorType) return true;
+                if (string.Equals(validator.Name, required.Name, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
+        }
+    }
+
+    public interface IMobaRuntimeValidationHistory
+    {
+        long RunCount { get; }
+        string LastStageName { get; }
+        MobaRuntimeValidationReport LastReport { get; }
+        bool HasLastReport { get; }
+        bool TryGetLastReport(out MobaRuntimeValidationReport report);
+    }
+
     [WorldService(typeof(IMobaRuntimeValidationRegistry), WorldLifetime.Scoped)]
     [WorldService(typeof(IMobaRuntimeValidationRunner), WorldLifetime.Scoped)]
+    [WorldService(typeof(IMobaRuntimeValidationHistory), WorldLifetime.Scoped)]
     [WorldService(typeof(MobaRuntimeValidationService), WorldLifetime.Scoped)]
-    public sealed class MobaRuntimeValidationService : IMobaRuntimeValidationRegistry, IMobaRuntimeValidationRunner, IService
+    public sealed class MobaRuntimeValidationService : IMobaRuntimeValidationRegistry, IMobaRuntimeValidationRunner, IMobaRuntimeValidationHistory, IService
     {
+        private const string MetricRun = "moba.validation.run";
+        private const string MetricBlocked = "moba.validation.blocked";
+        private const string MetricErrors = "moba.validation.errors";
+        private const string MetricWarnings = "moba.validation.warnings";
+        private const string MetricInfos = "moba.validation.infos";
+
         private readonly List<IMobaRuntimeValidator> _validators = new List<IMobaRuntimeValidator>(16);
         private readonly HashSet<string> _validatorNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        private long _runCount;
+        private string _lastStageName;
+        private MobaRuntimeValidationReport _lastReport;
+
         public IReadOnlyList<IMobaRuntimeValidator> Validators => _validators;
+        public long RunCount => _runCount;
+        public string LastStageName => _lastStageName;
+        public MobaRuntimeValidationReport LastReport => _lastReport;
+        public bool HasLastReport => _lastReport != null;
 
         public void Register(IMobaRuntimeValidator validator)
         {
@@ -169,6 +294,12 @@ namespace AbilityKit.Demo.Moba.Services
             var name = string.IsNullOrEmpty(validator.Name) ? validator.GetType().Name : validator.Name;
             if (!_validatorNames.Add(name)) return;
             _validators.Add(validator);
+        }
+
+        public bool TryGetLastReport(out MobaRuntimeValidationReport report)
+        {
+            report = _lastReport;
+            return report != null;
         }
 
         public MobaRuntimeValidationReport ValidateAll(in MobaRuntimeValidationContext context)
@@ -188,6 +319,11 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
+            _runCount++;
+            _lastStageName = context.StageName;
+            _lastReport = report;
+
+            RecordDiagnostics(in context, report);
             WriteReport(report);
             return report;
         }
@@ -196,6 +332,25 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _validators.Clear();
             _validatorNames.Clear();
+            _lastStageName = null;
+            _lastReport = null;
+            _runCount = 0L;
+        }
+
+        private static void RecordDiagnostics(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report)
+        {
+            if (report == null) return;
+            if (!context.TryResolve<IMobaBattleDiagnosticsService>(out var diagnostics) || diagnostics == null) return;
+
+            diagnostics.Counter(MetricRun);
+            diagnostics.Gauge(MetricErrors, report.ErrorCount);
+            diagnostics.Gauge(MetricWarnings, report.WarningCount);
+            diagnostics.Gauge(MetricInfos, report.InfoCount);
+
+            if (report.ShouldBlockStartup)
+            {
+                diagnostics.Counter(MetricBlocked);
+            }
         }
 
         private static void WriteReport(MobaRuntimeValidationReport report)

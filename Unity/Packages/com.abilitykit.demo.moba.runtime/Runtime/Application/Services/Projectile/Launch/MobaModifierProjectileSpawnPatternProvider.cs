@@ -7,26 +7,34 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
         private readonly MobaSkillParamModifierService _paramModifiers;
         private readonly int _baseCountPerShot;
         private readonly float _baseFanAngleDeg;
-        private readonly IProjectileSpawnPattern _fallbackPattern;
+        private readonly IProjectileSpawnPattern _basePattern;
 
         public MobaModifierProjectileSpawnPatternProvider(
             MobaSkillParamModifierService paramModifiers,
             int baseCountPerShot,
             float baseFanAngleDeg,
-            int fallbackCountPerShot,
-            float fallbackFanAngleDeg)
+            int requestCountPerShot,
+            float requestFanAngleDeg)
         {
+            if (baseCountPerShot <= 0) throw new System.ArgumentOutOfRangeException(nameof(baseCountPerShot), baseCountPerShot, "Base projectile count per shot must be positive.");
+            if (baseFanAngleDeg < 0f) throw new System.ArgumentOutOfRangeException(nameof(baseFanAngleDeg), baseFanAngleDeg, "Base projectile fan angle cannot be negative.");
+
             _paramModifiers = paramModifiers;
-            _baseCountPerShot = baseCountPerShot < 1 ? 1 : baseCountPerShot;
-            _baseFanAngleDeg = baseFanAngleDeg < 0f ? 0f : baseFanAngleDeg;
-            _fallbackPattern = CreatePattern(fallbackCountPerShot, fallbackFanAngleDeg);
+            _baseCountPerShot = baseCountPerShot;
+            _baseFanAngleDeg = baseFanAngleDeg;
+            _basePattern = CreatePattern(requestCountPerShot, requestFanAngleDeg);
         }
 
         public IProjectileSpawnPattern GetPattern(in ProjectileSpawnParams baseSpawn, int frame)
         {
-            if (_paramModifiers == null || baseSpawn.RootActorId <= 0)
+            if (_paramModifiers == null)
             {
-                return _fallbackPattern;
+                return _basePattern;
+            }
+
+            if (baseSpawn.RootActorId <= 0)
+            {
+                throw new System.InvalidOperationException($"Projectile modifier resolution requires a valid root actor id. rootActorId={baseSpawn.RootActorId}");
             }
 
             var resolveContext = new MobaModifierResolveContext(
@@ -44,8 +52,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
         private static IProjectileSpawnPattern CreatePattern(int countPerShot, float fanAngleDeg)
         {
-            var bulletsPerShot = System.Math.Max(1, countPerShot);
-            var resolvedFanAngleDeg = fanAngleDeg < 0f ? 0f : fanAngleDeg;
+            if (countPerShot <= 0) throw new System.ArgumentOutOfRangeException(nameof(countPerShot), countPerShot, "Projectile count per shot must be positive.");
+            if (fanAngleDeg < 0f) throw new System.ArgumentOutOfRangeException(nameof(fanAngleDeg), fanAngleDeg, "Projectile fan angle cannot be negative.");
+
+            var bulletsPerShot = countPerShot;
+            var resolvedFanAngleDeg = fanAngleDeg;
 
             if (bulletsPerShot <= 1)
             {

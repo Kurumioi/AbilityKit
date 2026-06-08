@@ -38,8 +38,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (IsComplete) return;
 
-            try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
-            catch { }
+            context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
 
             var elapsedMs = (int)(context.ElapsedTime * 1000f);
 
@@ -51,40 +50,34 @@ namespace AbilityKit.Demo.Moba.Services
                     if (e == null)
                     {
                         _nextIndex++;
-                        try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
-                        catch { }
+                        context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
                         continue;
                     }
 
                     if (elapsedMs < e.AtMs) break;
 
                     var raw = e.ExecuteMode;
-                    if (raw == (int)EffectExecuteMode.PublishEventOnly || raw == (int)EffectExecuteMode.InternalThenPublishEvent)
+                    if (raw != (int)EffectExecuteMode.InternalOnly)
                     {
-                        Log.Warning($"[SkillTimelinePhase] ExecuteMode={raw} is not supported (legacy publish removed). effectId={e.EffectId}");
+                        throw new InvalidOperationException($"Unsupported timeline effect execute mode. phase={PhaseId.Value}, eventIndex={_nextIndex}, effectId={e.EffectId}, executeMode={raw}, skillId={context?.SkillId ?? 0}");
                     }
 
                     if (e.EffectId <= 0)
                     {
-                        Log.Warning($"[SkillTimelinePhase] Skip invalid timeline effect. phase={PhaseId.Value}, eventIndex={_nextIndex}, effectId={e.EffectId}, skillId={context?.SkillId ?? 0}");
+                        throw new InvalidOperationException($"Invalid timeline effect id. phase={PhaseId.Value}, eventIndex={_nextIndex}, effectId={e.EffectId}, skillId={context?.SkillId ?? 0}");
                     }
-                    else
+
+                    var effects = ResolveEffects(context);
+                    if (effects == null)
                     {
-                        var effects = ResolveEffects(context);
-                        if (effects == null)
-                        {
-                            Log.Warning($"[SkillTimelinePhase] Skip timeline effect: MobaEffectInvokerService missing. phase={PhaseId.Value}, eventIndex={_nextIndex}, effectId={e.EffectId}, skillId={context?.SkillId ?? 0}");
-                        }
-                        else
-                        {
-                            effects.Execute(e.EffectId, context);
-                        }
+                        throw new InvalidOperationException($"Skill timeline requires MobaEffectInvokerService. phase={PhaseId.Value}, eventIndex={_nextIndex}, effectId={e.EffectId}, skillId={context?.SkillId ?? 0}");
                     }
+
+                    effects.Execute(e.EffectId, context);
 
                     _nextIndex++;
 
-                    try { context?.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex); }
-                    catch { }
+                    context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
                 }
             }
 

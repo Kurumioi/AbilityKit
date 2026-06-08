@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
                 if (actorId <= 0) continue;
 
                 // timeout
-                if (e.hasLifetime && e.lifetime != null && e.lifetime.EndTimeMs > 0 && nowMs > 0 && nowMs >= e.lifetime.EndTimeMs)
+                if (e.hasLifetime && e.lifetime != null && e.lifetime.EndTimeMs > 0 && nowMs >= e.lifetime.EndTimeMs)
                 {
                     _summons.TryDespawn(actorId, SummonDespawnReason.Timeout);
                     continue;
@@ -87,7 +87,7 @@ namespace AbilityKit.Demo.Moba.Systems.Summon
             {
                 return (long)System.MathF.Round(_clock.Time * 1000f);
             }
-            return 0L;
+            throw new System.InvalidOperationException("MobaSummonLifecycleSystem requires IFrameTime or IWorldClock for current time.");
         }
     }
 }

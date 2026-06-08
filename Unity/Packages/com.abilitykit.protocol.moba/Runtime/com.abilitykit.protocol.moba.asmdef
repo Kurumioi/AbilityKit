@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Protocol",
+    "AbilityKit.Protocol.Room",
     "AbilityKit.Host",
     "AbilityKit.Ability",
     "AbilityKit.World.FrameSync",

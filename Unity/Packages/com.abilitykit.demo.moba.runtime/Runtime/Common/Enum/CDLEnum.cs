@@ -37,8 +37,6 @@ namespace AbilityKit.Demo.Moba
     public enum EffectExecuteMode
     {
         InternalOnly = 0,
-        PublishEventOnly = 1,
-        InternalThenPublishEvent = 2,
     }
 
     public enum HealFormulaKind

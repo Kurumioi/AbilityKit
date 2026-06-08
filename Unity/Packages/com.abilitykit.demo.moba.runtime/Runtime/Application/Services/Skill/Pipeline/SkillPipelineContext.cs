@@ -43,11 +43,6 @@ namespace AbilityKit.Demo.Moba.Services
         public Dictionary<string, object> SharedData { get; } = new();
 
         /// <summary>
-        /// 当前正在执行的处理项 DTO（用于 Handler 内部访问配置）
-        /// </summary>
-        internal SkillHandlerDTO CurrentHandlerDto { get; set; }
-
-        /// <summary>
         /// 技能冷却时间（毫秒）
         /// </summary>
         public int SkillCooldownMs { get; set; }
@@ -137,8 +132,11 @@ namespace AbilityKit.Demo.Moba.Services
                     return;
                 }
             }
-            catch
+            catch (Exception policyEx)
             {
+                AbilityKit.Core.Common.Log.Log.Exception(
+                    policyEx,
+                    $"[SkillPipelineContext] Cleanup exception policy failed. kind={kind} actor={CasterActorId} skill={SkillId} runtime={RuntimeId}");
             }
 
             AbilityKit.Core.Common.Log.Log.Exception(

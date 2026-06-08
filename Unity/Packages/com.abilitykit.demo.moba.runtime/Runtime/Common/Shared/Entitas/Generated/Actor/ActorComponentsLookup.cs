@@ -9,6 +9,7 @@
 public static class ActorComponentsLookup {
 
     public const int ActorId = 0;
+    public const int ActorDespawnRequest = 41;
     public const int ApplyBuffRequest = 1;
     public const int AttributeGroup = 2;
     public const int Buffs = 3;
@@ -50,7 +51,7 @@ public static class ActorComponentsLookup {
     public const int Transform = 39;
     public const int UnitSubType = 40;
 
-    public const int TotalComponents = 41;
+    public const int TotalComponents = 42;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -93,7 +94,8 @@ public static class ActorComponentsLookup {
         "SummonMeta",
         "Team",
         "Transform",
-        "UnitSubType"
+        "UnitSubType",
+        "ActorDespawnRequest"
     };
 
     public static readonly System.Type[] componentTypes = {
@@ -137,6 +139,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Demo.Moba.Components.SummonMetaComponent),
         typeof(AbilityKit.Demo.Moba.Components.TeamComponent),
         typeof(AbilityKit.Demo.Moba.Components.TransformComponent),
-        typeof(AbilityKit.Demo.Moba.Components.UnitSubTypeComponent)
+        typeof(AbilityKit.Demo.Moba.Components.UnitSubTypeComponent),
+        typeof(AbilityKit.Demo.Moba.Components.ActorDespawnRequestComponent)
     };
 }

@@ -32,15 +32,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var skillId = args.SkillId;
             var skillSlot = args.SkillSlot;
-            if (skillId <= 0 && triggerArgs is SkillPipelineContext skillContext)
-            {
-                skillId = skillContext.SkillId;
-            }
-
-            if (skillSlot <= 0 && triggerArgs is SkillPipelineContext skillPipelineContext)
-            {
-                skillSlot = skillPipelineContext.SkillSlot;
-            }
 
             if (skillId <= 0 || skillSlot <= 0)
             {
@@ -48,9 +39,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             ctx.Context.TryResolve<IFrameTime>(out var frameTime);
-            var now = SkillHandlerRuntimeAccess.GetCurrentTimeMs(frameTime);
+            var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(frameTime);
             var cooldownEndTimeMs = now + args.CooldownMs;
-            if (!SkillHandlerRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs))
+            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs))
             {
                 throw new InvalidOperationException($"[Plan] start_cooldown failed: active skill not found. actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}");
             }

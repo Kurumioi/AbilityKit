@@ -31,10 +31,6 @@ namespace AbilityKit.Demo.Moba.Services
             Name = name;
         }
 
-        public static LogicWorldSpawnData CreateLocalPlayer(int playerId, int characterId, float x, float z)
-        {
-            return new LogicWorldSpawnData(playerId, characterId, 1, x, 0f, z, "LocalPlayer");
-        }
     }
 
     /// <summary>

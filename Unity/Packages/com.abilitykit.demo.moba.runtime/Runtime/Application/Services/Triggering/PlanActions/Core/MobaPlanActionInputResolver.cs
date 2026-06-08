@@ -29,8 +29,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return input;
             }
 
-            var fallbackContext = MobaPlanActionExecutionContextResolver.Resolve(triggerArgs, ctx);
-            return Create(triggerArgs, ctx, in fallbackContext);
+            var executionContext = MobaPlanActionExecutionContextResolver.Resolve(triggerArgs, ctx);
+            return Create(triggerArgs, ctx, in executionContext);
         }
 
         public static MobaEffectActionInput ResolveEffect(object triggerArgs, ExecCtx<IWorldResolver> ctx)
@@ -59,33 +59,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaPlanActionExecutionContextResolver.TryResolveTraceScope(ctx, out var traceScope);
 
             var casterActorId = executionContext.SourceActorId;
-            if (casterActorId <= 0)
-            {
-                PlanContextValueResolver.TryGetCasterActorId(triggerArgs, out casterActorId);
-            }
-
             var targetActorId = executionContext.TargetActorId;
-            if (targetActorId <= 0)
-            {
-                PlanContextValueResolver.TryGetTargetActorId(triggerArgs, out targetActorId);
-            }
-
-            var hasAimPosition = PlanContextValueResolver.TryGetAimPos(triggerArgs, out var aimPosition);
-            var hasAimDirection = PlanContextValueResolver.TryGetAimDir(triggerArgs, out var aimDirection);
-            if ((!hasAimPosition || !hasAimDirection) && PlanContextValueResolver.TryGetAim(triggerArgs, out var aimPos, out var aimDir))
-            {
-                if (!hasAimPosition)
-                {
-                    aimPosition = aimPos;
-                    hasAimPosition = true;
-                }
-
-                if (!hasAimDirection)
-                {
-                    aimDirection = aimDir;
-                    hasAimDirection = true;
-                }
-            }
+            var aimPosition = Vec3.Zero;
+            var aimDirection = Vec3.Zero;
+            var hasAimPosition = false;
+            var hasAimDirection = false;
 
             return new MobaPlanActionInput(
                 executionContext,

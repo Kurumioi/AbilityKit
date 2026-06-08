@@ -47,8 +47,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 return true;
             }
 
-            lineageContext = new MobaTriggerLineageContext(Kind, MobaTraceKind.ProjectileHit, SourceActorId, TargetActorId, SourceContextId, SourceContextId, ProjectileId.Value, SourceConfigId);
-            return true;
+            lineageContext = default;
+            return false;
         }
 
         public bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
@@ -98,7 +98,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     SourceContext.SkillRuntimeHandle,
                     false,
                     "ProjectileHit",
-                    ProjectileTemplateId != 0 ? ProjectileTemplateId : SourceConfigId);
+                    ProjectileTemplateId);
                 return source.IsValid;
             }
 

@@ -32,79 +32,77 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return new PlanTextLoaderAdapter(jsonLoader);
             });
 
+            builder.TryRegister<MobaTriggerPlanLoadProfile>(WorldLifetime.Singleton, _ => MobaTriggerPlanLoadProfile.Default);
+
             builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, r =>
             {
                 var db = new TriggerPlanJsonDatabase();
                 var textAssetLoader = r.Resolve<ITextAssetLoader>();
+                var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
+                var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
+                var profile = r.Resolve<MobaTriggerPlanLoadProfile>() ?? MobaTriggerPlanLoadProfile.Default;
 
-                // 1. 加载主配置文件 ability_trigger_plans.json（保证向后兼容）
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), "Loading main trigger plans from ability/ability_trigger_plans.json");
-                try
-                {
-                    var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-                    db.Load(fsAdapter, "ability/ability_trigger_plans.json");
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Main trigger plans loaded. records={db.Records?.Count ?? 0}");
-                }
-                catch (Exception ex)
-                {
-                    MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Failed to load main trigger plans: {ex.Message}");
-                }
-
-                // 2. 从 triggers 目录加载细粒度配置
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), "Loading trigger plans from ability/triggers directory");
-                try
-                {
-                    var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-                    var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
-                    var loadedDb = directoryLoader.LoadDirectory("ability/triggers", "**/*.json");
-
-                    if (loadedDb != null && loadedDb.Records != null)
-                    {
-                        db.MergeFrom(loadedDb, replaceExisting: true);
-                        MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Directory trigger plans merged. total records={db.Records?.Count ?? 0}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Failed to load directory trigger plans: {ex.Message}");
-                }
-
-                // 3. 从 ability/rules 目录加载释放条件、提交消耗等通用技能规则。
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), "Loading ability rules from ability/rules directory");
-                try
-                {
-                    var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-                    var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
-                    var loadedDb = directoryLoader.LoadDirectory("ability/rules", "**/*.json");
-
-                    if (loadedDb != null && loadedDb.Records != null)
-                    {
-                        db.MergeFrom(loadedDb, replaceExisting: true);
-                        MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Ability rules merged. total records={db.Records?.Count ?? 0}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Failed to load ability rules: {ex.Message}");
-                }
-
-                // 4. 加载 MOBA 效果计划，让技能流程事件可以复用触发器计划系统。
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), "Loading moba effect plans from moba/effect_plans.json");
-                try
-                {
-                    var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-                    var effectPlanDb = new TriggerPlanJsonDatabase();
-                    effectPlanDb.Load(fsAdapter, "moba/effect_plans.json");
-                    db.MergeFrom(effectPlanDb, replaceExisting: true);
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Moba effect plans merged. total records={db.Records?.Count ?? 0}");
-                }
-                catch (Exception ex)
-                {
-                    MobaRuntimeLog.Warning(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Failed to load moba effect plans: {ex.Message}");
-                }
+                LoadEntries(db, fsAdapter, directoryLoader, profile.Entries);
 
                 return db;
             });
+        }
+
+        private static void LoadEntries(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry[] entries)
+        {
+            if (entries == null) return;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (string.IsNullOrEmpty(entry.Path)) continue;
+
+                if (entry.IsDirectory)
+                {
+                    LoadDirectory(db, directoryLoader, entry);
+                }
+                else
+                {
+                    LoadFile(db, fsAdapter, entry);
+                }
+            }
+        }
+
+        private static void LoadFile(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanLoadEntry entry)
+        {
+            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Loading {entry.Name} from {entry.Path}");
+            try
+            {
+                var loadedDb = new TriggerPlanJsonDatabase();
+                loadedDb.Load(fsAdapter, entry.Path);
+                db.MergeFrom(loadedDb, replaceExisting: true);
+                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(TriggerPlansStage), $"Failed to load required trigger plan file. name={entry.Name}, path={entry.Path}");
+                throw;
+            }
+        }
+
+        private static void LoadDirectory(TriggerPlanJsonDatabase db, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry entry)
+        {
+            var pattern = string.IsNullOrEmpty(entry.Pattern) ? "**/*.json" : entry.Pattern;
+            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Loading {entry.Name} from {entry.Path} directory");
+            try
+            {
+                var loadedDb = directoryLoader.LoadDirectory(entry.Path, pattern);
+                if (loadedDb != null && loadedDb.Records != null)
+                {
+                    db.MergeFrom(loadedDb, replaceExisting: true);
+                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(TriggerPlansStage), $"Failed to load required trigger plan directory. name={entry.Name}, path={entry.Path}, pattern={pattern}");
+                throw;
+            }
         }
 
         /// <summary>

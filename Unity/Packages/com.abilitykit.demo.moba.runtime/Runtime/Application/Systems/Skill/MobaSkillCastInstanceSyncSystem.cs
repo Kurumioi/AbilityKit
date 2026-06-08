@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private SkillExecutor _skills;
         private IFrameTime _time;
         private MobaAuthorityFrameService _authority;
+        private MobaWorldSystemServices _systemServices;
 
         private global::Entitas.IGroup<global::ActorEntity> _actors;
         private global::ActorContext _actorContext;
@@ -38,6 +39,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _skills);
             Services.TryResolve(out _time);
             Services.TryResolve(out _authority);
+            _systemServices = MobaWorldSystemExecution.Resolve(Services);
 
             if (Services.TryResolve<MobaSkillCastInstanceSyncSettings>(out var settings) && settings != null)
             {
@@ -51,12 +53,15 @@ namespace AbilityKit.Demo.Moba.Systems
 
         protected override void OnExecute()
         {
-            if (_skills == null) return;
-            if (_actors == null) return;
+            MobaWorldSystemExecution.Require(
+                _skills != null && _actors != null && _actorContext != null,
+                Services,
+                nameof(MobaSkillCastInstanceSyncSystem),
+                "skill.cast.instance.sync",
+                "SkillExecutor, actor group and actor context",
+                $"hasSkills={_skills != null}, hasActors={_actors != null}, hasActorContext={_actorContext != null}");
 
-            var frame = 0;
-            try { frame = _authority != null ? _authority.PredictedFrame.Value : (_time != null ? _time.Frame.Value : 0); }
-            catch { frame = 0; }
+            var frame = ResolveFrame("skill.cast.instance.resolveFrame");
 
             var entities = _actors.GetEntities();
             if (entities == null || entities.Length == 0) return;
@@ -198,9 +203,7 @@ namespace AbilityKit.Demo.Moba.Systems
         {
             if (_byInstanceId.Count == 0) return;
 
-            var frame = 0;
-            try { frame = _authority != null ? _authority.PredictedFrame.Value : (_time != null ? _time.Frame.Value : 0); }
-            catch { frame = 0; }
+            var frame = ResolveFrame("skill.cast.instance.cleanup.resolveFrame");
 
             List<long> stale = null;
 
@@ -289,6 +292,32 @@ namespace AbilityKit.Demo.Moba.Systems
 
             // Note: actual entity destruction is handled by MobaSkillCastDestroyCleanupSystem,
             // gated by authoritative confirmed frames.
+        }
+
+        private int ResolveFrame(string operation)
+        {
+            MobaWorldSystemExecution.Require(
+                _authority != null || _time != null,
+                Services,
+                nameof(MobaSkillCastInstanceSyncSystem),
+                operation,
+                "MobaAuthorityFrameService or IFrameTime",
+                $"hasAuthority={_authority != null}, hasFrameTime={_time != null}");
+
+            if (_authority != null) return _authority.PredictedFrame.Value;
+            return _time.Frame.Value;
+        }
+
+        private void ReportException(Exception ex, string operation, int actorId = 0, int skillId = 0, long runtimeId = 0L)
+        {
+            MobaWorldSystemExecution.HandleException(
+                in _systemServices,
+                ex,
+                nameof(MobaSkillCastInstanceSyncSystem),
+                operation,
+                actorId: actorId,
+                skillId: skillId,
+                runtimeId: runtimeId);
         }
     }
 }

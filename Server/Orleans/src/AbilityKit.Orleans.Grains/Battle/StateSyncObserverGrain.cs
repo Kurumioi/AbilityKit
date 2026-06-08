@@ -1,8 +1,7 @@
 using AbilityKit.Orleans.Contracts.Battle;
-using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
 using Orleans;
-using Orleans.Serialization;
 
 namespace AbilityKit.Orleans.Grains.Battle;
 
@@ -13,19 +12,15 @@ namespace AbilityKit.Orleans.Grains.Battle;
 public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, IStateSyncObserver
 {
     private readonly ILogger<StateSyncObserverGrain> _logger;
-    private readonly Serializer _serializer;
 
     private string _accountId = string.Empty;
     private string _roomId = string.Empty;
     private bool _subscribed;
     private string _currentBattleKey = string.Empty;
 
-    public StateSyncObserverGrain(
-        ILogger<StateSyncObserverGrain> logger,
-        Serializer serializer)
+    public StateSyncObserverGrain(ILogger<StateSyncObserverGrain> logger)
     {
         _logger = logger;
-        _serializer = serializer;
     }
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
@@ -94,12 +89,12 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     {
         try
         {
-            // 使用 Orleans 序列化器
-            var payload = _serializer.SerializeToArray(push);
+            var wire = ToWireSnapshotPush(push);
+            var payload = WireRoomGatewayBinary.Serialize(in wire);
 
-            // 通过 Gateway Push Target Grain 向客户端发送快照
             var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
-            var success = await gatewayPush.PushToAccountAsync(_accountId, OpCodes.SnapshotPushed, payload);
+            var opCode = push.IsFullSnapshot ? RoomGatewayOpCodes.SnapshotPushed : RoomGatewayOpCodes.DeltaSnapshotPushed;
+            var success = await gatewayPush.PushToAccountAsync(_accountId, opCode, payload.ToArray());
 
             if (!success)
             {
@@ -112,6 +107,43 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         {
             _logger.LogError(ex, "[StateSyncObserver] Error pushing snapshot to account: {AccountId}", _accountId);
         }
+    }
+
+    private static WireStateSyncSnapshotPush ToWireSnapshotPush(StateSyncPush push)
+    {
+        var source = push.Actors;
+        var actors = source == null || source.Count == 0
+            ? null
+            : new List<WireStateSyncActorSnapshot>(source.Count);
+
+        if (actors != null && source != null)
+        {
+            foreach (var actor in source)
+            {
+                actors.Add(new WireStateSyncActorSnapshot
+                {
+                    ActorId = actor.ActorId,
+                    X = actor.X,
+                    Y = actor.Y,
+                    Z = actor.Z,
+                    Rotation = actor.Rotation,
+                    VelocityX = actor.VelocityX,
+                    VelocityZ = actor.VelocityZ,
+                    Hp = actor.Hp,
+                    HpMax = actor.HpMax,
+                    TeamId = actor.TeamId
+                });
+            }
+        }
+
+        return new WireStateSyncSnapshotPush
+        {
+            WorldId = push.WorldId,
+            Frame = push.Frame,
+            Timestamp = push.Timestamp,
+            IsFullSnapshot = push.IsFullSnapshot,
+            Actors = actors
+        };
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)

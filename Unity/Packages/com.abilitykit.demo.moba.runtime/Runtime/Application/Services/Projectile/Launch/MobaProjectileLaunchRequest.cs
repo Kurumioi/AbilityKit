@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
             Projectile = projectile;
             CountPerShot = countPerShot;
             FanAngleDeg = fanAngleDeg;
-            DurationMs = durationMs < 0 ? 0 : durationMs;
+            DurationMs = durationMs;
             SpawnPosition = spawnPosition;
             Direction = direction;
             SourceContext = sourceContext;

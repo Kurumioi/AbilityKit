@@ -29,9 +29,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
                 context.Launcher.CountPerShot,
                 context.Launcher.FanAngleDeg,
                 context.BulletsPerShot,
-                context.FallbackFanAngleDeg);
+                context.RequestFanAngleDeg);
 
-            var schedule = ProjectileScheduleParams.Repeat(context.StartFrame, context.IntervalFrames, context.RepeatCount);
+            var schedule = context.RepeatCount == 1
+                ? ProjectileScheduleParams.Once(context.StartFrame)
+                : ProjectileScheduleParams.Repeat(context.StartFrame, context.IntervalFrames, context.RepeatCount);
             var launcherSource = context.LauncherSource;
             if (context.Links != null && launcherSource.IsValid)
             {

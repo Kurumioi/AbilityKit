@@ -236,8 +236,8 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim, int targetActorId = 0)
         {
             string failReason = null;
-            if (actorId <= 0) return MobaSkillCastResult.Failed(null);
-            if (skillId <= 0) return MobaSkillCastResult.Failed(null);
+            if (actorId <= 0) return MobaSkillCastResult.Failed($"Invalid caster actor id: {actorId}.");
+            if (skillId <= 0) return MobaSkillCastResult.Failed($"Invalid skill id: {skillId}.");
 
             if (!_units.TryResolve(new EcsEntityId(actorId), out var caster) || caster == null)
             {
@@ -259,11 +259,15 @@ namespace AbilityKit.Demo.Moba.Services
             if (finalAimDir.Equals(Vec3.Zero)) finalAimDir = casterForward;
             if (finalAimPos.Equals(Vec3.Zero)) finalAimPos = casterPos;
 
-            var finalTargetActorId = targetActorId > 0 ? targetActorId : actorId;
-            var targetUnit = caster;
-            if (finalTargetActorId != actorId && _units.TryResolve(new EcsEntityId(finalTargetActorId), out var resolvedTarget) && resolvedTarget != null)
+            var finalTargetActorId = targetActorId > 0 ? targetActorId : 0;
+            IUnitFacade targetUnit = null;
+            if (finalTargetActorId > 0)
             {
-                targetUnit = resolvedTarget;
+                if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
+                {
+                    failReason = $"Target not found. targetActorId={finalTargetActorId}.";
+                    return MobaSkillCastResult.Failed(failReason);
+                }
             }
 
             if (!_library.TryGet(skillId, out var preConfig, out var prePhases, out var castConfig, out var castPhases))
@@ -310,42 +314,39 @@ namespace AbilityKit.Demo.Moba.Services
             _castSequenceByActor[actorId] = seq;
             ctx.Sequence = seq;
 
-            try
+            var trace = _services.Resolve<MobaTraceRegistry>();
+            if (trace == null)
             {
-                var trace = _services != null ? _services.Resolve<MobaTraceRegistry>() : null;
-                if (trace != null)
-                {
-                    ctx.SourceContextId = trace.CreateRootContext(
-                        MobaTraceKind.SkillCast,
-                        skillId,
-                        actorId,
-                        finalTargetActorId,
-                        TraceEndpoint.Actor(actorId),
-                        TraceEndpoint.Actor(finalTargetActorId));
-                }
-            }
-            catch
-            {
-                ctx.SourceContextId = 0;
+                return MobaSkillCastResult.Failed("MobaTraceRegistry is required for formal skill cast tracing.");
             }
 
-            try
+            ctx.SourceContextId = trace.CreateRootContext(
+                MobaTraceKind.SkillCast,
+                skillId,
+                actorId,
+                finalTargetActorId,
+                TraceEndpoint.Actor(actorId),
+                finalTargetActorId > 0 ? TraceEndpoint.Actor(finalTargetActorId) : default);
+            if (ctx.SourceContextId == 0)
             {
-                var runtimes = _services != null ? _services.Resolve<MobaSkillCastRuntimeService>() : null;
-                if (runtimes != null)
-                {
-                    var createRequest = MobaSkillCastRuntimeCreateRequestBuilder.Create()
-                        .FromCastContext(ctx)
-                        .Build();
-                    var runtime = runtimes.Create(in createRequest);
-                    ctx.RuntimeHandle = runtime.Handle;
-                    ctx.RuntimeId = runtime.RuntimeId;
-                }
+                return MobaSkillCastResult.Failed("Skill cast trace root creation failed.");
             }
-            catch
+
+            var runtimes = _services.Resolve<MobaSkillCastRuntimeService>();
+            if (runtimes == null)
             {
-                ctx.RuntimeHandle = default;
-                ctx.RuntimeId = 0;
+                return MobaSkillCastResult.Failed("MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
+            }
+
+            var createRequest = MobaSkillCastRuntimeCreateRequestBuilder.Create()
+                .FromCastContext(ctx)
+                .Build();
+            var runtime = runtimes.Create(in createRequest);
+            ctx.RuntimeHandle = runtime.Handle;
+            ctx.RuntimeId = runtime.RuntimeId;
+            if (!ctx.RuntimeHandle.IsValid)
+            {
+                return MobaSkillCastResult.Failed("Skill cast runtime creation returned an invalid handle.");
             }
 
             var runner = GetOrCreateRunner(actorId);

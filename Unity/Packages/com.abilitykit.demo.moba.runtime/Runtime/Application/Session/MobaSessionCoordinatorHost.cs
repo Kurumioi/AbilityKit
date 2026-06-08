@@ -40,12 +40,19 @@ namespace AbilityKit.Demo.Moba.Session
     public sealed class MobaSessionCoordinatorHost : ILogicWorldSessionHost, ISessionCoordinatorHost, ISessionCoordinatorConfigPolicy
     {
         private readonly ITextAssetLoader _textAssetLoader;
+        private readonly MobaSessionDefaults _defaults;
         private HostRuntime _hostRuntime;
         private LogicWorldSpawnData[] _pendingSpawns;
 
         public MobaSessionCoordinatorHost(ITextAssetLoader textAssetLoader)
+            : this(textAssetLoader, null)
+        {
+        }
+
+        public MobaSessionCoordinatorHost(ITextAssetLoader textAssetLoader, MobaSessionDefaults defaults)
         {
             _textAssetLoader = textAssetLoader;
+            _defaults = MobaSessionDefaults.OrDefault(defaults);
         }
 
         public HostRuntime HostRuntime => _hostRuntime;
@@ -88,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Session
             ConfigureLogicWorldOptions(
                 options,
                 config.WorldType,
-                config.WorldId > 0 ? config.WorldId.ToString() : "1");
+                config.WorldId > 0 ? config.WorldId.ToString() : _defaults.WorldId);
             RegisterCreateWorldInitData(in config, options);
         }
 
@@ -99,10 +106,8 @@ namespace AbilityKit.Demo.Moba.Session
                 throw new ArgumentNullException(nameof(options));
             }
 
-            options.Id = new WorldId(string.IsNullOrEmpty(worldId) ? "1" : worldId);
-            options.WorldType = string.IsNullOrEmpty(worldType)
-                ? MobaBattleWorldBlueprint.Type
-                : worldType;
+            options.Id = new WorldId(_defaults.ResolveWorldId(worldId));
+            options.WorldType = _defaults.ResolveWorldType(worldType);
 
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
 
@@ -183,7 +188,14 @@ namespace AbilityKit.Demo.Moba.Session
 
             return new[]
             {
-                LogicWorldSpawnData.CreateLocalPlayer(localPlayerId, 1001, 0f, 0f)
+                new LogicWorldSpawnData(
+                    localPlayerId,
+                    _defaults.LocalPlayerCharacterId,
+                    _defaults.LocalPlayerTeamId,
+                    0f,
+                    0f,
+                    0f,
+                    _defaults.LocalPlayerName)
             };
         }
 
@@ -200,22 +212,22 @@ namespace AbilityKit.Demo.Moba.Session
                 ToHostSpawns(spawns),
                 new PlayerId(config.LocalPlayerId.ToString()),
                 CreateMatchId(config),
-                config.MapId > 0 ? config.MapId : 1,
+                _defaults.ResolveMapId(config.MapId),
                 MobaWorldBootstrapModule.InitOpCode,
-                config.TickRate > 0 ? config.TickRate : 30,
-                inputDelayFrames: 0,
+                _defaults.ResolveTickRate(config.TickRate),
+                inputDelayFrames: _defaults.InputDelayFrames,
                 randomSeed: CreateSessionSeed(config));
 
             options.ServiceBuilder.RegisterInstance(initData);
             Log.Info("[MobaSessionCoordinatorHost] Create-world init payload registered for bootstrap start flow");
         }
 
-        private static string CreateMatchId(SessionConfig config)
+        private string CreateMatchId(SessionConfig config)
         {
-            return config.SessionId.Value > 0 ? config.SessionId.ToString() : "session";
+            return config.SessionId.Value > 0 ? config.SessionId.ToString() : _defaults.MatchId;
         }
 
-        private static int CreateSessionSeed(SessionConfig config)
+        private int CreateSessionSeed(SessionConfig config)
         {
             var value = config.SessionId.Value;
             if (value == 0)
@@ -226,7 +238,7 @@ namespace AbilityKit.Demo.Moba.Session
             unchecked
             {
                 var seed = (int)(value ^ (value >> 32));
-                return seed != 0 ? seed : 1;
+                return _defaults.ResolveSeed(seed);
             }
         }
 

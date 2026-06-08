@@ -23,7 +23,10 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
 
             var assembly = typeof(MobaBootstrapStageInitializer).Assembly;
             var stageTypes = assembly.GetTypes()
-                .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(MobaBootstrapStageBase)))
+                .Where(t =>
+                    !t.IsAbstract
+                    && t.IsSubclassOf(typeof(MobaBootstrapStageBase))
+                    && t.GetCustomAttribute<MobaBootstrapStageAttribute>() != null)
                 .ToArray();
 
             foreach (var type in stageTypes)

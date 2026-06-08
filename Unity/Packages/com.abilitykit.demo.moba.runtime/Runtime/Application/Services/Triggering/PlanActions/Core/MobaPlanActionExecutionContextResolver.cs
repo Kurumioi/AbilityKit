@@ -1,5 +1,4 @@
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -33,15 +32,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return executionContext;
             }
 
-            var options = ResolveOptions(ctx);
             var payloadType = triggerArgs != null ? triggerArgs.GetType().FullName : "null";
-            if (options.StrictFallback)
-            {
-                throw new System.InvalidOperationException($"[MobaPlanActionExecutionContextResolver] Missing combat execution context. strictFallback=True, payloadType={payloadType}");
-            }
-
-            Log.Warning($"[MobaPlanActionExecutionContextResolver] Creating fallback execution context. strictFallback=False, payloadType={payloadType}. Action should run inside MobaEffectExecutionService session or provide IMobaCombatContextSource/IMobaCombatExecutionContextProvider.");
-            return CreateFallback(triggerArgs);
+            throw new System.InvalidOperationException($"[MobaPlanActionExecutionContextResolver] Missing combat execution context. payloadType={payloadType}. Action must run inside MobaEffectExecutionService session or provide IMobaCombatContextSource/IMobaCombatExecutionContextProvider.");
         }
 
         public static bool TryResolveTraceScope(ExecCtx<IWorldResolver> ctx, out MobaEffectTraceScopeSnapshot traceScope)
@@ -53,21 +45,5 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                    && traceScope.EffectContextId != 0;
         }
 
-        private static MobaPlanActionExecutionContextResolverOptions ResolveOptions(ExecCtx<IWorldResolver> ctx)
-        {
-            return ctx.Context.TryResolve<MobaPlanActionExecutionContextResolverOptions>(out var options) && options != null
-                ? options
-                : MobaPlanActionExecutionContextResolverOptions.Default;
-        }
-
-        private static MobaCombatExecutionContext CreateFallback(object triggerArgs)
-        {
-            var lineageInput = MobaEffectLineageInputResolver.Resolve(triggerArgs);
-            var snapshot = MobaTriggerExecutionSnapshotBuilder.Create()
-                .FromLineage(in lineageInput)
-                .FromPayload(triggerArgs)
-                .Build();
-            return MobaCombatExecutionContextFactory.Create(triggerArgs, in lineageInput, in snapshot, snapshot.Frame);
-        }
     }
 }

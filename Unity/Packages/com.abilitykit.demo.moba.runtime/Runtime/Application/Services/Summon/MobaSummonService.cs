@@ -14,6 +14,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Effect;
 using AbilityKit.Core.Common.Event;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Components;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -33,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IWorldClock _clock;
         [WorldInject(required: false)] private MobaTraceRegistry _trace;
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn;
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
 
         private enum SummonOverflowPolicy
         {
@@ -44,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly Dictionary<int, List<int>> _summonsByRootOwner = new Dictionary<int, List<int>>();
         private readonly List<int> _queryBuffer = new List<int>(16);
+
+        public int ActiveCount => CountAllTrackedSummons();
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
@@ -85,6 +89,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (rootOwner <= 0) rootOwner = casterActorId;
             if (!PrepareCapacityForSummon(rootOwner, summonId, summon.MaxAlivePerOwner, summon.OverflowPolicy))
             {
+                _lifecycle?.RecordRejected(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
                 Log.Warning($"[MobaSummonService] summon rejected by overflow policy. summonId={summonId} casterActorId={casterActorId} rootOwner={rootOwner} maxAlive={summon.MaxAlivePerOwner} policy={summon.OverflowPolicy}");
                 return false;
             }
@@ -109,6 +114,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (!_actorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)
             {
+                _lifecycle?.RecordRejected(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
                 Log.Warning($"[MobaSummonService] spawn failed. summonId={summonId} actorId={actorId} casterActorId={casterActorId} error={spawnResult.Error}");
                 return false;
             }
@@ -127,6 +133,7 @@ namespace AbilityKit.Demo.Moba.Services
             TryInitSkillLoadout(entity, summon.SkillIds, summon.PassiveSkillIds);
 
             TrackSummon(rootOwner, actorId);
+            _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
 
             PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
             PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
@@ -136,20 +143,51 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void TryApplyDefaultComponentTemplates(global::ActorEntity entity, IReadOnlyList<int> templateIds)
         {
-            if (_componentTemplates == null) return;
-            if (entity == null) return;
             if (templateIds == null || templateIds.Count == 0) return;
+
+            if (_componentTemplates == null)
+            {
+                throw new InvalidOperationException("MobaSummonService requires MobaComponentTemplateService when summon default component templates are configured.");
+            }
+
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity));
+            }
 
             for (int i = 0; i < templateIds.Count; i++)
             {
                 var id = templateIds[i];
-                if (id <= 0) continue;
-                try { _componentTemplates.TryApply(entity, id); }
-                catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] TryApply component template failed (templateId={id})"); }
+                if (id <= 0)
+                {
+                    throw new InvalidOperationException($"Summon default component template id must be positive. index={i}, templateId={id}");
+                }
+
+                _componentTemplates.Apply(entity, id);
             }
         }
 
         public bool TryDespawn(int summonActorId, SummonDespawnReason reason)
+        {
+            if (summonActorId <= 0) return false;
+            if (_registry == null) return false;
+            if (!_registry.TryGet(summonActorId, out var e) || e == null) return false;
+
+            var frame = CurrentFrame;
+            var actorReason = ToActorDespawnReason(reason);
+            if (e.hasActorDespawnRequest)
+            {
+                e.ReplaceActorDespawnRequest(frame, frame, actorReason, 0, 0L);
+            }
+            else
+            {
+                e.AddActorDespawnRequest(frame, frame, actorReason, 0, 0L);
+            }
+
+            return true;
+        }
+
+        public bool ExecuteRequestedDespawn(int summonActorId, SummonDespawnReason reason)
         {
             if (summonActorId <= 0) return false;
             if (_registry == null) return false;
@@ -168,14 +206,13 @@ namespace AbilityKit.Demo.Moba.Services
             if (rootOwner <= 0) rootOwner = owner;
             if (e.hasSummonMeta && e.summonMeta != null) summonId = e.summonMeta.SummonId;
 
-            try { e.Destroy(); }
-            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] destroy summon entity failed (summonActorId={summonActorId}, summonId={summonId})"); }
-
             _registry.Unregister(summonActorId);
             try { _entities?.Unregister(summonActorId); }
             catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] unregister summon failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             UntrackSummon(rootOwner, summonActorId);
+            _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+            if (reason == SummonDespawnReason.ReplacedByLimit) _lifecycle?.RecordReplaced(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
 
             if (reason == SummonDespawnReason.Killed)
             {
@@ -191,6 +228,9 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 PublishSummonEvent(MobaSummonTriggering.Events.DespawnedByOwner(rootOwner), rootOwner, owner, summonActorId, summonId, (int)reason, sourceContext: default);
             }
+
+            try { e.Destroy(); }
+            catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] destroy summon entity failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             return true;
         }
@@ -243,6 +283,22 @@ namespace AbilityKit.Demo.Moba.Services
 
             _queryBuffer.Clear();
             return removed;
+        }
+
+        private int CountAllTrackedSummons()
+        {
+            var count = 0;
+            foreach (var kv in _summonsByRootOwner)
+            {
+                var list = kv.Value;
+                if (list == null) continue;
+                for (var i = 0; i < list.Count; i++)
+                {
+                    if (IsTrackedSummon(list[i], 0)) count++;
+                }
+            }
+
+            return count;
         }
 
         private void TrackSummon(int rootOwnerActorId, int summonActorId)
@@ -448,6 +504,37 @@ namespace AbilityKit.Demo.Moba.Services
             return list.Count == 0 ? Array.Empty<AbilityKit.Demo.Moba.Components.PassiveSkillRuntime>() : list.ToArray();
         }
 
+        private static ActorDespawnReason ToActorDespawnReason(SummonDespawnReason reason)
+        {
+            switch (reason)
+            {
+                case SummonDespawnReason.Timeout:
+                    return ActorDespawnReason.SummonTimeout;
+                case SummonDespawnReason.OwnerDead:
+                    return ActorDespawnReason.SummonOwnerDead;
+                case SummonDespawnReason.ReplacedByLimit:
+                    return ActorDespawnReason.SummonReplacedByLimit;
+                case SummonDespawnReason.ManualRemove:
+                    return ActorDespawnReason.SummonManualRemove;
+                case SummonDespawnReason.Killed:
+                    return ActorDespawnReason.SummonKilled;
+                case SummonDespawnReason.SceneCleanup:
+                    return ActorDespawnReason.SceneCleanup;
+                case SummonDespawnReason.None:
+                default:
+                    return ActorDespawnReason.Unknown;
+            }
+        }
+
+        private int CurrentFrame
+        {
+            get
+            {
+                if (_frameTime != null) return _frameTime.Frame.Value;
+                throw new InvalidOperationException("MobaSummonService requires IFrameTime for current frame.");
+            }
+        }
+
         private long NowMs()
         {
             if (_frameTime != null)
@@ -458,12 +545,13 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return (long)System.MathF.Round(_clock.Time * 1000f);
             }
-            return 0L;
+            throw new InvalidOperationException("MobaSummonService requires IFrameTime or IWorldClock for current time.");
         }
 
         public void Dispose()
         {
             _summonsByRootOwner.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, 0, CurrentFrame);
         }
     }
 }

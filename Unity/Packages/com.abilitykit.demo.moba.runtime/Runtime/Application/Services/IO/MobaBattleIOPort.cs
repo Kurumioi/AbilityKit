@@ -73,7 +73,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32)
         {
-            if (snapshots == null || maxSnapshots <= 0) return 0;
+            if (snapshots == null)
+            {
+                throw new ArgumentNullException(nameof(snapshots));
+            }
+
+            if (maxSnapshots <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxSnapshots), maxSnapshots, "maxSnapshots must be positive.");
+            }
 
             if (_snapshots is IMobaSnapshotBatchProvider batchProvider)
             {

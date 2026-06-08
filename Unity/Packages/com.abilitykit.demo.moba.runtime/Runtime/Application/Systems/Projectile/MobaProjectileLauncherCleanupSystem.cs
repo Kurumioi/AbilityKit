@@ -3,6 +3,7 @@ using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
@@ -56,17 +57,38 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                     catch (System.Exception ex) { Log.Exception(ex, $"[MobaProjectileLauncherCleanupSystem] CancelSchedule failed (scheduleId={plc.ScheduleId})"); }
                 }
 
-                _registry.Unregister(e.actorId.Value);
+                RequestDespawn(e, ActorDespawnReason.ProjectileLauncherCompleted);
+            }
+        }
 
-                try { e.Destroy(); }
-                catch (System.Exception ex) { Log.Exception(ex, "[MobaProjectileLauncherCleanupSystem] destroy launcher entity failed"); }
+        private void RequestDespawn(global::ActorEntity entity, ActorDespawnReason reason)
+        {
+            if (entity == null) return;
+
+            var frame = CurrentFrame;
+            if (entity.hasActorDespawnRequest)
+            {
+                entity.ReplaceActorDespawnRequest(frame, frame, reason, 0, 0L);
+            }
+            else
+            {
+                entity.AddActorDespawnRequest(frame, frame, reason, 0, 0L);
+            }
+        }
+
+        private int CurrentFrame
+        {
+            get
+            {
+                if (_frameTime != null) return _frameTime.Frame.Value;
+                throw new System.InvalidOperationException("MobaProjectileLauncherCleanupSystem requires IFrameTime for current frame.");
             }
         }
 
         private long GetNowMs()
         {
-            if (_frameTime == null) return 0L;
-            return (long)(_frameTime.Time * 1000f);
+            if (_frameTime != null) return (long)System.MathF.Round(_frameTime.Time * 1000f);
+            throw new System.InvalidOperationException("MobaProjectileLauncherCleanupSystem requires IFrameTime for current time.");
         }
     }
 }

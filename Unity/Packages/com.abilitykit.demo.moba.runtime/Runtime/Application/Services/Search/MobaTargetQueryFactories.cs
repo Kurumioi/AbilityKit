@@ -79,9 +79,6 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
     internal readonly struct MobaTargetQueryBuildContext
     {
-        private const float DefaultSearchRadius = 5f;
-        private const float DefaultHalfAngleDeg = 45f;
-
         public MobaTargetQueryBuildContext(
             MobaActorRegistry actors,
             ICandidateProvider allActorsProvider,
@@ -172,12 +169,24 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         public static float ResolveRadius(SearchTargetRuleConfig config)
         {
-            return config != null && config.Radius > 0f ? config.Radius : DefaultSearchRadius;
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (config.Radius <= 0f)
+            {
+                throw new InvalidOperationException($"Search target shape rule requires positive radius. ruleKind={config.Kind}");
+            }
+
+            return config.Radius;
         }
 
         public static float ResolveHalfAngleDeg(SearchTargetRuleConfig config)
         {
-            return config != null && config.HalfAngleDeg > 0f ? config.HalfAngleDeg : DefaultHalfAngleDeg;
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (config.HalfAngleDeg <= 0f)
+            {
+                throw new InvalidOperationException($"Search target sector rule requires positive half angle. ruleKind={config.Kind}");
+            }
+
+            return config.HalfAngleDeg;
         }
     }
 
@@ -204,28 +213,86 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         public ICandidateProvider CreateSource(SearchTargetProviderConfig config, in MobaTargetQueryBuildContext context)
         {
-            var code = config != null ? config.Kind : (int)SearchTargetProviderKind.AllActors;
-            return _sources.TryGetValue(code, out var factory)
-                ? factory.Create(in context, config)
-                : context.AllActorsProvider;
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (!_sources.TryGetValue(config.Kind, out var factory))
+            {
+                throw new InvalidOperationException($"Search target provider factory not registered. kind={config.Kind}");
+            }
+
+            var provider = factory.Create(in context, config);
+            if (provider == null)
+            {
+                throw new InvalidOperationException($"Search target provider factory returned null. kind={config.Kind}, factory={factory.GetType().Name}");
+            }
+
+            return provider;
         }
 
         public ITargetRule CreateFilter(SearchTargetRuleConfig config, in MobaTargetQueryBuildContext context)
         {
-            if (config == null) return null;
-            return _filters.TryGetValue(config.Kind, out var factory) ? factory.Create(in context, config) : null;
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (!_filters.TryGetValue(config.Kind, out var factory))
+            {
+                throw new InvalidOperationException($"Search target filter factory not registered. kind={config.Kind}");
+            }
+
+            var rule = factory.Create(in context, config);
+            if (rule == null)
+            {
+                throw new InvalidOperationException($"Search target filter factory returned null. kind={config.Kind}, factory={factory.GetType().Name}");
+            }
+
+            return rule;
         }
 
         public ITargetScorer CreateOrder(SearchTargetScorerConfig config, in MobaTargetQueryBuildContext context)
         {
-            var code = config != null ? config.Kind : (int)SearchTargetScorerKind.DistanceToCaster;
-            return _orders.TryGetValue(code, out var factory) ? factory.Create(in context, config) : context.ZeroScorer;
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (!_orders.TryGetValue(config.Kind, out var factory))
+            {
+                throw new InvalidOperationException($"Search target scorer factory not registered. kind={config.Kind}");
+            }
+
+            var scorer = factory.Create(in context, config);
+            if (scorer == null)
+            {
+                throw new InvalidOperationException($"Search target scorer factory returned null. kind={config.Kind}, factory={factory.GetType().Name}");
+            }
+
+            return scorer;
         }
 
         public ITargetSelector CreateSelect(SearchTargetSelectorConfig config, in MobaTargetQueryBuildContext context)
         {
-            var code = config != null ? config.Kind : (int)SearchTargetSelectorKind.TopKByScore;
-            return _selects.TryGetValue(code, out var factory) ? factory.Create(in context, config) : context.TopKSelector;
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (!_selects.TryGetValue(config.Kind, out var factory))
+            {
+                throw new InvalidOperationException($"Search target selector factory not registered. kind={config.Kind}");
+            }
+
+            var selector = factory.Create(in context, config);
+            if (selector == null)
+            {
+                throw new InvalidOperationException($"Search target selector factory returned null. kind={config.Kind}, factory={factory.GetType().Name}");
+            }
+
+            return selector;
         }
 
         private void ScanAssembly(Assembly assembly)

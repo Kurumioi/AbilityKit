@@ -26,11 +26,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, ShootProjectileArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null) return;
-            if (!ctx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return;
+            if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null)
+            {
+                LogRejected(ctx, "cannot resolve MobaProjectileService.");
+                return;
+            }
+
+            if (!ctx.Context.TryResolve<MobaConfigDatabase>(out var configs) || configs == null)
+            {
+                LogRejected(ctx, "cannot resolve MobaConfigDatabase.");
+                return;
+            }
 
             var input = MobaPlanActionInputResolver.ResolveProjectile(triggerArgs, ctx);
-            if (!input.HasCasterActor) return;
+            if (!input.HasCasterActor)
+            {
+                LogRejected(ctx, "caster actor not found");
+                return;
+            }
 
             var casterActorId = input.CasterActorId;
             var launcherId = args.LauncherId;
@@ -56,9 +69,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             ProjectileLauncherMO launcher = null;
             ProjectileMO projectile = null;
-            if (!configs.TryGetProjectileLauncher(launcherId, out launcher)) return;
-            if (!configs.TryGetProjectile(projectileId, out projectile)) return;
-            if (launcher == null || projectile == null) return;
+            if (!configs.TryGetProjectileLauncher(launcherId, out launcher) || launcher == null)
+            {
+                LogRejected(ctx, $"launcher config not found. launcherId={launcherId}");
+                return;
+            }
+
+            if (!configs.TryGetProjectile(projectileId, out projectile) || projectile == null)
+            {
+                LogRejected(ctx, $"projectile config not found. projectileId={projectileId}");
+                return;
+            }
 
             var countPerShot = paramResolver != null
                 ? paramResolver.Projectile.ResolveCountPerShot(casterActorId, launcher.CountPerShot)
@@ -69,8 +90,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var durationMs = paramResolver != null
                 ? paramResolver.Projectile.ResolveDurationMs(casterActorId, launcher.DurationMs)
                 : launcher.DurationMs;
-            var launchParams = new MobaResolvedShootProjectileParams(launcherId, projectileId, countPerShot, fanAngleDeg, durationMs);
-
+            MobaResolvedShootProjectileParams launchParams;
+            try
+            {
+                launchParams = new MobaResolvedShootProjectileParams(launcherId, projectileId, countPerShot, fanAngleDeg, durationMs);
+            }
+            catch (System.ArgumentOutOfRangeException ex)
+            {
+                LogRejected(ctx, ex.Message);
+                return;
+            }
+ 
             var casterPos = Vec3.Zero;
             if (ctx.Context.TryResolve<MobaActorRegistry>(out var actorRegistry)
                 && actorRegistry != null

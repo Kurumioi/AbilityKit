@@ -30,6 +30,7 @@ builder.Services.AddSingleton<GatewayHandlers.JoinRoomHandler>();
 builder.Services.AddSingleton<GatewayHandlers.RoomReadyHandler>();
 builder.Services.AddSingleton<GatewayHandlers.RoomPickHeroHandler>();
 builder.Services.AddSingleton<GatewayHandlers.StartRoomBattleHandler>();
+builder.Services.AddSingleton<GatewayHandlers.SubmitBattleInputHandler>();
 builder.Services.AddSingleton<GatewayHandlers.SubscribeStateSyncHandler>();
 
 // 注册 Handler Registry（需要 DI 容器）

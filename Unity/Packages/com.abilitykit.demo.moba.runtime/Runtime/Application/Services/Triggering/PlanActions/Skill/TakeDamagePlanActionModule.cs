@@ -24,10 +24,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, TakeDamageArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (!ctx.Context.TryResolve<MobaCombatEffectService>(out var combat) || combat == null) return;
+            if (!ctx.Context.TryResolve<MobaCombatEffectService>(out var combat) || combat == null)
+            {
+                LogRejected(ctx, "cannot resolve MobaCombatEffectService.");
+                return;
+            }
 
             if (!TryResolveTakeDamageContext(triggerArgs, out var attackerActorId, out var targetActorId, out var baseValue, out var origin))
             {
+                LogRejected(ctx, "cannot resolve damage context.");
                 return;
             }
 
@@ -37,7 +42,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var reasonParam = args.ReasonParam;
 
             baseValue *= rate;
-            if (baseValue <= 0f) return;
+            if (baseValue <= 0f)
+            {
+                LogRejected(ctx, $"requires positive damage. attacker={attackerActorId} target={targetActorId} base={baseValue:0.###} rate={rate:0.###} reasonParam={reasonParam}");
+                return;
+            }
 
             var attack = new AttackInfo
             {

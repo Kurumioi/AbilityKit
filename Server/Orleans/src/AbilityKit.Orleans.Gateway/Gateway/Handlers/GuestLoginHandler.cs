@@ -1,7 +1,7 @@
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Serialization;
-using AbilityKit.Protocol.Moba.Room;
+using AbilityKit.Protocol.Room;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;

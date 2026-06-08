@@ -1,4 +1,6 @@
-﻿using AbilityKit.Ability.Host;
+﻿using System;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -28,8 +30,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             if (!services.TryResolve<WorldInitData>(out var init))
             {
-                Log.Info("[WorldInitStage] WorldInitData not found; skip SetEnterGameReq");
-                return;
+                throw new InvalidOperationException("WorldInitStage requires WorldInitData for formal battle startup.");
             }
 
             var payloadLen = init.Payload != null ? init.Payload.Length : 0;
@@ -37,46 +38,42 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             if (init.OpCode != MobaWorldBootstrapModule.InitOpCode)
             {
-                Log.Error($"[WorldInitStage] WorldInitData opCode mismatch. expected={MobaWorldBootstrapModule.InitOpCode}, actual={init.OpCode}");
-                return;
+                throw new InvalidOperationException($"WorldInitStage opCode mismatch. expected={MobaWorldBootstrapModule.InitOpCode}, actual={init.OpCode}");
             }
 
             if (payloadLen == 0)
             {
-                Log.Info("[WorldInitStage] WorldInitData payload is empty; skip SetEnterGameReq");
-                return;
+                throw new InvalidOperationException("WorldInitStage requires a non-empty create-world init payload.");
             }
 
             if (!MobaCreateWorldInitCodec.TryDeserialize(init.Payload, out var initPayload, out var deserializeError))
             {
-                Log.Error($"[WorldInitStage] WorldInitData payload is not a valid create-world init payload. error={deserializeError}");
-                return;
+                throw new InvalidOperationException($"WorldInitStage create-world init payload is invalid. error={deserializeError}");
             }
 
             var validation = MobaProtocolValidation.ValidateCreateWorldSpecEnvelope(initPayload.LocalPlayerId, in initPayload.Spec);
             if (!validation.IsValid)
             {
-                Log.Error($"[WorldInitStage] WorldInitData payload validation failed. {validation}");
-                return;
+                throw new InvalidOperationException($"WorldInitStage create-world init payload validation failed. {validation}");
             }
 
-            var spec = initPayload.ToGameStartSpec();
-            if (services.TryResolve<MobaGameStartSpecService>(out var specService))
+            var startPlan = new MobaBattleStartPlan(initPayload.LocalPlayerId, in initPayload.Spec, initPayload.OpCode, initPayload.Payload);
+            if (!services.TryResolve<MobaGameStartSpecService>(out var specService) || specService == null)
             {
-                specService.Set(in spec);
-                Log.Info("[WorldInitStage] WorldInitData decoded; game start spec stored");
+                throw new InvalidOperationException("WorldInitStage requires MobaGameStartSpecService to store the decoded battle start plan.");
             }
-            else
-            {
-                Log.Error("[WorldInitStage] MobaGameStartSpecService not found; cannot store game start spec");
-            }
+
+            specService.SetPlan(in startPlan);
+            Log.Info("[WorldInitStage] WorldInitData decoded; battle start plan stored");
 
             // Seed deterministic world random as early as possible.
-            if (services.TryResolve<IWorldRandom>(out var random) && random is RollbackWorldRandom rr)
+            if (!services.TryResolve<IWorldRandom>(out var random) || random is not RollbackWorldRandom rr)
             {
-                rr.SetSeed(initPayload.Spec.RandomSeed);
-                Log.Info($"[WorldInitStage] Seed world random success (seed={initPayload.Spec.RandomSeed})");
+                throw new InvalidOperationException("WorldInitStage requires RollbackWorldRandom for deterministic battle startup.");
             }
+
+            rr.SetSeed(initPayload.Spec.RandomSeed);
+            Log.Info($"[WorldInitStage] Seed world random success (seed={initPayload.Spec.RandomSeed})");
         }
     }
 }

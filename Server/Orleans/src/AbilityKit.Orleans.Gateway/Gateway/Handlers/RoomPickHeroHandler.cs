@@ -1,6 +1,6 @@
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
-using AbilityKit.Protocol.Moba.Room;
+using AbilityKit.Protocol.Room;
 using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Handlers;

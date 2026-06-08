@@ -40,8 +40,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
-            var configId = TemplateId != 0 ? TemplateId : AreaId;
-            origin = MobaGameplayOrigin.FromLegacy(OwnerActorId, TargetActorId, traceKind, configId, SourceContextId);
+            origin = MobaGameplayOrigin.FromLegacy(OwnerActorId, TargetActorId, traceKind, TemplateId, SourceContextId);
             return origin.IsValid;
         }
 
@@ -62,9 +61,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
-            var configId = TemplateId != 0 ? TemplateId : AreaId;
-            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Area, traceKind, OwnerActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, configId);
-            return OwnerActorId > 0 || TargetActorId > 0 || AreaId > 0 || TemplateId > 0 || SourceContextId != 0;
+            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Area, traceKind, OwnerActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, TemplateId);
+            return OwnerActorId > 0 || TargetActorId > 0 || TemplateId > 0 || SourceContextId != 0;
         }
 
         public bool TryGetContextSource(out MobaContextSourceView source)
@@ -76,7 +74,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     MobaContextSourceResolveKind.DirectProvider,
                     MobaContextSourceBoundary.Snapshot,
                     runtimeKind: "Area",
-                    runtimeConfigId: TemplateId != 0 ? TemplateId : AreaId);
+                    runtimeConfigId: TemplateId);
                 return source.IsValid;
             }
 
