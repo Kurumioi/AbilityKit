@@ -5,11 +5,21 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudAimPreview
     {
+        private readonly BattleHudAimPreviewPositionResolver _positions;
+        private readonly BattleHudAimPreviewObjectFactory _objects;
         private GameObject _preview;
+
+        public BattleHudAimPreview(
+            BattleHudAimPreviewPositionResolver positions = null,
+            BattleHudAimPreviewObjectFactory objects = null)
+        {
+            _positions = positions ?? new BattleHudAimPreviewPositionResolver();
+            _objects = objects ?? new BattleHudAimPreviewObjectFactory();
+        }
 
         public void Tick(BattleContext ctx)
         {
-            if (!TryGetPreviewPosition(ctx, out var pos))
+            if (!_positions.TryResolve(ctx, out var pos))
             {
                 Hide();
                 return;
@@ -42,19 +52,13 @@ namespace AbilityKit.Game.Flow
         {
             if (_preview != null) return;
 
-            _preview = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            _preview.name = "SkillAimPreview";
-            _preview.hideFlags = HideFlags.DontSave;
-            _preview.transform.localScale = Vector3.one * 0.35f;
-
-            var collider = _preview.GetComponent<Collider>();
-            if (collider != null)
-            {
-                collider.enabled = false;
-            }
+            _preview = _objects.Create();
         }
+    }
 
-        private static bool TryGetPreviewPosition(BattleContext ctx, out Vector3 pos)
+    internal sealed class BattleHudAimPreviewPositionResolver
+    {
+        public bool TryResolve(BattleContext ctx, out Vector3 pos)
         {
             pos = default;
             if (ctx == null || ctx.EntityQuery == null) return false;
@@ -79,6 +83,25 @@ namespace AbilityKit.Game.Flow
 
             pos = transform.Position + new Vector3(aimDx, 0f, aimDz);
             return true;
+        }
+    }
+
+    internal sealed class BattleHudAimPreviewObjectFactory
+    {
+        public GameObject Create()
+        {
+            var preview = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            preview.name = "SkillAimPreview";
+            preview.hideFlags = HideFlags.DontSave;
+            preview.transform.localScale = Vector3.one * 0.35f;
+
+            var collider = preview.GetComponent<Collider>();
+            if (collider != null)
+            {
+                collider.enabled = false;
+            }
+
+            return preview;
         }
     }
 }

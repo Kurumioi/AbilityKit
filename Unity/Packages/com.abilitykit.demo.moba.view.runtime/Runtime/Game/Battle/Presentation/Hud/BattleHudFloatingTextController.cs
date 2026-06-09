@@ -15,12 +15,13 @@ namespace AbilityKit.Game.Flow
             BattleHudConfig cfg,
             RectTransform root,
             BattleHudCanvasProjector projector,
-            IBattleHudActorPositionResolver positionResolver)
+            IBattleHudActorPositionResolver positionResolver,
+            BattleHudFloatingTextPool pool = null)
         {
             _cfg = cfg;
             _projector = projector;
             _positionResolver = positionResolver;
-            _pool = new BattleHudFloatingTextPool(root);
+            _pool = pool ?? new BattleHudFloatingTextPool(root);
         }
 
         public void Spawn(int targetActorId, string text, bool heal)
@@ -85,7 +86,7 @@ namespace AbilityKit.Game.Flow
         {
             for (var i = 0; i < _floating.Count; i++)
             {
-                BattleHudFloatingTextPool.DestroyHandle(_floating[i]);
+                _pool.DestroyHandle(_floating[i]);
             }
 
             _floating.Clear();

@@ -47,5 +47,27 @@ namespace AbilityKit.Demo.Moba.Session
             return commands;
         }
 
+        public IReadOnlyList<PlayerInputCommand> Convert(PlayerInput[] inputs, FrameIndex targetFrame)
+        {
+            if (inputs == null || inputs.Length == 0)
+            {
+                return Array.Empty<PlayerInputCommand>();
+            }
+
+            List<PlayerInputCommand> commands = new List<PlayerInputCommand>(inputs.Length);
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                PlayerInput input = inputs[i];
+                PlayerId playerId = new PlayerId(input.PlayerId.ToString());
+                commands.Add(new PlayerInputCommand(
+                    targetFrame,
+                    playerId,
+                    input.OpCode,
+                    input.Payload));
+            }
+
+            return commands;
+        }
+
     }
 }

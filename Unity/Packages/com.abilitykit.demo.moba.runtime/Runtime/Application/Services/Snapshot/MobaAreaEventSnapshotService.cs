@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaAreaEventSnapshotService))]
     public sealed class MobaAreaEventSnapshotService : IService, IMobaSnapshotEmitter
     {
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaAreaRuntimeService _areaRuntime;
 
@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
         private readonly MobaSnapshotBuffer<MobaAreaEventSnapshotEntry> _areaEntries = new MobaSnapshotBuffer<MobaAreaEventSnapshotEntry>(32, 512);
 
-        public MobaAreaEventSnapshotService(MobaGamePhaseService phase, IProjectileService projectiles, MobaAreaRuntimeService areaRuntime)
+        public MobaAreaEventSnapshotService(MobaLogicWorldRunGateService phase, IProjectileService projectiles, MobaAreaRuntimeService areaRuntime)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));

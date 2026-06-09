@@ -32,7 +32,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public void BindSource(ProjectileId projectileId, in ProjectileSourceContext source)
         {
             if (projectileId.Value == 0) return;
-            if (!source.IsValid) return;
+            if (!source.IsValid)
+            {
+                throw new InvalidOperationException($"Projectile source context is incomplete. projectileId={projectileId.Value} sourceActorId={source.SourceActorId} sourceContextId={source.SourceContextId} projectileConfigId={source.ProjectileConfigId}");
+            }
+
             _sourceByProjectile[projectileId] = source;
         }
 
@@ -46,7 +50,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public void BindLauncherSource(int launcherActorId, in ProjectileSourceContext source)
         {
             if (launcherActorId <= 0) return;
-            if (!source.IsValid) return;
+            if (!source.IsValid)
+            {
+                throw new InvalidOperationException($"Projectile launcher source context is incomplete. launcherActorId={launcherActorId} sourceActorId={source.SourceActorId} sourceContextId={source.SourceContextId} projectileConfigId={source.ProjectileConfigId}");
+            }
+
             _sourceByLauncherActorId[launcherActorId] = source;
         }
 

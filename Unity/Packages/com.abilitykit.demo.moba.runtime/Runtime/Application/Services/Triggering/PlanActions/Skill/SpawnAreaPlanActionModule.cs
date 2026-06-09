@@ -61,7 +61,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (ctx.Context.TryResolve<MobaAreaRuntimeService>(out var areaRuntime) && areaRuntime != null)
             {
-                areaRuntime.RegisterSpawn(areaId, args.AreaId, input.CasterActorId, in center, radius, collisionLayerMask, aoe.MaxTargets, frame);
+                var origin = input.BuildOrigin(input.CasterActorId, input.TargetActorId, MobaTraceKind.AreaSpawn, args.AreaId);
+                if (origin.EffectiveParentContextId == 0L)
+                {
+                    throw new InvalidOperationException($"SpawnArea requires source context. areaId={args.AreaId} caster={input.CasterActorId}");
+                }
+
+                areaRuntime.RegisterSpawn(
+                    areaId,
+                    args.AreaId,
+                    input.CasterActorId,
+                    in center,
+                    radius,
+                    collisionLayerMask,
+                    aoe.MaxTargets,
+                    frame,
+                    origin.EffectiveParentContextId,
+                    origin.EffectiveRootContextId,
+                    origin.OwnerContextId);
             }
 
             LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} radius={radius} lifetimeFrames={lifetimeFrames}");

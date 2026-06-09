@@ -31,9 +31,17 @@ namespace AbilityKit.Demo.Moba.Services.Area
             float radius,
             int collisionLayerMask,
             int maxTargets,
-            int frame)
+            int frame,
+            long sourceContextId,
+            long rootContextId,
+            long ownerContextId)
         {
             if (areaId.Value <= 0) return;
+
+            if (ownerActorId <= 0 || sourceContextId == 0L)
+            {
+                throw new InvalidOperationException($"Area spawn requires source context. areaId={areaId.Value} templateId={templateId} ownerActorId={ownerActorId} sourceContextId={sourceContextId}");
+            }
 
             var info = new MobaAreaRuntimeInfo(
                 areaId.Value,
@@ -43,7 +51,10 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 radius,
                 collisionLayerMask,
                 maxTargets,
-                frame);
+                frame,
+                sourceContextId,
+                rootContextId != 0L ? rootContextId : sourceContextId,
+                ownerContextId != 0L ? ownerContextId : sourceContextId);
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
@@ -242,6 +253,9 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly int CollisionLayerMask;
         public readonly int MaxTargets;
         public readonly int SpawnFrame;
+        public readonly long SourceContextId;
+        public readonly long RootContextId;
+        public readonly long OwnerContextId;
 
         public MobaAreaRuntimeInfo(
             int areaId,
@@ -251,7 +265,10 @@ namespace AbilityKit.Demo.Moba.Services.Area
             float radius,
             int collisionLayerMask,
             int maxTargets,
-            int spawnFrame)
+            int spawnFrame,
+            long sourceContextId,
+            long rootContextId,
+            long ownerContextId)
         {
             AreaId = areaId;
             TemplateId = templateId;
@@ -261,6 +278,9 @@ namespace AbilityKit.Demo.Moba.Services.Area
             CollisionLayerMask = collisionLayerMask;
             MaxTargets = maxTargets;
             SpawnFrame = spawnFrame;
+            SourceContextId = sourceContextId;
+            RootContextId = rootContextId;
+            OwnerContextId = ownerContextId;
         }
     }
 }

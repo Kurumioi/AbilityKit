@@ -7,10 +7,17 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudSnapshotController : IDisposable
     {
-        private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(2);
+        private readonly BattleHudSnapshotControllerFactory _factory;
+        private readonly BattleSubscriptionGroup _subscriptions;
 
         private Action<EnterMobaGameRes> _enterGameReceived;
         private Action<MobaDamageEventSnapshotEntry[]> _damageEventsReceived;
+
+        public BattleHudSnapshotController(BattleHudSnapshotControllerFactory factory = null)
+        {
+            _factory = factory ?? new BattleHudSnapshotControllerFactory();
+            _subscriptions = _factory.CreateSubscriptions();
+        }
 
         public void Bind(
             BattleContext ctx,
@@ -25,12 +32,11 @@ namespace AbilityKit.Game.Flow
             if (ctx == null) return;
             if (!ctx.TryGetFrameSnapshots(out var snapshots)) return;
 
-            _subscriptions.Add(snapshots.Subscribe<EnterMobaGameRes>(
-                MobaOpCodes.Snapshot.EnterGame,
-                OnEnterGameSnapshot));
-            _subscriptions.Add(snapshots.Subscribe<MobaDamageEventSnapshotEntry[]>(
-                MobaOpCodes.Snapshot.DamageEvent,
-                OnDamageEventSnapshot));
+            _factory.BindSnapshots(
+                _subscriptions,
+                snapshots,
+                OnEnterGameSnapshot,
+                OnDamageEventSnapshot);
         }
 
         public void Dispose()
@@ -53,6 +59,31 @@ namespace AbilityKit.Game.Flow
         private void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
         {
             _damageEventsReceived?.Invoke(entries);
+        }
+    }
+
+    internal sealed class BattleHudSnapshotControllerFactory
+    {
+        public BattleSubscriptionGroup CreateSubscriptions()
+        {
+            return new BattleSubscriptionGroup(2);
+        }
+
+        public void BindSnapshots(
+            BattleSubscriptionGroup subscriptions,
+            AbilityKit.Core.Common.SnapshotRouting.FrameSnapshotDispatcher snapshots,
+            Action<ISnapshotEnvelope, EnterMobaGameRes> enterGameReceived,
+            Action<ISnapshotEnvelope, MobaDamageEventSnapshotEntry[]> damageEventsReceived)
+        {
+            if (subscriptions == null) return;
+            if (snapshots == null) return;
+
+            subscriptions.Add(snapshots.Subscribe<EnterMobaGameRes>(
+                MobaOpCodes.Snapshot.EnterGame,
+                enterGameReceived));
+            subscriptions.Add(snapshots.Subscribe<MobaDamageEventSnapshotEntry[]>(
+                MobaOpCodes.Snapshot.DamageEvent,
+                damageEventsReceived));
         }
     }
 }

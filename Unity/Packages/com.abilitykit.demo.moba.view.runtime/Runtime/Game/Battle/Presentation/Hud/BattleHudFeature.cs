@@ -1,4 +1,3 @@
-using System;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
@@ -20,7 +19,10 @@ namespace AbilityKit.Game.Flow
         private BattleHudCanvasController _canvasController;
         private BattleHudInputController _inputController;
         private BattleHudSnapshotController _snapshotController;
-        private IDisposable _entityDestroyedSub;
+        private BattleHudEntityLifecycleBinding _entityLifecycle;
+        private BattlePresentationSessionContext _presentation;
+        private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
+        private readonly BattleHudFeatureControllerFactory _controllers = new BattleHudFeatureControllerFactory();
 
         private BattleHudAimPreview _aimPreview;
 
@@ -31,16 +33,17 @@ namespace AbilityKit.Game.Flow
 
             _camera = Camera.main;
             _config = BattleHudConfig.Default;
+            _presentation = _presentationSessions.Resolve(ctx);
 
             if (_ctx != null && _ctx.EntityNode.IsValid)
             {
                 _hudNode = _ctx.EntityNode.AddChild("BattleHud");
             }
 
-            _canvasController = new BattleHudCanvasController();
+            _canvasController = _controllers.CreateCanvas();
             _canvasController.Create("BattleHudCanvas");
 
-            _binder = new BattleHudBinder(_config, _canvasController.Root, _camera, _ctx);
+            _binder = _controllers.CreateBinder(_config, _canvasController.Root, _camera, _ctx);
             CreateInputController();
             SubscribeEntityLifecycle();
             SubscribeSnapshots();
@@ -51,8 +54,8 @@ namespace AbilityKit.Game.Flow
             _snapshotController?.Dispose();
             _snapshotController = null;
 
-            _entityDestroyedSub?.Dispose();
-            _entityDestroyedSub = null;
+            _entityLifecycle?.Dispose();
+            _entityLifecycle = null;
 
             _binder?.Clear();
             _binder = null;
@@ -67,9 +70,11 @@ namespace AbilityKit.Game.Flow
             _canvasController = null;
             _hudNode = default;
 
+            _presentationSessions.Release(ctx, _presentation);
             _ctx = null;
             _hudInput = null;
             _camera = null;
+            _presentation = null;
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -77,33 +82,31 @@ namespace AbilityKit.Game.Flow
             if (_binder == null) return;
 
             _binder.Tick(deltaTime);
-            _aimPreview ??= new BattleHudAimPreview();
+            _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.Tick(_ctx);
         }
 
         private void CreateInputController()
         {
             var cameraTransform = _camera != null ? _camera.transform : null;
-            _inputController = new BattleHudInputController(
+            _inputController = _controllers.CreateInput(
                 _hudInput,
                 _canvasController.Root,
                 _canvasController.Canvas,
-                cameraTransform);
+                cameraTransform,
+                _presentation?.Resources);
             _inputController.Ensure();
         }
 
         private void SubscribeEntityLifecycle()
         {
-            _entityDestroyedSub?.Dispose();
-            if (_ctx?.EntityWorld != null)
-            {
-                _entityDestroyedSub = _ctx.EntityWorld.EntityDestroyed(OnEntityDestroyed);
-            }
+            _entityLifecycle ??= _controllers.CreateEntityLifecycle();
+            _entityLifecycle.Bind(_ctx, _binder);
         }
 
         private void SubscribeSnapshots()
         {
-            _snapshotController = new BattleHudSnapshotController();
+            _snapshotController = _controllers.CreateSnapshots();
             _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot);
         }
 
@@ -119,9 +122,47 @@ namespace AbilityKit.Game.Flow
             _binder?.OnDamageEvents(entries);
         }
 
-        private void OnEntityDestroyed(EC.EntityDestroyed evt)
+    }
+
+    internal sealed class BattleHudFeatureControllerFactory
+    {
+        public BattleHudCanvasController CreateCanvas()
         {
-            _binder?.OnEntityDestroyed(evt.EntityId);
+            return new BattleHudCanvasController();
+        }
+
+        public BattleHudBinder CreateBinder(
+            BattleHudConfig config,
+            RectTransform root,
+            Camera camera,
+            BattleContext ctx)
+        {
+            return new BattleHudBinder(config, root, camera, ctx);
+        }
+
+        public BattleHudInputController CreateInput(
+            IBattleHudInputSink hudInput,
+            RectTransform root,
+            Canvas canvas,
+            Transform cameraTransform,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleHudInputController(hudInput, root, canvas, cameraTransform, resources);
+        }
+
+        public BattleHudEntityLifecycleBinding CreateEntityLifecycle()
+        {
+            return new BattleHudEntityLifecycleBinding();
+        }
+
+        public BattleHudSnapshotController CreateSnapshots()
+        {
+            return new BattleHudSnapshotController();
+        }
+
+        public BattleHudAimPreview CreateAimPreview()
+        {
+            return new BattleHudAimPreview();
         }
     }
 }

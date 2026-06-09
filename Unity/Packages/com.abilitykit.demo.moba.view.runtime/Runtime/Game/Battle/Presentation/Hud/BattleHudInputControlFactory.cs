@@ -6,44 +6,51 @@ using UnityEngine.UI;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudInputControlFactory
+    internal sealed class BattleHudInputControlFactory
     {
-        public static JoystickAreaView CreateMoveJoystick(Transform parent, Canvas canvas)
-        {
-            var joystickArea = new GameObject("MoveJoystick", typeof(RectTransform), typeof(Image));
-            joystickArea.transform.SetParent(parent, worldPositionStays: false);
+        private readonly BattleHudImageElementFactory _images;
 
-            var joystickAreaRt = joystickArea.GetComponent<RectTransform>();
-            BattleHudRectTransformLayout.SetAnchored(
-                joystickAreaRt,
+        public BattleHudInputControlFactory()
+            : this(new BattleHudImageElementFactory())
+        {
+        }
+
+        public BattleHudInputControlFactory(BattleHudImageElementFactory images)
+        {
+            _images = images ?? new BattleHudImageElementFactory();
+        }
+
+        public JoystickAreaView CreateMoveJoystick(Transform parent, Canvas canvas)
+        {
+            var area = _images.Create(
+                "MoveJoystick",
+                parent,
                 Vector2.zero,
                 Vector2.zero,
                 new Vector2(180f, 180f),
-                new Vector2(360f, 360f));
-
-            var areaImg = joystickArea.GetComponent<Image>();
-            areaImg.color = new Color(1f, 1f, 1f, 0.001f);
-            areaImg.raycastTarget = true;
+                new Vector2(360f, 360f),
+                new Color(1f, 1f, 1f, 0.001f),
+                raycastTarget: true);
 
             var outerRt = CreateJoystickPart(
-                joystickArea.transform,
+                area.GameObject.transform,
                 "Outer",
                 new Vector2(220f, 220f),
                 new Color(1f, 1f, 1f, 0.15f),
                 raycastTarget: true);
             var innerRt = CreateJoystickPart(
-                joystickArea.transform,
+                area.GameObject.transform,
                 "Inner",
                 new Vector2(90f, 90f),
                 new Color(1f, 1f, 1f, 0.25f),
                 raycastTarget: false);
 
-            var joystick = joystickArea.AddComponent<JoystickAreaView>();
-            joystick.Initialize(joystickAreaRt, outerRt, innerRt, canvas, JoystickConfig.Default);
+            var joystick = area.GameObject.AddComponent<JoystickAreaView>();
+            joystick.Initialize(area.Rect, outerRt, innerRt, canvas, JoystickConfig.Default);
             return joystick;
         }
 
-        public static SkillButtonView CreateSkillButton(
+        public SkillButtonView CreateSkillButton(
             Transform parent,
             RectTransform root,
             Canvas canvas,
@@ -51,49 +58,40 @@ namespace AbilityKit.Game.Flow
             string name,
             Vector2 anchoredPos)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, worldPositionStays: false);
-
-            var rt = go.GetComponent<RectTransform>();
-            BattleHudRectTransformLayout.SetAnchored(
-                rt,
+            var element = _images.Create(
+                name,
+                parent,
                 new Vector2(1f, 0f),
                 new Vector2(1f, 0f),
                 anchoredPos,
-                new Vector2(110f, 110f));
-
-            var img = go.GetComponent<Image>();
-            img.color = new Color(1f, 1f, 1f, 0.2f);
-            img.raycastTarget = true;
+                new Vector2(110f, 110f),
+                new Color(1f, 1f, 1f, 0.2f),
+                raycastTarget: true);
 
             var cfg = SkillButtonConfig.Default;
             cfg.EnableAim = true;
             cfg.AimMaxRadius = 220f;
             cfg.AimMode = slot == 1 ? SkillAimMode.Direction : SkillAimMode.Point;
 
-            var view = go.AddComponent<SkillButtonView>();
-            view.Initialize(rt, root, canvas, cfg);
+            var view = element.GameObject.AddComponent<SkillButtonView>();
+            view.Initialize(element.Rect, root, canvas, cfg);
             return view;
         }
 
-        public static Button CreateInfoButton(Transform parent, Vector2 anchoredPos, Action clicked)
+        public Button CreateInfoButton(Transform parent, Vector2 anchoredPos, Action clicked)
         {
-            var go = new GameObject("Info", typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, worldPositionStays: false);
-
-            var rt = go.GetComponent<RectTransform>();
-            BattleHudRectTransformLayout.SetAnchored(
-                rt,
+            var element = _images.Create(
+                "Info",
+                parent,
                 Vector2.one,
                 Vector2.one,
                 anchoredPos,
-                new Vector2(90f, 45f));
+                new Vector2(90f, 45f),
+                new Color(1f, 1f, 1f, 0.18f),
+                raycastTarget: true,
+                typeof(Button));
 
-            var img = go.GetComponent<Image>();
-            img.color = new Color(1f, 1f, 1f, 0.18f);
-            img.raycastTarget = true;
-
-            var btn = go.GetComponent<Button>();
+            var btn = element.GameObject.GetComponent<Button>();
             if (clicked != null)
             {
                 btn.onClick.AddListener(() => clicked());
@@ -102,23 +100,22 @@ namespace AbilityKit.Game.Flow
             return btn;
         }
 
-        private static RectTransform CreateJoystickPart(
+        private RectTransform CreateJoystickPart(
             Transform parent,
             string name,
             Vector2 size,
             Color color,
             bool raycastTarget)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
-            go.transform.SetParent(parent, worldPositionStays: false);
-
-            var rt = go.GetComponent<RectTransform>();
-            BattleHudRectTransformLayout.SetAnchored(rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size);
-
-            var img = go.GetComponent<Image>();
-            img.color = color;
-            img.raycastTarget = raycastTarget;
-            return rt;
+            return _images.Create(
+                name,
+                parent,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                size,
+                color,
+                raycastTarget).Rect;
         }
     }
 }

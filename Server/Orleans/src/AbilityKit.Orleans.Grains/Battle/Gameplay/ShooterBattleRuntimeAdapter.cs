@@ -2,27 +2,38 @@ using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Protocol.Shooter;
+using IWorld = AbilityKit.Ability.World.Abstractions.IWorld;
 
 namespace AbilityKit.Orleans.Grains.Battle.Gameplay;
 
 internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 {
+    private readonly ServerMobaWorldManager _worldManager;
+
+    public ShooterBattleRuntimeAdapter(ServerMobaWorldManager worldManager)
+    {
+        _worldManager = worldManager ?? throw new ArgumentNullException(nameof(worldManager));
+    }
+
     public string RoomType => ShooterGameplay.RoomType;
 
     public IBattleRuntimeSession CreateSession(string battleId)
     {
-        return new ShooterBattleRuntimeSession(battleId);
+        return new ShooterBattleRuntimeSession(battleId, _worldManager);
     }
 
     private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession
     {
         private readonly string _battleId;
-        private readonly IShooterBattleRuntimePort _runtime = new ShooterBattleRuntimePort();
+        private readonly ServerMobaWorldManager _worldManager;
+        private IWorld? _battleWorld;
+        private IShooterBattleRuntimePort? _runtime;
         private ulong _worldId;
 
-        public ShooterBattleRuntimeSession(string battleId)
+        public ShooterBattleRuntimeSession(string battleId, ServerMobaWorldManager worldManager)
         {
             _battleId = battleId ?? string.Empty;
+            _worldManager = worldManager ?? throw new ArgumentNullException(nameof(worldManager));
         }
 
         public BattleRuntimeStartResult Start(BattleInitParams initParams)
@@ -33,6 +44,17 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _worldId = initParams.WorldId;
+            _battleWorld = _worldManager.CreateBattleWorld(_battleId, ShooterGameplay.WorldType, initParams.TickRate);
+            if (_battleWorld == null)
+            {
+                return BattleRuntimeStartResult.Fail("Shooter battle world creation returned null.");
+            }
+
+            if (!_battleWorld.Services.TryResolve<IShooterBattleRuntimePort>(out _runtime) || _runtime == null)
+            {
+                return BattleRuntimeStartResult.Fail("IShooterBattleRuntimePort not resolved from Shooter logic world.");
+            }
+
             var players = BuildStartPlayers(initParams.Players);
             var start = new ShooterStartGamePayload(
                 _battleId,
@@ -47,7 +69,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
-            if (inputs == null || inputs.Count == 0)
+            if (inputs == null || inputs.Count == 0 || _runtime == null)
             {
                 return 0;
             }
@@ -72,11 +94,22 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public bool Tick(int frame, int tickRate, float deltaTime)
         {
+            if (_battleWorld == null || _runtime == null)
+            {
+                return false;
+            }
+
+            _battleWorld.Tick(deltaTime);
             return _runtime.Tick(deltaTime);
         }
 
         public BattleSnapshot? GetSnapshot(int frame)
         {
+            if (_runtime == null)
+            {
+                return null;
+            }
+
             var snapshot = _runtime.GetSnapshot();
             return new BattleSnapshot
             {
@@ -87,19 +120,26 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
-            var snapshot = _runtime.GetSnapshot();
+            var resolvedWorldId = worldId == 0 ? _worldId : worldId;
+            var snapshot = _runtime?.GetSnapshot() ?? default;
+            var packed = _runtime?.ExportPackedSnapshot(resolvedWorldId, isFullSnapshot, authorityOverride: isFullSnapshot) ?? default;
             return new StateSyncPush
             {
-                WorldId = worldId == 0 ? _worldId : worldId,
-                Frame = snapshot.Frame,
+                WorldId = resolvedWorldId,
+                Frame = packed.Frame,
                 Timestamp = DateTime.UtcNow.Ticks,
                 Actors = CreateActorSnapshots(in snapshot),
-                IsFullSnapshot = isFullSnapshot
+                IsFullSnapshot = isFullSnapshot,
+                PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PackedState : ShooterOpCodes.Snapshot.PackedStateDelta,
+                Payload = ShooterPackedSnapshotCodec.Serialize(in packed)
             };
         }
 
         public void Dispose()
         {
+            _worldManager.DestroyBattleWorld(_battleId);
+            _battleWorld = null;
+            _runtime = null;
         }
 
         private static ShooterStartPlayer[] BuildStartPlayers(IReadOnlyList<PlayerInitInfo>? players)

@@ -3,9 +3,9 @@ using UnityEngine.UI;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudFallbackUiFactory
+    internal sealed class BattleHudFallbackUiFactory
     {
-        public static GameObject CreateHpBar()
+        public GameObject CreateHpBar()
         {
             var root = new GameObject("HpBar");
             var rt = root.AddComponent<RectTransform>();
@@ -30,7 +30,7 @@ namespace AbilityKit.Game.Flow
             return root;
         }
 
-        public static GameObject CreateFloatingText()
+        public GameObject CreateFloatingText()
         {
             var root = new GameObject("FloatingText");
             var rt = root.AddComponent<RectTransform>();

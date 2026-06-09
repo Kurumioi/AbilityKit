@@ -286,6 +286,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             int gameplayId = 0,
             int randomSeed = 0)
         {
+            if (players == null || players.Length == 0)
+            {
+                throw new System.InvalidOperationException("MOBA battle launch requires explicit player loadouts.");
+            }
+
             var effectiveBattleId = string.IsNullOrEmpty(battleId) ? matchId : battleId;
             var effectiveMatchId = string.IsNullOrEmpty(matchId) ? effectiveBattleId : matchId;
             var seed = randomSeed != 0 ? randomSeed : System.Environment.TickCount;
@@ -308,7 +313,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
                 launchMode: profile.LaunchMode,
                 syncMode: profile.SyncMode,
                 authorityMode: profile.AuthorityMode,
-                players: players ?? System.Array.Empty<MobaPlayerLoadout>());
+                players: players);
         }
 
         public static MobaBattleLaunchSpec FromEnterReq(

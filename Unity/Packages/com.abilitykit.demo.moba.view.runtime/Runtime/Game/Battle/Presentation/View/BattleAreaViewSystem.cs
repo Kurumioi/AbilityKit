@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -7,7 +6,25 @@ namespace AbilityKit.Game.Flow
 {
     public sealed class BattleAreaViewSystem
     {
-        private readonly Dictionary<int, BattleAreaViewHandle> _areaViews = new Dictionary<int, BattleAreaViewHandle>(128);
+        private readonly BattleAreaViewStore _areaViews;
+        private readonly BattleViewResourceProvider _resources;
+        private readonly BattleAreaViewHandleFactory _handles;
+
+        public BattleAreaViewSystem(BattleViewResourceProvider resources = null)
+            : this(resources, null)
+        {
+        }
+
+        internal BattleAreaViewSystem(
+            BattleViewResourceProvider resources,
+            BattleAreaViewSystemFactory factory)
+        {
+            factory ??= new BattleAreaViewSystemFactory();
+
+            _resources = BattleViewResourceProvider.OrDefault(resources);
+            _areaViews = factory.CreateStore();
+            _handles = factory.CreateHandles(_resources);
+        }
 
         public void HandleSnapshot(
             BattleViewBinder binder,
@@ -16,7 +33,7 @@ namespace AbilityKit.Game.Flow
         {
             if (entries == null || entries.Length == 0) return;
             if (query == null) return;
-            if (BattleViewFactory.GetOrLoadConfigs() == null) return;
+            if (_resources.GetOrLoadConfigs() == null) return;
 
             for (var i = 0; i < entries.Length; i++)
             {
@@ -36,30 +53,35 @@ namespace AbilityKit.Game.Flow
 
         public void Clear()
         {
-            foreach (var kv in _areaViews)
-            {
-                kv.Value?.Destroy();
-            }
-
             _areaViews.Clear();
         }
 
         private void Spawn(BattleViewBinder binder, in MobaAreaEventSnapshotEntry evt)
         {
-            if (_areaViews.ContainsKey(evt.AreaId)) return;
+            if (_areaViews.Contains(evt.AreaId)) return;
 
-            var handle = BattleAreaViewHandleFactory.TryCreate(binder, in evt);
+            var handle = _handles.TryCreate(binder, in evt);
             if (handle == null) return;
 
-            _areaViews[evt.AreaId] = handle;
+            _areaViews.Add(handle);
         }
 
         private void Expire(int areaId)
         {
-            if (!_areaViews.TryGetValue(areaId, out var handle)) return;
+            _areaViews.Expire(areaId);
+        }
+    }
 
-            handle?.Destroy();
-            _areaViews.Remove(areaId);
+    internal sealed class BattleAreaViewSystemFactory
+    {
+        public BattleAreaViewStore CreateStore()
+        {
+            return new BattleAreaViewStore();
+        }
+
+        public BattleAreaViewHandleFactory CreateHandles(BattleViewResourceProvider resources)
+        {
+            return new BattleAreaViewHandleFactory(resources);
         }
     }
 }

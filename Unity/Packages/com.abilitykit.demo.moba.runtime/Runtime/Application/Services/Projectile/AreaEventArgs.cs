@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
-            if (TryGetOrigin(out var origin) && origin.IsValid)
+            if (TryGetOrigin(out var origin) && origin.IsValid && origin.EffectiveParentContextId != 0L)
             {
                 lineageContext = new MobaTriggerLineageContext(
                     EffectContextKind.Area,
@@ -55,14 +55,22 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     origin.TargetActorId,
                     origin.EffectiveParentContextId,
                     RootContextId != 0 ? RootContextId : origin.EffectiveRootContextId,
-                    OwnerContextId,
+                    OwnerContextId != 0 ? OwnerContextId : origin.OwnerContextId,
                     origin.ImmediateConfigId);
-                return true;
+                return lineageContext.SourceActorId > 0 && lineageContext.SourceContextId != 0;
             }
 
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
-            lineageContext = new MobaTriggerLineageContext(EffectContextKind.Area, traceKind, OwnerActorId, TargetActorId, SourceContextId, RootContextId, OwnerContextId, TemplateId);
-            return OwnerActorId > 0 || TargetActorId > 0 || TemplateId > 0 || SourceContextId != 0;
+            lineageContext = new MobaTriggerLineageContext(
+                EffectContextKind.Area,
+                traceKind,
+                OwnerActorId,
+                TargetActorId,
+                SourceContextId,
+                RootContextId != 0 ? RootContextId : SourceContextId,
+                OwnerContextId != 0 ? OwnerContextId : SourceContextId,
+                TemplateId);
+            return OwnerActorId > 0 && SourceContextId != 0;
         }
 
         public bool TryGetContextSource(out MobaContextSourceView source)

@@ -59,7 +59,16 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            MobaMoveCodec.Deserialize(command.Payload, out float dx, out float dz);
+            if (!MobaMoveCodec.TryDeserialize(command.Payload, out float dx, out float dz, out var payloadError))
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.PayloadInvalid,
+                    $"PayloadInvalid(Player={command.Player.Value},Actor={actorId},Error={payloadError})",
+                    actorId);
+                return false;
+            }
+
             if (!entity.hasMoveInput) entity.AddMoveInput(dx, dz);
             else entity.ReplaceMoveInput(dx, dz);
 

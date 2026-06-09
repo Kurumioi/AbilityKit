@@ -10,7 +10,8 @@ namespace AbilityKit.Game.Flow
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Root.TryGetRef(out _ctx);
-            _query = _ctx?.EntityQuery;
+            SetRuntimeQuery(_ctx?.EntityQuery);
+            BindPresentationSession(ctx);
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleViewFeature>(ctx, this));
@@ -29,6 +30,7 @@ namespace AbilityKit.Game.Flow
             _subFeatureHost?.Detach(new FeatureModuleContext<BattleViewFeature>(ctx, this));
 
             _ctx = null;
+            ClearPresentationSession(ctx);
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -52,11 +54,11 @@ namespace AbilityKit.Game.Flow
             if (_subFeatureHost != null && _subFeatures.Count > 0) return;
 
             _subFeatures.Clear();
-            ViewFeatureSubFeatureBuilder.AddBattleViewSubFeatures(_subFeatures);
+            _subFeatureBuilder.AddBattleViewSubFeatures(_subFeatures);
 
-            ViewSubFeaturePipeline.AddStandardViewSubFeatures(_subFeatures);
+            _subFeaturePipeline.AddStandardViewSubFeatures(_subFeatures);
 
-            _subFeatureHost = ViewSubFeaturePipeline.CreateHost(_subFeatures);
+            _subFeatureHost = _subFeaturePipeline.CreateHost(_subFeatures);
         }
     }
 }

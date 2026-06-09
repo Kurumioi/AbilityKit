@@ -53,7 +53,9 @@ public sealed class StartRoomBattleHandler : GatewayRequestHandlerBase
                 BattleId = resp.BattleId ?? string.Empty,
                 WorldId = resp.WorldId,
                 Started = resp.Started,
-                Message = string.Empty
+                Message = string.Empty,
+                WorldStartAnchor = RoomGatewayWireMapper.ToWireAnchor(resp.WorldStartAnchor),
+                ServerNowTicks = resp.ServerNowTicks
             };
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 

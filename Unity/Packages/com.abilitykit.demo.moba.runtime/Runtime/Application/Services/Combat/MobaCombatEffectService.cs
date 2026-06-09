@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 
@@ -11,19 +12,18 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaCombatEffectService(DamagePipelineService damagePipeline, MobaDamageService damageApplier)
         {
-            _damagePipeline = damagePipeline;
-            _damageApplier = damageApplier;
+            _damagePipeline = damagePipeline ?? throw new ArgumentNullException(nameof(damagePipeline));
+            _damageApplier = damageApplier ?? throw new ArgumentNullException(nameof(damageApplier));
         }
 
         public DamageResult DealDamage(AttackInfo attack)
         {
             if (attack == null) return null;
-            return _damagePipeline != null ? _damagePipeline.Execute(attack) : null;
+            return _damagePipeline.Execute(attack);
         }
 
         public float Heal(int healerActorId, int targetActorId, int healType, float value, int reasonKind = 0, int reasonParam = 0)
         {
-            if (_damageApplier == null) return 0f;
             return _damageApplier.ApplyHeal(healerActorId, targetActorId, healType, value, reasonKind, reasonParam);
         }
 

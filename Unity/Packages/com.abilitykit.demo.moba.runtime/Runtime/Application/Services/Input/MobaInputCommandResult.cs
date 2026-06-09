@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
         SkillRejected = 8,
         MissingHandler = 9,
         HandlerRejected = 10,
-        HotfixRouterException = 11,
+        PayloadInvalid = 11,
     }
 
     public readonly struct MobaInputCommandResult

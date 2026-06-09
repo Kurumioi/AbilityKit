@@ -3,9 +3,9 @@ using AbilityKit.Game.Battle.View.Lib.Skill;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudSkillButtonTemplateApplier
+    internal sealed class BattleHudSkillButtonTemplateApplier
     {
-        public static void Apply(SkillButtonView view, SkillButtonTemplateMO template)
+        public void Apply(SkillButtonView view, SkillButtonTemplateMO template)
         {
             if (view == null || template == null) return;
 

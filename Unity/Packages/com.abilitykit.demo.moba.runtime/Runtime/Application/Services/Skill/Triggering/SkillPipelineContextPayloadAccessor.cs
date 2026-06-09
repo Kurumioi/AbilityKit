@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
@@ -209,8 +210,9 @@ namespace AbilityKit.Demo.Moba.Services
                 level = table.GetLevel(skillLevel);
                 return level != null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineContextPayloadAccessor] GetLevel failed (skillId={context.SkillId}, skillLevel={skillLevel})");
                 return false;
             }
         }

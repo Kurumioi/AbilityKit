@@ -8,15 +8,19 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleViewPositionSampler
     {
         private readonly BattleViewHandleStore _handles;
+        private readonly BattleViewSampleTimeResolver _sampleTimes;
 
-        public BattleViewPositionSampler(BattleViewHandleStore handles)
+        public BattleViewPositionSampler(
+            BattleViewHandleStore handles,
+            BattleViewSampleTimeResolver sampleTimes = null)
         {
             _handles = handles;
+            _sampleTimes = sampleTimes ?? new BattleViewSampleTimeResolver();
         }
 
         public void SampleEntity(in EC.IEntity entity, in Vector3 pos, BattleContext ctx)
         {
-            SampleEntity(entity, in pos, ResolveSampleTime(ctx));
+            SampleEntity(entity, in pos, _sampleTimes.Resolve(ctx));
         }
 
         public void SampleAliveEntityPositions(BattleContext ctx, double sampleTime)
@@ -51,7 +55,11 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        private static double ResolveSampleTime(BattleContext ctx)
+    }
+
+    internal sealed class BattleViewSampleTimeResolver
+    {
+        public double Resolve(BattleContext ctx)
         {
             if (ctx == null) return 0d;
 

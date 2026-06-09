@@ -13,8 +13,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         [SerializeField] private SkillButtonConfig _config = default;
 
         private readonly SkillButtonAimController _aim = new SkillButtonAimController();
+        private readonly SkillButtonGestureController _gesture = new SkillButtonGestureController();
         private Camera _uiCamera;
-        private SkillButtonPointerState _pointer = SkillButtonPointerState.Create();
 
         public SkillButtonConfig Config
         {
@@ -22,6 +22,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             set
             {
                 _config = value.LongPressSeconds > 0f ? value : SkillButtonConfig.Default;
+                _gesture.Configure(_config);
                 ConfigureAim();
             }
         }
@@ -44,6 +45,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             _canvas = canvas;
             _aimIndicator = aimIndicator;
             _config = config.LongPressSeconds > 0f ? config : SkillButtonConfig.Default;
+            _gesture.Configure(_config);
 
             RefreshReferences();
             _aim.Hide();
@@ -52,6 +54,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private void Awake()
         {
             if (_config.LongPressSeconds <= 0f) _config = SkillButtonConfig.Default;
+            _gesture.Configure(_config);
             RefreshReferences();
 
             _aim.Hide();
@@ -73,24 +76,18 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void OnDisable()
         {
-            _pointer = SkillButtonPointerState.Create();
+            _gesture.Reset();
             _aim.Hide();
         }
 
         private void Update()
         {
-            if (!_pointer.Pressed) return;
-            if (_pointer.LongPressFired) return;
-
-            var now = Time.unscaledTime;
-            if (now - _pointer.PressTime < _config.LongPressSeconds) return;
-
-            _pointer.MarkLongPressFired();
+            if (!_gesture.Tick(Time.unscaledTime)) return;
             OnLongPress?.Invoke();
 
             if (_config.EnableAim)
             {
-                BeginAim(_pointer.LastScreenPos);
+                BeginAim(_gesture.LastScreenPos);
             }
         }
 
@@ -98,36 +95,29 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         {
             if (_buttonRect == null) return;
 
-            _pointer.Begin(eventData.pointerId, eventData.position, Time.unscaledTime);
+            _gesture.Begin(eventData.pointerId, eventData.position, Time.unscaledTime);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
-            if (!_pointer.Pressed) return;
-            if (!_pointer.Matches(eventData.pointerId)) return;
-
-            _pointer.UpdateScreenPos(eventData.position);
-
-            if (_config.EnableAim && !_pointer.Aiming && ShouldBeginAim())
+            if (!_gesture.Drag(eventData.pointerId, eventData.position, out var shouldBeginAim, out var shouldUpdateAim)) return;
+            if (shouldBeginAim)
             {
-                BeginAim(_pointer.LastScreenPos);
+                BeginAim(_gesture.LastScreenPos);
+                shouldUpdateAim = true;
             }
 
-            if (_pointer.Aiming)
+            if (shouldUpdateAim)
             {
-                var aim = _aim.Calculate(_pointer.LastScreenPos);
+                var aim = _aim.Calculate(_gesture.LastScreenPos);
                 OnAimUpdate?.Invoke(aim);
-                _aim.Update(_pointer.LastScreenPos);
+                _aim.Update(_gesture.LastScreenPos);
             }
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
-            if (!_pointer.Matches(eventData.pointerId)) return;
-
-            var wasAiming = _pointer.Aiming;
-            var longPressFired = _pointer.LongPressFired;
-            _pointer.EndPress();
+            if (!_gesture.End(eventData.pointerId, out var wasAiming, out var longPressFired)) return;
 
             if (wasAiming)
             {
@@ -145,15 +135,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             EndAim();
         }
 
-        private bool ShouldBeginAim()
-        {
-            var drag = (_pointer.LastScreenPos - _pointer.PressScreenPos).magnitude;
-            return drag >= _config.DragThreshold;
-        }
-
         private void BeginAim(Vector2 currentScreen)
         {
-            _pointer.SetAiming(true);
+            _gesture.SetAiming(true);
             var aim = _aim.Calculate(currentScreen);
             OnAimStart?.Invoke(aim);
             _aim.Show(currentScreen);
@@ -161,7 +145,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void EndAim()
         {
-            _pointer.SetAiming(false);
+            _gesture.SetAiming(false);
             _aim.Hide();
         }
     }

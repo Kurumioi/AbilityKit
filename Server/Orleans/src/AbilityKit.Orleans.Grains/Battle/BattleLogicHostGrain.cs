@@ -32,6 +32,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private string _battleId = string.Empty;
     private bool _initialized;
     private TimeSpan _tickInterval;
+    private WorldStartAnchor? _worldStartAnchor;
+    private int _inputDelayFrames;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
@@ -42,7 +44,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             new IBattleRuntimeAdapter[]
             {
                 new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance),
-                new ShooterBattleRuntimeAdapter()
+                new ShooterBattleRuntimeAdapter(worldManager)
             },
             MobaRoomGameplayAdapter.DefaultRoomType);
         _tickDriver = new BattleTickDriver<BattleInputItem>(SubmitRuntimeInputs, TickBattleWorld);
@@ -83,6 +85,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _worldId = initParams.WorldId;
         _tickRate = initParams.TickRate > 0 ? initParams.TickRate : 30;
         _tickInterval = TimeSpan.FromSeconds(1.0 / _tickRate);
+        _inputDelayFrames = initParams.InputDelayFrames > 0 ? initParams.InputDelayFrames : 0;
+        _worldStartAnchor = new WorldStartAnchor(
+            DateTime.UtcNow.Ticks,
+            TimeSpan.TicksPerSecond,
+            0,
+            1.0 / _tickRate);
         _battleHostState.Initialize(_worldId, _battleId, _tickRate);
 
         _logger.LogInformation(
@@ -110,38 +118,82 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.CompletedTask;
     }
 
-    public Task SubmitInputAsync(ulong worldId, int frame, BattleInputItem input)
+    public Task<BattleInputSubmitResult> SubmitInputAsync(ulong worldId, int frame, BattleInputItem input)
     {
         if (!_initialized)
         {
             _logger.LogWarning("[BattleLogicHost] SubmitInput called but not initialized");
-            return Task.CompletedTask;
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, "RejectedNotInitialized", "Battle is not initialized."));
         }
 
+        var currentFrame = _battleHostState.Frame;
         if (worldId != 0 && worldId != _worldId)
         {
             _logger.LogWarning("[BattleLogicHost] Input world mismatch. Expected: {ExpectedWorldId}, Actual: {ActualWorldId}", _worldId, worldId);
-            return Task.CompletedTask;
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, "RejectedWorldMismatch", "Input world does not match battle world."));
         }
 
         if (input == null)
         {
-            return Task.CompletedTask;
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, "RejectedNullInput", "Input is required."));
         }
 
-        if (!_inputBuffer.Enqueue(frame, input))
+        var schedule = BattleInputFrameScheduler.Schedule(
+            frame,
+            currentFrame,
+            _inputDelayFrames,
+            BattleInputFrameSchedulerOptions.Default);
+        if (!schedule.Accepted)
         {
-            _logger.LogWarning("[BattleLogicHost] Input rejected by host input buffer. Frame: {Frame}, PlayerId: {PlayerId}", frame, input.PlayerId);
-            return Task.CompletedTask;
+            _logger.LogWarning(
+                "[BattleLogicHost] Input rejected by frame scheduler. Frame: {Frame}, CurrentFrame: {CurrentFrame}, Status: {Status}, PlayerId: {PlayerId}",
+                frame,
+                currentFrame,
+                schedule.Status,
+                input.PlayerId);
+            return Task.FromResult(CreateInputSubmitResult(false, frame, schedule.AcceptedFrame, schedule.Status.ToString(), BuildInputSubmitMessage(schedule)));
+        }
+
+        if (!_inputBuffer.Enqueue(schedule.AcceptedFrame, input))
+        {
+            _logger.LogWarning("[BattleLogicHost] Input rejected by host input buffer. Frame: {Frame}, PlayerId: {PlayerId}", schedule.AcceptedFrame, input.PlayerId);
+            return Task.FromResult(CreateInputSubmitResult(false, frame, schedule.AcceptedFrame, "RejectedByInputBuffer", "Input buffer rejected the scheduled frame."));
         }
 
         _logger.LogDebug(
-            "[BattleLogicHost] Input received - Frame: {Frame}, PlayerId: {PlayerId}, OpCode: {OpCode}",
+            "[BattleLogicHost] Input received - RequestedFrame: {RequestedFrame}, AcceptedFrame: {AcceptedFrame}, CurrentFrame: {CurrentFrame}, PlayerId: {PlayerId}, OpCode: {OpCode}, Status: {Status}",
             frame,
+            schedule.AcceptedFrame,
+            currentFrame,
             input.PlayerId,
-            input.OpCode);
+            input.OpCode,
+            schedule.Status);
 
-        return Task.CompletedTask;
+        return Task.FromResult(CreateInputSubmitResult(true, frame, schedule.AcceptedFrame, schedule.Status.ToString(), BuildInputSubmitMessage(schedule)));
+    }
+
+    private BattleInputSubmitResult CreateInputSubmitResult(bool accepted, int requestedFrame, int acceptedFrame, string status, string message)
+    {
+        return new BattleInputSubmitResult(
+            accepted,
+            requestedFrame,
+            acceptedFrame,
+            _battleHostState.Frame,
+            status,
+            message);
+    }
+
+    private static string BuildInputSubmitMessage(BattleInputFrameScheduleResult schedule)
+    {
+        return schedule.Status switch
+        {
+            BattleInputAcceptStatus.Accepted => string.Empty,
+            BattleInputAcceptStatus.RemappedLate => $"Input frame {schedule.RequestedFrame} is late and was remapped to frame {schedule.AcceptedFrame}.",
+            BattleInputAcceptStatus.RemappedTooEarly => $"Input frame {schedule.RequestedFrame} is earlier than the configured input delay and was remapped to frame {schedule.AcceptedFrame}.",
+            BattleInputAcceptStatus.RejectedInvalidFrame => "Input frame is invalid.",
+            BattleInputAcceptStatus.RejectedTooFarFuture => $"Input frame {schedule.RequestedFrame} is too far ahead of current frame {schedule.CurrentFrame}.",
+            _ => schedule.Status.ToString()
+        };
     }
 
     public Task<int> GetCurrentFrameAsync()
@@ -152,6 +204,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     public Task<BattleSnapshot?> GetSnapshotAsync()
     {
         return Task.FromResult(_runtimeSession?.GetSnapshot(_battleHostState.Frame));
+    }
+
+    public Task<WorldStartAnchor?> GetWorldStartAnchorAsync()
+    {
+        return Task.FromResult(_worldStartAnchor);
     }
 
     public Task SubscribeAsync(IStateSyncObserver observer)
@@ -268,14 +325,22 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private StateSyncPush BuildStateSyncPush(int frame, bool isFullSnapshot)
     {
-        return _runtimeSession?.CreateStateSyncPush(_worldId, frame, isFullSnapshot)
+        var push = _runtimeSession?.CreateStateSyncPush(_worldId, frame, isFullSnapshot)
             ?? new StateSyncPush
             {
                 WorldId = _worldId,
                 Frame = frame,
-                Timestamp = DateTime.UtcNow.Ticks,
                 IsFullSnapshot = isFullSnapshot
             };
+
+        var serverTicks = DateTime.UtcNow.Ticks;
+        push.ServerTicks = serverTicks;
+        if (push.Timestamp <= 0d)
+        {
+            push.Timestamp = serverTicks;
+        }
+
+        return push;
     }
 
     private static void SendStateSyncPush(IStateSyncObserver observer, StateSyncPush push)
@@ -297,6 +362,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _battleId = string.Empty;
         _worldId = 0;
         _initialized = false;
+        _worldStartAnchor = null;
         _inputBuffer.Clear();
         _battleHostState.Reset();
     }

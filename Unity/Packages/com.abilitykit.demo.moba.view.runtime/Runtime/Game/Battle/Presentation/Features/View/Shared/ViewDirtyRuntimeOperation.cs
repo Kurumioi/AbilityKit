@@ -1,33 +1,36 @@
-using AbilityKit.Game.Battle.Component;
-using AbilityKit.Game.Battle.Entity;
-
 namespace AbilityKit.Game.Flow
 {
-    internal static class ViewDirtyRuntimeOperation
+    internal sealed class ViewDirtyRuntimeOperation
     {
-        public static void Refresh(IViewFeatureRuntime runtime)
+        private readonly ViewSeekableRegistry _seekables;
+        private readonly ViewTimelineRuntimeOperation _timeline;
+        private readonly ViewDirtyEntityRefreshOperation _dirtyEntities;
+
+        public ViewDirtyRuntimeOperation(
+            ViewSeekableRegistry seekables = null,
+            ViewTimelineRuntimeOperation timeline = null,
+            ViewDirtyEntityRefreshOperation dirtyEntities = null)
         {
-            if (runtime?.Query?.World == null) return;
+            _seekables = seekables ?? new ViewSeekableRegistry();
+            _timeline = timeline ?? new ViewTimelineRuntimeOperation();
+            _dirtyEntities = dirtyEntities ?? new ViewDirtyEntityRefreshOperation();
+        }
 
-            var battleCtx = runtime.Context;
-            var dirty = battleCtx != null ? battleCtx.DirtyEntities : null;
-            if (dirty == null || dirty.Count == 0) return;
+        public void Refresh(IViewFeatureRuntime runtime)
+        {
+            if (runtime == null) return;
 
-            for (int i = 0; i < dirty.Count; i++)
+            var refreshed = _dirtyEntities.Refresh(
+                runtime.Context,
+                runtime.Query,
+                runtime.Binder,
+                requireViewComponents: true,
+                onSynced: id => _seekables.RegisterForEntity(runtime, id));
+
+            if (refreshed)
             {
-                var id = dirty[i];
-                if (!runtime.Query.World.IsAlive(id)) continue;
-
-                var entity = runtime.Query.World.Wrap(id);
-                if (!entity.TryGetRef(out BattleNetIdComponent netIdComp)) continue;
-                if (!entity.TryGetRef(out BattleTransformComponent transform)) continue;
-
-                runtime.Binder?.Sync(entity, battleCtx);
-                ViewSeekableRegistry.RegisterForEntity(runtime, id);
+                _timeline.SeekAllToCurrentFrame(runtime);
             }
-
-            ViewTimelineRuntimeOperation.SeekAllToCurrentFrame(runtime);
-            dirty.Clear();
         }
     }
 }

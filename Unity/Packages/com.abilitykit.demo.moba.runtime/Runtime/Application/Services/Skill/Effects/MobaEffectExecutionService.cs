@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (_executionContexts.Count == 0) return false;
 
             context = _executionContexts.Peek();
-            return context.IsValid;
+            return context.HasExecutionSource;
         }
 
         public bool TryGetCurrentTraceScope(out MobaEffectTraceScopeSnapshot snapshot)
@@ -283,6 +283,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaCombatExecutionContext CreateCombatExecutionContext(object payload, int triggerId, int configId)
         {
+            if (payload == null)
+            {
+                throw new ArgumentNullException(nameof(payload), $"MobaEffectExecutionService requires payload for effect execution context. triggerId={triggerId}, configId={configId}");
+            }
+
             var lineageInput = MobaEffectLineageInputResolver.Resolve(payload);
             var executionSnapshot = CreateExecutionSnapshot(payload, in lineageInput, triggerId, configId);
             return MobaCombatExecutionContextFactory.Create(payload, in lineageInput, in executionSnapshot, executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame);

@@ -1,13 +1,10 @@
-using System.Collections.Generic;
 using AbilityKit.Core.Common.Projectile;
 using AbilityKit.Core.Math;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
-    public sealed class ProjectileHitArgs : IMobaActorContextProvider, IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerDataContext, IMobaOriginContextProvider, IMobaTriggerSkillRuntimeContext, IMobaContextSourceProvider
+    public sealed class ProjectileHitArgs : IMobaActorContextProvider, IMobaTriggerInvocationContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaOriginContextProvider, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider, IMobaContextSourceProvider
     {
-        private readonly MobaTriggerDataBag _data = new MobaTriggerDataBag();
-
         public int TriggerId { get; set; }
         public EffectContextKind Kind => EffectContextKind.Projectile;
         public int SourceActorId { get; set; }
@@ -24,8 +21,6 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public Vec3 Point;
         public Vec3 Normal;
         public ColliderId HitCollider;
-        public MobaTriggerDataBag Data => _data;
-        public Dictionary<string, object> SharedData => _data.SharedData;
 
         public bool TryGetSourceActorId(out int actorId)
         {
@@ -87,6 +82,28 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return handle.IsValid;
         }
 
+        public bool TryGetExecutionSnapshot(out MobaTriggerExecutionSnapshot snapshot)
+        {
+            if (!TryGetLineageContext(out var lineageContext))
+            {
+                snapshot = default;
+                return false;
+            }
+
+            snapshot = new MobaTriggerExecutionSnapshot(
+                lineageContext.ContextKind,
+                lineageContext.SourceActorId,
+                lineageContext.TargetActorId,
+                lineageContext.SourceContextId,
+                lineageContext.RootContextId,
+                lineageContext.OwnerKey,
+                TriggerId,
+                ProjectileTemplateId != 0 ? ProjectileTemplateId : SourceConfigId,
+                Frame,
+                SourceContext.SkillRuntimeHandle);
+            return snapshot.IsValid;
+        }
+
         public bool TryGetContextSource(out MobaContextSourceView source)
         {
             if (TryGetLineageContext(out var lineageContext))
@@ -106,10 +123,5 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return false;
         }
 
-        public T GetData<T>(string key, T defaultValue = default) => _data.GetData(key, defaultValue);
-        public void SetData<T>(string key, T value) => _data.SetData(key, value);
-        public bool TryGetData<T>(string key, out T value) => _data.TryGetData(key, out value);
-        public bool RemoveData(string key) => _data.RemoveData(key);
-        public void ClearData() => _data.ClearData();
     }
 }

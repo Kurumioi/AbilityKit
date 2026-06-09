@@ -70,7 +70,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             return ok;
         }
 
-        public bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId = 0, int level = 1, int basicAttackSkillId = 0, int[] skillIds = null)
+        public bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
         {
             var ok = State.TryPickHero(playerId, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
             if (ok) OnChanged(new MobaRoomChangedArgs(MobaRoomChangeKind.HeroPicked, playerId, State.Revision));
@@ -149,7 +149,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
                             command.PlayerId,
                             command.HeroId,
                             command.AttributeTemplateId,
-                            command.Level > 0 ? command.Level : 1,
+                            command.Level,
                             command.BasicAttackSkillId,
                             command.SkillIds))
                         return MobaRoomCommandResult.Fail(MobaRoomCommandError.InvalidCommand, currentRev);

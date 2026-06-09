@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             if (targetActorId <= 0) return;
 
-            ResolveFrames(args, ctx, out var startFrame, out var expireFrame);
+            ResolveFrames(args, ctx, sourceActorId, targetActorId, out var startFrame, out var expireFrame);
             var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, args.ShieldId);
             var layer = new ShieldLayer
             {
@@ -77,30 +77,33 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             logApplied?.Invoke($"source={sourceActorId} target={targetActorId} shieldId={args.ShieldId} instance={instanceId} value={args.Value:0.###} expireFrame={expireFrame}");
         }
 
-        private static void ResolveFrames(AddShieldArgs args, ExecCtx<IWorldResolver> ctx, out int startFrame, out int expireFrame)
+        private static void ResolveFrames(AddShieldArgs args, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, out int startFrame, out int expireFrame)
         {
-            startFrame = 0;
+            var frameTime = ResolveFrameTime(ctx, sourceActorId, targetActorId, args.ShieldId);
+            startFrame = frameTime.Frame.Value;
             expireFrame = 0;
 
+            if (args.DurationFrames > 0)
+            {
+                expireFrame = startFrame + args.DurationFrames;
+                return;
+            }
+
+            if (args.DurationMs > 0)
+            {
+                var seconds = args.DurationMs / 1000f;
+                expireFrame = Math.Max(startFrame + 1, frameTime.TimeToFrame(frameTime.Time + seconds).Value);
+            }
+        }
+
+        private static IFrameTime ResolveFrameTime(ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, int shieldId)
+        {
             if (ctx.Context != null && ctx.Context.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
             {
-                startFrame = frameTime.Frame.Value;
-                if (args.DurationFrames > 0)
-                {
-                    expireFrame = startFrame + args.DurationFrames;
-                    return;
-                }
+                return frameTime;
+            }
 
-                if (args.DurationMs > 0)
-                {
-                    var seconds = args.DurationMs / 1000f;
-                    expireFrame = Math.Max(startFrame + 1, frameTime.TimeToFrame(frameTime.Time + seconds).Value);
-                }
-            }
-            else if (args.DurationFrames > 0)
-            {
-                expireFrame = args.DurationFrames;
-            }
+            throw new InvalidOperationException($"[Plan] add_shield requires IFrameTime for deterministic shield frame resolution. sourceActorId={sourceActorId}, targetActorId={targetActorId}, shieldId={shieldId}");
         }
     }
 }

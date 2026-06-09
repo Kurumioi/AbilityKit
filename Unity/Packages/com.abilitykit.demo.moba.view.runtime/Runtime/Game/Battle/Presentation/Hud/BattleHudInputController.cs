@@ -11,6 +11,8 @@ namespace AbilityKit.Game.Flow
         private readonly Canvas _canvas;
         private readonly Transform _cameraTransform;
         private readonly BattleHudInputEventBridge _inputEvents;
+        private readonly BattleHudSkillButtonTemplateBinder _templateBinder;
+        private readonly BattleHudInputUiFactory _uiFactory;
 
         private BattleHudInputUi _inputUi;
 
@@ -18,13 +20,20 @@ namespace AbilityKit.Game.Flow
             IBattleHudInputSink hudInput,
             RectTransform root,
             Canvas canvas,
-            Transform cameraTransform)
+            Transform cameraTransform,
+            BattleViewResourceProvider resources = null,
+            BattleHudInputUiFactory uiFactory = null,
+            BattleHudInputControllerFactory controllers = null)
         {
+            controllers ??= new BattleHudInputControllerFactory();
+
             _hudInput = hudInput;
             _root = root;
             _canvas = canvas;
             _cameraTransform = cameraTransform;
-            _inputEvents = new BattleHudInputEventBridge(hudInput);
+            _inputEvents = controllers.CreateInputEvents(hudInput);
+            _templateBinder = controllers.CreateTemplateBinder(resources);
+            _uiFactory = uiFactory ?? new BattleHudInputUiFactory();
         }
 
         public void Ensure()
@@ -33,18 +42,16 @@ namespace AbilityKit.Game.Flow
             if (_hudInput == null) return;
             if (_inputUi != null) return;
 
-            _inputUi = BattleHudInputUiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick);
+            _inputUi = _uiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick);
             _inputEvents.Bind(_inputUi);
         }
 
         public void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
         {
-            BattleHudSkillButtonTemplateBinder.TryApply(
+            _templateBinder.TryApply(
                 res,
                 playerId,
-                _inputUi?.Skill1View,
-                _inputUi?.Skill2View,
-                _inputUi?.Skill3View);
+                _inputUi?.SkillViews);
         }
 
         public void Dispose()
@@ -64,6 +71,19 @@ namespace AbilityKit.Game.Flow
 
         private static void OnInfoClick()
         {
+        }
+    }
+
+    internal sealed class BattleHudInputControllerFactory
+    {
+        public BattleHudInputEventBridge CreateInputEvents(IBattleHudInputSink hudInput)
+        {
+            return new BattleHudInputEventBridge(hudInput);
+        }
+
+        public BattleHudSkillButtonTemplateBinder CreateTemplateBinder(BattleViewResourceProvider resources)
+        {
+            return new BattleHudSkillButtonTemplateBinder(resources);
         }
     }
 }

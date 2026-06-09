@@ -12,6 +12,9 @@ namespace AbilityKit.Protocol.Shooter
             public const int StartGame = 5201;
             public const int State = 5202;
             public const int Events = 5203;
+            public const int PackedState = 5204;
+            public const int PackedStateDelta = 5205;
+            public const int StateHash = 5206;
         }
     }
 }

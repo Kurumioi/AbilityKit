@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
                 : MobaGameplayOrigin.FromLegacy(sourceActorId, summonActorId, MobaTraceKind.SummonSpawn, summonConfigId, sourceContextId, in skillRuntimeHandle);
         }
 
-        public bool IsValid => SourceActorId > 0 || SummonActorId > 0 || SourceContextId != 0 || Origin.IsValid || SkillRuntimeHandle.IsValid;
+        public bool IsValid => SourceActorId > 0 && SourceContextId != 0;
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
@@ -54,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Services
                 RootContextId != 0 ? RootContextId : SourceContextId,
                 OwnerContextId != 0 ? OwnerContextId : SourceContextId,
                 SummonConfigId);
-            return lineageContext.SourceActorId > 0 || lineageContext.SourceContextId != 0;
+            return lineageContext.SourceActorId > 0 && lineageContext.SourceContextId != 0;
         }
 
         public bool TryGetContextSource(out MobaContextSourceView source)

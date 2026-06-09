@@ -53,13 +53,17 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
         var playerId = new PlayerId(request.AccountId);
         roomState.TrySetTeam(playerId, request.TeamId);
         roomState.TrySetSpawnPoint(playerId, request.SpawnPointId);
-        roomState.TryPickHero(
+        var ok = roomState.TryPickHero(
             playerId,
             request.HeroId,
             request.AttributeTemplateId,
-            request.Level > 0 ? request.Level : 1,
+            request.Level,
             request.BasicAttackSkillId,
             request.SkillIds?.ToArray());
+        if (!ok)
+        {
+            throw new InvalidOperationException("Invalid MOBA room pick hero request. Full player loadout fields are required.");
+        }
     }
 
     public bool CanStart(object state)

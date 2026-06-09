@@ -49,7 +49,11 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
         {
             if (_group == null) return;
 
-            var confirmed = GetConfirmedFrame();
+            if (!TryGetConfirmedFrame(out var confirmed))
+            {
+                throw new System.InvalidOperationException("MobaActorDespawnCleanupSystem requires authority or frame time before cleaning actor despawn requests.");
+            }
+
             const int maxPasses = 8;
 
             for (int pass = 0; pass < maxPasses; pass++)
@@ -156,19 +160,30 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
             }
         }
 
-        private int GetConfirmedFrame()
+        private bool TryGetConfirmedFrame(out int frame)
         {
+            frame = 0;
             try
             {
-                if (_authority != null) return _authority.ConfirmedFrame.Value;
-                if (_time != null) return _time.Frame.Value;
+                if (_authority != null)
+                {
+                    frame = _authority.ConfirmedFrame.Value;
+                    return true;
+                }
+
+                if (_time != null)
+                {
+                    frame = _time.Frame.Value;
+                    return true;
+                }
             }
-            catch
+            catch (System.Exception ex)
             {
-                return 0;
+                Log.Exception(ex, "[MobaActorDespawnCleanupSystem] resolve confirmed frame failed");
+                return false;
             }
 
-            return 0;
+            return false;
         }
 
         private static AbilityKit.Demo.Moba.Events.Summon.SummonDespawnReason ToSummonReason(ActorDespawnReason reason)

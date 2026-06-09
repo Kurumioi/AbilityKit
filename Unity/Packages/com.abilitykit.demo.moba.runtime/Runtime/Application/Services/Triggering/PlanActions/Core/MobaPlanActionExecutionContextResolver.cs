@@ -7,7 +7,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     {
         public static bool TryResolve(object triggerArgs, ExecCtx<IWorldResolver> ctx, out MobaCombatExecutionContext executionContext)
         {
-            if (ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects)
+            var services = ctx.Context;
+            if (services != null
+                && services.TryResolve<MobaEffectExecutionService>(out var effects)
                 && effects != null
                 && effects.TryGetCurrentExecutionContext(out var currentContext))
             {
@@ -39,7 +41,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public static bool TryResolveTraceScope(ExecCtx<IWorldResolver> ctx, out MobaEffectTraceScopeSnapshot traceScope)
         {
             traceScope = default;
-            return ctx.Context.TryResolve<MobaEffectExecutionService>(out var effects)
+            var services = ctx.Context;
+            return services != null
+                   && services.TryResolve<MobaEffectExecutionService>(out var effects)
                    && effects != null
                    && effects.TryGetCurrentTraceScope(out traceScope)
                    && traceScope.EffectContextId != 0;

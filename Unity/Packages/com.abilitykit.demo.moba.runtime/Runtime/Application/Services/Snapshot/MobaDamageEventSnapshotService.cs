@@ -11,13 +11,13 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaDamageEventSnapshotService))]
     public sealed class MobaDamageEventSnapshotService : IService, IMobaSnapshotEmitter
     {
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
 
         private FrameIndex _lastFrame;
 
         private readonly MobaSnapshotBuffer<MobaDamageEventSnapshotEntry> _events = new MobaSnapshotBuffer<MobaDamageEventSnapshotEntry>(64, 512);
 
-        public MobaDamageEventSnapshotService(MobaGamePhaseService phase)
+        public MobaDamageEventSnapshotService(MobaLogicWorldRunGateService phase)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _lastFrame = new FrameIndex(-999999);

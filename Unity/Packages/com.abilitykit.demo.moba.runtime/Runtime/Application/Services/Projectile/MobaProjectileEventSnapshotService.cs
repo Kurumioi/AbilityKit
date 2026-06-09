@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
     [WorldService(typeof(MobaProjectileEventSnapshotService))]
     public sealed class MobaProjectileEventSnapshotService : IService
     {
-        private readonly AbilityKit.Demo.Moba.Services.MobaGamePhaseService _phase;
+        private readonly AbilityKit.Demo.Moba.Services.MobaLogicWorldRunGateService _phase;
         private readonly IProjectileService _projectiles;
         private readonly MobaProjectileLinkService _links;
 
@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
         private readonly AbilityKit.Demo.Moba.Services.MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry> _entries = new AbilityKit.Demo.Moba.Services.MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry>(32, 512);
 
-        public MobaProjectileEventSnapshotService(AbilityKit.Demo.Moba.Services.MobaGamePhaseService phase, IProjectileService projectiles, MobaProjectileLinkService links)
+        public MobaProjectileEventSnapshotService(AbilityKit.Demo.Moba.Services.MobaLogicWorldRunGateService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));

@@ -49,6 +49,12 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
                 return LogicWorldInputSubmitResult.Rejected(message);
             }
 
+            if (!ValidateCommandFrames(frame, inputs, out var commandFrameError))
+            {
+                MobaInputDiagnostics.RecordBatchWarning(_diagnostics, "input.batch.commandFrameMismatch", commandFrameError, GetType().Name);
+                return LogicWorldInputSubmitResult.Rejected(commandFrameError);
+            }
+
             TContext context = CreateContext(frame, inputs);
             if (context == null)
             {
@@ -143,6 +149,21 @@ namespace AbilityKit.Demo.Moba.Services.LogicWorld
             {
                 _futureFrameLogged = true;
                 MobaInputDiagnostics.RecordBatchWarning(_diagnostics, "input.batch.futureFrame", $"Input batch accepted with future target frame: targetFrame={frame.Value}, currentFrame={currentFrame}, count={inputs.Count}.", GetType().Name);
+            }
+
+            return true;
+        }
+
+        private static bool ValidateCommandFrames(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs, out string error)
+        {
+            error = null;
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                PlayerInputCommand command = inputs[i];
+                if (command.Frame.Value == frame.Value) continue;
+
+                error = $"Input batch rejected: command frame mismatch. targetFrame={frame.Value}, commandIndex={i}, commandFrame={command.Frame.Value}, player={command.Player.Value}, op={command.OpCode}.";
+                return false;
             }
 
             return true;

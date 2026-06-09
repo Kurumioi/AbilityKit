@@ -1,84 +1,63 @@
-using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Config.Core;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleViewModelFactory
+    internal sealed class BattleViewModelFactory
     {
-        public static GameObject CreateActorShell(MobaConfigDatabase configs, int actorId, int modelId)
+        private readonly BattleViewPrimitiveFactory _primitives;
+        private readonly BattleViewModelPrefabResolver _prefabs;
+        private readonly BattleViewAttachRootUtility _attachRoots;
+
+        public BattleViewModelFactory(
+            BattleViewPrimitiveFactory primitives = null,
+            BattleViewModelPrefabResolver prefabs = null,
+            BattleViewAttachRootUtility attachRoots = null)
         {
-            var prefab = TryLoadModelPrefab(configs, modelId, out var scale);
+            _primitives = primitives ?? new BattleViewPrimitiveFactory();
+            _prefabs = prefabs ?? new BattleViewModelPrefabResolver();
+            _attachRoots = attachRoots ?? new BattleViewAttachRootUtility();
+        }
+
+        public GameObject CreateActorShell(MobaConfigDatabase configs, int actorId, int modelId)
+        {
+            var model = _prefabs.Resolve(configs, modelId);
 
             GameObject go;
-            if (prefab != null)
+            if (model.HasPrefab)
             {
-                go = Object.Instantiate(prefab);
-                var s = scale <= 0f ? 1f : scale;
+                go = Object.Instantiate(model.Prefab);
+                var s = model.Scale <= 0f ? 1f : model.Scale;
                 go.transform.localScale = new Vector3(s, s, s);
             }
             else
             {
-                go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.transform.localScale = new Vector3(1f, 2f, 1f);
+                go = _primitives.CreateActorFallback();
             }
 
             go.name = $"Actor_{actorId}";
-            EnsureAttachRoot(go);
+            _attachRoots.Ensure(go);
             return go;
         }
 
-        public static GameObject CreateAoeModel(MobaConfigDatabase configs, int modelId)
+        public GameObject CreateAoeModel(MobaConfigDatabase configs, int modelId)
         {
             if (modelId <= 0) return null;
 
-            var prefab = TryLoadModelPrefab(configs, modelId, out _);
+            var model = _prefabs.Resolve(configs, modelId);
 
             GameObject go;
-            if (prefab != null)
+            if (model.HasPrefab)
             {
-                go = Object.Instantiate(prefab);
+                go = Object.Instantiate(model.Prefab);
             }
             else
             {
-                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.transform.localScale = Vector3.one * 0.5f;
+                go = _primitives.CreateAoeModelFallback();
             }
 
             go.name = $"AoeModel_{modelId}";
             return go;
-        }
-
-        private static GameObject TryLoadModelPrefab(MobaConfigDatabase configs, int modelId, out float scale)
-        {
-            scale = 1f;
-            if (configs == null || modelId <= 0) return null;
-
-            try
-            {
-                var model = configs.GetModel(modelId);
-                if (model == null) return null;
-
-                scale = model.Scale;
-                return string.IsNullOrEmpty(model.PrefabPath)
-                    ? null
-                    : Resources.Load<GameObject>(model.PrefabPath);
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex);
-                return null;
-            }
-        }
-
-        private static void EnsureAttachRoot(GameObject go)
-        {
-            if (go == null) return;
-            if (go.transform.Find("AttachRoot") != null) return;
-
-            var attachRoot = new GameObject("AttachRoot");
-            attachRoot.transform.SetParent(go.transform, worldPositionStays: false);
-            attachRoot.transform.localPosition = Vector3.zero;
         }
     }
 }

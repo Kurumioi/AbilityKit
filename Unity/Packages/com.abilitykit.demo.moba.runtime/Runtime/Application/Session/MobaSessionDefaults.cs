@@ -13,9 +13,6 @@ namespace AbilityKit.Demo.Moba.Session
         public int TickRate { get; set; } = 30;
         public int InputDelayFrames { get; set; }
         public int RandomSeed { get; set; } = 1;
-        public int LocalPlayerCharacterId { get; set; } = 1001;
-        public int LocalPlayerTeamId { get; set; } = 1;
-        public string LocalPlayerName { get; set; } = "LocalPlayer";
         public float SnapshotRotation { get; set; }
 
         public static MobaSessionDefaults OrDefault(MobaSessionDefaults defaults)

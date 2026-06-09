@@ -101,17 +101,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             int enterGameOpCode = 0,
             byte[] enterGamePayload = null)
         {
-            return MobaHostSpawnPlanBuilder.ToStartPlan(
-                spawns,
-                localPlayerId,
-                matchId,
-                mapId,
-                tickRate,
-                inputDelayFrames,
-                randomSeed,
-                gameplayId,
-                enterGameOpCode,
-                enterGamePayload);
+            throw new System.InvalidOperationException("MobaHostSpawnData-based MOBA battle start is obsolete. Build explicit player loadouts instead.");
         }
 
         public static WorldInitData CreateWorldInitDataFromHostSpawns(
@@ -127,19 +117,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             int enterGameOpCode = 0,
             byte[] enterGamePayload = null)
         {
-            var startPlan = FromHostSpawns(
-                spawns,
-                localPlayerId,
-                matchId,
-                mapId,
-                tickRate,
-                inputDelayFrames,
-                randomSeed,
-                gameplayId,
-                enterGameOpCode,
-                enterGamePayload);
-
-            return startPlan.ToWorldInitData(initOpCode);
+            throw new System.InvalidOperationException("MobaHostSpawnData-based world init is obsolete. Build explicit player loadouts instead.");
         }
     }
 }

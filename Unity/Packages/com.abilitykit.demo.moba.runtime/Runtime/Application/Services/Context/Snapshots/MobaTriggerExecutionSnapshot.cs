@@ -43,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
 
         public bool IsValid => Kind != EffectContextKind.Unknown || SourceActorId != 0 || TargetActorId != 0 || SourceContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || TriggerId != 0 || ConfigId != 0 || Frame != 0 || SkillRuntimeHandle.IsValid;
+        public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : SourceContextId;
 
         public MobaTriggerExecutionSnapshot WithTrigger(int triggerId, int configId)

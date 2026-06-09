@@ -78,7 +78,11 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
                 PosX = (index - 1) * 2f,
                 PosY = 0f,
                 PosZ = 0f,
-                TeamId = 1
+                TeamId = 1,
+                Level = 1,
+                AttributeTemplateId = 1,
+                BasicAttackSkillId = 1,
+                SkillIds = new List<int> { 1 }
             });
         }
 

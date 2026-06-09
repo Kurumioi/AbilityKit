@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Core.Common.Log;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -62,13 +63,16 @@ namespace AbilityKit.Demo.Moba.Services
 
                 try
                 {
-                    var payload = MobaActorSpawnSnapshotCodec.Serialize(_pending.ToArrayClearAndTrim());
+                    var entries = _pending.ToArrayAndTrim();
+                    var payload = MobaActorSpawnSnapshotCodec.Serialize(entries);
+                    _pending.Clear();
                     snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorSpawn, payload);
                     _lastFrame = frame;
                     return true;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaActorSpawnSnapshotService] serialize pending spawn snapshot failed (frame={frame.Value}, pending={_pending.Count})");
                 }
             }
 

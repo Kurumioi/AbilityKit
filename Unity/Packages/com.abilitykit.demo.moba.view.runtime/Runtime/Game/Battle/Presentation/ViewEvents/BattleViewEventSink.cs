@@ -27,12 +27,29 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattleVfxManager vfx,
             EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts,
-            BattleAreaViewSystem areaViews)
+            BattleAreaViewSystem areaViews,
+            BattleViewResourceProvider resources = null)
+            : this(ctx, query, binder, vfx, in vfxNode, floatingTexts, areaViews, resources, null)
         {
-            _areaEvents = new BattleAreaViewEventHandler(ctx, query, binder, areaViews);
-            _damageEvents = new BattleDamageViewEventHandler(ctx, query, vfxNode, floatingTexts);
-            _projectileEvents = new BattleProjectileViewEventHandler(ctx, query, vfx, vfxNode);
-            _dirtyViews = new BattleViewDirtyEntityRefresher(ctx, query, binder);
+        }
+
+        internal BattleViewEventSink(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleViewBinder binder,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            BattleFloatingTextSystem floatingTexts,
+            BattleAreaViewSystem areaViews,
+            BattleViewResourceProvider resources,
+            BattleViewEventSinkHandlerFactory handlers)
+        {
+            handlers ??= new BattleViewEventSinkHandlerFactory();
+
+            _areaEvents = handlers.CreateAreaEvents(ctx, query, binder, areaViews);
+            _damageEvents = handlers.CreateDamageEvents(ctx, query, in vfxNode, floatingTexts);
+            _projectileEvents = handlers.CreateProjectileEvents(ctx, query, vfx, in vfxNode, resources);
+            _dirtyViews = handlers.CreateDirtyViews(ctx, query, binder);
         }
 
         public void OnTriggerEvent(in TriggerEvent evt)
@@ -78,6 +95,45 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries)
         {
             _damageEvents.HandleSnapshot(entries);
+        }
+    }
+
+    internal sealed class BattleViewEventSinkHandlerFactory
+    {
+        public BattleAreaViewEventHandler CreateAreaEvents(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleViewBinder binder,
+            BattleAreaViewSystem areaViews)
+        {
+            return new BattleAreaViewEventHandler(ctx, query, binder, areaViews);
+        }
+
+        public BattleDamageViewEventHandler CreateDamageEvents(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            in EC.IEntity vfxNode,
+            BattleFloatingTextSystem floatingTexts)
+        {
+            return new BattleDamageViewEventHandler(ctx, query, in vfxNode, floatingTexts);
+        }
+
+        public BattleProjectileViewEventHandler CreateProjectileEvents(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleProjectileViewEventHandler(ctx, query, vfx, in vfxNode, resources);
+        }
+
+        public BattleViewDirtyEntityRefresher CreateDirtyViews(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleViewBinder binder)
+        {
+            return new BattleViewDirtyEntityRefresher(ctx, query, binder);
         }
     }
 }

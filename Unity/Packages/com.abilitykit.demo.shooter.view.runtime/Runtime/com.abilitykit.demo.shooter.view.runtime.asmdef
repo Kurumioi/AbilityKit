@@ -7,7 +7,9 @@
     "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.Share",
     "AbilityKit.Protocol.Room",
-    "AbilityKit.Protocol.Shooter"
+    "AbilityKit.Protocol.Shooter",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Host.Extensions.Client"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

@@ -20,6 +20,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private bool _closed;
     private string? _battleId;
     private ulong _worldId;
+    private WorldStartAnchor? _worldStartAnchor;
 
     public Task InitializeAsync(RoomSummary summary, string directoryKey)
     {
@@ -45,7 +46,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
             _members.ToList(),
             gameplay.BuildPlayerSnapshots(gameplayState),
             gameplay.CanStart(gameplayState),
-            _battleId));
+            _battleId,
+            _worldStartAnchor));
     }
 
     public async Task JoinAsync(string accountId)
@@ -129,7 +131,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         if (!string.IsNullOrEmpty(_battleId))
         {
-            return new StartRoomBattleResponse(_battleId, _worldId, true);
+            return new StartRoomBattleResponse(_battleId, _worldId, true, _worldStartAnchor, DateTime.UtcNow.Ticks);
         }
 
         EnsureOpen();
@@ -140,10 +142,11 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
         var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
         await battleGrain.InitializeBattleAsync(initParams);
+        _worldStartAnchor = await battleGrain.GetWorldStartAnchorAsync();
         _closed = true;
         await NotifyRoomChangedAsync();
 
-        return new StartRoomBattleResponse(_battleId, _worldId, true);
+        return new StartRoomBattleResponse(_battleId, _worldId, true, _worldStartAnchor, DateTime.UtcNow.Ticks);
     }
 
     public async Task CloseAsync(string accountId)

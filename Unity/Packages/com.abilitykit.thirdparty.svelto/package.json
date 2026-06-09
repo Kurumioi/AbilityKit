@@ -1,0 +1,7 @@
+{
+  "name": "com.abilitykit.thirdparty.svelto",
+  "version": "0.0.1",
+  "displayName": "ThirdParty Svelto",
+  "unity": "2022.3",
+  "description": "Svelto ECS source package staged for AbilityKit logical World integration. Place upstream Svelto source under Runtime after downloading it."
+}

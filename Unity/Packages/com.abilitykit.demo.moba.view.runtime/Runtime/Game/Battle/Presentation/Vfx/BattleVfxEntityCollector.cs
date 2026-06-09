@@ -4,9 +4,9 @@ using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Battle.Vfx
 {
-    internal static class BattleVfxEntityCollector
+    internal sealed class BattleVfxEntityCollector
     {
-        public static void Collect(in EC.IEntity root, List<EC.IEntityId> results)
+        public void Collect(in EC.IEntity root, List<EC.IEntityId> results)
         {
             if (!root.IsValid) return;
             if (results == null) return;

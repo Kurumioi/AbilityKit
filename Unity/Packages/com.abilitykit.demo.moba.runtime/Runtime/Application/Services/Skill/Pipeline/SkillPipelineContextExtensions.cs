@@ -78,31 +78,28 @@ namespace AbilityKit.Demo.Moba.Services
         /// <summary>
         /// 设置失败原因
         /// </summary>
-        public static void SetFailReason(this IAbilityPipelineContext ctx, string reason)
+        public static void SetFailReason(this SkillPipelineContext ctx, string reason)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
-            ctx.SetData(AbilityContextKeys.FailReason.ToKeyString(), reason);
+            ctx.FailReason = reason;
         }
 
         /// <summary>
         /// 获取施法序列号
         /// </summary>
-        public static int GetCastSequence(this IAbilityPipelineContext ctx)
+        public static int GetCastSequence(this SkillPipelineContext ctx)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
-            return ctx.GetData(AbilityContextKeys.CastSequence.ToKeyString(), 0);
+            return ctx.CastSequence;
         }
 
         /// <summary>
         /// 获取下一个施法序列号
         /// </summary>
-        public static int NextCastSequence(this IAbilityPipelineContext ctx)
+        public static int NextCastSequence(this SkillPipelineContext ctx)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
-            var current = ctx.GetData(AbilityContextKeys.CastSequence.ToKeyString(), 0);
-            current++;
-            ctx.SetData(AbilityContextKeys.CastSequence.ToKeyString(), current);
-            return current;
+            return ctx.NextCastSequence();
         }
     }
 }

@@ -9,21 +9,20 @@ namespace AbilityKit.Game.Flow
     internal sealed class ViewVfxSubFeature<TFeature> : IViewSubFeature<TFeature>
         where TFeature : class, IViewFeatureRuntime
     {
+        private readonly ViewVfxRuntimeFactory _factory;
+
+        public ViewVfxSubFeature(ViewVfxRuntimeFactory factory = null)
+        {
+            _factory = factory ?? new ViewVfxRuntimeFactory();
+        }
+
         public void OnAttach(in FeatureModuleContext<TFeature> ctx)
         {
             var runtime = ctx.Feature;
             if (runtime == null) return;
 
-            if (BattleViewFactory.VfxDb == null) BattleViewFactory.VfxDb = VfxDatabase.LoadFromResources("vfx/vfx");
-            runtime.Vfx = new BattleVfxManager(BattleViewFactory.VfxDb);
-
-            runtime.VfxNode = default;
-            if (runtime.Context != null && runtime.Context.EntityNode.IsValid)
-            {
-                var vfxNode = runtime.Context.EntityNode.World.CreateChild(runtime.Context.EntityNode);
-                vfxNode.SetName(runtime.IsConfirmed ? "BattleVfx_confirmed" : "BattleVfx");
-                runtime.VfxNode = vfxNode;
-            }
+            runtime.Vfx = _factory.CreateManager(runtime.Resources);
+            runtime.VfxNode = _factory.CreateNode(runtime.Context, runtime.IsConfirmed);
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)
@@ -38,5 +37,25 @@ namespace AbilityKit.Game.Flow
         public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime) { }
 
         public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }
+    }
+
+    internal sealed class ViewVfxRuntimeFactory
+    {
+        public BattleVfxManager CreateManager(BattleViewResourceProvider resources)
+        {
+            return new BattleVfxManager(resources.GetOrLoadVfxDb());
+        }
+
+        public IEntity CreateNode(BattleContext ctx, bool isConfirmed)
+        {
+            if (ctx == null || !ctx.EntityNode.IsValid)
+            {
+                return default;
+            }
+
+            var vfxNode = ctx.EntityNode.World.CreateChild(ctx.EntityNode);
+            vfxNode.SetName(isConfirmed ? "BattleVfx_confirmed" : "BattleVfx");
+            return vfxNode;
+        }
     }
 }

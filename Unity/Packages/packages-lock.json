@@ -295,6 +295,7 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.host": "0.0.1",
         "com.abilitykit.world.di": "0.0.1",
+        "com.abilitykit.world.svelto": "0.0.1",
         "com.abilitykit.demo.shooter.share": "0.1.0",
         "com.abilitykit.protocol.shooter": "0.1.0"
       }
@@ -530,6 +531,12 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.abilitykit.thirdparty.svelto": {
+      "version": "file:com.abilitykit.thirdparty.svelto",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.threading": {
       "version": "file:com.abilitykit.threading",
       "depth": 0,
@@ -634,6 +641,15 @@
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.world.framesync": "0.0.1",
         "com.abilitykit.world.snapshot": "0.0.1"
+      }
+    },
+    "com.abilitykit.world.svelto": {
+      "version": "file:com.abilitykit.world.svelto",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.world.di": "0.0.1",
+        "com.abilitykit.thirdparty.svelto": "0.0.1"
       }
     },
     "com.cysharp.memorypack": {

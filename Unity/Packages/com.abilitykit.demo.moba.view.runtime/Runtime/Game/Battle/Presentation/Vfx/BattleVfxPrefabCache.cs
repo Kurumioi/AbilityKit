@@ -6,7 +6,16 @@ namespace AbilityKit.Game.Battle.Vfx
 {
     internal sealed class BattleVfxPrefabCache
     {
-        private readonly Dictionary<string, GameObject> _prefabs = new Dictionary<string, GameObject>(StringComparer.Ordinal);
+        private readonly Dictionary<string, GameObject> _prefabs;
+        private readonly BattleVfxResourcePrefabLoader _loader;
+
+        public BattleVfxPrefabCache(
+            BattleVfxResourcePrefabLoader loader = null,
+            Dictionary<string, GameObject> prefabs = null)
+        {
+            _loader = loader ?? new BattleVfxResourcePrefabLoader();
+            _prefabs = prefabs ?? new Dictionary<string, GameObject>(StringComparer.Ordinal);
+        }
 
         public bool TryGetPrefab(string resource, out GameObject prefab)
         {
@@ -18,11 +27,19 @@ namespace AbilityKit.Game.Battle.Vfx
 
             if (!_prefabs.TryGetValue(resource, out prefab) || prefab == null)
             {
-                prefab = Resources.Load<GameObject>(resource);
+                prefab = _loader.Load(resource);
                 _prefabs[resource] = prefab;
             }
 
             return prefab != null;
+        }
+    }
+
+    internal sealed class BattleVfxResourcePrefabLoader
+    {
+        public GameObject Load(string resource)
+        {
+            return string.IsNullOrEmpty(resource) ? null : Resources.Load<GameObject>(resource);
         }
     }
 }

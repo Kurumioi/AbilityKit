@@ -2,9 +2,9 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow.Battle.View
 {
-    internal static class BattleWorldFloatingTextFactory
+    internal sealed class BattleWorldFloatingTextFactory
     {
-        public static BattleWorldFloatingText Create(string text, in Vector3 worldPos, Color color)
+        public BattleWorldFloatingText Create(string text, in Vector3 worldPos, Color color)
         {
             var go = new GameObject("DamageText");
             go.transform.position = worldPos;

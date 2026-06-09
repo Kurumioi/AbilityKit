@@ -206,12 +206,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
                 Name = "Default",
                 Players = new List<PlayerConfig>
                 {
-                    new() { PlayerId = "player_1", TeamId = 1, HeroId = 1001, Name = "廉颇", PositionX = 0, PositionZ = 0 },
-                    new() { PlayerId = "player_2", TeamId = 1, HeroId = 1002, Name = "小乔", PositionX = 10, PositionZ = 0 },
-                    new() { PlayerId = "player_3", TeamId = 1, HeroId = 1003, Name = "赵云", PositionX = -10, PositionZ = 0 },
-                    new() { PlayerId = "ai_1", TeamId = 2, HeroId = 1001, Name = "Enemy Warrior", PositionX = 0, PositionZ = 50 },
-                    new() { PlayerId = "ai_2", TeamId = 2, HeroId = 1002, Name = "Enemy Archer", PositionX = 10, PositionZ = 50 },
-                    new() { PlayerId = "ai_3", TeamId = 2, HeroId = 1003, Name = "Enemy Mage", PositionX = -10, PositionZ = 50 },
+                    CreatePlayer("player_1", "廉颇", 1, 1001, 1001, new[] { 10010101, 10010201, 10010301 }, 0, 0),
+                    CreatePlayer("player_2", "小乔", 1, 1002, 1002, new[] { 10020101, 10020201, 10020301 }, 10, 0),
+                    CreatePlayer("player_3", "赵云", 1, 1003, 1003, new[] { 10030101, 10030201, 10030301 }, -10, 0),
+                    CreatePlayer("ai_1", "Enemy Warrior", 2, 1001, 1001, new[] { 10010101, 10010201, 10010301 }, 0, 50),
+                    CreatePlayer("ai_2", "Enemy Archer", 2, 1002, 1002, new[] { 10020101, 10020201, 10020301 }, 10, 50),
+                    CreatePlayer("ai_3", "Enemy Mage", 2, 1003, 1003, new[] { 10030101, 10030201, 10030301 }, -10, 50),
                 }
             };
             return config;
@@ -219,30 +219,64 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
 
         private MobaPlayerLoadout[] BuildPlayerLoadouts()
         {
-            if (Players == null || Players.Count == 0) return null;
+            if (Players == null || Players.Count == 0)
+            {
+                throw new InvalidOperationException("Console MOBA battle start config requires explicit player loadouts.");
+            }
 
             var loadouts = new MobaPlayerLoadout[Players.Count];
             for (int i = 0; i < Players.Count; i++)
             {
-                var player = Players[i];
+                var player = Players[i] ?? throw new InvalidOperationException($"Console player config is null at index {i}.");
+                var skillIds = player.SkillIds == null || player.SkillIds.Count == 0 ? null : player.SkillIds.ToArray();
                 loadouts[i] = new MobaPlayerLoadout(
                     playerId: new PlayerId(player.PlayerId),
                     teamId: player.TeamId,
                     heroId: player.HeroId,
-                    attributeTemplateId: 0,
+                    attributeTemplateId: player.AttributeTemplateId,
                     level: player.Level,
-                    basicAttackSkillId: 0,
-                    skillIds: null,
+                    basicAttackSkillId: player.BasicAttackSkillId,
+                    skillIds: skillIds,
                     spawnIndex: i,
-                    unitSubType: 1,
-                    mainType: 1,
+                    unitSubType: player.UnitSubType,
+                    mainType: player.MainType,
                     hasSpawnPosition: 1,
                     spawnX: player.PositionX,
                     spawnY: player.PositionY,
                     spawnZ: player.PositionZ);
+
+                var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadouts[i], i);
+                if (!validation.IsValid)
+                {
+                    throw new InvalidOperationException("Invalid console MOBA player loadout. " + validation);
+                }
             }
 
             return loadouts;
+        }
+
+        private static PlayerConfig CreatePlayer(string playerId, string name, int teamId, int heroId, int attributeTemplateId, int[] skillIds, float positionX, float positionZ)
+        {
+            if (skillIds == null || skillIds.Length == 0)
+            {
+                throw new ArgumentException("Explicit skill ids are required.", nameof(skillIds));
+            }
+
+            return new PlayerConfig
+            {
+                PlayerId = playerId,
+                Name = name,
+                TeamId = teamId,
+                HeroId = heroId,
+                AttributeTemplateId = attributeTemplateId,
+                Level = 1,
+                BasicAttackSkillId = skillIds[0],
+                SkillIds = new List<int>(skillIds),
+                UnitSubType = 1,
+                MainType = 1,
+                PositionX = positionX,
+                PositionZ = positionZ
+            };
         }
 
         private static MobaBattleLaunchSyncMode ToLaunchSyncMode(ShareSyncMode syncMode)
@@ -277,7 +311,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Config
         public string Name { get; set; } = "";
         public int TeamId { get; set; } = 1;
         public int HeroId { get; set; } = 1;
-        public int Level { get; set; } = 1;
+        public int Level { get; set; }
+        public int AttributeTemplateId { get; set; }
+        public int BasicAttackSkillId { get; set; }
+        public List<int> SkillIds { get; set; } = new();
+        public int UnitSubType { get; set; } = 1;
+        public int MainType { get; set; } = 1;
         public float PositionX { get; set; }
         public float PositionY { get; set; }
         public float PositionZ { get; set; }

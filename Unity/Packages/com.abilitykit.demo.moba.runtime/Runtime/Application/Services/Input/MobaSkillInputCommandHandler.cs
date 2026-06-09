@@ -69,7 +69,16 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            SkillInputEvent evt = SkillInputCodec.Deserialize(command.Payload);
+            if (!SkillInputCodec.TryDeserialize(command.Payload, out SkillInputEvent evt, out var payloadError))
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.PayloadInvalid,
+                    $"PayloadInvalid(Player={command.Player.Value},Actor={actorId},Error={payloadError})",
+                    actorId);
+                return false;
+            }
+
             if (context.Skills == null)
             {
                 result = MobaInputCommandResult.Rejected(

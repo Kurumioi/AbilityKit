@@ -6,11 +6,13 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleHudFloatingTextPool
     {
         private readonly RectTransform _root;
+        private readonly BattleHudFallbackUiFactory _factory;
         private readonly Stack<BattleHudFloatingTextHandle> _pool = new Stack<BattleHudFloatingTextHandle>(64);
 
-        public BattleHudFloatingTextPool(RectTransform root)
+        public BattleHudFloatingTextPool(RectTransform root, BattleHudFallbackUiFactory factory = null)
         {
             _root = root;
+            _factory = factory ?? new BattleHudFallbackUiFactory();
         }
 
         public BattleHudFloatingTextHandle Rent()
@@ -18,7 +20,7 @@ namespace AbilityKit.Game.Flow
             var floating = _pool.Count > 0 ? _pool.Pop() : null;
             if (floating == null)
             {
-                var go = BattleHudFallbackUiFactory.CreateFloatingText();
+                var go = _factory.CreateFloatingText();
                 go.transform.SetParent(_root, worldPositionStays: false);
 
                 return new BattleHudFloatingTextHandle
@@ -57,7 +59,7 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        public static void DestroyHandle(BattleHudFloatingTextHandle floating)
+        public void DestroyHandle(BattleHudFloatingTextHandle floating)
         {
             if (floating?.Root != null)
             {

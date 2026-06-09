@@ -1,12 +1,7 @@
 namespace AbilityKit.Demo.Moba.Services.Snapshot
 {
     /// <summary>
-    /// 【模板】快照类型常量
-    ///
-    /// 此文件定义了游戏快照的类型标识。
-    /// 新建游戏世界层时应参考此模板定义自己的 SnapshotTypes。
-    ///
-    /// 参考文档: Docs/SnapshotGuide.md
+    /// MOBA battle snapshot type identifiers.
     /// </summary>
     public static class GameSnapshotTypes
     {

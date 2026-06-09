@@ -41,7 +41,7 @@ namespace AbilityKit.Game.Flow
         {
             if (world?.Services == null) return null;
 
-            if (!world.Services.TryResolve<MobaGamePhaseService>(out var phase) || phase == null)
+            if (!world.Services.TryResolve<MobaLogicWorldRunGateService>(out var phase) || phase == null)
             {
                 return null;
             }
@@ -55,7 +55,7 @@ namespace AbilityKit.Game.Flow
         }
 
         private static uint ComputeStateHash(
-            MobaGamePhaseService phase,
+            MobaLogicWorldRunGateService phase,
             MobaActorRegistry registry,
             Func<bool> shouldForceMismatch)
         {

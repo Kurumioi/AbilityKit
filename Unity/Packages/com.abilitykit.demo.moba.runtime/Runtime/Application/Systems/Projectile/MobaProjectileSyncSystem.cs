@@ -159,8 +159,11 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         internal void RequestDespawn(global::ActorEntity entity, ActorDespawnReason reason, int sourceActorId, long sourceContextId)
         {
             if (entity == null) return;
+            if (!TryGetFrame(out var frame))
+            {
+                throw new System.InvalidOperationException($"MobaProjectileSyncSystem requires authority or frame time before requesting projectile despawn. reason={reason}, sourceActorId={sourceActorId}, sourceContextId={sourceContextId}");
+            }
 
-            var frame = GetFrame();
             if (entity.hasActorDespawnRequest)
             {
                 entity.ReplaceActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
@@ -171,19 +174,30 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             }
         }
 
-        private int GetFrame()
+        private bool TryGetFrame(out int frame)
         {
+            frame = 0;
             try
             {
-                if (_authority != null) return _authority.PredictedFrame.Value;
-                if (_time != null) return _time.Frame.Value;
+                if (_authority != null)
+                {
+                    frame = _authority.PredictedFrame.Value;
+                    return true;
+                }
+
+                if (_time != null)
+                {
+                    frame = _time.Frame.Value;
+                    return true;
+                }
             }
-            catch
+            catch (System.Exception ex)
             {
-                return 0;
+                Log.Exception(ex, "[MobaProjectileSyncSystem] resolve projectile despawn frame failed");
+                return false;
             }
 
-            return 0;
+            return false;
         }
     }
 }

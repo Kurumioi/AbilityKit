@@ -113,6 +113,8 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(2)] public ulong WorldId { get; set; }
         [MemoryPackOrder(3)] public bool Started { get; set; }
         [MemoryPackOrder(4)] public string Message { get; set; }
+        [MemoryPackOrder(5)] public WireWorldStartAnchor WorldStartAnchor { get; set; }
+        [MemoryPackOrder(6)] public long ServerNowTicks { get; set; }
     }
 
     [MemoryPackable]
@@ -158,6 +160,9 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(2)] public double Timestamp { get; set; }
         [MemoryPackOrder(3)] public bool IsFullSnapshot { get; set; }
         [MemoryPackOrder(4)] public List<WireStateSyncActorSnapshot>? Actors { get; set; }
+        [MemoryPackOrder(5)] public int PayloadOpCode { get; set; }
+        [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
+        [MemoryPackOrder(7)] public long ServerTicks { get; set; }
     }
 
     [MemoryPackable]

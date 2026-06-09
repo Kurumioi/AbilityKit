@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
         bool TryJoin(PlayerId playerId, int teamId = 0);
         bool TryLeave(PlayerId playerId);
         bool TrySetReady(PlayerId playerId, bool ready);
-        bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId = 0, int level = 1, int basicAttackSkillId = 0, int[] skillIds = null);
+        bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds);
 
         bool TrySetSpawnPoint(PlayerId playerId, int spawnPointId);
 

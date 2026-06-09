@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Joystick;
 using AbilityKit.Game.Battle.View.Lib.Skill;
@@ -27,6 +28,7 @@ namespace AbilityKit.Game.Flow
             Skill1View = skill1View;
             Skill2View = skill2View;
             Skill3View = skill3View;
+            SkillViews = new[] { skill1View, skill2View, skill3View };
             InfoButton = infoButton;
         }
 
@@ -38,6 +40,7 @@ namespace AbilityKit.Game.Flow
         public SkillButtonView Skill1View { get; }
         public SkillButtonView Skill2View { get; }
         public SkillButtonView Skill3View { get; }
+        public IReadOnlyList<SkillButtonView> SkillViews { get; }
         public Button InfoButton { get; }
 
         public void Destroy()

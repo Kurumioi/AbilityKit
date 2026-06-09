@@ -36,7 +36,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 : MobaGameplayOrigin.FromLegacy(sourceActorId, initialTargetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceContextId, in skillRuntimeHandle);
         }
 
-        public bool IsValid => SourceActorId > 0 || SourceContextId != 0 || Origin.IsValid || SkillRuntimeHandle.IsValid;
+        public bool IsValid => SourceActorId > 0 && SourceContextId != 0;
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 RootContextId != 0 ? RootContextId : SourceContextId,
                 OwnerContextId != 0 ? OwnerContextId : SourceContextId,
                 ProjectileConfigId);
-            return lineageContext.SourceActorId > 0 || lineageContext.SourceContextId != 0;
+            return lineageContext.SourceActorId > 0 && lineageContext.SourceContextId != 0;
         }
 
         public bool TryGetContextSource(out MobaContextSourceView source)

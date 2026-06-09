@@ -83,8 +83,7 @@ namespace AbilityKit.Demo.Moba.Session
 
         public void SetEntityStates(IEnumerable<EntityState> states)
         {
-            // 此方法保留用于初始快照
-            // 实际位置同步通过快照事件机制
+            // Coordinator compatibility entry point; runtime state is read from IMobaBattleRuntimePort snapshots.
         }
 
         public int CurrentFrame => _currentFrame.Value;
@@ -131,8 +130,9 @@ namespace AbilityKit.Demo.Moba.Session
 
             MobaRuntimeLog.Trace(MobaRuntimeLogModule.Input, MobaRuntimeLogPurpose.RuntimeTrace, nameof(MobaBattleDriverHost), $"SubmitInputs: {inputs.Length} inputs");
 
-            var commands = _inputConverter.Convert(inputs);
-            var result = SubmitCommands(commands);
+            var targetFrame = GetDefaultInputTargetFrame();
+            var commands = _inputConverter.Convert(inputs, targetFrame);
+            var result = SubmitCommands(targetFrame, commands);
             if (!result.Succeeded)
             {
                 LogInputSubmitFailure(result);

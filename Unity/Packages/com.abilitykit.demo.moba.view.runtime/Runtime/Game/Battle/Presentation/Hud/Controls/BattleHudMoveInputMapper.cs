@@ -8,71 +8,104 @@ namespace AbilityKit.Game.Battle.View
     {
         [SerializeField] private BattleHudInputView _hud;
         [SerializeField] private Transform _cameraTransform;
-        private bool _isHooked;
+        private readonly BattleHudMoveInputMapperFactory _factory = new BattleHudMoveInputMapperFactory();
+        private BattleHudCameraTransformResolver _cameraResolver;
+        private BattleHudCameraPlaneInputProjector _projector;
+        private BattleHudInputViewSubscription _hudSubscription;
 
         public event Action<float, float> MoveDxDzChanged;
 
         public void Initialize(BattleHudInputView hud, Transform cameraTransform)
         {
-            UnhookHud();
+            EnsureHudSubscription();
+            _hudSubscription.Unhook();
 
             _hud = hud;
             _cameraTransform = cameraTransform;
+            _hudSubscription.SetHud(_hud);
 
             ResolveCameraTransform();
             if (isActiveAndEnabled)
             {
-                HookHud();
+                _hudSubscription.Hook();
             }
         }
 
         private void Awake()
         {
+            EnsureHudSubscription();
+            _hudSubscription.SetHud(_hud);
             ResolveCameraTransform();
         }
 
         private void OnEnable()
         {
-            HookHud();
+            EnsureHudSubscription();
+            _hudSubscription.SetHud(_hud);
+            _hudSubscription.Hook();
         }
 
         private void OnDisable()
         {
-            UnhookHud();
+            _hudSubscription?.Unhook();
+        }
+
+        private void OnDestroy()
+        {
+            _hudSubscription?.Clear();
         }
 
         private void ResolveCameraTransform()
         {
-            if (_cameraTransform == null && Camera.main != null)
-            {
-                _cameraTransform = Camera.main.transform;
-            }
+            EnsureDependencies();
+            _cameraTransform = _cameraResolver.Resolve(_cameraTransform);
         }
 
-        private void HookHud()
+        private void EnsureHudSubscription()
         {
-            if (_isHooked) return;
-            if (_hud == null) return;
-
-            _hud.MoveChanged += OnMoveChanged;
-            _isHooked = true;
-        }
-
-        private void UnhookHud()
-        {
-            if (!_isHooked) return;
-            if (_hud != null)
-            {
-                _hud.MoveChanged -= OnMoveChanged;
-            }
-
-            _isHooked = false;
+            EnsureDependencies();
+            _hudSubscription ??= _factory.CreateSubscription(OnMoveChanged);
         }
 
         private void OnMoveChanged(JoystickOutput output)
         {
-            var world = BattleHudInputProjection.ToCameraPlane(output.Value, _cameraTransform);
+            EnsureDependencies();
+            var world = _projector.ToCameraPlane(output.Value, _cameraTransform);
             MoveDxDzChanged?.Invoke(world.x, world.y);
+        }
+
+        private void EnsureDependencies()
+        {
+            _cameraResolver ??= _factory.CreateCameraResolver();
+            _projector ??= _factory.CreateProjector();
+        }
+    }
+
+    internal sealed class BattleHudMoveInputMapperFactory
+    {
+        public BattleHudCameraTransformResolver CreateCameraResolver()
+        {
+            return new BattleHudCameraTransformResolver();
+        }
+
+        public BattleHudCameraPlaneInputProjector CreateProjector()
+        {
+            return new BattleHudCameraPlaneInputProjector();
+        }
+
+        public BattleHudInputViewSubscription CreateSubscription(Action<JoystickOutput> changed)
+        {
+            return new BattleHudInputViewSubscription(
+                hud => hud.MoveChanged += changed,
+                hud => hud.MoveChanged -= changed);
+        }
+    }
+
+    internal sealed class BattleHudCameraPlaneInputProjector
+    {
+        public Vector2 ToCameraPlane(Vector2 input, Transform cameraTransform)
+        {
+            return BattleHudInputProjection.ToCameraPlane(input, cameraTransform);
         }
     }
 }

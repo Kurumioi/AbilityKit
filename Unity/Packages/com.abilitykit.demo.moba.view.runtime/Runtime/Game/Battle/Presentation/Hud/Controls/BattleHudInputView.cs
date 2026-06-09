@@ -12,40 +12,42 @@ namespace AbilityKit.Game.Battle.View
         [SerializeField] private SkillButtonView _skill2;
         [SerializeField] private SkillButtonView _skill3;
 
-        private readonly BattleHudSkillButtonBridgeSet _skillButtons = new BattleHudSkillButtonBridgeSet();
+        private readonly BattleHudInputControlBinding _binding = new BattleHudInputControlBinding();
 
-        private bool _isHooked;
-
-        public event Action<JoystickOutput> MoveChanged;
+        public event Action<JoystickOutput> MoveChanged
+        {
+            add => _binding.MoveChanged += value;
+            remove => _binding.MoveChanged -= value;
+        }
 
         public event Action<int> SkillClick
         {
-            add => _skillButtons.Click += value;
-            remove => _skillButtons.Click -= value;
+            add => _binding.SkillClick += value;
+            remove => _binding.SkillClick -= value;
         }
 
         public event Action<int> SkillLongPress
         {
-            add => _skillButtons.LongPress += value;
-            remove => _skillButtons.LongPress -= value;
+            add => _binding.SkillLongPress += value;
+            remove => _binding.SkillLongPress -= value;
         }
 
         public event Action<int, Vector2> SkillAimStart
         {
-            add => _skillButtons.AimStart += value;
-            remove => _skillButtons.AimStart -= value;
+            add => _binding.SkillAimStart += value;
+            remove => _binding.SkillAimStart -= value;
         }
 
         public event Action<int, Vector2> SkillAimUpdate
         {
-            add => _skillButtons.AimUpdate += value;
-            remove => _skillButtons.AimUpdate -= value;
+            add => _binding.SkillAimUpdate += value;
+            remove => _binding.SkillAimUpdate -= value;
         }
 
         public event Action<int, Vector2> SkillAimEnd
         {
-            add => _skillButtons.AimEnd += value;
-            remove => _skillButtons.AimEnd -= value;
+            add => _binding.SkillAimEnd += value;
+            remove => _binding.SkillAimEnd -= value;
         }
 
         public void Initialize(
@@ -84,34 +86,12 @@ namespace AbilityKit.Game.Battle.View
 
         private void HookAll()
         {
-            if (_isHooked) return;
-
-            _isHooked = true;
-
-            if (_moveJoystick != null)
-            {
-                _moveJoystick.OnValueChanged += OnMoveChanged;
-            }
-
-            _skillButtons.Bind(_skill1, _skill2, _skill3);
+            _binding.Bind(_moveJoystick, _skill1, _skill2, _skill3);
         }
 
         private void UnhookAll()
         {
-            if (!_isHooked) return;
-            _isHooked = false;
-
-            if (_moveJoystick != null)
-            {
-                _moveJoystick.OnValueChanged -= OnMoveChanged;
-            }
-
-            _skillButtons.Unbind();
-        }
-
-        private void OnMoveChanged(JoystickOutput output)
-        {
-            MoveChanged?.Invoke(output);
+            _binding.Unbind();
         }
     }
 }

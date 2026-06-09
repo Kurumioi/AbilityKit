@@ -228,8 +228,9 @@ namespace AbilityKit.Demo.Moba.Systems
                     TraceEndpoint.Config("Skill", passiveSkillId),
                     TraceEndpoint.Actor(actorId));
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[MobaPassiveSkillTriggerRegisterSystem] Trace.CreateRootContext failed (actor={entity.actorId.Value}, passiveSkillId={passiveSkillId}, frame={frame})");
                 l.SourceContextId = 0;
             }
         }

@@ -5,6 +5,8 @@
     "AbilityKit.Core",
     "AbilityKit.Host",
     "AbilityKit.World.DI",
+    "AbilityKit.World.Svelto",
+    "Svelto.ECS",
     "AbilityKit.Demo.Shooter.Share",
     "AbilityKit.Protocol.Shooter"
   ],

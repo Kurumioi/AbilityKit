@@ -30,6 +30,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int SkillId { get; private set; }
         public int SkillSlot { get; private set; }
+        public int SkillLevel { get; private set; }
+        public int CastSequence { get; private set; }
+        public int TimelineNextEventIndex { get; private set; }
+        public bool InputReleased { get; private set; }
+        public int Frame { get; private set; }
         public int CasterActorId { get; private set; }
         public int TargetActorId { get; private set; }
         public Vec3 AimPos { get; private set; }
@@ -155,6 +160,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             SharedData.Clear();
             FailReason = null;
+            SkillLevel = triggerContext?.SkillLevel ?? 0;
+            CastSequence = triggerContext?.Sequence ?? 0;
+            TimelineNextEventIndex = 0;
+            InputReleased = false;
+            Frame = 0;
 
             _disposables.Clear();
             _cleanupActions.Clear();
@@ -175,11 +185,11 @@ namespace AbilityKit.Demo.Moba.Services
             CasterUnit = request.CasterUnit;
             TargetUnit = request.TargetUnit;
 
-            // 使用扩展方法填充共享数据（兼容旧代码）
+            // Mirror core facts for generic pipeline/effect adapters that still read IAbilityPipelineContext.
             Vec3 aimPos = AimPos;
             Vec3 aimDir = AimDir;
             var runtimeHandle = RuntimeHandle;
-            this.SetSkillInfo(SkillId, SkillSlot, triggerContext?.SkillLevel ?? 0);
+            this.SetSkillInfo(SkillId, SkillSlot, SkillLevel);
             this.SetParticipants(CasterActorId, TargetActorId);
             this.SetAim(in aimPos, in aimDir);
             this.SetContextKind((int)EffectContextKind.Skill);
@@ -197,19 +207,37 @@ namespace AbilityKit.Demo.Moba.Services
             var currentAimDir = AimDir;
             this.SetAim(in currentAimPos, in currentAimDir);
             this.SetParticipants(CasterActorId, TargetActorId);
-            SetData(MobaSkillPipelineSharedKeys.TargetActorId, TargetActorId);
-            SetData(MobaSkillPipelineSharedKeys.AimPos, AimPos);
-            SetData(MobaSkillPipelineSharedKeys.AimDir, AimDir);
         }
 
         public void MarkInputReleased()
         {
-            SetData(MobaSkillPipelineSharedKeys.InputReleased, true);
+            InputReleased = true;
         }
 
         public bool IsInputReleased()
         {
-            return GetData(MobaSkillPipelineSharedKeys.InputReleased, false);
+            return InputReleased;
+        }
+
+        public void SetTimelineNextEventIndex(int nextEventIndex)
+        {
+            TimelineNextEventIndex = nextEventIndex < 0 ? 0 : nextEventIndex;
+        }
+
+        public void SetFrame(int frame)
+        {
+            Frame = frame < 0 ? 0 : frame;
+        }
+
+        public void SetCastSequence(int sequence)
+        {
+            CastSequence = sequence < 0 ? 0 : sequence;
+        }
+
+        public int NextCastSequence()
+        {
+            CastSequence++;
+            return CastSequence;
         }
 
         public void AdvanceTime(float deltaTime)
@@ -221,14 +249,13 @@ namespace AbilityKit.Demo.Moba.Services
         public bool TryGetCombatContextSource(out MobaCombatContextSource source)
         {
             TryGetSkillRuntimeHandle(out var handle);
-            TryGetData(AbilityContextKeys.Frame.ToKeyString(), out int frame);
             var sourceContextId = SourceContextId != 0L ? SourceContextId : this.GetSourceContextId();
             source = MobaCombatContextBuilder.SkillCast(
                 SkillId,
                 CasterActorId,
                 TargetActorId,
                 sourceContextId,
-                frame,
+                Frame,
                 in handle);
             return source.IsValid;
         }
@@ -304,6 +331,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             SkillId = 0;
             SkillSlot = 0;
+            SkillLevel = 0;
+            CastSequence = 0;
+            TimelineNextEventIndex = 0;
+            InputReleased = false;
+            Frame = 0;
             CasterActorId = 0;
             TargetActorId = 0;
             AimPos = Vec3.Zero;

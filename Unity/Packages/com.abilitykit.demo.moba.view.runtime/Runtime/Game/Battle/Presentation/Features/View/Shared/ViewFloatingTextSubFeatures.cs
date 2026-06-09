@@ -6,13 +6,25 @@ namespace AbilityKit.Game.Flow
     internal sealed class ViewFloatingTextSubFeature<TFeature> : IViewSubFeature<TFeature>
         where TFeature : class, IViewFeatureRuntime
     {
+        private readonly BattleWorldFloatingTextFactory _factory;
+
+        public ViewFloatingTextSubFeature()
+            : this(new BattleWorldFloatingTextFactory())
+        {
+        }
+
+        public ViewFloatingTextSubFeature(BattleWorldFloatingTextFactory factory)
+        {
+            _factory = factory ?? new BattleWorldFloatingTextFactory();
+        }
+
         public void OnAttach(in FeatureModuleContext<TFeature> ctx)
         {
             var runtime = ctx.Feature;
             if (runtime == null) return;
 
             runtime.FloatingTexts?.Clear();
-            runtime.FloatingTexts = new BattleFloatingTextSystem();
+            runtime.FloatingTexts = new BattleFloatingTextSystem(_factory);
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)

@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Gameplay.Systems
     public sealed class MobaGameplayTickSystem : WorldSystemBase
     {
         private IWorldClock _clock;
-        private MobaGamePhaseService _phase;
+        private MobaLogicWorldRunGateService _phase;
         private MobaGameplayService _gameplay;
 
         public MobaGameplayTickSystem(global::Entitas.IContexts contexts, IWorldResolver services)

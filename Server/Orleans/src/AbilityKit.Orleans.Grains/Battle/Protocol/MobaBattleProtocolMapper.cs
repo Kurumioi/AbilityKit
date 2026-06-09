@@ -50,35 +50,8 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             throw new ArgumentNullException(nameof(initParams));
         }
 
-        var players = initParams.Players;
-        var loadouts = players == null || players.Count == 0
-            ? Array.Empty<MobaPlayerLoadout>()
-            : new MobaPlayerLoadout[players.Count];
-
-        if (players != null)
-        {
-            for (int i = 0; i < players.Count; i++)
-            {
-                var player = players[i];
-                loadouts[i] = new MobaPlayerLoadout(
-                    playerId: new PlayerId(player.PlayerId.ToString()),
-                    teamId: player.TeamId,
-                    heroId: player.HeroId,
-                    attributeTemplateId: 0,
-                    level: 1,
-                    basicAttackSkillId: 0,
-                    skillIds: Array.Empty<int>(),
-                    spawnIndex: i,
-                    unitSubType: 1,
-                    mainType: 1,
-                    hasSpawnPosition: 1,
-                    spawnX: player.PosX,
-                    spawnY: player.PosY,
-                    spawnZ: player.PosZ);
-            }
-        }
-
-        var localPlayerId = loadouts.Length > 0 ? loadouts[0].PlayerId : new PlayerId(initParams.WorldId.ToString());
+        var loadouts = BuildLoadouts(initParams.Players);
+        var localPlayerId = loadouts[0].PlayerId;
         var worldType = string.IsNullOrWhiteSpace(initParams.WorldType) ? "battle" : initParams.WorldType;
         var clientId = string.IsNullOrWhiteSpace(initParams.ClientId) ? "orleans_logic_host" : initParams.ClientId;
         var profile = MobaBattleLaunchProfile.Create(
@@ -104,7 +77,55 @@ public sealed class DefaultOrleansBattleProtocolMapper : IOrleansBattleProtocolM
             gameplayId: initParams.GameplayId,
             randomSeed: initParams.RandomSeed);
 
-        return launchSpec.ToGameStartSpec();
+        var startSpec = launchSpec.ToGameStartSpec();
+        var validation = MobaProtocolValidation.ValidateEnterGameReq(in startSpec.EnterReq);
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException("Invalid Orleans MOBA game start spec. " + validation);
+        }
+
+        return startSpec;
+    }
+
+    private static MobaPlayerLoadout[] BuildLoadouts(IReadOnlyList<PlayerInitInfo>? players)
+    {
+        if (players == null || players.Count == 0)
+        {
+            throw new InvalidOperationException("MOBA battle initialization requires at least one player loadout.");
+        }
+
+        var loadouts = new MobaPlayerLoadout[players.Count];
+        for (int i = 0; i < players.Count; i++)
+        {
+            var player = players[i] ?? throw new InvalidOperationException($"MOBA player init info is null at index {i}.");
+            var skillIds = player.SkillIds == null || player.SkillIds.Count == 0
+                ? null
+                : player.SkillIds.ToArray();
+
+            loadouts[i] = new MobaPlayerLoadout(
+                playerId: new PlayerId(player.PlayerId.ToString()),
+                teamId: player.TeamId,
+                heroId: player.HeroId,
+                attributeTemplateId: player.AttributeTemplateId,
+                level: player.Level,
+                basicAttackSkillId: player.BasicAttackSkillId,
+                skillIds: skillIds,
+                spawnIndex: i,
+                unitSubType: 1,
+                mainType: 1,
+                hasSpawnPosition: 1,
+                spawnX: player.PosX,
+                spawnY: player.PosY,
+                spawnZ: player.PosZ);
+
+            var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadouts[i], i);
+            if (!validation.IsValid)
+            {
+                throw new InvalidOperationException("Invalid Orleans MOBA player loadout. " + validation);
+            }
+        }
+
+        return loadouts;
     }
 
     public IReadOnlyList<PlayerInputCommand> CreatePlayerInputCommands(int frame, IReadOnlyList<BattleInputItem>? inputs)

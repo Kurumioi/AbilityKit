@@ -173,11 +173,9 @@ namespace ET.Logic
         /// </summary>
         public string PlayerId { get; set; }
 
-        public const int DefaultBasicAttackSkillId = 10010101;
-        private static readonly int[] DefaultSkillIds = { 10010101, 10010201, 10010301, 10010401 };
-
         public int CharacterId { get; set; }
         public int AttributeTemplateId { get; set; }
+        public int Level { get; set; }
         public int BasicAttackSkillId { get; set; }
         public int[] SkillIds { get; set; }
         public string CharacterName { get; set; }
@@ -194,36 +192,18 @@ namespace ET.Logic
         {
             PlayerId = string.Empty;
             CharacterName = string.Empty;
-            BasicAttackSkillId = DefaultBasicAttackSkillId;
-            SkillIds = CloneDefaultSkillIds();
+            Level = 0;
         }
 
-        public ETPlayerSpawnData(string playerId, int characterId, string characterName, int teamId,
-            float x, float y, float z)
-            : this(playerId, characterId, characterName, teamId, x, y, z, 0f, 1f, 500f, 500f)
-        {
-        }
-
-        public ETPlayerSpawnData(string playerId, int characterId, string characterName, int teamId,
-            float x, float y, float z, float rotY, float scale, float hp, float maxHp)
-            : this(playerId, characterId, 0, characterName, teamId, x, y, z, rotY, scale, hp, maxHp)
-        {
-        }
-
-        public ETPlayerSpawnData(string playerId, int characterId, int attributeTemplateId, string characterName, int teamId,
-            float x, float y, float z, float rotY, float scale, float hp, float maxHp)
-            : this(playerId, characterId, attributeTemplateId, DefaultBasicAttackSkillId, CloneDefaultSkillIds(), characterName, teamId, x, y, z, rotY, scale, hp, maxHp)
-        {
-        }
-
-        public ETPlayerSpawnData(string playerId, int characterId, int attributeTemplateId, int basicAttackSkillId, int[] skillIds, string characterName, int teamId,
+        public ETPlayerSpawnData(string playerId, int characterId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds, string characterName, int teamId,
             float x, float y, float z, float rotY, float scale, float hp, float maxHp)
         {
             PlayerId = playerId ?? string.Empty;
             CharacterId = characterId;
             AttributeTemplateId = attributeTemplateId;
-            BasicAttackSkillId = basicAttackSkillId > 0 ? basicAttackSkillId : DefaultBasicAttackSkillId;
-            SkillIds = skillIds != null && skillIds.Length > 0 ? (int[])skillIds.Clone() : CloneDefaultSkillIds();
+            Level = level;
+            BasicAttackSkillId = basicAttackSkillId;
+            SkillIds = skillIds != null && skillIds.Length > 0 ? (int[])skillIds.Clone() : null;
             CharacterName = characterName ?? string.Empty;
             TeamId = teamId;
             PositionX = x;
@@ -235,9 +215,5 @@ namespace ET.Logic
             MaxHp = maxHp;
         }
 
-        public static int[] CloneDefaultSkillIds()
-        {
-            return (int[])DefaultSkillIds.Clone();
-        }
     }
 }

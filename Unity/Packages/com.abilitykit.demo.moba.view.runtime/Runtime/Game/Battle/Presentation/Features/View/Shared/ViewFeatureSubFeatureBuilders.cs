@@ -3,34 +3,43 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class ViewFeatureSubFeatureBuilder
+    internal sealed class ViewFeatureSubFeatureBuilder
     {
-        public static void AddBattleViewSubFeatures(List<IViewSubFeature<BattleViewFeature>> subFeatures)
-        {
-            if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
+        private readonly ViewSubFeatureFactory _factory;
 
-            subFeatures.Add(new ViewContextBindingSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewTimelineSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewVfxSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewBindingSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewFloatingTextSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewAreaViewsSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewEventSinkSubFeature<BattleViewFeature>());
-            subFeatures.Add(new ViewEventAdaptersSubFeature<BattleViewFeature>());
+        public ViewFeatureSubFeatureBuilder(ViewSubFeatureFactory factory = null)
+        {
+            _factory = factory ?? new ViewSubFeatureFactory();
         }
 
-        public static void AddConfirmedViewSubFeatures(List<IViewSubFeature<ConfirmedBattleViewFeature>> subFeatures)
+        public void AddBattleViewSubFeatures(List<IViewSubFeature<BattleViewFeature>> subFeatures)
         {
             if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
 
-            subFeatures.Add(new ViewContextBindingSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewTimelineSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewVfxSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewBindingSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewFloatingTextSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewAreaViewsSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewEventSinkSubFeature<ConfirmedBattleViewFeature>());
-            subFeatures.Add(new ViewEventAdaptersSubFeature<ConfirmedBattleViewFeature>());
+            _factory.AddDefaultViewSubFeatures(subFeatures);
+        }
+
+        public void AddConfirmedViewSubFeatures(List<IViewSubFeature<ConfirmedBattleViewFeature>> subFeatures)
+        {
+            if (subFeatures == null) throw new ArgumentNullException(nameof(subFeatures));
+
+            _factory.AddDefaultViewSubFeatures(subFeatures);
+        }
+    }
+
+    internal sealed class ViewSubFeatureFactory
+    {
+        public void AddDefaultViewSubFeatures<TFeature>(List<IViewSubFeature<TFeature>> subFeatures)
+            where TFeature : class, IViewFeatureRuntime
+        {
+            subFeatures.Add(new ViewContextBindingSubFeature<TFeature>());
+            subFeatures.Add(new ViewTimelineSubFeature<TFeature>());
+            subFeatures.Add(new ViewVfxSubFeature<TFeature>());
+            subFeatures.Add(new ViewBindingSubFeature<TFeature>());
+            subFeatures.Add(new ViewFloatingTextSubFeature<TFeature>());
+            subFeatures.Add(new ViewAreaViewsSubFeature<TFeature>());
+            subFeatures.Add(new ViewEventSinkSubFeature<TFeature>());
+            subFeatures.Add(new ViewEventAdaptersSubFeature<TFeature>());
         }
     }
 }

@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (IsComplete) return;
 
-            context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
+            context.SetTimelineNextEventIndex(_nextIndex);
 
             var elapsedMs = (int)(context.ElapsedTime * 1000f);
 
@@ -50,7 +50,7 @@ namespace AbilityKit.Demo.Moba.Services
                     if (e == null)
                     {
                         _nextIndex++;
-                        context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
+                        context.SetTimelineNextEventIndex(_nextIndex);
                         continue;
                     }
 
@@ -77,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                     _nextIndex++;
 
-                    context.SetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), _nextIndex);
+                    context.SetTimelineNextEventIndex(_nextIndex);
                 }
             }
 

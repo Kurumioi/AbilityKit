@@ -527,16 +527,18 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     : _trace.CreateRootContext(MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId);
             }
 
-            if (launchContextId != 0L)
+            if (launchContextId == 0L)
             {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(sourceActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.ProjectileLaunch, projectileConfigId, launchContextId)
-                    .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId)
-                    .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId)
-                    .Build();
+                throw new InvalidOperationException($"Projectile launch requires trace context. sourceActorId={sourceActorId} targetActorId={targetActorId} projectileConfigId={projectileConfigId} parentContextId={parentContextId}");
             }
+
+            origin = MobaGameplayOriginBuilder.Create()
+                .FromOrigin(in origin)
+                .WithActors(sourceActorId, targetActorId)
+                .WithImmediate(MobaTraceKind.ProjectileLaunch, projectileConfigId, launchContextId)
+                .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId)
+                .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId)
+                .Build();
 
             return ProjectileSourceContextBuilder.Create()
                 .WithActors(sourceActorId, targetActorId)

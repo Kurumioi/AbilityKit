@@ -3,9 +3,33 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleViewVfxFactory
+    internal interface IBattleViewVfxPrefabLoader
     {
-        public static GameObject CreateAoeVfx(VfxDatabase db, int vfxId)
+        GameObject Load(string path);
+    }
+
+    internal sealed class ResourcesBattleViewVfxPrefabLoader : IBattleViewVfxPrefabLoader
+    {
+        public GameObject Load(string path)
+        {
+            return string.IsNullOrEmpty(path) ? null : Resources.Load<GameObject>(path);
+        }
+    }
+
+    internal sealed class BattleViewVfxFactory
+    {
+        private readonly BattleViewPrimitiveFactory _primitives;
+        private readonly IBattleViewVfxPrefabLoader _loader;
+
+        public BattleViewVfxFactory(
+            BattleViewPrimitiveFactory primitives = null,
+            IBattleViewVfxPrefabLoader loader = null)
+        {
+            _primitives = primitives ?? new BattleViewPrimitiveFactory();
+            _loader = loader ?? new ResourcesBattleViewVfxPrefabLoader();
+        }
+
+        public GameObject CreateAoeVfx(VfxDatabase db, int vfxId)
         {
             if (vfxId <= 0) return null;
             if (db == null) return null;
@@ -15,7 +39,7 @@ namespace AbilityKit.Game.Flow
                 return null;
             }
 
-            var prefab = Resources.Load<GameObject>(dto.Resource);
+            var prefab = _loader.Load(dto.Resource);
             GameObject go;
             if (prefab != null)
             {
@@ -23,8 +47,7 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.transform.localScale = Vector3.one * 0.5f;
+                go = _primitives.CreateVfxFallback();
             }
 
             go.name = $"AoeVfx_{vfxId}";

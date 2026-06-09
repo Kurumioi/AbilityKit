@@ -3,10 +3,9 @@ using AbilityKit.Ability.World;
 namespace AbilityKit.Demo.Moba.Systems
 {
     /// <summary>
-    /// 【模板】游戏系统执行顺序常量
+    /// MOBA 战斗逻辑系统执行顺序常量。
     ///
-    /// 此文件定义了 moba.runtime 的系统执行顺序。
-    /// 新建游戏世界层时应参考此模板定义自己的 SystemOrder。
+    /// 此文件定义 moba.runtime 的正式系统执行顺序。
     ///
     /// 设计原则:
     /// - Base = WorldSystemOrder.CoreBase + 1000 (业务层基准)

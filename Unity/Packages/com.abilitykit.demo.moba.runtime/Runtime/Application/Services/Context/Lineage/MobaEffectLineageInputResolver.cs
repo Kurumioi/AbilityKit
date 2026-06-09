@@ -1,3 +1,4 @@
+using System;
 using AbilityKit.Effect;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -13,23 +14,30 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (payload.TryResolveOrigin(out var origin))
             {
-                var contextKind = payload is IMobaTriggerInvocationContext invocationContext ? invocationContext.Kind : EffectContextKind.Unknown;
-                return origin.ToLineageContext(contextKind).ToLineageInput();
+                var originLineageContext = origin.ToLineageContext(payload is IMobaTriggerInvocationContext invocationContext ? invocationContext.Kind : EffectContextKind.Unknown);
+                if (originLineageContext.HasExecutionSource)
+                {
+                    return originLineageContext.ToLineageInput();
+                }
             }
 
-            if (payload.TryResolveLineageContext(out var lineageContext))
+            if (payload.TryResolveLineageContext(out var lineageContext) && lineageContext.HasExecutionSource)
             {
                 return lineageContext.ToLineageInput();
             }
 
             if (payload is IMobaTriggerInvocationContext invocation)
             {
-                return MobaEffectLineageInput.FromInvocation(invocation);
+                var lineageInput = MobaEffectLineageInput.FromInvocation(invocation);
+                if (lineageInput.HasExecutionSource)
+                {
+                    return lineageInput;
+                }
             }
 
             if (payload is IEffectContext effectCtx)
             {
-                return new MobaEffectLineageInput(
+                var lineageInput = new MobaEffectLineageInput(
                     effectCtx.Kind,
                     MobaTraceKind.EffectExecution,
                     effectCtx.SourceActorId,
@@ -38,9 +46,14 @@ namespace AbilityKit.Demo.Moba.Services
                     effectCtx.SourceContextId,
                     0,
                     0);
+                if (lineageInput.HasExecutionSource)
+                {
+                    return lineageInput;
+                }
             }
 
-            return new MobaEffectLineageInput(EffectContextKind.Unknown, MobaTraceKind.EffectExecution, 0, 0, 0, 0, 0, 0);
+            var payloadType = payload != null ? payload.GetType().FullName : "null";
+            throw new InvalidOperationException($"[MobaEffectLineageInputResolver] Missing complete effect lineage context. payloadType={payloadType}. Effect execution payload must provide sourceActorId and sourceContextId through IMobaCombatContextSource, IMobaCombatExecutionContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaTriggerInvocationContext, or IEffectContext.");
         }
     }
 }

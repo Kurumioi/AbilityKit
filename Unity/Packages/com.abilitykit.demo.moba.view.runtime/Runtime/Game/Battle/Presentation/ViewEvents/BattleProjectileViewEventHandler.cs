@@ -3,44 +3,56 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Protocol.Moba.StateSync;
-using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattleProjectileViewEventHandler
     {
-        private readonly BattleContext _ctx;
         private readonly IBattleEntityQuery _query;
-        private readonly BattleVfxManager _vfx;
-        private readonly EC.IEntity _vfxNode;
-        private readonly BattleProjectileFollowTargetResolver _followTargets;
+        private readonly BattleProjectileVfxSpawner _spawner;
+        private readonly BattleProjectileVfxResolver _vfx;
+        private readonly BattleProjectileSnapshotVfxResolver _snapshotVfx;
 
         public BattleProjectileViewEventHandler(
             BattleContext ctx,
             IBattleEntityQuery query,
             BattleVfxManager vfx,
-            in EC.IEntity vfxNode)
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources = null)
+            : this(ctx, query, vfx, in vfxNode, resources, null)
         {
-            _ctx = ctx;
+        }
+
+        internal BattleProjectileViewEventHandler(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources,
+            BattleProjectileViewEventHandlerFactory handlers)
+        {
+            handlers ??= new BattleProjectileViewEventHandlerFactory();
+
             _query = query;
-            _vfx = vfx;
-            _vfxNode = vfxNode;
-            _followTargets = new BattleProjectileFollowTargetResolver(query);
+            _spawner = handlers.CreateSpawner(ctx, vfx, in vfxNode);
+            _vfx = handlers.CreateTriggerResolver(resources);
+            _snapshotVfx = handlers.CreateSnapshotResolver(query, resources);
         }
 
         public void HandleTriggerHit(in TriggerEvent evt)
         {
-            if (!CanSpawnVfx()) return;
-            if (!BattleProjectileVfxResolver.TryResolveTriggerHit(evt, out var vfxId, out var pos)) return;
+            if (!_spawner.CanSpawn) return;
+            if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos)) return;
 
-            _vfx.TryCreateVfxEntity(_ctx.EntityWorld, _vfxNode, vfxId, default, in pos, out _);
+            var spec = new BattleProjectileVfxSpawnSpec(vfxId, in pos, default);
+            _spawner.TrySpawn(in spec);
         }
 
         public void HandleSnapshot(MobaProjectileEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
-            if (!CanSpawnVfx()) return;
+            if (!_spawner.CanSpawn) return;
             if (_query == null) return;
 
             for (int i = 0; i < entries.Length; i++)
@@ -51,20 +63,31 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
         {
-            var vfxId = BattleProjectileVfxResolver.ResolveSnapshotVfxId(entry.TemplateId, entry.Kind);
-            if (vfxId <= 0) return;
+            if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
+            _spawner.TrySpawn(in spec);
+        }
+    }
 
-            var pos = new Vector3(entry.X, entry.Y, entry.Z);
-            var followId = _followTargets.Resolve(entry.ProjectileActorId);
-            _vfx.TryCreateVfxEntity(_ctx.EntityWorld, _vfxNode, vfxId, followId, in pos, out _);
+    internal sealed class BattleProjectileViewEventHandlerFactory
+    {
+        public BattleProjectileVfxSpawner CreateSpawner(
+            BattleContext ctx,
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode)
+        {
+            return new BattleProjectileVfxSpawner(ctx, vfx, in vfxNode);
         }
 
-        private bool CanSpawnVfx()
+        public BattleProjectileVfxResolver CreateTriggerResolver(BattleViewResourceProvider resources)
         {
-            if (_ctx?.EntityWorld == null) return false;
-            if (_vfx == null) return false;
-            if (!_vfxNode.IsValid) return false;
-            return true;
+            return new BattleProjectileVfxResolver(resources);
+        }
+
+        public BattleProjectileSnapshotVfxResolver CreateSnapshotResolver(
+            IBattleEntityQuery query,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleProjectileSnapshotVfxResolver(new BattleProjectileFollowTargetResolver(query), resources);
         }
     }
 }

@@ -122,7 +122,7 @@ namespace ET.Logic
         /// <summary>
         /// Auto setup for local test
         /// </summary>
-        public void AutoSetupForLocalTest(int heroId, int attributeTemplateId)
+        public void AutoSetupForLocalTest(int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
         {
             if (RoomOrchestrator == null)
                 return;
@@ -134,11 +134,11 @@ namespace ET.Logic
             JoinRoom(localPlayerId, teamId: 1);
 
             // Pick local hero
-            PickHero(localPlayerId, heroId, attributeTemplateId, basicAttackSkillId: ETPlayerSpawnData.DefaultBasicAttackSkillId, skillIds: ETPlayerSpawnData.CloneDefaultSkillIds());
+            PickHero(localPlayerId, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
 
             // Add a deterministic opponent so smoke can verify formal target-driven event snapshots.
             JoinRoom(enemyPlayerId, teamId: 2);
-            PickHero(enemyPlayerId, heroId, attributeTemplateId, basicAttackSkillId: ETPlayerSpawnData.DefaultBasicAttackSkillId, skillIds: ETPlayerSpawnData.CloneDefaultSkillIds());
+            PickHero(enemyPlayerId, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
             SetPlayerReady(enemyPlayerId, ready: true);
 
             // Set local ready last. The room can start as soon as min player rules are satisfied.
@@ -200,7 +200,7 @@ namespace ET.Logic
         /// <summary>
         /// 玩家选择英雄
         /// </summary>
-        public bool PickHero(int playerId, int heroId, int attributeTemplateId = 0, int level = 1, int basicAttackSkillId = 0, int[] skillIds = null)
+        public bool PickHero(int playerId, int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
         {
             var pid = new PlayerId(playerId.ToString());
             var result = RoomOrchestrator.TryPickHero(pid, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);

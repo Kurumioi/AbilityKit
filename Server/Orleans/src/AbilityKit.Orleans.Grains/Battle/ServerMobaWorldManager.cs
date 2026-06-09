@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Management;
-using AbilityKit.Ability.World.Services;
-using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.WorldBlueprints;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Management;
+using AbilityKit.Demo.Moba.Worlds.Blueprints;
+using AbilityKit.Demo.Shooter;
+using AbilityKit.Demo.Shooter.Runtime;
 using Microsoft.Extensions.Logging;
 using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
@@ -18,7 +19,6 @@ namespace AbilityKit.Orleans.Grains.Battle;
 public sealed class ServerMobaWorldManager : IDisposable
 {
     private readonly ILogger _logger;
-    private readonly WorldContainer _container;
     private readonly WorldTypeRegistry _worldRegistry;
     private readonly RegistryWorldFactory _worldFactory;
     private readonly WorldManager _worldManager;
@@ -29,18 +29,22 @@ public sealed class ServerMobaWorldManager : IDisposable
     {
         _logger = logger;
 
-        // 创建基础服务容器
-        var builder = WorldServiceContainerFactory.CreateDefaultOnly();
-        _container = builder.Build();
-
         // 创建基础工厂
-        var baseFactory = new SimpleWorldFactory(_container);
+        var baseFactory = new SimpleWorldFactory();
 
         // 创建 World 注册表
         _worldRegistry = new WorldTypeRegistry();
         
-        // 注册 Moba World Blueprint
-        MobaWorldBlueprintsRegistration.RegisterAll(_worldRegistry, baseFactory.Create);
+        // 注册逻辑 World Blueprint。Moba 使用 Entitas，Shooter 使用自己的 ECS 后端适配。
+        var blueprintRegistry = MobaWorldBlueprintsRegistration.CreateDefaultRegistry();
+        blueprintRegistry.Register(new ShooterBattleWorldBlueprint());
+        MobaWorldBlueprintsRegistration.RegisterAll(
+            _worldRegistry,
+            baseFactory.Create,
+            blueprintRegistry,
+            MobaBattleWorldBlueprint.Type,
+            MobaLobbyWorldBlueprint.Type,
+            ShooterGameplay.WorldType);
 
         // 创建 World 工厂和管理器
         _worldFactory = new RegistryWorldFactory(_worldRegistry);
@@ -62,20 +66,42 @@ public sealed class ServerMobaWorldManager : IDisposable
                 return existingWorld;
             }
 
-            var options = new WorldCreateOptions
-            {
-                WorldType = MobaBattleWorldBlueprint.Type,
-                Id = new WorldId(roomId)
-            };
-
-            var world = _worldManager.Create(options);
-            _worlds[roomId] = world;
-
-            _logger.LogInformation("[ServerMobaWorldManager] Created battle world for room: {RoomId}, WorldId: {WorldId}", 
-                roomId, world.Id);
-
-            return world;
+            return CreateBattleWorldCore(roomId, MobaBattleWorldBlueprint.Type);
         }
+    }
+
+    /// <summary>
+    /// 创建指定玩法类型的战斗世界。
+    /// </summary>
+    public IWorld CreateBattleWorld(string roomId, string worldType, int tickRate)
+    {
+        lock (_lock)
+        {
+            return CreateBattleWorldCore(roomId, string.IsNullOrWhiteSpace(worldType) ? MobaBattleWorldBlueprint.Type : worldType);
+        }
+    }
+
+    private IWorld CreateBattleWorldCore(string roomId, string worldType)
+    {
+        if (_worlds.TryGetValue(roomId, out var existingWorld))
+        {
+            _logger.LogWarning("[ServerMobaWorldManager] World already exists for room: {RoomId}", roomId);
+            return existingWorld;
+        }
+
+        var options = new WorldCreateOptions
+        {
+            WorldType = worldType,
+            Id = new WorldId(roomId)
+        };
+
+        var world = _worldManager.Create(options);
+        _worlds[roomId] = world;
+
+        _logger.LogInformation("[ServerMobaWorldManager] Created battle world for room: {RoomId}, WorldType: {WorldType}, WorldId: {WorldId}",
+            roomId, world.WorldType, world.Id);
+
+        return world;
     }
 
     /// <summary>
@@ -145,7 +171,6 @@ public sealed class ServerMobaWorldManager : IDisposable
             }
             _worlds.Clear();
             _worldManager.DisposeAll();
-            _container.Dispose();
         }
         _logger.LogInformation("[ServerMobaWorldManager] Disposed all worlds");
     }

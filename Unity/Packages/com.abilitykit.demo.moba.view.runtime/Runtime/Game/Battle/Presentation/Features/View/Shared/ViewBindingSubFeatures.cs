@@ -8,17 +8,15 @@ namespace AbilityKit.Game.Flow
     internal sealed class ViewBindingSubFeature<TFeature> : IViewSubFeature<TFeature>
         where TFeature : class, IViewFeatureRuntime
     {
-        private static void ApplyInterpolationSettingsIfAny(FeatureModuleContext<TFeature> ctx, BattleViewBinder binder)
+        private readonly ViewBindingControllerFactory _controllers;
+        private readonly ViewInterpolationSettingsApplier _interpolationSettings;
+
+        public ViewBindingSubFeature(
+            ViewBindingControllerFactory controllers = null,
+            ViewInterpolationSettingsApplier interpolationSettings = null)
         {
-            if (binder == null) return;
-
-            var flow = ctx.Phase.Entry != null ? ctx.Phase.Entry.Get<GameFlowDomain>() : null;
-            var settings = flow?.Settings;
-            if (settings == null) return;
-
-            if (settings.TryGetBool("View.Interp.Enabled", out var enabled)) binder.InterpolationEnabled = enabled;
-            if (settings.TryGetFloat("View.Interp.BackTimeTicks", out var backTicks)) binder.BackTimeTicks = backTicks;
-            if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
+            _controllers = controllers ?? new ViewBindingControllerFactory();
+            _interpolationSettings = interpolationSettings ?? new ViewInterpolationSettingsApplier();
         }
 
         public void OnAttach(in FeatureModuleContext<TFeature> ctx)
@@ -27,8 +25,8 @@ namespace AbilityKit.Game.Flow
             if (runtime == null) return;
 
             runtime.Binder?.Clear();
-            runtime.Binder = new BattleViewBinder(runtime.Vfx, runtime.VfxNode);
-            ApplyInterpolationSettingsIfAny(ctx, runtime.Binder);
+            runtime.Binder = _controllers.CreateBinder(runtime);
+            _interpolationSettings.Apply(ctx.Phase, runtime.Binder);
 
             runtime.EntityDestroyedSubscription?.Dispose();
             if (runtime.Context?.EntityWorld != null)
@@ -54,9 +52,33 @@ namespace AbilityKit.Game.Flow
             var runtime = ctx.Feature;
             if (runtime == null) return;
             if (runtime.Binder == null) return;
-            ApplyInterpolationSettingsIfAny(ctx, runtime.Binder);
+            _interpolationSettings.Apply(ctx.Phase, runtime.Binder);
         }
 
         public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }
+    }
+
+    internal sealed class ViewBindingControllerFactory
+    {
+        public BattleViewBinder CreateBinder(IViewFeatureRuntime runtime)
+        {
+            return new BattleViewBinder(runtime.Vfx, runtime.VfxNode, resources: runtime.Resources);
+        }
+    }
+
+    internal sealed class ViewInterpolationSettingsApplier
+    {
+        public void Apply(in GamePhaseContext phase, BattleViewBinder binder)
+        {
+            if (binder == null) return;
+
+            var flow = phase.Entry != null ? phase.Entry.Get<GameFlowDomain>() : null;
+            var settings = flow?.Settings;
+            if (settings == null) return;
+
+            if (settings.TryGetBool("View.Interp.Enabled", out var enabled)) binder.InterpolationEnabled = enabled;
+            if (settings.TryGetFloat("View.Interp.BackTimeTicks", out var backTicks)) binder.BackTimeTicks = backTicks;
+            if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
+        }
     }
 }

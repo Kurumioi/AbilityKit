@@ -6,15 +6,13 @@ namespace AbilityKit.Game.Battle.View
 {
     internal sealed class BattleHudSkillButtonBridgeSet
     {
-        private readonly BattleHudSkillButtonEventBridge[] _bridges =
-        {
-            new BattleHudSkillButtonEventBridge(),
-            new BattleHudSkillButtonEventBridge(),
-            new BattleHudSkillButtonEventBridge(),
-        };
+        private readonly BattleHudSkillButtonEventBridge[] _bridges;
 
-        public BattleHudSkillButtonBridgeSet()
+        public BattleHudSkillButtonBridgeSet(BattleHudSkillButtonBridgeSetFactory factory = null)
         {
+            factory ??= new BattleHudSkillButtonBridgeSetFactory();
+            _bridges = factory.CreateBridges();
+
             for (int i = 0; i < _bridges.Length; i++)
             {
                 var bridge = _bridges[i];
@@ -70,6 +68,19 @@ namespace AbilityKit.Game.Battle.View
         private void OnAimEnd(int slot, Vector2 aim)
         {
             AimEnd?.Invoke(slot, aim);
+        }
+    }
+
+    internal sealed class BattleHudSkillButtonBridgeSetFactory
+    {
+        public BattleHudSkillButtonEventBridge[] CreateBridges()
+        {
+            return new[]
+            {
+                new BattleHudSkillButtonEventBridge(),
+                new BattleHudSkillButtonEventBridge(),
+                new BattleHudSkillButtonEventBridge(),
+            };
         }
     }
 }

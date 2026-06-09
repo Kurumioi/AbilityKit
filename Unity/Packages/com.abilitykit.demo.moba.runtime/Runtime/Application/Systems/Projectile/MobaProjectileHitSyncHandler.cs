@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {
-        internal sealed class MobaProjectileHitSyncHandler : IProjectileSyncHandler
+    internal sealed class MobaProjectileHitSyncHandler : IProjectileSyncHandler
     {
         private readonly MobaProjectileSyncSystem _sys;
 
@@ -97,16 +97,6 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                         HitCollider = evt.HitCollider,
                         Raw = evt,
                     };
-
-                    payload.Data.SyncInvocationData(payload);
-                    if (payload.TryGetTraceContext(out var traceContext)) payload.Data.SyncTraceData(traceContext);
-                    payload.Data.SetData(AbilityContextKeys.ProjectileId.ToKeyString(), evt.Projectile.Value);
-                    payload.Data.SetData(AbilityContextKeys.HitTriggerPlanId.ToKeyString(), onHitTriggerId);
-                    payload.Data.SetData(AbilityContextKeys.HitPosition.ToKeyString(), evt.Point);
-                    payload.Data.SetData(AbilityContextKeys.HitNormal.ToKeyString(), evt.Normal);
-                    payload.Data.SetData(AbilityContextKeys.Frame.ToKeyString(), evt.Frame);
-                    payload.Data.SetData("projectile.templateId", evt.TemplateId);
-                    payload.Data.SetData("projectile.hitCollider", evt.HitCollider);
 
                     effects.ExecuteTriggerId(onHitTriggerId, payload);
                 }

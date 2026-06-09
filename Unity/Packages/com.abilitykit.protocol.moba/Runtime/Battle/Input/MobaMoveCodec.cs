@@ -38,5 +38,31 @@ namespace AbilityKit.Protocol.Moba.StateSync
             x = p.X;
             z = p.Z;
         }
+
+        public static bool TryDeserialize(byte[] payload, out float x, out float z, out string error)
+        {
+            x = 0f;
+            z = 0f;
+            error = null;
+
+            if (payload == null || payload.Length == 0)
+            {
+                error = "payload is null or empty";
+                return false;
+            }
+
+            try
+            {
+                var p = WireSerializer.Deserialize<MobaMovePayload>(payload);
+                x = p.X;
+                z = p.Z;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.GetType().Name + ": " + ex.Message;
+                return false;
+            }
+        }
     }
 }

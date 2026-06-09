@@ -446,16 +446,18 @@ namespace AbilityKit.Demo.Moba.Services
                     : _trace.CreateRootContext(MobaTraceKind.SummonSpawn, summonId, casterActorId, summonActorId, TraceEndpoint.Actor(casterActorId), TraceEndpoint.Actor(summonActorId));
             }
 
-            if (spawnContextId != 0L)
+            if (spawnContextId == 0L)
             {
-                origin = MobaGameplayOriginBuilder.Create()
-                    .FromOrigin(in origin)
-                    .WithActors(casterActorId, summonActorId)
-                    .WithImmediate(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
-                    .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : spawnContextId)
-                    .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : spawnContextId)
-                    .Build();
+                throw new InvalidOperationException($"Summon spawn requires trace context. casterActorId={casterActorId} summonActorId={summonActorId} summonId={summonId} parentContextId={parentContextId}");
             }
+
+            origin = MobaGameplayOriginBuilder.Create()
+                .FromOrigin(in origin)
+                .WithActors(casterActorId, summonActorId)
+                .WithImmediate(MobaTraceKind.SummonSpawn, summonId, spawnContextId)
+                .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : spawnContextId)
+                .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : spawnContextId)
+                .Build();
 
             return SummonSourceContextBuilder.Create()
                 .WithActors(casterActorId, summonActorId)

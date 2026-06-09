@@ -94,14 +94,18 @@ internal static class ShooterSmokeRunner
             aimX: 1f,
             aimY: 0f,
             fire: true);
-        await battle.SubmitInputAsync(start.WorldId, inputFrame, new BattleInputItem
+        var submit = await battle.SubmitInputAsync(start.WorldId, inputFrame, new BattleInputItem
         {
             PlayerId = 1,
             OpCode = ShooterOpCodes.Input.PlayerCommand,
             Payload = ShooterInputCodec.Serialize(new[] { command })
         });
+        if (!submit.Accepted)
+        {
+            throw new InvalidOperationException($"Shooter battle input was rejected. Status={submit.Status}, Message={submit.Message}");
+        }
 
-        await WaitForFrameAsync(battle, inputFrame + 3);
+        await WaitForFrameAsync(battle, submit.AcceptedFrame + 3);
         var snapshot = await battle.GetSnapshotAsync();
         if (snapshot == null)
         {

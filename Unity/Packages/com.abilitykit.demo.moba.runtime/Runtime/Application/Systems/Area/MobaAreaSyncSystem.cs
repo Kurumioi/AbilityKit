@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _spawns[i];
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _enters.Clear();
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _exits.Clear();
@@ -75,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
 
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExit, evt, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _expires.Clear();
@@ -86,13 +86,13 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var evt = _expires[i];
 
                 var info = RequireAreaInfo(evt.Area);
-                PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
 
                 _areaRuntime.Unregister(evt.Area);
             }
         }
 
-        private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
+        private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
             if (_eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
@@ -112,6 +112,9 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 Collider = collider,
                 CollisionLayerMask = collisionLayerMask,
                 MaxTargets = maxTargets,
+                SourceContextId = info.SourceContextId,
+                RootContextId = info.RootContextId,
+                OwnerContextId = info.OwnerContextId,
                 Raw = raw,
             };
 

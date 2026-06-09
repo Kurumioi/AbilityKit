@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Orleans.Contracts.Battle;
 using Orleans.Serialization;
 
 namespace AbilityKit.Orleans.Contracts.Rooms;
@@ -64,7 +65,8 @@ public sealed record RoomSnapshot(
     [property: Id(1)] List<string> Members,
     [property: Id(2)] List<RoomPlayerSnapshot> Players,
     [property: Id(3)] bool CanStart,
-    [property: Id(4)] string? BattleId);
+    [property: Id(4)] string? BattleId,
+    [property: Id(5)] WorldStartAnchor? WorldStartAnchor);
 
 [GenerateSerializer]
 public sealed record RoomReadyRequest(
@@ -96,7 +98,9 @@ public sealed record StartRoomBattleRequest(
 public sealed record StartRoomBattleResponse(
     [property: Id(0)] string BattleId,
     [property: Id(1)] ulong WorldId,
-    [property: Id(2)] bool Started);
+    [property: Id(2)] bool Started,
+    [property: Id(3)] WorldStartAnchor? WorldStartAnchor,
+    [property: Id(4)] long ServerNowTicks);
 
 [GenerateSerializer]
 public sealed record ListRoomsRequest(

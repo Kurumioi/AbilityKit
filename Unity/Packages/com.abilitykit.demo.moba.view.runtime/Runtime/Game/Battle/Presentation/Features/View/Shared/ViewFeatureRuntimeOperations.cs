@@ -2,24 +2,38 @@ using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class ViewFeatureRuntimeOperations
+    internal sealed class ViewFeatureRuntimeOperations
     {
-        public static void RefreshDirtyViews(IViewFeatureRuntime runtime)
+        private readonly ViewDirtyRuntimeOperation _dirty;
+        private readonly ViewSeekableRegistry _seekables;
+        private readonly ViewTimelineRuntimeOperation _timeline;
+
+        public ViewFeatureRuntimeOperations(
+            ViewDirtyRuntimeOperation dirty = null,
+            ViewSeekableRegistry seekables = null,
+            ViewTimelineRuntimeOperation timeline = null)
         {
-            ViewDirtyRuntimeOperation.Refresh(runtime);
+            _seekables = seekables ?? new ViewSeekableRegistry();
+            _timeline = timeline ?? new ViewTimelineRuntimeOperation();
+            _dirty = dirty ?? new ViewDirtyRuntimeOperation(_seekables, _timeline);
         }
 
-        public static void RegisterAllSeekables(IViewFeatureRuntime runtime)
+        public void RefreshDirtyViews(IViewFeatureRuntime runtime)
         {
-            ViewSeekableRegistry.RegisterAll(runtime);
+            _dirty.Refresh(runtime);
         }
 
-        public static void SeekAllToCurrentFrame(IViewFeatureRuntime runtime)
+        public void RegisterAllSeekables(IViewFeatureRuntime runtime)
         {
-            ViewTimelineRuntimeOperation.SeekAllToCurrentFrame(runtime);
+            _seekables.RegisterAll(runtime);
         }
 
-        public static void RebindAllViews(IViewFeatureRuntime runtime)
+        public void SeekAllToCurrentFrame(IViewFeatureRuntime runtime)
+        {
+            _timeline.SeekAllToCurrentFrame(runtime);
+        }
+
+        public void RebindAllViews(IViewFeatureRuntime runtime)
         {
             var battleCtx = runtime?.Context;
             if (battleCtx?.EntityWorld == null) return;
@@ -27,18 +41,18 @@ namespace AbilityKit.Game.Flow
             runtime.Binder?.RebindAll(battleCtx.EntityWorld, battleCtx);
         }
 
-        public static void TickVfx(IViewFeatureRuntime runtime)
+        public void TickVfx(IViewFeatureRuntime runtime)
         {
             if (runtime == null) return;
             if (runtime.VfxNode.IsValid) runtime.Vfx?.Tick(runtime.VfxNode, runtime.Binder);
         }
 
-        public static void TickFloatingTexts(IViewFeatureRuntime runtime, float deltaTime)
+        public void TickFloatingTexts(IViewFeatureRuntime runtime, float deltaTime)
         {
             runtime?.FloatingTexts?.Tick(deltaTime);
         }
 
-        public static void OnEntityDestroyed(IViewFeatureRuntime runtime, EC.EntityDestroyed evt)
+        public void OnEntityDestroyed(IViewFeatureRuntime runtime, EC.EntityDestroyed evt)
         {
             var id = evt.EntityId;
             runtime?.Context?.EntityLookup?.UnbindByEntityId(id);

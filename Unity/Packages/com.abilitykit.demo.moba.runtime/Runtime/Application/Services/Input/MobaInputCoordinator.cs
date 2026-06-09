@@ -15,14 +15,14 @@ using AbilityKit.Protocol.Moba.StateSync;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// MOBA 逻辑世界输入协调器：保留玩法侧上下文构建、热更路由和命令处理器分发。
+    /// MOBA 逻辑世界输入协调器：负责玩法侧上下文构建和命令处理器分发。
     /// </summary>
     [WorldService(typeof(IWorldInputSink))]
     [WorldService(typeof(IMobaInputCoordinator))]
     [WorldService(typeof(MobaInputCoordinator))]
     public sealed class MobaInputCoordinator : LogicWorldInputCoordinatorBase<MobaInputCommandContext>, IMobaInputCoordinator, IWorldInputSink
     {
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaPlayerActorMapService _playerActorMap;
         private readonly MobaEntityManager _entities;
         private readonly MobaInputCommandContractRegistry _contracts;
@@ -30,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private SkillExecutor _skills;
 
-        public MobaInputCoordinator(MobaGamePhaseService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
+        public MobaInputCoordinator(MobaLogicWorldRunGateService phase, MobaPlayerActorMapService playerActorMap, MobaEntityManager entities, MobaInputCommandContractRegistry contracts)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _playerActorMap = playerActorMap ?? throw new ArgumentNullException(nameof(playerActorMap));
@@ -50,22 +50,6 @@ namespace AbilityKit.Demo.Moba.Services
         protected override MobaInputCommandContext CreateContext(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
         {
             return new MobaInputCommandContext(_phase, _playerActorMap, _entities, _skills, Services);
-        }
-
-        protected override bool TryHandleBeforeDispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command)
-        {
-            if (Services == null) return false;
-            if (!Services.TryResolve<IMobaLobbyInputHotfixRouter>(out var router) || router == null) return false;
-
-            try
-            {
-                return router.TryHandle(Services, frame, command);
-            }
-            catch (Exception ex)
-            {
-                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Input, MobaRuntimeLogPurpose.Exception, nameof(MobaInputCoordinator), "Hotfix router TryHandle failed.");
-                throw new InvalidOperationException($"Hotfix router failed while handling input command. frame={frame.Value}, player={command.Player.Value}, opCode={command.OpCode}", ex);
-            }
         }
 
         protected override bool Dispatch(MobaInputCommandContext context, FrameIndex frame, PlayerInputCommand command, out MobaInputCommandResult result)

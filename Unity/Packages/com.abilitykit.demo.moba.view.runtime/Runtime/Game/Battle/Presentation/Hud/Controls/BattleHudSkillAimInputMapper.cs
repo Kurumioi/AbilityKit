@@ -7,7 +7,10 @@ namespace AbilityKit.Game.Battle.View
     {
         [SerializeField] private BattleHudInputView _hud;
         [SerializeField] private Transform _cameraTransform;
-        private bool _isHooked;
+        private readonly BattleHudSkillAimInputMapperFactory _factory = new BattleHudSkillAimInputMapperFactory();
+        private BattleHudCameraTransformResolver _cameraResolver;
+        private BattleHudCameraPlaneInputProjector _projector;
+        private BattleHudInputViewSubscription _hudSubscription;
 
         public event Action<int, Vector2> SkillAimStart;
         public event Action<int, Vector2> SkillAimUpdate;
@@ -15,65 +18,54 @@ namespace AbilityKit.Game.Battle.View
 
         public void Initialize(BattleHudInputView hud, Transform cameraTransform)
         {
-            UnhookHud();
+            EnsureHudSubscription();
+            _hudSubscription.Unhook();
 
             _hud = hud;
             _cameraTransform = cameraTransform;
+            _hudSubscription.SetHud(_hud);
 
             ResolveCameraTransform();
             if (isActiveAndEnabled)
             {
-                HookHud();
+                _hudSubscription.Hook();
             }
         }
 
         private void Awake()
         {
+            EnsureHudSubscription();
+            _hudSubscription.SetHud(_hud);
             ResolveCameraTransform();
         }
 
         private void OnEnable()
         {
-            HookHud();
+            EnsureHudSubscription();
+            _hudSubscription.SetHud(_hud);
+            _hudSubscription.Hook();
         }
 
         private void OnDisable()
         {
-            UnhookHud();
+            _hudSubscription?.Unhook();
+        }
+
+        private void OnDestroy()
+        {
+            _hudSubscription?.Clear();
         }
 
         private void ResolveCameraTransform()
         {
-            if (_cameraTransform == null && Camera.main != null)
-            {
-                _cameraTransform = Camera.main.transform;
-            }
+            EnsureDependencies();
+            _cameraTransform = _cameraResolver.Resolve(_cameraTransform);
         }
 
-        private void HookHud()
+        private void EnsureHudSubscription()
         {
-            if (_isHooked) return;
-            if (_hud == null) return;
-
-            _hud.SkillAimStart += OnAimStart;
-            _hud.SkillAimUpdate += OnAimUpdate;
-            _hud.SkillAimEnd += OnAimEnd;
-            _isHooked = true;
-        }
-
-        private void UnhookHud()
-        {
-            if (!_isHooked) return;
-            if (_hud == null)
-            {
-                _isHooked = false;
-                return;
-            }
-
-            _hud.SkillAimStart -= OnAimStart;
-            _hud.SkillAimUpdate -= OnAimUpdate;
-            _hud.SkillAimEnd -= OnAimEnd;
-            _isHooked = false;
+            EnsureDependencies();
+            _hudSubscription ??= _factory.CreateSubscription(OnAimStart, OnAimUpdate, OnAimEnd);
         }
 
         private void OnAimStart(int slot, Vector2 dir)
@@ -93,7 +85,47 @@ namespace AbilityKit.Game.Battle.View
 
         private Vector2 TransformAim(Vector2 dir)
         {
-            return BattleHudInputProjection.ToCameraPlane(dir, _cameraTransform);
+            EnsureDependencies();
+            return _projector.ToCameraPlane(dir, _cameraTransform);
+        }
+
+        private void EnsureDependencies()
+        {
+            _cameraResolver ??= _factory.CreateCameraResolver();
+            _projector ??= _factory.CreateProjector();
+        }
+    }
+
+    internal sealed class BattleHudSkillAimInputMapperFactory
+    {
+        public BattleHudCameraTransformResolver CreateCameraResolver()
+        {
+            return new BattleHudCameraTransformResolver();
+        }
+
+        public BattleHudCameraPlaneInputProjector CreateProjector()
+        {
+            return new BattleHudCameraPlaneInputProjector();
+        }
+
+        public BattleHudInputViewSubscription CreateSubscription(
+            Action<int, Vector2> aimStart,
+            Action<int, Vector2> aimUpdate,
+            Action<int, Vector2> aimEnd)
+        {
+            return new BattleHudInputViewSubscription(
+                hud =>
+                {
+                    hud.SkillAimStart += aimStart;
+                    hud.SkillAimUpdate += aimUpdate;
+                    hud.SkillAimEnd += aimEnd;
+                },
+                hud =>
+                {
+                    hud.SkillAimStart -= aimStart;
+                    hud.SkillAimUpdate -= aimUpdate;
+                    hud.SkillAimEnd -= aimEnd;
+                });
         }
     }
 }

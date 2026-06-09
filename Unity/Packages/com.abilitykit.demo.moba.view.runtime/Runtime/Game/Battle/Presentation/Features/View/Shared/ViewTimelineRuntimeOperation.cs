@@ -2,9 +2,9 @@ using AbilityKit.Game.Flow.Battle.Modules;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class ViewTimelineRuntimeOperation
+    internal sealed class ViewTimelineRuntimeOperation
     {
-        public static void SeekAllToCurrentFrame(IViewFeatureRuntime runtime)
+        public void SeekAllToCurrentFrame(IViewFeatureRuntime runtime)
         {
             if (runtime?.Timeline == null) return;
 

@@ -1,16 +1,20 @@
-using UnityEngine;
-
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleViewShellController
     {
         private readonly IBattleViewShellLoader _loader;
-        private readonly IMonoViewHandleRegistry _registry;
+        private readonly BattleViewShellHandleBinder _handleBinder;
+        private readonly BattleViewShellDestroyer _destroyer;
 
-        public BattleViewShellController(IBattleViewShellLoader loader, IMonoViewHandleRegistry registry)
+        public BattleViewShellController(
+            IBattleViewShellLoader loader,
+            IMonoViewHandleRegistry registry,
+            BattleViewShellHandleBinder handleBinder = null,
+            BattleViewShellDestroyer destroyer = null)
         {
             _loader = loader;
-            _registry = registry;
+            _handleBinder = handleBinder ?? new BattleViewShellHandleBinder(registry);
+            _destroyer = destroyer ?? new BattleViewShellDestroyer(_handleBinder);
         }
 
         public void Recreate(BattleViewHandle handle, int actorId, int modelId)
@@ -24,30 +28,12 @@ namespace AbilityKit.Game.Flow
 
             if (go == null) return;
 
-            var viewHandle = go.GetComponent<MonoViewHandle>();
-            if (viewHandle == null) viewHandle = go.AddComponent<MonoViewHandle>();
-            viewHandle.ActorId = actorId;
-            viewHandle.Registry = _registry;
-            handle.ViewHandle = viewHandle;
+            _handleBinder.Bind(handle, go, actorId);
         }
 
         public void Destroy(BattleViewHandle handle, bool immediate)
         {
-            if (handle == null) return;
-
-            if (handle.ViewHandle != null)
-            {
-                handle.ViewHandle.Registry = null;
-            }
-
-            if (handle.GameObject != null)
-            {
-                if (immediate) Object.DestroyImmediate(handle.GameObject);
-                else Object.Destroy(handle.GameObject);
-            }
-
-            handle.GameObject = null;
-            handle.ViewHandle = null;
+            _destroyer.Destroy(handle, immediate);
         }
     }
 }

@@ -113,6 +113,8 @@ namespace AbilityKit.Protocol.Moba.Room
         [MemoryPackOrder(2)] public ulong WorldId { get; init; }
         [MemoryPackOrder(3)] public bool Started { get; init; }
         [MemoryPackOrder(4)] public string Message { get; init; }
+        [MemoryPackOrder(5)] public WireWorldStartAnchor WorldStartAnchor { get; init; }
+        [MemoryPackOrder(6)] public long ServerNowTicks { get; init; }
     }
 
     [MemoryPackable]

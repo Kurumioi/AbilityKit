@@ -16,9 +16,8 @@ using AbilityKit.Ability.World;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
-using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
-using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Session
 {
@@ -30,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Session
         void RegisterLogicWorldServices(IWorld world);
         void LoadLogicWorldConfig(IWorld world);
         LogicWorldSpawnData[] CreateLogicWorldSpawnData(int localPlayerId);
+        void SetPendingPlayerLoadouts(MobaPlayerLoadout[] loadouts);
     }
 
     /// <summary>
@@ -43,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Session
         private readonly MobaSessionDefaults _defaults;
         private HostRuntime _hostRuntime;
         private LogicWorldSpawnData[] _pendingSpawns;
+        private MobaPlayerLoadout[] _pendingLoadouts;
 
         public MobaSessionCoordinatorHost(ITextAssetLoader textAssetLoader)
             : this(textAssetLoader, null)
@@ -71,6 +72,11 @@ namespace AbilityKit.Demo.Moba.Session
         public void SetPendingLogicWorldSpawns(LogicWorldSpawnData[] spawns)
         {
             _pendingSpawns = spawns;
+        }
+
+        public void SetPendingPlayerLoadouts(MobaPlayerLoadout[] loadouts)
+        {
+            _pendingLoadouts = loadouts;
         }
 
         public IWorldHost CreateWorldHost(SessionConfig config)
@@ -181,42 +187,37 @@ namespace AbilityKit.Demo.Moba.Session
 
         public LogicWorldSpawnData[] CreateLogicWorldSpawnData(int localPlayerId)
         {
-            if (_pendingSpawns != null && _pendingSpawns.Length > 0)
-            {
-                return _pendingSpawns;
-            }
-
-            return new[]
-            {
-                new LogicWorldSpawnData(
-                    localPlayerId,
-                    _defaults.LocalPlayerCharacterId,
-                    _defaults.LocalPlayerTeamId,
-                    0f,
-                    0f,
-                    0f,
-                    _defaults.LocalPlayerName)
-            };
+            return _pendingSpawns != null && _pendingSpawns.Length > 0
+                ? _pendingSpawns
+                : Array.Empty<LogicWorldSpawnData>();
         }
 
         private void RegisterCreateWorldInitData(in SessionConfig config, WorldCreateOptions options)
         {
-            var spawns = CreateLogicWorldSpawnData(config);
-            if (spawns == null || spawns.Length == 0)
+            var loadouts = CreatePlayerLoadouts();
+            if (loadouts == null || loadouts.Length == 0)
             {
-                Log.Warning("[MobaSessionCoordinatorHost] No logic world spawn data; create-world init payload skipped");
-                return;
+                throw new InvalidOperationException("MobaSessionCoordinatorHost requires explicit MobaPlayerLoadout[] before world bootstrap.");
             }
 
-            var initData = MobaBattleStartPlanBuilder.CreateWorldInitDataFromHostSpawns(
-                ToHostSpawns(spawns),
-                new PlayerId(config.LocalPlayerId.ToString()),
-                CreateMatchId(config),
-                _defaults.ResolveMapId(config.MapId),
-                MobaWorldBootstrapModule.InitOpCode,
-                _defaults.ResolveTickRate(config.TickRate),
+            var localPlayerId = new PlayerId(config.LocalPlayerId.ToString());
+            var spec = new MobaCreateWorldSpec(
+                matchId: CreateMatchId(config),
+                mapId: _defaults.ResolveMapId(config.MapId),
+                randomSeed: CreateSessionSeed(config),
+                tickRate: _defaults.ResolveTickRate(config.TickRate),
                 inputDelayFrames: _defaults.InputDelayFrames,
-                randomSeed: CreateSessionSeed(config));
+                players: loadouts,
+                gameplayId: 0);
+
+            var validation = MobaProtocolValidation.ValidateCreateWorldSpec(localPlayerId, in spec);
+            if (!validation.IsValid)
+            {
+                throw new InvalidOperationException("MobaSessionCoordinatorHost create-world spec is invalid. " + validation);
+            }
+
+            var payload = new MobaCreateWorldInitPayload(localPlayerId, in spec, opCode: 0, payload: null);
+            var initData = new WorldInitData(MobaWorldBootstrapModule.InitOpCode, MobaCreateWorldInitCodec.Serialize(in payload));
 
             options.ServiceBuilder.RegisterInstance(initData);
             Log.Info("[MobaSessionCoordinatorHost] Create-world init payload registered for bootstrap start flow");
@@ -242,28 +243,11 @@ namespace AbilityKit.Demo.Moba.Session
             }
         }
 
-        private static MobaHostSpawnData[] ToHostSpawns(LogicWorldSpawnData[] spawns)
+        private MobaPlayerLoadout[] CreatePlayerLoadouts()
         {
-            if (spawns == null || spawns.Length == 0)
-            {
-                return Array.Empty<MobaHostSpawnData>();
-            }
-
-            var result = new MobaHostSpawnData[spawns.Length];
-            for (int i = 0; i < spawns.Length; i++)
-            {
-                var spawn = spawns[i];
-                result[i] = new MobaHostSpawnData(
-                    spawn.PlayerId,
-                    spawn.CharacterId,
-                    spawn.TeamId,
-                    spawn.X,
-                    spawn.Y,
-                    spawn.Z,
-                    spawn.Name);
-            }
-
-            return result;
+            return _pendingLoadouts != null && _pendingLoadouts.Length > 0
+                ? _pendingLoadouts
+                : Array.Empty<MobaPlayerLoadout>();
         }
 
         private static LogicWorldSpawnData[] ToLogicWorldSpawns(PlayerSpawnData[] spawns)

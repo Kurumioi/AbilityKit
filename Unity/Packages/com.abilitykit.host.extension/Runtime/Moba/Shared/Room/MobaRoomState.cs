@@ -104,10 +104,15 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             return _players.TryGetValue(playerId.Value, out slot);
         }
 
-        public bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId = 0, int level = 1, int basicAttackSkillId = 0, int[] skillIds = null)
+        public bool TryPickHero(PlayerId playerId, int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
         {
             if (string.IsNullOrEmpty(playerId.Value)) return false;
             if (!_players.TryGetValue(playerId.Value, out var slot)) return false;
+            if (heroId <= 0) return false;
+            if (attributeTemplateId <= 0) return false;
+            if (level <= 0) return false;
+            if (basicAttackSkillId <= 0) return false;
+            if (skillIds == null || skillIds.Length == 0) return false;
 
             slot = slot.WithHero(heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
             _players[playerId.Value] = slot;
@@ -125,7 +130,12 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             {
                 var s = kv.Value;
                 if (!s.Ready) return false;
+                if (s.TeamId <= 0) return false;
                 if (s.HeroId <= 0) return false;
+                if (s.Level <= 0) return false;
+                if (s.AttributeTemplateId <= 0) return false;
+                if (s.BasicAttackSkillId <= 0) return false;
+                if (s.SkillIds == null || s.SkillIds.Length == 0) return false;
             }
             return true;
         }
@@ -226,7 +236,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
                 HeroId = 0;
                 SpawnPointId = 0;
                 AttributeTemplateId = 0;
-                Level = 1;
+                Level = 0;
                 BasicAttackSkillId = 0;
                 SkillIds = null;
             }
@@ -257,7 +267,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
 
             public PlayerSlot WithHero(int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
             {
-                return new PlayerSlot(PlayerId, TeamId, Ready, heroId, SpawnPointId, attributeTemplateId, level, basicAttackSkillId, skillIds);
+                return new PlayerSlot(PlayerId, TeamId, Ready, heroId, SpawnPointId, attributeTemplateId, level, basicAttackSkillId, skillIds == null ? null : (int[])skillIds.Clone());
             }
 
             public PlayerSlot WithSpawnPoint(int spawnPointId)

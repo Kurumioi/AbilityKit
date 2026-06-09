@@ -19,12 +19,27 @@ namespace AbilityKit.Demo.Moba.Services
             if (_effects == null) return;
             if (triggerIds == null || triggerIds.Count == 0) return;
 
+            ValidateSource(buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime);
+
             for (int i = 0; i < triggerIds.Count; i++)
             {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0) continue;
 
                 _effects.ExecuteTriggerId(triggerId, CreatePayload(triggerId, buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime, removeReason, durationSeconds));
+            }
+        }
+
+        private static void ValidateSource(int buffId, int sourceActorId, int targetActorId, long sourceContextId, string stage, BuffRuntime runtime)
+        {
+            if (runtime == null)
+            {
+                throw new System.InvalidOperationException($"Buff stage effect requires live runtime context. buffId={buffId} stage={stage} sourceActorId={sourceActorId} targetActorId={targetActorId} sourceContextId={sourceContextId}");
+            }
+
+            if (sourceActorId <= 0 || targetActorId <= 0 || sourceContextId == 0L)
+            {
+                throw new System.InvalidOperationException($"Buff stage effect source context is incomplete. buffId={buffId} stage={stage} sourceActorId={sourceActorId} targetActorId={targetActorId} sourceContextId={sourceContextId}");
             }
         }
 

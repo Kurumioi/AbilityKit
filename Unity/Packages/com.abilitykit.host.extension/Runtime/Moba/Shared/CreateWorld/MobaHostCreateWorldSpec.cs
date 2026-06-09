@@ -60,7 +60,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.CreateWorld
             var ps = Players;
             if (ps == null || ps.Length == 0)
             {
-                return null;
+                throw new System.InvalidOperationException("MOBA host create-world spec requires explicit room player loadouts.");
             }
 
             var loadouts = new MobaPlayerLoadout[ps.Length];

@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 throw new InvalidOperationException($"[Plan] start_cooldown failed: invalid skill. actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}");
             }
 
-            ctx.Context.TryResolve<IFrameTime>(out var frameTime);
+            var frameTime = ResolveFrameTime(ctx, input.CasterActorId, skillId, skillSlot, args.CooldownMs);
             var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(frameTime);
             var cooldownEndTimeMs = now + args.CooldownMs;
             if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs))
@@ -47,6 +47,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             LogApplied(ctx, $"actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}, endMs={cooldownEndTimeMs}");
+        }
+
+        private static IFrameTime ResolveFrameTime(ExecCtx<IWorldResolver> ctx, int actorId, int skillId, int skillSlot, int cooldownMs)
+        {
+            if (ctx.Context != null && ctx.Context.TryResolve<IFrameTime>(out var frameTime) && frameTime != null)
+            {
+                return frameTime;
+            }
+
+            throw new InvalidOperationException($"[Plan] start_cooldown requires IFrameTime for deterministic cooldown resolution. actorId={actorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={cooldownMs}");
         }
     }
 }

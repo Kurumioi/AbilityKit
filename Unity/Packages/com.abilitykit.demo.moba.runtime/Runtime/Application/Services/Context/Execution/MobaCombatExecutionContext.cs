@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
         public bool IsValid => LineageInput.SourceActorId != 0 || LineageInput.TargetActorId != 0 || Origin.IsValid || ExecutionSnapshot.IsValid || SkillRuntimeHandle.IsValid || Payload != null;
+        public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
 
         public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
         {
@@ -79,7 +80,7 @@ namespace AbilityKit.Demo.Moba.Services
                 RootContextId,
                 OwnerContextId,
                 ConfigId);
-            return SourceActorId > 0 || TargetActorId > 0 || ParentContextId != 0;
+            return lineageContext.HasExecutionSource;
         }
 
         public bool TryGetSkillRuntimeHandle(out MobaSkillCastRuntimeHandle handle)
@@ -137,7 +138,7 @@ namespace AbilityKit.Demo.Moba.Services
         public static bool TryResolveCombatExecutionContext(this object payload, out MobaCombatExecutionContext context)
         {
             context = default;
-            if (payload is MobaCombatExecutionContext direct && direct.IsValid)
+            if (payload is MobaCombatExecutionContext direct && direct.HasExecutionSource)
             {
                 context = direct;
                 return true;
@@ -145,15 +146,15 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (payload is IMobaCombatContextSource sourceProvider
                 && sourceProvider.TryGetCombatContextSource(out var source)
-                && source.IsValid)
+                && source.HasExecutionSource)
             {
                 context = MobaCombatContextBuilder.FromSource(payload, in source);
-                return context.IsValid;
+                return context.HasExecutionSource;
             }
 
             return payload is IMobaCombatExecutionContextProvider provider
                    && provider.TryGetCombatExecutionContext(out context)
-                   && context.IsValid;
+                   && context.HasExecutionSource;
         }
     }
 }

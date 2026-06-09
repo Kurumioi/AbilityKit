@@ -12,19 +12,21 @@ namespace AbilityKit.Game.Battle.View.Lib.Joystick
         [SerializeField] private Canvas _canvas;
         [SerializeField] private JoystickConfig _config = default;
 
-        private int _pointerId = int.MinValue;
+        private readonly JoystickPointerSession _session = new JoystickPointerSession();
+        private readonly JoystickVisualController _visual = new JoystickVisualController();
         private Camera _uiCamera;
-
-        private Vector2 _centerLocal;
-        private JoystickOutput _output;
 
         public JoystickConfig Config
         {
             get => _config;
-            set => _config = value;
+            set
+            {
+                _config = value.Radius > 0f ? value : JoystickConfig.Default;
+                ConfigureVisual();
+            }
         }
 
-        public JoystickOutput Output => _output;
+        public JoystickOutput Output => _session.Output;
 
         public event Action OnBegin;
         public event Action<JoystickOutput> OnValueChanged;
@@ -39,15 +41,14 @@ namespace AbilityKit.Game.Battle.View.Lib.Joystick
             _config = config.Radius > 0f ? config : JoystickConfig.Default;
 
             RefreshReferences();
-            if (_outer != null) _outer.gameObject.SetActive(!_config.HideWhenReleased);
+            _visual.ApplyReady();
         }
 
         private void Awake()
         {
             if (_config.Radius <= 0f) _config = JoystickConfig.Default;
             RefreshReferences();
-
-            if (_outer != null && _config.HideWhenReleased) _outer.gameObject.SetActive(false);
+            _visual.ApplyReleased(_session.CenterLocal);
         }
 
         private void RefreshReferences()
@@ -63,71 +64,52 @@ namespace AbilityKit.Game.Battle.View.Lib.Joystick
             }
 
             _uiCamera = _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay ? _canvas.worldCamera : null;
+            ConfigureVisual();
+        }
+
+        private void ConfigureVisual()
+        {
+            _visual.Configure(_outer, _inner, _config);
         }
 
         public void OnPointerDown(PointerEventData eventData)
         {
-            if (_pointerId != int.MinValue) return;
             if (_area == null) return;
 
-            _pointerId = eventData.pointerId;
-            _centerLocal = ScreenToLocalInRect(_area, eventData.position);
+            var centerLocal = ScreenToLocalInRect(_area, eventData.position);
+            if (!_session.Begin(eventData.pointerId, centerLocal)) return;
 
-            if (_outer != null)
-            {
-                _outer.anchoredPosition = _centerLocal;
-                if (_config.HideWhenReleased) _outer.gameObject.SetActive(true);
-            }
+            _visual.ApplyPressed(centerLocal);
 
-            if (_inner != null)
-            {
-                _inner.anchoredPosition = _centerLocal;
-            }
-
-            UpdateOutput(eventData.position);
+            UpdateOutput(eventData.pointerId, eventData.position);
             OnBegin?.Invoke();
         }
 
         public void OnDrag(PointerEventData eventData)
         {
-            if (eventData.pointerId != _pointerId) return;
-            UpdateOutput(eventData.position);
+            UpdateOutput(eventData.pointerId, eventData.position);
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
-            if (eventData.pointerId != _pointerId) return;
+            if (!_session.End(eventData.pointerId, out var output)) return;
 
-            _pointerId = int.MinValue;
-            _output = default;
+            _visual.ApplyReleased(_session.CenterLocal);
 
-            if (_inner != null)
-            {
-                _inner.anchoredPosition = _centerLocal;
-            }
-
-            if (_outer != null && _config.HideWhenReleased)
-            {
-                _outer.gameObject.SetActive(false);
-            }
-
-            OnValueChanged?.Invoke(_output);
+            OnValueChanged?.Invoke(output);
             OnEnd?.Invoke();
         }
 
-        private void UpdateOutput(Vector2 screenPos)
+        private void UpdateOutput(int pointerId, Vector2 screenPos)
         {
             if (_area == null) return;
 
             var local = ScreenToLocalInRect(_area, screenPos);
-            _output = JoystickInputCalculator.Calculate(_centerLocal, local, _config, out var clamped);
+            if (!_session.Update(pointerId, local, _config, out var output, out var clamped)) return;
 
-            if (_inner != null)
-            {
-                _inner.anchoredPosition = _centerLocal + clamped;
-            }
+            _visual.ApplyDrag(_session.CenterLocal, clamped);
 
-            OnValueChanged?.Invoke(_output);
+            OnValueChanged?.Invoke(output);
         }
 
         private Vector2 ScreenToLocalInRect(RectTransform rect, Vector2 screenPos)

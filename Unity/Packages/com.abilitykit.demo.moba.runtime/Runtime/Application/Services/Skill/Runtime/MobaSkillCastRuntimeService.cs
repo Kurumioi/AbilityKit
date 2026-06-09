@@ -4,6 +4,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Trace;
+using AbilityKit.Core.Common.Log;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -254,8 +255,9 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     _trace?.EndContext(runtime.RootTraceContextId, ToTraceReason(reason));
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Log.Exception(ex, $"[MobaSkillCastRuntimeService] Trace.EndContext failed (runtimeId={runtime.RuntimeId}, rootTraceContextId={runtime.RootTraceContextId}, reason={reason})");
                 }
 
                 _runtimeByTraceContextId.Remove(runtime.RootTraceContextId);

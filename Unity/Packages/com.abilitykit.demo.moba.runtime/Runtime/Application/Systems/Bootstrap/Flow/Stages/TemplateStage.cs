@@ -4,10 +4,8 @@ using AbilityKit.Core.Common.Log;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// 【模板】我的功能 Stage
-    ///
-    /// 复制此文件创建新的 Bootstrap Stage。
-    /// 参考文档: Docs/BootstrapFlowGuide.md
+    /// Bootstrap stage authoring sample.
+    /// This type is intentionally not decorated with MobaBootstrapStage.
     /// </summary>
     public sealed class TemplateFeatureStage : MobaBootstrapStageBase
     {

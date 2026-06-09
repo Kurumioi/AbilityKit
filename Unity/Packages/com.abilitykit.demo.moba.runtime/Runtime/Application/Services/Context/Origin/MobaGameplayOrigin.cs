@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
 
         public bool IsValid => SourceActorId > 0 || TargetActorId > 0 || ParentContextId != 0 || ImmediateContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || SkillRuntimeHandle.IsValid;
+        public bool HasExecutionSource => SourceActorId > 0 && EffectiveParentContextId != 0;
         public long EffectiveParentContextId => ParentContextId != 0 ? ParentContextId : ImmediateContextId;
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : EffectiveParentContextId;
 

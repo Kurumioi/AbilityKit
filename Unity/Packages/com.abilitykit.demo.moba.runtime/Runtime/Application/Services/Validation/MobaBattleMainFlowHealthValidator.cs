@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
             context.TryResolve<IMobaBattleDiagnosticsService>(out var diagnostics);
 
             var runtimeReady = ValidateRuntimePort(in context, report);
-            var startPlanReady = ValidateBattleStartPlan(in context, report);
+            var startPlanReady = ValidateGameStartSpec(in context, report);
             var inputReady = ValidateInput(in context, report);
             var executeReady = ValidateExecution(in context, report);
             var outputReady = ValidateOutput(in context, report);
@@ -47,22 +47,22 @@ namespace AbilityKit.Demo.Moba.Services
             ready &= RequireCapability(report, status, MobaBattleRuntimeCapability.GameStart, "world.runtime.game_start", "Battle runtime port must expose game start capability before the formal world flow can start.");
             ready &= RequireCapability(report, status, MobaBattleRuntimeCapability.Input, "input.runtime.port", "Battle runtime port must expose input capability for external command submission.");
             ready &= RequireCapability(report, status, MobaBattleRuntimeCapability.SnapshotOutput, "output.runtime.port", "Battle runtime port must expose snapshot output capability for view synchronization.");
-            ready &= RequireCapability(report, status, MobaBattleRuntimeCapability.StateReadModel, "output.runtime.state_read", "Battle runtime port must expose state read model capability for diagnostics and fallback inspection.");
+            ready &= RequireCapability(report, status, MobaBattleRuntimeCapability.StateReadModel, "output.runtime.state_read", "Battle runtime port must expose state read model capability for formal diagnostics.");
             return ready;
         }
 
-        private static bool ValidateBattleStartPlan(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report)
+        private static bool ValidateGameStartSpec(in MobaRuntimeValidationContext context, MobaRuntimeValidationReport report)
         {
             if (!context.TryResolve<MobaGameStartSpecService>(out var starts) || starts == null)
             {
-                report.Error(Source, "world.start_plan.service", "MobaGameStartSpecService is required to retain the validated battle start plan before the formal world flow starts.", nameof(MobaGameStartSpecService), blocksStartup: true);
+                report.Error(Source, "world.start_spec.service", "MobaGameStartSpecService is required to retain the validated battle game start spec before the formal world flow starts.", nameof(MobaGameStartSpecService), blocksStartup: true);
                 return false;
             }
 
-            var validation = starts.ValidatePendingPlan();
+            var validation = starts.ValidatePendingSpec();
             if (validation.Succeeded) return true;
 
-            report.Error(Source, "world.start_plan.pending", validation.Message, nameof(MobaGameStartSpecService), blocksStartup: true);
+            report.Error(Source, "world.start_spec.pending", validation.Message, nameof(MobaGameStartSpecService), blocksStartup: true);
             return false;
         }
 

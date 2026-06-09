@@ -14,9 +14,9 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     Task InitializeBattleAsync(BattleInitParams initParams);
 
     /// <summary>
-    /// 提交玩家输入
+    /// 提交玩家输入。
     /// </summary>
-    Task SubmitInputAsync(ulong worldId, int frame, BattleInputItem input);
+    Task<BattleInputSubmitResult> SubmitInputAsync(ulong worldId, int frame, BattleInputItem input);
 
     /// <summary>
     /// 获取当前帧
@@ -27,6 +27,11 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     /// 获取快照（用于调试）
     /// </summary>
     Task<BattleSnapshot?> GetSnapshotAsync();
+
+    /// <summary>
+    /// 获取战斗世界开始时间锚点。
+    /// </summary>
+    Task<WorldStartAnchor?> GetWorldStartAnchorAsync();
 
     /// <summary>
     /// 订阅状态同步观察者
@@ -78,6 +83,10 @@ public class PlayerInitInfo
     [Id(4)] public float PosY { get; set; }
     [Id(5)] public float PosZ { get; set; }
     [Id(6)] public int TeamId { get; set; }
+    [Id(7)] public int Level { get; set; }
+    [Id(8)] public int AttributeTemplateId { get; set; }
+    [Id(9)] public int BasicAttackSkillId { get; set; }
+    [Id(10)] public List<int>? SkillIds { get; set; }
 }
 
 /// <summary>
@@ -90,6 +99,15 @@ public class BattleInputItem
     [Id(1)] public int OpCode { get; set; }
     [Id(2)] public byte[]? Payload { get; set; }
 }
+
+[GenerateSerializer]
+public sealed record BattleInputSubmitResult(
+    [property: Id(0)] bool Accepted,
+    [property: Id(1)] int RequestedFrame,
+    [property: Id(2)] int AcceptedFrame,
+    [property: Id(3)] int CurrentFrame,
+    [property: Id(4)] string Status,
+    [property: Id(5)] string Message);
 
 /// <summary>
 /// 战斗快照
@@ -120,6 +138,16 @@ public class ActorSnapshot
 }
 
 /// <summary>
+/// 战斗世界开始时间锚点。
+/// </summary>
+[GenerateSerializer]
+public sealed record WorldStartAnchor(
+    [property: Id(0)] long StartServerTicks,
+    [property: Id(1)] long ServerTickFrequency,
+    [property: Id(2)] int StartFrame,
+    [property: Id(3)] double FixedDeltaSeconds);
+
+/// <summary>
 /// 状态同步观察者接口
 /// 用于推送服务器快照到客户端
 /// </summary>
@@ -146,4 +174,19 @@ public class StateSyncPush
     /// 是否为全量快照（vs 增量快照）
     /// </summary>
     [Id(4)] public bool IsFullSnapshot { get; set; } = true;
+
+    /// <summary>
+    /// 可选的玩法自定义快照 op code。
+    /// </summary>
+    [Id(5)] public int PayloadOpCode { get; set; }
+
+    /// <summary>
+    /// 可选的玩法自定义快照二进制负载。
+    /// </summary>
+    [Id(6)] public byte[]? Payload { get; set; }
+
+    /// <summary>
+    /// 服务端时间域 ticks。Timestamp 保留为兼容字段。
+    /// </summary>
+    [Id(7)] public long ServerTicks { get; set; }
 }

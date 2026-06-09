@@ -7,6 +7,13 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudCanvasController : IDisposable
     {
+        private readonly BattleHudEventSystemController _eventSystem;
+
+        public BattleHudCanvasController(BattleHudEventSystemController eventSystem = null)
+        {
+            _eventSystem = eventSystem ?? new BattleHudEventSystemController();
+        }
+
         public Canvas Canvas { get; private set; }
         public RectTransform Root { get; private set; }
 
@@ -21,7 +28,7 @@ namespace AbilityKit.Game.Flow
             go.AddComponent<GraphicRaycaster>();
             Root = Canvas.GetComponent<RectTransform>();
 
-            EnsureEventSystem();
+            _eventSystem.Ensure();
         }
 
         public void Dispose()
@@ -40,7 +47,11 @@ namespace AbilityKit.Game.Flow
             Root = null;
         }
 
-        private static void EnsureEventSystem()
+    }
+
+    internal sealed class BattleHudEventSystemController
+    {
+        public void Ensure()
         {
             if (EventSystem.current != null) return;
             if (UnityEngine.Object.FindObjectOfType<EventSystem>() != null) return;

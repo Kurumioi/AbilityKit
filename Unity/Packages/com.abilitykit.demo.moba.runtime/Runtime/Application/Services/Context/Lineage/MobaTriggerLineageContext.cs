@@ -31,6 +31,8 @@ namespace AbilityKit.Demo.Moba.Services
         public long OwnerKey { get; }
         public int SourceConfigId { get; }
 
+        public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
+
         public MobaEffectLineageInput ToLineageInput()
         {
             return new MobaEffectLineageInput(

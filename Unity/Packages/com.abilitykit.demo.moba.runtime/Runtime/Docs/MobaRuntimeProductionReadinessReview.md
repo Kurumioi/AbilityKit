@@ -55,10 +55,10 @@
 2. `MobaBattleStartPlan` 统一转换为带 `MobaWorldBootstrapModule.InitOpCode` 的 `WorldInitData`，再注册到 `WorldCreateOptions.ServiceBuilder`。
 3. `WorldInitStage` 读取并反序列化 init payload，生成 `MobaGameStartSpec`。
 4. `StartGameStage` 从 `MobaGameStartSpecService` 取出 spec，并调用 `MobaEnterGameFlowService.TryApplyGameStartSpec`。
-5. `MobaEnterGameFlowService` 归一化开局请求，调用 `ActorSpawnPipeline` 构造 actor，并通过 `ActorEntityInitPipeline` 初始化属性、资源、技能。
+5. `MobaEnterGameFlowService` 校验开局请求，调用 `ActorSpawnPipeline` 构造 actor，并通过 `ActorEntityInitPipeline` 初始化属性、资源、技能。
 6. 开局后发布 EnterGame 和 ActorSpawn 快照，并设置 `MobaGamePhaseService` 为 InGame。
 
-这条链路已经具备正式战斗开局的骨架。本轮已完成基础协议校验、结构化开局失败结果，以及进入战斗参数组装职责迁移。`MobaSessionCoordinatorHost` 现在只把 runtime spawn DTO 适配成 host spawn DTO，并通过 host.extension 的 `MobaBattleStartPlanBuilder` 生成 `WorldInitData`；legacy `SpawnDataConverter` 也转为兼容包装，不再维护独立默认 loadout/start spec 逻辑。后续还需要继续收敛 opCode/payload 版本化、gateway wire schema 和跨端错误码映射。runtime 内部应保持为“消费 start spec 并执行战斗世界开局”，不再承载房间、匹配、测试环境如何拼装入场参数的业务决策。
+这条链路已经具备正式战斗开局的骨架。本轮已完成基础协议校验、结构化开局失败结果，以及进入战斗参数组装职责迁移。`MobaSessionCoordinatorHost` 现在只消费显式 `MobaPlayerLoadout`，并通过 host.extension 的 `MobaBattleStartPlanBuilder` 生成 `WorldInitData`；旧的默认 loadout/start spec 填充和 runtime 侧 spawn 转换包装已经移除。后续还需要继续收敛 opCode/payload 版本化、gateway wire schema 和跨端错误码映射。runtime 内部应保持为“消费 start spec 并执行战斗世界开局”，不再承载房间、匹配、测试环境如何拼装入场参数的业务决策。
 
 ### 1.3 接受输入
 
@@ -67,10 +67,10 @@
 1. 外部通过 `MobaBattleDriverHost.SubmitCommands` 提交 `PlayerInputCommand`。
 2. `MobaBattleDriverHost` 使用当前 `_currentFrame` 将输入提交给 `IMobaBattleInputPort`。
 3. `MobaBattleIOPort` 转交给 `IMobaInputCoordinator`。
-4. `MobaInputCoordinator` 先给 `IMobaLobbyInputHotfixRouter` 一个前置处理机会，再分发给按 opcode 注册的 `IMobaInputCommandHandler`。
+4. `MobaInputCoordinator` 直接分发给按 opcode 注册的 `IMobaInputCommandHandler`。
 5. 当前主要处理器包括移动输入 `MobaMoveInputCommandHandler` 和技能输入 `MobaSkillInputCommandHandler`。
 
-输入层已从 Driver 和 ECS 系统中抽出独立端口与协调器，但正式化前需要明确帧语义、输入校验、异常处理和高频日志策略。
+输入层已从 Driver 和 ECS 系统中抽出独立端口与协调器，命令必须通过显式 contract/handler 进入正式分发链路。正式化前仍需要继续明确帧语义、过期/未来输入策略和高频日志策略。
 
 ### 1.4 执行逻辑
 
@@ -152,7 +152,6 @@
 
 - `MobaEnterGameFlowService` 中 `_config`、`_generator` 为 optional。
 - `_generator == null` 时 actor 仍会创建，只跳过 `InitializeFromLoadout`。
-- `MobaGameStartSpecNormalizer.Normalize` 在异常时 `catch { return req; }`。
 - `WorldInitStage` 反序列化失败或缺 `WorldInitData` 后只 log 并 return。
 
 问题：
@@ -170,8 +169,8 @@
 - 区分 Demo/Lobby/正式 Battle world 的启动策略。正式 Battle world 缺必需依赖应 fail-fast。
 - `WorldInitStage` 校验 `init.OpCode == MobaWorldBootstrapModule.InitOpCode`。（已落地）
 - `WorldInitStage` 对 init payload 执行协议 envelope 校验，阻断非法 create-world 数据进入 start spec。（已落地）
-- `MobaEnterGameFlowService.TryApplyGameStartSpec` 返回结构化结果，而不是只返回 bool。（已落地，旧 bool API 保留为兼容包装）
-- `MobaGameStartSpecNormalizer` 仍建议继续升级为结构化 NormalizeResult，避免归一化异常只能通过日志和后续校验体现。
+- `MobaEnterGameFlowService.TryApplyGameStartSpec` 返回结构化结果，而不是只返回 bool。（已落地）
+- runtime 侧默认 loadout/start spec 归一化器已删除，开局数据必须由 host.extension 或外部正式协议显式提供。
 
 ### P0-4 玩法核心仍存在 placeholder 逻辑
 
@@ -251,7 +250,7 @@
 
 相关代码：
 
-- `MobaGameStartSpecNormalizer` 捕获异常后直接返回原请求。
+- 技能生命周期系统仍存在部分空 catch 或异常后退化为默认帧的路径。
 - `MobaSkillCastCancelRequestSystem` 多处空 catch。
 - `MobaSkillCastInstanceSyncSystem` 获取 frame 失败时回退到 0。
 - `MobaSkillCastDestroyCleanupSystem` 空 catch。
@@ -259,7 +258,7 @@
 
 问题：
 
-吞异常会把结构错误变成后续状态异常。对于技能生命周期和开局归一化，这会直接影响战斗正确性。
+吞异常会把结构错误变成后续状态异常。对于技能生命周期，这会直接影响战斗正确性。
 
 铺量风险：
 

@@ -14,40 +14,7 @@ namespace ET.Logic
         /// </summary>
         public static List<ETPlayerSpawnData> BuildSpawnList(List<PlayerRegistration> players)
         {
-            var spawnList = new List<ETPlayerSpawnData>();
-
-            int team1Count = 0;
-            int team2Count = 0;
-
-            foreach (var player in players)
-            {
-                float x, z;
-                if (player.TeamId == 1)
-                {
-                    x = 0f;
-                    z = 10f * team1Count;
-                    team1Count++;
-                }
-                else
-                {
-                    x = 50f;
-                    z = 10f * team2Count;
-                    team2Count++;
-                }
-
-                var spawnData = new ETPlayerSpawnData(
-                    player.PlayerId.ToString(),
-                    player.CharacterId,
-                    player.PlayerName,
-                    player.TeamId,
-                    x,
-                    0f,
-                    z);
-
-                spawnList.Add(spawnData);
-            }
-
-            return spawnList;
+            throw new System.InvalidOperationException("PlayerRegistration does not contain explicit MOBA loadout fields. Build ETPlayerSpawnData from formal hero config or extend registration data before starting battle.");
         }
 
         /// <summary>
@@ -80,7 +47,8 @@ namespace ET.Logic
                 float maxHp = (attrs?.MaxHp > 0 ? attrs.MaxHp : hp);
 
                 string playerIdStr = playerIdBase.ToString();
-                var spawnData = new ETPlayerSpawnData(playerIdStr, heroConfig.Id, heroConfig.AttributeTemplateId, heroConfig.Name, 1, 0f, 0f, 0f, 0f, 1f, hp, maxHp);
+                var skillIds = RequireSkillIds(heroConfig);
+                var spawnData = new ETPlayerSpawnData(playerIdStr, heroConfig.Id, heroConfig.AttributeTemplateId, 1, skillIds[0], skillIds, heroConfig.Name, 1, 0f, 0f, 0f, 0f, 1f, hp, maxHp);
                 players.Add(spawnData);
                 Log.Info($"[PlayerSpawnBuilder] Loaded player: {heroConfig.Name} (Team 1, PlayerId={playerIdStr})");
             }
@@ -96,7 +64,8 @@ namespace ET.Logic
                     float maxHp = (aiAttr?.MaxHp > 0 ? aiAttr.MaxHp : hp);
 
                     string aiPlayerId = (playerIdBase + i).ToString();
-                    var spawnData = new ETPlayerSpawnData(aiPlayerId, aiConfig.Id, aiConfig.AttributeTemplateId, aiConfig.Name, 1, 10f * (i - 1), 0f, 0f, 0f, 1f, hp, maxHp);
+                    var skillIds = RequireSkillIds(aiConfig);
+                    var spawnData = new ETPlayerSpawnData(aiPlayerId, aiConfig.Id, aiConfig.AttributeTemplateId, 1, skillIds[0], skillIds, aiConfig.Name, 1, 10f * (i - 1), 0f, 0f, 0f, 1f, hp, maxHp);
                     players.Add(spawnData);
                     Log.Info($"[PlayerSpawnBuilder] Loaded AI: {aiConfig.Name} (Team 1, PlayerId={aiPlayerId})");
                 }
@@ -113,13 +82,29 @@ namespace ET.Logic
                     float maxHp = (enemyAttr?.MaxHp > 0 ? enemyAttr.MaxHp : hp);
 
                     string enemyPlayerId = (2000 + i).ToString();
-                    var spawnData = new ETPlayerSpawnData(enemyPlayerId, enemyConfig.Id, enemyConfig.AttributeTemplateId, enemyConfig.Name, 2, 0f, 0f, 50f + 10f * (i - 1), 0f, 1f, hp, maxHp);
+                    var skillIds = RequireSkillIds(enemyConfig);
+                    var spawnData = new ETPlayerSpawnData(enemyPlayerId, enemyConfig.Id, enemyConfig.AttributeTemplateId, 1, skillIds[0], skillIds, enemyConfig.Name, 2, 0f, 0f, 50f + 10f * (i - 1), 0f, 1f, hp, maxHp);
                     players.Add(spawnData);
                     Log.Info($"[PlayerSpawnBuilder] Loaded enemy: {enemyConfig.Name} (Team 2, PlayerId={enemyPlayerId})");
                 }
             }
 
             return players;
+        }
+
+        private static int[] RequireSkillIds(JsonCharacter config)
+        {
+            if (config == null)
+            {
+                throw new System.ArgumentNullException(nameof(config));
+            }
+
+            if (config.SkillIds == null || config.SkillIds.Count == 0)
+            {
+                throw new System.InvalidOperationException($"Character {config.Id} requires explicit skill ids for MOBA battle startup.");
+            }
+
+            return config.SkillIds.ToArray();
         }
     }
 }

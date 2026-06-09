@@ -11,9 +11,9 @@ namespace AbilityKit.Game.Battle.WorldStart
     [WorldService(typeof(IWorldAutoStartHandler), WorldLifetime.Scoped)]
     public sealed class MobaWorldAutoStartHandler : IWorldAutoStartHandler
     {
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
 
-        public MobaWorldAutoStartHandler(MobaGamePhaseService phase)
+        public MobaWorldAutoStartHandler(MobaLogicWorldRunGateService phase)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
         }

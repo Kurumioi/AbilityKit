@@ -4,9 +4,9 @@ using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class ViewSeekableRegistry
+    internal sealed class ViewSeekableRegistry
     {
-        public static void RegisterAll(IViewFeatureRuntime runtime)
+        public void RegisterAll(IViewFeatureRuntime runtime)
         {
             if (runtime?.Timeline == null || runtime.Binder == null) return;
 
@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
             runtime.LastAlignedFrame = int.MinValue;
         }
 
-        public static void RegisterForEntity(IViewFeatureRuntime runtime, EC.IEntityId id)
+        public void RegisterForEntity(IViewFeatureRuntime runtime, EC.IEntityId id)
         {
             if (runtime?.Timeline == null || runtime.Binder == null) return;
             if (!runtime.Binder.TryGetShellGameObject(id, out var go)) return;
@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow
             runtime.LastAlignedFrame = int.MinValue;
         }
 
-        private static void RegisterOnGameObject(IViewFeatureRuntime runtime, GameObject go)
+        private void RegisterOnGameObject(IViewFeatureRuntime runtime, GameObject go)
         {
             if (runtime?.Timeline == null) return;
             if (go == null) return;

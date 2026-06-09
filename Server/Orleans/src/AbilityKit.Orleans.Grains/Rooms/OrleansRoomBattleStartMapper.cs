@@ -37,7 +37,11 @@ internal static class OrleansRoomBattleStartMapper
                     PosX = loadout.SpawnX,
                     PosY = loadout.SpawnY,
                     PosZ = loadout.SpawnZ,
-                    TeamId = loadout.TeamId
+                    TeamId = loadout.TeamId,
+                    Level = loadout.Level,
+                    AttributeTemplateId = loadout.AttributeTemplateId,
+                    BasicAttackSkillId = loadout.BasicAttackSkillId,
+                    SkillIds = loadout.SkillIds == null ? null : new List<int>(loadout.SkillIds)
                 });
             }
         }

@@ -46,8 +46,8 @@ namespace AbilityKit.Game.Test.FrameSync
         private MobaActorRegistry _authRegistry;
         private MobaActorRegistry _predRegistry;
 
-        private MobaGamePhaseService _authPhase;
-        private MobaGamePhaseService _predPhase;
+        private MobaLogicWorldRunGateService _authPhase;
+        private MobaLogicWorldRunGateService _predPhase;
 
         private ClientPredictionRunner _runner;
         private RollbackCoordinator _rollback;
@@ -99,8 +99,8 @@ namespace AbilityKit.Game.Test.FrameSync
             _authRegistry = _auth.Services.Resolve<MobaActorRegistry>();
             _predRegistry = _pred.Services.Resolve<MobaActorRegistry>();
 
-            _authPhase = _auth.Services.Resolve<MobaGamePhaseService>();
-            _predPhase = _pred.Services.Resolve<MobaGamePhaseService>();
+            _authPhase = _auth.Services.Resolve<MobaLogicWorldRunGateService>();
+            _predPhase = _pred.Services.Resolve<MobaLogicWorldRunGateService>();
 
             _authPhase?.SetInGame();
             _predPhase?.SetInGame();
@@ -271,7 +271,7 @@ namespace AbilityKit.Game.Test.FrameSync
             return ComputeHash(_authPhase, _authRegistry);
         }
 
-        private static WorldStateHash ComputeHash(MobaGamePhaseService phase, MobaActorRegistry registry)
+        private static WorldStateHash ComputeHash(MobaLogicWorldRunGateService phase, MobaActorRegistry registry)
         {
             var entries = new List<(int actorId, float x, float y, float z)>(16);
             foreach (var kv in registry.Entries)

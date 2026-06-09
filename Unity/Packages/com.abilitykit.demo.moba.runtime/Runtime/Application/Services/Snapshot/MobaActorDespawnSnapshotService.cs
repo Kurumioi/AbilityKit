@@ -11,9 +11,9 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaActorDespawnSnapshotService))]
     public sealed class MobaActorDespawnSnapshotService : LogicWorldSnapshotBufferEmitterBase<MobaActorDespawnSnapshotService, MobaActorDespawnSnapshotEntry>
     {
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
 
-        public MobaActorDespawnSnapshotService(MobaGamePhaseService phase) : base(64, 512)
+        public MobaActorDespawnSnapshotService(MobaLogicWorldRunGateService phase) : base(64, 512)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
         }

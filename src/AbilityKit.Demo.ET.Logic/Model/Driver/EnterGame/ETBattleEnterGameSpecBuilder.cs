@@ -49,33 +49,43 @@ namespace ET.Logic
 
         private static MobaPlayerLoadout[] BuildLoadouts(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
         {
-            if (playerSpawnData != null && playerSpawnData.Count > 0)
+            if (playerSpawnData == null || playerSpawnData.Count == 0)
             {
-                var loadouts = new MobaPlayerLoadout[playerSpawnData.Count];
-                for (int i = 0; i < playerSpawnData.Count; i++)
-                {
-                    var spawnData = playerSpawnData[i];
-                    loadouts[i] = new MobaPlayerLoadout(
-                        playerId: new PlayerId(spawnData.PlayerId),
-                        teamId: spawnData.TeamId,
-                        heroId: spawnData.CharacterId,
-                        attributeTemplateId: spawnData.AttributeTemplateId,
-                        level: 1,
-                        basicAttackSkillId: spawnData.BasicAttackSkillId,
-                        skillIds: spawnData.SkillIds != null && spawnData.SkillIds.Length > 0 ? (int[])spawnData.SkillIds.Clone() : ETPlayerSpawnData.CloneDefaultSkillIds(),
-                        spawnIndex: i,
-                        unitSubType: (int)UnitSubType.Hero,
-                        mainType: (int)EntityMainType.Unit,
-                        hasSpawnPosition: 1,
-                        spawnX: spawnData.PositionX,
-                        spawnY: 0f,
-                        spawnZ: spawnData.PositionZ);
-                }
-
-                return loadouts;
+                throw new InvalidOperationException("ET battle start requires explicit player loadouts.");
             }
 
-            return Array.Empty<MobaPlayerLoadout>();
+            var loadouts = new MobaPlayerLoadout[playerSpawnData.Count];
+            for (int i = 0; i < playerSpawnData.Count; i++)
+            {
+                var spawnData = playerSpawnData[i] ?? throw new InvalidOperationException($"ET player spawn data is null at index {i}.");
+                var skillIds = spawnData.SkillIds != null && spawnData.SkillIds.Length > 0
+                    ? (int[])spawnData.SkillIds.Clone()
+                    : null;
+
+                loadouts[i] = new MobaPlayerLoadout(
+                    playerId: new PlayerId(spawnData.PlayerId),
+                    teamId: spawnData.TeamId,
+                    heroId: spawnData.CharacterId,
+                    attributeTemplateId: spawnData.AttributeTemplateId,
+                    level: spawnData.Level,
+                    basicAttackSkillId: spawnData.BasicAttackSkillId,
+                    skillIds: skillIds,
+                    spawnIndex: i,
+                    unitSubType: (int)UnitSubType.Hero,
+                    mainType: (int)EntityMainType.Unit,
+                    hasSpawnPosition: 1,
+                    spawnX: spawnData.PositionX,
+                    spawnY: spawnData.PositionY,
+                    spawnZ: spawnData.PositionZ);
+
+                var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadouts[i], i);
+                if (!validation.IsValid)
+                {
+                    throw new InvalidOperationException("Invalid ET MOBA player loadout. " + validation);
+                }
+            }
+
+            return loadouts;
         }
 
         private static MobaBattleLaunchSyncMode ToLaunchSyncMode(SyncMode syncMode)

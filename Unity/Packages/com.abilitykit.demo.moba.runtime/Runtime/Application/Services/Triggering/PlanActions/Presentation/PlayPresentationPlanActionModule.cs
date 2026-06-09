@@ -67,16 +67,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     break;
 
                 case PresentationTargetMode.PayloadTarget:
-                    if (triggerArgs != null && triggerArgs is System.Collections.Generic.IDictionary<string, object> dict)
-                    {
-                        if (dict.TryGetValue("targetActorId", out var tidObj) && tidObj is int tid && tid > 0)
-                            targets = new[] { tid };
-                        if (dict.TryGetValue("sourceContextId", out var scidObj) && scidObj != null)
-                        {
-                            if (scidObj is long l) sourceContextId = l;
-                            else if (scidObj is int i) sourceContextId = i;
-                        }
-                    }
+                    if (targetActorId > 0)
+                        targets = new[] { targetActorId };
                     break;
             }
 

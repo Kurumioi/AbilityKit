@@ -1,6 +1,5 @@
 ﻿using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -13,8 +12,8 @@ using AbilityKit.Protocol.Moba;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// WorldInit Install Stage
-    /// 鍒濆鍖栦笘鐣岋紙璁剧疆杩涘叆娓告垙璇锋眰锛?
+    /// World initialization stage.
+    /// Decodes and validates the create-world request before deterministic battle startup.
     /// </summary>
     [MobaBootstrapStage]
     public sealed class WorldInitStage : MobaBootstrapStageBase
@@ -57,14 +56,14 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 throw new InvalidOperationException($"WorldInitStage create-world init payload validation failed. {validation}");
             }
 
-            var startPlan = new MobaBattleStartPlan(initPayload.LocalPlayerId, in initPayload.Spec, initPayload.OpCode, initPayload.Payload);
             if (!services.TryResolve<MobaGameStartSpecService>(out var specService) || specService == null)
             {
-                throw new InvalidOperationException("WorldInitStage requires MobaGameStartSpecService to store the decoded battle start plan.");
+                throw new InvalidOperationException("WorldInitStage requires MobaGameStartSpecService to store the decoded battle game start spec.");
             }
 
-            specService.SetPlan(in startPlan);
-            Log.Info("[WorldInitStage] WorldInitData decoded; battle start plan stored");
+            var spec = initPayload.ToGameStartSpec();
+            specService.Set(in spec);
+            Log.Info("[WorldInitStage] WorldInitData decoded; battle game start spec stored");
 
             // Seed deterministic world random as early as possible.
             if (!services.TryResolve<IWorldRandom>(out var random) || random is not RollbackWorldRandom rr)

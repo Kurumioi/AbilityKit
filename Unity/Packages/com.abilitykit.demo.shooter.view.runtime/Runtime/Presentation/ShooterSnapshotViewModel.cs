@@ -66,6 +66,13 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void Apply(in ShooterGatewaySnapshot snapshot)
         {
+            if (snapshot.PackedSnapshot.HasValue)
+            {
+                var packed = snapshot.PackedSnapshot.Value;
+                Apply(in packed);
+                return;
+            }
+
             Frame = snapshot.Frame;
             _players.Clear();
             _bullets.Clear();
@@ -92,6 +99,73 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        public void Apply(in ShooterPackedSnapshotPayload snapshot)
+        {
+            Frame = snapshot.Frame;
+            _players.Clear();
+            _bullets.Clear();
+            _events.Clear();
+
+            var chunks = snapshot.Chunks;
+            if (chunks == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < chunks.Length; i++)
+            {
+                var chunk = chunks[i];
+                if (chunk.EntityKind == ShooterPackedEntityKinds.Player)
+                {
+                    ApplyPackedPlayers(in chunk);
+                }
+                else if (chunk.EntityKind == ShooterPackedEntityKinds.Projectile)
+                {
+                    ApplyPackedProjectiles(in chunk);
+                }
+            }
+        }
+
+        private void ApplyPackedPlayers(in ShooterPackedEntityChunk chunk)
+        {
+            var count = Math.Max(0, chunk.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var playerId = GetInt(chunk.EntityIds, i);
+                if (playerId <= 0) continue;
+
+                var flags = GetByte(chunk.Flags, i);
+                _players[playerId] = new ShooterPlayerViewState(
+                    playerId,
+                    GetFloat(chunk.PosX, i),
+                    GetFloat(chunk.PosY, i),
+                    GetFloat(chunk.FacingX, i, 1f),
+                    GetFloat(chunk.FacingY, i),
+                    GetShort(chunk.Hp, i),
+                    GetInt(chunk.Aux, i),
+                    (flags & ShooterPackedEntityFlags.Alive) != 0);
+            }
+        }
+
+        private void ApplyPackedProjectiles(in ShooterPackedEntityChunk chunk)
+        {
+            var count = Math.Max(0, chunk.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var bulletId = GetInt(chunk.EntityIds, i);
+                if (bulletId <= 0) continue;
+
+                _bullets[bulletId] = new ShooterBulletViewState(
+                    bulletId,
+                    GetInt(chunk.OwnerIds, i),
+                    GetFloat(chunk.PosX, i),
+                    GetFloat(chunk.PosY, i),
+                    GetFloat(chunk.VelX, i),
+                    GetFloat(chunk.VelY, i),
+                    GetInt(chunk.Aux, i, GetShort(chunk.Hp, i)));
+            }
+        }
+
         private static int ToDisplayHp(float hp)
         {
             if (hp <= 0f)
@@ -100,6 +174,26 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             return (int)Math.Round(hp);
+        }
+
+        private static int GetInt(int[] values, int index, int fallback = 0)
+        {
+            return values != null && index >= 0 && index < values.Length ? values[index] : fallback;
+        }
+
+        private static float GetFloat(float[] values, int index, float fallback = 0f)
+        {
+            return values != null && index >= 0 && index < values.Length ? values[index] : fallback;
+        }
+
+        private static int GetShort(short[] values, int index, int fallback = 0)
+        {
+            return values != null && index >= 0 && index < values.Length ? values[index] : fallback;
+        }
+
+        private static byte GetByte(byte[] values, int index, byte fallback = 0)
+        {
+            return values != null && index >= 0 && index < values.Length ? values[index] : fallback;
         }
 
         public void Clear()

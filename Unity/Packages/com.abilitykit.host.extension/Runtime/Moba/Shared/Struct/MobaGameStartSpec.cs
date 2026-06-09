@@ -70,21 +70,23 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
         public MobaPlayerLoadout ToPlayerLoadout(int spawnIndexFallback)
         {
             var ov = Overrides;
-
-            var level = ov.Level > 0 ? ov.Level : 1;
-            var attributeTemplateId = ov.AttributeTemplateId;
-            var basicAttackSkillId = ov.BasicAttackSkillId;
-            var skillIds = ov.SkillIds;
-
-            return new MobaPlayerLoadout(
+            var loadout = new MobaPlayerLoadout(
                 playerId: PlayerId,
                 teamId: TeamId,
                 heroId: HeroId,
-                attributeTemplateId: attributeTemplateId,
-                level: level,
-                basicAttackSkillId: basicAttackSkillId,
-                skillIds: skillIds,
+                attributeTemplateId: ov.AttributeTemplateId,
+                level: ov.Level,
+                basicAttackSkillId: ov.BasicAttackSkillId,
+                skillIds: ov.SkillIds,
                 spawnIndex: SpawnPointId > 0 ? SpawnPointId : spawnIndexFallback);
+
+            var validation = MobaProtocolValidation.ValidatePlayerLoadout(in loadout);
+            if (!validation.IsValid)
+            {
+                throw new InvalidOperationException("invalid MOBA room player loadout. " + validation);
+            }
+
+            return loadout;
         }
     }
 
@@ -116,17 +118,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
             var ps = Players;
             if (ps == null || ps.Length == 0)
             {
-                return new EnterMobaGameReq(
-                    playerId: localPlayerId,
-                    matchId: MatchId,
-                    mapId: MapId,
-                    randomSeed: RandomSeed,
-                    tickRate: TickRate,
-                    inputDelayFrames: InputDelayFrames,
-                    opCode: 0,
-                    payload: null,
-                    players: null,
-                    gameplayId: GameplayId);
+                throw new InvalidOperationException("MOBA room game start spec requires explicit player loadouts.");
             }
 
             var loadouts = new MobaPlayerLoadout[ps.Length];
@@ -152,46 +144,15 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
 
     public static class MobaHostSpawnPlanBuilder
     {
-        public const int DefaultLevel = 1;
-        public const int DefaultUnitSubType = 1;
-        public const int DefaultMainType = 1;
-        public const int DefaultBasicAttackSkillId = 1001;
-
-        private static readonly int[] DefaultSkillIds = { 1001, 1002, 1003, 1004 };
 
         public static MobaPlayerLoadout[] ToLoadouts(MobaHostSpawnData[] spawns, int startIndex = 0)
         {
-            if (spawns == null || spawns.Length == 0)
-            {
-                return Array.Empty<MobaPlayerLoadout>();
-            }
-
-            var loadouts = new MobaPlayerLoadout[spawns.Length];
-            for (int i = 0; i < spawns.Length; i++)
-            {
-                loadouts[i] = ToLoadout(spawns[i], startIndex + i);
-            }
-
-            return loadouts;
+            throw new InvalidOperationException("MobaHostSpawnData cannot be converted to MOBA player loadouts without explicit loadout fields.");
         }
 
         public static MobaPlayerLoadout ToLoadout(MobaHostSpawnData spawn, int spawnIndex)
         {
-            return new MobaPlayerLoadout(
-                playerId: new PlayerId(spawn.PlayerId.ToString()),
-                teamId: spawn.TeamId,
-                heroId: spawn.HeroId,
-                attributeTemplateId: 0,
-                level: DefaultLevel,
-                basicAttackSkillId: DefaultBasicAttackSkillId,
-                skillIds: CloneDefaultSkillIds(),
-                spawnIndex: spawnIndex,
-                unitSubType: DefaultUnitSubType,
-                mainType: DefaultMainType,
-                hasSpawnPosition: 1,
-                spawnX: spawn.X,
-                spawnY: spawn.Y,
-                spawnZ: spawn.Z);
+            throw new InvalidOperationException("MobaHostSpawnData cannot be converted to a MOBA player loadout without explicit loadout fields.");
         }
 
         public static EnterMobaGameReq ToEnterReq(
@@ -206,23 +167,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
             int enterGameOpCode = 0,
             byte[] enterGamePayload = null)
         {
-            if (spawns == null || spawns.Length == 0)
-            {
-                throw new ArgumentException("Spawns cannot be null or empty", nameof(spawns));
-            }
-
-            var seed = randomSeed != 0 ? randomSeed : Environment.TickCount;
-            return new EnterMobaGameReq(
-                playerId: localPlayerId,
-                matchId: matchId,
-                mapId: mapId,
-                randomSeed: seed,
-                tickRate: tickRate,
-                inputDelayFrames: inputDelayFrames,
-                opCode: enterGameOpCode,
-                payload: enterGamePayload,
-                players: ToLoadouts(spawns),
-                gameplayId: gameplayId);
+            throw new InvalidOperationException("Host spawn start plans are obsolete for MOBA. Build a protocol loadout spec from explicit player loadouts instead.");
         }
 
         public static MobaBattleStartPlan ToStartPlan(
@@ -237,27 +182,9 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Struct
             int enterGameOpCode = 0,
             byte[] enterGamePayload = null)
         {
-            var req = ToEnterReq(
-                spawns,
-                localPlayerId,
-                matchId,
-                mapId,
-                tickRate,
-                inputDelayFrames,
-                randomSeed,
-                gameplayId,
-                enterGameOpCode,
-                enterGamePayload);
-
-            return MobaBattleStartPlan.FromEnterReq(in req);
+            throw new InvalidOperationException("Host spawn start plans are obsolete for MOBA. Build a protocol loadout spec from explicit player loadouts instead.");
         }
 
-        private static int[] CloneDefaultSkillIds()
-        {
-            var skills = new int[DefaultSkillIds.Length];
-            Array.Copy(DefaultSkillIds, skills, DefaultSkillIds.Length);
-            return skills;
-        }
     }
 }
 

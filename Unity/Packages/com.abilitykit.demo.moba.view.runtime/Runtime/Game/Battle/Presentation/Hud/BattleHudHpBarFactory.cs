@@ -2,9 +2,16 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudHpBarFactory
+    internal sealed class BattleHudHpBarFactory
     {
-        public static BattleHudHpBarHandle Create(int actorId, BattleHudConfig cfg, RectTransform root)
+        private readonly BattleHudFallbackUiFactory _fallbackUi;
+
+        public BattleHudHpBarFactory(BattleHudFallbackUiFactory fallbackUi = null)
+        {
+            _fallbackUi = fallbackUi ?? new BattleHudFallbackUiFactory();
+        }
+
+        public BattleHudHpBarHandle Create(int actorId, BattleHudConfig cfg, RectTransform root)
         {
             var go = CreateGameObject(cfg, root);
             var rt = go.GetComponent<RectTransform>();
@@ -19,7 +26,7 @@ namespace AbilityKit.Game.Flow
             };
         }
 
-        private static GameObject CreateGameObject(BattleHudConfig cfg, RectTransform root)
+        private GameObject CreateGameObject(BattleHudConfig cfg, RectTransform root)
         {
             var prefab = !string.IsNullOrEmpty(cfg.HpBarPrefabPath)
                 ? Resources.Load<GameObject>(cfg.HpBarPrefabPath)
@@ -30,7 +37,7 @@ namespace AbilityKit.Game.Flow
                 return Object.Instantiate(prefab, root);
             }
 
-            var go = BattleHudFallbackUiFactory.CreateHpBar();
+            var go = _fallbackUi.CreateHpBar();
             go.transform.SetParent(root, worldPositionStays: false);
             return go;
         }

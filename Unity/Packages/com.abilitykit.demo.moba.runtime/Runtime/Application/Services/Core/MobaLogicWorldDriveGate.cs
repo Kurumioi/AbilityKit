@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaLogicWorldDriveGate), WorldLifetime.Scoped)]
     public sealed class MobaLogicWorldDriveGate : ILogicWorldDriveGate
     {
-        [WorldInject(required: false)] private MobaGamePhaseService _phase = null;
+        [WorldInject(required: false)] private MobaLogicWorldRunGateService _phase = null;
         [WorldInject(required: false)] private IMobaBattleRuntimePort _runtime = null;
         [WorldInject(required: false)] private IMobaRuntimeValidationHistory _validationHistory = null;
 
@@ -62,12 +62,12 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_phase == null)
             {
-                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.MissingPhaseService, "MobaGamePhaseService is required before driving the logic world.");
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.MissingPhaseService, "MobaLogicWorldRunGateService is required before driving the logic world.");
             }
 
-            if (!_phase.CanDriveBattleLoop)
+            if (!_phase.InGame)
             {
-                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.NotInGame, "game phase cannot drive battle loop. " + _phase);
+                return MobaLogicWorldDriveDecision.Block(MobaLogicWorldDriveBlockReason.NotInGame, "logic world battle loop is not enabled. " + _phase);
             }
 
             if (_runtime == null)

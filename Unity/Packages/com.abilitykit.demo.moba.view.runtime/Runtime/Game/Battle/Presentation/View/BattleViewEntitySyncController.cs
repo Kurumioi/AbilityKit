@@ -1,27 +1,27 @@
-using AbilityKit.Game.Battle.Component;
-using AbilityKit.Game.Battle.Entity;
-using AbilityKit.Game.Battle.Vfx;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleViewEntitySyncController
     {
-        private readonly BattleViewHandleStore _handles;
-        private readonly BattleViewShellController _shells;
+        private readonly BattleViewEntitySyncInputFactory _inputs;
+        private readonly BattleViewModelSyncController _models;
         private readonly BattleViewAttachedVfxController _attachedVfx;
-        private readonly BattleViewTransformController _transforms;
 
         public BattleViewEntitySyncController(
             BattleViewHandleStore handles,
             BattleViewShellController shells,
             BattleViewAttachedVfxController attachedVfx,
-            BattleViewTransformController transforms)
+            BattleViewTransformController transforms,
+            BattleViewResourceProvider resources = null,
+            BattleViewEntitySyncInputFactory inputs = null,
+            BattleViewEntitySyncControllerFactory controllers = null)
         {
-            _handles = handles;
-            _shells = shells;
+            controllers ??= new BattleViewEntitySyncControllerFactory();
+
+            _inputs = inputs ?? new BattleViewEntitySyncInputFactory();
+            _models = controllers.CreateModels(handles, shells, transforms, resources);
             _attachedVfx = attachedVfx;
-            _transforms = transforms;
         }
 
         public void Sync(EC.IEntity entity)
@@ -31,27 +31,22 @@ namespace AbilityKit.Game.Flow
 
         public void Sync(EC.IEntity entity, BattleContext ctx)
         {
-            if (!entity.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
-            if (!entity.TryGetRef(out BattleTransformComponent t) || t == null) return;
-            var meta = entity.TryGetRef(out BattleEntityMetaComponent metaComp) ? metaComp : null;
+            if (!_inputs.TryCreate(entity, out var input)) return;
+            if (!_models.Sync(in input, ctx, out var handle)) return;
 
-            var actorId = netIdComp.NetId.Value;
-            if (actorId <= 0) return;
+            _attachedVfx.SyncProjectileVfx(entity, handle, input.Meta);
+        }
+    }
 
-            var desiredModelId = BattleViewFactory.ResolveModelId(meta);
-            var handle = _handles.GetOrCreate(entity.Id);
-            if (handle.Destroyed) return;
-
-            _handles.SetActorId(handle, actorId, entity.Id);
-            _transforms.SampleEntity(entity, in t.Position, ctx);
-
-            if (desiredModelId > 0 && (handle.GameObject == null || handle.ModelId != desiredModelId))
-            {
-                handle.Version++;
-                _shells.Recreate(handle, actorId, desiredModelId);
-            }
-
-            _attachedVfx.SyncProjectileVfx(entity, handle, meta);
+    internal sealed class BattleViewEntitySyncControllerFactory
+    {
+        public BattleViewModelSyncController CreateModels(
+            BattleViewHandleStore handles,
+            BattleViewShellController shells,
+            BattleViewTransformController transforms,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleViewModelSyncController(handles, shells, transforms, resources);
         }
     }
 }

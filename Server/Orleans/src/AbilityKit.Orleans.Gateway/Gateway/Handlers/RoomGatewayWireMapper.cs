@@ -1,4 +1,5 @@
 using AbilityKit.Orleans.Contracts.Accounts;
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -28,7 +29,7 @@ internal static class RoomGatewayWireMapper
             RoomId = roomId,
             NumericRoomId = RoomGatewayIds.CreateNumericRoomId(roomId),
             Snapshot = ToWireSnapshot(snapshot),
-            WorldStartAnchor = default,
+            WorldStartAnchor = ToWireAnchor(snapshot.WorldStartAnchor),
             Message = message ?? string.Empty
         };
     }
@@ -55,6 +56,22 @@ internal static class RoomGatewayWireMapper
             Players = ToWirePlayers(snapshot.Players),
             CanStart = snapshot.CanStart,
             BattleId = snapshot.BattleId ?? string.Empty
+        };
+    }
+
+    public static WireWorldStartAnchor ToWireAnchor(WorldStartAnchor? anchor)
+    {
+        if (anchor is null)
+        {
+            return default;
+        }
+
+        return new WireWorldStartAnchor
+        {
+            StartServerTicks = anchor.StartServerTicks,
+            ServerTickFrequency = anchor.ServerTickFrequency,
+            StartFrame = anchor.StartFrame,
+            FixedDeltaSeconds = anchor.FixedDeltaSeconds
         };
     }
 

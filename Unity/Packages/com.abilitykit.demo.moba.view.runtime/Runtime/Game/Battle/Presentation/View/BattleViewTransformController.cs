@@ -6,15 +6,21 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleViewTransformController
     {
         private readonly BattleViewHandleStore _handles;
-        private readonly BattleViewInterpolationClock _clock = new BattleViewInterpolationClock();
+        private readonly BattleViewInterpolationClock _clock;
         private readonly BattleViewPositionSampler _sampler;
         private readonly BattleViewPositionApplier _applier;
 
-        public BattleViewTransformController(BattleViewHandleStore handles, BattleViewAttachedVfxController attachedVfx)
+        public BattleViewTransformController(
+            BattleViewHandleStore handles,
+            BattleViewAttachedVfxController attachedVfx,
+            BattleViewInterpolationClock clock = null,
+            BattleViewPositionSampler sampler = null,
+            BattleViewPositionApplier applier = null)
         {
             _handles = handles;
-            _sampler = new BattleViewPositionSampler(handles);
-            _applier = new BattleViewPositionApplier(handles, attachedVfx);
+            _clock = clock ?? new BattleViewInterpolationClock();
+            _sampler = sampler ?? new BattleViewPositionSampler(handles);
+            _applier = applier ?? new BattleViewPositionApplier(handles, attachedVfx);
         }
 
         public bool InterpolationEnabled { get; set; } = true;

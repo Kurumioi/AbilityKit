@@ -43,7 +43,7 @@ public sealed class SubmitBattleInputHandler : GatewayRequestHandlerBase
             }
 
             var battle = _clusterClient.GetGrain<IBattleLogicHostGrain>(req.BattleId);
-            await battle.SubmitInputAsync(req.WorldId, req.Frame, new BattleInputItem
+            var submit = await battle.SubmitInputAsync(req.WorldId, req.Frame, new BattleInputItem
             {
                 PlayerId = req.PlayerId,
                 OpCode = req.InputOpCode,
@@ -53,9 +53,9 @@ public sealed class SubmitBattleInputHandler : GatewayRequestHandlerBase
             context.AccountId = accountId;
             var wire = new WireSubmitBattleInputRes
             {
-                Success = true,
-                AcceptedFrame = req.Frame,
-                Message = string.Empty
+                Success = submit.Accepted,
+                AcceptedFrame = submit.AcceptedFrame,
+                Message = submit.Message
             };
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
             return GatewayResponse.Ok(request.Seq, responsePayload.ToArray());

@@ -93,6 +93,7 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HasLiveRuntime { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         public bool IsValid => ContextKind != EffectContextKind.Unknown || SourceActorId != 0 || TargetActorId != 0 || SourceContextId != 0 || ParentContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || ConfigId != 0 || TriggerId != 0 || Frame != 0 || RuntimeConfigId != 0 || SkillRuntimeHandle.IsValid;
+        public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
 
         public static MobaContextSourceView FromOrigin(in MobaGameplayOrigin origin, MobaContextSourceResolveKind resolveKind = MobaContextSourceResolveKind.Origin, MobaContextSourceBoundary boundary = MobaContextSourceBoundary.Snapshot, bool hasLiveRuntime = false, string runtimeKind = null, int runtimeConfigId = 0)
         {

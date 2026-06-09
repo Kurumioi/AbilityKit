@@ -1,61 +1,45 @@
-﻿using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
-using AbilityKit.Protocol.Moba;
+﻿using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public readonly struct MobaBattleStartPlanValidationResult
+    public readonly struct MobaGameStartSpecValidationResult
     {
-        public static readonly MobaBattleStartPlanValidationResult Success = new MobaBattleStartPlanValidationResult(true, null);
+        public static readonly MobaGameStartSpecValidationResult Success = new MobaGameStartSpecValidationResult(true, null);
 
         public readonly bool Succeeded;
         public readonly string Message;
 
-        public MobaBattleStartPlanValidationResult(bool succeeded, string message)
+        public MobaGameStartSpecValidationResult(bool succeeded, string message)
         {
             Succeeded = succeeded;
             Message = message;
         }
 
-        public static MobaBattleStartPlanValidationResult Fail(string message)
+        public static MobaGameStartSpecValidationResult Fail(string message)
         {
-            return new MobaBattleStartPlanValidationResult(false, message);
+            return new MobaGameStartSpecValidationResult(false, message);
         }
     }
 
     [WorldService(typeof(MobaGameStartSpecService))]
     public sealed class MobaGameStartSpecService : IService
     {
-        private MobaBattleStartPlan _plan;
         private MobaGameStartSpec _spec;
 
-        public bool HasPlan { get; private set; }
         public bool HasSpec { get; private set; }
-
-        public void SetPlan(in MobaBattleStartPlan plan)
-        {
-            var validation = ValidatePlan(in plan);
-            if (!validation.Succeeded)
-            {
-                throw new System.InvalidOperationException("invalid battle start plan. " + validation.Message);
-            }
-
-            _plan = plan;
-            _spec = plan.ToGameStartSpec();
-            HasPlan = true;
-            HasSpec = true;
-        }
 
         public void Set(in MobaGameStartSpec spec)
         {
-            SetPlan(MobaBattleStartPlan.FromEnterReq(in spec.EnterReq));
-        }
+            var validation = ValidateSpec(in spec);
+            if (!validation.Succeeded)
+            {
+                throw new System.InvalidOperationException("invalid battle game start spec. " + validation.Message);
+            }
 
-        public bool TryGetPlan(out MobaBattleStartPlan plan)
-        {
-            plan = _plan;
-            return HasPlan;
+            _spec = spec;
+            HasSpec = true;
         }
 
         public bool TryGet(out MobaGameStartSpec spec)
@@ -64,39 +48,31 @@ namespace AbilityKit.Demo.Moba.Services
             return HasSpec;
         }
 
-        public MobaBattleStartPlanValidationResult ValidatePendingPlan()
+        public MobaGameStartSpecValidationResult ValidatePendingSpec()
         {
-            if (!HasPlan)
+            if (!HasSpec)
             {
-                return MobaBattleStartPlanValidationResult.Fail("pending battle start plan is missing.");
+                return MobaGameStartSpecValidationResult.Fail("pending battle game start spec is missing.");
             }
 
-            return ValidatePlan(in _plan);
+            return ValidateSpec(in _spec);
         }
 
-        public static MobaBattleStartPlanValidationResult ValidatePlan(in MobaBattleStartPlan plan)
+        public static MobaGameStartSpecValidationResult ValidateSpec(in MobaGameStartSpec spec)
         {
-            var createWorldValidation = MobaProtocolValidation.ValidateCreateWorldSpecEnvelope(plan.LocalPlayerId, in plan.CreateWorldSpec);
-            if (!createWorldValidation.IsValid)
-            {
-                return MobaBattleStartPlanValidationResult.Fail("create-world spec envelope invalid. " + createWorldValidation);
-            }
-
-            var enterReq = plan.ToEnterReq();
+            var enterReq = spec.EnterReq;
             var enterValidation = MobaProtocolValidation.ValidateEnterGameReqEnvelope(in enterReq);
             if (!enterValidation.IsValid)
             {
-                return MobaBattleStartPlanValidationResult.Fail("enter-game request envelope invalid. " + enterValidation);
+                return MobaGameStartSpecValidationResult.Fail("enter-game request envelope invalid. " + enterValidation);
             }
 
-            return MobaBattleStartPlanValidationResult.Success;
+            return MobaGameStartSpecValidationResult.Success;
         }
 
         public void Clear()
         {
-            _plan = default;
             _spec = default;
-            HasPlan = false;
             HasSpec = false;
         }
 

@@ -1,5 +1,3 @@
-using AbilityKit.Game.Battle.Entity;
-using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
@@ -8,39 +6,32 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudBinder : IBattleHudActorPositionResolver
     {
-        private readonly BattleContext _ctx;
+        private readonly BattleHudActorResolver _actors;
         private readonly BattleHudHpBarController _hpBars;
         private readonly BattleHudFloatingTextController _floatingTexts;
+        private readonly BattleHudDamageEventPresenter _damageEvents;
 
-        public BattleHudBinder(BattleHudConfig cfg, RectTransform root, Camera camera, BattleContext ctx)
+        public BattleHudBinder(
+            BattleHudConfig cfg,
+            RectTransform root,
+            Camera camera,
+            BattleContext ctx,
+            BattleHudBinderControllerFactory controllers = null)
         {
-            _ctx = ctx;
+            controllers ??= new BattleHudBinderControllerFactory();
 
-            var projector = new BattleHudCanvasProjector(root, camera);
-            _hpBars = new BattleHudHpBarController(cfg, root, projector, this);
-            _floatingTexts = new BattleHudFloatingTextController(cfg, root, projector, this);
+            _actors = controllers.CreateActors(ctx);
+
+            var projector = controllers.CreateProjector(root, camera);
+            var fallbackUi = controllers.CreateFallbackUi();
+            _hpBars = controllers.CreateHpBars(cfg, root, projector, this, fallbackUi);
+            _floatingTexts = controllers.CreateFloatingTexts(cfg, root, projector, this, fallbackUi);
+            _damageEvents = controllers.CreateDamageEvents(_hpBars, _floatingTexts);
         }
 
         public void OnDamageEvents(MobaDamageEventSnapshotEntry[] entries)
         {
-            if (entries == null) return;
-
-            for (var i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                if (entry.TargetActorId <= 0) continue;
-
-                var absValue = Mathf.Abs(entry.Value);
-                if (absValue <= 0.0001f) continue;
-
-                _hpBars.Ensure(entry.TargetActorId);
-                _hpBars.UpdateHp(entry.TargetActorId, entry.TargetHp, entry.TargetMaxHp);
-
-                var isHeal = entry.Kind == (int)DamageEventKind.Heal;
-                var sign = isHeal ? "+" : "-";
-                var text = sign + Mathf.RoundToInt(absValue).ToString();
-                _floatingTexts.Spawn(entry.TargetActorId, text, isHeal);
-            }
+            _damageEvents.Present(entries);
         }
 
         public void Tick(float deltaTime)
@@ -51,7 +42,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnEntityDestroyed(EC.IEntityId id)
         {
-            if (!TryResolveActorId(id, out var actorId)) return;
+            if (!_actors.TryResolveActorId(id, out var actorId)) return;
 
             _hpBars.RemoveActor(actorId);
             _floatingTexts.RemoveActor(actorId);
@@ -65,26 +56,62 @@ namespace AbilityKit.Game.Flow
 
         public bool TryGetActorWorldPos(int actorId, out Vector3 pos)
         {
-            pos = default;
-            if (_ctx?.EntityQuery == null) return false;
-            if (!_ctx.EntityQuery.TryResolve(new BattleNetId(actorId), out var entity)) return false;
-            if (!entity.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent transform) || transform == null) return false;
+            return _actors.TryGetActorWorldPos(actorId, out pos);
+        }
+    }
 
-            pos = transform.Position;
-            return true;
+    internal sealed class BattleHudBinderControllerFactory
+    {
+        public BattleHudActorResolver CreateActors(BattleContext ctx)
+        {
+            return new BattleHudActorResolver(ctx);
         }
 
-        private bool TryResolveActorId(EC.IEntityId id, out int actorId)
+        public BattleHudCanvasProjector CreateProjector(RectTransform root, Camera camera)
         {
-            actorId = 0;
-            if (_ctx?.EntityQuery == null) return false;
-            if (!_ctx.EntityQuery.World.IsAlive(id)) return false;
+            return new BattleHudCanvasProjector(root, camera);
+        }
 
-            var entity = _ctx.EntityQuery.World.Wrap(id);
-            if (!entity.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return false;
+        public BattleHudFallbackUiFactory CreateFallbackUi()
+        {
+            return new BattleHudFallbackUiFactory();
+        }
 
-            actorId = netIdComp.NetId.Value;
-            return actorId > 0;
+        public BattleHudHpBarController CreateHpBars(
+            BattleHudConfig cfg,
+            RectTransform root,
+            BattleHudCanvasProjector projector,
+            IBattleHudActorPositionResolver actors,
+            BattleHudFallbackUiFactory fallbackUi)
+        {
+            return new BattleHudHpBarController(
+                cfg,
+                root,
+                projector,
+                actors,
+                new BattleHudHpBarFactory(fallbackUi));
+        }
+
+        public BattleHudFloatingTextController CreateFloatingTexts(
+            BattleHudConfig cfg,
+            RectTransform root,
+            BattleHudCanvasProjector projector,
+            IBattleHudActorPositionResolver actors,
+            BattleHudFallbackUiFactory fallbackUi)
+        {
+            return new BattleHudFloatingTextController(
+                cfg,
+                root,
+                projector,
+                actors,
+                new BattleHudFloatingTextPool(root, fallbackUi));
+        }
+
+        public BattleHudDamageEventPresenter CreateDamageEvents(
+            BattleHudHpBarController hpBars,
+            BattleHudFloatingTextController floatingTexts)
+        {
+            return new BattleHudDamageEventPresenter(hpBars, floatingTexts);
         }
     }
 }

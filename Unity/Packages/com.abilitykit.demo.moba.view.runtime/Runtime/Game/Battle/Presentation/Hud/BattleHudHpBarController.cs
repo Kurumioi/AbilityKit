@@ -9,25 +9,28 @@ namespace AbilityKit.Game.Flow
         private readonly RectTransform _root;
         private readonly BattleHudCanvasProjector _projector;
         private readonly IBattleHudActorPositionResolver _positionResolver;
+        private readonly BattleHudHpBarFactory _factory;
         private readonly Dictionary<int, BattleHudHpBarHandle> _byActorId = new Dictionary<int, BattleHudHpBarHandle>(64);
 
         public BattleHudHpBarController(
             BattleHudConfig cfg,
             RectTransform root,
             BattleHudCanvasProjector projector,
-            IBattleHudActorPositionResolver positionResolver)
+            IBattleHudActorPositionResolver positionResolver,
+            BattleHudHpBarFactory factory = null)
         {
             _cfg = cfg;
             _root = root;
             _projector = projector;
             _positionResolver = positionResolver;
+            _factory = factory ?? new BattleHudHpBarFactory();
         }
 
         public void Ensure(int actorId)
         {
             if (_byActorId.ContainsKey(actorId)) return;
 
-            _byActorId[actorId] = BattleHudHpBarFactory.Create(actorId, _cfg, _root);
+            _byActorId[actorId] = _factory.Create(actorId, _cfg, _root);
         }
 
         public void UpdateHp(int actorId, float hp, float maxHp)
@@ -74,7 +77,7 @@ namespace AbilityKit.Game.Flow
             _byActorId.Clear();
         }
 
-        private static void DestroyHandle(BattleHudHpBarHandle handle)
+        private void DestroyHandle(BattleHudHpBarHandle handle)
         {
             if (handle?.Root != null)
             {

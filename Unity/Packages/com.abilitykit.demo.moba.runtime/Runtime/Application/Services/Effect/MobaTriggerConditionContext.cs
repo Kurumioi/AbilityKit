@@ -52,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Services
         public float RemainingSeconds => StageSnapshot.RemainingSeconds;
         public float DurationSeconds => StageSnapshot.DurationSeconds;
         public bool HasSkillRuntime => SkillRuntimeHandle.IsValid;
+        public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
 
         public bool TryGetPayload<TPayload>(out TPayload payload)
         {
@@ -102,6 +103,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaTriggerExecutionRequest ToExecutionRequest(int triggerId)
         {
+            if (!HasExecutionSource)
+            {
+                throw new InvalidOperationException($"MobaTriggerConditionContext requires execution source before creating execution request. triggerId={triggerId}, frame={Frame}, sourceActorId={SourceActorId}, parentContextId={ParentContextId}, rootContextId={RootContextId}, contextKind={ContextKind}, originKind={OriginKind}");
+            }
+
             return new MobaTriggerExecutionRequest(
                 triggerId,
                 Frame,

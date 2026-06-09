@@ -1,61 +1,69 @@
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleAreaViewHandleFactory
+    internal sealed class BattleAreaViewHandleFactory
     {
-        public static BattleAreaViewHandle TryCreate(BattleViewBinder binder, in MobaAreaEventSnapshotEntry evt)
+        private readonly BattleViewResourceProvider _resources;
+        private readonly BattleAreaViewObjectFactory _objects;
+        private readonly BattleAreaAttachResolver _attachResolver;
+        private readonly BattleAreaViewPositionResolver _positions;
+        private readonly BattleAreaViewHandleBuilder _handles;
+
+        public BattleAreaViewHandleFactory(
+            BattleViewResourceProvider resources = null,
+            BattleAreaViewObjectFactory objects = null,
+            BattleAreaAttachResolver attachResolver = null,
+            BattleAreaViewPositionResolver positions = null,
+            BattleAreaViewHandleBuilder handles = null)
         {
-            var aoe = BattleViewFactory.TryGetAoe(evt.TemplateId);
+            _resources = BattleViewResourceProvider.OrDefault(resources);
+            _objects = objects ?? new BattleAreaViewObjectFactory(_resources);
+            _attachResolver = attachResolver ?? new BattleAreaAttachResolver();
+            _positions = positions ?? new BattleAreaViewPositionResolver();
+            _handles = handles ?? new BattleAreaViewHandleBuilder();
+        }
+
+        public BattleAreaViewHandle TryCreate(BattleViewBinder binder, in MobaAreaEventSnapshotEntry evt)
+        {
+            var aoe = _resources.TryGetAoe(evt.TemplateId);
             if (aoe == null) return null;
 
-            var pos = new Vector3(evt.X, evt.Y, evt.Z);
-            pos += new Vector3(aoe.OffsetX, aoe.OffsetY, aoe.OffsetZ);
+            var pos = _positions.Resolve(in evt, aoe.OffsetX, aoe.OffsetY, aoe.OffsetZ);
+            var attach = _attachResolver.Resolve(binder, evt.OwnerActorId, aoe.AttachMode);
+            var handle = _handles.Create(in evt);
 
-            var attach = ResolveAttachRoot(binder, evt.OwnerActorId, aoe.AttachMode);
-            var handle = new BattleAreaViewHandle
+            handle.ModelGo = _objects.CreateModel(aoe.ModelId, attach, in pos);
+            handle.VfxGo = _objects.CreateVfx(aoe.VfxId, attach, in pos);
+            return handle;
+        }
+    }
+
+    internal sealed class BattleAreaViewPositionResolver
+    {
+        public Vector3 Resolve(
+            in MobaAreaEventSnapshotEntry evt,
+            float offsetX,
+            float offsetY,
+            float offsetZ)
+        {
+            return new Vector3(
+                evt.X + offsetX,
+                evt.Y + offsetY,
+                evt.Z + offsetZ);
+        }
+    }
+
+    internal sealed class BattleAreaViewHandleBuilder
+    {
+        public BattleAreaViewHandle Create(in MobaAreaEventSnapshotEntry evt)
+        {
+            return new BattleAreaViewHandle
             {
                 AreaId = evt.AreaId,
                 TemplateId = evt.TemplateId,
             };
-
-            handle.ModelGo = CreateAndPlace(aoe.ModelId, createVfx: false, attach, in pos);
-            handle.VfxGo = CreateAndPlace(aoe.VfxId, createVfx: true, attach, in pos);
-            return handle;
-        }
-
-        private static Transform ResolveAttachRoot(BattleViewBinder binder, int ownerActorId, int attachMode)
-        {
-            if (attachMode != 1) return null;
-            if (ownerActorId <= 0) return null;
-            if (binder == null) return null;
-
-            return binder.TryGetAttachRoot(new BattleNetId(ownerActorId), out var attach) ? attach : null;
-        }
-
-        private static GameObject CreateAndPlace(int viewId, bool createVfx, Transform attach, in Vector3 pos)
-        {
-            if (viewId <= 0) return null;
-
-            var go = createVfx
-                ? BattleViewFactory.CreateVfxGo(viewId)
-                : BattleViewFactory.CreateModelGo(viewId);
-            if (go == null) return null;
-
-            if (attach != null)
-            {
-                go.transform.SetParent(attach, worldPositionStays: false);
-                go.transform.localPosition = Vector3.zero;
-            }
-            else
-            {
-                go.transform.position = pos;
-            }
-
-            return go;
         }
     }
 }

@@ -8,9 +8,14 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterGatewaySnapshotDecoder _gatewayDecoder;
         private readonly ShooterSnapshotViewAdapter _adapter;
         private readonly ShooterSnapshotStream _stream;
+        private readonly ShooterReconciliationDiagnosticsStream _diagnosticsStream;
 
         public ShooterPresentationFacade()
-            : this(new ShooterGatewaySnapshotDecoder(), new ShooterSnapshotViewAdapter(), new ShooterSnapshotStream())
+            : this(
+                new ShooterGatewaySnapshotDecoder(),
+                new ShooterSnapshotViewAdapter(),
+                new ShooterSnapshotStream(),
+                new ShooterReconciliationDiagnosticsStream())
         {
         }
 
@@ -18,15 +23,32 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewaySnapshotDecoder gatewayDecoder,
             ShooterSnapshotViewAdapter adapter,
             ShooterSnapshotStream stream)
+            : this(gatewayDecoder, adapter, stream, new ShooterReconciliationDiagnosticsStream())
+        {
+        }
+
+        public ShooterPresentationFacade(
+            ShooterGatewaySnapshotDecoder gatewayDecoder,
+            ShooterSnapshotViewAdapter adapter,
+            ShooterSnapshotStream stream,
+            ShooterReconciliationDiagnosticsStream diagnosticsStream)
         {
             _gatewayDecoder = gatewayDecoder ?? throw new ArgumentNullException(nameof(gatewayDecoder));
             _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            _diagnosticsStream = diagnosticsStream ?? throw new ArgumentNullException(nameof(diagnosticsStream));
         }
 
         public ShooterSnapshotViewModel ViewModel => _adapter.ViewModel;
 
         public ShooterSnapshotStream Snapshots => _stream;
+
+        public ShooterReconciliationDiagnosticsStream ReconciliationDiagnostics => _diagnosticsStream;
+
+        public void PublishReconciliation(in ShooterClientReconciliationResult result)
+        {
+            _diagnosticsStream.Publish(in result);
+        }
 
         public bool TryApplyGatewayPush(uint opCode, ArraySegment<byte> payload)
         {

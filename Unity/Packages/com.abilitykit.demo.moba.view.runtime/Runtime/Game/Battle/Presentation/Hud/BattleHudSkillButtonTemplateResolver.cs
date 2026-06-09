@@ -1,39 +1,37 @@
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudSkillButtonTemplateResolver
+    internal sealed class BattleHudSkillButtonTemplateResolver
     {
-        private static MobaConfigDatabase _configs;
+        private readonly BattleHudSkillButtonTemplateConfigLookup _templates;
+        private readonly BattleHudPlayerLoadoutResolver _loadouts;
 
-        public static bool TryFindLoadout(
+        public BattleHudSkillButtonTemplateResolver(BattleViewResourceProvider resources = null)
+            : this(
+                new BattleHudSkillButtonTemplateConfigLookup(resources),
+                new BattleHudPlayerLoadoutResolver())
+        {
+        }
+
+        internal BattleHudSkillButtonTemplateResolver(
+            BattleHudSkillButtonTemplateConfigLookup templates,
+            BattleHudPlayerLoadoutResolver loadouts)
+        {
+            _templates = templates ?? new BattleHudSkillButtonTemplateConfigLookup();
+            _loadouts = loadouts ?? new BattleHudPlayerLoadoutResolver();
+        }
+
+        public bool TryFindLoadout(
             EnterMobaGameRes res,
             string playerId,
             out MobaPlayerLoadout loadout)
         {
-            loadout = default;
-            if (string.IsNullOrEmpty(playerId)) return false;
-
-            var loadouts = res.PlayersLoadout;
-            if (loadouts == null || loadouts.Length == 0) return false;
-
-            for (int i = 0; i < loadouts.Length; i++)
-            {
-                var candidate = loadouts[i];
-                if (candidate.PlayerId.Value == playerId)
-                {
-                    loadout = candidate;
-                    return true;
-                }
-            }
-
-            return false;
+            return _loadouts.TryFind(res, playerId, out loadout);
         }
 
-        public static bool TryResolveTemplate(
+        public bool TryResolveTemplate(
             in MobaPlayerLoadout loadout,
             int slot,
             out SkillButtonTemplateMO template)
@@ -45,53 +43,7 @@ namespace AbilityKit.Game.Flow
             if (skills == null || skills.Length < slot) return false;
 
             var skillId = skills[slot - 1];
-            if (skillId <= 0) return false;
-            if (!TryGetConfigs(out var configs)) return false;
-
-            if (!TryGetSkill(configs, skillId, out var skill)) return false;
-            if (skill.SkillButtonTemplateId <= 0) return false;
-
-            return TryGetTemplate(configs, skill.SkillButtonTemplateId, out template);
-        }
-
-        private static bool TryGetConfigs(out MobaConfigDatabase configs)
-        {
-            _configs ??= MobaConfigLoader.LoadDefault();
-            configs = _configs;
-            return configs != null;
-        }
-
-        private static bool TryGetSkill(MobaConfigDatabase configs, int skillId, out SkillMO skill)
-        {
-            skill = null;
-            try
-            {
-                skill = configs.GetSkill(skillId);
-            }
-            catch
-            {
-                return false;
-            }
-
-            return skill != null;
-        }
-
-        private static bool TryGetTemplate(
-            MobaConfigDatabase configs,
-            int templateId,
-            out SkillButtonTemplateMO template)
-        {
-            template = null;
-            try
-            {
-                template = configs.GetSkillButtonTemplate(templateId);
-            }
-            catch
-            {
-                return false;
-            }
-
-            return template != null;
+            return _templates.TryResolve(skillId, out template);
         }
     }
 }

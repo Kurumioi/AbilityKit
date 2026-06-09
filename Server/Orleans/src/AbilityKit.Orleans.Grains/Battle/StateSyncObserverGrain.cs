@@ -142,7 +142,10 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
             Frame = push.Frame,
             Timestamp = push.Timestamp,
             IsFullSnapshot = push.IsFullSnapshot,
-            Actors = actors
+            Actors = actors,
+            PayloadOpCode = push.PayloadOpCode,
+            Payload = push.Payload,
+            ServerTicks = push.ServerTicks
         };
     }
 

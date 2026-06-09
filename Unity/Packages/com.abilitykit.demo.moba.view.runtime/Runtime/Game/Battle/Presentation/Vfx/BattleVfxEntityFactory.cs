@@ -8,12 +8,20 @@ namespace AbilityKit.Game.Battle.Vfx
     internal sealed class BattleVfxEntityFactory
     {
         private readonly VfxDatabase _db;
-        private readonly BattleVfxPrefabCache _prefabs;
+        private readonly BattleVfxGameObjectFactory _gameObjects;
+        private readonly BattleVfxLifetimePolicy _lifetime;
+        private readonly BattleVfxEntityBuilder _entities;
 
-        public BattleVfxEntityFactory(VfxDatabase db, BattleVfxPrefabCache prefabs)
+        public BattleVfxEntityFactory(
+            VfxDatabase db,
+            BattleVfxPrefabCache prefabs,
+            BattleVfxLifetimePolicy lifetime = null,
+            BattleVfxGameObjectFactory gameObjects = null)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
-            _prefabs = prefabs ?? throw new ArgumentNullException(nameof(prefabs));
+            _lifetime = lifetime ?? new BattleVfxLifetimePolicy();
+            _gameObjects = gameObjects ?? new BattleVfxGameObjectFactory(prefabs);
+            _entities = new BattleVfxEntityBuilder(_lifetime);
         }
 
         public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, out EC.IEntity entity)
@@ -28,39 +36,39 @@ namespace AbilityKit.Game.Battle.Vfx
                 return false;
             }
 
-            var go = CreateGameObject(vfxId, dto.Resource);
+            var go = _gameObjects.Create(vfxId, dto.Resource);
             go.transform.position = position;
 
+            entity = _entities.Create(world, parent, vfxId, followTarget, go, dto.DurationMs);
+            return true;
+        }
+    }
+
+    internal sealed class BattleVfxEntityBuilder
+    {
+        private readonly BattleVfxLifetimePolicy _lifetime;
+
+        public BattleVfxEntityBuilder(BattleVfxLifetimePolicy lifetime)
+        {
+            _lifetime = lifetime ?? new BattleVfxLifetimePolicy();
+        }
+
+        public EC.IEntity Create(
+            EC.IECWorld world,
+            EC.IEntity parent,
+            int vfxId,
+            EC.IEntityId followTarget,
+            GameObject go,
+            int durationMs)
+        {
             var vfxEntity = world.CreateChild(parent);
             vfxEntity.SetName($"Vfx_{vfxId}");
             vfxEntity.WithRef(new BattleVfxComponent { VfxId = vfxId });
             vfxEntity.WithRef(new BattleViewGameObjectComponent { GameObject = go });
             vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, Offset = Vector3.zero });
 
-            if (dto.DurationMs > 0)
-            {
-                vfxEntity.WithRef(new BattleVfxLifetimeComponent { ExpireAtTime = Time.time + (dto.DurationMs / 1000f) });
-            }
-
-            entity = vfxEntity;
-            return true;
-        }
-
-        private GameObject CreateGameObject(int vfxId, string resource)
-        {
-            GameObject go;
-            if (_prefabs.TryGetPrefab(resource, out var prefab))
-            {
-                go = UnityEngine.Object.Instantiate(prefab);
-            }
-            else
-            {
-                go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                go.transform.localScale = Vector3.one * 0.5f;
-            }
-
-            go.name = $"Vfx_{vfxId}";
-            return go;
+            _lifetime.AttachIfNeeded(vfxEntity, durationMs);
+            return vfxEntity;
         }
     }
 }

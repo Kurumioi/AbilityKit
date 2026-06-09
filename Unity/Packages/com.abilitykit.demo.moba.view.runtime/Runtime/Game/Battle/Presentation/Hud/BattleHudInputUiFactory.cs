@@ -1,13 +1,26 @@
 using System;
 using AbilityKit.Game.Battle.View;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudInputUiFactory
+    internal sealed class BattleHudInputUiFactory
     {
-        public static BattleHudInputUi Create(RectTransform root, Canvas canvas, Transform cameraTransform, Action infoClicked)
+        private readonly BattleHudInputControlFactory _controls;
+
+        public BattleHudInputUiFactory()
+            : this(new BattleHudInputControlFactory())
+        {
+        }
+
+        public BattleHudInputUiFactory(BattleHudInputControlFactory controls)
+        {
+            _controls = controls ?? new BattleHudInputControlFactory();
+        }
+
+        public BattleHudInputUi Create(RectTransform root, Canvas canvas, Transform cameraTransform, Action infoClicked)
         {
             var inputUiRoot = new GameObject("BattleHudInput", typeof(RectTransform));
             inputUiRoot.transform.SetParent(root, worldPositionStays: false);
@@ -16,34 +29,16 @@ namespace AbilityKit.Game.Flow
             BattleHudRectTransformLayout.StretchToParent(inputUiRoot.GetComponent<RectTransform>());
 
             var inputView = inputUiRoot.AddComponent<BattleHudInputView>();
-            var moveJoystick = BattleHudInputControlFactory.CreateMoveJoystick(inputUiRoot.transform, canvas);
+            var moveJoystick = _controls.CreateMoveJoystick(inputUiRoot.transform, canvas);
             var moveMapper = inputUiRoot.AddComponent<BattleHudMoveInputMapper>();
             var skillAimMapper = inputUiRoot.AddComponent<BattleHudSkillAimInputMapper>();
 
-            var skill1 = BattleHudInputControlFactory.CreateSkillButton(
+            var skill1 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill1);
+            var skill2 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill2);
+            var skill3 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill3);
+            var infoButton = _controls.CreateInfoButton(
                 inputUiRoot.transform,
-                root,
-                canvas,
-                1,
-                "Skill1",
-                new Vector2(-260f, 200f));
-            var skill2 = BattleHudInputControlFactory.CreateSkillButton(
-                inputUiRoot.transform,
-                root,
-                canvas,
-                2,
-                "Skill2",
-                new Vector2(-140f, 110f));
-            var skill3 = BattleHudInputControlFactory.CreateSkillButton(
-                inputUiRoot.transform,
-                root,
-                canvas,
-                3,
-                "Skill3",
-                new Vector2(-120f, 260f));
-            var infoButton = BattleHudInputControlFactory.CreateInfoButton(
-                inputUiRoot.transform,
-                new Vector2(-80f, -80f),
+                BattleHudInputLayout.InfoButtonPosition,
                 infoClicked);
 
             inputView.Initialize(moveJoystick, skill1, skill2, skill3);
@@ -62,6 +57,15 @@ namespace AbilityKit.Game.Flow
                 skill2,
                 skill3,
                 infoButton);
+        }
+
+        private SkillButtonView CreateSkillButton(
+            Transform parent,
+            RectTransform root,
+            Canvas canvas,
+            BattleHudSkillButtonLayoutSpec layout)
+        {
+            return _controls.CreateSkillButton(parent, root, canvas, layout.Slot, layout.Name, layout.AnchoredPos);
         }
     }
 }

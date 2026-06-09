@@ -1,5 +1,3 @@
-using AbilityKit.Game.Battle.Entity;
-
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattleViewDirtyEntityRefresher
@@ -7,29 +5,23 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleContext _ctx;
         private readonly IBattleEntityQuery _query;
         private readonly BattleViewBinder _binder;
+        private readonly ViewDirtyEntityRefreshOperation _operation;
 
-        public BattleViewDirtyEntityRefresher(BattleContext ctx, IBattleEntityQuery query, BattleViewBinder binder)
+        public BattleViewDirtyEntityRefresher(
+            BattleContext ctx,
+            IBattleEntityQuery query,
+            BattleViewBinder binder,
+            ViewDirtyEntityRefreshOperation operation = null)
         {
             _ctx = ctx;
             _query = query;
             _binder = binder;
+            _operation = operation ?? new ViewDirtyEntityRefreshOperation();
         }
 
         public void Refresh()
         {
-            if (_query?.World == null) return;
-
-            var dirty = _ctx != null ? _ctx.DirtyEntities : null;
-            if (dirty == null || dirty.Count == 0) return;
-
-            for (int i = 0; i < dirty.Count; i++)
-            {
-                var id = dirty[i];
-                if (!_query.World.IsAlive(id)) continue;
-                _binder?.Sync(_query.World.Wrap(id));
-            }
-
-            dirty.Clear();
+            _operation.Refresh(_ctx, _query, _binder);
         }
     }
 }

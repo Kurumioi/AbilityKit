@@ -1,80 +1,43 @@
-using AbilityKit.Core.Common.Log;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleViewConfigLookup
+    internal sealed class BattleViewConfigLookup
     {
-        public static int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
+        private readonly BattleViewCharacterConfigResolver _characters;
+        private readonly BattleViewProjectileConfigResolver _projectiles;
+        private readonly BattleViewAoeConfigResolver _aoes;
+
+        public BattleViewConfigLookup(
+            BattleViewCharacterConfigResolver characters = null,
+            BattleViewProjectileConfigResolver projectiles = null,
+            BattleViewAoeConfigResolver aoes = null)
         {
-            if (meta == null) return 0;
-            if (configs == null) return 0;
-
-            try
-            {
-                if (meta.Kind != BattleEntityKind.Character) return 0;
-
-                var character = configs.GetCharacter(meta.EntityCode);
-                return character != null ? character.ModelId : 0;
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex);
-                return 0;
-            }
+            _characters = characters ?? new BattleViewCharacterConfigResolver();
+            _projectiles = projectiles ?? new BattleViewProjectileConfigResolver();
+            _aoes = aoes ?? new BattleViewAoeConfigResolver();
         }
 
-        public static int ResolveProjectileVfxId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
+        public int ResolveModelId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
         {
-            if (meta == null) return 0;
-            if (meta.Kind != BattleEntityKind.Projectile) return 0;
-            if (configs == null) return 0;
-
-            try
-            {
-                var projectile = configs.GetProjectile(meta.EntityCode);
-                return projectile != null ? projectile.VfxId : 0;
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex);
-                return 0;
-            }
+            return _characters.ResolveModelId(configs, meta);
         }
 
-        public static ProjectileMO TryGetProjectile(MobaConfigDatabase configs, int templateId)
+        public int ResolveProjectileVfxId(MobaConfigDatabase configs, BattleEntityMetaComponent meta)
         {
-            if (templateId <= 0) return null;
-            if (configs == null) return null;
-
-            try
-            {
-                return configs.GetProjectile(templateId);
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex);
-                return null;
-            }
+            return _projectiles.ResolveAttachedVfxId(configs, meta);
         }
 
-        public static AoeMO TryGetAoe(MobaConfigDatabase configs, int templateId)
+        public ProjectileMO TryGetProjectile(MobaConfigDatabase configs, int templateId)
         {
-            if (templateId <= 0) return null;
-            if (configs == null) return null;
+            return _projectiles.TryGet(configs, templateId);
+        }
 
-            try
-            {
-                return configs.GetAoe(templateId);
-            }
-            catch (System.Exception ex)
-            {
-                Log.Exception(ex);
-                return null;
-            }
+        public AoeMO TryGetAoe(MobaConfigDatabase configs, int templateId)
+        {
+            return _aoes.TryGet(configs, templateId);
         }
     }
 }

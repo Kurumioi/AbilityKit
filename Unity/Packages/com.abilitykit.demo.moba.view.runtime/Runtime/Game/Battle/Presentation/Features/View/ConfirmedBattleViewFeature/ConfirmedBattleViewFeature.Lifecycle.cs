@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
+            BindPresentationSession(ctx);
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
             OnAllSubFeaturesAttached(ctx);
@@ -23,6 +24,7 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             _subFeatureHost?.Detach(new FeatureModuleContext<ConfirmedBattleViewFeature>(ctx, this));
+            ClearPresentationSession(ctx);
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)
@@ -46,11 +48,11 @@ namespace AbilityKit.Game.Flow
             if (_subFeatureHost != null && _subFeatures.Count > 0) return;
 
             _subFeatures.Clear();
-            ViewFeatureSubFeatureBuilder.AddConfirmedViewSubFeatures(_subFeatures);
+            _subFeatureBuilder.AddConfirmedViewSubFeatures(_subFeatures);
 
-            ViewSubFeaturePipeline.AddStandardViewSubFeatures(_subFeatures);
+            _subFeaturePipeline.AddStandardViewSubFeatures(_subFeatures);
 
-            _subFeatureHost = ViewSubFeaturePipeline.CreateHost(_subFeatures);
+            _subFeatureHost = _subFeaturePipeline.CreateHost(_subFeatures);
         }
     }
 }

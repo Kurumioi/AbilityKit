@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Services
         private static readonly Comparison<StateHashEntry> CompareEntriesByActorId =
             (a, b) => a.ActorId.CompareTo(b.ActorId);
 
-        private readonly MobaGamePhaseService _phase;
+        private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaActorRegistry _registry;
         private readonly MobaSnapshotBuffer<StateHashEntry> _entries = new MobaSnapshotBuffer<StateHashEntry>(16, 256);
 
@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int IntervalFrames { get; set; } = DefaultIntervalFrames;
 
-        public MobaStateHashSnapshotService(MobaGamePhaseService phase, MobaActorRegistry registry)
+        public MobaStateHashSnapshotService(MobaLogicWorldRunGateService phase, MobaActorRegistry registry)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));

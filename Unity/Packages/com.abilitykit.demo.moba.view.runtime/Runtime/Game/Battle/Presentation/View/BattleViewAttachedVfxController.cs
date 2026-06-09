@@ -7,63 +7,68 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleViewAttachedVfxController
     {
-        private readonly BattleVfxManager _vfx;
-        private readonly EC.IEntity _vfxNode;
+        private readonly BattleViewProjectileAttachedVfxResolver _projectileVfx;
+        private readonly BattleViewAttachedVfxLifecycle _lifecycle;
 
-        public BattleViewAttachedVfxController(BattleVfxManager vfx, in EC.IEntity vfxNode)
+        public BattleViewAttachedVfxController(
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources = null,
+            BattleViewAttachedVfxControllerFactory controllers = null)
         {
-            _vfx = vfx;
-            _vfxNode = vfxNode;
-        }
+            controllers ??= new BattleViewAttachedVfxControllerFactory();
 
-        private bool IsAvailable => _vfx != null && _vfxNode.IsValid;
+            _projectileVfx = controllers.CreateProjectileVfxResolver(resources);
+            _lifecycle = controllers.CreateLifecycle(vfx, in vfxNode);
+        }
 
         public void SyncProjectileVfx(EC.IEntity entity, BattleViewHandle handle, BattleEntityMetaComponent meta)
         {
-            if (!IsAvailable) return;
+            if (!_lifecycle.IsAvailable) return;
             if (handle == null) return;
 
-            var desiredVfxId = BattleViewFactory.ResolveProjectileVfxId(meta);
-            if (desiredVfxId <= 0)
+            var plan = _projectileVfx.Resolve(meta);
+            if (!plan.HasVfx)
             {
-                Destroy(entity.World, handle);
+                _lifecycle.Destroy(entity.World, handle);
                 return;
             }
 
-            if (handle.VfxEntityId.Index != 0 && handle.VfxId == desiredVfxId)
+            if (plan.IsSatisfiedBy(handle))
             {
                 return;
             }
 
-            Destroy(entity.World, handle);
-            if (_vfx.TryCreateVfxEntity(entity.World, _vfxNode, desiredVfxId, entity.Id, in handle.PendingPos, out var vfxEntity))
-            {
-                handle.VfxId = desiredVfxId;
-                handle.VfxEntityId = vfxEntity.Id;
-            }
+            _lifecycle.Destroy(entity.World, handle);
+            _lifecycle.TryCreateFollowVfx(entity.World, entity.Id, handle, plan.DesiredVfxId);
         }
 
         public void SyncPosition(BattleViewHandle handle, in Vector3 pos)
         {
-            if (!IsAvailable) return;
-            if (handle == null || handle.VfxEntityId.Index == 0) return;
-
-            _vfx.SyncFollow(_vfxNode.World, handle.VfxEntityId, in pos);
+            _lifecycle.SyncPosition(handle, in pos);
         }
 
         public void Destroy(BattleViewHandle handle)
         {
-            Destroy(_vfxNode.World, handle);
+            _lifecycle.Destroy(handle);
         }
 
         public void Destroy(EC.IECWorld world, BattleViewHandle handle)
         {
-            if (_vfx == null) return;
-            if (handle == null || handle.VfxEntityId.Index == 0) return;
+            _lifecycle.Destroy(world, handle);
+        }
+    }
 
-            _vfx.DestroyVfxEntity(world, handle.VfxEntityId);
-            handle.VfxId = 0;
-            handle.VfxEntityId = default;
+    internal sealed class BattleViewAttachedVfxControllerFactory
+    {
+        public BattleViewProjectileAttachedVfxResolver CreateProjectileVfxResolver(BattleViewResourceProvider resources)
+        {
+            return new BattleViewProjectileAttachedVfxResolver(resources);
+        }
+
+        public BattleViewAttachedVfxLifecycle CreateLifecycle(BattleVfxManager vfx, in EC.IEntity vfxNode)
+        {
+            return new BattleViewAttachedVfxLifecycle(vfx, in vfxNode);
         }
     }
 }

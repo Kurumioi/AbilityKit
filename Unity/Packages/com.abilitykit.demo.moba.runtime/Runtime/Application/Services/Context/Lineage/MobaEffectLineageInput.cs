@@ -1,3 +1,5 @@
+using System;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public readonly struct MobaEffectLineageInput
@@ -32,6 +34,14 @@ namespace AbilityKit.Demo.Moba.Services
         public int OriginConfigId { get; }
 
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : ParentContextId;
+        public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
+        public bool IsValid => ContextKind != EffectContextKind.Unknown
+                               || SourceActorId != 0
+                               || TargetActorId != 0
+                               || ParentContextId != 0
+                               || RootContextId != 0
+                               || OwnerKey != 0
+                               || OriginConfigId != 0;
 
         public MobaEffectTraceInput ToTraceInput()
         {
@@ -48,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static MobaEffectLineageInput FromInvocation(IMobaTriggerInvocationContext invocation)
         {
-            if (invocation == null) return default;
+            if (invocation == null) throw new ArgumentNullException(nameof(invocation));
             return new MobaEffectLineageInput(
                 invocation.Kind,
                 MobaTraceKind.EffectExecution,

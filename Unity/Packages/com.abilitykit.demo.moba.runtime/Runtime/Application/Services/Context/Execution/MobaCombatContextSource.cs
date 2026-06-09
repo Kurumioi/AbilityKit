@@ -69,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Services
                                || Frame != 0
                                || RuntimeConfigId != 0
                                || SkillRuntimeHandle.IsValid;
+        public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
 
         public MobaTriggerLineageContext ToLineageContext()
         {
@@ -143,13 +144,13 @@ namespace AbilityKit.Demo.Moba.Services
             context = default;
             if (payload is not IMobaCombatContextSource provider
                 || !provider.TryGetCombatContextSource(out var source)
-                || !source.IsValid)
+                || !source.HasExecutionSource)
             {
                 return false;
             }
 
             context = FromSource(payload, in source);
-            return context.IsValid;
+            return context.HasExecutionSource;
         }
 
         public static MobaCombatContextSource SkillCast(

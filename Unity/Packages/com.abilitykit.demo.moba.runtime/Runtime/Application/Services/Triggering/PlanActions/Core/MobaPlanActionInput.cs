@@ -69,7 +69,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasCasterActor => CasterActorId > 0;
         public bool HasTargetActor => TargetActorId > 0;
         public bool HasTraceScope => TraceScope.EffectContextId != 0;
-        public bool IsValid => ExecutionContext.IsValid || HasCasterActor || HasTargetActor || HasAimPosition || HasAimDirection || HasTraceScope;
+        public bool HasExecutionSource => ExecutionContext.HasExecutionSource;
+        public bool IsValid => HasExecutionSource || HasCasterActor || HasTargetActor || HasAimPosition || HasAimDirection || HasTraceScope;
     }
 
     internal readonly struct MobaEffectActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput
@@ -88,6 +89,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasCasterActor => _core.HasCasterActor;
         public bool HasTargetActor => _core.HasTargetActor;
         public bool HasTraceScope => _core.HasTraceScope;
+        public bool HasExecutionSource => _core.HasExecutionSource;
         public bool IsValid => _core.IsValid;
 
         public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaTraceKind fallbackKind, int fallbackConfigId)
@@ -138,6 +140,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasTraceScope => _effect.HasTraceScope;
         public bool HasAimPosition => _core.HasAimPosition;
         public bool HasAimDirection => _core.HasAimDirection;
+        public bool HasExecutionSource => _effect.HasExecutionSource;
         public bool IsValid => _effect.IsValid;
 
         public ProjectileSourceContext CreateSourceContext(int sourceActorId, int targetActorId, int projectileConfigId)
@@ -177,6 +180,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasTraceScope => _effect.HasTraceScope;
         public bool HasAimPosition => _core.HasAimPosition;
         public bool HasAimDirection => _core.HasAimDirection;
+        public bool HasExecutionSource => _effect.HasExecutionSource;
         public bool IsValid => _effect.IsValid;
 
         public bool TryResolveSpawnPosition(SpawnSummonPositionMode positionMode, out Vec3 spawnPosition)
@@ -209,6 +213,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 .WithOwnerContext(origin.OwnerContextId)
                 .WithOrigin(in origin)
                 .Build();
+        }
+
+        public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaTraceKind fallbackKind, int fallbackConfigId)
+        {
+            return _effect.BuildOrigin(sourceActorId, targetActorId, fallbackKind, fallbackConfigId);
         }
 
         private bool TryGetActorPosition(int actorId, out Vec3 position)

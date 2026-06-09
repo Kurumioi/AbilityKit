@@ -352,6 +352,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
+            entry.Context.SetFrame(entry.StartFrame);
             entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
 
             var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
@@ -391,6 +392,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
+            entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
             entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
 
             var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
@@ -432,10 +434,11 @@ namespace AbilityKit.Demo.Moba.Services
             if (context == null) return -1;
             try
             {
-                return context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), -1);
+                return context.TimelineNextEventIndex;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] read TimelineNextEventIndex failed (actor={context.CasterActorId}, skill={context.SkillId}, runtime={context.RuntimeId})");
                 return -1;
             }
         }
@@ -450,8 +453,9 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 runtimes = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<MobaSkillCastRuntimeService>() : null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] resolve MobaSkillCastRuntimeService failed (actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, handle={handle.RuntimeId}:{handle.Generation}, reason={reason})");
                 runtimes = null;
             }
 
@@ -469,8 +473,9 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 runtimes = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<MobaSkillCastRuntimeService>() : null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] resolve MobaSkillCastRuntimeService failed (actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, handle={handle.RuntimeId}:{handle.Generation}, reason={reason})");
                 runtimes = null;
             }
 
@@ -560,6 +565,20 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (entry.Context == null) return null;
             return entry.Context.FailReason;
+        }
+
+        private static int ResolveCurrentFrame(in Entry entry, int defaultFrame)
+        {
+            try
+            {
+                var time = entry.Request.WorldServices != null ? entry.Request.WorldServices.Resolve<IFrameTime>() : null;
+                return time != null ? time.Frame.Value : defaultFrame;
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[SkillPipelineRunner] resolve current frame failed (actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, defaultFrame={defaultFrame})");
+                return defaultFrame;
+            }
         }
 
         public void CancelAll()
@@ -681,6 +700,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (p.State == EAbilityPipelineState.Executing)
                 {
                     ticked++;
+                    entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
                     entry.Context.AdvanceTime(deltaTime);
                     p.Tick(deltaTime);
 
@@ -804,8 +824,9 @@ namespace AbilityKit.Demo.Moba.Services
                     ? entry.Request.WorldServices.Resolve<IMobaBattleExceptionPolicy>()
                     : null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] resolve IMobaBattleExceptionPolicy failed (actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId})");
                 return null;
             }
         }
@@ -818,8 +839,9 @@ namespace AbilityKit.Demo.Moba.Services
                     ? entry.Request.WorldServices.Resolve<IMobaBattleDiagnosticsService>()
                     : null;
             }
-            catch
+            catch (Exception ex)
             {
+                Log.Exception(ex, $"[SkillPipelineRunner] resolve IMobaBattleDiagnosticsService failed (actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId})");
                 return null;
             }
         }
@@ -879,7 +901,7 @@ namespace AbilityKit.Demo.Moba.Services
         private static RunningSnapshot CreateSnapshot(in Entry e, SkillCastStage stage)
         {
             var elapsedMs = e.Context != null ? (int)(e.Context.ElapsedTime * 1000f) : 0;
-            var nextEventIndex = e.Context != null ? e.Context.GetData(AbilityContextKeys.TimelineNextEventIndex.ToKeyString(), 0) : 0;
+            var nextEventIndex = e.Context != null ? e.Context.TimelineNextEventIndex : 0;
 
             return new RunningSnapshot(
                 instanceId: GetInstanceId(in e),

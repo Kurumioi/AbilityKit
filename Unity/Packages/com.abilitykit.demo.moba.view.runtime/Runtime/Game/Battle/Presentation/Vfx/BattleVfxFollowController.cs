@@ -9,9 +9,24 @@ namespace AbilityKit.Game.Battle.Vfx
 {
     internal sealed class BattleVfxFollowController
     {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        private readonly HashSet<ulong> _interpFallbackWarned = new HashSet<ulong>();
-#endif
+        private readonly BattleVfxFollowTargetPositionResolver _targetPositions;
+        private readonly BattleVfxLifetimePolicy _lifetime;
+        private readonly BattleVfxEntityCollector _collector;
+        private readonly List<EC.IEntityId> _ids;
+
+        public BattleVfxFollowController(
+            BattleVfxLifetimePolicy lifetime = null,
+            BattleVfxFollowTargetPositionResolver targetPositions = null,
+            BattleVfxEntityCollector collector = null,
+            BattleVfxFollowControllerFactory factory = null)
+        {
+            factory ??= new BattleVfxFollowControllerFactory();
+
+            _lifetime = lifetime ?? factory.CreateLifetimePolicy();
+            _targetPositions = targetPositions ?? factory.CreateTargetPositionResolver();
+            _collector = collector ?? factory.CreateCollector();
+            _ids = factory.CreateIdBuffer();
+        }
 
         public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder, Action<EC.IECWorld, EC.IEntityId> destroyAction)
         {
@@ -20,17 +35,17 @@ namespace AbilityKit.Game.Battle.Vfx
             if (world == null) return;
             if (destroyAction == null) return;
 
-            var ids = new List<EC.IEntityId>(32);
-            BattleVfxEntityCollector.Collect(vfxRoot, ids);
-            if (ids.Count == 0) return;
+            _ids.Clear();
+            _collector.Collect(vfxRoot, _ids);
+            if (_ids.Count == 0) return;
 
-            for (int i = 0; i < ids.Count; i++)
+            for (int i = 0; i < _ids.Count; i++)
             {
-                var id = ids[i];
+                var id = _ids[i];
                 if (!world.IsAlive(id)) continue;
 
                 var entity = world.Wrap(id);
-                if (IsExpired(entity))
+                if (_lifetime.IsExpired(entity))
                 {
                     destroyAction(world, id);
                     continue;
@@ -57,40 +72,35 @@ namespace AbilityKit.Game.Battle.Vfx
             goComp.GameObject.transform.position = pos;
         }
 
-        private bool IsExpired(EC.IEntity entity)
-        {
-            if (!entity.TryGetRef(out BattleVfxLifetimeComponent life) || life == null) return false;
-            if (life.ExpireAtTime <= 0f) return false;
-            return Time.time >= life.ExpireAtTime;
-        }
-
         private void TrySyncFollow(EC.IECWorld world, EC.IEntity entity, BattleViewBinder binder)
         {
-            if (!entity.TryGetRef(out BattleViewFollowComponent follow) || follow == null) return;
-            if (follow.Target.Index == 0) return;
-            if (!world.IsAlive(follow.Target)) return;
-
-            if (binder != null && binder.TryGetInterpolatedPos(follow.Target, out var viewPos))
+            if (_targetPositions.TryResolve(world, entity, binder, out var position))
             {
-                SyncFollow(world, entity.Id, viewPos);
-                return;
+                SyncFollow(world, entity.Id, position);
             }
+        }
+    }
 
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (binder != null)
-            {
-                var key = ((ulong)(uint)entity.Id.Index << 32) | (uint)follow.Target.Index;
-                if (_interpFallbackWarned.Add(key))
-                {
-                    Debug.LogWarning($"[BattleVfxManager] VFX follow fallback to logic position: vfx={entity.Id.Index} target={follow.Target.Index} frame={Time.frameCount}");
-                }
-            }
-#endif
+    internal sealed class BattleVfxFollowControllerFactory
+    {
+        public BattleVfxLifetimePolicy CreateLifetimePolicy()
+        {
+            return new BattleVfxLifetimePolicy();
+        }
 
-            if (world.Wrap(follow.Target).TryGetRef(out BattleTransformComponent transform) && transform != null)
-            {
-                SyncFollow(world, entity.Id, transform.Position);
-            }
+        public BattleVfxFollowTargetPositionResolver CreateTargetPositionResolver()
+        {
+            return new BattleVfxFollowTargetPositionResolver();
+        }
+
+        public BattleVfxEntityCollector CreateCollector()
+        {
+            return new BattleVfxEntityCollector();
+        }
+
+        public List<EC.IEntityId> CreateIdBuffer()
+        {
+            return new List<EC.IEntityId>(32);
         }
     }
 }

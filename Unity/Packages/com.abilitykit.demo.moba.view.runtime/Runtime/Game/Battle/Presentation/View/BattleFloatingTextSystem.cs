@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -6,44 +5,53 @@ namespace AbilityKit.Game.Flow.Battle.View
 {
     public sealed class BattleFloatingTextSystem
     {
-        private readonly List<BattleWorldFloatingText> _floatingTexts = new List<BattleWorldFloatingText>(64);
+        private readonly BattleFloatingTextStore _floatingTexts;
+        private readonly BattleWorldFloatingTextFactory _factory;
+
+        public BattleFloatingTextSystem()
+            : this(null, null)
+        {
+        }
+
+        internal BattleFloatingTextSystem(
+            BattleWorldFloatingTextFactory factory,
+            BattleFloatingTextSystemFactory systemFactory = null)
+        {
+            systemFactory ??= new BattleFloatingTextSystemFactory();
+
+            _floatingTexts = systemFactory.CreateStore();
+            _factory = factory ?? systemFactory.CreateFloatingTextFactory();
+        }
 
         public void Spawn(in EC.IEntity vfxNode, string text, in Vector3 worldPos, Color color)
         {
             if (!vfxNode.IsValid) return;
 
-            var floatingText = BattleWorldFloatingTextFactory.Create(text, in worldPos, color);
+            var floatingText = _factory.Create(text, in worldPos, color);
             _floatingTexts.Add(floatingText);
         }
 
         public void Tick(float deltaTime)
         {
-            if (_floatingTexts.Count == 0) return;
-
-            for (var i = _floatingTexts.Count - 1; i >= 0; i--)
-            {
-                var floatingText = _floatingTexts[i];
-                if (floatingText == null)
-                {
-                    _floatingTexts.RemoveAt(i);
-                    continue;
-                }
-
-                if (floatingText.Tick(deltaTime)) continue;
-
-                floatingText.Destroy();
-                _floatingTexts.RemoveAt(i);
-            }
+            _floatingTexts.Tick(deltaTime);
         }
 
         public void Clear()
         {
-            for (var i = 0; i < _floatingTexts.Count; i++)
-            {
-                _floatingTexts[i]?.Destroy();
-            }
-
             _floatingTexts.Clear();
+        }
+    }
+
+    internal sealed class BattleFloatingTextSystemFactory
+    {
+        public BattleFloatingTextStore CreateStore()
+        {
+            return new BattleFloatingTextStore();
+        }
+
+        public BattleWorldFloatingTextFactory CreateFloatingTextFactory()
+        {
+            return new BattleWorldFloatingTextFactory();
         }
     }
 }

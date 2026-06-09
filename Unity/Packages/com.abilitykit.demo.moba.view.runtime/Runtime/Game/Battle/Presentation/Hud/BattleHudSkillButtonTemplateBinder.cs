@@ -1,31 +1,47 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
-    internal static class BattleHudSkillButtonTemplateBinder
+    internal sealed class BattleHudSkillButtonTemplateBinder
     {
-        public static void TryApply(
-            EnterMobaGameRes res,
-            string playerId,
-            SkillButtonView skill1View,
-            SkillButtonView skill2View,
-            SkillButtonView skill3View)
-        {
-            if (skill1View == null && skill2View == null && skill3View == null) return;
-            if (!BattleHudSkillButtonTemplateResolver.TryFindLoadout(res, playerId, out var loadout)) return;
+        private readonly BattleHudSkillButtonTemplateResolver _resolver;
+        private readonly BattleHudSkillButtonTemplateApplier _applier;
 
-            ApplySkillButtonTemplate(1, skill1View, loadout);
-            ApplySkillButtonTemplate(2, skill2View, loadout);
-            ApplySkillButtonTemplate(3, skill3View, loadout);
+        public BattleHudSkillButtonTemplateBinder(BattleViewResourceProvider resources = null)
+            : this(new BattleHudSkillButtonTemplateResolver(resources), null)
+        {
         }
 
-        private static void ApplySkillButtonTemplate(int slot, SkillButtonView view, in MobaPlayerLoadout loadout)
+        internal BattleHudSkillButtonTemplateBinder(
+            BattleHudSkillButtonTemplateResolver resolver,
+            BattleHudSkillButtonTemplateApplier applier = null)
+        {
+            _resolver = resolver ?? new BattleHudSkillButtonTemplateResolver();
+            _applier = applier ?? new BattleHudSkillButtonTemplateApplier();
+        }
+
+        public void TryApply(
+            EnterMobaGameRes res,
+            string playerId,
+            IReadOnlyList<SkillButtonView> skillViews)
+        {
+            if (skillViews == null || skillViews.Count == 0) return;
+            if (!_resolver.TryFindLoadout(res, playerId, out var loadout)) return;
+
+            for (var i = 0; i < skillViews.Count; i++)
+            {
+                ApplySkillButtonTemplate(i + 1, skillViews[i], loadout);
+            }
+        }
+
+        private void ApplySkillButtonTemplate(int slot, SkillButtonView view, in MobaPlayerLoadout loadout)
         {
             if (view == null) return;
-            if (!BattleHudSkillButtonTemplateResolver.TryResolveTemplate(loadout, slot, out var template)) return;
+            if (!_resolver.TryResolveTemplate(loadout, slot, out var template)) return;
 
-            BattleHudSkillButtonTemplateApplier.Apply(view, template);
+            _applier.Apply(view, template);
         }
     }
 }

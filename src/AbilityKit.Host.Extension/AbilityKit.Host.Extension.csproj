@@ -19,6 +19,7 @@
         Exclude="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Room\MobaRoomCommandResult.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Server\Room\MobaRoomOrchestrator.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Server\BattleHost\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Client\FrameSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Struct\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\CreateWorld\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Snapshot\*.cs" />

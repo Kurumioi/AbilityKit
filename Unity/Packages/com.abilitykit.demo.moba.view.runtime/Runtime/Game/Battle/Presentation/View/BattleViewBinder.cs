@@ -14,14 +14,37 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewTransformController _transforms;
         private readonly BattleViewEntitySyncController _sync;
         private readonly BattleViewLifecycleController _lifecycle;
+        private readonly BattleViewHandleQuery _queries;
+        private readonly BattleViewWorldRebinder _rebinder;
+        private readonly BattleViewMonoHandleDestroyHandler _monoHandleDestroy;
 
-        public BattleViewBinder(BattleVfxManager vfx, in EC.IEntity vfxNode, IBattleViewShellLoader shellLoader = null)
+        public BattleViewBinder(
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            IBattleViewShellLoader shellLoader = null,
+            BattleViewResourceProvider resources = null)
+            : this(vfx, in vfxNode, shellLoader, resources, null)
         {
-            _shells = new BattleViewShellController(shellLoader ?? new ResourceBattleViewShellLoader(), this);
-            _attachedVfx = new BattleViewAttachedVfxController(vfx, vfxNode);
-            _transforms = new BattleViewTransformController(_handles, _attachedVfx);
-            _sync = new BattleViewEntitySyncController(_handles, _shells, _attachedVfx, _transforms);
-            _lifecycle = new BattleViewLifecycleController(_handles, _shells, _attachedVfx, _transforms);
+        }
+
+        internal BattleViewBinder(
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            IBattleViewShellLoader shellLoader,
+            BattleViewResourceProvider resources,
+            BattleViewBinderControllerFactory controllers)
+        {
+            resources = BattleViewResourceProvider.OrDefault(resources);
+            controllers ??= new BattleViewBinderControllerFactory();
+
+            _shells = controllers.CreateShells(shellLoader, resources, this);
+            _attachedVfx = controllers.CreateAttachedVfx(vfx, in vfxNode, resources);
+            _transforms = controllers.CreateTransforms(_handles, _attachedVfx);
+            _sync = controllers.CreateSync(_handles, _shells, _attachedVfx, _transforms, resources);
+            _lifecycle = controllers.CreateLifecycle(_handles, _shells, _attachedVfx, _transforms);
+            _queries = controllers.CreateQueries(_handles);
+            _rebinder = controllers.CreateRebinder(_sync);
+            _monoHandleDestroy = controllers.CreateMonoHandleDestroyer(_handles);
         }
 
         public bool InterpolationEnabled
@@ -44,13 +67,7 @@ namespace AbilityKit.Game.Flow
 
         public bool TryGetShellGameObject(EC.IEntityId id, out GameObject go)
         {
-            go = null;
-            if (!_handles.TryGet(id, out var handle)) return false;
-            if (handle.Destroyed) return false;
-            if (handle.GameObject == null) return false;
-
-            go = handle.GameObject;
-            return true;
+            return _queries.TryGetShellGameObject(id, out go);
         }
 
         public bool TryGetInterpolatedPos(EC.IEntityId id, out Vector3 pos)
@@ -60,28 +77,12 @@ namespace AbilityKit.Game.Flow
 
         public void ForEachShellGameObject(Action<int, EC.IEntityId, GameObject> visitor)
         {
-            if (visitor == null) return;
-
-            _handles.ForEach((id, handle) =>
-            {
-                if (handle == null || handle.Destroyed || handle.GameObject == null) return;
-                visitor(handle.ActorId, id, handle.GameObject);
-            });
+            _queries.ForEachShellGameObject(visitor);
         }
 
         public bool TryGetAttachRoot(BattleNetId netId, out Transform transform)
         {
-            transform = null;
-            if (netId.Value <= 0) return false;
-
-            if (!_handles.TryGetByActorId(netId.Value, out _, out var handle)) return false;
-            if (handle.Destroyed || handle.GameObject == null) return false;
-
-            var child = handle.GameObject.transform.Find("AttachRoot");
-            if (child == null) return false;
-
-            transform = child;
-            return true;
+            return _queries.TryGetAttachRoot(netId, out transform);
         }
 
         public void Sync(EC.IEntity entity)
@@ -111,26 +112,77 @@ namespace AbilityKit.Game.Flow
 
         public void RebindAll(EC.IECWorld world)
         {
-            if (world == null) return;
-            world.ForEachAlive(entity => Sync(entity));
+            _rebinder.RebindAll(world);
         }
 
         public void RebindAll(EC.IECWorld world, BattleContext ctx)
         {
-            if (world == null) return;
-            world.ForEachAlive(entity => Sync(entity, ctx));
+            _rebinder.RebindAll(world, ctx);
         }
 
         void IMonoViewHandleRegistry.OnMonoViewHandleDestroyed(MonoViewHandle handle)
         {
-            if (handle == null) return;
-            if (handle.ActorId <= 0) return;
-            if (!_handles.TryGetByActorId(handle.ActorId, out _, out var viewHandle)) return;
+            _monoHandleDestroy.OnDestroyed(handle);
+        }
+    }
 
-            if (!ReferenceEquals(viewHandle.ViewHandle, handle)) return;
+    internal sealed class BattleViewBinderControllerFactory
+    {
+        public BattleViewShellController CreateShells(
+            IBattleViewShellLoader shellLoader,
+            BattleViewResourceProvider resources,
+            IMonoViewHandleRegistry registry)
+        {
+            return new BattleViewShellController(shellLoader ?? new ResourceBattleViewShellLoader(resources), registry);
+        }
 
-            viewHandle.GameObject = null;
-            viewHandle.ViewHandle = null;
+        public BattleViewAttachedVfxController CreateAttachedVfx(
+            BattleVfxManager vfx,
+            in EC.IEntity vfxNode,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleViewAttachedVfxController(vfx, in vfxNode, resources);
+        }
+
+        public BattleViewTransformController CreateTransforms(
+            BattleViewHandleStore handles,
+            BattleViewAttachedVfxController attachedVfx)
+        {
+            return new BattleViewTransformController(handles, attachedVfx);
+        }
+
+        public BattleViewEntitySyncController CreateSync(
+            BattleViewHandleStore handles,
+            BattleViewShellController shells,
+            BattleViewAttachedVfxController attachedVfx,
+            BattleViewTransformController transforms,
+            BattleViewResourceProvider resources)
+        {
+            return new BattleViewEntitySyncController(handles, shells, attachedVfx, transforms, resources);
+        }
+
+        public BattleViewLifecycleController CreateLifecycle(
+            BattleViewHandleStore handles,
+            BattleViewShellController shells,
+            BattleViewAttachedVfxController attachedVfx,
+            BattleViewTransformController transforms)
+        {
+            return new BattleViewLifecycleController(handles, shells, attachedVfx, transforms);
+        }
+
+        public BattleViewHandleQuery CreateQueries(BattleViewHandleStore handles)
+        {
+            return new BattleViewHandleQuery(handles);
+        }
+
+        public BattleViewWorldRebinder CreateRebinder(BattleViewEntitySyncController sync)
+        {
+            return new BattleViewWorldRebinder(sync);
+        }
+
+        public BattleViewMonoHandleDestroyHandler CreateMonoHandleDestroyer(BattleViewHandleStore handles)
+        {
+            return new BattleViewMonoHandleDestroyHandler(handles);
         }
     }
 }

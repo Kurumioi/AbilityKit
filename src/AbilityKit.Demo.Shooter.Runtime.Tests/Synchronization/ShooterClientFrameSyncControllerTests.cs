@@ -1,0 +1,274 @@
+using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Protocol.Room;
+using AbilityKit.Protocol.Shooter;
+using Xunit;
+
+namespace AbilityKit.Demo.Shooter.Runtime.Tests;
+
+public sealed class ShooterClientFrameSyncControllerTests
+{
+    [Fact]
+    public void ClientFrameSyncControllerContinuesTickingAfterAuthoritySnapshotOverwrite()
+    {
+        var source = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "frame-sync-source",
+            30,
+            1901,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 6f, 0f)
+            });
+        Assert.True(source.StartGame(in start));
+        source.SubmitInput(0, new[] { new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, false) });
+        Assert.True(source.Tick(1f / 30f));
+
+        var local = new ShooterBattleRuntimePort();
+        var localStart = new ShooterStartGamePayload(
+            "frame-sync-local",
+            30,
+            1902,
+            new[]
+            {
+                new ShooterStartPlayer(9, "Other", -10f, 0f)
+            });
+        Assert.True(local.StartGame(in localStart));
+
+        var packed = source.ExportPackedSnapshot(991ul, isFullSnapshot: true, authorityOverride: true);
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = packed.WorldId,
+            Frame = packed.Frame,
+            Timestamp = 789.5,
+            IsFullSnapshot = true,
+            Actors = null,
+            PayloadOpCode = ShooterOpCodes.Snapshot.PackedState,
+            Payload = ShooterPackedSnapshotCodec.Serialize(in packed)
+        };
+        var gatewayPayload = WireRoomGatewayBinary.Serialize(in wire);
+        var presentation = new ShooterPresentationFacade();
+        var controller = new ShooterClientFrameSyncController(local, presentation, tickRate: 30);
+
+        var applyResult = controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, gatewayPayload);
+        var overwrittenFrame = local.CurrentFrame;
+        var overwrittenHash = local.ComputeStateHash();
+        var acceptedInputs = controller.SubmitLocalInput(new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false));
+        var tickResult = controller.Tick(1f / 30f);
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, applyResult);
+        Assert.Equal(1, acceptedInputs);
+        Assert.Equal(1, tickResult.Ticks);
+        Assert.Equal(overwrittenFrame + 1, tickResult.Frame);
+        Assert.Equal(local.CurrentFrame, presentation.ViewModel.Frame);
+        Assert.NotEqual(overwrittenHash, tickResult.StateHash);
+        Assert.True(presentation.ViewModel.Players.ContainsKey(1));
+        Assert.True(presentation.ViewModel.Players.ContainsKey(2));
+    }
+
+    [Fact]
+    public void ClientFrameSyncControllerReplaysPendingInputsAfterAuthoritySnapshotOverwrite()
+    {
+        var start = new ShooterStartGamePayload(
+            "pending-replay",
+            30,
+            2901,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 8f, 0f)
+            });
+        var commandFrame0 = new ShooterPlayerCommand(1, 0f, 1f, 1f, 0f, false);
+        var commandFrame1 = new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false);
+        var commandFrame2 = new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false);
+
+        var authority = new ShooterBattleRuntimePort();
+        Assert.True(authority.StartGame(in start));
+        Assert.True(authority.Tick(1f / 30f));
+        var packed = authority.ExportPackedSnapshot(2991ul, isFullSnapshot: true, authorityOverride: true);
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = packed.WorldId,
+            Frame = packed.Frame,
+            Timestamp = 890.5,
+            IsFullSnapshot = true,
+            Actors = null,
+            PayloadOpCode = ShooterOpCodes.Snapshot.PackedState,
+            Payload = ShooterPackedSnapshotCodec.Serialize(in packed)
+        };
+        var gatewayPayload = WireRoomGatewayBinary.Serialize(in wire);
+
+        var local = new ShooterBattleRuntimePort();
+        Assert.True(local.StartGame(in start));
+        var presentation = new ShooterPresentationFacade();
+        var publishedDiagnosticsCount = 0;
+        var publishedDiagnostics = ShooterClientReconciliationResult.None;
+        presentation.ReconciliationDiagnostics.ReconciliationApplied += result =>
+        {
+            publishedDiagnosticsCount++;
+            publishedDiagnostics = result;
+        };
+        var controller = new ShooterClientFrameSyncController(local, presentation, tickRate: 30);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame0));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame1));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame2));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(3, local.CurrentFrame);
+        var predictedHashBeforeCorrection = local.ComputeStateHash();
+
+        var expected = new ShooterBattleRuntimePort();
+        Assert.True(expected.ImportPackedSnapshot(in packed));
+        Assert.Equal(1, expected.SubmitInput(1, new[] { commandFrame1 }));
+        Assert.True(expected.Tick(1f / 30f));
+        Assert.Equal(1, expected.SubmitInput(2, new[] { commandFrame2 }));
+        Assert.True(expected.Tick(1f / 30f));
+
+        var applyResult = controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, gatewayPayload);
+        var reconciliation = controller.LastReconciliationResult;
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, applyResult);
+        Assert.Equal(expected.CurrentFrame, local.CurrentFrame);
+        Assert.Equal(expected.ComputeStateHash(), local.ComputeStateHash());
+        Assert.Equal(expected.CurrentFrame, presentation.ViewModel.Frame);
+        Assert.Equal(2, controller.PendingInputFrameCount);
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, reconciliation.ApplyResult);
+        Assert.Equal(3, reconciliation.PredictedFrameBeforeCorrection);
+        Assert.Equal(predictedHashBeforeCorrection, reconciliation.PredictedHashBeforeCorrection);
+        Assert.Equal(packed.Frame, reconciliation.AuthoritativeFrame);
+        Assert.Equal(packed.StateHash, reconciliation.AuthoritativeStateHash);
+        Assert.Equal(packed.StateHash, reconciliation.ImportedStateHash);
+        Assert.True(reconciliation.AuthoritativeHashMatched);
+        Assert.Equal(2, reconciliation.ReplayTicks);
+        Assert.Equal(expected.CurrentFrame, reconciliation.FinalFrame);
+        Assert.Equal(expected.ComputeStateHash(), reconciliation.FinalStateHash);
+        Assert.Equal(3, reconciliation.PendingInputFramesBeforeCorrection);
+        Assert.Equal(2, reconciliation.PendingInputFramesAfterTrim);
+        Assert.Equal(2, reconciliation.PendingInputFramesAfterReplay);
+        Assert.Equal(1, publishedDiagnosticsCount);
+        Assert.Equal(reconciliation.ApplyResult, publishedDiagnostics.ApplyResult);
+        Assert.Equal(reconciliation.PredictedFrameBeforeCorrection, publishedDiagnostics.PredictedFrameBeforeCorrection);
+        Assert.Equal(reconciliation.AuthoritativeFrame, publishedDiagnostics.AuthoritativeFrame);
+        Assert.Equal(reconciliation.FinalFrame, publishedDiagnostics.FinalFrame);
+        Assert.Equal(reconciliation.FinalStateHash, publishedDiagnostics.FinalStateHash);
+        Assert.True(presentation.ViewModel.Players.ContainsKey(1));
+        Assert.True(presentation.ViewModel.Players.ContainsKey(2));
+    }
+
+    [Fact]
+    public void ClientFrameSyncControllerReconcilesAfterDroppedAuthorityFrames()
+    {
+        var start = new ShooterStartGamePayload(
+            "dropped-authority-frames",
+            30,
+            3901,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 8f, 0f)
+            });
+        var commandFrame0 = new ShooterPlayerCommand(1, 0f, 1f, 1f, 0f, false);
+        var commandFrame1 = new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false);
+        var commandFrame2 = new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, true);
+
+        var authority = new ShooterBattleRuntimePort();
+        Assert.True(authority.StartGame(in start));
+        Assert.True(authority.Tick(1f / 30f));
+        Assert.True(authority.Tick(1f / 30f));
+        var packed = authority.ExportPackedSnapshot(3991ul, isFullSnapshot: true, authorityOverride: true);
+        var gatewayPayload = CreatePackedPushPayload(in packed, timestamp: 990.5, serverTicks: 990500L);
+
+        var local = new ShooterBattleRuntimePort();
+        Assert.True(local.StartGame(in start));
+        var presentation = new ShooterPresentationFacade();
+        var controller = new ShooterClientFrameSyncController(local, presentation, tickRate: 30);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame0));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame1));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(1, controller.SubmitLocalInput(commandFrame2));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(3, local.CurrentFrame);
+
+        var expected = new ShooterBattleRuntimePort();
+        Assert.True(expected.ImportPackedSnapshot(in packed));
+        Assert.Equal(1, expected.SubmitInput(2, new[] { commandFrame2 }));
+        Assert.True(expected.Tick(1f / 30f));
+
+        var applyResult = controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, gatewayPayload);
+        var reconciliation = controller.LastReconciliationResult;
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, applyResult);
+        Assert.Equal(expected.CurrentFrame, local.CurrentFrame);
+        Assert.Equal(expected.ComputeStateHash(), local.ComputeStateHash());
+        Assert.Equal(1, controller.PendingInputFrameCount);
+        Assert.Equal(3, reconciliation.PredictedFrameBeforeCorrection);
+        Assert.Equal(packed.Frame, reconciliation.AuthoritativeFrame);
+        Assert.Equal(1, reconciliation.ReplayTicks);
+        Assert.Equal(expected.CurrentFrame, reconciliation.FinalFrame);
+    }
+
+    [Fact]
+    public void ClientFrameSyncControllerIgnoresLateStaleAuthoritySnapshot()
+    {
+        var start = new ShooterStartGamePayload(
+            "late-stale-authority",
+            30,
+            4901,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 8f, 0f)
+            });
+
+        var authority = new ShooterBattleRuntimePort();
+        Assert.True(authority.StartGame(in start));
+        Assert.True(authority.Tick(1f / 30f));
+        var oldPacked = authority.ExportPackedSnapshot(4991ul, isFullSnapshot: true, authorityOverride: true);
+        Assert.True(authority.Tick(1f / 30f));
+        var newPacked = authority.ExportPackedSnapshot(4991ul, isFullSnapshot: true, authorityOverride: true);
+        var oldPayload = CreatePackedPushPayload(in oldPacked, timestamp: 1000.5, serverTicks: 1000500L);
+        var newPayload = CreatePackedPushPayload(in newPacked, timestamp: 1001.5, serverTicks: 1001500L);
+
+        var local = new ShooterBattleRuntimePort();
+        Assert.True(local.StartGame(in start));
+        var presentation = new ShooterPresentationFacade();
+        var controller = new ShooterClientFrameSyncController(local, presentation, tickRate: 30);
+
+        var newResult = controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, newPayload);
+        var frameAfterNewSnapshot = local.CurrentFrame;
+        var hashAfterNewSnapshot = local.ComputeStateHash();
+        Assert.Equal(1, controller.SubmitLocalInput(new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false)));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        var predictedFrameBeforeLatePacket = local.CurrentFrame;
+        var predictedHashBeforeLatePacket = local.ComputeStateHash();
+
+        var staleResult = controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, oldPayload);
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, newResult);
+        Assert.Equal(newPacked.Frame, frameAfterNewSnapshot);
+        Assert.Equal(newPacked.StateHash, hashAfterNewSnapshot);
+        Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, staleResult);
+        Assert.Equal(predictedFrameBeforeLatePacket, local.CurrentFrame);
+        Assert.Equal(predictedHashBeforeLatePacket, local.ComputeStateHash());
+        Assert.Equal(ShooterClientReconciliationResult.None.ApplyResult, controller.LastReconciliationResult.ApplyResult);
+    }
+
+    private static ArraySegment<byte> CreatePackedPushPayload(in ShooterPackedSnapshotPayload packed, double timestamp, long serverTicks)
+    {
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = packed.WorldId,
+            Frame = packed.Frame,
+            Timestamp = timestamp,
+            ServerTicks = serverTicks,
+            IsFullSnapshot = true,
+            Actors = null,
+            PayloadOpCode = ShooterOpCodes.Snapshot.PackedState,
+            Payload = ShooterPackedSnapshotCodec.Serialize(in packed)
+        };
+        return WireRoomGatewayBinary.Serialize(in wire);
+    }
+}

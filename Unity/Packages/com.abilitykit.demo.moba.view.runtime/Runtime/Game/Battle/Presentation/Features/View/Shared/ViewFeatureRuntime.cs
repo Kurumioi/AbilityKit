@@ -13,6 +13,7 @@ namespace AbilityKit.Game.Flow
     {
         IBattleEntityQuery Query { get; set; }
         new BattleViewBinder Binder { get; set; }
+        BattleViewResourceProvider Resources { get; }
         BattleVfxManager Vfx { get; set; }
         EC.IEntity VfxNode { get; set; }
         ViewTimeline Timeline { get; set; }

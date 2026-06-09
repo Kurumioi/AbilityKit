@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using WorldId = AbilityKit.Ability.World.Abstractions.WorldId;
 
 namespace AbilityKit.Orleans.Grains.Battle;
@@ -32,7 +33,6 @@ public sealed class SimpleWorld : IWorld
 
     public void Tick(float deltaTime)
     {
-        // MobaWorldBootstrapModule 会注册需要在 Tick 中调用的系统
     }
 
     public void Dispose()
@@ -52,16 +52,18 @@ public sealed class SimpleWorld : IWorld
 /// </summary>
 public sealed class SimpleWorldFactory
 {
-    private readonly IWorldResolver _services;
-
-    public SimpleWorldFactory(IWorldResolver services)
-    {
-        _services = services ?? throw new ArgumentNullException(nameof(services));
-    }
-
     public IWorld Create(WorldCreateOptions options)
     {
         if (options == null) throw new ArgumentNullException(nameof(options));
-        return new SimpleWorld(options.Id, options.WorldType, _services);
+
+        options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+        for (int i = 0; i < options.Modules.Count; i++)
+        {
+            var module = options.Modules[i];
+            if (module == null) continue;
+            options.ServiceBuilder.AddModule(module);
+        }
+
+        return new SimpleWorld(options.Id, options.WorldType, options.ServiceBuilder.Build());
     }
 }
