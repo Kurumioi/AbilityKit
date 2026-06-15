@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
             sampleTime = 0d;
             if (ctx == null) return false;
 
-            var tickRate = ctx.Plan.TickRate;
+            var tickRate = ctx.Plan.World.TickRate;
             if (tickRate <= 0) tickRate = 30;
 
             var fixedDelta = 1d / tickRate;

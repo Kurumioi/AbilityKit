@@ -34,8 +34,7 @@ namespace AbilityKit.Game.Flow
             var req = launchSpec.ToEnterReq();
             var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
 
-            var options = cfg.BuildPlanOptions(req, initData.Payload, initData.OpCode, launchSpec);
-            return new BattleStartPlan(options);
+            return cfg.BuildPlan(req, initData.Payload, initData.OpCode, launchSpec);
         }
 
         private static BattleStartConfig LoadConfig()

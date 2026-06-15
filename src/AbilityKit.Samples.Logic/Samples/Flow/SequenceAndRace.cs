@@ -1,56 +1,124 @@
-using System;
+using AbilityKit.Ability.Flow;
+using AbilityKit.Ability.Flow.Blocks;
+using AbilityKit.Ability.Flow.Nodes;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Flow
 {
     /// <summary>
-    /// SequenceAndRace - Sequence 与 Race 示例
+    /// 演示 Sequence、Race 和 ParallelAll 三种 Flow 组合器的真实执行行为。
     /// </summary>
-    [Sample]
+    [Sample(22, "flow", "sequence", "race", "parallel", "web", "deterministic")]
     public sealed class SequenceAndRace : SampleBase
     {
         public override string Title => "Sequence and Race";
-        public override string Description => "Flow 中的 Sequence 与 Race 组合器";
+        public override string Description => "使用真实 FlowRunner 对比 SequenceNode、RaceNode 与 ParallelAllNode 的执行语义";
         public override SampleCategory Category => SampleCategory.Flow;
 
         protected override void OnRun()
         {
-            Log("Sequence 与 Race 组合器");
-            Output.Divider();
+            Section("SequenceNode：按顺序完成三个阶段");
+            RunFlow("Sequence", CreateSequenceFlow(), maxFrames: 8);
 
-            Log("1. SequenceNode (顺序执行):");
-            Log("   预期结果:");
-            Log("   [Step1] -> [Step2] -> [Step3] -> Done");
-            Output.Bullet("子节点按顺序依次执行");
-            Output.Bullet("只有当前节点成功才执行下一个节点");
+            Divider();
+            Section("RaceNode：最快完成的分支获胜");
+            RunFlow("Race", CreateRaceFlow(), maxFrames: 8);
 
-            Output.Divider();
+            Divider();
+            Section("ParallelAllNode：等待所有分支完成");
+            RunFlow("ParallelAll", CreateParallelAllFlow(), maxFrames: 8);
 
-            Log("2. RaceNode (竞速执行):");
-            Log("   预期结果:");
-            Log("   [A] ---win---> Done");
-            Log("   [B]");
-            Log("   [C]");
-            Output.Bullet("子节点并行执行");
-            Output.Bullet("最先完成的节点决定结果");
-            Output.Bullet("取消其他节点");
+            Divider();
+            Section("组合器选择建议");
+            Bullet("SequenceNode：用于技能检查 -> 前摇 -> 结算这类严格顺序流程。");
+            Bullet("RaceNode：用于超时、取消、命中窗口等先到先赢流程。");
+            Bullet("ParallelAllNode：用于动画、音效、命中特效等都结束后再继续的流程。");
+        }
 
-            Output.Divider();
+        private void RunFlow(string name, IFlowNode root, int maxFrames)
+        {
+            var flowContext = new FlowContext();
+            flowContext.Set(new ComposerState(name));
 
-            Log("3. ParallelAllNode (全部完成):");
-            Log("   预期结果:");
-            Log("   [A] ---+");
-            Log("   [B] ---+----> Done");
-            Log("   [C] ---+");
-            Output.Bullet("等待所有节点完成");
-            Output.Bullet("收集所有节点的结果");
+            using var runner = new FlowRunner(flowContext);
+            runner.Start(
+                root,
+                status => Log($"[{name}] Flow finished: {status}"),
+                (previous, next) => Log($"[{name}] Status: {previous} -> {next}"));
 
-            Output.Divider();
+            KeyValue($"{name}.Pattern", name);
+            var frame = 0;
+            while (runner.Status == FlowStatus.Running && frame < maxFrames)
+            {
+                frame++;
+                const float delta = 0.1f;
+                AdvanceTime(delta);
+                var status = runner.Step(delta);
+                var state = flowContext.Get<ComposerState>();
+                KeyValue($"{name}.Frame[{frame}]", $"time={Time:F2}, status={status}, last={state.LastEvent}");
+                KeyValue($"{name}.Frame", $"{frame}:time={Time:F2},status={status},last={state.LastEvent}");
+                if (name == "Race" && state.LastEvent == "Fast branch won")
+                {
+                    KeyValue("Race.Winner", state.LastEvent);
+                }
+            }
+        }
 
-            Log("总结:");
-            Output.Bullet("Sequence: 顺序 -> 顺序 -> 顺序");
-            Output.Bullet("Race: 并行 -> 竞速 -> 获胜");
-            Output.Bullet("ParallelAll: 并行 -> 等待 -> 全部");
+        private IFlowNode CreateSequenceFlow()
+        {
+            return new SequenceNode(
+                Mark("Sequence", "Check"),
+                new WaitSecondsNode(0.1f),
+                Mark("Sequence", "Cast"),
+                new WaitSecondsNode(0.1f),
+                Mark("Sequence", "Apply"));
+        }
+
+        private IFlowNode CreateRaceFlow()
+        {
+            return new RaceNode(
+                new SequenceNode(
+                    new WaitSecondsNode(0.2f),
+                    Mark("Race", "Fast branch won")),
+                new SequenceNode(
+                    new WaitSecondsNode(0.4f),
+                    Mark("Race", "Slow branch completed")));
+        }
+
+        private IFlowNode CreateParallelAllFlow()
+        {
+            return new ParallelAllNode(
+                new SequenceNode(
+                    new WaitSecondsNode(0.1f),
+                    Mark("ParallelAll", "Animation done")),
+                new SequenceNode(
+                    new WaitSecondsNode(0.2f),
+                    Mark("ParallelAll", "Audio done")),
+                new SequenceNode(
+                    new WaitSecondsNode(0.3f),
+                    Mark("ParallelAll", "Hit effect done")));
+        }
+
+        private IFlowNode Mark(string flowName, string eventName)
+        {
+            return new ActionNode(onEnter: ctx =>
+            {
+                var state = ctx.Get<ComposerState>();
+                state.LastEvent = eventName;
+                Log($"[{flowName}] {eventName}");
+            });
+        }
+
+        private sealed class ComposerState
+        {
+            public ComposerState(string flowName)
+            {
+                FlowName = flowName;
+                LastEvent = "Started";
+            }
+
+            public string FlowName { get; }
+            public string LastEvent { get; set; }
         }
     }
 }

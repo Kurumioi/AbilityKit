@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
 
             ctx.PredictionStats = ResolveFeature<IClientPredictionDriverStats>(runtime);
 
-            if (!plan.EnableClientPrediction)
+            if (!plan.Authority.EnableClientPrediction)
             {
                 ClearPredictionControls(ctx);
                 return;
@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
 
         private static bool ShouldExposePredictionFeatures(BattleStartPlan plan)
         {
-            return plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && plan.UseGatewayTransport;
+            return plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && plan.Gateway.UseGatewayTransport;
         }
 
         private static void ClearPredictionControls(BattleContext ctx)

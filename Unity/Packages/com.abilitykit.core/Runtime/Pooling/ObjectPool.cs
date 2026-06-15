@@ -10,14 +10,24 @@ namespace AbilityKit.Core.Pooling
         private readonly Action<T> _onRelease;
         private readonly Action<T> _onDestroy;
         private readonly bool _collectionCheck;
+        private readonly int _defaultCapacity;
         private readonly int _maxSize;
+        private readonly PoolTrimPolicy _trimPolicy;
 
         private readonly Stack<T> _stack;
         private readonly object _syncRoot = new object();
 
         private int _createdTotal;
+        private int _destroyedTotal;
         private int _getTotal;
         private int _releaseTotal;
+        private int _hitCount;
+        private int _missCount;
+        private int _peakActiveCount;
+        private int _overflowDestroyCount;
+        private int _clearDestroyCount;
+        private int _droppedInactiveCount;
+        private int _trimDestroyCount;
 
 #if UNITY_EDITOR
         private readonly HashSet<T> _inactiveSet;
@@ -35,7 +45,9 @@ namespace AbilityKit.Core.Pooling
             _onRelease = options.OnRelease;
             _onDestroy = options.OnDestroy;
             _collectionCheck = options.CollectionCheck;
+            _defaultCapacity = options.DefaultCapacity;
             _maxSize = options.MaxSize;
+            _trimPolicy = options.TrimPolicy;
 
             _stack = new Stack<T>(options.DefaultCapacity);
 
@@ -63,7 +75,7 @@ namespace AbilityKit.Core.Pooling
             {
                 lock (_syncRoot)
                 {
-                    return _createdTotal - _stack.Count;
+                    return GetActiveCountUnsafe();
                 }
             }
         }
@@ -77,7 +89,19 @@ namespace AbilityKit.Core.Pooling
                 lock (_syncRoot)
                 {
                     var inactive = _stack.Count;
-                    return new PoolStats(_createdTotal, _getTotal, _releaseTotal, inactive, _createdTotal - inactive);
+                    return new PoolStats(
+                        _createdTotal,
+                        _getTotal,
+                        _releaseTotal,
+                        inactive,
+                        GetActiveCountUnsafe(),
+                        _peakActiveCount,
+                        _hitCount,
+                        _missCount,
+                        _overflowDestroyCount,
+                        _clearDestroyCount,
+                        _droppedInactiveCount,
+                        _trimDestroyCount);
                 }
             }
         }
@@ -100,21 +124,25 @@ namespace AbilityKit.Core.Pooling
 
                 if (_stack.Count > 0)
                 {
+                    _hitCount++;
                     var obj = _stack.Pop();
 
 #if UNITY_EDITOR
                     if (_collectionCheck) _inactiveSet.Remove(obj);
 #endif
 
+                    UpdatePeakActiveCountUnsafe();
                     obj.TryOnPoolGet();
                     _onGet?.Invoke(obj);
                     return obj;
                 }
 
+                _missCount++;
                 var created = _createFunc();
                 if (created == null) throw new InvalidOperationException($"Pool createFunc returned null for type {typeof(T).FullName}");
 
                 _createdTotal++;
+                UpdatePeakActiveCountUnsafe();
                 created.TryOnPoolGet();
                 _onGet?.Invoke(created);
                 return created;
@@ -149,8 +177,8 @@ namespace AbilityKit.Core.Pooling
 
                 if (_stack.Count >= _maxSize)
                 {
-                    element.TryOnPoolDestroy();
-                    _onDestroy?.Invoke(element);
+                    DestroyElementUnsafe(element);
+                    _overflowDestroyCount++;
                     return;
                 }
 
@@ -168,6 +196,7 @@ namespace AbilityKit.Core.Pooling
             {
                 if (!destroy)
                 {
+                    _droppedInactiveCount += _stack.Count;
                     _stack.Clear();
 #if UNITY_EDITOR
                     _inactiveSet?.Clear();
@@ -181,9 +210,36 @@ namespace AbilityKit.Core.Pooling
 #if UNITY_EDITOR
                     _inactiveSet?.Remove(obj);
 #endif
-                    obj.TryOnPoolDestroy();
-                    _onDestroy?.Invoke(obj);
+                    DestroyElementUnsafe(obj);
+                    _clearDestroyCount++;
                 }
+            }
+        }
+
+        public int Trim()
+        {
+            return Trim(_trimPolicy);
+        }
+
+        public int Trim(PoolTrimPolicy policy)
+        {
+            var targetInactiveCount = policy.ResolveTargetInactiveCount(_defaultCapacity);
+
+            lock (_syncRoot)
+            {
+                var trimmedCount = 0;
+                while (_stack.Count > targetInactiveCount)
+                {
+                    var obj = _stack.Pop();
+#if UNITY_EDITOR
+                    _inactiveSet?.Remove(obj);
+#endif
+                    DestroyElementUnsafe(obj);
+                    _trimDestroyCount++;
+                    trimmedCount++;
+                }
+
+                return trimmedCount;
             }
         }
 
@@ -212,6 +268,27 @@ namespace AbilityKit.Core.Pooling
                     if (_collectionCheck) _inactiveSet.Add(obj);
 #endif
                 }
+            }
+        }
+
+        private void DestroyElementUnsafe(T element)
+        {
+            _destroyedTotal++;
+            element.TryOnPoolDestroy();
+            _onDestroy?.Invoke(element);
+        }
+
+        private int GetActiveCountUnsafe()
+        {
+            return System.Math.Max(0, _createdTotal - _destroyedTotal - _droppedInactiveCount - _stack.Count);
+        }
+
+        private void UpdatePeakActiveCountUnsafe()
+        {
+            var active = GetActiveCountUnsafe();
+            if (active > _peakActiveCount)
+            {
+                _peakActiveCount = active;
             }
         }
     }

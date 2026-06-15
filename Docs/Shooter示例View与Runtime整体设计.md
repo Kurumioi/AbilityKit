@@ -163,32 +163,61 @@ flowchart TB
 
 | 纯 C# 接口（view.runtime） | Unity 外壳实现 | 职责 |
 |---------------------------|---------------|------|
-| `IShooterSnapshotViewSink` | Mono 渲染汇 | 把投影后的快照应用到 GameObject |
+| `IShooterSnapshotViewSink` | Snapshot 接收适配层 | 接收 `ShooterSnapshotViewBatch`，不得承载宿主渲染语义 |
+| `ShooterProjectedSnapshotViewSink` | Projection 适配器 | 调用 `ShooterSnapshotViewProjection`，把 batch 增量合并进 `ShooterViewEntityStore` |
+| `IShooterProjectedViewSink` | Unity / Editor / Console 渲染汇 | 只消费投影后的 `ShooterViewEntityStore` 与 apply 结果，负责渲染/诊断缓存 |
 | `IShooterViewBinder` | `MonoShooterViewHandle` 注册 | 实体↔视图绑定 |
 | `IShooterViewShellLoader` | `ResourceShooterViewShellLoader` | 资源加载（Unity 资源系统） |
 
-### 5.2 驱动方向
+### 5.2 表现投影流水线
+
+Shooter 表现层的正式边界是 **snapshot → view batch → projection/store → render sink**，而不是“宿主直接从 delta batch 里拼 GameObject 状态”：
+
+```mermaid
+flowchart LR
+    Snap["ShooterStateSnapshotPayload"] --> Mapper["ShooterSnapshotViewAdapter"]
+    Mapper --> Batch["ShooterSnapshotViewBatch\n(增量/全量表现批次)"]
+    Batch --> Projection["ShooterSnapshotViewProjection"]
+    Projection --> Store["ShooterViewEntityStore\n(当前表现 ECS 状态)"]
+    Store --> Sink["IShooterProjectedViewSink\n(Unity/Editor/Console 渲染)"]
+```
+
+约束：
+
+- `ShooterSnapshotViewBatch` 是传输批次，可携带增量、移除、事件与来源信息，但不是长期表现状态。
+- `ShooterSnapshotViewProjection` 是唯一负责把 batch 应用成当前表现实体状态的层，包括缺失实体清理、显式移除、组件 upsert。
+- `ShooterViewEntityStore` 是表现层的 ECS-style 读模型，渲染宿主应从 store 读取实体/组件，而不是重复实现 batch 合并规则。
+- Unity Mono、Editor SceneView、Console renderer 都应位于 `IShooterProjectedViewSink` 或等价渲染适配层之后；如果需要保留 `IShooterSnapshotViewSink`，应通过 `ShooterProjectedSnapshotViewSink` 包装。
+- 事件仍可从源 batch 缓存为短生命周期视觉提示，但实体当前态必须来自 projection/store。
+
+宿主侧落地约定：Editor SceneView 与 Console 都应把 `ShooterProjectedSnapshotViewSink` 作为 batch 入口；Renderer/Sink 只实现 `IShooterProjectedViewSink` 语义，即读取 `ShooterViewEntityStore` 绘制 Gizmo、文本网格或 GameObject。这保证不同宿主共享同一套增量合并、实体移除、组件 upsert 规则。
+
+### 5.3 驱动方向
 
 ```mermaid
 sequenceDiagram
     participant U as Unity MonoBehaviour (外壳)
     participant S as ShooterClientSession (纯C#)
-    participant Sink as IShooterSnapshotViewSink
-    participant Mono as Mono 渲染汇 (外壳)
+    participant SnapshotSink as IShooterSnapshotViewSink
+    participant Projection as ShooterSnapshotViewProjection
+    participant Store as ShooterViewEntityStore
+    participant RenderSink as IShooterProjectedViewSink
 
     loop Update/FixedUpdate
         U->>S: Tick(Time.deltaTime)
         S->>S: 同步/对账/推帧 (纯C#)
-        S->>Sink: 推送投影快照
-        Sink-->>Mono: ApplySnapshot(viewModel)
-        Mono->>Mono: 更新 Transform/特效 (UnityEngine)
+        S->>SnapshotSink: 推送 ShooterSnapshotViewBatch
+        SnapshotSink->>Projection: Apply(batch)
+        Projection->>Store: 更新表现 ECS 读模型
+        Store-->>RenderSink: ApplyViewState(store, batch, result)
+        RenderSink->>RenderSink: 更新 Transform/Gizmo/Console 输出
     end
 ```
 
-- Unity 侧只做两件事：**把 `deltaTime` 喂给 `Session.Tick`**、**把投影快照画出来**。
-- 没有 Unity 的环境（CI/控制台）用一个纯 C# 驱动器替换 MonoBehaviour，配合 `ShooterNullSnapshotViewSink` 或断言型 sink，即可跑完整流程 —— 这正是 DemoHarness 在做的事。
+- Unity 侧只做两件事：**把 `deltaTime` 喂给 `Session.Tick`**、**把 projection/store 给出的当前表现态画出来**。
+- 没有 Unity 的环境（CI/控制台）用一个纯 C# 驱动器替换 MonoBehaviour，配合 `ShooterNullSnapshotViewSink`、`ShooterProjectedSnapshotViewSink` 或断言型 projected sink，即可跑完整流程 —— 这正是 DemoHarness 在做的事。
 
-### 5.3 待收口的耦合点
+### 5.4 待收口的耦合点
 
 现状 `Presentation/View/` 下混有 `Mono*` 类型（`MonoShooterViewHandle`、`ResourceShooterViewShellLoader`）。目标态建议：
 

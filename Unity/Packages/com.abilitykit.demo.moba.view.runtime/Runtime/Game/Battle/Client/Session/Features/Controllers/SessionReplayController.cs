@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
 
             BattleRecordCodecBootstrap.TryInstallMemoryPack();
 
-            var runMode = plan.RunMode;
+            var runMode = plan.RunModeOptions.RunMode;
             if (runMode == BattleStartConfig.BattleRunMode.Replay)
             {
                 SetupReplayDriver(provider, plan, handles);
@@ -73,13 +73,14 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            if (string.IsNullOrEmpty(plan.InputReplayPath))
+            var runMode = plan.RunModeOptions;
+            if (string.IsNullOrEmpty(runMode.InputReplayPath))
             {
                 Log.Error("[BattleReplay] Replay startup failed: InputReplayPath is empty. Select a replay file in RunMode settings.");
                 return;
             }
 
-            Log.Error($"[BattleReplay] Replay startup failed: unable to create replay driver, path={plan.InputReplayPath}");
+            Log.Error($"[BattleReplay] Replay startup failed: unable to create replay driver, path={runMode.InputReplayPath}");
         }
 
         private static void SetupRecordWriter(BattleStartPlan plan, BattleContext ctx)
@@ -88,7 +89,7 @@ namespace AbilityKit.Game.Flow
 
             ctx.InputRecordWriter?.Dispose();
 
-            var outPath = plan.InputRecordOutputPath;
+            var outPath = plan.RunModeOptions.InputRecordOutputPath;
             EnsureOutputDirectory(outPath);
 
             var meta = CreateRecordMeta(plan);
@@ -103,20 +104,22 @@ namespace AbilityKit.Game.Flow
 
         private static LockstepInputRecordMeta CreateRecordMeta(BattleStartPlan plan)
         {
+            var world = plan.World;
             return new LockstepInputRecordMeta
             {
-                WorldId = plan.WorldId,
-                WorldType = plan.WorldType,
+                WorldId = world.WorldId,
+                WorldType = world.WorldType,
                 TickRate = ResolveRecordTickRate(plan),
                 RandomSeed = 0,
-                PlayerId = plan.PlayerId,
+                PlayerId = world.PlayerId,
                 StartedAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             };
         }
 
         private static int ResolveRecordTickRate(BattleStartPlan plan)
         {
-            return plan.TickRate > 0 ? plan.TickRate : 30;
+            var tickRate = plan.World.TickRate;
+            return tickRate > 0 ? tickRate : 30;
         }
 
         private static void ValidateReplayStateHash(BattleSessionHandles handles, BattleContext ctx)
@@ -136,7 +139,7 @@ namespace AbilityKit.Game.Flow
 
         private static void RecordFrameIfNeeded(BattleStartPlan plan, BattleSessionState state, BattleContext ctx, FramePacket packet)
         {
-            if (!plan.EnableInputRecording || ctx.InputRecordWriter == null) return;
+            if (!plan.RunModeOptions.EnableInputRecording || ctx.InputRecordWriter == null) return;
 
             if (packet.Snapshot.HasValue)
             {

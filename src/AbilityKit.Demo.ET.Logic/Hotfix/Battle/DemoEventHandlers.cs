@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
@@ -12,19 +10,23 @@ namespace ET.Logic
     {
         protected override async ETTask Run(Scene scene, DemoLoginFinish args)
         {
-            Log.Info($"[DemoLoginHandler] Login finished for {args.PlayerName}, entering battle...");
+            Log.Info($"[DemoLoginHandler] Login finished for {args.PlayerName}");
 
-            // 自动进入战斗
             var root = scene.Root();
             var processComponent = root?.GetComponent<DemoProcessComponent>();
 
-            if (processComponent != null)
+            if (processComponent == null)
             {
+                Log.Warning($"[DemoLoginHandler] DemoProcessComponent not found!");
+            }
+            else if (processComponent.LaunchOptions?.AutoEnterBattle == true)
+            {
+                Log.Info($"[DemoLoginHandler] Auto enter battle enabled for {args.PlayerName}");
                 await processComponent.ChangeToBattleScene(args.PlayerId, args.PlayerName);
             }
             else
             {
-                Log.Warning($"[DemoLoginHandler] DemoProcessComponent not found!");
+                Log.Info($"[DemoLoginHandler] Login complete; waiting for explicit enter-battle request");
             }
 
             await ETTask.CompletedTask;
@@ -74,8 +76,7 @@ namespace ET.Logic
 
             if (processComponent != null)
             {
-                Log.Info($"[DemoBattleHandler] Returning to login scene in 5 seconds...");
-                await Task.Delay(5000);
+                Log.Info($"[DemoBattleHandler] Returning to login scene...");
                 await processComponent.ChangeToLoginScene();
             }
 

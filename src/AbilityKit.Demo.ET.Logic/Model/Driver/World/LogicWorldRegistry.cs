@@ -49,15 +49,9 @@ namespace ET.Logic
 
                 Log.Info("[LogicWorldRegistry] Initializing...");
 
-                // 扫描所有程序集
+                // Scan the registry-owned assembly. Additional world creators should be linked by reference,
+                // not by hardcoded assembly names.
                 var assemblies = new List<Assembly> { typeof(LogicWorldRegistry).Assembly };
-
-                // 扫描 AbilityKit.Demo.ET.Logic 程序集
-                var logicAsm = Assembly.Load("AbilityKit.Demo.ET.Logic");
-                if (logicAsm != null && !assemblies.Contains(logicAsm))
-                {
-                    assemblies.Add(logicAsm);
-                }
 
                 foreach (var asm in assemblies)
                 {

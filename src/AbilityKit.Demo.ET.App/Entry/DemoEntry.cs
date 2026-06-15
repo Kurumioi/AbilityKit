@@ -10,9 +10,11 @@ namespace ET.AbilityKit.Demo.ET.App
     /// </summary>
     public static class DemoEntry
     {
-        public static void Init(string[] args)
+        public static void Init(global::ET.Logic.ETDemoProcessLaunchOptions launchOptions)
         {
             Log.Info($"[DemoEntry] Initializing...");
+
+            global::ET.Logic.ETDemoLaunchContext.SetLaunchOptions(launchOptions);
 
             // 初始化 WinPeriod (必须在其他操作之前)
             global::ET.WinPeriod.Init();

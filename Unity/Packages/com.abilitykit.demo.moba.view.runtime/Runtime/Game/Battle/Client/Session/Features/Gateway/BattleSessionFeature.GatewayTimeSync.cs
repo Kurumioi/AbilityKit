@@ -39,15 +39,16 @@ namespace AbilityKit.Game.Flow
 
             _gatewayTimeSyncTask = Task.Run(async () =>
             {
-                var alpha = _plan.TimeSyncAlpha;
+                var timeSync = _plan.TimeSync;
+                var alpha = timeSync.Alpha;
                 if (alpha < 0) alpha = 0;
                 if (alpha > 1) alpha = 1;
 
-                var intervalMs = _plan.TimeSyncIntervalMs;
+                var intervalMs = timeSync.IntervalMs;
                 if (intervalMs <= 0) intervalMs = 1000;
 
-                var opCode = _plan.TimeSyncOpCode;
-                var timeoutMs = _plan.TimeSyncTimeoutMs;
+                var opCode = timeSync.OpCode;
+                var timeoutMs = timeSync.TimeoutMs;
                 if (timeoutMs <= 0) timeoutMs = 2000;
 
                 while (!token.IsCancellationRequested)

@@ -10,10 +10,11 @@ namespace AbilityKit.Game.Flow
     {
         private IConnection CreateGatewayRoomConnection(BattleStartPlan plan)
         {
+            var gateway = plan.Gateway;
             var descriptor = new AbilityKitConnectionDescriptor(
                 AbilityKitConnectionRole.GatewayReliable,
-                plan.GatewayHost,
-                plan.GatewayPort,
+                gateway.Host,
+                gateway.Port,
                 "tcp");
 
             return _connectionRegistry.GetOrCreate(descriptor, CreateGatewayRoomConnectionForDescriptor);

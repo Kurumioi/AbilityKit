@@ -14,7 +14,7 @@ namespace AbilityKit.Game.Flow
             var frame = battleCtx.LastFrame;
             if (frame == runtime.LastAlignedFrame) return;
 
-            var tickRate = battleCtx.Plan.TickRate;
+            var tickRate = battleCtx.Plan.World.TickRate;
             var secondsPerFrame = tickRate > 0 ? 1f / tickRate : 0f;
             runtime.Timeline.SeekAll(frame, secondsPerFrame);
 

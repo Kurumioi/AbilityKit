@@ -1,14 +1,10 @@
-using System;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
 {
     /// <summary>
-    /// ETMobaBattleDriver System
-    /// 负责调用 Driver 的生命周期方法
-    ///
-    /// 注意：ETBattleComponentSystem.InitializeBattle() 中也会调用 battleDriver.Awake()
-    /// 这个 System 主要用于确保 Handler 注册时的日志输出
+    /// ETMobaBattleDriver System.
+    /// ET lifecycle owns component construction/destruction; the driver keeps only explicit runtime start/stop/tick methods.
     /// </summary>
     [EntitySystemOf(typeof(ETMobaBattleDriver))]
     [FriendOf(typeof(ETMobaBattleDriver))]
@@ -17,14 +13,13 @@ namespace ET.Logic
         [EntitySystem]
         private static void Awake(this ETMobaBattleDriver self)
         {
-            HandlerRegistry.RegisterAll(self);
-            Log.Info($"[ETMobaBattleDriverSystem] Awake: SnapshotHandlers={self.SnapshotHandlers?.Count ?? 0}, LifecycleHandlers={self.LifecycleHandlers?.Count ?? 0}");
+            self.EnsureSnapshotHandlersRegistered();
+            Log.Info($"[ETMobaBattleDriverSystem] Awake: SnapshotHandlers={self.SnapshotHandlers?.Count ?? 0}");
         }
 
         [EntitySystem]
         private static void Update(this ETMobaBattleDriver self)
         {
-            // Update logic handled by TickHandler through driver.Tick()
         }
 
         [EntitySystem]

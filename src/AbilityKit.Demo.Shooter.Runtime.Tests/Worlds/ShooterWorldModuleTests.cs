@@ -23,10 +23,12 @@ public sealed class ShooterWorldModuleTests
 
         Assert.True(container.TryResolve<IShooterEntityManager>(out var entities));
         Assert.True(container.TryResolve<ShooterBattleState>(out var state));
+        Assert.True(container.TryResolve<IShooterBattleRules>(out var rules));
         Assert.True(container.TryResolve<IShooterBattleSimulation>(out var simulation));
         Assert.True(container.TryResolve<IShooterSveltoWorld>(out var shooterSveltoWorld));
         Assert.True(container.TryResolve<IShooterBattleRuntimePort>(out var runtime));
         Assert.True(container.TryResolve<ISveltoWorldContext>(out var svelto));
+        Assert.IsType<ShooterBattleRules>(rules);
         Assert.IsType<ShooterBattleSimulation>(simulation);
         Assert.IsType<ShooterSveltoWorld>(shooterSveltoWorld);
         Assert.IsType<ShooterEntityManager>(entities);
@@ -47,6 +49,107 @@ public sealed class ShooterWorldModuleTests
         Assert.Same(entities, container.Resolve<IShooterEntityManager>());
         Assert.Same(state, container.Resolve<ShooterBattleState>());
         Assert.Same(shooterSveltoWorld, container.Resolve<IShooterSveltoWorld>());
+    }
+
+    [Fact]
+    public void ConfigureKeepsExplicitBattleRulesOverride()
+    {
+        var customRules = new ShooterBattleRules(
+            playerSpeed: 9f,
+            bulletSpeed: 21f,
+            bulletLifeFrames: 7,
+            hitRadius: 1.5f,
+            hitDamage: 3);
+        var container = new WorldContainerBuilder()
+            .RegisterInstance<IShooterBattleRules>(customRules)
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        Assert.Same(customRules, container.Resolve<IShooterBattleRules>());
+    }
+
+    [Fact]
+    public void RuntimeUsesInjectedBattleRulesForMovementAndProjectile()
+    {
+        var rules = new ShooterBattleRules(
+            playerSpeed: 30f,
+            bulletSpeed: 60f,
+            bulletLifeFrames: 3,
+            hitRadius: 0.45f,
+            hitDamage: 1);
+        var container = new WorldContainerBuilder()
+            .RegisterInstance<IShooterBattleRules>(rules)
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "custom-rules",
+            30,
+            1,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.Equal(1, runtime.SubmitInput(0, new[] { new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, true) }));
+        Assert.True(runtime.Tick(0.5f));
+
+        Assert.True(entities.TryGetPlayer(1, out var player));
+        Assert.Equal(15f, player.X);
+        Assert.True(entities.TryGetProjectile(1, out var projectile));
+        Assert.Equal(60f, projectile.VelocityX);
+        Assert.Equal(2, projectile.RemainingFrames);
+
+        var snapshot = runtime.GetSnapshot();
+        var fireEvent = Assert.Single(snapshot.Events);
+        Assert.Equal((int)ShooterEventType.Fire, fireEvent.EventType);
+        Assert.Equal(1, fireEvent.SourcePlayerId);
+        Assert.Equal(0, fireEvent.TargetPlayerId);
+        Assert.Equal(projectile.BulletId, fireEvent.BulletId);
+    }
+
+    [Fact]
+    public void RuntimeEmitsNamedHitEventWhenProjectileHitsPlayer()
+    {
+        var rules = new ShooterBattleRules(
+            playerSpeed: 0f,
+            bulletSpeed: 0f,
+            bulletLifeFrames: 3,
+            hitRadius: 0.45f,
+            hitDamage: 2);
+        var container = new WorldContainerBuilder()
+            .RegisterInstance<IShooterBattleRules>(rules)
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "hit-event",
+            30,
+            2,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 0.6f, 0f)
+            });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.Equal(1, runtime.SubmitInput(0, new[] { new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, true) }));
+        Assert.True(runtime.Tick(0f));
+
+        Assert.False(entities.TryGetProjectile(1, out _));
+        Assert.True(entities.TryGetPlayer(2, out var target));
+        Assert.Equal(ShooterGameplay.DefaultPlayerHp - 2, target.Hp);
+
+        var snapshot = runtime.GetSnapshot();
+        Assert.Equal(2, snapshot.Events.Length);
+        Assert.Equal((int)ShooterEventType.Fire, snapshot.Events[0].EventType);
+        Assert.Equal((int)ShooterEventType.Hit, snapshot.Events[1].EventType);
+        Assert.Equal(1, snapshot.Events[1].SourcePlayerId);
+        Assert.Equal(2, snapshot.Events[1].TargetPlayerId);
+        Assert.Equal(1, snapshot.Events[1].BulletId);
+        Assert.Equal(2, snapshot.Events[1].Value);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using System;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic
@@ -45,7 +44,7 @@ namespace ET.Logic
         public float RenderY { get; set; }
         public float PrevX { get; set; }
         public float PrevY { get; set; }
-        public long LastUpdateTime { get; set; }
+        public long LastUpdateFrame { get; set; }
 
         // ========== 属性信息 ==========
         public float Hp { get; set; } = 100f;
@@ -69,7 +68,7 @@ namespace ET.Logic
         {
             if (SkillCooldowns == null || SkillCooldowns.Length != MaxSkillSlots)
                 SkillCooldowns = new float[MaxSkillSlots];
-            LastUpdateTime = Environment.TickCount64;
+            LastUpdateFrame = 0;
         }
     }
 }

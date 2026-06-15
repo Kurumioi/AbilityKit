@@ -19,7 +19,7 @@ namespace AbilityKit.Game.Flow
         {
             ctx.Features.TryGet(out _ctx);
 
-            var syncMode = _ctx != null ? _ctx.Plan.SyncMode : BattleSyncMode.Lockstep;
+            var syncMode = _ctx != null ? _ctx.Plan.Sync.SyncMode : BattleSyncMode.Lockstep;
 
             if (_ctx != null && _ctx.TryGetFrameSnapshots(out var snapshots))
             {

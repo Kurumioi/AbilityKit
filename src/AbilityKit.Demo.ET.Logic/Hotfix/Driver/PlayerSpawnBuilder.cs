@@ -1,98 +1,148 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
+using AbilityKit.Ability.Host.Extensions.Moba.Room;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
+using PlayerId = AbilityKit.Ability.Host.PlayerId;
 
 namespace ET.Logic
 {
     /// <summary>
     /// 玩家生成列表构建器
-    /// 负责从配置或玩家注册信息构建 ETPlayerSpawnData 列表
+    /// 负责从正式配置或房间玩家快照构建 ETPlayerSpawnData 列表
     /// </summary>
     public static class PlayerSpawnBuilder
     {
         /// <summary>
-        /// 从玩家注册列表构建生成数据
+        /// Builds battle spawn data from formal room player snapshots.
         /// </summary>
-        public static List<ETPlayerSpawnData> BuildSpawnList(List<PlayerRegistration> players)
+        public static List<ETPlayerSpawnData> BuildSpawnListFromRoomPlayers(MobaRoomPlayerSnapshot[] players, PlayerId localPlayerId, ETTeamSpawnLayout spawnLayout = null, int localTeamId = 1)
         {
-            throw new System.InvalidOperationException("PlayerRegistration does not contain explicit MOBA loadout fields. Build ETPlayerSpawnData from formal hero config or extend registration data before starting battle.");
+            var spawnList = new List<ETPlayerSpawnData>();
+            if (players == null || players.Length == 0)
+            {
+                return spawnList;
+            }
+
+            spawnLayout ??= ETTeamSpawnLayout.CreateDefaultLaneLayout();
+
+            int localTeamCount = 0;
+            int remoteTeamCount = 0;
+
+            foreach (var player in players)
+            {
+                int teamSlotIndex;
+                if (player.TeamId == localTeamId)
+                {
+                    teamSlotIndex = localTeamCount;
+                    localTeamCount++;
+                }
+                else
+                {
+                    teamSlotIndex = remoteTeamCount;
+                    remoteTeamCount++;
+                }
+
+                spawnLayout.ResolvePosition(player.TeamId, teamSlotIndex, localTeamId, out var x, out var z);
+
+                var spawnData = new ETPlayerSpawnData(
+                    playerId: player.PlayerId.Value,
+                    characterId: player.HeroId,
+                    attributeTemplateId: player.AttributeTemplateId,
+                    level: player.Level,
+                    basicAttackSkillId: player.BasicAttackSkillId,
+                    skillIds: player.SkillIds,
+                    characterName: $"Hero_{player.HeroId}",
+                    teamId: player.TeamId,
+                    x: x,
+                    y: 0f,
+                    z: z,
+                    rotY: spawnLayout.RotationY,
+                    scale: spawnLayout.Scale,
+                    hp: 0f,
+                    maxHp: 0f);
+
+                spawnList.Add(spawnData);
+                Log.Info($"[PlayerSpawnBuilder] Room player converted: PlayerId={player.PlayerId.Value}, HeroId={player.HeroId}, Team={player.TeamId}, LocalPlayer={localPlayerId.Value}");
+            }
+
+            return spawnList;
         }
 
         /// <summary>
-        /// 从配置构建生成列表
+        /// 从正式 MOBA 配置库构建生成列表
         /// </summary>
-        public static List<ETPlayerSpawnData> BuildSpawnListFromConfig(ITextAssetLoader loader, int localPlayerId)
+        public static List<ETPlayerSpawnData> BuildSpawnListFromConfig(ITextAssetLoader loader, int localPlayerId, ETTeamSpawnLayout spawnLayout = null, int localTeamId = 1)
         {
-            var players = new List<ETPlayerSpawnData>();
-
             if (loader == null)
             {
-                return players;
+                return new List<ETPlayerSpawnData>();
             }
 
-            var configLoader = new ETConfigLoaderService(loader);
-            configLoader.LoadAll();
+            var registry = MobaConfigRegistry.Instance;
+            var configDatabase = new MobaConfigDatabase(registry, JsonNetMobaConfigDtoDeserializer.Instance, new LubanMobaConfigDtoBytesDeserializer(), loader);
+            var loadPipeline = new MobaConfigLoadPipeline(registry, loader);
+            ResourcesJsonMobaConfigLoadProfile.Default.Load(configDatabase, loadPipeline);
 
-            if (configLoader.Characters.Count == 0)
+            return BuildSpawnListFromConfig(configDatabase, localPlayerId, spawnLayout, localTeamId);
+        }
+
+        public static List<ETPlayerSpawnData> BuildSpawnListFromConfig(MobaConfigDatabase configDatabase, int localPlayerId, ETTeamSpawnLayout spawnLayout = null, int localTeamId = 1)
+        {
+            var players = new List<ETPlayerSpawnData>();
+            spawnLayout ??= ETTeamSpawnLayout.CreateDefaultLaneLayout();
+
+            if (configDatabase == null)
             {
                 return players;
             }
 
             int playerIdBase = localPlayerId > 0 ? localPlayerId : 1;
 
-            // Team 1 本地玩家
-            if (configLoader.TryGetCharacter(1001, out var heroConfig))
+            if (configDatabase.TryGetCharacter(1001, out var heroConfig))
             {
-                var attrs = configLoader.TryGetAttributeTemplate(heroConfig.AttributeTemplateId, out var attr) ? attr : null;
-                float hp = attrs?.Hp ?? 500f;
-                float maxHp = (attrs?.MaxHp > 0 ? attrs.MaxHp : hp);
-
-                string playerIdStr = playerIdBase.ToString();
-                var skillIds = RequireSkillIds(heroConfig);
-                var spawnData = new ETPlayerSpawnData(playerIdStr, heroConfig.Id, heroConfig.AttributeTemplateId, 1, skillIds[0], skillIds, heroConfig.Name, 1, 0f, 0f, 0f, 0f, 1f, hp, maxHp);
+                var spawnData = BuildSpawnData(configDatabase, heroConfig, playerIdBase.ToString(), 1, 0, localTeamId, spawnLayout, "player");
                 players.Add(spawnData);
-                Log.Info($"[PlayerSpawnBuilder] Loaded player: {heroConfig.Name} (Team 1, PlayerId={playerIdStr})");
             }
 
-            // Team 1 AI
             for (int i = 2; i <= 3; i++)
             {
                 int heroId = 1000 + i;
-                if (configLoader.TryGetCharacter(heroId, out var aiConfig))
+                if (configDatabase.TryGetCharacter(heroId, out var aiConfig))
                 {
-                    configLoader.TryGetAttributeTemplate(aiConfig.AttributeTemplateId, out var aiAttr);
-                    float hp = aiAttr?.Hp ?? 500f;
-                    float maxHp = (aiAttr?.MaxHp > 0 ? aiAttr.MaxHp : hp);
-
-                    string aiPlayerId = (playerIdBase + i).ToString();
-                    var skillIds = RequireSkillIds(aiConfig);
-                    var spawnData = new ETPlayerSpawnData(aiPlayerId, aiConfig.Id, aiConfig.AttributeTemplateId, 1, skillIds[0], skillIds, aiConfig.Name, 1, 10f * (i - 1), 0f, 0f, 0f, 1f, hp, maxHp);
+                    var spawnData = BuildSpawnData(configDatabase, aiConfig, (playerIdBase + i).ToString(), 1, i - 1, localTeamId, spawnLayout, "AI");
                     players.Add(spawnData);
-                    Log.Info($"[PlayerSpawnBuilder] Loaded AI: {aiConfig.Name} (Team 1, PlayerId={aiPlayerId})");
                 }
             }
 
-            // Team 2 敌人
             for (int i = 1; i <= 3; i++)
             {
                 int heroId = 1000 + i;
-                if (configLoader.TryGetCharacter(heroId, out var enemyConfig))
+                if (configDatabase.TryGetCharacter(heroId, out var enemyConfig))
                 {
-                    configLoader.TryGetAttributeTemplate(enemyConfig.AttributeTemplateId, out var enemyAttr);
-                    float hp = enemyAttr?.Hp ?? 500f;
-                    float maxHp = (enemyAttr?.MaxHp > 0 ? enemyAttr.MaxHp : hp);
-
-                    string enemyPlayerId = (2000 + i).ToString();
-                    var skillIds = RequireSkillIds(enemyConfig);
-                    var spawnData = new ETPlayerSpawnData(enemyPlayerId, enemyConfig.Id, enemyConfig.AttributeTemplateId, 1, skillIds[0], skillIds, enemyConfig.Name, 2, 0f, 0f, 50f + 10f * (i - 1), 0f, 1f, hp, maxHp);
+                    var spawnData = BuildSpawnData(configDatabase, enemyConfig, (2000 + i).ToString(), 2, i - 1, localTeamId, spawnLayout, "enemy");
                     players.Add(spawnData);
-                    Log.Info($"[PlayerSpawnBuilder] Loaded enemy: {enemyConfig.Name} (Team 2, PlayerId={enemyPlayerId})");
                 }
             }
 
             return players;
         }
 
-        private static int[] RequireSkillIds(JsonCharacter config)
+        private static ETPlayerSpawnData BuildSpawnData(MobaConfigDatabase configDatabase, CharacterMO character, string playerId, int teamId, int teamSlotIndex, int localTeamId, ETTeamSpawnLayout spawnLayout, string role)
+        {
+            configDatabase.TryGetAttributeTemplate(character.AttributeTemplateId, out var attributes);
+            float hp = attributes?.Hp ?? 500f;
+            float maxHp = attributes?.MaxHp > 0 ? attributes.MaxHp : hp;
+            var skillIds = RequireSkillIds(character);
+
+            spawnLayout.ResolvePosition(teamId, teamSlotIndex, localTeamId, out var x, out var z);
+            var spawnData = new ETPlayerSpawnData(playerId, character.Id, character.AttributeTemplateId, 1, skillIds[0], skillIds, character.Name, teamId, x, 0f, z, spawnLayout.RotationY, spawnLayout.Scale, hp, maxHp);
+            Log.Info($"[PlayerSpawnBuilder] Loaded {role}: {character.Name} (Team {teamId}, PlayerId={playerId})");
+            return spawnData;
+        }
+
+        private static int[] RequireSkillIds(CharacterMO config)
         {
             if (config == null)
             {
@@ -104,7 +154,13 @@ namespace ET.Logic
                 throw new System.InvalidOperationException($"Character {config.Id} requires explicit skill ids for MOBA battle startup.");
             }
 
-            return config.SkillIds.ToArray();
+            var skillIds = new int[config.SkillIds.Count];
+            for (var i = 0; i < skillIds.Length; i++)
+            {
+                skillIds[i] = config.SkillIds[i];
+            }
+
+            return skillIds;
         }
     }
 }

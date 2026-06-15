@@ -164,35 +164,40 @@ namespace AbilityKit.Demo.Shooter.View
     /// 外壳读取 <see cref="Runtime"/> / <see cref="Presentation"/> 渲染已验证状态。
     /// 当 <see cref="HasAuthoritativeWorld"/> 为 true 时，会并行运行独立权威模拟，便于两个世界并排渲染与比较。
     /// </summary>
-    public sealed class ShooterAcceptanceSession
+    public sealed class ShooterAcceptanceSession : IDisposable
     {
         public const int DefaultStepCount = 120;
 
         private NetworkConditionProfile _networkProfile;
         private string _networkName;
 
+        private readonly ShooterBattleWorldSession _runtimeWorld;
+        private readonly ShooterBattleWorldSession? _authoritativeWorldSession;
         private ShooterAuthoritativeComparisonDriver? _authoritativeDriver;
+        private bool _disposed;
 
         internal ShooterAcceptanceSession(
-            ShooterBattleRuntimePort runtime,
+            ShooterBattleWorldSession runtimeWorld,
             ShooterPresentationFacade presentation,
             IShooterClientSyncController controller,
             ISyncDemoCarrier carrier,
             NetworkSyncModel syncModel,
             NetworkConditionProfile networkProfile,
             string networkName,
-            ShooterBattleRuntimePort? authoritativeWorld,
+            ShooterBattleWorldSession? authoritativeWorldSession,
             ShooterPresentationFacade? authoritativePresentation,
             int networkSeed = 0)
         {
-            Runtime = runtime;
+            _runtimeWorld = runtimeWorld ?? throw new ArgumentNullException(nameof(runtimeWorld));
+            _authoritativeWorldSession = authoritativeWorldSession;
+            Runtime = runtimeWorld.Runtime;
             Presentation = presentation;
             Controller = controller;
             Carrier = carrier;
             SyncModel = syncModel;
             _networkProfile = networkProfile;
             _networkName = networkName;
-            AuthoritativeWorld = authoritativeWorld;
+            AuthoritativeWorld = authoritativeWorldSession?.Runtime;
             AuthoritativePresentation = authoritativePresentation;
             if (AuthoritativeWorld != null)
             {
@@ -255,6 +260,26 @@ namespace AbilityKit.Demo.Shooter.View
         /// <summary>从权威世界采集到的当前 LagComp 历史遥测。</summary>
         public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _authoritativeDriver?.Telemetry;
 
+        /// <summary>最近一次服务端回溯命中验证结果。</summary>
+        public ShooterLagCompensationEvaluation? LastLagCompensationEvaluation => _authoritativeDriver?.LastLagCompensationEvaluation;
+
+        /// <summary>
+        /// Uses the authoritative world history to validate a client-reported shot against rewound
+        /// player hitboxes. Returns false when comparison mode is disabled or the shot is rejected.
+        /// </summary>
+        public bool TryEvaluateLagCompensationShot(
+            in ShooterLagCompensationShot shot,
+            out ShooterLagCompensationEvaluation evaluation)
+        {
+            if (_authoritativeDriver == null)
+            {
+                evaluation = default;
+                return false;
+            }
+
+            return _authoritativeDriver.TryEvaluateShot(in shot, out evaluation);
+        }
+ 
         /// <summary>
         /// 在不重建会话的情况下实时调节网络环境。下一次 <see cref="Run"/> 或单步推进会使用新的 profile。
         /// 可接收目录预设，也可接收由运行时滑条构建的临时 <see cref="NetworkConditionProfile"/>。
@@ -335,6 +360,19 @@ namespace AbilityKit.Demo.Shooter.View
                 divergences);
         }
 
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _authoritativeDriver = null;
+            _authoritativeWorldSession?.Dispose();
+            _runtimeWorld.Dispose();
+        }
+
         private void AdvanceAuthoritativeWorld(int stepCount, float deltaSeconds)
         {
             _authoritativeDriver?.Advance(stepCount, deltaSeconds);
@@ -401,49 +439,66 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (tickRate <= 0) throw new ArgumentOutOfRangeException(nameof(tickRate));
 
-            var runtime = new ShooterBattleRuntimePort();
-            var presentation = new ShooterPresentationFacade();
-            var controller = ShooterClientSyncControllerFactory.Create(
-                syncModel, runtime, presentation, tickRate, decoder: null, gateway: null, interpolationConfig);
-
             var start = BuildStartPayload(matchId, tickRate, randomSeed, players, syncModel);
-            if (!controller.StartGame(in start))
-            {
-                throw new InvalidOperationException(
-                    $"Shooter acceptance session failed to start the '{syncModel}' controller.");
-            }
+            var worldHost = new ShooterWorldHost();
+            var runtimeWorld = ShooterBattleWorldSession.Create($"{start.MatchId}-client", worldHost);
+            ShooterBattleWorldSession? authoritativeWorldSession = null;
 
-            ISyncDemoCarrier carrier = syncModel == NetworkSyncModel.AuthoritativeInterpolation
-                ? new ShooterInterpolationDemoHarnessCarrier(
-                    controller, networkStats, remoteJitter, acceptedHits, rejectedHits)
-                : syncModel == NetworkSyncModel.HybridHeroPrediction
-                    ? new ShooterHybridDemoHarnessCarrier(
+            try
+            {
+                var runtime = runtimeWorld.Runtime;
+                var presentation = new ShooterPresentationFacade();
+                var controller = ShooterClientSyncControllerFactory.Create(
+                    syncModel, runtime, presentation, tickRate, decoder: null, gateway: null, interpolationConfig);
+
+                if (!controller.StartGame(in start))
+                {
+                    throw new InvalidOperationException(
+                        $"Shooter acceptance session failed to start the '{syncModel}' controller.");
+                }
+
+                ISyncDemoCarrier carrier = syncModel == NetworkSyncModel.AuthoritativeInterpolation
+                    ? new ShooterInterpolationDemoHarnessCarrier(
                         controller, networkStats, remoteJitter, acceptedHits, rejectedHits)
-                    : new ShooterDemoHarnessCarrier(
-                        controller, networkStats, remoteJitter, acceptedHits, rejectedHits);
+                    : syncModel == NetworkSyncModel.HybridHeroPrediction
+                        ? new ShooterHybridDemoHarnessCarrier(
+                            controller, networkStats, remoteJitter, acceptedHits, rejectedHits)
+                        : new ShooterDemoHarnessCarrier(
+                            controller, networkStats, remoteJitter, acceptedHits, rejectedHits);
 
-            ShooterBattleRuntimePort? authoritativeWorld = null;
-            ShooterPresentationFacade? authoritativePresentation = null;
-            if (enableAuthoritativeWorld)
-            {
-                authoritativeWorld = new ShooterBattleRuntimePort();
-                authoritativePresentation = new ShooterPresentationFacade();
-                authoritativeWorld.StartGame(in start);
-                var initialSnapshot = authoritativeWorld.GetSnapshot();
-                authoritativePresentation.ApplyLocalPredictionSnapshot(in initialSnapshot);
+                ShooterPresentationFacade? authoritativePresentation = null;
+                if (enableAuthoritativeWorld)
+                {
+                    authoritativeWorldSession = ShooterBattleWorldSession.Create($"{start.MatchId}-authority", worldHost);
+                    authoritativePresentation = new ShooterPresentationFacade();
+                    if (!authoritativeWorldSession.Runtime.StartGame(in start))
+                    {
+                        throw new InvalidOperationException(
+                            $"Shooter acceptance session failed to start the '{syncModel}' authoritative world.");
+                    }
+
+                    var initialSnapshot = authoritativeWorldSession.Runtime.GetSnapshot();
+                    authoritativePresentation.ApplyLocalPredictionSnapshot(in initialSnapshot);
+                }
+
+                return new ShooterAcceptanceSession(
+                    runtimeWorld,
+                    presentation,
+                    controller,
+                    carrier,
+                    syncModel,
+                    networkProfile,
+                    string.IsNullOrWhiteSpace(networkName) ? DescribeNetwork(networkProfile) : networkName!,
+                    authoritativeWorldSession,
+                    authoritativePresentation,
+                    randomSeed);
             }
-
-            return new ShooterAcceptanceSession(
-                runtime,
-                presentation,
-                controller,
-                carrier,
-                syncModel,
-                networkProfile,
-                string.IsNullOrWhiteSpace(networkName) ? DescribeNetwork(networkProfile) : networkName!,
-                authoritativeWorld,
-                authoritativePresentation,
-                randomSeed);
+            catch
+            {
+                authoritativeWorldSession?.Dispose();
+                runtimeWorld.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
@@ -490,7 +545,7 @@ namespace AbilityKit.Demo.Shooter.View
 
                 foreach (var network in ShooterAcceptanceCatalog.NetworkEnvironments)
                 {
-                    var session = Create(sync, network);
+                    using var session = Create(sync, network);
                     results.Add(session.Run(stepCount, deltaSeconds, seed));
                 }
             }

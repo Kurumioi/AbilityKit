@@ -24,14 +24,14 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorGUILayout.LabelField("世界ID", flowCtx.Plan.WorldId.ToString());
+            EditorGUILayout.LabelField("世界ID", flowCtx.Plan.World.WorldId);
             EditorGUILayout.LabelField("最近帧", flowCtx.LastFrame.ToString());
 
             EditorGUILayout.LabelField("运行时世界ID", flowCtx.HasRuntimeWorldId ? flowCtx.RuntimeWorldId.ToString() : "（无）");
 
             if (flowCtx.PredictionReconcileControl != null)
             {
-                var wid = flowCtx.HasRuntimeWorldId ? flowCtx.RuntimeWorldId : new WorldId(flowCtx.Plan.WorldId);
+                var wid = flowCtx.HasRuntimeWorldId ? flowCtx.RuntimeWorldId : new WorldId(flowCtx.Plan.World.WorldId);
 
                 if (flowCtx.PredictionReconcileControl.TryGetReconcileEnabled(wid, out var enabled))
                 {
@@ -48,7 +48,7 @@ namespace AbilityKit.Game.Editor
                         flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
                     }
 
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
+                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
                 }
 
                 if (GUILayout.Button("关闭对账"))
@@ -60,7 +60,7 @@ namespace AbilityKit.Game.Editor
                         flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
                     }
 
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
+                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
                 }
 
                 if (GUILayout.Button("开启对账"))
@@ -83,7 +83,7 @@ namespace AbilityKit.Game.Editor
                         flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
                     }
 
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
+                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
                 }
             }
 #endif
@@ -93,7 +93,7 @@ namespace AbilityKit.Game.Editor
 
             if (flowCtx.PredictionStats != null)
             {
-                var wid = new WorldId(flowCtx.Plan.WorldId);
+                var wid = new WorldId(flowCtx.Plan.World.WorldId);
                 if (flowCtx.PredictionStats.TryGetFrames(wid, out var confirmed, out var predicted))
                 {
                     EditorGUILayout.LabelField("帧", $"确认={confirmed.Value} 预测={predicted.Value}");

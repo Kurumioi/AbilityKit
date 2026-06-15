@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
@@ -11,6 +12,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.Systems;
 
 namespace ET.Logic
@@ -37,15 +39,12 @@ namespace ET.Logic
         /// </summary>
         public void CreateAndInitialize(
             ETMobaBattleDriver driver,
-            int worldId,
-            int mapId,
-            int playerId,
-            int tickRate)
+            in BattleStartPlan plan)
         {
             if (driver == null)
                 throw new ArgumentNullException(nameof(driver));
 
-            Log.Info($"[MobaLogicWorldCreator] Creating world: WorldId={worldId}, MapId={mapId}, PlayerId={playerId}, TickRate={tickRate}");
+            Log.Info($"[MobaLogicWorldCreator] Creating world: WorldId={plan.WorldId}, MapId={plan.MapId}, PlayerId={plan.PlayerId}, TickRate={plan.TickRate}");
 
             // 步骤 1: 创建 WorldManager
             var worldManager = new WorldManager(BattleWorldFactory.Instance);
@@ -67,7 +66,7 @@ namespace ET.Logic
             // 步骤 4: 创建 WorldCreateOptions
             var options = new WorldCreateOptions
             {
-                Id = new WorldId($"battle-{worldId}"),
+                Id = new WorldId($"battle-{plan.WorldId}"),
                 WorldType = BattleWorldTypes.Battle,
                 ServiceBuilder = WorldServiceContainerFactory.CreateDefaultOnly()
             };
@@ -75,6 +74,8 @@ namespace ET.Logic
             options.ServiceBuilder.TryRegister<ICollisionService>(
                 WorldLifetime.Singleton,
                 _ => new CollisionService());
+
+            RegisterWorldInitData(options, driver, in plan);
 
             // 步骤 5: 设置 Entitas 上下文工厂（必须！用于创建 EntitasWorld）
             options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
@@ -99,6 +100,24 @@ namespace ET.Logic
 
             // 验证正式入口端口和运行时关键服务是否已注册
             ValidateServices(driver.World);
+        }
+
+        private static void RegisterWorldInitData(WorldCreateOptions options, ETMobaBattleDriver driver, in BattleStartPlan plan)
+        {
+            if (options?.ServiceBuilder == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (driver.PlayerSpawnData == null || driver.PlayerSpawnData.Count == 0)
+            {
+                throw new InvalidOperationException("ET battle world initialization requires player spawn data before creating the MOBA runtime world.");
+            }
+
+            var launchSpec = ETBattleEnterGameSpecBuilder.BuildLaunchSpec(plan, driver.PlayerSpawnData);
+            var initData = launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode);
+            options.ServiceBuilder.RegisterInstance(initData);
+            Log.Info($"[MobaLogicWorldCreator] WorldInitData registered: Players={driver.PlayerSpawnData.Count}, OpCode={MobaWorldBootstrapModule.InitOpCode}");
         }
 
         /// <summary>

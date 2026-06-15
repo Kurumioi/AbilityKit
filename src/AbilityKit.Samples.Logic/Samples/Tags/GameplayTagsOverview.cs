@@ -30,6 +30,8 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
 
             Log($"已注册 {tags.Count} 个标签");
             Log($"共 {groups.Count} 个标签组");
+            KeyValue("RegisteredTagCount", tags.Count.ToString());
+            KeyValue("TagGroupCount", groups.Count.ToString());
             Log("");
 
             // 2. 演示标签层级结构
@@ -61,6 +63,8 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             Log($"容器当前标签数: {container.Count}");
             Log($"HasTag({tag1.TagName}): {container.HasTag(tag1)}");
             Log($"HasTag(Damage): {container.HasTag(Tag("Damage"))}");
+            KeyValue("Container.Count", container.Count.ToString());
+            KeyValue("Container.Has.Damage", container.HasTag(Tag("Damage")).ToString());
             Log("");
 
             // 4. 演示层级匹配
@@ -71,6 +75,8 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             Log($"添加 {fireTag.TagName} 到容器");
             Log($"HasTag(Damage.Fire): {container.HasTag(Tag("Damage.Fire"))}");
             Log($"HasTagExact(Damage.Fire): {container.HasTagExact(Tag("Damage.Fire"))}");
+            KeyValue("Hierarchy.Has.DamageFire", container.HasTag(Tag("Damage.Fire")).ToString());
+            KeyValue("Hierarchy.HasExact.DamageFire", container.HasTagExact(Tag("Damage.Fire")).ToString());
             Log("");
 
             // 5. 容器操作
@@ -79,9 +85,11 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             var combined = container + other;
 
             Log($"原始容器 + Buff.AttackSpeed = {combined.Count} 个标签");
+            KeyValue("Combined.Count", combined.Count.ToString());
 
             var removed = combined - tag2;
             Log($"移除 Debuff.Stun 后 = {removed.Count} 个标签");
+            KeyValue("Removed.Count", removed.Count.ToString());
             Log("");
 
             // 6. 快捷 API

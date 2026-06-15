@@ -26,7 +26,12 @@
     <ProjectReference Include="..\AbilityKit.BTCore\AbilityKit.BTCore.csproj" />
     <ProjectReference Include="..\AbilityKit.Behavior\AbilityKit.Behavior.csproj" />
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
     <ProjectReference Include="..\AbilityKit.Dataflow\AbilityKit.Dataflow.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.EntityManager\AbilityKit.Combat.EntityManager.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.SkillLibrary\AbilityKit.Combat.SkillLibrary.csproj" />

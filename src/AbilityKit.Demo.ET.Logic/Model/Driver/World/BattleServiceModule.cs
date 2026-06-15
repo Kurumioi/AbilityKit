@@ -19,8 +19,9 @@ namespace ET.Logic
         public void Configure(WorldContainerBuilder builder)
         {
             // 不注册战斗输入/输出服务，ET Demo 通过 IMobaBattleRuntimePort 接入正式运行时。
-            builder.TryRegister<ITextAssetLoader>(WorldLifetime.Singleton, _ => new ETTextAssetLoader());
-            builder.TryRegister<ITextAssetDirectoryLoader>(WorldLifetime.Singleton, _ => new ETTextAssetLoader());
+            builder.TryRegister<ETTextAssetLoader>(WorldLifetime.Singleton, _ => new ETTextAssetLoader());
+            builder.TryRegister<ITextAssetLoader>(WorldLifetime.Singleton, r => r.Resolve<ETTextAssetLoader>());
+            builder.TryRegister<ITextAssetDirectoryLoader>(WorldLifetime.Singleton, r => r.Resolve<ETTextAssetLoader>());
 
             Log.Info("[BattleServiceModule] Configured (battle IO ports are handled by moba runtime)");
         }

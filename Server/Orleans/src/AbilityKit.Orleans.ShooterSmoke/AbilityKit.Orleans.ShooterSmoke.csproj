@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Runtime\AbilityKit.Demo.Shooter.Runtime.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Share\AbilityKit.Demo.Shooter.Share.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.View.Runtime\AbilityKit.Demo.Shooter.View.Runtime.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Game.View.Runtime\AbilityKit.Game.View.Runtime.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.GameFramework\AbilityKit.GameFramework.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.GameFramework.Network\AbilityKit.GameFramework.Network.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />

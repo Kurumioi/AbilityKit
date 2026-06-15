@@ -1,4 +1,3 @@
-using System;
 using AbilityKit.Demo.Moba.Share;
 
 namespace ET.Logic
@@ -28,7 +27,7 @@ namespace ET.Logic
         public static void UpdateCache(this ETBattleEntityCacheComponent self, int frame, in FrameSnapshotData snapshot)
         {
             self.CachedFrame = frame;
-            self.CacheTimestamp = Environment.TickCount64;
+            self.CacheTimestamp = frame;
 
             // 更新变换数据
             if (snapshot.ActorTransforms != null)
@@ -37,7 +36,7 @@ namespace ET.Logic
                 {
                     if (self._entityCache.TryGetValue(transform.ActorId, out var unit))
                     {
-                        unit.UpdateFromSnapshot(transform.PositionX, transform.PositionY, transform.RotationY);
+                        unit.UpdateFromSnapshot(transform.PositionX, transform.PositionY, transform.RotationY, frame);
                     }
                 }
             }

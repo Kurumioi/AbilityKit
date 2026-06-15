@@ -37,6 +37,14 @@ namespace ET.Logic
                 var result = runtime.TryStartGame(in spec);
                 if (!result.Succeeded)
                 {
+                    if (result.FailureCode == MobaGameStartFailureCode.AlreadyStarted)
+                    {
+                        driver.RuntimeGameStarted = true;
+                        Log.Info($"[ETBattleEnterGameCoordinator] Runtime game already started; treating as idempotent success. {result}");
+                        LogEnterGameState(driver);
+                        return true;
+                    }
+
                     Log.Warning($"[ETBattleEnterGameCoordinator] Game start rejected. {result}");
                     return false;
                 }

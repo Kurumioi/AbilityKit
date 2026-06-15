@@ -46,7 +46,10 @@ namespace AbilityKit.Game.Flow
 
         private static void LogPlan(BattleStartPlan plan)
         {
-            Log.Info($"[BattleSessionFeature] OnAttach Plan: HostMode={plan.HostMode}, UseGatewayTransport={plan.UseGatewayTransport}, Gateway={plan.GatewayHost}:{plan.GatewayPort}, NumericRoomId={plan.NumericRoomId}, AutoConnect={plan.AutoConnect}, AutoCreateWorld={plan.AutoCreateWorld}, AutoJoin={plan.AutoJoin}, AutoReady={plan.AutoReady}, WorldId={plan.WorldId}, PlayerId={plan.PlayerId}");
+            var world = plan.World;
+            var gateway = plan.Gateway;
+            var auto = plan.Auto;
+            Log.Info($"[BattleSessionFeature] OnAttach Plan: HostMode={plan.HostMode}, UseGatewayTransport={gateway.UseGatewayTransport}, Gateway={gateway.Host}:{gateway.Port}, NumericRoomId={gateway.NumericRoomId}, AutoConnect={auto.AutoConnect}, AutoCreateWorld={auto.AutoCreateWorld}, AutoJoin={auto.AutoJoin}, AutoReady={auto.AutoReady}, WorldId={world.WorldId}, PlayerId={world.PlayerId}");
         }
 
         private static bool IsSessionStartIntercepted(ISessionPlanHost host, BattleSessionHooks hooks, BattleStartPlan plan)

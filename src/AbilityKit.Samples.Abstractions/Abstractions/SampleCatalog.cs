@@ -28,7 +28,20 @@ namespace AbilityKit.Samples.Abstractions
             string? id = null,
             string? title = null,
             string? description = null,
-            SampleCategory? category = null)
+            SampleCategory? category = null,
+            string? status = null,
+            string? level = null,
+            string[]? modules = null,
+            string[]? next = null,
+            SampleGuideContent? guide = null,
+            SampleCodeWalkthroughStep[]? codeWalkthrough = null,
+            SampleLearningContract? learningContract = null,
+            SampleVisualFrame[]? visualFrames = null,
+            SampleInputField[]? inputFields = null,
+            SampleLearningCheckpoint[]? learningCheckpoints = null,
+            string? visualTemplate = null,
+            SampleVisualModel? visualModel = null,
+            bool isManifestEntry = false)
         {
             if (sampleType == null)
                 throw new ArgumentNullException(nameof(sampleType));
@@ -56,7 +69,20 @@ namespace AbilityKit.Samples.Abstractions
                 sampleType,
                 Create,
                 priority,
-                tags);
+                tags,
+                status,
+                level,
+                modules,
+                next,
+                guide,
+                codeWalkthrough,
+                learningContract,
+                visualFrames,
+                inputFields,
+                learningCheckpoints,
+                visualTemplate,
+                visualModel,
+                isManifestEntry);
 
             _entries.Add(entry);
             return entry;

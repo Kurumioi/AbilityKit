@@ -20,6 +20,11 @@ namespace AbilityKit.Demo.Moba.Share
         public int WorldId { get; }
 
         /// <summary>
+        /// 玩法 ID
+        /// </summary>
+        public int GameplayId { get; }
+
+        /// <summary>
         /// 玩家 ID
         /// </summary>
         public int PlayerId { get; }
@@ -70,6 +75,11 @@ namespace AbilityKit.Demo.Moba.Share
         public IReadOnlyList<int> PlayerIds { get; }
 
         /// <summary>
+        /// 输入延迟帧数
+        /// </summary>
+        public int InputDelayFrames { get; }
+
+        /// <summary>
         /// 服务器地址（客户端模式）
         /// </summary>
         public string ServerAddress { get; }
@@ -93,10 +103,13 @@ namespace AbilityKit.Demo.Moba.Share
             bool enableReplayPlayback,
             IReadOnlyList<int> playerIds,
             string serverAddress = null,
-            int serverPort = 0)
+            int serverPort = 0,
+            int inputDelayFrames = 0,
+            int gameplayId = 1)
         {
             MapId = mapId;
             WorldId = worldId;
+            GameplayId = gameplayId;
             PlayerId = playerId;
             ClientId = clientId;
             SyncMode = syncMode;
@@ -107,6 +120,7 @@ namespace AbilityKit.Demo.Moba.Share
             EnableReplayRecording = enableReplayRecording;
             EnableReplayPlayback = enableReplayPlayback;
             PlayerIds = playerIds;
+            InputDelayFrames = inputDelayFrames;
             ServerAddress = serverAddress;
             ServerPort = serverPort;
         }

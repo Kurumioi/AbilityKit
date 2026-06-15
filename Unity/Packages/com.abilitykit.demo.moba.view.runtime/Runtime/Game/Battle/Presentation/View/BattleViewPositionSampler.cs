@@ -63,7 +63,7 @@ namespace AbilityKit.Game.Flow
         {
             if (ctx == null) return 0d;
 
-            var tickRate = ctx.Plan.TickRate;
+            var tickRate = ctx.Plan.World.TickRate;
             if (tickRate <= 0) tickRate = 30;
             return (double)ctx.LastFrame / tickRate;
         }

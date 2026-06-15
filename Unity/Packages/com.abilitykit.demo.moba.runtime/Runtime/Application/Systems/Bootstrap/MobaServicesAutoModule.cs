@@ -46,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static readonly string[] NamespacePrefixes = new[]
         {
             "AbilityKit.Demo.Moba.Services",
+            "AbilityKit.Demo.Moba.Gameplay",
         };
 
         public MobaApplicationServicesModule(Assembly targetAssembly)

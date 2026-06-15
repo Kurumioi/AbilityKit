@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
@@ -7,31 +6,14 @@ using PlayerId = AbilityKit.Ability.Host.PlayerId;
 namespace ET.Logic
 {
     /// <summary>
-    /// ET 房间管理器 Component
-    /// 封装 host.extension 的 MobaRoomOrchestrator，提供 ET 风格的生命周期管理
-    ///
-    /// 职责：
-    /// 1. 管理房间状态（MobaRoomState）
-    /// 2. 处理房间命令（Join, Leave, SetReady, PickHero）
-    /// 3. 监听房间状态变化事件
-    /// 4. 当所有玩家准备完成后，触发战斗初始化
-    ///
-    /// 设计原则：
-    /// - Component 只存数据和引用，不包含业务逻辑
-    /// - 业务逻辑由 ETMobaRoomSystem 处理
+    /// ET 房间组件只负责持有正式 MobaRoomOrchestrator，并把房间变化接入 ET 生命周期。
     /// </summary>
     [ComponentOf(typeof(ETBattleComponent))]
     public class ETMobaRoomComponent : Entity, IAwake, IDestroy
     {
-        /// <summary>
-        /// 房间状态
-        /// </summary>
-        public MobaRoomState RoomState { get; private set; }
+        public MobaRoomState? RoomState => RoomOrchestrator?.State;
 
-        /// <summary>
-        /// 房间编排器（使用 host.extension 的实现）
-        /// </summary>
-        public MobaRoomOrchestrator RoomOrchestrator { get; private set; }
+        public MobaRoomOrchestrator RoomOrchestrator { get; private set; } = null!;
 
         /// <summary>
         /// 当前玩家ID
@@ -46,7 +28,7 @@ namespace ET.Logic
         /// <summary>
         /// 当所有玩家准备好时触发
         /// </summary>
-        public event Action OnAllPlayersReady;
+        public event Action OnAllPlayersReady = delegate { };
 
         public void Awake()
         {
@@ -62,16 +44,12 @@ namespace ET.Logic
             Log.Info("[ETMobaRoom] ETMobaRoomComponent destroyed");
         }
 
-        /// <summary>
-        /// 初始化房间
-        /// </summary>
-        public void InitializeRoom(string matchId, int mapId, int maxPlayers, int tickRate, int localPlayerId)
+        public void InitializeRoom(string matchId, int mapId, int maxPlayers, int tickRate, int localPlayerId, int randomSeed, int inputDelayFrames = 2, int minPlayers = 1)
         {
-            var randomSeed = Environment.TickCount;
-            RoomState = new MobaRoomState(matchId, mapId, randomSeed, tickRate, inputDelayFrames: 2);
-            RoomState.Configure(minPlayers: 1, maxPlayers: maxPlayers);
+            var roomState = new MobaRoomState(matchId, mapId, randomSeed, tickRate, inputDelayFrames);
+            roomState.Configure(minPlayers: minPlayers, maxPlayers: maxPlayers);
 
-            RoomOrchestrator = new MobaRoomOrchestrator(RoomState);
+            RoomOrchestrator = new MobaRoomOrchestrator(roomState);
             RoomOrchestrator.AddChanged(OnRoomChanged);
 
             LocalPlayerId = new PlayerId(localPlayerId.ToString());
@@ -79,94 +57,35 @@ namespace ET.Logic
             Log.Info($"[ETMobaRoom] Initialized room: MatchId={matchId}, MapId={mapId}, MaxPlayers={maxPlayers}, LocalPlayer={LocalPlayerId.Value}");
         }
 
-        /// <summary>
-        /// 处理房间状态变化
-        /// </summary>
         private void OnRoomChanged(MobaRoomChangedArgs args)
         {
             Log.Info($"[ETMobaRoom] Room changed: Kind={args.Kind}, PlayerId={args.PlayerId.Value}, Revision={args.Revision}");
-
-            // 检查是否可以开始战斗
             CheckAndTriggerBattleStart();
         }
 
-        /// <summary>
-        /// 检查并触发战斗开始
-        /// </summary>
         public void CheckAndTriggerBattleStart()
         {
             if (HasTriggeredBattleStart)
                 return;
 
-            if (RoomState == null || !RoomState.CanStart())
+            if (!CanStartBattle)
             {
-                Log.Info($"[ETMobaRoom] Cannot start battle yet: CanStart={RoomState?.CanStart()}");
+                Log.Info($"[ETMobaRoom] Cannot start battle yet: CanStart={CanStartBattle}");
                 return;
             }
 
             HasTriggeredBattleStart = true;
             Log.Info($"[ETMobaRoom] All players ready! Triggering battle start...");
 
-            // 触发事件
             OnAllPlayersReady?.Invoke();
         }
 
-        /// <summary>
-        /// 调用 OnAllPlayersReady 事件（供 System 调用）
-        /// </summary>
-        public void InvokeOnAllPlayersReady()
-        {
-            OnAllPlayersReady?.Invoke();
-        }
+        public int PlayerCount => RoomOrchestrator?.State.Players.Count ?? 0;
 
-        /// <summary>
-        /// Auto setup for local test
-        /// </summary>
-        public void AutoSetupForLocalTest(int heroId, int attributeTemplateId, int level, int basicAttackSkillId, int[] skillIds)
-        {
-            if (RoomOrchestrator == null)
-                return;
+        public int MaxPlayerCount => RoomOrchestrator?.State.MaxPlayers ?? 0;
 
-            var localPlayerId = int.Parse(LocalPlayerId.Value);
-            var enemyPlayerId = localPlayerId == 2 ? 3 : 2;
+        public bool CanStartBattle => RoomOrchestrator?.State.CanStart() ?? false;
 
-            // Join local player
-            JoinRoom(localPlayerId, teamId: 1);
-
-            // Pick local hero
-            PickHero(localPlayerId, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
-
-            // Add a deterministic opponent so smoke can verify formal target-driven event snapshots.
-            JoinRoom(enemyPlayerId, teamId: 2);
-            PickHero(enemyPlayerId, heroId, attributeTemplateId, level, basicAttackSkillId, skillIds);
-            SetPlayerReady(enemyPlayerId, ready: true);
-
-            // Set local ready last. The room can start as soon as min player rules are satisfied.
-            SetPlayerReady(localPlayerId, ready: true);
-
-            Log.Info($"[ETMobaRoom] AutoSetupForLocalTest: HeroId={heroId}, AttrTemplateId={attributeTemplateId}, LocalPlayer={localPlayerId}, EnemyPlayer={enemyPlayerId}");
-        }
-
-        /// <summary>
-        /// 获取当前玩家数
-        /// </summary>
-        public int PlayerCount => RoomState?.Players.Count ?? 0;
-
-        /// <summary>
-        /// 获取最大玩家数
-        /// </summary>
-        public int MaxPlayerCount => RoomState?.MaxPlayers ?? 0;
-
-        /// <summary>
-        /// 是否可以开始战斗
-        /// </summary>
-        public bool CanStartBattle => RoomState?.CanStart() ?? false;
-
-        #region 房间命令（由 System 调用）
-
-        /// <summary>
-        /// 玩家加入房间
-        /// </summary>
         public bool JoinRoom(int playerId, int teamId = 0)
         {
             var pid = new PlayerId(playerId.ToString());
@@ -208,23 +127,14 @@ namespace ET.Logic
             return result;
         }
 
-        /// <summary>
-        /// 获取房间中的玩家列表
-        /// </summary>
         public MobaRoomPlayerSnapshot[] GetPlayers()
         {
-            var snapshot = RoomOrchestrator.Snapshot;
-            return snapshot.Players;
+            return RoomOrchestrator?.Snapshot.Players ?? Array.Empty<MobaRoomPlayerSnapshot>();
         }
 
-        /// <summary>
-        /// 获取房间快照
-        /// </summary>
         public MobaRoomSnapshot GetSnapshot()
         {
-            return RoomOrchestrator.Snapshot;
+            return RoomOrchestrator?.Snapshot ?? default;
         }
-
-        #endregion
     }
 }

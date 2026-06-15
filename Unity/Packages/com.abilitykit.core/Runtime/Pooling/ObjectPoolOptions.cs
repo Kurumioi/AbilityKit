@@ -11,6 +11,7 @@ namespace AbilityKit.Core.Pooling
 
         public int DefaultCapacity = 0;
         public int MaxSize = 1024;
+        public PoolTrimPolicy TrimPolicy = PoolTrimPolicy.KeepDefaultCapacity;
 
         public bool CollectionCheck = true;
 

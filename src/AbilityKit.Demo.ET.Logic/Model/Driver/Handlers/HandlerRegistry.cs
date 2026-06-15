@@ -22,17 +22,15 @@ namespace ET.Logic
         /// <summary>
         /// 注册所有处理器到 Driver
         /// </summary>
-        public static void RegisterAll(ETMobaBattleDriver driver)
+        public static void RegisterSnapshotHandlers(ETMobaBattleDriver driver)
         {
-            RegisterSnapshotHandlers(driver);
-            RegisterLifecycleHandlers(driver);
-        }
+            if (driver == null)
+            {
+                throw new ArgumentNullException(nameof(driver));
+            }
 
-        private static void RegisterSnapshotHandlers(ETMobaBattleDriver driver)
-        {
             driver.SnapshotHandlers.Clear();
 
-            // 扫描所有 SnapshotHandler 实现
             var handlerType = typeof(ISnapshotHandler);
             var types = _assemblies
                 .SelectMany(a => a.GetTypes())
@@ -56,36 +54,6 @@ namespace ET.Logic
             }
 
             Log.Info($"[HandlerRegistry] SnapshotHandlers registered: {driver.SnapshotHandlers.Count}");
-        }
-
-        private static void RegisterLifecycleHandlers(ETMobaBattleDriver driver)
-        {
-            driver.LifecycleHandlers.Clear();
-
-            // 扫描所有 LifecycleHandler 实现
-            var handlerType = typeof(ILifecycleHandler);
-            var types = _assemblies
-                .SelectMany(a => a.GetTypes())
-                .Where(t => handlerType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-
-            foreach (var type in types)
-            {
-                try
-                {
-                    var handler = Activator.CreateInstance(type) as ILifecycleHandler;
-                    if (handler != null)
-                    {
-                        driver.LifecycleHandlers.Add(handler);
-                        Log.Debug($"[HandlerRegistry] Registered LifecycleHandler: {type.Name}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[HandlerRegistry] Failed to create LifecycleHandler {type.Name}: {ex.Message}");
-                }
-            }
-
-            Log.Info($"[HandlerRegistry] LifecycleHandlers registered: {driver.LifecycleHandlers.Count}");
         }
     }
 }

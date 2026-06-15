@@ -8,6 +8,8 @@ namespace AbilityKit.Core.Pooling
     {
         private readonly Dictionary<(Type type, PoolKey key), object> _pools = new Dictionary<(Type, PoolKey), object>();
 
+        private readonly object _gate = new object();
+
         private readonly ConditionalWeakTable<object, ReleaseHandle> _releaseHandles = new ConditionalWeakTable<object, ReleaseHandle>();
 
         private readonly HashSet<object> _registeredPools = new HashSet<object>();
@@ -21,11 +23,14 @@ namespace AbilityKit.Core.Pooling
         {
             key = PoolKey.Normalize(key);
             var k = (typeof(T), key);
-            if (_pools.TryGetValue(k, out var existing)) return (ObjectPool<T>)existing;
+            lock (_gate)
+            {
+                if (_pools.TryGetValue(k, out var existing)) return (ObjectPool<T>)existing;
 
-            var pool = new ObjectPool<T>(options);
-            _pools.Add(k, pool);
-            return pool;
+                var pool = new ObjectPool<T>(options);
+                _pools.Add(k, pool);
+                return pool;
+            }
         }
 
         public void RegisterForObjectRelease<T>(ObjectPool<T> pool) where T : class
@@ -80,6 +85,32 @@ namespace AbilityKit.Core.Pooling
             _pools.Remove(k);
             ((ObjectPool<T>)existing).Clear(destroy);
             return true;
+        }
+
+        public int TrimAll()
+        {
+            return TrimAll(default(PoolTrimPolicy));
+        }
+
+        public int TrimAll(PoolTrimPolicy policy)
+        {
+            var trimmedCount = 0;
+            foreach (var kv in _pools)
+            {
+                if (kv.Value == null) continue;
+
+                var type = kv.Value.GetType();
+                if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ObjectPool<>))
+                {
+                    var trim = type.GetMethod("Trim", new[] { typeof(PoolTrimPolicy) });
+                    if (trim?.Invoke(kv.Value, new object[] { policy }) is int count)
+                    {
+                        trimmedCount += count;
+                    }
+                }
+            }
+
+            return trimmedCount;
         }
 
         public void ClearAll(bool destroy = false)

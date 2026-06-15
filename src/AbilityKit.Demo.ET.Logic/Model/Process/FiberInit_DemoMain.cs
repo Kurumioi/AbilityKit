@@ -1,10 +1,7 @@
-using System;
-
 namespace ET.Logic
 {
     /// <summary>
-    /// Demo 场景初始化处理器
-    /// �?Main Fiber 创建后初始化 Demo 流程
+    /// Initializes the demo process after the main fiber is created.
     /// </summary>
     [Invoke(SceneType.Main)]
     public class FiberInit_DemoMain: AInvokeHandler<FiberInit, ETTask>
@@ -15,21 +12,22 @@ namespace ET.Logic
             
             Log.Info($"[Demo] Main fiber initialized");
             
-            // 设置场景类型
+            // Set scene type.
             root.SceneType = SceneType.Main;
             
-            // 发布 Entry 事件
+            // Publish ET entry events.
             await EventSystem.Instance.PublishAsync(root, new EntryEvent1());
             await EventSystem.Instance.PublishAsync(root, new EntryEvent2());
             await EventSystem.Instance.PublishAsync(root, new EntryEvent3());
             
-            // 初始�?Demo 流程组件
+            // Attach demo process component.
             root.AddComponent<DemoProcessComponent>();
             
-            // 切换到登录场�?
+            // Enter login scene with explicit launch defaults selected by the App layer.
             var processComponent = root.GetComponent<DemoProcessComponent>();
             if (processComponent != null)
             {
+                processComponent.LaunchOptions = ETDemoLaunchContext.LaunchOptions;
                 await processComponent.ChangeToLoginScene();
             }
             

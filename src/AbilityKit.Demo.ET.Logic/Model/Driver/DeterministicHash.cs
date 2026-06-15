@@ -1,9 +1,7 @@
 namespace ET.Logic
 {
     /// <summary>
-    /// 确定性哈希工具
-    /// 用于跨平台生成一致的哈希值（帧同步必需）
-    /// 与 Moba.Console 中的 DeterministicHash 保持一致
+    /// Deterministic hash utility for cross-platform frame-sync identifiers.
     /// </summary>
     public static class DeterministicHash
     {

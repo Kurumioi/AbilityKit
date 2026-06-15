@@ -19,12 +19,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
+        private readonly IShooterBattleRules _rules;
         private readonly List<int> _playerIdBuffer = new List<int>(8);
         private readonly List<int> _projectileIdBuffer = new List<int>(32);
 
         public ShooterBattleSimulation(ShooterBattleState state)
+            : this(state, ShooterBattleRules.Default)
+        {
+        }
+
+        public ShooterBattleSimulation(ShooterBattleState state, IShooterBattleRules rules)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
+            _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _entities = _state.Entities;
         }
 
@@ -48,8 +55,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var moveLength = ShooterBattleMath.Normalize(ref command.MoveX, ref command.MoveY);
                 if (moveLength > 0f)
                 {
-                    player.X += command.MoveX * ShooterBattleTuning.PlayerSpeed * deltaTime;
-                    player.Y += command.MoveY * ShooterBattleTuning.PlayerSpeed * deltaTime;
+                    player.X += command.MoveX * _rules.PlayerSpeed * deltaTime;
+                    player.Y += command.MoveY * _rules.PlayerSpeed * deltaTime;
                 }
 
                 var aimLength = ShooterBattleMath.Normalize(ref command.AimX, ref command.AimY);
@@ -87,7 +94,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 if (TryHitPlayer(in bullet, out var target))
                 {
-                    target.Hp = Math.Max(0, target.Hp - ShooterBattleTuning.HitDamage);
+                    target.Hp = Math.Max(0, target.Hp - _rules.HitDamage);
                     if (target.Hp == 0)
                     {
                         target.Alive = false;
@@ -100,7 +107,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                         _entities.SetPlayer(in owner);
                     }
 
-                    _state.Events.Add(new ShooterEventSnapshot(1, bullet.OwnerPlayerId, target.PlayerId, bullet.BulletId, target.X, target.Y, ShooterBattleTuning.HitDamage));
+                    _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullet.OwnerPlayerId, target.PlayerId, bullet.BulletId, target.X, target.Y, _rules.HitDamage));
                     _entities.RemoveProjectile(bullet.BulletId);
                     continue;
                 }
@@ -123,13 +130,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 OwnerPlayerId = player.PlayerId,
                 X = player.X + player.AimX * 0.5f,
                 Y = player.Y + player.AimY * 0.5f,
-                VelocityX = player.AimX * ShooterBattleTuning.BulletSpeed,
-                VelocityY = player.AimY * ShooterBattleTuning.BulletSpeed,
-                RemainingFrames = ShooterBattleTuning.BulletLifeFrames
+                VelocityX = player.AimX * _rules.BulletSpeed,
+                VelocityY = player.AimY * _rules.BulletSpeed,
+                RemainingFrames = _rules.BulletLifeFrames
             };
 
             _entities.AddProjectile(in bullet);
-            _state.Events.Add(new ShooterEventSnapshot(2, player.PlayerId, 0, bullet.BulletId, bullet.X, bullet.Y, 0));
+            _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Fire, player.PlayerId, 0, bullet.BulletId, bullet.X, bullet.Y, 0));
         }
 
         private bool TryHitPlayer(in ShooterSveltoProjectileComponent bullet, out ShooterSveltoPlayerComponent target)
@@ -144,7 +151,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 var dx = player.X - bullet.X;
                 var dy = player.Y - bullet.Y;
-                if (dx * dx + dy * dy <= ShooterBattleTuning.HitRadius * ShooterBattleTuning.HitRadius)
+                if (dx * dx + dy * dy <= _rules.HitRadius * _rules.HitRadius)
                 {
                     target = player;
                     return true;

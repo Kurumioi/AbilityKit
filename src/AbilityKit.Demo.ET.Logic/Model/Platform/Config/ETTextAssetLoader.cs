@@ -9,8 +9,8 @@ using AbilityKit.Ability.World.Services.Attributes;
 namespace ET.Logic
 {
     /// <summary>
-    /// ET ??????TextAsset ????
-    /// ???????????? JSON ??????
+    /// ET text asset loader backed by local config files.
+    /// Provides JSON text and byte loading for formal MOBA config pipelines.
     /// </summary>
     [WorldService(typeof(ITextAssetLoader), WorldLifetime.Singleton)]
     public sealed class ETTextAssetLoader : ITextAssetLoader, ITextAssetDirectoryLoader
@@ -142,7 +142,7 @@ namespace ET.Logic
                 return configDir;
             }
 
-            // ????????????
+            // Walk parent directories to support running from nested build folders.
             var current = new DirectoryInfo(exeDir);
             while (current != null)
             {
@@ -154,7 +154,7 @@ namespace ET.Logic
                 current = current.Parent;
             }
 
-            // ???? exe ??
+            // Fall back to the executable directory.
             return exeDir;
         }
     }

@@ -8,7 +8,8 @@ namespace AbilityKit.Game.Flow
     {
         private TimeSyncStatsSnapshot BuildCurrentTimeSyncStats(uint opCode, int intervalMs, double alpha, int timeoutMs)
         {
-            var worldId = _plan.WorldId != null ? new WorldId(_plan.WorldId) : default;
+            var worldIdValue = _plan.World.WorldId;
+            var worldId = worldIdValue != null ? new WorldId(worldIdValue) : default;
             return BuildTimeSyncStats(worldId, opCode, intervalMs, alpha, timeoutMs);
         }
 
@@ -25,9 +26,10 @@ namespace AbilityKit.Game.Flow
                     BuildTimeSyncStats(kv.Key, opCode, intervalMs, alpha, timeoutMs);
             }
 
-            if (_plan.WorldId != null)
+            var worldIdValue = _plan.World.WorldId;
+            if (worldIdValue != null)
             {
-                BattleFlowDebugProvider.TimeSyncStatsByWorld[_plan.WorldId] = BattleFlowDebugProvider.TimeSyncStats;
+                BattleFlowDebugProvider.TimeSyncStatsByWorld[worldIdValue] = BattleFlowDebugProvider.TimeSyncStats;
             }
         }
 

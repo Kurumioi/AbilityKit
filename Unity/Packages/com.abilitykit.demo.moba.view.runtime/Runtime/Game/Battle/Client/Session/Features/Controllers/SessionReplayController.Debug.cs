@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
         {
             if (state == null || handles == null || ctx == null || host == null) return;
 
-            if (!plan.EnableInputReplay) return;
+            if (!plan.RunModeOptions.EnableInputReplay) return;
             if (targetFrame < 0) targetFrame = 0;
 
             var fixedDelta = host.GetFixedDeltaSeconds();
@@ -69,7 +69,7 @@ namespace AbilityKit.Game.Flow
 
             if (session != null && session.RollbackModule != null && targetFrame <= state.Tick.LastFrame)
             {
-                var worldId = new WorldId(plan.WorldId);
+                var worldId = new WorldId(plan.World.WorldId);
                 var probeStart = Math.Max(0, targetFrame - RollbackSeekProbeFrames);
                 for (int frame = targetFrame; frame >= probeStart; frame--)
                 {

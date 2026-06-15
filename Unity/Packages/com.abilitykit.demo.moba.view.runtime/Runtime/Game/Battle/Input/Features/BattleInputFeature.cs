@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow
         public void Tick(in GamePhaseContext ctx, float deltaTime)
         {
             if (_ctx == null || _ctx.Session == null) return;
-            if (_ctx.Plan.EnableInputReplay) return;
+            if (_ctx.Plan.RunModeOptions.EnableInputReplay) return;
 
             var plan = _ctx.Plan;
             var playerId = BattleInputSessionIdentity.ResolvePlayerId(in plan);

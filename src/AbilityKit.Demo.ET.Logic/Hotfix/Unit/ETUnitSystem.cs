@@ -1,5 +1,3 @@
-using System;
-
 namespace ET.Logic
 {
     /// <summary>
@@ -24,14 +22,14 @@ namespace ET.Logic
         /// <summary>
         /// 从快照更新变换数据
         /// </summary>
-        public static void UpdateFromSnapshot(this ETUnit self, float x, float y, float rotation = 0)
+        public static void UpdateFromSnapshot(this ETUnit self, float x, float y, float rotation = 0, long updateFrame = 0)
         {
             self.PrevX = self.X;
             self.PrevY = self.Y;
             self.X = x;
             self.Y = y;
             self.Rotation = rotation;
-            self.LastUpdateTime = Environment.TickCount64;
+            self.LastUpdateFrame = updateFrame;
         }
 
         /// <summary>

@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using ET.AbilityKit.Demo.ET.Share;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Share;
@@ -9,14 +7,8 @@ using AbilityKit.Demo.Moba.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// DemoProcessComponent System
-    /// ���� Scene ֮����л��߼�
-    ///
-    /// �������̣�
-    /// 1. ����ս������
-    /// 2. ����������� (ETMobaRoomComponent)���������׼������
-    /// 3. ��Ҽ��롢ѡӢ�ۡ�׼��
-    /// 4. �������׼����ɺ�ʹ�� RoomState �е������Ϣ��ʼ��ս��
+    /// Coordinates the demo scene flow between login and the local MOBA battle scene.
+    /// The process explicitly prepares room state, player loadouts, battle runtime, and demo/smoke automation.
     /// </summary>
     [EntitySystemOf(typeof(DemoProcessComponent))]
     [FriendOf(typeof(DemoProcessComponent))]
@@ -34,7 +26,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// �л�����¼����
+        /// Switches to the login scene.
         /// </summary>
         public static async ETTask ChangeToLoginScene(this DemoProcessComponent self)
         {
@@ -45,57 +37,35 @@ namespace ET.Logic
                 return;
             }
 
-            // �Ƴ�֮ǰ���ӳ���
-            List<long> keysToRemove = new List<long>();
-            foreach (var child in root.Children.Values)
-            {
-                if (child is Scene scene && scene.SceneType != 0)
-                {
-                    keysToRemove.Add(child.Id);
-                }
-            }
-            foreach (var key in keysToRemove)
-            {
-                if (root.Children.TryGetValue(key, out var child))
-                {
-                    child.Dispose();
-                }
-            }
+            DisposeActiveChildScenes(root);
 
-            // ������¼����
+            // Create login scene.
             var loginScene = EntitySceneFactory.CreateScene(root,
                 IdGenerater.Instance.GenerateId(),
                 IdGenerater.Instance.GenerateInstanceId(),
                 SceneType.DemoLogin,
                 "DemoLogin");
 
-            // ���ӵ�¼���
+            // Attach login component.
             self.LoginComponent = loginScene.AddComponent<DemoLoginComponent>();
             Log.Info($"[DemoProcess] Created DemoLoginComponent: {self.LoginComponent.Id}");
 
-            // �ֶ����õ�¼�߼�
-            self.LoginComponent.Awake();
-            Log.Info($"[DemoProcess] Called DemoLoginComponent.Awake()");
+            var launchOptions = self.GetLaunchOptions();
+            if (launchOptions.AutoLogin)
+            {
+                Log.Info($"[DemoProcess] Auto login enabled for {launchOptions.PlayerName}");
+                self.LoginComponent.StartLogin(launchOptions.PlayerName);
+            }
+            else
+            {
+                Log.Info("[DemoProcess] Login scene ready; waiting for explicit login request");
+            }
 
-            // ֱ�Ӵ�����¼
-            Log.Info($"[DemoProcess] Triggering login for TestPlayer...");
-            self.LoginComponent.State = LoginState.Connecting;
-            self.LoginComponent.PlayerId = IdGenerater.Instance.GenerateId();
-            self.LoginComponent.PlayerName = "TestPlayer";
-            self.LoginComponent.State = LoginState.LoginSuccess;
-
-            Log.Info($"[DemoProcess] Login success! PlayerId: {self.LoginComponent.PlayerId}");
-
-            // ֱ���л���ս������
-            Log.Info($"[DemoProcess] Auto-entering battle...");
-            await self.ChangeToBattleScene(self.LoginComponent.PlayerId, self.LoginComponent.PlayerName);
-
-            Log.Info($"[DemoProcess] Login scene completed; current scene is managed by battle transition");
+            Log.Info($"[DemoProcess] Login scene initialized");
         }
 
         /// <summary>
-        /// �л���ս������
-        /// ʹ�÷���ϵͳ�������׼������
+        /// Switches to the battle scene and prepares the local room state before starting runtime world initialization.
         /// </summary>
         public static async ETTask ChangeToBattleScene(this DemoProcessComponent self, long playerId, string playerName)
         {
@@ -106,89 +76,87 @@ namespace ET.Logic
                 return;
             }
 
-            // �Ƴ�֮ǰ���ӳ���
-            List<long> battleKeysToRemove = new List<long>();
-            foreach (var child in root.Children.Values)
-            {
-                if (child is Scene scene && scene.SceneType != 0)
-                {
-                    battleKeysToRemove.Add(child.Id);
-                }
-            }
-            foreach (var key in battleKeysToRemove)
-            {
-                if (root.Children.TryGetValue(key, out var child))
-                {
-                    child.Dispose();
-                }
-            }
+            DisposeActiveChildScenes(root);
 
-            // ����ս������
+            // Create battle scene.
             var battleScene = EntitySceneFactory.CreateScene(root,
                 IdGenerater.Instance.GenerateId(),
                 IdGenerater.Instance.GenerateInstanceId(),
                 SceneType.DemoBattle,
                 "DemoBattle");
 
-            // ========== ����1: �������ü����� ==========
+            // ========== Step 1: Create config loader ==========
             var textAssetLoader = new ETTextAssetLoader();
 
-            // ========== ����2: ����������� ==========
+            // ========== Step 2: Create room component ==========
             var roomComponent = battleScene.AddComponent<ETMobaRoomComponent>();
 
-            // ========== ����3: ��ʼ������ ==========
-            string matchId = $"match_{Environment.TickCount}";
-            int maxPlayers = 6;
-            int tickRate = 30;
+            // ========== Step 3: Initialize room ==========
+            var scenarioConfig = self.GetScenarioConfig();
+            string matchId = scenarioConfig.CreateMatchId(playerId);
 
-            roomComponent.InitializeRoom(matchId, mapId: 1, maxPlayers, tickRate, (int)playerId);
-            Log.Info($"[DemoProcess] Room initialized: MatchId={matchId}, MaxPlayers={maxPlayers}");
+            roomComponent.InitializeRoom(
+                matchId,
+                scenarioConfig.MapId,
+                scenarioConfig.MaxPlayers,
+                scenarioConfig.TickRate,
+                (int)playerId,
+                scenarioConfig.RandomSeed,
+                scenarioConfig.InputDelayFrames,
+                scenarioConfig.MinPlayers);
+            Log.Info($"[DemoProcess] Room initialized: MatchId={matchId}, MaxPlayers={scenarioConfig.MaxPlayers}");
 
-            // ========== ����4: ����ս����� ==========
+            // ========== Step 4: Prepare local demo players and loadouts ==========
+            // Production multiplayer flows should provide these values through room synchronization.
+            ETLocalMobaScenarioInitializer.SetupRoom(roomComponent, scenarioConfig);
+
+            var roomPlayers = roomComponent.GetPlayers();
+            var playerSpawnList = PlayerSpawnBuilder.BuildSpawnListFromRoomPlayers(roomPlayers, roomComponent.LocalPlayerId, scenarioConfig.SpawnLayout, scenarioConfig.LocalTeamId);
+
+            // ========== Step 5: Create battle component ==========
             var battleComponent = battleScene.AddComponent<ETBattleComponent>();
 
-            // ���������ƻ�
+            // Create battle start plan.
             var plan = new BattleStartPlan(
-                mapId: 1,
-                worldId: 1,
+                mapId: scenarioConfig.MapId,
+                worldId: scenarioConfig.WorldId,
                 playerId: (int)playerId,
                 clientId: (int)playerId,
                 syncMode: SyncMode.SnapshotAuthority,
                 hostMode: HostMode.Local,
-                tickRate: tickRate,
+                tickRate: scenarioConfig.TickRate,
                 useGatewayTransport: false,
                 enableConfirmedAuthorityWorld: false,
                 enableReplayRecording: false,
                 enableReplayPlayback: false,
-                playerIds: new int[] { (int)playerId });
+                playerIds: new int[] { (int)playerId },
+                inputDelayFrames: scenarioConfig.InputDelayFrames,
+                gameplayId: scenarioConfig.GameplayId);
 
-            // ��ʼ��ս����������� textAssetLoader��
-            battleComponent.InitializeBattle(plan, textAssetLoader);
+            // Initialize the formal battle runtime. Demo/smoke automation is installed explicitly below.
+            battleComponent.InitializeBattle(plan, textAssetLoader, playerSpawnList);
+            battleComponent.AutomationOptions = scenarioConfig.AutomationOptions ?? ETBattleAutomationOptions.CreateDisabled();
+            ETBattleAutomationInstaller.Install(battleScene, battleComponent.AutomationOptions);
 
-            // ========== ����5: ������ͼ�¼��Ž� ==========
-            // ETViewEventSink ���� AbilityKit �¼��Žӵ� ET �¼�ϵͳ
+            // ========== Step 6: Create view event sink ==========
+            // ETViewEventSink bridges AbilityKit events into the ET event system.
             var viewSink = new ETViewEventSink(battleScene);
             battleComponent.ViewSink = viewSink;
 
             Log.Info($"[DemoProcess] View event sink created");
 
-            // ========== ����6: ��������׼�����¼� ==========
-            // ע�⣺������ AutoSetupForLocalTest ֮ǰע�ᣬ�Ա�ص�����ȷ����
+            // ========== Step 7: Bind room-ready event ==========
             roomComponent.OnAllPlayersReady += () =>
             {
                 Log.Info($"[DemoProcess] All players ready! Starting battle...");
-                TriggerBattleStart(battleComponent, roomComponent);
+                TriggerBattleStart(battleComponent, roomComponent, scenarioConfig);
             };
 
-            // ========== ����7: ģ����Ҽ����׼�������ڱ��ز��ԣ�==========
-            // ��ʵ�ʶ�����Ϸ�У������ͨ������ͬ���ȴ��������
-            roomComponent.AutoSetupForLocalTest(heroId: 1001, attributeTemplateId: 1001, level: 1, basicAttackSkillId: 100101, skillIds: Array.Empty<int>());
-
-            // ========== ����8: ����Ѿ�׼�����ˣ�����ս����ʼ ==========
-            // ��������Ϊ�˴��������ڱ��ز��Ե����
-            if (roomComponent.CanStartBattle && !roomComponent.HasTriggeredBattleStart)
+            // ========== Step 8: Start immediately when the local room is already ready ==========
+            // Local scenario setup is completed before world initialization; the ready event may already have fired.
+            if (roomComponent.CanStartBattle)
             {
-                roomComponent.CheckAndTriggerBattleStart();
+                TriggerBattleStart(battleComponent, roomComponent, scenarioConfig);
             }
 
             self.CurrentScene = battleScene;
@@ -197,13 +165,53 @@ namespace ET.Logic
             Log.Info($"[DemoProcess] Changed to Battle scene");
         }
 
-        /// <summary>
-        /// ����ս����ʼ
-        /// ʹ�� RoomState �е������Ϣ��ʼ��ս��
-        /// </summary>
-        private static void TriggerBattleStart(ETBattleComponent battleComponent, ETMobaRoomComponent roomComponent)
+        private static void DisposeActiveChildScenes(Scene root)
         {
-            if (battleComponent == null || roomComponent == null)
+            List<long> keysToRemove = new List<long>();
+            foreach (var child in root.Children.Values)
+            {
+                if (child is Scene scene && scene.SceneType != 0)
+                {
+                    keysToRemove.Add(child.Id);
+                }
+            }
+
+            foreach (var key in keysToRemove)
+            {
+                if (root.Children.TryGetValue(key, out var child))
+                {
+                    child.Dispose();
+                }
+            }
+        }
+
+        private static ETDemoProcessLaunchOptions GetLaunchOptions(this DemoProcessComponent self)
+        {
+            if (self.LaunchOptions == null)
+            {
+                self.LaunchOptions = new ETDemoProcessLaunchOptions();
+            }
+
+            return self.LaunchOptions;
+        }
+
+        private static ETLocalMobaScenarioConfig GetScenarioConfig(this DemoProcessComponent self)
+        {
+            var launchOptions = self.GetLaunchOptions();
+            if (launchOptions.ScenarioConfig == null)
+            {
+                launchOptions.ScenarioConfig = ETLocalMobaScenarioConfig.CreateLocalDemoDefaults();
+            }
+
+            return launchOptions.ScenarioConfig;
+        }
+
+        /// <summary>
+        /// Starts the battle using the latest room player state.
+        /// </summary>
+        private static void TriggerBattleStart(ETBattleComponent battleComponent, ETMobaRoomComponent roomComponent, ETLocalMobaScenarioConfig scenarioConfig)
+        {
+            if (battleComponent == null || roomComponent == null || scenarioConfig == null)
                 return;
 
             var players = roomComponent.GetPlayers();
@@ -216,19 +224,19 @@ namespace ET.Logic
             Log.Info($"[DemoProcess] ========== TriggerBattleStart ==========");
             Log.Info($"[DemoProcess] Players count: {players.Length}");
 
-            // ��ȡ BattleDriver
-            var battleDriver = battleComponent.BattleDriver as ETMobaBattleDriver;
-            if (battleDriver == null)
+            // Resolve ET battle host.
+            var battleHost = battleComponent.BattleHost;
+            if (battleHost == null)
             {
-                Log.Error($"[DemoProcess] BattleDriver is not ETMobaBattleDriver!");
+                Log.Error($"[DemoProcess] BattleHost is null!");
                 return;
             }
 
-            // �� RoomState ��������б�
-            var playerSpawnList = ConvertPlayersToSpawnList(players, roomComponent.LocalPlayerId);
+            // Rebuild spawn data from the current room state.
+            var playerSpawnList = PlayerSpawnBuilder.BuildSpawnListFromRoomPlayers(players, roomComponent.LocalPlayerId, scenarioConfig.SpawnLayout, scenarioConfig.LocalTeamId);
 
-            Log.Info($"[DemoProcess] Calling battleDriver.OnAllPlayersReady with {playerSpawnList.Count} players");
-            if (!battleDriver.OnAllPlayersReady(playerSpawnList))
+            Log.Info($"[DemoProcess] Calling battleHost.OnAllPlayersReady with {playerSpawnList.Count} players");
+            if (!battleHost.OnAllPlayersReady(playerSpawnList))
             {
                 Log.Error($"[DemoProcess] Runtime game start failed; battle state remains Ready");
                 return;
@@ -240,55 +248,5 @@ namespace ET.Logic
             Log.Info($"[DemoProcess] ========== Battle started! ==========");
         }
 
-        /// <summary>
-        /// ���������ת��Ϊ�����б�
-        /// </summary>
-        private static List<ETPlayerSpawnData> ConvertPlayersToSpawnList(MobaRoomPlayerSnapshot[] players, PlayerId localPlayerId)
-        {
-            var spawnList = new List<ETPlayerSpawnData>();
-
-            int team1Count = 0;
-            int team2Count = 0;
-
-            foreach (var player in players)
-            {
-                // ����λ��
-                float x, z;
-                if (player.TeamId == 1)
-                {
-                    x = 0f;
-                    z = 10f * team1Count;
-                    team1Count++;
-                }
-                else
-                {
-                    x = 50f;
-                    z = 10f * team2Count;
-                    team2Count++;
-                }
-
-                var spawnData = new ETPlayerSpawnData(
-                    playerId: player.PlayerId.Value,
-                    characterId: player.HeroId,
-                    attributeTemplateId: player.AttributeTemplateId,
-                    level: player.Level,
-                    basicAttackSkillId: player.BasicAttackSkillId,
-                    skillIds: player.SkillIds,
-                    characterName: $"Hero_{player.HeroId}",
-                    teamId: player.TeamId,
-                    x: x,
-                    y: 0f,
-                    z: z,
-                    rotY: 0f,
-                    scale: 1f,
-                    hp: 0f,
-                    maxHp: 0f);
-
-                spawnList.Add(spawnData);
-                Log.Info($"[DemoProcess] Converted player: {player.PlayerId.Value}, HeroId={player.HeroId}, AttrTemplateId={player.AttributeTemplateId}, BasicAttackSkillId={player.BasicAttackSkillId}, Team={player.TeamId}");
-            }
-
-            return spawnList;
-        }
     }
 }

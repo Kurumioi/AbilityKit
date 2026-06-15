@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Flow
                 options.Flow,
                 handles,
                 authWorldId,
-                options.Plan.EnableConfirmedAuthorityWorld);
+                options.Plan.Authority.EnableConfirmedAuthorityWorld);
         }
 
         private static WorldId CreateWorldRuntime(
@@ -92,7 +92,7 @@ namespace AbilityKit.Game.Flow
 
             var pipeline = ConfirmedViewEventPipelineFactory.Create(
                 handles.World,
-                plan.ViewEventSourceMode,
+                plan.Sync.ViewEventSourceMode,
                 maxDebugLines: 32);
 
             handles.BindViewEventPipeline(pipeline);

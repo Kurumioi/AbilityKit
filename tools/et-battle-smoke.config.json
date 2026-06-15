@@ -5,7 +5,10 @@
   "SleepMilliseconds": 16,
   "DrainFrames": 5,
   "ConsistencyRuns": 2,
-  "SmokeCasePath": "tools/et-battle-smoke.case.damage.json",
+  "SmokeCasePaths": [
+    "tools/et-battle-smoke.case.damage.json",
+    "tools/et-battle-smoke.case.self-bleed-trace.json"
+  ],
   "NoBuild": false,
   "SkipConfigValidation": false,
   "KeepOutput": false

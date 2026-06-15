@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Demo.Shooter.Console</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Shooter.Console</AssemblyName>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Demo.Host.Console\AbilityKit.Demo.Host.Console.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Shooter.Runtime\AbilityKit.Demo.Shooter.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Shooter.View.Runtime\AbilityKit.Demo.Shooter.View.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Shooter\AbilityKit.Protocol.Shooter.csproj" />
+  </ItemGroup>
+
+</Project>

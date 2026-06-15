@@ -52,11 +52,13 @@ namespace AbilityKit.Game.Flow
 
             TrySetupProtocolWireSerializerInstaller();
 
+            var world = _plan.World;
+            var createWorld = _plan.CreateWorld;
             var options = SessionMobaWorldBootstrapFactory.CreateWorldOptions(
                 _plan,
-                new WorldId(_plan.WorldId),
+                new WorldId(world.WorldId),
                 registerWorldInitData: false);
-            var req = new CreateWorldRequest(options, _plan.CreateWorldOpCode, _plan.CreateWorldPayload);
+            var req = new CreateWorldRequest(options, createWorld.OpCode, createWorld.Payload);
             _session.CreateWorld(req);
         }
 

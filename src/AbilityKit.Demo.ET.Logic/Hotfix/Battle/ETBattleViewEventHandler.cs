@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using ET.AbilityKit.Demo.ET.Share;
 
 namespace ET.Logic

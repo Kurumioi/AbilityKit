@@ -52,6 +52,12 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
+    public enum ShooterEventType
+    {
+        Hit = 1,
+        Fire = 2
+    }
+
     [MemoryPackable]
     public partial struct ShooterEventSnapshot
     {
@@ -66,6 +72,17 @@ namespace AbilityKit.Protocol.Shooter
         public ShooterEventSnapshot(int eventType, int sourcePlayerId, int targetPlayerId, int bulletId, float x, float y, int value)
         {
             EventType = eventType;
+            SourcePlayerId = sourcePlayerId;
+            TargetPlayerId = targetPlayerId;
+            BulletId = bulletId;
+            X = x;
+            Y = y;
+            Value = value;
+        }
+
+        public ShooterEventSnapshot(ShooterEventType eventType, int sourcePlayerId, int targetPlayerId, int bulletId, float x, float y, int value)
+        {
+            EventType = (int)eventType;
             SourcePlayerId = sourcePlayerId;
             TargetPlayerId = targetPlayerId;
             BulletId = bulletId;

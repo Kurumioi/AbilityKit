@@ -13,13 +13,14 @@ namespace AbilityKit.Game.Flow
             await WaitForGatewayConnectionAsync();
             await EnsureGatewaySessionTokenAsync();
 
-            if (_plan.GatewayAutoCreateRoom)
+            var gateway = _plan.Gateway;
+            if (gateway.AutoCreateRoom)
             {
                 await CreateAndJoinGatewayRoomAsync();
                 return;
             }
 
-            if (_plan.GatewayAutoJoinRoom)
+            if (gateway.AutoJoinRoom)
             {
                 await JoinGatewayRoomAsync();
             }
@@ -39,13 +40,14 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException($"Gateway room connection not connected. state={conn?.State}");
             }
 
-            Log.Info($"[BattleSessionFeature] GatewayRoom connected: {_plan.GatewayHost}:{_plan.GatewayPort}");
+            var gateway = _plan.Gateway;
+            Log.Info($"[BattleSessionFeature] GatewayRoom connected: {gateway.Host}:{gateway.Port}");
         }
 
         private async Task EnsureGatewaySessionTokenAsync()
         {
             const uint GuestLoginOpCode = 100;
-            var sessionToken = _plan.GatewaySessionToken;
+            var sessionToken = _plan.Gateway.SessionToken;
             if (!string.IsNullOrWhiteSpace(sessionToken)) return;
 
             Log.Info("[BattleSessionFeature] GatewayRoom GuestLogin...");
@@ -62,12 +64,15 @@ namespace AbilityKit.Game.Flow
 
         private async Task CreateAndJoinGatewayRoomAsync()
         {
+            var world = _plan.World;
+            var gateway = _plan.Gateway;
+
             Log.Info("[BattleSessionFeature] GatewayRoom CreateRoom...");
             var result = await _gatewayClient.CreateRoomAsync(
-                sessionToken: _plan.GatewaySessionToken,
-                region: _plan.GatewayRegion,
-                serverId: _plan.GatewayServerId,
-                roomType: string.IsNullOrEmpty(_plan.WorldType) ? "battle" : _plan.WorldType,
+                sessionToken: gateway.SessionToken,
+                region: gateway.Region,
+                serverId: gateway.ServerId,
+                roomType: string.IsNullOrEmpty(world.WorldType) ? "battle" : world.WorldType,
                 title: string.Empty,
                 isPublic: true,
                 maxPlayers: 10,
@@ -83,13 +88,14 @@ namespace AbilityKit.Game.Flow
             var worldId = result.NumericRoomId.ToString();
             _plan = _plan.WithGatewayRoom(worldId, result.NumericRoomId);
 
+            var updatedGateway = _plan.Gateway;
             var joinResult = await _gatewayClient.JoinRoomAsync(
-                sessionToken: _plan.GatewaySessionToken,
-                region: _plan.GatewayRegion,
-                serverId: _plan.GatewayServerId,
-                roomId: string.IsNullOrWhiteSpace(result.RoomId) ? _plan.NumericRoomId.ToString() : result.RoomId);
+                sessionToken: updatedGateway.SessionToken,
+                region: updatedGateway.Region,
+                serverId: updatedGateway.ServerId,
+                roomId: string.IsNullOrWhiteSpace(result.RoomId) ? updatedGateway.NumericRoomId.ToString() : result.RoomId);
 
-            var wid = new WorldId(_plan.WorldId);
+            var wid = new WorldId(_plan.World.WorldId);
             if (joinResult.WorldStartAnchor.ServerTickFrequency != 0)
             {
                 _gatewayWorldStartAnchors[wid] = joinResult.WorldStartAnchor;
@@ -97,15 +103,17 @@ namespace AbilityKit.Game.Flow
 
             StartTimeSyncLoop();
 
-            Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={_plan.NumericRoomId}");
+            Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={_plan.Gateway.NumericRoomId}");
         }
 
         private async Task JoinGatewayRoomAsync()
         {
-            var joinRoomId = _plan.GatewayJoinRoomId;
+            var world = _plan.World;
+            var gateway = _plan.Gateway;
+            var joinRoomId = gateway.JoinRoomId;
             if (string.IsNullOrWhiteSpace(joinRoomId))
             {
-                joinRoomId = _plan.NumericRoomId != 0 ? _plan.NumericRoomId.ToString() : _plan.WorldId;
+                joinRoomId = gateway.NumericRoomId != 0 ? gateway.NumericRoomId.ToString() : world.WorldId;
             }
             if (string.IsNullOrWhiteSpace(joinRoomId))
             {
@@ -114,12 +122,12 @@ namespace AbilityKit.Game.Flow
 
             Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom... roomId='{joinRoomId}'");
             var result = await _gatewayClient.JoinRoomAsync(
-                sessionToken: _plan.GatewaySessionToken,
-                region: _plan.GatewayRegion,
-                serverId: _plan.GatewayServerId,
+                sessionToken: gateway.SessionToken,
+                region: gateway.Region,
+                serverId: gateway.ServerId,
                 roomId: joinRoomId);
 
-            var tmpWid = new WorldId(_plan.WorldId);
+            var tmpWid = new WorldId(world.WorldId);
             if (result.WorldStartAnchor.ServerTickFrequency != 0)
             {
                 _gatewayWorldStartAnchors[tmpWid] = result.WorldStartAnchor;

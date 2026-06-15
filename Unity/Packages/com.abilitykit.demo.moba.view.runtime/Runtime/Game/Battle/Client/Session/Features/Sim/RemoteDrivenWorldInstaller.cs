@@ -68,7 +68,7 @@ namespace AbilityKit.Game.Flow
                 plan,
                 fixedDeltaSeconds,
                 inputDelayFrames,
-                plan.EnableClientPrediction,
+                plan.Authority.EnableClientPrediction,
                 _ => handles.Consumable,
                 _ => ctx != null ? ctx.LocalInputQueue : null,
                 resolveIdealFrameLimit,
@@ -100,7 +100,7 @@ namespace AbilityKit.Game.Flow
 
         private static int ResolveInputDelay(BattleStartPlan plan)
         {
-            return SessionSimRuntimeTuning.NormalizeInputDelayFrames(plan.InputDelayFrames);
+            return SessionSimRuntimeTuning.NormalizeInputDelayFrames(plan.World.InputDelayFrames);
         }
     }
 }

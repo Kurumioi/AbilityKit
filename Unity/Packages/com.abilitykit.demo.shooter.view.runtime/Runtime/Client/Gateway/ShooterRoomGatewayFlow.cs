@@ -300,9 +300,90 @@ namespace AbilityKit.Demo.Shooter.View
             Message = message ?? string.Empty;
         }
 
+        public ShooterRoomGatewayLaunchSummary ToSummary()
+        {
+            return new ShooterRoomGatewayLaunchSummary(
+                RoomId,
+                NumericRoomId,
+                BattleId,
+                WorldId,
+                PlayerId,
+                TargetFrame,
+                CatchUpFrames,
+                EntryKind,
+                CanStart,
+                Started,
+                Subscribed,
+                Message);
+        }
+
         public ShooterGatewayBattleInputContext CreateBattleInputContext(int frame)
         {
             return new ShooterGatewayBattleInputContext(SessionToken, BattleId, WorldId, frame, PlayerId);
         }
+    }
+
+    public readonly struct ShooterRoomGatewayLaunchSummary
+    {
+        public ShooterRoomGatewayLaunchSummary(
+            string roomId,
+            ulong numericRoomId,
+            string battleId,
+            ulong worldId,
+            uint playerId,
+            int targetFrame,
+            int catchUpFrames,
+            ShooterRoomGatewayEntryKind entryKind,
+            bool canStart,
+            bool started,
+            bool subscribed,
+            string message)
+        {
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            BattleId = battleId ?? string.Empty;
+            WorldId = worldId;
+            PlayerId = playerId;
+            TargetFrame = targetFrame;
+            CatchUpFrames = catchUpFrames;
+            EntryKind = entryKind;
+            CanStart = canStart;
+            Started = started;
+            Subscribed = subscribed;
+            Message = message ?? string.Empty;
+        }
+
+        public string RoomId { get; }
+
+        public ulong NumericRoomId { get; }
+
+        public string BattleId { get; }
+
+        public ulong WorldId { get; }
+
+        public uint PlayerId { get; }
+
+        public int TargetFrame { get; }
+
+        public int CatchUpFrames { get; }
+
+        public ShooterRoomGatewayEntryKind EntryKind { get; }
+
+        public bool CanStart { get; }
+
+        public bool Started { get; }
+
+        public bool Subscribed { get; }
+
+        public string Message { get; }
+
+        public bool IsRunningEntry => EntryKind == ShooterRoomGatewayEntryKind.Reconnect || EntryKind == ShooterRoomGatewayEntryKind.LateJoin;
+
+        public bool IsClosed => !string.IsNullOrWhiteSpace(RoomId)
+            && !string.IsNullOrWhiteSpace(BattleId)
+            && WorldId != 0UL
+            && PlayerId != 0U
+            && Started
+            && Subscribed;
     }
 }

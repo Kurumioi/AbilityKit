@@ -165,11 +165,11 @@ public sealed class ShooterDemoHarnessCarrierTests
     }
 
     [Fact]
-    public void HybridCarrierDeclaresDegradedForHybridProfileAndSupportedForPredictRollback()
+    public void HybridCarrierRequiresHybridControllerForHybridProfileAndSupportsPredictRollbackInterop()
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
-        var controller = new ShooterClientPredictRollbackSyncController(
+        var controller = new ShooterClientHybridHeroPredictionSyncController(
             runtime,
             presentation,
             tickRate: 30,
@@ -183,19 +183,39 @@ public sealed class ShooterDemoHarnessCarrierTests
         var predict = carrier.Supports(NetworkSyncProfiles.PredictRollback, NetworkConditionProfile.Ideal);
         var interpolation = carrier.Supports(NetworkSyncProfiles.AuthoritativeInterpolation, NetworkConditionProfile.Ideal);
 
-        Assert.Equal(SyncDemoCapabilityStatus.Degraded, hybrid.Status);
-        Assert.Contains("predict-rollback", hybrid.Reason);
+        Assert.Equal(SyncDemoCapabilityStatus.Supported, hybrid.Status);
         Assert.Equal(SyncDemoCapabilityStatus.Supported, predict.Status);
         Assert.Equal(SyncDemoCapabilityStatus.Unsupported, interpolation.Status);
         Assert.Contains("hybrid or predict-rollback", interpolation.Reason);
     }
 
     [Fact]
-    public void HybridCarrierRunsThroughDemoHarnessWithDegradedStatus()
+    public void HybridCarrierRejectsHybridProfileWhenBackedByPredictRollbackController()
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
         var controller = new ShooterClientPredictRollbackSyncController(
+            runtime,
+            presentation,
+            tickRate: 30,
+            decoder: null,
+            gateway: null);
+        var start = StartPayload("harness-hybrid-rejects-predict");
+        Assert.True(controller.StartGame(in start));
+        var carrier = new ShooterHybridDemoHarnessCarrier(controller);
+
+        var hybrid = carrier.Supports(NetworkSyncProfiles.HybridHeroPrediction, NetworkConditionProfile.Ideal);
+
+        Assert.Equal(SyncDemoCapabilityStatus.Unsupported, hybrid.Status);
+        Assert.Contains("HybridHeroPrediction controller", hybrid.Reason);
+    }
+
+    [Fact]
+    public void HybridCarrierRunsThroughDemoHarnessToCompletion()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = new ShooterClientHybridHeroPredictionSyncController(
             runtime,
             presentation,
             tickRate: 30,
@@ -217,8 +237,7 @@ public sealed class ShooterDemoHarnessCarrierTests
 
         var result = runner.Run(in scenario, carrier);
 
-        // Hybrid runs in Degraded mode (all entities via predict-rollback), but still completes.
-        Assert.Equal(DemoHarnessRunStatus.Degraded, result.Status);
+        Assert.Equal(DemoHarnessRunStatus.Completed, result.Status);
         Assert.True(result.Completed);
         Assert.Equal(3, result.Metrics.StepsRun);
         Assert.Equal(3, result.Metrics.TotalTicks);

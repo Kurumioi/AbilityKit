@@ -113,7 +113,7 @@ namespace AbilityKit.Game.Flow
         private void OnEnterGameSnapshot(EnterMobaGameRes res)
         {
             if (_ctx == null) return;
-            _inputController?.ApplySkillButtonTemplates(res, _ctx.Plan.PlayerId);
+            _inputController?.ApplySkillButtonTemplates(res, _ctx.Plan.World.PlayerId);
         }
 
         private void OnDamageEventSnapshot(MobaDamageEventSnapshotEntry[] entries)

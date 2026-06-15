@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using ET.AbilityKit.Demo.ET.Share;
 using BattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
@@ -6,20 +6,15 @@ using BattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
 namespace ET.Logic
 {
     /// <summary>
-    /// ETBattleComponent System
-    /// ??????
-    ///
-    /// ?? ETMobaBattleDriver + HostRuntime + WorldManager ??? moba.core
+    /// ETBattleComponent system.
+    /// Drives the ET-hosted MOBA battle loop through ETMobaBattleDriver, HostRuntime and WorldManager.
     /// </summary>
     [EntitySystemOf(typeof(ETBattleComponent))]
     [FriendOf(typeof(ETBattleComponent))]
     [FriendOf(typeof(ETUnitComponent))]
     [FriendOf(typeof(ETUnit))]
     [FriendOf(typeof(ETInputComponent))]
-    [FriendOf(typeof(ETFlowComponent))]
-    [FriendOf(typeof(ETSessionComponent))]
     [FriendOf(typeof(ETMobaBattleDriver))]
-    [FriendOf(typeof(ETBattleAutoTestComponent))]
     public static partial class ETBattleComponentSystem
     {
         #region Lifecycle
@@ -37,34 +32,43 @@ namespace ET.Logic
             if (self.State != BattleState.InProgress)
                 return;
 
-            // 1. Process auto test (generates move commands to ETInputComponent)
             var currentFrame = self.BattleDriver?.CurrentFrame ?? 0;
             Log.Debug($"[ETBattleComponentSystem.Update] Frame={currentFrame}, State={self.State}");
-            ETBattleDriverBridge.ProcessAutoTest(self, currentFrame);
 
-            // 2. Process skill test (generates skill commands to ETInputComponent)
-            ETBattleDriverBridge.ProcessSkillTest(self, currentFrame);
-
-            // 3. Tick the battle driver
+            // Tick the battle driver.
             //    - PreTickPhase: 递增帧号
             //    - ProcessETInputPhase: 从 ETInputComponent 读取命令并提交到 IWorldInputSink
             //    - DriveWorldPhase: 驱动 moba.core 执行命令
             //    - CollectSnapshotPhase: 收集实体状态快照
             //    - DispatchSnapshotPhase: 分发快照到视图层
-            if (self.BattleDriver is ETMobaBattleDriver driver)
+            if (self.BattleDriver != null)
             {
                 float deltaTime = 1f / self.TickRate;
-                Log.Debug($"[ETBattleComponentSystem.Update] Calling driver.Tick, Frame={driver.CurrentFrame}, DeltaTime={deltaTime:F4}");
-                driver.Tick(deltaTime);
+                Log.Debug($"[ETBattleComponentSystem.Update] Calling driver.Tick, Frame={self.BattleDriver.CurrentFrame}, DeltaTime={deltaTime:F4}");
+                self.BattleDriver.Tick(deltaTime);
             }
 
-            // 4. Advance frame (check battle end, send tick event)
+            // Advance frame (check battle end, send tick event)
             self.AdvanceFrame();
         }
 
         [EntitySystem]
         private static void Destroy(this ETBattleComponent self)
         {
+            if (self.BattleDriver != null)
+            {
+                if (self.BattleDriver.IsRunning)
+                {
+                    self.BattleDriver.Stop();
+                }
+
+                self.BattleDriver.Destroy();
+                self.BattleDriver = null;
+            }
+
+            self.BattleHost = null;
+            self.ViewSink = null;
+            self.State = BattleState.Ended;
             Log.Info("[ETBattle] ETBattleComponent destroyed");
         }
 
@@ -78,7 +82,8 @@ namespace ET.Logic
         /// <param name="self">Battle component</param>
         /// <param name="plan">Battle start plan</param>
         /// <param name="textAssetLoader">Config loader for View layer</param>
-        public static void InitializeBattle(this ETBattleComponent self, BattleStartPlan plan, ITextAssetLoader textAssetLoader)
+        /// <param name="playerSpawnData">Explicit player loadouts required by formal MOBA world startup.</param>
+        public static void InitializeBattle(this ETBattleComponent self, BattleStartPlan plan, ITextAssetLoader textAssetLoader, IReadOnlyList<ETPlayerSpawnData> playerSpawnData = null)
         {
             self.BattleId = IdGenerater.Instance.GenerateId();
             self.PlayerId = plan.PlayerId;
@@ -89,18 +94,30 @@ namespace ET.Logic
 
             var scene = self.Scene();
 
-            // Create components
-            var unitComponent = scene.AddComponent<ETUnitComponent>();
-            var inputComponent = scene.AddComponent<ETInputComponent>();
-            var flowComponent = scene.AddComponent<ETFlowComponent>();
-            var sessionComponent = scene.AddComponent<ETSessionComponent>();
+            // Create runtime components used by the active ET battle loop.
+            scene.AddComponent<ETUnitComponent>();
+            scene.AddComponent<ETInputComponent>();
 
-            // Create BattleDriver with HostRuntime + WorldManager
-            var battleDriver = scene.AddComponent<ETMobaBattleDriver>();
-            self.BattleDriver = battleDriver;
+            // Create ET host component and platform-independent battle driver adapter.
+            var battleHost = scene.AddComponent<ETMobaBattleDriver>();
+            self.BattleHost = battleHost;
+            self.BattleDriver = new ETMobaBattleRuntimeDriver(battleHost);
 
-            // 必须手动调用 Awake 来注册 Handlers
-            battleDriver.Awake();
+            battleHost.EnsureSnapshotHandlersRegistered();
+
+            if (playerSpawnData != null && playerSpawnData.Count > 0)
+            {
+                battleHost.PlayerSpawnData.Clear();
+                battleHost.PlayerSpawnData.AddRange(playerSpawnData);
+                Log.Info($"[ETBattle] Preloaded player spawn data: Count={battleHost.PlayerSpawnData.Count}");
+            }
+            else
+            {
+                var defaultSpawnData = PlayerSpawnBuilder.BuildSpawnListFromConfig(textAssetLoader, plan.PlayerId);
+                battleHost.PlayerSpawnData.Clear();
+                battleHost.PlayerSpawnData.AddRange(defaultSpawnData);
+                Log.Info($"[ETBattle] Built default player spawn data from config: Count={battleHost.PlayerSpawnData.Count}");
+            }
 
             // Create Entity Cache Component for ET.View
             var cacheComponent = scene.AddComponent<ETBattleEntityCacheComponent>();
@@ -108,7 +125,7 @@ namespace ET.Logic
             // Create ET View Event Sink and pass to BattleDriver
             var viewSink = new ETBattleViewEventSink(self);
             viewSink.InitializeCache(cacheComponent);
-            battleDriver.Initialize(plan, viewSink);
+            self.BattleDriver.Initialize(plan, viewSink);
 
             self.State = BattleState.Ready;
             Log.Info($"[ETBattle] Battle {self.BattleId} ready!");
@@ -138,7 +155,7 @@ namespace ET.Logic
                 return;
             }
 
-            if (self.BattleDriver is ETMobaBattleDriver driver && !driver.RuntimeGameStarted)
+            if (self.BattleHost != null && !self.BattleHost.RuntimeGameStarted)
             {
                 Log.Warning("[ETBattle] Cannot start battle before runtime game start succeeds");
                 return;
@@ -146,40 +163,11 @@ namespace ET.Logic
 
             self.State = BattleState.InProgress;
 
-            var session = self.Scene().GetComponent<ETSessionComponent>();
-            if (session != null)
-            {
-                session.IsActive = true;
-                session.StartTimeSeconds = Environment.TickCount64;
-            }
-
-            // Start battle driver
+            // Start battle driver. Runtime view sink owns battle lifecycle notifications.
             ETBattleDriverBridge.Start(self);
 
             Log.Info($"[ETBattle] Battle {self.BattleId} started!");
             Log.Info("====================================");
-
-            // Create AutoTest component (will be initialized in OnEnterGameSnapshot)
-            var scene = self.Scene();
-            var autoTest = scene.AddComponent<ETBattleAutoTestComponent>();
-            autoTest.MoveIntervalFrames = BattleTestConfig.DefaultMoveIntervalFrames;
-            autoTest.MoveSpeed = BattleTestConfig.DefaultMoveSpeed;
-            autoTest.Enable();
-            Log.Info($"[ETBattle] AutoTest component created");
-
-            // Create SkillTest component
-            var skillTest = scene.AddComponent<ETBattleSkillTestComponent>();
-            skillTest.SkillIntervalFrames = BattleTestConfig.DefaultSkillIntervalFrames * 2; // Every 8 seconds at 30fps
-            skillTest.SkillSlot = BattleTestConfig.DefaultSkillSlot;
-            skillTest.Enable();
-            Log.Info($"[ETBattle] SkillTest component created");
-
-            // Notify battle start
-            self.ViewSink?.OnBattleStart(new BattleStartEvent()
-            {
-                BattleId = self.BattleId,
-                PlayerId = self.PlayerId
-            });
         }
 
         /// <summary>
@@ -192,13 +180,7 @@ namespace ET.Logic
 
             self.State = BattleState.Ended;
 
-            var session = self.Scene().GetComponent<ETSessionComponent>();
-            if (session != null)
-            {
-                session.IsActive = false;
-            }
-
-            // Stop battle driver
+            // Stop battle driver. Runtime view sink owns battle lifecycle notifications.
             ETBattleDriverBridge.Stop(self);
 
             Log.Info("====================================");
@@ -206,13 +188,6 @@ namespace ET.Logic
             Log.Info($"[ETBattle] Result: {(isVictory ? "VICTORY" : "DEFEAT")}");
             Log.Info($"[ETBattle] Duration: {self.LogicTimeSeconds:F1}s");
             Log.Info("====================================");
-
-            // Notify battle end
-            self.ViewSink?.OnBattleEnd(new BattleEndEvent()
-            {
-                BattleId = self.BattleId,
-                IsVictory = isVictory
-            });
         }
 
         #endregion

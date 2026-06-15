@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
@@ -13,7 +14,7 @@ public sealed class ShooterPlaySessionRunnerTests
     [Fact]
     public void StartNormalizesOptionsAndPublishesSessionChange()
     {
-        var input = new ScriptedInputSource(new ShooterPlayFrameInput(1f, 0f, 0f, 1f, false));
+        var input = new ScriptedInputSource(new ShooterHostFrameInput(1f, 0f, 0f, 1f, false));
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         var changes = new List<bool>();
@@ -52,8 +53,8 @@ public sealed class ShooterPlaySessionRunnerTests
     public void TickUsesFixedStepInputAndRendersLatestSnapshot()
     {
         var input = new ScriptedInputSource(
-            new ShooterPlayFrameInput(1f, 0f, 0f, 1f, false),
-            new ShooterPlayFrameInput(0f, 1f, 0f, 1f, true));
+            new ShooterHostFrameInput(1f, 0f, 0f, 1f, false),
+            new ShooterHostFrameInput(0f, 1f, 0f, 1f, true));
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         runner.Start(new ShooterPlayModeSessionOptions(
@@ -101,7 +102,7 @@ public sealed class ShooterPlaySessionRunnerTests
     [Fact]
     public void StopClearsViewAndPublishesNullSession()
     {
-        var input = new ScriptedInputSource(new ShooterPlayFrameInput(0f, 0f, 0f, 1f, false));
+        var input = new ScriptedInputSource(new ShooterHostFrameInput(0f, 0f, 0f, 1f, false));
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         var changes = new List<bool>();
@@ -119,7 +120,7 @@ public sealed class ShooterPlaySessionRunnerTests
     [Fact]
     public void ApplyNetworkCanRunBeforeAndAfterStart()
     {
-        var input = new ScriptedInputSource(new ShooterPlayFrameInput(0f, 0f, 0f, 1f, false));
+        var input = new ScriptedInputSource(new ShooterHostFrameInput(0f, 0f, 0f, 1f, false));
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
 
@@ -133,34 +134,34 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.NotEmpty(view.Frames);
     }
 
-    private sealed class ScriptedInputSource : IShooterPlayInputSource
+    private sealed class ScriptedInputSource : IShooterHostInputSource
     {
-        private readonly Queue<ShooterPlayFrameInput> _inputs;
+        private readonly Queue<ShooterHostFrameInput> _inputs;
 
-        public ScriptedInputSource(params ShooterPlayFrameInput[] inputs)
+        public ScriptedInputSource(params ShooterHostFrameInput[] inputs)
         {
-            _inputs = new Queue<ShooterPlayFrameInput>(inputs);
+            _inputs = new Queue<ShooterHostFrameInput>(inputs);
         }
 
         public int ReadCount { get; private set; }
         public List<int> ControlledPlayerIds { get; } = new();
 
-        public ShooterPlayFrameInput ReadInput(int controlledPlayerId)
+        public ShooterHostFrameInput ReadInput(int controlledPlayerId)
         {
             ReadCount++;
             ControlledPlayerIds.Add(controlledPlayerId);
             return _inputs.Count > 0
                 ? _inputs.Dequeue()
-                : new ShooterPlayFrameInput(0f, 0f, 0f, 1f, false);
+                : new ShooterHostFrameInput(0f, 0f, 0f, 1f, false);
         }
     }
 
-    private sealed class RecordingViewSink : IShooterPlayViewSink
+    private sealed class RecordingViewSink : IShooterHostViewSink
     {
-        public List<ShooterPlayPresentationFrame> Frames { get; } = new();
+        public List<ShooterHostPresentationFrame> Frames { get; } = new();
         public int ClearCount { get; private set; }
 
-        public void Render(in ShooterPlayPresentationFrame frame)
+        public void Render(in ShooterHostPresentationFrame frame)
         {
             Frames.Add(frame);
         }

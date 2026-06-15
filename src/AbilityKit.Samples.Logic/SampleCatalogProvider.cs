@@ -1,9 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic
@@ -14,6 +11,16 @@ namespace AbilityKit.Samples.Logic
     public static class SampleCatalogProvider
     {
         public static SampleCatalog CreateCatalog()
+        {
+            return CreateCatalog(includeAttributeOnly: false, includeLegacy: false);
+        }
+
+        public static SampleCatalog CreateDevelopmentCatalog()
+        {
+            return CreateCatalog(includeAttributeOnly: true, includeLegacy: true);
+        }
+
+        public static SampleCatalog CreateCatalog(bool includeAttributeOnly, bool includeLegacy)
         {
             SampleRegistry.Instance.Initialize();
 
@@ -32,6 +39,7 @@ namespace AbilityKit.Samples.Logic
                         Order = item?.Order ?? attr?.Priority ?? 100
                     };
                 })
+                .Where(x => ShouldInclude(x.Manifest, includeAttributeOnly, includeLegacy))
                 .OrderBy(x => x.Order)
                 .ThenBy(x => x.Type.Name);
 
@@ -43,52 +51,40 @@ namespace AbilityKit.Samples.Logic
                     sample.Manifest?.Tags?.Length > 0 ? sample.Manifest.Tags : sample.Attribute?.Tags ?? Array.Empty<string>(),
                     id: sample.Manifest?.Id,
                     title: sample.Manifest?.Title,
-                    description: sample.Manifest?.Description);
+                    description: sample.Manifest?.Description,
+                    status: sample.Manifest?.Status,
+                    level: sample.Manifest?.Level,
+                    modules: sample.Manifest?.Modules,
+                    next: sample.Manifest?.Next,
+                    guide: sample.Manifest?.Guide,
+                    codeWalkthrough: sample.Manifest?.CodeWalkthrough,
+                    learningContract: sample.Manifest?.LearningContract,
+                    visualFrames: sample.Manifest?.VisualFrames,
+                    inputFields: sample.Manifest?.InputFields,
+                    learningCheckpoints: sample.Manifest?.LearningCheckpoints,
+                    visualTemplate: sample.Manifest?.VisualTemplate,
+                    visualModel: sample.Manifest?.VisualModel,
+                    isManifestEntry: sample.Manifest != null);
             }
 
             return catalog;
         }
 
-        private sealed class SampleManifest
+        private static bool ShouldInclude(SampleManifestItem? manifest, bool includeAttributeOnly, bool includeLegacy)
         {
-            public List<SampleManifestItem> Samples { get; set; } = new();
+            if (manifest == null)
+                return includeAttributeOnly;
 
-            public SampleManifestItem? Find(Type type)
-            {
-                return Samples.FirstOrDefault(x =>
-                    string.Equals(x.Type, type.FullName, StringComparison.Ordinal) ||
-                    string.Equals(x.Type, type.AssemblyQualifiedName, StringComparison.Ordinal));
-            }
+            if (IsStatus(manifest, "Stable") || IsStatus(manifest, "Candidate"))
+                return true;
 
-            public static SampleManifest LoadDefault()
-            {
-                var path = Path.Combine(AppContext.BaseDirectory, "sample-manifest.json");
-                if (!File.Exists(path))
-                    return new SampleManifest();
-
-                try
-                {
-                    var json = File.ReadAllText(path);
-                    return JsonSerializer.Deserialize<SampleManifest>(json, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    }) ?? new SampleManifest();
-                }
-                catch
-                {
-                    return new SampleManifest();
-                }
-            }
+            return includeLegacy && (IsStatus(manifest, "Legacy") || IsStatus(manifest, "Deprecated"));
         }
 
-        private sealed class SampleManifestItem
+        private static bool IsStatus(SampleManifestItem manifest, string status)
         {
-            public string Id { get; set; } = string.Empty;
-            public string Type { get; set; } = string.Empty;
-            public int Order { get; set; } = 100;
-            public string? Title { get; set; }
-            public string? Description { get; set; }
-            public string[] Tags { get; set; } = Array.Empty<string>();
+            return string.Equals(manifest.Status, status, StringComparison.OrdinalIgnoreCase);
         }
+
     }
 }

@@ -13,6 +13,7 @@ namespace ET.Logic
     /// </summary>
     [EntitySystemOf(typeof(ETBattleAutoTestComponent))]
     [FriendOf(typeof(ETBattleAutoTestComponent))]
+    [FriendOf(typeof(ETBattleComponent))]
     [FriendOf(typeof(ETInputComponent))]
     public static partial class ETBattleAutoTestComponentSystem
     {
@@ -24,6 +25,19 @@ namespace ET.Logic
         [EntitySystem]
         private static void Update(this ETBattleAutoTestComponent self)
         {
+            if (!self.IsEnabled)
+            {
+                return;
+            }
+
+            var battleComponent = self.Scene().GetComponent<ETBattleComponent>();
+            if (battleComponent == null || battleComponent.State != BattleState.InProgress)
+            {
+                return;
+            }
+
+            var currentFrame = battleComponent.BattleDriver?.CurrentFrame ?? 0;
+            self.OnUpdate(currentFrame);
         }
 
         [EntitySystem]
@@ -85,7 +99,7 @@ namespace ET.Logic
                 inputComponent.AddMoveCommand(frame, self.TestPlayerId, dx, dz);
                 self.MoveCommandCount++;
 
-                Log.Info($"[ETBattleAutoTest] Move command: Frame={frame}, PlayerId={self.TestPlayerId}, Dir=({dx:F2}, {dz:F2})");
+                Log.Debug($"[ETBattleAutoTest] Move command: Frame={frame}, PlayerId={self.TestPlayerId}, Dir=({dx:F2}, {dz:F2})");
             }
             else
             {
@@ -135,7 +149,7 @@ namespace ET.Logic
 
                 self.MoveDirX = flipX;
                 self.MoveDirZ = flipZ;
-                Log.Info($"[ETBattleAutoTest] Direction flipped: Dir=({flipX:F2}, {flipZ:F2})");
+                Log.Debug($"[ETBattleAutoTest] Direction flipped: Dir=({flipX:F2}, {flipZ:F2})");
             }
         }
 

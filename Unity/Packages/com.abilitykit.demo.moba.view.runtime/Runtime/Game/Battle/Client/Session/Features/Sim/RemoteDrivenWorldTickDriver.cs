@@ -45,7 +45,7 @@ namespace AbilityKit.Game.Flow
             if (inputTargetFrame <= 0) return lastTickedFrame;
 
             var driveTargetFrame = inputTargetFrame;
-            inputSource.DelayFrames = SessionSimRuntimeTuning.NormalizeInputDelayFrames(options.Plan.InputDelayFrames);
+            inputSource.DelayFrames = SessionSimRuntimeTuning.NormalizeInputDelayFrames(options.Plan.World.InputDelayFrames);
 
             if (driveTargetFrame <= 0 || options.StepsBudget <= 0) return lastTickedFrame;
 

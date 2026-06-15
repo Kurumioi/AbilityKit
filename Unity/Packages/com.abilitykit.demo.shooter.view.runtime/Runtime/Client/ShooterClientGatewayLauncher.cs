@@ -191,6 +191,7 @@ namespace AbilityKit.Demo.Shooter.View
             Session = session ?? throw new ArgumentNullException(nameof(session));
             Battle = battle ?? throw new ArgumentNullException(nameof(battle));
             Flow = flow;
+            Summary = flow.ToSummary();
         }
 
         public IShooterRoomGatewayRoomClient RoomClient { get; }
@@ -202,5 +203,7 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientBattleHandle Battle { get; }
 
         public ShooterRoomGatewayFlowResult Flow { get; }
+
+        public ShooterRoomGatewayLaunchSummary Summary { get; }
     }
 }

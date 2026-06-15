@@ -1,72 +1,46 @@
 #nullable enable
 
-using AbilityKit.Demo.Shooter.Runtime;
-using AbilityKit.Network.Runtime.Conditioning;
-using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Demo.Shooter.View.Hosting;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public readonly struct ShooterPlayFrameInput
     {
+        private readonly ShooterHostFrameInput _input;
+
         public ShooterPlayFrameInput(float moveX, float moveY, float aimX, float aimY, bool fire)
+            : this(new ShooterHostFrameInput(moveX, moveY, aimX, aimY, fire))
         {
-            MoveX = moveX;
-            MoveY = moveY;
-            AimX = aimX;
-            AimY = aimY;
-            Fire = fire;
         }
 
-        public float MoveX { get; }
-        public float MoveY { get; }
-        public float AimX { get; }
-        public float AimY { get; }
-        public bool Fire { get; }
-    }
-
-    public readonly struct ShooterPlayPresentationFrame
-    {
-        public ShooterPlayPresentationFrame(
-            ShooterSnapshotViewBatch clientBatch,
-            ShooterSnapshotViewBatch authorityBatch,
-            bool hasAuthorityBatch,
-            int controlledPlayerId,
-            float worldScale,
-            NetworkConditioningStats? carrierNetworkStats,
-            ShooterSnapshotApplyResult? lastCarrierSnapshotApplyResult,
-            SyncTimeAnchor lastCarrierTimeAnchor,
-            ShooterLagCompensationTelemetry? lagCompensationTelemetry)
+        public ShooterPlayFrameInput(ShooterHostFrameInput input)
         {
-            ClientBatch = clientBatch;
-            AuthorityBatch = authorityBatch;
-            HasAuthorityBatch = hasAuthorityBatch;
-            ControlledPlayerId = controlledPlayerId;
-            WorldScale = worldScale;
-            CarrierNetworkStats = carrierNetworkStats;
-            LastCarrierSnapshotApplyResult = lastCarrierSnapshotApplyResult;
-            LastCarrierTimeAnchor = lastCarrierTimeAnchor;
-            LagCompensationTelemetry = lagCompensationTelemetry;
+            _input = input;
         }
 
-        public ShooterSnapshotViewBatch ClientBatch { get; }
-        public ShooterSnapshotViewBatch AuthorityBatch { get; }
-        public bool HasAuthorityBatch { get; }
-        public int ControlledPlayerId { get; }
-        public float WorldScale { get; }
-        public NetworkConditioningStats? CarrierNetworkStats { get; }
-        public ShooterSnapshotApplyResult? LastCarrierSnapshotApplyResult { get; }
-        public SyncTimeAnchor LastCarrierTimeAnchor { get; }
-        public ShooterLagCompensationTelemetry? LagCompensationTelemetry { get; }
+        public float MoveX => _input.MoveX;
+        public float MoveY => _input.MoveY;
+        public float AimX => _input.AimX;
+        public float AimY => _input.AimY;
+        public bool Fire => _input.Fire;
+
+        public ShooterHostFrameInput ToHostInput()
+        {
+            return _input;
+        }
     }
 
-    public interface IShooterPlayInputSource
+    public interface IShooterPlayInputSource : IShooterHostInputSource
     {
-        ShooterPlayFrameInput ReadInput(int controlledPlayerId);
+        new ShooterPlayFrameInput ReadInput(int controlledPlayerId);
+
+        ShooterHostFrameInput IShooterHostInputSource.ReadInput(int controlledPlayerId)
+        {
+            return ReadInput(controlledPlayerId).ToHostInput();
+        }
     }
 
-    public interface IShooterPlayViewSink
+    public interface IShooterPlayViewSink : IShooterHostViewSink
     {
-        void Render(in ShooterPlayPresentationFrame frame);
-        void Clear();
     }
 }

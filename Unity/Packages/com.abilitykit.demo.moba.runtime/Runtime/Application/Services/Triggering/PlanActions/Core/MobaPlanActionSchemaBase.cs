@@ -152,6 +152,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return ActionSchemaRegistry.ResolveNumericRef(arg.Ref, ctx);
         }
 
+        protected static bool TryReadCurrentPayloadNumber(ExecCtx<IWorldResolver> ctx, int fieldId, out double value)
+        {
+            return TryResolvePayloadField(fieldId, ctx, out value);
+        }
+
         private static bool TryResolvePayloadField(int fieldId, ExecCtx<IWorldResolver> ctx, out double value)
         {
             if (ctx.Payloads != null && _currentTriggerArgs != null)

@@ -4,6 +4,7 @@ using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.DemoHarness;
+using AbilityKit.Network.Runtime.LagCompensation;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
@@ -85,14 +86,12 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(expected, batch.ScenarioCount);
         Assert.Equal(expected, batch.Results.Count);
 
-        // PredictRollback + AuthoritativeInterpolation: completed.
-        // HybridHeroPrediction: degraded (all entities via predict-rollback; per-entity split not implemented).
-        // CompletedCount treats both Completed and Degraded as completed (both have Completed==true).
+        // PredictRollback + AuthoritativeInterpolation + HybridHeroPrediction: completed.
         var netCount = ShooterAcceptanceCatalog.NetworkEnvironments.Count;
         Assert.Equal(netCount * 3, batch.CompletedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
-        Assert.Equal(netCount, batch.DegradedCount);
+        Assert.Equal(0, batch.DegradedCount);
         Assert.True(batch.AllCompleted);
 
         // Batch summary should have aggregated rows per (carrier, model, status).
@@ -108,7 +107,7 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(netCount, batch.Summary.CountFor(
             ShooterHybridDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.HybridHeroPrediction,
-            DemoHarnessRunStatus.Degraded));
+            DemoHarnessRunStatus.Completed));
     }
 
     [Fact]
@@ -158,7 +157,7 @@ public sealed class ShooterAcceptanceLabTests
     }
 
     [Fact]
-    public void HybridSessionRunsThroughHarnessWithDegradedResult()
+    public void HybridSessionRunsThroughHarnessToCompletion()
     {
         var session = ShooterAcceptanceLab.Create(
             NetworkSyncModel.HybridHeroPrediction,
@@ -170,8 +169,7 @@ public sealed class ShooterAcceptanceLabTests
 
         var result = session.Run(stepCount: 5, deltaSeconds: 1f / 30f, seed: 19);
 
-        // Hybrid mode runs in Degraded status (all entities predict-rollback).
-        Assert.Equal(DemoHarnessRunStatus.Degraded, result.Status);
+        Assert.Equal(DemoHarnessRunStatus.Completed, result.Status);
         Assert.True(result.Completed);
         Assert.Equal(5, result.Metrics.StepsRun);
         Assert.Equal(session.Runtime.CurrentFrame, result.Metrics.LastFrame);
@@ -211,6 +209,35 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(3, lagCompTelemetry.CapturedFrameCount);
         Assert.Equal(1, lagCompTelemetry.OldestFrame);
         Assert.Equal(3, lagCompTelemetry.LatestFrame);
+    }
+
+    [Fact]
+    public void AuthoritativeWorldValidatesLagCompensationShotFromSessionHistory()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.Ideal,
+            enableAuthoritativeWorld: true);
+        session.TickAuthoritativeWorld(1f / 30f);
+        var shot = new ShooterLagCompensationShot(
+            shooterPlayerId: 1,
+            originX: 0f,
+            originY: 0f,
+            directionX: 1f,
+            directionY: 0f,
+            maxDistance: 10f,
+            rewindFrame: 1,
+            serverReceiveFrame: 1);
+
+        var accepted = session.TryEvaluateLagCompensationShot(in shot, out var evaluation);
+
+        Assert.True(accepted);
+        Assert.True(evaluation.Accepted);
+        Assert.Equal(LagCompensationResultReason.Hit, evaluation.Reason);
+        Assert.Equal(1, evaluation.RequestedFrame);
+        Assert.Equal(1, evaluation.EvaluatedFrame);
+        Assert.Equal(2, evaluation.HitEntityId);
+        Assert.Equal(evaluation, session.LastLagCompensationEvaluation);
     }
 
     [Fact]

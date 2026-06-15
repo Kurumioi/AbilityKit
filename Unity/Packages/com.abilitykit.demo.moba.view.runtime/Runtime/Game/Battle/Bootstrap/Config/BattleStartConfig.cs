@@ -239,106 +239,14 @@ namespace AbilityKit.Game.Flow
                 authorityMode: ResolveAuthorityMode());
         }
 
+        public BattleStartPlan BuildPlan(in EnterMobaGameReq req, byte[] createWorldPayload, int createWorldOpCode, MobaBattleLaunchSpec launchSpec = default)
+        {
+            return BattleStartPlanAssembler.BuildPlan(this, in req, createWorldPayload, createWorldOpCode, launchSpec);
+        }
+
         public BattleStartPlanOptions BuildPlanOptions(in EnterMobaGameReq req, byte[] createWorldPayload, int createWorldOpCode, MobaBattleLaunchSpec launchSpec = default)
         {
-            var runModeSo = Preset != null ? Preset.RunModeSO : RunModeSO;
-            var gatewaySo = Preset != null ? Preset.GatewaySO : GatewaySO;
-
-            var runMode = runModeSo != null ? runModeSo.Mode : BattleRunMode.Normal;
-            var enableInputRecording = runMode == BattleRunMode.Record;
-            var enableInputReplay = runMode == BattleRunMode.Replay;
-
-            var recordDirectory = runModeSo != null ? runModeSo.RecordOutputDirectory : "battle_records";
-            if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
-
-            var recordExt = (runModeSo != null && runModeSo.RecordFormat == BattleRunModeConfigSO.InputRecordFormat.Binary) ? "bin" : "json";
-            var recordFileName = $"battle_record_{DateTime.Now:yyyyMMdd_HHmmss}.{recordExt}";
-            var recordPath = Path.Combine(recordDirectory, recordFileName);
-            if (!Path.IsPathRooted(recordPath)) recordPath = Path.Combine(Application.persistentDataPath, recordPath);
-
-            var replayPath = runModeSo != null ? runModeSo.ReplayInputFilePath : string.Empty;
-
-            if (RuntimeOverrides != null)
-            {
-                if (RuntimeOverrides.HasRecordOutputDirectory) recordDirectory = RuntimeOverrides.RecordOutputDirectory;
-                if (RuntimeOverrides.HasReplayInputFilePath) replayPath = RuntimeOverrides.ReplayInputFilePath;
-            }
-
-            if (string.IsNullOrEmpty(recordDirectory)) recordDirectory = "battle_records";
-            recordPath = Path.Combine(recordDirectory, recordFileName);
-            if (!Path.IsPathRooted(recordPath)) recordPath = Path.Combine(Application.persistentDataPath, recordPath);
-
-            var hostMode = Preset != null ? Preset.HostMode : HostMode;
-            var gateway = gatewaySo;
-            if (hostMode == BattleHostMode.GatewayRemote && gateway == null)
-            {
-                throw new InvalidOperationException("GatewaySO is required when HostMode is GatewayRemote.");
-            }
-
-            var numericRoomId = gateway != null ? gateway.NumericRoomId : 0;
-            var joinRoomId = gateway != null ? gateway.JoinRoomId : string.Empty;
-            if (RuntimeOverrides != null && RuntimeOverrides.HasNumericRoomId) numericRoomId = RuntimeOverrides.NumericRoomId;
-            if (RuntimeOverrides != null && RuntimeOverrides.HasGatewayJoinRoomId) joinRoomId = RuntimeOverrides.GatewayJoinRoomId;
-
-            var gatewayOptions = new BattleStartPlanGatewayOptions(
-                useGatewayTransport: gateway != null && gateway.UseGatewayTransport,
-                host: gateway != null ? gateway.Host : "127.0.0.1",
-                port: gateway != null ? gateway.Port : 4000,
-                numericRoomId: numericRoomId,
-                sessionToken: gateway != null ? gateway.SessionToken : string.Empty,
-                region: gateway != null ? gateway.Region : "dev",
-                serverId: gateway != null ? gateway.ServerId : "local",
-                autoCreateRoom: gateway != null && gateway.AutoCreateRoom,
-                autoJoinRoom: gateway != null && gateway.AutoJoinRoom,
-                joinRoomId: joinRoomId,
-                createRoomOpCode: gateway != null ? gateway.CreateRoomOpCode : 110,
-                joinRoomOpCode: gateway != null ? gateway.JoinRoomOpCode : 111);
-
-            var autoConnect = Preset != null ? Preset.AutoConnect : AutoConnect;
-            var autoCreateWorld = Preset != null ? Preset.AutoCreateWorld : AutoCreateWorld;
-            var autoJoin = Preset != null ? Preset.AutoJoin : AutoJoin;
-            var autoReady = Preset != null ? Preset.AutoReady : AutoReady;
-
-            var autoOptions = new BattleStartPlanAutoOptions(autoConnect, autoCreateWorld, autoJoin, autoReady);
-
-            var runModeOptions = new BattleStartPlanRunModeOptions(
-                runMode: runMode,
-                enableInputRecording: enableInputRecording,
-                inputRecordOutputPath: recordPath,
-                enableInputReplay: enableInputReplay,
-                inputReplayPath: replayPath);
-
-            var createWorldOptions = new BattleStartPlanCreateWorldOptions(createWorldOpCode, createWorldPayload);
-
-            var timeSyncOptions = new BattleStartPlanTimeSyncOptions(
-                opCode: gateway != null ? gateway.TimeSyncOpCode : 1300u,
-                intervalMs: gateway != null ? gateway.TimeSyncIntervalMs : 1000,
-                alpha: gateway != null ? gateway.TimeSyncAlpha : 0.20,
-                timeoutMs: gateway != null ? gateway.TimeSyncTimeoutMs : 2000,
-                idealFrameSafetyConstMarginFrames: gateway != null ? gateway.IdealFrameSafetyConstMarginFrames : 2,
-                idealFrameSafetyRttFactor: gateway != null ? gateway.IdealFrameSafetyRttFactor : 1.0,
-                idealFrameSafetyMinMarginFrames: gateway != null ? gateway.IdealFrameSafetyMinMarginFrames : 0,
-                idealFrameSafetyMaxMarginFrames: gateway != null ? gateway.IdealFrameSafetyMaxMarginFrames : 30);
-
-            return new BattleStartPlanOptions(
-                worldId: GetEffectiveWorldId(),
-                worldType: Preset != null ? Preset.WorldType : WorldType,
-                clientId: GetEffectiveClientId(),
-                playerId: req.PlayerId.Value,
-                tickRate: req.TickRate,
-                inputDelayFrames: req.InputDelayFrames,
-                hostMode: hostMode,
-                syncMode: Preset != null ? Preset.SyncMode : SyncMode,
-                viewEventSourceMode: Preset != null ? Preset.ViewEventSourceMode : ViewEventSourceMode,
-                enableClientPrediction: Preset != null ? Preset.EnableClientPrediction : EnableClientPrediction,
-                enableConfirmedAuthorityWorld: Preset != null ? Preset.EnableConfirmedAuthorityWorld : EnableConfirmedAuthorityWorld,
-                enabledSnapshotRegistryIds: Preset != null ? Preset.EnabledSnapshotRegistryIds : EnabledSnapshotRegistryIds,
-                gateway: gatewayOptions,
-                auto: autoOptions,
-                runMode: runModeOptions,
-                createWorld: createWorldOptions,
-                timeSync: timeSyncOptions,
-                launchSpec: launchSpec);
+            return BattleStartPlanAssembler.BuildPlanOptions(this, in req, createWorldPayload, createWorldOpCode, launchSpec);
         }
 
         private int GetEffectiveGameplayId()

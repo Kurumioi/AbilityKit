@@ -7,12 +7,14 @@ namespace AbilityKit.Game.Flow
     {
         public static PlayerId ResolvePlayerId(in BattleStartPlan plan)
         {
-            return new PlayerId(string.IsNullOrEmpty(plan.PlayerId) ? "p1" : plan.PlayerId);
+            var playerId = plan.World.PlayerId;
+            return new PlayerId(string.IsNullOrEmpty(playerId) ? "p1" : playerId);
         }
 
         public static WorldId ResolveWorldId(in BattleStartPlan plan)
         {
-            return new WorldId(string.IsNullOrEmpty(plan.WorldId) ? "room_1" : plan.WorldId);
+            var worldId = plan.World.WorldId;
+            return new WorldId(string.IsNullOrEmpty(worldId) ? "room_1" : worldId);
         }
     }
 }

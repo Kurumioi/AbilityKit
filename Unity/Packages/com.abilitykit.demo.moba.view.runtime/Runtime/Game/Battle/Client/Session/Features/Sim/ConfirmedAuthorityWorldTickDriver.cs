@@ -83,7 +83,7 @@ namespace AbilityKit.Game.Flow
             var stats = ctx != null ? ctx.PredictionStats : null;
             if (stats == null) return state;
 
-            var wid = new WorldId(plan.WorldId);
+            var wid = new WorldId(plan.World.WorldId);
             if (!stats.TryGetFrames(wid, out var confirmed, out var predicted)) return state;
 
             var confirmedFrame = confirmed.Value;

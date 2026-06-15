@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
@@ -9,138 +7,152 @@ using AbilityKit.Samples.Abstractions;
 namespace AbilityKit.Samples.Logic.Samples.World
 {
     /// <summary>
-    /// World DI 概述 - 演示依赖注入和服务容器
+    /// 演示 WorldContainerBuilder 如何注册和解析 World 内服务。
     /// </summary>
-    [Sample]
+    [Sample(602, "world", "di", "basics", "package-api", "web", "deterministic")]
     public sealed class WorldDIOverview : SampleBase
     {
-        public override string Title => "World DI Overview";
-        public override string Description => "依赖注入容器、生命周期管理、服务注册";
+        public override string Title => "World DI Basics";
+        public override string Description => "使用 WorldContainerBuilder 注册 Singleton、Transient 与 Scoped 服务";
         public override SampleCategory Category => SampleCategory.World;
-
-        private WorldTypeRegistry _registry;
 
         protected override void OnRun()
         {
-            Log("=== World DI 概述 ===");
-            Output.Divider();
-
-            // 1. 服务生命周期
-            Log("【1】服务生命周期");
-            Output.Bullet("Singleton - 单例，整个 World 期间只创建一个实例");
-            Output.Bullet("Transient - 临时，每次 Resolve 都创建新实例");
-            Output.Bullet("Scoped - 作用域，基于 WorldScope 创建");
-            Log("");
-
-            // 2. 定义服务接口和实现
-            Log("【2】定义服务");
-            Log("  public interface IGameService { void Update(); }");
-            Log("  public interface IConfigService { string GetValue(string key); }");
-            Log("");
-
-            // 3. 使用 WorldContainerBuilder 构建
-            Log("【3】手动构建容器");
-            var builder = new WorldContainerBuilder();
-            builder.RegisterServiceType<IGameService, GameService>(WorldLifetime.Singleton);
-            builder.RegisterServiceType<IConfigService, ConfigService>(WorldLifetime.Transient);
-            builder.RegisterServiceType<IWorldClock, WorldClock>(WorldLifetime.Singleton);
-            builder.RegisterServiceType<DefaultWorldRandom, DefaultWorldRandom>(WorldLifetime.Singleton);
-
-            var container = builder.Build();
-            Log("已注册 4 个服务");
-            Log("");
-
-            // 4. 解析服务
-            Log("【4】解析服务");
-            var gameService1 = container.Resolve<IGameService>();
-            var gameService2 = container.Resolve<IGameService>();
-
-            Log($"Singleton 验证: {ReferenceEquals(gameService1, gameService2)}");
-            Log("  (True 表示同一个实例)");
-
-            var configService1 = container.Resolve<IConfigService>();
-            var configService2 = container.Resolve<IConfigService>();
-
-            Log($"Transient 验证: {!ReferenceEquals(configService1, configService2)}");
-            Log("  (True 表示不同实例)");
-            Log("");
-
-            // 5. 使用 WorldManager 管理 World
-            Log("【5】使用 WorldManager");
-            _registry = new WorldTypeRegistry();
-            _registry.Register("GameWorld", options => CreateWorldInstance(container, options));
-            var factory = new RegistryWorldFactory(_registry);
-            var worldManager = new WorldManager(factory);
-
-            var world = worldManager.Create(new WorldCreateOptions
+            Section("构建 World 服务容器");
+            var world = CreateWorld(new WorldCreateOptions
             {
-                Id = new WorldId("game-world-1"),
-                WorldType = "GameWorld"
+                Id = new WorldId("di-world"),
+                WorldType = "TrainingWorld"
             });
 
-            Log($"创建 World: {world.Id.Value}");
-            Log($"WorldType: {world.WorldType}");
-            Log("");
+            world.Initialize();
+            KeyValue("WorldId", world.Id.Value);
+            KeyValue("Initialized", ((DiWorld)world).Initialized.ToString());
 
-            // 6. 从 World 解析服务
-            Log("【6】从 World 解析服务");
-            var serviceFromWorld = world.Services.Resolve<IGameService>();
-            Log($"从 World 获取 IGameService: {serviceFromWorld != null}");
-            Log("");
+            Divider();
+            Section("Singleton 与 Transient 生命周期");
+            var rulesA = world.Services.Resolve<ICombatRuleService>();
+            var rulesB = world.Services.Resolve<ICombatRuleService>();
+            var requestA = world.Services.Resolve<RequestTrace>();
+            var requestB = world.Services.Resolve<RequestTrace>();
 
-            // 7. Tick 驱动
-            Log("【7】Tick 驱动");
-            worldManager.Tick(0.016f);
-            Log("已执行 1 帧 (16ms)");
+            KeyValue("SingletonSame", ReferenceEquals(rulesA, rulesB).ToString());
+            KeyValue("TransientSame", ReferenceEquals(requestA, requestB).ToString());
+            KeyValue("RequestA", requestA.Id.ToString());
+            KeyValue("RequestB", requestB.Id.ToString());
 
-            // 8. 销毁
-            Log("【8】清理资源");
-            worldManager.DisposeAll();
-            Log("所有 World 已销毁");
+            Divider();
+            Section("服务协作与 World Tick");
+            rulesA.ApplyDamage("slime", 25);
+            world.Tick(0.10f);
+            world.Tick(0.15f);
 
-            Output.Divider();
+            var clock = world.Services.Resolve<IWorldClock>();
+            KeyValue("WorldTime", clock.Time.ToString("F2"));
+            KeyValue("DamageLog", rulesA.LastLog);
+
+            Divider();
+            Section("接入 WorldManager");
+            var registry = new WorldTypeRegistry();
+            registry.Register("TrainingWorld", CreateWorld);
+            var manager = new WorldManager(new RegistryWorldFactory(registry));
+            var managed = manager.Create(new WorldCreateOptions
+            {
+                Id = new WorldId("managed-di-world"),
+                WorldType = "TrainingWorld"
+            });
+            KeyValue("ManagedWorld", managed.Id.Value);
+            manager.DisposeAll();
+            world.Dispose();
+
+            Divider();
+            Section("这个示例实际接入的包能力");
+            Bullet("WorldContainerBuilder：注册 World 内服务和业务服务。 ");
+            Bullet("WorldLifetime.Singleton：同一个 World 内复用同一个服务实例。 ");
+            Bullet("WorldLifetime.Transient：每次 Resolve 创建新的短生命周期对象。 ");
+            Bullet("IWorldResolver：业务从 World.Services 中解析依赖。 ");
         }
 
-        private IWorld CreateWorldInstance(WorldContainer container, WorldCreateOptions options)
+        private static IWorld CreateWorld(WorldCreateOptions options)
         {
-            return new SimpleWorldInstance(options.Id, options.WorldType, container);
-        }
-    }
+            var builder = new WorldContainerBuilder();
+            builder.RegisterServiceType<IWorldClock, WorldClock>(WorldLifetime.Singleton);
+            builder.RegisterServiceType<IWorldLogger, NullWorldLogger>(WorldLifetime.Singleton);
+            builder.RegisterType<ICombatRuleService, CombatRuleService>(WorldLifetime.Singleton);
+            builder.Register<RequestTrace>(WorldLifetime.Transient, _ => new RequestTrace());
 
-    // 示例服务定义
-    public interface IGameService
-    {
-        void Update();
-    }
-
-    public interface IConfigService
-    {
-        string GetValue(string key);
-    }
-
-    public sealed class GameService : IGameService
-    {
-        private int _frameCount;
-
-        public void Update()
-        {
-            _frameCount++;
+            return new DiWorld(options.Id, options.WorldType, builder.Build());
         }
 
-        public int FrameCount => _frameCount;
-    }
-
-    public sealed class ConfigService : IConfigService
-    {
-        private readonly Dictionary<string, string> _config = new Dictionary<string, string>
+        private interface ICombatRuleService
         {
-            { "game.title", "AbilityKit Demo" },
-            { "game.version", "1.0.0" }
-        };
+            string LastLog { get; }
+            void ApplyDamage(string targetId, int amount);
+        }
 
-        public string GetValue(string key)
+        private sealed class CombatRuleService : ICombatRuleService
         {
-            return _config.TryGetValue(key, out var value) ? value : null;
+            public string LastLog { get; private set; } = "none";
+
+            public void ApplyDamage(string targetId, int amount)
+            {
+                LastLog = $"{targetId} takes {amount} damage";
+            }
+        }
+
+        private sealed class RequestTrace
+        {
+            private static int _nextId;
+
+            public RequestTrace()
+            {
+                Id = ++_nextId;
+            }
+
+            public int Id { get; }
+        }
+
+        private sealed class DiWorld : IWorld
+        {
+            private readonly IWorldResolver _services;
+            private bool _disposed;
+
+            public DiWorld(WorldId id, string worldType, IWorldResolver services)
+            {
+                Id = id;
+                WorldType = worldType;
+                _services = services;
+            }
+
+            public WorldId Id { get; }
+            public string WorldType { get; }
+            public IWorldResolver Services => _services;
+            public bool Initialized { get; private set; }
+
+            public void Initialize()
+            {
+                Initialized = true;
+            }
+
+            public void Tick(float deltaTime)
+            {
+                _services.Resolve<IWorldClock>().Tick(deltaTime);
+            }
+
+            public void Dispose()
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+
+                if (_services is System.IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
     }
 }

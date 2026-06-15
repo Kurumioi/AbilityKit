@@ -70,7 +70,7 @@ namespace AbilityKit.Game.Flow
     {
         public BattleViewEventSourceMode Resolve(BattleContext ctx)
         {
-            return ctx != null ? ctx.Plan.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly;
+            return ctx != null ? ctx.Plan.Sync.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly;
         }
 
         public bool ShouldUseTriggerAdapter(BattleViewEventSourceMode mode)

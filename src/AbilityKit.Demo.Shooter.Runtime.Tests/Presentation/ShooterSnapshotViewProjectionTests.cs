@@ -395,6 +395,172 @@ public sealed class ShooterSnapshotViewProjectionTests
         Assert.Equal(1, projectedSink.LastApplyResult.AddedEntities);
     }
 
+    [Fact]
+    public void SnapshotStreamKeepsBoundedRecentBatchesAndSamplesByFrame()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 2);
+        var first = CreateBatch(frame: 1, sequence: 1ul);
+        var second = CreateBatch(frame: 2, sequence: 2ul);
+        var third = CreateBatch(frame: 3, sequence: 3ul);
+
+        stream.Publish(in first);
+        stream.Publish(in second);
+        stream.Publish(in third);
+
+        Assert.Equal(2, stream.BufferedSnapshotCount);
+        Assert.True(stream.TrySample(playbackFrame: 1.5f, out var sampledOldest));
+        Assert.Equal(2, sampledOldest.Frame);
+        Assert.True(stream.TrySample(playbackFrame: 99f, out var sampledLatest));
+        Assert.Equal(3, sampledLatest.Frame);
+    }
+
+    [Fact]
+    public void SnapshotStreamAdvancesDelayedPlaybackWithoutRepeatingSameSequence()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4)
+        {
+            PlaybackFramesPerSecond = 10f,
+            InterpolationDelayFrames = 1f
+        };
+        var first = CreateBatch(frame: 10, sequence: 10ul);
+        var second = CreateBatch(frame: 11, sequence: 11ul);
+        var third = CreateBatch(frame: 12, sequence: 12ul);
+
+        stream.Publish(in first);
+        stream.Publish(in second);
+        stream.Publish(in third);
+
+        Assert.True(stream.TryAdvancePlayback(0f, out var initial));
+        Assert.Equal(11, initial.Frame);
+        Assert.False(stream.TryAdvancePlayback(0f, out _));
+        Assert.True(stream.TryAdvancePlayback(0.1f, out var advanced));
+        Assert.Equal(12, advanced.Frame);
+    }
+
+    [Fact]
+    public void SnapshotStreamInterpolatesTransformAndStepsDiscreteComponentsByDefaultPolicy()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4);
+        var first = CreateBatch(frame: 10, sequence: 10ul, x: 0f, hp: 100, score: 1);
+        var second = CreateBatch(frame: 20, sequence: 20ul, x: 10f, hp: 50, score: 9);
+
+        stream.Publish(in first);
+        stream.Publish(in second);
+
+        Assert.True(stream.TrySample(playbackFrame: 15f, out var sampled, out var isContinuousSample));
+        Assert.True(isContinuousSample);
+        Assert.Single(sampled.TransformChanges);
+        Assert.Equal(5f, sampled.TransformChanges[0].X);
+        Assert.Single(sampled.HealthChanges);
+        Assert.Equal(100, sampled.HealthChanges[0].Hp);
+        Assert.Single(sampled.ScoreChanges);
+        Assert.Equal(1, sampled.ScoreChanges[0].Score);
+    }
+
+    [Fact]
+    public void SnapshotStreamCanDisableTransformInterpolationThroughPolicy()
+    {
+        var policy = new ShooterSnapshotSamplingPolicy(new ShooterSnapshotSamplingPolicyOptions
+        {
+            TransformMode = ShooterSnapshotComponentSamplingMode.Step
+        });
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4, policy);
+        var first = CreateBatch(frame: 10, sequence: 10ul, x: 0f);
+        var second = CreateBatch(frame: 20, sequence: 20ul, x: 10f);
+
+        stream.Publish(in first);
+        stream.Publish(in second);
+
+        Assert.True(stream.TrySample(playbackFrame: 15f, out var sampled, out var isContinuousSample));
+        Assert.False(isContinuousSample);
+        Assert.Equal(0f, sampled.TransformChanges[0].X);
+    }
+
+    [Fact]
+    public void SnapshotViewBinderConsumesBufferedSnapshotsOnInterpolationTick()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4)
+        {
+            PlaybackFramesPerSecond = 30f,
+            InterpolationDelayFrames = 0f
+        };
+        var presentation = new ShooterPresentationFacade(
+            new ShooterGatewaySnapshotDecoder(),
+            new ShooterSnapshotViewAdapter(),
+            stream);
+        var sink = new RecordingSnapshotViewSink();
+        using var binder = new ShooterSnapshotViewBinder(presentation, sink);
+        var batch = CreateBatch(frame: 5, sequence: 5ul);
+
+        presentation.Snapshots.Publish(in batch);
+
+        Assert.Equal(0, sink.ApplyCount);
+        Assert.True(binder.HasBufferedSnapshots);
+
+        binder.TickInterpolation(0f);
+
+        Assert.Equal(1, sink.ApplyCount);
+        Assert.Equal(5, sink.LastFrame);
+    }
+
+    [Fact]
+    public void SnapshotViewBinderCanBypassInterpolationForImmediateSync()
+    {
+        var presentation = new ShooterPresentationFacade();
+        var sink = new RecordingSnapshotViewSink();
+        using var binder = new ShooterSnapshotViewBinder(presentation, sink)
+        {
+            InterpolationEnabled = false
+        };
+        var batch = CreateBatch(frame: 6, sequence: 6ul);
+
+        presentation.Snapshots.Publish(in batch);
+
+        Assert.Equal(1, sink.ApplyCount);
+        Assert.Equal(6, sink.LastFrame);
+    }
+
+    private static ShooterSnapshotViewBatch CreateBatch(int frame, ulong sequence)
+    {
+        return CreateBatch(frame, sequence, frame, hp: null, score: null);
+    }
+
+    private static ShooterSnapshotViewBatch CreateBatch(int frame, ulong sequence, float x, int? hp = null, int? score = null)
+    {
+        var player = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1);
+        return new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame,
+            sequence,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            new[] { new ShooterViewEntityChange(player, 0, alive: true) },
+            Array.Empty<ShooterViewEntityKey>(),
+            new[] { new ShooterViewTransformComponentChange(player, x, 0f, 1f, 0f, 0f, 0f) },
+            hp.HasValue ? new[] { new ShooterViewHealthComponentChange(player, hp.Value) } : Array.Empty<ShooterViewHealthComponentChange>(),
+            score.HasValue ? new[] { new ShooterViewScoreComponentChange(player, score.Value) } : Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+    }
+
+    private sealed class RecordingSnapshotViewSink : IShooterSnapshotViewSink
+    {
+        public int ApplyCount { get; private set; }
+
+        public int LastFrame { get; private set; }
+
+        public void ApplySnapshot(in ShooterSnapshotViewBatch batch)
+        {
+            ApplyCount++;
+            LastFrame = batch.Frame;
+        }
+
+        public void Clear()
+        {
+            LastFrame = 0;
+        }
+    }
+
     private sealed class RecordingProjectedViewSink : IShooterProjectedViewSink
     {
         public int ApplyCount { get; private set; }

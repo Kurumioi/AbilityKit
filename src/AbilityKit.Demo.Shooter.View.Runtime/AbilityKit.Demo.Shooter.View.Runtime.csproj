@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.cs"
-             Exclude="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.asmdef;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/**/*.cs;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/PlayMode/ShooterPlayModeSessionHost.cs;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/PlayMode/UnityShooterPlayAdapters.cs" />
+             Exclude="../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/**/*.asmdef;../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Game.View.Runtime/AbilityKit.Game.View.Runtime.csproj" />

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Samples.Abstractions
 {
@@ -25,6 +26,40 @@ namespace AbilityKit.Samples.Abstractions
             _environmentFactory = environmentFactory ?? throw new ArgumentNullException(nameof(environmentFactory));
             _config = config;
             _resources = resources;
+        }
+
+        /// <summary>
+        /// Runs samples from a host-neutral request.
+        /// </summary>
+        public IReadOnlyList<SampleExecutionResult> Run(SampleRunRequest request, ILogger output)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+            if (output == null)
+                throw new ArgumentNullException(nameof(output));
+
+            var results = new List<SampleExecutionResult>();
+            switch (request.SelectionKind)
+            {
+                case SampleRunSelectionKind.Index:
+                    if (!request.Index.HasValue)
+                        throw new ArgumentException("Index request must include an index.", nameof(request));
+                    results.Add(RunByIndex(request.Index.Value, output, request.Options));
+                    break;
+                case SampleRunSelectionKind.Id:
+                    results.Add(RunById(request.Id, output, request.Options));
+                    break;
+                case SampleRunSelectionKind.All:
+                    foreach (var entry in _catalog.Entries)
+                    {
+                        results.Add(Run(entry, output, request.Options));
+                    }
+                    break;
+                default:
+                    throw new ArgumentException("Sample run request did not select a sample.", nameof(request));
+            }
+
+            return results;
         }
 
         /// <summary>
@@ -98,7 +133,9 @@ namespace AbilityKit.Samples.Abstractions
                 runOptions.HostKind,
                 _config,
                 _resources,
-                runOptions.OutputDirectory);
+                runOptions.OutputDirectory,
+                runOptions.HostCapabilities,
+                runOptions.Inputs);
 
             try
             {

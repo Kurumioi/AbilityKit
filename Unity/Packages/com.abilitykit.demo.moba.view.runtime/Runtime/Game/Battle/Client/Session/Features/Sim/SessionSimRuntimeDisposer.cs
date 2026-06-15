@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                handles.RemoteDriven.DestroyWorld(new WorldId(plan.WorldId));
+                handles.RemoteDriven.DestroyWorld(new WorldId(plan.World.WorldId));
                 handles.Confirmed.DestroyWorld(ConfirmedAuthorityWorldId.Create(plan));
             }
             catch (Exception ex)

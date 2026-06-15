@@ -22,6 +22,17 @@ namespace AbilityKit.Samples
                 return 0;
             }
 
+            if (cli.ValidateManifest)
+            {
+                var report = SampleManifestValidator.Validate();
+                foreach (var line in report.ToLines())
+                {
+                    Console.WriteLine(line);
+                }
+
+                return report.HasErrors ? 1 : 0;
+            }
+
             var runner = new SampleRunner(cli.ToRunOptions());
             RegisterSamples(runner);
 
@@ -38,17 +49,13 @@ namespace AbilityKit.Samples
                 return 0;
             }
 
-            if (cli.RunAll)
+            var request = cli.ToRunRequest();
+            if (request != null)
             {
-                var passed = runner.RunAll();
-                return passed == runner.AllSamples.Count ? 0 : 1;
+                var passed = runner.Run(request);
+                var expected = request.SelectionKind == SampleRunSelectionKind.All ? runner.AllSamples.Count : 1;
+                return passed == expected ? 0 : 1;
             }
-
-            if (cli.RunIndex.HasValue)
-                return runner.Run(cli.RunIndex.Value) ? 0 : 1;
-
-            if (!string.IsNullOrWhiteSpace(cli.RunId))
-                return runner.Run(cli.RunId) ? 0 : 1;
 
             RunInteractive(runner);
             return 0;
@@ -109,11 +116,11 @@ namespace AbilityKit.Samples
             Console.WriteLine("  dotnet run --project src/AbilityKit.Samples -- --all --file --output sample-output");
             Console.WriteLine();
             Console.WriteLine("Recommended path:");
-            Console.WriteLine("  Start with the Onboarding category. Menu indexes are temporary; stable ids are configured in sample-manifest.json.");
+            Console.WriteLine("  The default menu lists manifest Stable/Candidate entries. Indexes are temporary; stable ids are configured in sample-manifest.json.");
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  --help                 Show usage.");
-            Console.WriteLine("  --list                 Print sample menu and exit.");
+            Console.WriteLine("  --list                 Print official manifest sample menu and exit.");
             Console.WriteLine("  --run <index>          Run one sample by index.");
             Console.WriteLine("  --id <stable-id>       Run one sample by manifest id.");
             Console.WriteLine("  --all                  Run all samples.");
@@ -122,6 +129,7 @@ namespace AbilityKit.Samples
             Console.WriteLine("  --output <directory>   Output directory for file logs.");
             Console.WriteLine("  --web [directory]      Export a static web page. No HTTP server required.");
             Console.WriteLine("  --no-console           Disable console sample output.");
+            Console.WriteLine("  --validate-manifest    Validate manifest, formal catalog, and output contract quality gates.");
         }
 
         private sealed class SampleCliOptions
@@ -136,6 +144,22 @@ namespace AbilityKit.Samples
             public bool WriteFile { get; private set; }
             public string OutputDirectory { get; private set; } = "sample-output";
             public string WebOutputDirectory { get; private set; } = string.Empty;
+            public bool ValidateManifest { get; private set; }
+
+            public SampleRunRequest? ToRunRequest()
+            {
+                var options = ToRunOptions();
+                if (RunAll)
+                    return SampleRunRequest.All(options);
+
+                if (RunIndex.HasValue)
+                    return SampleRunRequest.ByIndex(RunIndex.Value, options);
+
+                if (!string.IsNullOrWhiteSpace(RunId))
+                    return SampleRunRequest.ById(RunId, options);
+
+                return null;
+            }
 
             public SampleRunOptions ToRunOptions()
             {
@@ -143,6 +167,7 @@ namespace AbilityKit.Samples
                 {
                     ExecutionMode = Mode,
                     HostKind = SampleHostKind.Console,
+                    HostCapabilities = SampleHostCapabilities.ForHost(SampleHostKind.Console),
                     WriteConsole = WriteConsole,
                     WriteFile = WriteFile,
                     OutputDirectory = OutputDirectory
@@ -176,6 +201,10 @@ namespace AbilityKit.Samples
                     else if (arg.Equals("--no-console", StringComparison.OrdinalIgnoreCase))
                     {
                         options.WriteConsole = false;
+                    }
+                    else if (arg.Equals("--validate-manifest", StringComparison.OrdinalIgnoreCase))
+                    {
+                        options.ValidateManifest = true;
                     }
                     else if (ReadValue(args, ref i, "--run", out var runValue) && int.TryParse(runValue, out var index))
                     {

@@ -4,8 +4,7 @@ using ET.AbilityKit.Demo.ET.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// Input component System
-    /// 对应 Moba.Console ConsoleInputFeature
+    /// Input component system for converting buffered ET commands into battle runtime input.
     ///
     /// 设计说明：
     /// - 作为状态同步客户端，只负责输入采集和转发

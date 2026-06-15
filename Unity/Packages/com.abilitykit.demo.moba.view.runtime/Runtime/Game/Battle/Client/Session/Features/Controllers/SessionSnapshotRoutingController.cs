@@ -84,8 +84,9 @@ namespace AbilityKit.Game.Flow
 
         private static ISet<string> CreateEnabledRegistrySet(BattleStartPlan plan)
         {
-            return plan.EnabledSnapshotRegistryIds != null && plan.EnabledSnapshotRegistryIds.Length > 0
-                ? new HashSet<string>(plan.EnabledSnapshotRegistryIds, StringComparer.Ordinal)
+            var registryIds = plan.Sync.EnabledSnapshotRegistryIds;
+            return registryIds != null && registryIds.Length > 0
+                ? new HashSet<string>(registryIds, StringComparer.Ordinal)
                 : null;
         }
 

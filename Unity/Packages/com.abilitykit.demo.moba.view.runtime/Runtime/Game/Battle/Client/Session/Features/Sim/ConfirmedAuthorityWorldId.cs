@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Flow
 
         public static WorldId Create(BattleStartPlan plan)
         {
-            return new WorldId((plan.WorldId ?? DefaultWorldId) + Suffix);
+            return new WorldId((plan.World.WorldId ?? DefaultWorldId) + Suffix);
         }
     }
 }

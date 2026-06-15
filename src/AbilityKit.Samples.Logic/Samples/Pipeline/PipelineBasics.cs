@@ -42,6 +42,9 @@ namespace AbilityKit.Samples.Logic.Samples.Pipeline
             context.SetData("targetValid", true);
             context.SetData("manaCost", 30f);
             context.SetData("currentMana", 50f);
+            KeyValue("CodePipeline.InitialTargetValid", context.GetData<bool>("targetValid").ToString());
+            KeyValue("CodePipeline.InitialMana", context.GetData<float>("currentMana").ToString());
+            KeyValue("CodePipeline.ManaCost", context.GetData<float>("manaCost").ToString());
 
             var pipeline = new InstantAbilityPipeline<SamplePipelineContext>();
 
@@ -86,6 +89,9 @@ namespace AbilityKit.Samples.Logic.Samples.Pipeline
             Log("开始执行技能管线:");
             var result = pipeline.RunToCompletion(new SamplePipelineConfig(), context);
             Log($"管线结束，状态: {result.State}");
+            KeyValue("CodePipeline.ResultState", result.State.ToString());
+            KeyValue("CodePipeline.LastPhase", result.LastPhaseId.ToString());
+            KeyValue("CodePipeline.FinalMana", context.GetData<float>("currentMana").ToString());
         }
 
         /// <summary>
@@ -106,6 +112,8 @@ namespace AbilityKit.Samples.Logic.Samples.Pipeline
             Log($"\n选择管线: [{pipelineDef.Id}] {pipelineDef.Name}");
             Log($"描述: {pipelineDef.Description}");
             Log($"阶段数量: {pipelineDef.Phases.Count}");
+            KeyValue("ConfigPipeline.Id", pipelineDef.Id.ToString());
+            KeyValue("ConfigPipeline.PhaseCount", pipelineDef.Phases.Count.ToString());
 
             foreach (var phase in pipelineDef.Phases)
             {
@@ -158,10 +166,14 @@ namespace AbilityKit.Samples.Logic.Samples.Pipeline
             Log("\n执行管线:");
             var result = pipeline.RunToCompletion(new SamplePipelineConfig(), context);
             Log($"\n结果: {result.State}");
+            KeyValue("ConfigPipeline.ResultState", result.State.ToString());
+            KeyValue("ConfigPipeline.LastPhase", result.LastPhaseId.ToString());
 
             Log("\n执行后:");
             Log($"  魔法值: {context.GetData<float>("currentMana")}");
             Log($"  冷却中: {context.GetData<bool>("isOnCooldown")}");
+            KeyValue("ConfigPipeline.FinalMana", context.GetData<float>("currentMana").ToString());
+            KeyValue("ConfigPipeline.IsOnCooldown", context.GetData<bool>("isOnCooldown").ToString());
         }
     }
 

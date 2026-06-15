@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            var wid = new WorldId(flowCtx.Plan.WorldId);
+            var wid = new WorldId(flowCtx.Plan.World.WorldId);
 
             if (flowCtx.PredictionStats.TryGetReconcileEnabled(wid, out var enabled))
             {
@@ -60,7 +60,7 @@ namespace AbilityKit.Game.Editor
 
             if (flowCtx.PredictionReconcileControl != null)
             {
-                var swid = flowCtx.HasRuntimeWorldId ? flowCtx.RuntimeWorldId : new WorldId(flowCtx.Plan.WorldId);
+                var swid = flowCtx.HasRuntimeWorldId ? flowCtx.RuntimeWorldId : new WorldId(flowCtx.Plan.World.WorldId);
 
                 if (flowCtx.PredictionReconcileControl.TryGetReconcileEnabled(swid, out var swEnabled))
                 {
@@ -77,7 +77,7 @@ namespace AbilityKit.Game.Editor
                         flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
                     }
 
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
+                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
                 }
 
                 if (GUILayout.Button("关闭对账"))
@@ -89,7 +89,7 @@ namespace AbilityKit.Game.Editor
                         flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
                     }
 
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.WorldId));
+                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
                 }
 
                 if (GUILayout.Button("开启对账"))

@@ -22,8 +22,10 @@ namespace ET.Logic
 
         public static MobaBattleLaunchSpec BuildLaunchSpec(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
         {
+            ValidatePlan(plan);
+
             var loadouts = BuildLoadouts(plan, playerSpawnData);
-            var worldId = plan.WorldId > 0 ? plan.WorldId.ToString() : $"et_world_{Environment.TickCount}";
+            var worldId = plan.WorldId.ToString();
             var matchId = worldId;
             var localPlayerId = plan.PlayerId > 0
                 ? new PlayerId(plan.PlayerId.ToString())
@@ -34,17 +36,46 @@ namespace ET.Logic
                 launchMode: MobaBattleLaunchMode.EtServer,
                 syncMode: ToLaunchSyncMode(plan.SyncMode),
                 authorityMode: ToLaunchAuthorityMode(plan.HostMode),
-                tickRate: plan.TickRate > 0 ? plan.TickRate : 30,
-                inputDelayFrames: 0);
+                tickRate: plan.TickRate,
+                inputDelayFrames: plan.InputDelayFrames);
 
             return MobaBattleLaunchSpecBuilder.FromLoadouts(
                 battleId: matchId,
                 localPlayerId: localPlayerId,
-                mapId: plan.MapId > 0 ? plan.MapId : 1,
+                mapId: plan.MapId,
                 players: loadouts,
                 profile: in profile,
                 matchId: matchId,
-                worldId: worldId);
+                worldId: worldId,
+                gameplayId: plan.GameplayId);
+        }
+
+        private static void ValidatePlan(BattleStartPlan plan)
+        {
+            if (plan.WorldId <= 0)
+            {
+                throw new InvalidOperationException("ET battle start requires a positive world id.");
+            }
+
+            if (plan.MapId <= 0)
+            {
+                throw new InvalidOperationException("ET battle start requires a positive map id.");
+            }
+
+            if (plan.GameplayId <= 0)
+            {
+                throw new InvalidOperationException("ET battle start requires a positive gameplay id.");
+            }
+
+            if (plan.TickRate <= 0)
+            {
+                throw new InvalidOperationException("ET battle start requires a positive tick rate.");
+            }
+
+            if (plan.InputDelayFrames < 0)
+            {
+                throw new InvalidOperationException("ET battle start requires a non-negative input delay.");
+            }
         }
 
         private static MobaPlayerLoadout[] BuildLoadouts(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)

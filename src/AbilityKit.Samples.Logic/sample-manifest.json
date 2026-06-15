@@ -5,112 +5,1207 @@
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.AbilityKitOrientation",
       "order": 0,
       "title": "AbilityKit Orientation",
-      "tags": [ "onboarding", "learning-path", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "onboarding", "learning-path", "web", "deterministic", "beginner" ],
+      "next": [ "onboarding/host-boundary" ],
+      "guide": {
+        "purpose": "先建立 AbilityKit Samples 的整体地图：sample 不是 Demo 资产堆砌，而是按学习路径解释框架能力。",
+        "observe": "观察输出中如何区分框架定位、宿主边界、学习路径和后续 sample 的推荐顺序。",
+        "takeaway": "真实项目接入时，可以先用 manifest/catalog 管理可展示能力，再逐步接入具体模块。",
+        "visualKind": "flow",
+        "visualSteps": [ "Manifest", "Catalog", "Run Request", "Structured Output", "Host UI" ]
+      }
     },
     {
       "id": "onboarding/host-boundary",
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.PureLogicHostBoundary",
       "order": 1,
       "title": "Pure Logic And Host Boundary",
-      "tags": [ "onboarding", "host", "logic", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "onboarding", "host", "logic", "web", "deterministic", "beginner" ],
+      "next": [ "onboarding/package-composition" ],
+      "guide": {
+        "purpose": "说明纯逻辑 sample 与 Console、Web、Unity、MonoGame 等宿主之间应该保持边界清晰。",
+        "observe": "观察 sample 只依赖抽象环境、日志和上下文，而不是直接写死某个 UI 或引擎 API。",
+        "takeaway": "迁移到游戏项目时，逻辑层保持纯净，宿主只负责输入、渲染、资源和时间推进。",
+        "visualKind": "stack",
+        "visualSteps": [ "Sample Logic", "SampleRuntimeContext", "HostCapabilities", "Console / Web / Unity Adapter" ]
+      }
     },
     {
       "id": "onboarding/package-composition",
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.PackageCompositionPath",
       "order": 2,
       "title": "Package Composition Path",
-      "tags": [ "onboarding", "composition", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "onboarding", "composition", "web", "deterministic", "beginner" ],
+      "next": [ "onboarding/skill-slice" ],
+      "guide": {
+        "purpose": "解释 AbilityKit 不要求一次接入全部模块，而是按玩法需求组合 Tags、Pipeline、Flow、World 等包。",
+        "observe": "观察 sample 如何把包能力拆成可选择的能力层，而不是把所有系统绑成一个巨型框架。",
+        "takeaway": "项目落地时优先选择最小闭环模块，后续再按战斗、同步、回放、表现逐层扩展。",
+        "visualKind": "flow",
+        "visualSteps": [ "Gameplay Need", "Pick Packages", "Compose Sample", "Scale Project" ]
+      }
     },
     {
       "id": "onboarding/skill-slice",
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.FromConceptToSkillSlice",
       "order": 3,
       "title": "From Concept To Skill Slice",
-      "tags": [ "onboarding", "skill-slice", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "GameplayTags", "Pipeline", "Samples.Abstractions" ],
+      "tags": [ "onboarding", "skill-slice", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "onboarding/ui-host", "foundation/hello-world" ],
+      "guide": {
+        "purpose": "用一个小技能切片串起概念、标签判断、阶段执行和结构化输出，让新手看到模块如何协作。",
+        "observe": "观察输入概念如何变成 tag 检查、pipeline 阶段和最终结果，而不是只看零散 API。",
+        "takeaway": "真实技能可以沿着同样链路扩展配置、条件、执行器、表现事件和网络同步。",
+        "visualKind": "timeline",
+        "visualSteps": [ "Concept", "Tag Check", "Pipeline Phase", "Executor Run", "Result Output" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Fireball Pipeline",
+        "description": "把输入参数、标签语义、阶段执行和输出结果组织成可复用的技能执行链路。",
+        "nodes": [
+          { "id": "concept", "label": "Concept", "kind": "input", "description": "技能意图" },
+          { "id": "tag-check", "label": "Tag Check", "kind": "tag", "description": "Ability.Fire" },
+          { "id": "precheck", "label": "PreCheck", "kind": "phase", "description": "目标/法力" },
+          { "id": "consume", "label": "Consume", "kind": "phase", "description": "扣除法力" },
+          { "id": "execute", "label": "Execute", "kind": "phase", "description": "造成伤害" },
+          { "id": "ongoing", "label": "Ongoing", "kind": "phase", "description": "持续标签" },
+          { "id": "output", "label": "Result Output", "kind": "output", "description": "结构化日志" }
+        ],
+        "edges": [
+          { "from": "concept", "to": "tag-check", "label": "request tag" },
+          { "from": "tag-check", "to": "precheck", "label": "build ctx" },
+          { "from": "precheck", "to": "consume", "label": "pass" },
+          { "from": "consume", "to": "execute", "label": "mana -30" },
+          { "from": "execute", "to": "ongoing", "label": "damage 45" },
+          { "from": "ongoing", "to": "output", "label": "emit" }
+        ],
+        "metrics": [
+          { "key": "manaCost", "label": "Mana Cost", "value": "30", "kind": "input" },
+          { "key": "damage", "label": "Damage", "value": "45", "kind": "input" },
+          { "key": "result", "label": "Expected Result", "value": "Hero Mana 50 / Target HP 105", "kind": "output" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习如何把一个技能从概念、标签、阶段执行到结构化输出串成可解释链路。",
+        "capabilities": [ "GameplayTags", "Pipeline", "Structured Output" ],
+        "apiHighlights": [ "GameplayTagManager.RequestTag", "InstantAbilityPipeline.AddPhase", "RunToCompletion", "BufferedSampleLogger.KeyValue" ],
+        "concepts": [ "tag 驱动判断", "阶段化执行", "结果可观察" ],
+        "inputHints": [ "manaCost", "damage", "fireballTag" ],
+        "outputHints": [ "PipelineState", "Caster", "Target", "Events" ],
+        "executionHint": "instant"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "tag-to-context",
+          "title": "理解标签如何进入上下文",
+          "goal": "能说明 fireballTag 为什么不是普通字符串，而是后续阶段共享的玩法语义。",
+          "relatedVisualStep": "Concept",
+          "relatedOutputHint": "AbilityTag",
+          "relatedApis": [ "GameplayTagManager.RequestTag", "SkillCastContext" ],
+          "question": "如果把 fireballTag 从 Ability.Fire.Fireball 改成 Ability.Ice.Frostbolt，哪些输出最应该变化？",
+          "expectedAnswer": "AbilityTag 和围绕技能语义的后续判断应变化；阶段结构仍然由 Pipeline 保持稳定。"
+        },
+        {
+          "id": "phase-responsibility",
+          "title": "识别 Pipeline 阶段职责",
+          "goal": "能把 PreCheck、Consume、Execute、Ongoing 分别对应到检查、扣蓝、伤害和状态变化。",
+          "relatedVisualStep": "Pipeline Phase",
+          "relatedOutputHint": "PipelineState",
+          "relatedApis": [ "InstantAbilityPipeline.AddPhase", "RunToCompletion" ],
+          "question": "为什么不把扣蓝、伤害、状态添加全部写在一个大函数里？",
+          "expectedAnswer": "阶段化后每个步骤可以独立观察、替换、校验和复用，输出也能证明每个阶段确实执行。"
+        },
+        {
+          "id": "output-proves-behavior",
+          "title": "用输出证明代码行为",
+          "goal": "能从结构化日志判断输入参数是否真正影响了运行结果。",
+          "relatedVisualStep": "Result Output",
+          "relatedOutputHint": "Events",
+          "relatedApis": [ "KeyValue", "Target.Has", "Events" ],
+          "question": "默认输入 manaCost=30、damage=45 时，为什么最终应该看到 Hero Mana=50 和 Target Hp=105？",
+          "expectedAnswer": "Hero 初始 Mana=80，Consume 扣除 30 后为 50；TrainingDummy 初始 Hp=150，Execute 造成 45 伤害后为 105。"
+        }
+      ],
+      "inputFields": [
+        {
+          "key": "manaCost",
+          "label": "法力消耗",
+          "type": "number",
+          "defaultValue": "30",
+          "min": "0",
+          "max": "100",
+          "step": "5",
+          "helpText": "未来交互运行时用于验证 Consume 阶段是否扣除足够法力。",
+          "required": true
+        },
+        {
+          "key": "damage",
+          "label": "技能伤害",
+          "type": "number",
+          "defaultValue": "45",
+          "min": "0",
+          "max": "200",
+          "step": "5",
+          "helpText": "未来交互运行时用于验证 Execute 阶段造成的目标生命变化。",
+          "required": true
+        },
+        {
+          "key": "fireballTag",
+          "label": "技能标签",
+          "type": "select",
+          "defaultValue": "Ability.Fire.Fireball",
+          "options": [ "Ability.Fire.Fireball", "Ability.Ice.Frostbolt" ],
+          "helpText": "用于展示 tag 驱动技能语义，后续可映射到不同技能配置。",
+          "required": true
+        }
+      ],
+      "visualFrames": [
+        {
+          "index": 0,
+          "title": "定义技能语义",
+          "visualStep": "Concept",
+          "description": "Fireball 和 Burning 先被建模为 GameplayTag，后续检查、输出和状态展示都引用同一套玩法词汇。",
+          "outputHint": "AbilityTag",
+          "stateChanges": [ "Ability.Fire.Fireball", "State.Burning" ],
+          "highlights": [ "GameplayTagManager", "fireballTag", "burningTag" ]
+        },
+        {
+          "index": 1,
+          "title": "准备施法上下文",
+          "visualStep": "Tag Check",
+          "description": "施法者、目标、法力消耗和伤害被收敛到 SkillCastContext，Pipeline 阶段只读写上下文。",
+          "outputHint": "Caster",
+          "stateChanges": [ "Hero Mana=80", "TrainingDummy Hp=150", "ManaCost=30", "Damage=45" ],
+          "highlights": [ "SkillCastContext", "caster", "target" ]
+        },
+        {
+          "index": 2,
+          "title": "按阶段执行技能",
+          "visualStep": "Pipeline Phase",
+          "description": "PreCheck、Consume、Execute、Ongoing 依次运行，把技能拆成可组合、可观察的阶段。",
+          "outputHint": "构建 Pipeline",
+          "stateChanges": [ "PreCheck passed", "Consume mana", "Apply damage", "Add burning" ],
+          "highlights": [ "InstantAbilityPipeline", "AddPhase", "SkillPhase" ]
+        },
+        {
+          "index": 3,
+          "title": "完成 Pipeline 运行",
+          "visualStep": "Executor Run",
+          "description": "RunToCompletion 统一推进所有阶段，并把最终执行状态写入结构化输出。",
+          "outputHint": "PipelineState",
+          "stateChanges": [ "PipelineState=Completed" ],
+          "highlights": [ "RunToCompletion", "SkillPipelineConfig", "PipelineState" ]
+        },
+        {
+          "index": 4,
+          "title": "观察最终结果",
+          "visualStep": "Result Output",
+          "description": "输出显示 Hero 扣蓝、目标扣血、Burning 状态和事件列表，证明代码确实改变了上下文。",
+          "outputHint": "Events",
+          "stateChanges": [ "Hero Mana=50", "TrainingDummy Hp=105", "Target.Has(State.Burning)=True", "DamageApplied:45", "BurningStarted:3s" ],
+          "highlights": [ "KeyValue", "Events", "Target.Has(State.Burning)" ]
+        }
+      ],
+      "codeWalkthrough": [
+        {
+          "title": "准备玩法词汇和施法上下文",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "startLine": 21,
+          "endLine": 31,
+          "explanation": "这段代码先申请技能与状态标签，再创建施法者、目标和 SkillCastContext。后续 Pipeline 的每个阶段都会读写这个上下文。",
+          "outputHint": "AbilityTag",
+          "visualStep": "Concept"
+        },
+        {
+          "title": "定义技能 Pipeline 阶段",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "startLine": 33,
+          "endLine": 58,
+          "explanation": "这里把 Fireball 拆成 PreCheck、Consume、Execute、Ongoing 四个阶段，每个阶段只负责一件事：检查、扣蓝、造成伤害、添加持续状态。",
+          "outputHint": "构建 Pipeline",
+          "visualStep": "Pipeline Phase"
+        },
+        {
+          "title": "运行 Pipeline 并记录状态",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "startLine": 60,
+          "endLine": 63,
+          "explanation": "RunToCompletion 会按顺序执行前面注册的阶段，并把执行状态写回 result，结构化日志中的 PipelineState 就来自这里。",
+          "outputHint": "PipelineState",
+          "visualStep": "Executor Run"
+        },
+        {
+          "title": "读取最终结果和事件",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "startLine": 65,
+          "endLine": 78,
+          "explanation": "最后读取被修改后的角色属性、状态标签和事件列表，把代码产生的变化转成学习者能直接观察的输出。",
+          "outputHint": "Events",
+          "visualStep": "Result Output"
+        }
+      ]
     },
     {
       "id": "onboarding/ui-host",
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.SampleHostIntegration",
       "order": 4,
       "title": "UI Host Integration",
-      "tags": [ "onboarding", "host", "ui", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "onboarding", "host", "ui", "web", "deterministic", "beginner" ],
+      "next": [ "foundation/hello-world" ],
+      "guide": {
+        "purpose": "展示 UI 宿主如何通过 catalog、run request、logger 和 output contract 运行同一批 sample。",
+        "observe": "观察 UI 选择不直接 new sample，而是通过稳定 id 和统一请求进入执行服务。",
+        "takeaway": "后续 Unity 或 MonoGame 面板可以复用同一请求模型，只替换渲染和交互层。",
+        "visualKind": "flow",
+        "visualSteps": [ "UI Select", "SampleRunRequest", "ExecutionService", "BufferedLogger", "Visual Host" ]
+      }
+    },
+    {
+      "id": "foundation/environment-tick",
+      "type": "AbilityKit.Samples.Logic.Samples.Foundation.EnvironmentTick",
+      "order": 12,
+      "title": "Environment Tick",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "foundation", "environment", "tick", "web", "deterministic", "beginner" ],
+      "next": [ "onboarding/web-timeline-snapshot" ]
+    },
+    {
+      "id": "onboarding/web-timeline-snapshot",
+      "type": "AbilityKit.Samples.Logic.Samples.Onboarding.WebTimelineSnapshot",
+      "order": 13,
+      "title": "Web Timeline Snapshot",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "onboarding", "web", "timeline", "snapshot", "deterministic", "beginner" ],
+      "next": [ "tags/basic-tags" ]
     },
     {
       "id": "foundation/hello-world",
       "type": "AbilityKit.Samples.Logic.Samples.Foundation.HelloWorld",
       "order": 100,
       "title": "Hello World",
-      "tags": [ "foundation", "hello-world", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Samples.Abstractions" ],
+      "tags": [ "foundation", "hello-world", "web", "deterministic", "beginner" ],
+      "next": [ "foundation/environment-tick" ]
+    },
+    {
+      "id": "tags/basic-tags",
+      "type": "AbilityKit.Samples.Logic.Samples.Tags.GameplayTagsOverview",
+      "order": 200,
+      "title": "Gameplay Tags Overview",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "GameplayTags", "Samples.Logic.Config" ],
+      "tags": [ "tags", "gameplay-tags", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "tags/requirements" ],
+      "guide": {
+        "purpose": "用最小示例解释 GameplayTags 如何把字符串玩法语义变成可注册、可匹配、可放入容器的稳定标签对象。",
+        "observe": "重点观察 RequestTag、HasTag、HasTagExact 和容器加减操作的输出差异，理解层级匹配与精确匹配不是一回事。",
+        "takeaway": "真实技能、Buff、目标过滤和状态判断都可以先统一到 tag 词汇，再让后续 Pipeline、Trigger 或 Combat 模块消费。",
+        "visualKind": "flow",
+        "visualSteps": [ "Config Tags", "RequestTag", "Tag Object", "Container", "Hierarchy Match", "Structured Output" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "GameplayTags Learning Flow",
+        "description": "从配置词汇进入 GameplayTagManager，再进入容器查询和结构化输出。",
+        "nodes": [
+          { "id": "config", "label": "Config Tags", "kind": "input", "description": "配置词汇" },
+          { "id": "manager", "label": "RequestTag", "kind": "api", "description": "注册/获取" },
+          { "id": "tag", "label": "GameplayTag", "kind": "value", "description": "ID + NetIndex" },
+          { "id": "container", "label": "Container", "kind": "collection", "description": "HashSet 查询" },
+          { "id": "match", "label": "Hierarchy Match", "kind": "rule", "description": "父子匹配" },
+          { "id": "output", "label": "Output", "kind": "output", "description": "证明结果" }
+        ],
+        "edges": [
+          { "from": "config", "to": "manager", "label": "load/register" },
+          { "from": "manager", "to": "tag", "label": "return tag" },
+          { "from": "tag", "to": "container", "label": "add" },
+          { "from": "container", "to": "match", "label": "HasTag" },
+          { "from": "match", "to": "output", "label": "KeyValue" }
+        ],
+        "metrics": [
+          { "key": "tagCount", "label": "Tag Count", "value": "RegisteredTagCount", "kind": "output" },
+          { "key": "hierarchy", "label": "Hierarchy", "value": "HasTag true / HasTagExact false", "kind": "concept" },
+          { "key": "container", "label": "Container", "value": "Add / Combine / Remove", "kind": "api" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习 GameplayTags 的注册、层级匹配、容器查询和结构化观测方式。",
+        "capabilities": [ "Tag registration", "Hierarchical matching", "GameplayTagContainer", "Structured Output" ],
+        "apiHighlights": [ "GameplayTagManager.RequestTag", "GameplayTag.Matches", "GameplayTagContainer.HasTag", "GameplayTagContainer.HasTagExact" ],
+        "concepts": [ "玩法词汇统一", "父子层级匹配", "精确匹配", "容器化状态判断" ],
+        "inputHints": [ "SampleConfig.LoadTagGroups", "SampleConfig.LoadAndRegisterTags" ],
+        "outputHints": [ "RegisteredTagCount", "Container.Has.Damage", "Hierarchy.Has.DamageFire", "Hierarchy.HasExact.DamageFire" ],
+        "executionHint": "instant"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "request-tag-registers",
+          "title": "理解 RequestTag 的职责",
+          "goal": "能说明 RequestTag 不只是返回字符串，而是通过 GameplayTagManager 注册并返回稳定标签对象。",
+          "relatedVisualStep": "RequestTag",
+          "relatedOutputHint": "RegisteredTagCount",
+          "relatedApis": [ "GameplayTagManager.RequestTag", "GameplayTag.TagName" ],
+          "question": "为什么 sample 不直接用字符串判断 Damage.Fire，而要先 RequestTag？",
+          "expectedAnswer": "RequestTag 会把玩法词汇注册成统一的 GameplayTag，后续匹配、容器查询和网络索引都可以基于同一对象语义。"
+        },
+        {
+          "id": "hierarchy-vs-exact",
+          "title": "区分层级匹配和精确匹配",
+          "goal": "能解释 HasTag(Damage.Fire) 与 HasTagExact(Damage.Fire) 在存在 Damage.Fire.Burning 时为什么可能不同。",
+          "relatedVisualStep": "Hierarchy Match",
+          "relatedOutputHint": "Hierarchy.HasExact.DamageFire",
+          "relatedApis": [ "GameplayTagContainer.HasTag", "GameplayTagContainer.HasTagExact" ],
+          "question": "容器里加入 Damage.Fire.Burning 后，为什么 HasTag(Damage.Fire) 为 True，而 HasTagExact(Damage.Fire) 仍可能为 False？",
+          "expectedAnswer": "HasTag 支持父子层级匹配，子标签能匹配父标签；HasTagExact 只检查容器里是否精确保存了 Damage.Fire。"
+        }
+      ],
+      "visualFrames": [
+        {
+          "index": 0,
+          "title": "加载配置词汇",
+          "visualStep": "Config Tags",
+          "description": "SampleConfig 加载标签组和标签列表，为后续注册提供统一玩法词汇。",
+          "outputHint": "RegisteredTagCount",
+          "stateChanges": [ "LoadTagGroups", "LoadAndRegisterTags" ],
+          "highlights": [ "SampleConfig", "RegisteredTagCount" ]
+        },
+        {
+          "index": 1,
+          "title": "请求标签对象",
+          "visualStep": "RequestTag",
+          "description": "GameplayTagManager.RequestTag 会规范化名称、注册缺失节点，并返回 GameplayTag。",
+          "outputHint": "RequestTag(\"Unit.Hero\")",
+          "stateChanges": [ "Damage.Fire", "Debuff.Stun", "Buff.AttackSpeed" ],
+          "highlights": [ "GameplayTagManager.Instance.RequestTag", "GameplayTag.TagName" ]
+        },
+        {
+          "index": 2,
+          "title": "容器保存运行时状态",
+          "visualStep": "Container",
+          "description": "GameplayTagContainer 用集合保存标签 ID，适合表示角色当前状态或能力要求。",
+          "outputHint": "Container.Count",
+          "stateChanges": [ "Add Damage.Fire", "Add Debuff.Stun" ],
+          "highlights": [ "GameplayTagContainer.Add", "Container.Count" ]
+        },
+        {
+          "index": 3,
+          "title": "观察层级匹配",
+          "visualStep": "Hierarchy Match",
+          "description": "HasTag 会做父子匹配，HasTagExact 只检查精确标签。",
+          "outputHint": "Hierarchy.Has.DamageFire",
+          "stateChanges": [ "HasTag=True", "HasTagExact=False" ],
+          "highlights": [ "HasTag", "HasTagExact" ]
+        }
+      ],
+      "codeWalkthrough": [
+        {
+          "title": "加载并注册标签配置",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "startLine": 26,
+          "endLine": 34,
+          "explanation": "这段代码把配置中的标签组加载出来，并通过 SampleConfig.LoadAndRegisterTags 注册到 GameplayTagManager。",
+          "outputHint": "RegisteredTagCount",
+          "visualStep": "Config Tags"
+        },
+        {
+          "title": "创建标签并放入容器",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "startLine": 49,
+          "endLine": 66,
+          "explanation": "这里用 RequestTag 创建标签对象，再把标签加入 GameplayTagContainer，输出容器数量和父级匹配结果。",
+          "outputHint": "Container.Has.Damage",
+          "visualStep": "Container"
+        },
+        {
+          "title": "比较层级匹配与精确匹配",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "startLine": 68,
+          "endLine": 78,
+          "explanation": "加入 Damage.Fire.Burning 后，HasTag(Damage.Fire) 可以通过层级关系命中，而 HasTagExact(Damage.Fire) 只看精确标签。",
+          "outputHint": "Hierarchy.HasExact.DamageFire",
+          "visualStep": "Hierarchy Match"
+        }
+      ]
+    },
+    {
+      "id": "tags/requirements",
+      "type": "AbilityKit.Samples.Logic.Samples.Tags.TagRequirementsOverview",
+      "order": 201,
+      "title": "Tag Requirements Overview",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "GameplayTags", "Samples.Logic.Config" ],
+      "tags": [ "tags", "requirements", "gameplay-tags", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "pipeline/basic-phases" ]
+    },
+    {
+      "id": "pipeline/basic-phases",
+      "type": "AbilityKit.Samples.Logic.Samples.Pipeline.PipelineBasics",
+      "order": 250,
+      "title": "Pipeline Basics",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Pipeline", "Samples.Logic.Config" ],
+      "tags": [ "pipeline", "phase", "config", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "flow/basics" ],
+      "guide": {
+        "purpose": "用代码构建和配置驱动两种方式解释 Pipeline 如何把一次技能执行拆成可观察、可中止、可替换的阶段。",
+        "observe": "重点观察 SharedData 如何在 PreCheck、Validation、Execute 之间传递，以及 RunToCompletion 如何同步产出 Completed/Failed 状态。",
+        "takeaway": "真实技能可以先用最小即时 Pipeline 表达检查、扣资源和执行效果，再逐步扩展为配置化、对象池和跨帧 Flow。",
+        "visualKind": "flow",
+        "visualSteps": [ "Context", "AddPhase", "PreCheck", "Validation", "Execute", "RunToCompletion", "Result" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Instant Pipeline Basics",
+        "description": "上下文携带共享数据，阶段依次读写，RunToCompletion 同步给出最终状态。",
+        "nodes": [
+          { "id": "context", "label": "Context", "kind": "state", "description": "SharedData" },
+          { "id": "add-phase", "label": "AddPhase", "kind": "api", "description": "注册阶段" },
+          { "id": "precheck", "label": "PreCheck", "kind": "phase", "description": "目标检查" },
+          { "id": "validation", "label": "Validation", "kind": "phase", "description": "资源验证" },
+          { "id": "execute", "label": "Execute", "kind": "phase", "description": "执行效果" },
+          { "id": "run", "label": "RunToCompletion", "kind": "api", "description": "同步执行" },
+          { "id": "result", "label": "Result", "kind": "output", "description": "状态输出" }
+        ],
+        "edges": [
+          { "from": "context", "to": "add-phase", "label": "build" },
+          { "from": "add-phase", "to": "precheck", "label": "phase 1" },
+          { "from": "precheck", "to": "validation", "label": "target ok" },
+          { "from": "validation", "to": "execute", "label": "mana paid" },
+          { "from": "execute", "to": "run", "label": "complete" },
+          { "from": "run", "to": "result", "label": "state" }
+        ],
+        "metrics": [
+          { "key": "initialMana", "label": "Initial Mana", "value": "50", "kind": "input" },
+          { "key": "manaCost", "label": "Mana Cost", "value": "30", "kind": "input" },
+          { "key": "finalMana", "label": "Final Mana", "value": "20", "kind": "output" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习即时 Pipeline 的阶段注册、上下文共享数据、同步执行和结果状态观测。",
+        "capabilities": [ "Instant phase pipeline", "Shared context data", "Abortable execution", "Config driven phase construction" ],
+        "apiHighlights": [ "InstantAbilityPipeline.AddPhase", "InstantAbilityPipeline.RunToCompletion", "IAbilityPipelineContext.GetData", "IAbilityPipelineContext.SetData" ],
+        "concepts": [ "阶段职责拆分", "上下文传递", "同步执行", "配置到执行器映射" ],
+        "inputHints": [ "targetValid", "manaCost", "currentMana", "pipelineDef.Phases" ],
+        "outputHints": [ "CodePipeline.ResultState", "CodePipeline.FinalMana", "ConfigPipeline.PhaseCount", "ConfigPipeline.IsOnCooldown" ],
+        "executionHint": "instant"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "context-shared-data",
+          "title": "理解上下文共享数据",
+          "goal": "能说明 Pipeline 阶段为什么通过 IAbilityPipelineContext 读写 currentMana、manaCost 等运行时数据。",
+          "relatedVisualStep": "Context",
+          "relatedOutputHint": "CodePipeline.FinalMana",
+          "relatedApis": [ "IAbilityPipelineContext.GetData", "IAbilityPipelineContext.SetData" ],
+          "question": "为什么 Validation 阶段扣蓝后，后面的输出能看到 FinalMana=20？",
+          "expectedAnswer": "因为各阶段共享同一个 context，Validation 用 SetData 修改 currentMana，最终输出再从同一个 context 读取。"
+        },
+        {
+          "id": "run-to-completion-state",
+          "title": "理解同步执行结果",
+          "goal": "能解释 RunToCompletion 如何按顺序执行即时阶段，并最终返回 Completed 或 Failed。",
+          "relatedVisualStep": "RunToCompletion",
+          "relatedOutputHint": "CodePipeline.ResultState",
+          "relatedApis": [ "InstantAbilityPipeline.AddPhase", "InstantAbilityPipeline.RunToCompletion" ],
+          "question": "如果某个阶段把 context.IsAborted 设为 true，RunToCompletion 最终应该输出什么状态？",
+          "expectedAnswer": "后续执行会被中止，PipelineState 会变成 Failed，RunResult.State 也会返回 Failed。"
+        }
+      ],
+      "visualFrames": [
+        {
+          "index": 0,
+          "title": "准备运行时上下文",
+          "visualStep": "Context",
+          "description": "SamplePipelineContext 提供 SharedData，让各阶段共享目标、法力和状态信息。",
+          "outputHint": "CodePipeline.InitialMana",
+          "stateChanges": [ "targetValid=True", "currentMana=50", "manaCost=30" ],
+          "highlights": [ "SamplePipelineContext", "SetData" ]
+        },
+        {
+          "index": 1,
+          "title": "注册即时阶段",
+          "visualStep": "AddPhase",
+          "description": "InstantAbilityPipeline.AddPhase 把 PreCheck、Validation、Execute 放入同步执行队列。",
+          "outputHint": "构建并执行管线",
+          "stateChanges": [ "PreCheck", "Validation", "Execute" ],
+          "highlights": [ "InstantAbilityPipeline", "AddPhase" ]
+        },
+        {
+          "index": 2,
+          "title": "阶段读写上下文",
+          "visualStep": "Validation",
+          "description": "Validation 从 context 读取 currentMana 和 manaCost，资源足够时写回扣除后的 currentMana。",
+          "outputHint": "CodePipeline.FinalMana",
+          "stateChanges": [ "currentMana 50 -> 20" ],
+          "highlights": [ "GetData", "SetData", "currentMana" ]
+        },
+        {
+          "index": 3,
+          "title": "同步完成执行",
+          "visualStep": "RunToCompletion",
+          "description": "RunToCompletion 逐阶段执行即时 phase，并把最终状态返回给调用方。",
+          "outputHint": "CodePipeline.ResultState",
+          "stateChanges": [ "PipelineState=Completed", "LastPhase=Execute" ],
+          "highlights": [ "RunToCompletion", "RunResult.State" ]
+        }
+      ],
+      "codeWalkthrough": [
+        {
+          "title": "初始化 Pipeline 上下文",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "startLine": 41,
+          "endLine": 50,
+          "explanation": "这段代码创建 SamplePipelineContext 并写入 targetValid、manaCost、currentMana，后续所有阶段都从这里读取或修改数据。",
+          "outputHint": "CodePipeline.InitialMana",
+          "visualStep": "Context"
+        },
+        {
+          "title": "注册代码构建的即时阶段",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "startLine": 52,
+          "endLine": 88,
+          "explanation": "PreCheck 负责目标检查，Validation 负责资源检查与扣蓝，Execute 负责执行效果；每个阶段只承担一个清晰职责。",
+          "outputHint": "CodePipeline.FinalMana",
+          "visualStep": "AddPhase"
+        },
+        {
+          "title": "同步运行并观察状态",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "startLine": 90,
+          "endLine": 96,
+          "explanation": "RunToCompletion 会重置阶段、设置 Executing 状态、按顺序执行阶段，最后返回 Completed 或 Failed。",
+          "outputHint": "CodePipeline.ResultState",
+          "visualStep": "RunToCompletion"
+        },
+        {
+          "title": "从配置构建阶段链",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "startLine": 105,
+          "endLine": 164,
+          "explanation": "配置模式先读取 phase 定义，再通过 Registry 和 Executor 创建可执行阶段，说明 Pipeline 可以从手写代码逐步升级到数据驱动。",
+          "outputHint": "ConfigPipeline.PhaseCount",
+          "visualStep": "Result"
+        }
+      ]
     },
     {
       "id": "flow/basics",
       "type": "AbilityKit.Samples.Logic.Samples.Flow.FlowBasics",
       "order": 300,
       "title": "Flow Basics",
-      "tags": [ "flow", "package-api", "continuous-drive", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Flow", "Samples.Abstractions" ],
+      "tags": [ "flow", "package-api", "continuous-drive", "web", "deterministic", "beginner" ],
+      "next": [ "flow/sequence-race" ],
+      "guide": {
+        "purpose": "展示 Flow 如何把技能施法拆成检查、扣资源、等待前摇和结算伤害，并由宿主逐帧 Step 推进。",
+        "observe": "重点观察 FlowRunner.Start 后立即进入 Running，后续每帧 Step(delta) 推动 WaitSecondsNode，最终 CastState 被节点修改。",
+        "takeaway": "跨帧技能不应该自己阻塞线程或创建主循环，而应让宿主驱动 FlowRunner，节点只表达业务阶段。",
+        "visualKind": "timeline",
+        "visualSteps": [ "FlowContext", "FlowRunner.Start", "Check", "Consume", "WaitSeconds", "Apply", "Result" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Host Driven Fireball Flow",
+        "description": "FlowContext 保存施法状态，FlowRunner 由宿主帧推进 SequenceNode。",
+        "nodes": [
+          { "id": "context", "label": "FlowContext", "kind": "state", "description": "CastState" },
+          { "id": "runner", "label": "FlowRunner", "kind": "api", "description": "Start + Step" },
+          { "id": "check", "label": "Check", "kind": "node", "description": "法力检查" },
+          { "id": "consume", "label": "Consume", "kind": "node", "description": "Mana -30" },
+          { "id": "wait", "label": "WaitSeconds", "kind": "node", "description": "前摇 0.25s" },
+          { "id": "apply", "label": "Apply", "kind": "node", "description": "TargetHp -45" },
+          { "id": "output", "label": "Result", "kind": "output", "description": "最终状态" }
+        ],
+        "edges": [
+          { "from": "context", "to": "runner", "label": "attach" },
+          { "from": "runner", "to": "check", "label": "enter" },
+          { "from": "check", "to": "consume", "label": "succeeded" },
+          { "from": "consume", "to": "wait", "label": "continue" },
+          { "from": "wait", "to": "apply", "label": "time reached" },
+          { "from": "apply", "to": "output", "label": "emit" }
+        ],
+        "metrics": [
+          { "key": "mana", "label": "Mana", "value": "100 -> 70", "kind": "state" },
+          { "key": "targetHp", "label": "Target HP", "value": "120 -> 75", "kind": "state" },
+          { "key": "frames", "label": "Driven By", "value": "Flow.Frame", "kind": "output" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习 FlowRunner、FlowContext、SequenceNode、WaitSecondsNode 和 ActionNode 如何组成宿主驱动的跨帧技能流程。",
+        "capabilities": [ "Host-driven ticking", "Sequence flow", "Context state sharing", "Timed wait node" ],
+        "apiHighlights": [ "FlowRunner.Start", "FlowRunner.Step", "FlowContext.Set", "SequenceNode", "WaitSecondsNode", "ActionNode" ],
+        "concepts": [ "宿主逐帧推进", "节点组合", "跨帧等待", "上下文共享状态" ],
+        "inputHints": [ "mana=100", "damage=45", "delta=0.1" ],
+        "outputHints": [ "Flow.InitialMana", "Flow.Frame", "Mana", "TargetHp", "CastCompleted" ],
+        "executionHint": "simulated"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "host-driven-step",
+          "title": "理解宿主驱动 Flow",
+          "goal": "能说明为什么 sample 在循环中调用 Step(delta)，而不是在节点内部阻塞等待。",
+          "relatedVisualStep": "FlowRunner.Start",
+          "relatedOutputHint": "Flow.Frame",
+          "relatedApis": [ "FlowRunner.Start", "FlowRunner.Step" ],
+          "question": "WaitSecondsNode 为什么需要多帧后才进入 Apply？",
+          "expectedAnswer": "因为 FlowRunner.Step(delta) 每帧累积时间，WaitSecondsNode 只有在等待时间达到后才返回成功并让 SequenceNode 进入下一个节点。"
+        }
+      ],
+      "visualFrames": [
+        { "index": 0, "title": "准备上下文", "visualStep": "FlowContext", "description": "CastState 写入 FlowContext，后续节点都从同一个上下文读写法力、伤害和目标生命。", "outputHint": "Flow.InitialMana", "stateChanges": [ "Mana=100", "Damage=45", "TargetHp=120" ], "highlights": [ "FlowContext.Set", "CastState" ] },
+        { "index": 1, "title": "启动并逐帧推进", "visualStep": "FlowRunner.Start", "description": "FlowRunner.Start 进入 Running，宿主循环调用 Step(delta) 推进节点。", "outputHint": "Flow.Frame", "stateChanges": [ "Status=Running", "delta=0.1" ], "highlights": [ "FlowRunner", "Step" ] },
+        { "index": 2, "title": "完成结算", "visualStep": "Apply", "description": "等待节点完成后，ActionNode 修改目标生命并标记施法完成。", "outputHint": "CastCompleted", "stateChanges": [ "Mana=70", "TargetHp=75", "CastCompleted=True" ], "highlights": [ "ActionNode", "CastState" ] }
+      ],
+      "codeWalkthrough": [
+        { "title": "创建 FlowContext 和 Runner", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs", "startLine": 19, "endLine": 27, "explanation": "这段代码把 CastState 写入 FlowContext，并启动 FlowRunner。", "outputHint": "Flow.InitialMana", "visualStep": "FlowContext" },
+        { "title": "宿主循环推进 Step", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs", "startLine": 28, "endLine": 37, "explanation": "这里模拟宿主每帧调用 Step(delta)，证明持续流程由外部时间推进。", "outputHint": "Flow.Frame", "visualStep": "FlowRunner.Start" },
+        { "title": "定义 Fireball 节点链", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs", "startLine": 55, "endLine": 82, "explanation": "SequenceNode 串联检查、扣蓝、等待和伤害结算，每个 ActionNode 只修改一部分状态。", "outputHint": "TargetHp", "visualStep": "Apply" }
+      ]
+    },
+    {
+      "id": "flow/sequence-race",
+      "type": "AbilityKit.Samples.Logic.Samples.Flow.SequenceAndRace",
+      "order": 301,
+      "title": "Sequence And Race",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Flow", "Samples.Abstractions" ],
+      "tags": [ "flow", "sequence", "race", "parallel", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "flow/skill-cast-timing" ],
+      "guide": {
+        "purpose": "对比 Sequence、Race、ParallelAll 三种组合器，让新手理解 Flow 不只是线性等待，也能表达竞速和并行汇合。",
+        "observe": "观察同样的 Step(delta) 下，Sequence 按顺序推进，Race 第一个完成分支获胜，ParallelAll 等所有分支完成。",
+        "takeaway": "技能前摇、取消窗口、动画音效并行等待等复杂流程，可以通过组合器表达，而不是写散乱状态机。",
+        "visualKind": "flow",
+        "visualSteps": [ "Start", "Sequence", "Race", "Interrupt Losers", "ParallelAll", "All Complete", "Choose Pattern" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Flow Composer Patterns",
+        "description": "三种组合器展示顺序、竞速和并行汇合的执行语义。",
+        "nodes": [
+          { "id": "start", "label": "Start", "kind": "input", "description": "FlowRunner" },
+          { "id": "sequence", "label": "SequenceNode", "kind": "block", "description": "严格顺序" },
+          { "id": "race", "label": "RaceNode", "kind": "block", "description": "先完成者获胜" },
+          { "id": "interrupt", "label": "Interrupt", "kind": "rule", "description": "取消其他分支" },
+          { "id": "parallel", "label": "ParallelAll", "kind": "block", "description": "等待全部完成" },
+          { "id": "output", "label": "Frame Output", "kind": "output", "description": "LastEvent" }
+        ],
+        "edges": [
+          { "from": "start", "to": "sequence", "label": "ordered" },
+          { "from": "start", "to": "race", "label": "compete" },
+          { "from": "race", "to": "interrupt", "label": "winner" },
+          { "from": "start", "to": "parallel", "label": "join" },
+          { "from": "sequence", "to": "output", "label": "last event" },
+          { "from": "parallel", "to": "output", "label": "all done" }
+        ],
+        "metrics": [
+          { "key": "sequence", "label": "Sequence", "value": "Check -> Cast -> Apply", "kind": "concept" },
+          { "key": "race", "label": "Race", "value": "Fast branch won", "kind": "concept" },
+          { "key": "parallel", "label": "ParallelAll", "value": "Animation/Audio/Hit effect", "kind": "concept" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习 Flow 组合器如何表达顺序、竞速和并行汇合三种常见技能控制流。",
+        "capabilities": [ "Sequential composition", "Race composition", "Parallel completion", "Frame-level observation" ],
+        "apiHighlights": [ "SequenceNode", "RaceNode", "ParallelAllNode", "FlowRunner.Step" ],
+        "concepts": [ "顺序阶段", "先到先赢", "并行汇合", "被动中断" ],
+        "inputHints": [ "maxFrames", "delta=0.1" ],
+        "outputHints": [ "Sequence.Frame", "Race.Frame", "ParallelAll.Frame", "Race.Winner" ],
+        "executionHint": "simulated"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "race-interrupts-losers",
+          "title": "理解 Race 的胜者语义",
+          "goal": "能说明 RaceNode 中第一个完成的分支会决定整体结果，并中断仍在运行的其他分支。",
+          "relatedVisualStep": "Race",
+          "relatedOutputHint": "Race.Winner",
+          "relatedApis": [ "RaceNode", "IFlowNode.Interrupt" ],
+          "question": "为什么 Race 中 Slow branch 不会等到 0.4s 后再完成？",
+          "expectedAnswer": "Fast branch 在 0.2s 完成后 RaceNode 返回结果，并 Interrupt 其他 Running 分支。"
+        }
+      ],
+      "visualFrames": [
+        { "index": 0, "title": "顺序流程", "visualStep": "Sequence", "description": "SequenceNode 只有当前子节点成功后才进入下一个。", "outputHint": "Sequence.Frame", "stateChanges": [ "Check", "Cast", "Apply" ], "highlights": [ "SequenceNode", "LastEvent" ] },
+        { "index": 1, "title": "竞速流程", "visualStep": "Race", "description": "RaceNode 同时推进多个分支，第一个非 Running 状态作为整体结果。", "outputHint": "Race.Winner", "stateChanges": [ "Fast branch won", "Slow branch canceled" ], "highlights": [ "RaceNode", "Interrupt" ] },
+        { "index": 2, "title": "并行汇合", "visualStep": "ParallelAll", "description": "ParallelAllNode 等动画、音效和命中特效分支全部完成。", "outputHint": "ParallelAll.Frame", "stateChanges": [ "Animation done", "Audio done", "Hit effect done" ], "highlights": [ "ParallelAllNode" ] }
+      ],
+      "codeWalkthrough": [
+        { "title": "运行同一个 FlowRunner 模板", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs", "startLine": 38, "endLine": 59, "explanation": "RunFlow 对三种组合器使用同一套 FlowRunner + Step 观察方式，便于对比组合器语义。", "outputHint": "Sequence.Frame", "visualStep": "Start" },
+        { "title": "创建 Race 分支", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs", "startLine": 71, "endLine": 80, "explanation": "Fast branch 等待 0.2s，Slow branch 等待 0.4s，因此 Race 应由 Fast branch 先完成。", "outputHint": "Race.Winner", "visualStep": "Race" },
+        { "title": "创建 ParallelAll 分支", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs", "startLine": 82, "endLine": 94, "explanation": "ParallelAll 只有所有分支都完成后才结束，适合等待多个表现或命中反馈。", "outputHint": "ParallelAll.Frame", "visualStep": "ParallelAll" }
+      ]
+    },
+    {
+      "id": "flow/skill-cast-timing",
+      "type": "AbilityKit.Samples.Logic.Samples.Flow.SkillCastTiming",
+      "order": 302,
+      "title": "Skill Cast Timing",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Flow", "Samples.Abstractions" ],
+      "tags": [ "flow", "skill", "cast", "timing", "race", "cancel", "web", "deterministic", "beginner" ],
+      "next": [ "triggering/basic-event-trigger" ],
+      "guide": {
+        "purpose": "用两个场景展示技能前摇如何由 WaitSecondsNode 与取消请求 Race，解释可取消施法的最小实现方式。",
+        "observe": "观察 CastComplete 最终 Apply 伤害，而 CancelDuringCast 在取消请求触发后进入 Failed/取消结果。",
+        "takeaway": "真实技能的前摇、取消、释放窗口可以被建模成 Flow 组合，而不是分散在 Update 分支中。",
+        "visualKind": "timeline",
+        "visualSteps": [ "Check", "Consume Mana", "Race CastTime", "Cancel Signal", "CastReady", "Apply Or Fail", "Result" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Cancelable Cast Timing",
+        "description": "前摇计时和取消信号在 RaceNode 中竞速，决定技能释放或取消。",
+        "nodes": [
+          { "id": "check", "label": "Check", "kind": "node", "description": "资源检查" },
+          { "id": "consume", "label": "Consume", "kind": "node", "description": "扣蓝" },
+          { "id": "cast-time", "label": "WaitSeconds", "kind": "node", "description": "前摇完成" },
+          { "id": "cancel", "label": "WaitUntil", "kind": "node", "description": "取消请求" },
+          { "id": "race", "label": "RaceNode", "kind": "block", "description": "先完成者决定结果" },
+          { "id": "apply", "label": "Apply", "kind": "output", "description": "伤害或取消" }
+        ],
+        "edges": [
+          { "from": "check", "to": "consume", "label": "mana ok" },
+          { "from": "consume", "to": "race", "label": "casting" },
+          { "from": "cast-time", "to": "race", "label": "ready" },
+          { "from": "cancel", "to": "race", "label": "cancel" },
+          { "from": "race", "to": "apply", "label": "completed/failed" }
+        ],
+        "metrics": [
+          { "key": "castTime", "label": "Cast Time", "value": "0.35s", "kind": "input" },
+          { "key": "cancelAt", "label": "Cancel At", "value": "0.2s", "kind": "input" },
+          { "key": "result", "label": "Scenario Result", "value": "Completed vs Canceled", "kind": "output" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习如何用 Flow 表达前摇、取消请求和释放结算，形成可验证的技能时序。",
+        "capabilities": [ "Cancelable cast", "Timed wait", "External signal wait", "Scenario comparison" ],
+        "apiHighlights": [ "RaceNode", "WaitSecondsNode", "WaitUntilNode", "ActionNode", "FlowRunner.Step" ],
+        "concepts": [ "前摇", "取消窗口", "外部信号", "场景对照" ],
+        "inputHints": [ "castTime=0.35", "cancelAt=0.2", "manaCost=30" ],
+        "outputHints": [ "CastComplete.Completed", "CancelDuringCast.Canceled", "CancelDuringCast.CancelRequested" ],
+        "executionHint": "simulated"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "cancel-signal-bridged",
+          "title": "理解外部取消信号",
+          "goal": "能说明 WaitUntilNode 如何把运行时取消请求接入 Flow，并与前摇计时竞争。",
+          "relatedVisualStep": "Cancel Signal",
+          "relatedOutputHint": "CancelDuringCast.CancelRequested",
+          "relatedApis": [ "WaitUntilNode", "RaceNode" ],
+          "question": "为什么 CancelDuringCast 没有造成伤害？",
+          "expectedAnswer": "取消请求在前摇完成前满足 WaitUntilNode，RaceNode 先走取消分支，后续检查返回 Failed，因此 Apply 阶段不会执行。"
+        }
+      ],
+      "visualFrames": [
+        { "index": 0, "title": "正常释放", "visualStep": "CastReady", "description": "没有取消请求时，WaitSecondsNode 等到前摇完成并进入 Apply。", "outputHint": "CastComplete.Completed", "stateChanges": [ "Mana 100 -> 70", "TargetHp 120 -> 75", "Completed=True" ], "highlights": [ "WaitSecondsNode", "ActionNode" ] },
+        { "index": 1, "title": "取消前摇", "visualStep": "Cancel Signal", "description": "第二个场景在 0.2s 写入 CancelRequested，WaitUntilNode 抢先完成。", "outputHint": "CancelDuringCast.CancelRequested", "stateChanges": [ "CancelRequested=True", "Phase=Canceled" ], "highlights": [ "WaitUntilNode", "CancelRequested" ] },
+        { "index": 2, "title": "对照结果", "visualStep": "Result", "description": "两个场景输出同一组键，便于比较完成、取消、法力和目标生命。", "outputHint": "CancelDuringCast.Canceled", "stateChanges": [ "Completed=True/False", "Canceled=False/True" ], "highlights": [ "KeyValue", "Scenario" ] }
+      ],
+      "codeWalkthrough": [
+        { "title": "运行两个对照场景", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs", "startLine": 18, "endLine": 34, "explanation": "OnRun 先运行正常释放，再运行取消前摇，形成可比较的教学输出。", "outputHint": "CastComplete.Completed", "visualStep": "Result" },
+        { "title": "在帧循环中注入取消", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs", "startLine": 36, "endLine": 71, "explanation": "RunScenario 在指定时间写入 CancelRequested，然后继续 Step，让 Flow 自己处理取消逻辑。", "outputHint": "CancelDuringCast.CancelRequested", "visualStep": "Cancel Signal" },
+        { "title": "Race 前摇和取消", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs", "startLine": 73, "endLine": 127, "explanation": "CreateCastFlow 中 RaceNode 同时等待前摇完成和取消信号，先完成者决定后续状态。", "outputHint": "CancelDuringCast.Canceled", "visualStep": "Race CastTime" }
+      ]
+    },
+    {
+      "id": "triggering/basic-event-trigger",
+      "type": "AbilityKit.Samples.Logic.Samples.Triggering.BasicTrigger",
+      "order": 400,
+      "title": "Basic Event Trigger",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Triggering", "Core.Eventing", "Samples.Abstractions" ],
+      "tags": [ "triggering", "event", "runner", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "triggering/condition-blackboard" ],
+      "guide": {
+        "purpose": "展示 EventBus + TriggerRunner + ITrigger 的最小闭环：发布事件、Evaluate 判断、Execute 修改上下文。",
+        "observe": "重点观察 3 次 hit 事件都会 Evaluate，但只有 damage >= 20 的事件会 Execute 并扣血。",
+        "takeaway": "事件响应、被动技能、命中后效果可以统一建模为触发器，而不是散落在事件回调里。",
+        "visualKind": "flow",
+        "visualSteps": [ "EventKey", "Register Trigger", "Publish Event", "Evaluate", "Execute", "Context Changed", "Result" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Event Trigger Minimum Loop",
+        "description": "EventBus 分发事件，TriggerRunner 构造 ExecCtx 并调用 Evaluate/Execute。",
+        "nodes": [
+          { "id": "event-key", "label": "EventKey", "kind": "input", "description": "sample.hit" },
+          { "id": "runner", "label": "TriggerRunner", "kind": "api", "description": "Register" },
+          { "id": "publish", "label": "Publish", "kind": "event", "description": "HitEvent" },
+          { "id": "evaluate", "label": "Evaluate", "kind": "rule", "description": "damage >= 20" },
+          { "id": "execute", "label": "Execute", "kind": "action", "description": "TargetHp -= damage" },
+          { "id": "output", "label": "Result", "kind": "output", "description": "Evaluated/Executed" }
+        ],
+        "edges": [
+          { "from": "event-key", "to": "runner", "label": "register" },
+          { "from": "runner", "to": "publish", "label": "subscribe" },
+          { "from": "publish", "to": "evaluate", "label": "dispatch" },
+          { "from": "evaluate", "to": "execute", "label": "passed" },
+          { "from": "execute", "to": "output", "label": "context" }
+        ],
+        "metrics": [
+          { "key": "evaluated", "label": "Evaluated", "value": "3", "kind": "output" },
+          { "key": "executed", "label": "Executed", "value": "2", "kind": "output" },
+          { "key": "targetHp", "label": "Target HP", "value": "120 -> 61", "kind": "state" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习 TriggerRunner 如何订阅事件，按条件 Evaluate，再只对通过条件的事件 Execute。",
+        "capabilities": [ "Event bus dispatch", "Trigger registration", "Evaluate/Execute split", "Context mutation" ],
+        "apiHighlights": [ "EventBus.Publish", "TriggerRunner.Register", "ITrigger.Evaluate", "ITrigger.Execute", "ExecCtx.Context" ],
+        "concepts": [ "事件驱动", "条件过滤", "执行动作", "触发器闭环" ],
+        "inputHints": [ "damage=12", "damage=35", "damage=24", "minDamage=20" ],
+        "outputHints": [ "Trigger.MinDamage", "Evaluated", "Executed", "TargetHp", "DamageLog" ],
+        "executionHint": "instant"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "evaluate-before-execute",
+          "title": "区分 Evaluate 与 Execute",
+          "goal": "能说明为什么 weak-hit 被评估但不会扣血。",
+          "relatedVisualStep": "Evaluate",
+          "relatedOutputHint": "Executed",
+          "relatedApis": [ "ITrigger.Evaluate", "ITrigger.Execute" ],
+          "question": "3 次事件发布后为什么 Executed 只有 2？",
+          "expectedAnswer": "weak-hit 的 damage=12 小于 minDamage=20，Evaluate 返回 false，因此 TriggerRunner 跳过 Execute。"
+        }
+      ],
+      "visualFrames": [
+        { "index": 0, "title": "注册触发器", "visualStep": "Register Trigger", "description": "TriggerRunner.Register 把 DamageOnHitTrigger 绑定到 sample.hit 事件。", "outputHint": "Trigger.MinDamage", "stateChanges": [ "phase=0", "priority=10", "minDamage=20" ], "highlights": [ "TriggerRunner.Register", "EventKey" ] },
+        { "index": 1, "title": "发布命中事件", "visualStep": "Publish Event", "description": "三次事件都进入 Evaluate，用于验证条件过滤。", "outputHint": "Evaluated", "stateChanges": [ "weak-hit=12", "heavy-hit=35", "follow-up-hit=24" ], "highlights": [ "EventBus.Publish" ] },
+        { "index": 2, "title": "条件通过才执行", "visualStep": "Execute", "description": "只有满足最小伤害的事件会修改 TargetHp。", "outputHint": "TargetHp", "stateChanges": [ "Executed=2", "TargetHp=61" ], "highlights": [ "Evaluate", "Execute" ] }
+      ],
+      "codeWalkthrough": [
+        { "title": "创建 Runner 并注册触发器", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs", "startLine": 24, "endLine": 35, "explanation": "这段代码创建 EventBus、上下文和 TriggerRunner，并把 DamageOnHitTrigger 注册到 sample.hit。", "outputHint": "Trigger.MinDamage", "visualStep": "Register Trigger" },
+        { "title": "发布三次命中事件", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs", "startLine": 37, "endLine": 47, "explanation": "三个不同伤害值事件会触发同一个 Trigger，用输出展示 Evaluate 与 Execute 次数差异。", "outputHint": "Executed", "visualStep": "Publish Event" },
+        { "title": "实现条件和动作", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs", "startLine": 64, "endLine": 87, "explanation": "DamageOnHitTrigger 把条件判断放在 Evaluate，把扣血和日志放在 Execute。", "outputHint": "DamageLog", "visualStep": "Evaluate" }
+      ]
+    },
+    {
+      "id": "triggering/condition-blackboard",
+      "type": "AbilityKit.Samples.Logic.Samples.Triggering.TriggerWithCondition",
+      "order": 401,
+      "title": "Condition Blackboard Trigger",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Triggering", "Core.Eventing", "Samples.Abstractions" ],
+      "tags": [ "triggering", "condition", "blackboard", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "triggering/config-composition-template" ],
+      "guide": {
+        "purpose": "展示 Trigger Evaluate 如何读取 Blackboard 中的运行时状态，把资源、沉默、连击等条件从事件参数中解耦出来。",
+        "observe": "观察低法力、沉默、就绪三种状态下同一个 cast 事件的 Evaluate 结果，以及 Execute 如何写回 mana 和 combo。",
+        "takeaway": "复杂触发条件应通过黑板和上下文统一读取，方便配置化、调试和跨系统共享状态。",
+        "visualKind": "flow",
+        "visualSteps": [ "Blackboard", "Resolver", "Publish Cast", "Evaluate State", "Execute", "Write Back", "Result" ]
+      },
+      "visualTemplate": "pipeline-flow",
+      "visualModel": {
+        "title": "Blackboard Driven Trigger Condition",
+        "description": "DictionaryBlackboard 保存可变战斗状态，Trigger 在 Evaluate/Execute 中读取并写回。",
+        "nodes": [
+          { "id": "board", "label": "DictionaryBlackboard", "kind": "state", "description": "mana/silenced/combo" },
+          { "id": "resolver", "label": "Resolver", "kind": "api", "description": "boardId -> blackboard" },
+          { "id": "event", "label": "CastEvent", "kind": "event", "description": "requiredCombo" },
+          { "id": "evaluate", "label": "Evaluate", "kind": "rule", "description": "mana && !silenced && combo" },
+          { "id": "execute", "label": "Execute", "kind": "action", "description": "mana -30, combo +1" },
+          { "id": "output", "label": "Trace", "kind": "output", "description": "执行轨迹" }
+        ],
+        "edges": [
+          { "from": "board", "to": "resolver", "label": "register" },
+          { "from": "resolver", "to": "evaluate", "label": "TryResolve" },
+          { "from": "event", "to": "evaluate", "label": "dispatch" },
+          { "from": "evaluate", "to": "execute", "label": "passed" },
+          { "from": "execute", "to": "board", "label": "write back" },
+          { "from": "execute", "to": "output", "label": "trace" }
+        ],
+        "metrics": [
+          { "key": "evaluated", "label": "Evaluated", "value": "3", "kind": "output" },
+          { "key": "executed", "label": "Executed", "value": "1", "kind": "output" },
+          { "key": "mana", "label": "Mana", "value": "60 -> 30", "kind": "state" }
+        ]
+      },
+      "learningContract": {
+        "summary": "学习 Trigger 如何通过 Blackboard 读取运行时条件，并在 Execute 后写回共享状态。",
+        "capabilities": [ "Blackboard condition", "Runtime state resolver", "Event + state evaluation", "State write-back" ],
+        "apiHighlights": [ "DictionaryBlackboard.SetInt", "DictionaryBlackboard.TryGetBool", "DictionaryBlackboardResolver.Register", "ExecCtx.Blackboards", "ITrigger.Execute" ],
+        "concepts": [ "黑板状态", "条件解耦", "状态回写", "事件与状态组合" ],
+        "inputHints": [ "mana", "silenced", "combo", "requiredCombo" ],
+        "outputHints": [ "Blackboard.Mana", "Blackboard.Silenced", "Evaluated", "Executed", "Trace" ],
+        "executionHint": "instant"
+      },
+      "learningCheckpoints": [
+        {
+          "id": "blackboard-state-gates-trigger",
+          "title": "理解黑板条件门控",
+          "goal": "能说明同一个 cast 事件为什么会因 mana、silenced、combo 状态不同而得到不同结果。",
+          "relatedVisualStep": "Evaluate State",
+          "relatedOutputHint": "Trace",
+          "relatedApis": [ "DictionaryBlackboard", "ExecCtx.Blackboards", "ITrigger.Evaluate" ],
+          "question": "为什么 fireball-ready 会执行，而前两次 cast 不会执行？",
+          "expectedAnswer": "前两次分别因为 mana 不足和 silenced=true 未通过 Evaluate；第三次 mana 足够、未沉默且 combo 满足 requiredCombo，所以 Execute 扣蓝并增加 combo。"
+        }
+      ],
+      "visualFrames": [
+        { "index": 0, "title": "初始化黑板状态", "visualStep": "Blackboard", "description": "DictionaryBlackboard 保存 mana、silenced、combo，Resolver 让 Trigger 通过 boardId 找到它。", "outputHint": "Blackboard.Mana", "stateChanges": [ "mana=20", "silenced=False", "combo=0" ], "highlights": [ "DictionaryBlackboard", "DictionaryBlackboardResolver" ] },
+        { "index": 1, "title": "状态决定触发结果", "visualStep": "Evaluate State", "description": "三次发布同类事件，但 Evaluate 读取的黑板状态不同。", "outputHint": "Trace", "stateChanges": [ "low mana=false", "silenced=false", "ready=true" ], "highlights": [ "Evaluate", "TryResolve" ] },
+        { "index": 2, "title": "执行后写回状态", "visualStep": "Write Back", "description": "通过条件后 Execute 扣除 mana 并增加 combo，最终输出证明黑板被修改。", "outputHint": "Blackboard.FinalMana", "stateChanges": [ "Mana=30", "Combo=2", "Executed=1" ], "highlights": [ "SetInt", "Execute" ] }
+      ],
+      "codeWalkthrough": [
+        { "title": "创建黑板和 Runner", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs", "startLine": 30, "endLine": 50, "explanation": "这段代码注册 DictionaryBlackboard，并把 resolver 注入 TriggerRunner，使 ExecCtx 能解析运行时状态。", "outputHint": "Blackboard.Mana", "visualStep": "Blackboard" },
+        { "title": "构造三种状态场景", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs", "startLine": 52, "endLine": 70, "explanation": "OnRun 依次写入低法力、沉默和就绪状态，再发布同类 cast 事件进行对照。", "outputHint": "Trace", "visualStep": "Publish Cast" },
+        { "title": "读取并写回黑板", "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs", "startLine": 100, "endLine": 150, "explanation": "ManaAndStateTrigger 在 Evaluate 中读取 mana/silenced/combo，在 Execute 中扣蓝并增加 combo。", "outputHint": "Blackboard.FinalMana", "visualStep": "Write Back" }
+      ]
     },
     {
       "id": "triggering/config-composition-template",
       "type": "AbilityKit.Samples.Logic.Samples.Triggering.TriggerConfigCompositionAndTemplate",
-      "order": 400,
+      "order": 410,
       "title": "Trigger Config Composition And Template",
-      "tags": [ "triggering", "config", "template", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Triggering" ],
+      "tags": [ "triggering", "config", "template", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "modifiers/attribute-basic" ]
+    },
+    {
+      "id": "modifiers/attribute-basic",
+      "type": "AbilityKit.Samples.Logic.Samples.Modifiers.AttributeModifiers",
+      "order": 500,
+      "title": "Attribute Modifiers",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "Modifiers", "Samples.Abstractions" ],
+      "tags": [ "modifiers", "attribute", "calculator", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "continuous/dot-lifecycle" ]
+    },
+    {
+      "id": "continuous/dot-lifecycle",
+      "type": "AbilityKit.Samples.Logic.Samples.Continuous.ContinuousBasics",
+      "order": 520,
+      "title": "DOT Lifecycle",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "Core.Continuous", "Samples.Abstractions" ],
+      "tags": [ "continuous", "dot", "lifecycle", "package-api", "web", "deterministic", "fixed-frame", "beginner" ],
+      "next": [ "hfsm/basic-state" ]
+    },
+    {
+      "id": "hfsm/basic-state",
+      "type": "AbilityKit.Samples.Logic.Samples.StateMachine.HFSMBasics",
+      "order": 540,
+      "title": "HFSM Basic State",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "HFSM", "Samples.Abstractions" ],
+      "tags": [ "hfsm", "state", "transition", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "hfsm/trigger-bridge" ]
+    },
+    {
+      "id": "hfsm/trigger-bridge",
+      "type": "AbilityKit.Samples.Logic.Samples.StateMachine.HFSMWithTriggers",
+      "order": 550,
+      "title": "HFSM Trigger Bridge",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "HFSM", "Triggering.Eventing", "Core.Eventing", "Samples.Abstractions" ],
+      "tags": [ "hfsm", "triggering", "event", "bridge", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "world/lifecycle" ]
+    },
+    {
+      "id": "world/lifecycle",
+      "type": "AbilityKit.Samples.Logic.Samples.World.WorldLifecycle",
+      "order": 600,
+      "title": "World Lifecycle",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "World.DI", "Samples.Abstractions" ],
+      "tags": [ "world", "lifecycle", "manager", "package-api", "web", "deterministic", "fixed-frame", "beginner" ],
+      "next": [ "world/di-basics" ]
+    },
+    {
+      "id": "world/di-basics",
+      "type": "AbilityKit.Samples.Logic.Samples.World.WorldDIOverview",
+      "order": 610,
+      "title": "World DI Basics",
+      "status": "Candidate",
+      "level": "Beginner",
+      "modules": [ "World.DI", "Samples.Abstractions" ],
+      "tags": [ "world", "di", "services", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "world/host-client" ]
+    },
+    {
+      "id": "world/host-client",
+      "type": "AbilityKit.Samples.Logic.Samples.World.HostClientManagement",
+      "order": 620,
+      "title": "World Host Client",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "World.DI", "Host", "Samples.Abstractions" ],
+      "tags": [ "world", "host", "client", "message", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "battle/runtime-loop" ]
+    },
+    {
+      "id": "battle/runtime-loop",
+      "type": "AbilityKit.Samples.Logic.Samples.Battle.BattleRuntimeLoop",
+      "order": 650,
+      "title": "Battle Runtime Loop",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "Host.Extension.BattleHost", "Game.Battle.Runtime", "Samples.Abstractions" ],
+      "tags": [ "battle", "runtime", "loop", "input", "fixed-frame", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "sync/input-frame" ]
+    },
+    {
+      "id": "sync/input-frame",
+      "type": "AbilityKit.Samples.Logic.Samples.Sync.SyncInputFrame",
+      "order": 950,
+      "title": "Sync Input Frame",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "World.FrameSync", "World.NetworkFragments", "World.DI", "Samples.Abstractions" ],
+      "tags": [ "sync", "input", "frame", "network-fragments", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "sync/world-snapshot" ]
+    },
+    {
+      "id": "sync/world-snapshot",
+      "type": "AbilityKit.Samples.Logic.Samples.Sync.WorldSnapshot",
+      "order": 951,
+      "title": "Sync World Snapshot",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "World.Snapshot", "World.NetworkFragments", "Host", "Samples.Abstractions" ],
+      "tags": [ "sync", "world", "snapshot", "routing", "pipeline", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "sync/state-diff-apply" ]
+    },
+    {
+      "id": "sync/state-diff-apply",
+      "type": "AbilityKit.Samples.Logic.Samples.Sync.StateDiffApply",
+      "order": 952,
+      "title": "Sync State Diff Apply",
+      "status": "Candidate",
+      "level": "Intermediate",
+      "modules": [ "World.StateSync", "World.Snapshot", "Samples.Abstractions" ],
+      "tags": [ "sync", "state", "diff", "apply", "rollback", "hash", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "combat/entity-keyed-index" ]
     },
     {
       "id": "combat/entity-keyed-index",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatEntityKeyedIndex",
       "order": 700,
       "title": "Combat Entity Keyed Index",
-      "tags": [ "combat", "entity", "index", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Combat.EntityManager" ],
+      "tags": [ "combat", "entity", "index", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "combat/skill-library-index" ]
     },
     {
       "id": "combat/skill-library-index",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatSkillLibraryIndex",
       "order": 701,
       "title": "Combat Skill Library Index",
-      "tags": [ "combat", "skill-library", "index", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [ "Combat.SkillLibrary" ],
+      "tags": [ "combat", "skill-library", "index", "package-api", "web", "deterministic", "beginner" ],
+      "next": [ "combat/targeting-index-provider" ]
     },
     {
       "id": "combat/targeting-index-provider",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatTargetingIndexProvider",
       "order": 702,
       "title": "Combat Targeting Index Provider",
-      "tags": [ "combat", "targeting", "index", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.EntityManager", "Combat.Targeting" ],
+      "tags": [ "combat", "targeting", "index", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "combat/damage-pipeline" ]
     },
     {
       "id": "combat/damage-pipeline",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatDamagePipelineSample",
       "order": 703,
       "title": "Combat Damage Pipeline",
-      "tags": [ "combat", "damage", "dataflow", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.Damage", "Dataflow" ],
+      "tags": [ "combat", "damage", "dataflow", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "combat/collision-raycast" ]
     },
     {
       "id": "combat/collision-raycast",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatCollisionRaycast",
       "order": 704,
       "title": "Combat Collision Raycast",
-      "tags": [ "combat", "collision", "raycast", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.Collision.Abstractions" ],
+      "tags": [ "combat", "collision", "raycast", "package-api", "web", "deterministic", "intermediate" ],
+      "next": [ "combat/area-enter-stay-exit" ]
     },
     {
       "id": "combat/area-enter-stay-exit",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatAreaEnterStayExit",
       "order": 705,
       "title": "Combat Area Enter Stay Exit",
-      "tags": [ "combat", "area", "collision", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.Collision.Abstractions", "Combat.Projectile" ],
+      "tags": [ "combat", "area", "collision", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "combat/projectile-basic-hit" ]
     },
     {
       "id": "combat/projectile-basic-hit",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatProjectileBasicHit",
       "order": 706,
       "title": "Combat Projectile Basic Hit",
-      "tags": [ "combat", "projectile", "collision", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.Projectile", "Combat.Collision.Abstractions" ],
+      "tags": [ "combat", "projectile", "collision", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": [ "combat/projectile-hit-damage" ]
     },
     {
       "id": "combat/projectile-hit-damage",
       "type": "AbilityKit.Samples.Logic.Samples.Combat.CombatProjectileHitDamage",
       "order": 707,
       "title": "Combat Projectile Hit Damage",
-      "tags": [ "combat", "projectile", "damage", "package-api", "web" ]
+      "status": "Stable",
+      "level": "Intermediate",
+      "modules": [ "Combat.Projectile", "Combat.Damage", "Dataflow" ],
+      "tags": [ "combat", "projectile", "damage", "package-api", "web", "deterministic", "fixed-frame", "intermediate" ],
+      "next": []
     }
   ]
 }

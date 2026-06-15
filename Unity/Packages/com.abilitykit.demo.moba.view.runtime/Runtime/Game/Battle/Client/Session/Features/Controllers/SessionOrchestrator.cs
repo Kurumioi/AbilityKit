@@ -72,13 +72,15 @@ namespace AbilityKit.Game.Flow
 
         private static BattleLogicSessionOptions BuildSessionOptions(BattleStartPlan plan)
         {
+            var world = plan.World;
+
             return new BattleLogicSessionOptions
             {
                 Mode = ResolveLogicMode(plan),
-                WorldId = new WorldId(plan.WorldId),
-                WorldType = plan.WorldType,
-                ClientId = plan.ClientId,
-                PlayerId = plan.PlayerId,
+                WorldId = new WorldId(world.WorldId),
+                WorldType = world.WorldType,
+                ClientId = world.ClientId,
+                PlayerId = world.PlayerId,
 
                 ScanAssemblies = new[]
                 {
@@ -104,7 +106,7 @@ namespace AbilityKit.Game.Flow
 
         private static bool ShouldUseRemoteLogic(BattleStartPlan plan)
         {
-            return plan.SyncMode == BattleSyncMode.SnapshotAuthority || IsGatewayRemoteTransport(plan);
+            return plan.Sync.SyncMode == BattleSyncMode.SnapshotAuthority || IsGatewayRemoteTransport(plan);
         }
 
         private void StartAuxiliaryWorlds(BattleStartPlan plan)
@@ -114,7 +116,7 @@ namespace AbilityKit.Game.Flow
                 _host.StartRemoteDrivenLocalWorld();
             }
 
-            if (plan.EnableConfirmedAuthorityWorld)
+            if (plan.Authority.EnableConfirmedAuthorityWorld)
             {
                 _host.StartConfirmedAuthorityWorld();
             }
@@ -160,13 +162,13 @@ namespace AbilityKit.Game.Flow
         {
             if (IsGatewayRemoteTransport(plan)) return 30;
 
-            var tickRate = plan.TickRate;
+            var tickRate = plan.World.TickRate;
             return tickRate > 0 ? tickRate : 30;
         }
 
         private static bool IsGatewayRemoteTransport(BattleStartPlan plan)
         {
-            return plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && plan.UseGatewayTransport;
+            return plan.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote && plan.Gateway.UseGatewayTransport;
         }
     }
 }

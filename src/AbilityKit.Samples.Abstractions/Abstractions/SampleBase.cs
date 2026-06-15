@@ -43,6 +43,11 @@ namespace AbilityKit.Samples.Abstractions
         protected SampleRuntimeContext Context => _context ?? throw new InvalidOperationException("Runtime context not initialized");
 
         /// <summary>
+        /// 所有宿主输入值。
+        /// </summary>
+        protected IReadOnlyDictionary<string, string> Inputs => Context.Inputs;
+
+        /// <summary>
         /// 当前时间
         /// </summary>
         protected float Time => Environment.Time;
@@ -145,6 +150,25 @@ namespace AbilityKit.Samples.Abstractions
         /// 显示键值对
         /// </summary>
         protected void KeyValue(string key, string value) => Output.KeyValue(key, value);
+
+        /// <summary>
+        /// 获取字符串输入。
+        /// </summary>
+        protected string Input(string key, string defaultValue = "")
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return defaultValue;
+
+            return Inputs.TryGetValue(key, out var value) ? value : defaultValue;
+        }
+
+        /// <summary>
+        /// 获取整数输入。
+        /// </summary>
+        protected int InputInt(string key, int defaultValue)
+        {
+            return int.TryParse(Input(key), out var value) ? value : defaultValue;
+        }
 
         /// <summary>
         /// 刷新输出

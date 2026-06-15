@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
-using AbilityKit.Demo.Shooter.View.PlayMode;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Protocol.Shooter;
 using UnityEditor;
 using UnityEngine;
@@ -12,21 +12,28 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
 {
     /// <summary>
     /// Implements <see cref="IShooterSnapshotViewSink"/> for the Editor SceneView.
-    /// Caches the latest <see cref="ShooterSnapshotViewBatch"/> from both client and
-    /// authoritative worlds, then draws Gizmos during <c>SceneView.duringSceneGui</c>.
+    /// Applies snapshot batches through the shared projection/store layer, caches draw-only
+    /// entity data from the projected stores, then draws Gizmos during <c>SceneView.duringSceneGui</c>.
     /// </summary>
-    public sealed class ShooterEditorSceneViewSink : IShooterSnapshotViewSink, IShooterPlayViewSink
+    public sealed class ShooterEditorSceneViewSink : IShooterSnapshotViewSink, IShooterHostViewSink
     {
+        private readonly ShooterProjectedSnapshotViewSink _clientProjectionSink;
+        private readonly ShooterProjectedSnapshotViewSink _authorityProjectionSink;
+        private readonly List<EntityDrawData> _clientEntities = new(32);
+        private readonly List<EntityDrawData> _authorityEntities = new(32);
+        private readonly List<ShooterEventSnapshot> _pendingEvents = new(16);
+
         private ShooterSnapshotViewBatch _clientBatch;
         private ShooterSnapshotViewBatch _authorityBatch;
         private ShooterLagCompensationTelemetry? _lagCompensationTelemetry;
         private bool _hasAuthorityBatch;
         private bool _showDivergence;
 
-        // Cached entity data for efficient Gizmo drawing
-        private readonly List<EntityDrawData> _clientEntities = new(32);
-        private readonly List<EntityDrawData> _authorityEntities = new(32);
-        private readonly List<ShooterEventSnapshot> _pendingEvents = new(16);
+        public ShooterEditorSceneViewSink()
+        {
+            _clientProjectionSink = new ShooterProjectedSnapshotViewSink(new ProjectedViewSinkAdapter(this, isAuthority: false));
+            _authorityProjectionSink = new ShooterProjectedSnapshotViewSink(new ProjectedViewSinkAdapter(this, isAuthority: true));
+        }
 
         /// <summary>Whether to draw the authoritative world overlay.</summary>
         public bool ShowAuthorityWorld
@@ -42,7 +49,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
             set => _showDivergence = value;
         }
 
-        public void Render(in ShooterPlayPresentationFrame frame)
+        public void Render(in ShooterHostPresentationFrame frame)
         {
             _lagCompensationTelemetry = frame.LagCompensationTelemetry;
             var clientBatch = frame.ClientBatch;
@@ -56,7 +63,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
             else
             {
                 _authorityBatch = default;
-                _authorityEntities.Clear();
+                _authorityProjectionSink.Clear();
                 _hasAuthorityBatch = false;
             }
         }
@@ -64,7 +71,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
         public void ApplySnapshot(in ShooterSnapshotViewBatch batch)
         {
             _clientBatch = batch;
-            ExtractEntities(in batch, _clientEntities);
+            _clientProjectionSink.ApplySnapshot(in batch);
             CacheEvents(in batch);
         }
 
@@ -75,7 +82,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
         public void ApplyAuthoritySnapshot(in ShooterSnapshotViewBatch batch)
         {
             _authorityBatch = batch;
-            ExtractEntities(in batch, _authorityEntities);
+            _authorityProjectionSink.ApplySnapshot(in batch);
         }
 
         public void Clear()
@@ -84,8 +91,8 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
             _authorityBatch = default;
             _lagCompensationTelemetry = null;
             _hasAuthorityBatch = false;
-            _clientEntities.Clear();
-            _authorityEntities.Clear();
+            _clientProjectionSink.Clear();
+            _authorityProjectionSink.Clear();
             _pendingEvents.Clear();
         }
 
@@ -135,68 +142,59 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
         /// <summary>Gets the latest lag compensation telemetry cached from PlayMode frames.</summary>
         public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _lagCompensationTelemetry;
 
-        private void ExtractEntities(in ShooterSnapshotViewBatch batch, List<EntityDrawData> target)
+        private void ApplyProjectedViewState(ShooterViewEntityStore store, bool isAuthority)
+        {
+            ExtractEntities(store, isAuthority ? _authorityEntities : _clientEntities);
+        }
+
+        private void ClearProjectedViewState(bool isAuthority)
+        {
+            if (isAuthority)
+            {
+                _authorityEntities.Clear();
+            }
+            else
+            {
+                _clientEntities.Clear();
+            }
+        }
+
+        private static void ExtractEntities(ShooterViewEntityStore store, List<EntityDrawData> target)
         {
             target.Clear();
-
-            // Build a lookup from entity changes for alive state
-            var aliveMap = new Dictionary<int, bool>();
-            for (int i = 0; i < batch.EntityChangeCount; i++)
+            foreach (var entity in store.Entities.Values)
             {
-                var change = batch.EntityChanges[i];
-                aliveMap[change.EntityId] = change.Alive;
-            }
-
-            // Extract transform data
-            for (int i = 0; i < batch.TransformChanges.Count; i++)
-            {
-                var t = batch.TransformChanges[i];
-                if (!aliveMap.TryGetValue(t.Key.EntityId, out var alive) || !alive)
+                if (!entity.Alive || !store.TryGetTransform(entity.Key, out var transform))
+                {
                     continue;
+                }
 
                 var data = new EntityDrawData
                 {
-                    EntityId = t.Key.EntityId,
-                    Kind = t.Key.Kind,
-                    X = t.X,
-                    Y = t.Y,
-                    FacingX = t.FacingX,
-                    FacingY = t.FacingY,
-                    VelocityX = t.VelocityX,
-                    VelocityY = t.VelocityY,
+                    EntityId = entity.EntityId,
+                    Kind = entity.Kind,
+                    OwnerEntityId = entity.OwnerEntityId,
+                    X = transform.X,
+                    Y = transform.Y,
+                    FacingX = transform.FacingX,
+                    FacingY = transform.FacingY,
+                    VelocityX = transform.VelocityX,
+                    VelocityY = transform.VelocityY,
                 };
 
-                // Attach health if available
-                for (int j = 0; j < batch.HealthChanges.Count; j++)
+                if (store.TryGetHealth(entity.Key, out var health))
                 {
-                    var h = batch.HealthChanges[j];
-                    if (h.Key.EntityId == t.Key.EntityId)
-                    {
-                        data.Hp = h.Hp;
-                        break;
-                    }
+                    data.Hp = health.Hp;
                 }
 
-                // Attach score if available
-                for (int j = 0; j < batch.ScoreChanges.Count; j++)
+                if (store.TryGetScore(entity.Key, out var score))
                 {
-                    var s = batch.ScoreChanges[j];
-                    if (s.Key.EntityId == t.Key.EntityId)
-                    {
-                        data.Score = s.Score;
-                        break;
-                    }
+                    data.Score = score.Score;
                 }
 
-                // Attach remaining frames if available
-                for (int j = 0; j < batch.ProjectileLifetimeChanges.Count; j++)
+                if (store.TryGetProjectileLifetime(entity.Key, out var projectileLifetime))
                 {
-                    var p = batch.ProjectileLifetimeChanges[j];
-                    if (p.Key.EntityId == t.Key.EntityId)
-                    {
-                        data.RemainingFrames = p.RemainingFrames;
-                        break;
-                    }
+                    data.RemainingFrames = projectileLifetime.RemainingFrames;
                 }
 
                 target.Add(data);
@@ -334,13 +332,13 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
                 var evt = _pendingEvents[i];
                 var pos = new Vector3(evt.X, 0f, evt.Y);
 
-                if (evt.EventType == 1) // Hit
+                if (evt.EventType == (int)ShooterEventType.Hit)
                 {
                     HandlesColor = new Color(1f, 0.2f, 0.2f, 0.8f);
                     DrawDiscOutline(pos, 0.5f);
                     DrawDiscOutline(pos, 0.3f);
                 }
-                else if (evt.EventType == 2) // Fire
+                else if (evt.EventType == (int)ShooterEventType.Fire)
                 {
                     HandlesColor = new Color(1f, 0.6f, 0.1f, 0.6f);
                     DrawDisc(pos, 0.08f);
@@ -459,8 +457,33 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
             }
         }
 
+        private sealed class ProjectedViewSinkAdapter : IShooterProjectedViewSink
+        {
+            private readonly ShooterEditorSceneViewSink _owner;
+            private readonly bool _isAuthority;
+
+            public ProjectedViewSinkAdapter(ShooterEditorSceneViewSink owner, bool isAuthority)
+            {
+                _owner = owner;
+                _isAuthority = isAuthority;
+            }
+
+            public void ApplyViewState(
+                ShooterViewEntityStore store,
+                in ShooterSnapshotViewBatch sourceBatch,
+                in ShooterViewProjectionApplyResult applyResult)
+            {
+                _owner.ApplyProjectedViewState(store, _isAuthority);
+            }
+
+            public void Clear()
+            {
+                _owner.ClearProjectedViewState(_isAuthority);
+            }
+        }
+
         /// <summary>
-        /// Cached entity data extracted from a <see cref="ShooterSnapshotViewBatch"/>
+        /// Cached entity data extracted from a <see cref="ShooterViewEntityStore"/>
         /// for efficient Gizmo drawing.
         /// </summary>
         public struct EntityDrawData

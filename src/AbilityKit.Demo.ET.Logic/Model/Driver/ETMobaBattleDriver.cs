@@ -35,9 +35,9 @@ namespace ET.Logic
     /// - Do not expand this component as a direct rules implementation surface.
     /// </summary>
     [ComponentOf(typeof(Scene))]
-    public class ETMobaBattleDriver : Entity, IAwake, IUpdate, IDestroy, IBattleDriver
+    public class ETMobaBattleDriver : Entity, IAwake, IUpdate, IDestroy
     {
-        // ============== IBattleDriver Implementation ==============
+        // ============== Runtime Driver State ==============
 
         public int CurrentFrame { get; set; }
         public double LogicTimeSeconds { get; set; }
@@ -59,13 +59,12 @@ namespace ET.Logic
         public IBattleViewEventSink ViewSink
         {
             get => _viewSink;
-            set => _viewSink = value ?? throw new ArgumentNullException(nameof(ViewSink));
+            set => _viewSink = value;
         }
 
-        // ============== Config Loader ==============
+        // ============== Config Access ==============
 
         public ITextAssetLoader TextAssetLoader { get; set; }
-        public ETConfigLoaderService ConfigLoader { get; set; }
 
         // ============== Player Spawn Data ==============
 
@@ -97,25 +96,18 @@ namespace ET.Logic
         /// </summary>
         public List<ISnapshotHandler> SnapshotHandlers { get; set; } = new List<ISnapshotHandler>();
 
-        /// <summary>
-        /// 生命周期处理器列表
-        /// </summary>
-        public List<ILifecycleHandler> LifecycleHandlers { get; set; } = new List<ILifecycleHandler>();
+        private BattleFramePipeline _framePipeline;
 
-        // ============== IBattleDriver Explicit Implementation ==============
-
-        IBattleViewEventSink IBattleDriver.ViewEventSink
-        {
-            get => ViewSink;
-            set => ViewSink = value;
-        }
-
-        // ============== Lifecycle Methods (Empty - Handled by Handlers) ==============
+        // ============== Lifecycle Methods ==============
 
         public void Awake()
         {
-            // 注册所有处理器
-            HandlerRegistry.RegisterAll(this);
+            EnsureSnapshotHandlersRegistered();
+        }
+
+        public void EnsureSnapshotHandlersRegistered()
+        {
+            HandlerRegistry.RegisterSnapshotHandlers(this);
         }
 
         public void Update(ETMobaBattleDriver self)
@@ -126,35 +118,109 @@ namespace ET.Logic
         {
         }
 
-        // ============== IBattleDriver Methods ==============
+        // ============== Runtime Driver Methods ==============
 
         public void Initialize(in BattleStartPlan plan, IBattleViewEventSink viewSink)
         {
-            ETBattleLifecycleDispatcher.Initialize(this, in plan, viewSink);
+            if (viewSink == null)
+            {
+                throw new ArgumentNullException(nameof(viewSink));
+            }
+
+            Plan = plan;
+            RuntimeGameStarted = false;
+            ViewSink = viewSink;
+            TickRate = plan.TickRate > 0 ? plan.TickRate : 30;
+
+            try
+            {
+                SnapshotDispatcher = new FrameSnapshotDispatcher();
+
+                var worldType = BattleWorldTypes.Battle;
+                var creator = LogicWorldRegistry.GetCreator(worldType);
+                if (creator == null)
+                {
+                    throw new InvalidOperationException($"No LogicWorldCreator registered for world type '{worldType}'");
+                }
+
+                creator.CreateAndInitialize(this, in plan);
+
+                CurrentFrame = 0;
+                LogicTimeSeconds = 0;
+                LastTickTime = 0;
+                IsRunning = false;
+
+                Log.Info($"[ETMobaBattleDriver] Initialized: TickRate={TickRate}, WorldId={Plan.WorldId}, World={World?.Id}");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is ArgumentException)
+            {
+                Log.Error($"[ETMobaBattleDriver] Initialize failed: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[ETMobaBattleDriver] Initialize failed: {ex.GetType().Name} - {ex.Message}");
+                throw new InvalidOperationException("Failed to initialize battle driver due to unexpected error", ex);
+            }
         }
 
         public void Start()
         {
-            ETBattleLifecycleDispatcher.Start(this);
+            IMobaBattleRuntimePort runtime = null;
+            if (World?.Services == null ||
+                !World.Services.TryResolve(out runtime) ||
+                runtime == null ||
+                !runtime.Status.IsReadyForBattleLoop)
+            {
+                var status = runtime != null ? runtime.Status.ToString() : "runtime port missing";
+                Log.Error($"[ETMobaBattleDriver] IMobaBattleRuntimePort is not ready: {status}");
+                throw new InvalidOperationException("IMobaBattleRuntimePort must be ready for battle loop");
+            }
+
+            IsRunning = true;
+            LastTickTime = 0;
+            CurrentFrame = 0;
+            LogicTimeSeconds = 0;
         }
 
         public void Stop()
         {
-            ETBattleLifecycleDispatcher.Stop(this);
+            IsRunning = false;
+            RuntimeGameStarted = false;
+            Log.Info("[ETMobaBattleDriver] Stopped");
         }
 
         public void Destroy()
         {
-            ETBattleLifecycleDispatcher.Destroy(this);
+            SnapshotDispatcher = null;
+            Units.Clear();
+            World = null;
+            HostRuntime = null;
+            WorldManager = null;
+            ViewSink = null;
+            _framePipeline = null;
 
-            // 清理处理器
+            RuntimeGameStarted = false;
+            IsRunning = false;
+            CurrentFrame = 0;
+            LogicTimeSeconds = 0;
+            LastTickTime = 0;
+
             SnapshotHandlers?.Clear();
-            LifecycleHandlers?.Clear();
+            Log.Info("[ETMobaBattleDriver] Destroyed");
         }
 
         public void Tick(float deltaTime)
         {
-            ETBattleLifecycleDispatcher.Tick(this, deltaTime);
+            if (!IsRunning)
+            {
+                return;
+            }
+
+            _framePipeline ??= new BattleFramePipeline();
+            LogicTimeSeconds += deltaTime;
+            LastTickTime = LogicTimeSeconds;
+            _framePipeline.Tick(this, deltaTime);
         }
 
         // ============== Snapshot Handling ==============
@@ -255,16 +321,6 @@ namespace ET.Logic
         }
 
         // ============== Additional Methods ==============
-
-        public void StartBattle()
-        {
-            Start();
-        }
-
-        public void StopBattle()
-        {
-            Stop();
-        }
 
         public bool OnAllPlayersReady(List<ETPlayerSpawnData> players)
         {

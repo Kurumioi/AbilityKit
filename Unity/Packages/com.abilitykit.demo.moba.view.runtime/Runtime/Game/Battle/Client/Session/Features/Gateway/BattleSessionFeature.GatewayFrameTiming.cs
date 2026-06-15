@@ -42,10 +42,11 @@ namespace AbilityKit.Game.Flow
             var dt = anchor.FixedDeltaSeconds;
             if (dt <= 0) return 0;
 
-            var constMargin = _plan.IdealFrameSafetyConstMarginFrames;
+            var timeSync = _plan.TimeSync;
+            var constMargin = timeSync.IdealFrameSafetyConstMarginFrames;
             if (constMargin < 0) constMargin = 0;
 
-            var rttFactor = _plan.IdealFrameSafetyRttFactor;
+            var rttFactor = timeSync.IdealFrameSafetyRttFactor;
             if (rttFactor < 0) rttFactor = 0;
 
             var rttFrames = (int)Math.Ceiling((_state.GatewayRoomTimeSync.RttSecondsEwma / dt) * rttFactor);
@@ -54,8 +55,8 @@ namespace AbilityKit.Game.Flow
             var margin = constMargin;
             if (rttFrames > margin) margin = rttFrames;
 
-            var minMargin = _plan.IdealFrameSafetyMinMarginFrames;
-            var maxMargin = _plan.IdealFrameSafetyMaxMarginFrames;
+            var minMargin = timeSync.IdealFrameSafetyMinMarginFrames;
+            var maxMargin = timeSync.IdealFrameSafetyMaxMarginFrames;
             if (minMargin < 0) minMargin = 0;
             if (maxMargin < minMargin) maxMargin = minMargin;
 

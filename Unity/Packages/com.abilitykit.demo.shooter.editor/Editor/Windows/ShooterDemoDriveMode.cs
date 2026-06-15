@@ -14,10 +14,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         EditorDirect = 0,
 
         /// <summary>
-        /// The window attaches to a live Play-mode session published through
-        /// <c>ShooterPlayModeSessionRegistry</c>. It does not pump logic itself; instead it
+        /// The window attaches to a live host published through
+        /// <c>ShooterHostSessionRegistry</c>. It does not pump logic itself; instead it
         /// observes diagnostics and hot-tunes network conditions via the shared registry.
         /// </summary>
-        PlayModeAttach = 1,
+        HostAttach = 1,
     }
 }

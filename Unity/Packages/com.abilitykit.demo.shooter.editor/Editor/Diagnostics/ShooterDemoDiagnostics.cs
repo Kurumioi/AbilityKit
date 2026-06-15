@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.Editor.Diagnostics
@@ -42,6 +43,17 @@ namespace AbilityKit.Demo.Shooter.Editor.Diagnostics
                 if (IsPaused) return "Running (Paused)";
                 return "Running";
             }
+        }
+
+        public void Apply(in ShooterHostDiagnosticsSnapshot snapshot)
+        {
+            Frame = snapshot.Frame;
+            PlayerCount = snapshot.PlayerCount;
+            BulletCount = snapshot.BulletCount;
+            MaxDivergence = snapshot.MaxDivergence;
+            Divergences = snapshot.Divergences;
+            RecentEvents = snapshot.RecentEvents;
+            TotalEvents = snapshot.TotalEvents;
         }
 
         public void Reset()

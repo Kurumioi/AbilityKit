@@ -35,7 +35,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             builder.TryRegister<MobaTriggerPlanLoadProfile>(WorldLifetime.Singleton, _ => MobaTriggerPlanLoadProfile.Default);
 
-            builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, r =>
+            builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Scoped, r =>
             {
                 var db = new TriggerPlanJsonDatabase();
                 db.CueFactory = new MobaPresentationCueFactory(r.Resolve<MobaPresentationCueSnapshotService>());

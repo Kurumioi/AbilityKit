@@ -1,121 +1,223 @@
-using System;
-using UnityHFSM;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Samples.Abstractions;
+using AbilityKit.Triggering.Eventing;
+using UnityHFSM;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine
 {
     /// <summary>
-    /// HFSMWithTriggers - 演示使用触发器进行状态转换
+    /// 演示 Triggering 事件如何桥接到 UnityHFSM 的 trigger transition。
     /// </summary>
-    [Sample]
+    [Sample(532, "hfsm", "trigger", "bridge", "package-api", "web", "deterministic")]
     public sealed class HFSMWithTriggers : SampleBase
     {
-        public override string Title => "HFSM with Triggers";
-        public override string Description => "使用触发器进行状态转换";
+        public override string Title => "HFSM Trigger Bridge";
+        public override string Description => "使用 EventBus 把战斗事件桥接到 HFSM trigger transition";
         public override SampleCategory Category => SampleCategory.StateMachine;
 
         protected override void OnRun()
         {
-            Log("=== HFSM 触发器示例 ===");
-            Output.Divider();
+            var actor = new ActorState();
+            var eventBus = new EventBus();
+            var fsm = CreateStateMachine(actor);
+            var damageKey = new EventKey<DamageEvent>("damage-taken");
+            var commandKey = new EventKey<CommandEvent>("command-issued");
 
-            // 1. 触发器概念
-            Log("【1】触发器概念");
-            Output.Bullet("触发器（Trigger）是一种事件驱动的转换机制");
-            Output.Bullet("只有在触发器被激活时，才会检查对应的转换条件");
-            Output.Bullet("适合处理用户输入、技能冷却等异步事件");
-            Log("");
+            using var bridge = new HfsmEventBridge(eventBus, fsm, actor, damageKey, commandKey, Log);
 
-            // 2. 创建带触发器的状态机
-            Log("【2】创建带触发器的状态机");
+            Section("初始化状态机与事件桥");
+            fsm.Init();
+            KeyValue("ActiveState", fsm.ActiveStateName);
+            Bullet("业务只发布事件；桥接层把事件翻译为 HFSM trigger。 ");
+
+            Divider();
+            Section("CommandEvent -> Attack trigger");
+            PublishCommand(eventBus, commandKey, "Attack");
+            Step(fsm, actor, 0.25f, "攻击帧");
+            fsm.Trigger("FinishAttack");
+            KeyValue("ActiveState", fsm.ActiveStateName);
+
+            Divider();
+            Section("DamageEvent -> Stagger trigger");
+            PublishDamage(eventBus, damageKey, amount: 30f, source: "orc");
+            Step(fsm, actor, 0.25f, "硬直帧");
+            fsm.Trigger("Recover");
+            KeyValue("ActiveState", fsm.ActiveStateName);
+
+            Divider();
+            Section("Fatal Damage -> Dead trigger");
+            PublishDamage(eventBus, damageKey, amount: 80f, source: "boss");
+            Step(fsm, actor, 0.10f, "死亡帧");
+            PublishCommand(eventBus, commandKey, "Attack");
+            KeyValue("ActiveState", fsm.ActiveStateName);
+
+            Divider();
+            Section("这个示例实际接入的包能力");
+            Bullet("EventBus：由业务系统发布 CommandEvent 与 DamageEvent。 ");
+            Bullet("StateMachine.Trigger：桥接层把事件转换为 Attack、Stagger、Dead 等状态机 trigger。 ");
+            Bullet("AddTriggerTransition：只在指定 trigger 触发时检查对应状态转换。 ");
+            Bullet("State 生命周期：在进入 Attack、Stagger、Dead 时执行确定性业务回调。 ");
+        }
+
+        private StateMachine<string, string, string> CreateStateMachine(ActorState actor)
+        {
             var fsm = new StateMachine<string, string, string>();
+            fsm.StateChanged += state => KeyValue("StateChanged", state.name);
 
-            // 添加状态
             fsm.AddState("Idle", new State(
-                onEnter: s => Log("[Idle] 进入空闲状态"),
-                onLogic: s => Log("[Idle] 等待中...")
-            ));
-
-            fsm.AddState("Jump", new State(
-                onEnter: s => Log("[Jump] 开始跳跃！"),
-                onLogic: s => Log("[Jump] 上升中..."),
-                onExit: s => Log("[Jump] 落地")
-            ));
+                onEnter: _ => Log("[Idle] wait for events"),
+                onLogic: _ => KeyValue("Idle.Hp", actor.Hp.ToString("F1"))));
 
             fsm.AddState("Attack", new State(
-                onEnter: s => Log("[Attack] 发动攻击！"),
-                onLogic: s => Log("[Attack] 攻击进行中..."),
-                onExit: s => Log("[Attack] 攻击结束")
-            ));
+                onEnter: _ =>
+                {
+                    actor.Combo += 1;
+                    Log($"[Attack] combo={actor.Combo}");
+                },
+                onLogic: _ => Log("[Attack] resolve hit window"),
+                onExit: _ => Log("[Attack] exit")));
 
-            // 添加普通转换（条件触发）
-            fsm.AddTransition(new Transition<string>(
-                from: "Idle",
-                to: "Jump",
-                condition: t => true,
-                onTransition: t => Log("[转换] Idle -> Jump")
-            ));
+            fsm.AddState("Stagger", new State(
+                onEnter: _ => Log($"[Stagger] interrupted by {actor.LastDamageSource}"),
+                onLogic: _ => KeyValue("Stagger.Hp", actor.Hp.ToString("F1")),
+                onExit: _ => Log("[Stagger] recovered")));
 
-            fsm.AddTransition(new Transition<string>(
-                from: "Jump",
-                to: "Idle",
-                condition: t => true,
-                onTransition: t => Log("[转换] Jump -> Idle")
-            ));
+            fsm.AddState("Dead", new State(
+                onEnter: _ => Log("[Dead] stop combat logic"),
+                onLogic: _ => KeyValue("Dead.Hp", actor.Hp.ToString("F1"))));
 
-            // 添加触发器转换
-            fsm.AddTriggerTransition("OnAttack", new Transition<string>(
+            fsm.AddTriggerTransition("Attack", new Transition<string>(
                 from: "Idle",
                 to: "Attack",
-                onTransition: t => Log("[触发器] 激活 Attack 转换")
-            ));
+                condition: _ => actor.Hp > 0f,
+                onTransition: _ => Log("[Trigger] Idle -> Attack")));
 
-            fsm.AddTriggerTransition("OnAttack", new Transition<string>(
-                from: "Jump",
-                to: "Attack",
-                onTransition: t => Log("[触发器] 跳跃中发动攻击")
-            ));
-
-            fsm.AddTriggerTransition("OnAttack", new Transition<string>(
+            fsm.AddTriggerTransition("FinishAttack", new Transition<string>(
                 from: "Attack",
                 to: "Idle",
-                onTransition: t => Log("[触发器] 攻击结束返回 Idle")
-            ));
+                onTransition: _ => Log("[Trigger] Attack -> Idle")));
+
+            fsm.AddTriggerTransition("Stagger", new Transition<string>(
+                from: "Idle",
+                to: "Stagger",
+                condition: _ => actor.Hp > 0f,
+                onTransition: _ => Log("[Trigger] Idle -> Stagger")));
+
+            fsm.AddTriggerTransition("Stagger", new Transition<string>(
+                from: "Attack",
+                to: "Stagger",
+                condition: _ => actor.Hp > 0f,
+                onTransition: _ => Log("[Trigger] Attack -> Stagger")));
+
+            fsm.AddTriggerTransition("Recover", new Transition<string>(
+                from: "Stagger",
+                to: "Idle",
+                condition: _ => actor.Hp > 0f,
+                onTransition: _ => Log("[Trigger] Stagger -> Idle")));
+
+            fsm.AddTriggerTransitionFromAny("Dead", new Transition<string>(
+                from: string.Empty,
+                to: "Dead",
+                condition: _ => actor.Hp <= 0f,
+                onTransition: _ => Log("[Trigger] Any -> Dead")));
 
             fsm.SetStartState("Idle");
-            fsm.Init();
+            return fsm;
+        }
 
-            Log("状态机已初始化，初始状态: " + fsm.ActiveStateName);
-            Log("");
+        private void PublishCommand(EventBus eventBus, EventKey<CommandEvent> key, string command)
+        {
+            Log($"Publish CommandEvent({command})");
+            eventBus.Publish(key, new CommandEvent(command));
+        }
 
-            // 3. 正常逻辑更新
-            Log("【3】正常逻辑更新（无触发器）");
-            Log("--- OnLogic() ---");
+        private void PublishDamage(EventBus eventBus, EventKey<DamageEvent> key, float amount, string source)
+        {
+            Log($"Publish DamageEvent({amount:F1}, {source})");
+            eventBus.Publish(key, new DamageEvent(amount, source));
+        }
+
+        private void Step(StateMachine<string, string, string> fsm, ActorState actor, float deltaTime, string label)
+        {
+            actor.DeltaTime = deltaTime;
+            AdvanceTime(deltaTime);
+            Log($"-- {label} (+{deltaTime:F2}s) --");
             fsm.OnLogic();
-            Log("");
+            KeyValue("ActiveState", fsm.ActiveStateName);
+        }
 
-            // 4. 触发 OnAttack 触发器
-            Log("【4】触发 OnAttack 触发器");
-            Log("--- Trigger(\"OnAttack\") ---");
-            fsm.Trigger("OnAttack");
-            Log($"当前状态: {fsm.ActiveStateName}");
-            Log("");
+        private readonly struct CommandEvent
+        {
+            public CommandEvent(string command)
+            {
+                Command = command;
+            }
 
-            // 5. 再次触发
-            Log("【5】再次触发 OnAttack");
-            Log("--- Trigger(\"OnAttack\") ---");
-            fsm.Trigger("OnAttack");
-            Log($"当前状态: {fsm.ActiveStateName}");
-            Log("");
+            public string Command { get; }
+        }
 
-            // 6. 触发后正常更新
-            Log("【6】触发后的逻辑更新");
-            Log("--- OnLogic() ---");
-            fsm.OnLogic();
-            Log($"当前状态: {fsm.ActiveStateName}");
-            Log("");
+        private readonly struct DamageEvent
+        {
+            public DamageEvent(float amount, string source)
+            {
+                Amount = amount;
+                Source = source;
+            }
 
-            Output.Divider();
+            public float Amount { get; }
+            public string Source { get; }
+        }
+
+        private sealed class ActorState
+        {
+            public float Hp { get; set; } = 100f;
+            public int Combo { get; set; }
+            public string LastDamageSource { get; set; } = "none";
+            public float DeltaTime { get; set; }
+        }
+
+        private sealed class HfsmEventBridge : System.IDisposable
+        {
+            private readonly System.IDisposable _damageSubscription;
+            private readonly System.IDisposable _commandSubscription;
+            private readonly StateMachine<string, string, string> _fsm;
+            private readonly ActorState _actor;
+            private readonly System.Action<string> _log;
+
+            public HfsmEventBridge(
+                EventBus eventBus,
+                StateMachine<string, string, string> fsm,
+                ActorState actor,
+                EventKey<DamageEvent> damageKey,
+                EventKey<CommandEvent> commandKey,
+                System.Action<string> log)
+            {
+                _fsm = fsm;
+                _actor = actor;
+                _log = log;
+                _damageSubscription = eventBus.Subscribe<DamageEvent>(damageKey, OnDamage);
+                _commandSubscription = eventBus.Subscribe<CommandEvent>(commandKey, OnCommand);
+            }
+
+            public void Dispose()
+            {
+                _damageSubscription.Dispose();
+                _commandSubscription.Dispose();
+            }
+
+            private void OnCommand(CommandEvent args)
+            {
+                _log($"Bridge CommandEvent -> {args.Command} trigger");
+                _fsm.Trigger(args.Command);
+            }
+
+            private void OnDamage(DamageEvent args)
+            {
+                _actor.Hp -= args.Amount;
+                _actor.LastDamageSource = args.Source;
+                _log($"Bridge DamageEvent -> hp={_actor.Hp:F1}");
+                _fsm.Trigger(_actor.Hp <= 0f ? "Dead" : "Stagger");
+            }
         }
     }
 }

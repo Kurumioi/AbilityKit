@@ -24,13 +24,11 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         // Catalog: 3 implemented modes × 6 network environments = 18 scenarios.
         // PredictRollback: 6 Completed (ShooterDemoHarnessCarrier supports it).
         // AuthoritativeInterpolation: 6 Completed (ShooterInterpolationDemoHarnessCarrier supports it).
-        // HybridHeroPrediction: 6 Degraded (ShooterHybridDemoHarnessCarrier reports Degraded;
-        //   all entities run through predict-rollback, per-entity playback split not yet implemented).
-        // Note: CompletedCount counts both Completed and Degraded statuses (both have Completed==true).
+        // HybridHeroPrediction: 6 Completed (ShooterHybridDemoHarnessCarrier requires the dedicated Hybrid controller).
 
         Assert.Equal(18, batch.ScenarioCount);
         Assert.Equal(18, batch.CompletedCount);
-        Assert.Equal(6, batch.DegradedCount);
+        Assert.Equal(0, batch.DegradedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
         Assert.True(batch.AllCompleted);
@@ -42,7 +40,7 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // PredictRollback × 6 Completed + AuthoritativeInterpolation × 6 Completed
-        // + HybridHeroPrediction × 6 Degraded = 3 summary rows.
+        // + HybridHeroPrediction × 6 Completed = 3 summary rows.
         Assert.Equal(3, batch.Summary.Rows.Count);
 
         // PredictRollback: 6 Completed.
@@ -57,11 +55,11 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
             NetworkSyncModel.AuthoritativeInterpolation,
             DemoHarnessRunStatus.Completed));
 
-        // HybridHeroPrediction: 6 Degraded.
+        // HybridHeroPrediction: 6 Completed.
         Assert.Equal(6, batch.Summary.CountFor(
             ShooterHybridDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.HybridHeroPrediction,
-            DemoHarnessRunStatus.Degraded));
+            DemoHarnessRunStatus.Completed));
 
         // No other statuses for PredictRollback.
         Assert.Equal(0, batch.Summary.CountFor(

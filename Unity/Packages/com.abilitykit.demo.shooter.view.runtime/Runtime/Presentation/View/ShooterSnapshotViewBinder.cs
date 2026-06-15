@@ -12,6 +12,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool InterpolationEnabled { get; set; } = true;
 
+        public bool HasBufferedSnapshots => _presentation.Snapshots.BufferedSnapshotCount > 0;
+
         public ShooterSnapshotViewBinder(ShooterPresentationFacade presentation)
             : this(presentation, null)
         {
@@ -31,14 +33,28 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void TickInterpolation(float deltaTime)
         {
+            if (!InterpolationEnabled)
+            {
+                return;
+            }
+
+            if (_presentation.Snapshots.TryAdvancePlayback(deltaTime, out var batch))
+            {
+                Sync(in batch);
+            }
         }
 
         public void RebindAll()
         {
+            if (_presentation.Snapshots.TrySampleLatest(out var batch))
+            {
+                Sync(in batch);
+            }
         }
 
         public void Clear()
         {
+            _presentation.Snapshots.Reset();
             _sink.Clear();
         }
 
@@ -56,7 +72,10 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void OnSnapshotApplied(ShooterSnapshotViewBatch batch)
         {
-            Sync(in batch);
+            if (!InterpolationEnabled)
+            {
+                Sync(in batch);
+            }
         }
     }
 }

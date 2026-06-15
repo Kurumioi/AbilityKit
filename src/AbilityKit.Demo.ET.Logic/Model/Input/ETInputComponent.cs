@@ -4,8 +4,7 @@ using System.Collections.Generic;
 namespace ET.Logic
 {
     /// <summary>
-    /// 输入组件 - 管理输入缓冲
-    /// 与 Moba.Console 的 ConsoleInputFeature 类似
+    /// Input component for buffering frame-indexed player commands.
     /// </summary>
     [ComponentOf(typeof(Scene))]
     public class ETInputComponent: Entity, IAwake

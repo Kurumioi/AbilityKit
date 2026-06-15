@@ -83,7 +83,7 @@ namespace AbilityKit.Game.Flow
 
             RemoteDrivenRuntimeModuleFactory.Create(options).InstallAll(runtime, runtimeOptions);
 
-            var worldId = new WorldId(options.Plan.WorldId);
+            var worldId = new WorldId(options.Plan.World.WorldId);
             var authorityFramesSource = CreateAuthorityFramesSource(runtime);
             var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(
                 options.Plan,

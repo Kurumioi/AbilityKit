@@ -21,6 +21,28 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int LatestFrame { get; }
     }
 
+    public readonly struct ShooterLagCompensationEvaluation
+    {
+        public ShooterLagCompensationEvaluation(in ShooterLagCompensationShot shot, in LagCompensationHitResult result)
+        {
+            Shot = shot;
+            Accepted = result.Accepted;
+            Reason = result.Reason;
+            RequestedFrame = result.RequestedFrame;
+            EvaluatedFrame = result.EvaluatedFrame;
+            HitEntityId = result.HitEntityId;
+            Distance = result.Distance;
+        }
+
+        public ShooterLagCompensationShot Shot { get; }
+        public bool Accepted { get; }
+        public LagCompensationResultReason Reason { get; }
+        public int RequestedFrame { get; }
+        public int EvaluatedFrame { get; }
+        public int HitEntityId { get; }
+        public float Distance { get; }
+    }
+
     public readonly struct ShooterLagCompensationShot
     {
         public ShooterLagCompensationShot(
@@ -61,20 +83,33 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public const int PlayerLayerMask = 1;
 
         private readonly ServerRewindLagCompensationService _lagCompensation;
+        private readonly IShooterBattleRules _rules;
+        private ShooterLagCompensationEvaluation? _lastEvaluation;
 
         public ShooterLagCompensationService()
-            : this(ServerRewindLagCompensationConfig.Default)
+            : this(ServerRewindLagCompensationConfig.Default, ShooterBattleRules.Default)
         {
         }
 
         public ShooterLagCompensationService(ServerRewindLagCompensationConfig config)
-            : this(new ServerRewindLagCompensationService(config))
+            : this(config, ShooterBattleRules.Default)
+        {
+        }
+
+        public ShooterLagCompensationService(ServerRewindLagCompensationConfig config, IShooterBattleRules rules)
+            : this(new ServerRewindLagCompensationService(config), rules)
         {
         }
 
         public ShooterLagCompensationService(ServerRewindLagCompensationService lagCompensation)
+            : this(lagCompensation, ShooterBattleRules.Default)
+        {
+        }
+
+        public ShooterLagCompensationService(ServerRewindLagCompensationService lagCompensation, IShooterBattleRules rules)
         {
             _lagCompensation = lagCompensation ?? throw new ArgumentNullException(nameof(lagCompensation));
+            _rules = rules ?? throw new ArgumentNullException(nameof(rules));
         }
 
         public int CapturedFrameCount => _lagCompensation.CapturedFrameCount;
@@ -84,6 +119,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             CapturedFrameCount,
             OldestFrame,
             LatestFrame);
+        public ShooterLagCompensationEvaluation? LastEvaluation => _lastEvaluation;
 
         public void RecordFrame(IShooterBattleRuntimePort runtime)
         {
@@ -104,7 +140,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 entities[i] = new LagCompensatedEntitySnapshot(
                     player.PlayerId,
                     in position,
-                    ShooterBattleTuning.HitRadius,
+                    _rules.HitRadius,
                     PlayerLayerMask,
                     player.Alive);
             }
@@ -125,12 +161,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 shot.RewindFrame,
                 shot.ServerReceiveFrame);
 
-            return _lagCompensation.TryEvaluateHit(in query, out result);
+            var accepted = _lagCompensation.TryEvaluateHit(in query, out result);
+            _lastEvaluation = new ShooterLagCompensationEvaluation(in shot, in result);
+            return accepted;
         }
 
         public void Clear()
         {
             _lagCompensation.Clear();
+            _lastEvaluation = null;
         }
     }
 }

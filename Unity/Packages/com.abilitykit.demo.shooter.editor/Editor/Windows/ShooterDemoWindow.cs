@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Editor.Diagnostics;
 using AbilityKit.Demo.Shooter.Editor.Input;
 using AbilityKit.Demo.Shooter.Editor.Sink;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.Network;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.PlayMode;
@@ -18,10 +19,10 @@ using UnityEngine.SceneManagement;
 namespace AbilityKit.Demo.Shooter.Editor.Windows
 {
     /// <summary>
-    /// Main Editor window for the Shooter network sync demo.
-    /// Drives the simulation via <see cref="EditorApplication.update"/>,
-    /// renders entities in SceneView via <see cref="ShooterEditorSceneViewSink"/>,
-    /// and provides controls for sync mode, network environment, and diagnostics.
+    /// Shooter 网络同步演示主窗口。
+    /// 可通过 <see cref="EditorApplication.update"/> 驱动模拟，
+    /// 通过 <see cref="ShooterEditorSceneViewSink"/> 在 SceneView 中渲染实体，
+    /// 并提供同步模式、网络环境与运行诊断配置。
     /// </summary>
     public sealed partial class ShooterDemoWindow : EditorWindow
     {
@@ -34,11 +35,12 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         // --- Drive mode ---
         private ShooterDemoDriveMode _driveMode = ShooterDemoDriveMode.EditorDirect;
-        private IShooterPlayModeSessionHost? _attachedHost;
+        private IShooterSessionHost? _attachedHost;
 
         // --- Run state ---
         private bool _running;
         private bool _paused;
+        private bool _showingSpecBaseline;
         private float _timeScale = 1f;
         private double _lastTime;
 
@@ -65,11 +67,29 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private Vector2 _eventsScroll;
         private string _lastError = string.Empty;
 
-        // --- Cached catalog data ---
+        // --- 缓存目录数据 ---
         private static readonly IReadOnlyList<ShooterAcceptanceSyncOption> SyncModes =
             ShooterAcceptanceCatalog.SyncModes;
         private static readonly IReadOnlyList<ShooterAcceptanceNetworkOption> NetworkPresets =
             ShooterAcceptanceCatalog.NetworkEnvironments;
+
+        // --- 跨 PlayMode 切换保留的宿主启动配置 ---
+        private const string PendingHostAttachKey = "AbilityKit.ShooterDemo.PendingPlayModeAttach";
+        private const string HasSavedConfigKey = "AbilityKit.ShooterDemo.HasSavedConfig";
+        private const string SyncIndexKey = "AbilityKit.ShooterDemo.SyncIndex";
+        private const string NetworkProviderIndexKey = "AbilityKit.ShooterDemo.NetworkProviderIndex";
+        private const string NetworkPresetIndexKey = "AbilityKit.ShooterDemo.NetworkPresetIndex";
+        private const string AuthoritativeWorldKey = "AbilityKit.ShooterDemo.AuthoritativeWorld";
+        private const string ShowDivergenceKey = "AbilityKit.ShooterDemo.ShowDivergence";
+        private const string PlayerCountKey = "AbilityKit.ShooterDemo.PlayerCount";
+        private const string InitialHpKey = "AbilityKit.ShooterDemo.InitialHp";
+        private const string RandomSeedKey = "AbilityKit.ShooterDemo.RandomSeed";
+        private const string ControlledPlayerIdKey = "AbilityKit.ShooterDemo.ControlledPlayerId";
+        private const string LatencyMsKey = "AbilityKit.ShooterDemo.LatencyMs";
+        private const string JitterMsKey = "AbilityKit.ShooterDemo.JitterMs";
+        private const string PacketLossRateKey = "AbilityKit.ShooterDemo.PacketLossRate";
+        private const string ReorderRateKey = "AbilityKit.ShooterDemo.ReorderRate";
+        private const string BandwidthKbpsKey = "AbilityKit.ShooterDemo.BandwidthKbps";
 
         [MenuItem("Tools/AbilityKit/Shooter Demo")]
         private static void Open()
@@ -80,35 +100,56 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private void OnEnable()
         {
             _lastTime = EditorApplication.timeSinceStartup;
-            ApplyNetworkPreset(0);
-            // Keep the status bar's host-lifecycle indicator fresh even when the window
-            // is not attached to the PlayMode host (the host lives independently of us).
-            ShooterPlayModeSessionRegistry.HostsChanged += OnHostLifecycleChanged;
+            if (SessionState.GetBool(HasSavedConfigKey, false))
+            {
+                RestoreConfigFromSessionState();
+                ApplyCustomNetwork();
+            }
+            else
+            {
+                ApplyNetworkPreset(0);
+            }
+
+            // 宿主生命周期独立于窗口挂接状态，订阅后状态栏可以持续显示最新运行状态。
+            ShooterHostSessionRegistry.HostsChanged += OnHostLifecycleChanged;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+
+            if (SessionState.GetBool(PendingHostAttachKey, false) && Application.isPlaying)
+            {
+                EditorApplication.delayCall += TryStartPendingHostSession;
+            }
         }
 
         private void OnDisable()
         {
             StopInternal();
-            ShooterPlayModeSessionRegistry.HostsChanged -= OnHostLifecycleChanged;
+            ShooterHostSessionRegistry.HostsChanged -= OnHostLifecycleChanged;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
         }
 
         private void OnHostLifecycleChanged()
         {
-            // The host lifecycle can change independently of this window; refresh the
-            // status bar so the Idle/Installed/Running indicator stays accurate.
+            // 宿主可能由 PlayMode 生命周期或其他窗口改变，这里只负责刷新可见状态。
             Repaint();
         }
 
         private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            // Entering/exiting Play mode changes the host indicator and control availability.
+            if (state == PlayModeStateChange.EnteredPlayMode && SessionState.GetBool(PendingHostAttachKey, false))
+            {
+                EditorApplication.delayCall += TryStartPendingHostSession;
+            }
+            else if (state == PlayModeStateChange.ExitingPlayMode)
+            {
+                SessionState.SetBool(PendingHostAttachKey, false);
+            }
+
+            // 进入或退出 Play 模式会改变宿主状态与按钮可用性。
             Repaint();
         }
 
         // =====================================================================
-        // Main OnGUI
+        // 主界面
         // =====================================================================
 
         private void OnGUI()
@@ -119,12 +160,12 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             EditorGUILayout.BeginHorizontal();
 
-            // Left panel: Configuration
+            // 左侧：运行配置
             EditorGUILayout.BeginVertical(GUILayout.Width(260));
             DrawConfigPanel();
             EditorGUILayout.EndVertical();
 
-            // Right panel: Diagnostics
+            // 右侧：运行诊断
             EditorGUILayout.BeginVertical();
             DrawDiagnosticsPanel();
             EditorGUILayout.EndVertical();
@@ -143,7 +184,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-            // Drive mode selector (cannot change while a session is live)
+            // 会话运行中不允许切换驱动模式。
             EditorGUI.BeginDisabledGroup(_running);
             var newMode = (ShooterDemoDriveMode)EditorGUILayout.EnumPopup(
                 _driveMode, EditorStyles.toolbarPopup, GUILayout.Width(130));
@@ -153,18 +194,18 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
             EditorGUI.EndDisabledGroup();
 
-            var attachMode = _driveMode == ShooterDemoDriveMode.PlayModeAttach;
+            var attachMode = _driveMode == ShooterDemoDriveMode.HostAttach;
 
             EditorGUI.BeginDisabledGroup(_running);
-            var startLabel = attachMode ? "🔗 Attach" : "▶ Start";
-            if (GUILayout.Button(startLabel, EditorStyles.toolbarButton, GUILayout.Width(80)))
+            var startLabel = attachMode ? "🔗 启动并挂接" : "▶ 启动";
+            if (GUILayout.Button(startLabel, EditorStyles.toolbarButton, GUILayout.Width(110)))
             {
                 StartInternal();
             }
             EditorGUI.EndDisabledGroup();
 
             EditorGUI.BeginDisabledGroup(!_running);
-            var stopLabel = attachMode ? "✂ Detach" : "■ Stop";
+            var stopLabel = attachMode ? "✂ 断开" : "■ 停止";
             if (GUILayout.Button(stopLabel, EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
                 StopInternal();
@@ -173,23 +214,21 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             if (attachMode)
             {
-                // The button is enabled whenever there is a published host that can be
-                // stopped — we do not reference the concrete PlayMode host type here so
-                // the toolbar stays decoupled from the active host implementation.
-                var hasStoppableHost = ShooterPlayModeSessionRegistry.Active != null;
+                // 只依赖发布接口停止宿主，避免窗口绑定具体 PlayMode 宿主实现。
+                var hasStoppableHost = ShooterHostSessionRegistry.Active != null;
                 EditorGUI.BeginDisabledGroup(!Application.isPlaying || !hasStoppableHost);
-                if (GUILayout.Button("■ Stop Host", EditorStyles.toolbarButton, GUILayout.Width(95)))
+                if (GUILayout.Button("■ 停止宿主", EditorStyles.toolbarButton, GUILayout.Width(95)))
                 {
                     StopPlayModeHostInternal();
                 }
                 EditorGUI.EndDisabledGroup();
             }
 
-            // Pause/Step only make sense when the window owns the loop (Editor Direct).
+            // 暂停与单步只适用于窗口自驱的 Editor Direct 模式。
             EditorGUI.BeginDisabledGroup(!_running || attachMode);
-            _paused = GUILayout.Toggle(_paused, "‖ Pause", EditorStyles.toolbarButton, GUILayout.Width(70));
+            _paused = GUILayout.Toggle(_paused, "‖ 暂停", EditorStyles.toolbarButton, GUILayout.Width(70));
 
-            if (GUILayout.Button("▶ Step", EditorStyles.toolbarButton, GUILayout.Width(70)))
+            if (GUILayout.Button("▶ 单步", EditorStyles.toolbarButton, GUILayout.Width(70)))
             {
                 StepInternal();
             }
@@ -197,9 +236,9 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             GUILayout.FlexibleSpace();
 
-            // Speed only affects the Editor-driven loop.
+            // 速度只影响 Editor 自驱循环。
             EditorGUI.BeginDisabledGroup(attachMode);
-            GUILayout.Label("Speed", GUILayout.Width(35));
+            GUILayout.Label("速度", GUILayout.Width(35));
             _timeScale = EditorGUILayout.Slider(_timeScale, 0f, 4f, GUILayout.Width(160));
             EditorGUI.EndDisabledGroup();
 
@@ -207,7 +246,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         }
 
         // =====================================================================
-        // Config Panel
+        // 配置面板
         // =====================================================================
 
         private void DrawConfigPanel()
@@ -219,22 +258,24 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             DrawPlayerConfigSection();
             EditorGUILayout.Space(4);
             DrawInputSection();
+            EditorGUILayout.Space(4);
+            DrawAcceptanceSpecSection();
         }
 
         private void DrawSyncModeSection()
         {
-            EditorGUILayout.LabelField("Sync Mode", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("同步模式", EditorStyles.boldLabel);
 
             var syncNames = new string[SyncModes.Count];
             for (int i = 0; i < SyncModes.Count; i++)
             {
                 syncNames[i] = SyncModes[i].Implemented
                     ? SyncModes[i].DisplayName
-                    : SyncModes[i].DisplayName + " (N/A)";
+                    : SyncModes[i].DisplayName + " (未接入)";
             }
 
             EditorGUI.BeginDisabledGroup(_running);
-            var newSyncIdx = EditorGUILayout.Popup("Mode", _selectedSyncIndex, syncNames);
+            var newSyncIdx = EditorGUILayout.Popup("模式", _selectedSyncIndex, syncNames);
             if (newSyncIdx != _selectedSyncIndex)
             {
                 _selectedSyncIndex = newSyncIdx;
@@ -246,31 +287,31 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 var mode = SyncModes[_selectedSyncIndex];
                 if (!mode.Implemented)
                 {
-                    EditorGUILayout.HelpBox($"'{mode.DisplayName}' is not yet implemented.", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"'{mode.DisplayName}' 尚未完成接入。", MessageType.Warning);
                 }
             }
         }
 
         private void DrawNetworkSection()
         {
-            EditorGUILayout.LabelField("Network Environment", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("网络环境", EditorStyles.boldLabel);
 
-            // Network provider source dropdown
+            // 网络配置来源下拉框。
             var providers = ShooterNetworkConditionRegistry.All;
             var providerNames = new string[providers.Count];
             for (int i = 0; i < providers.Count; i++)
             {
                 providerNames[i] = providers[i].DisplayName;
-                if (!providers[i].IsActive) providerNames[i] += " (Inactive)";
+                if (!providers[i].IsActive) providerNames[i] += " (未激活)";
             }
 
-            var newProviderIdx = EditorGUILayout.Popup("Source", _selectedNetworkProviderIndex, providerNames);
+            var newProviderIdx = EditorGUILayout.Popup("来源", _selectedNetworkProviderIndex, providerNames);
             if (newProviderIdx != _selectedNetworkProviderIndex)
             {
                 _selectedNetworkProviderIndex = newProviderIdx;
             }
 
-            // Only show built-in sliders when the built-in provider is selected
+            // 只有内置来源才显示可调网络参数。
             if (_selectedNetworkProviderIndex == 0)
             {
                 DrawBuiltinNetworkSliders();
@@ -281,21 +322,21 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 if (!provider.IsActive)
                 {
                     EditorGUILayout.HelpBox(
-                        $"External provider '{provider.DisplayName}' is not active. Check that the tool is running.",
+                        $"外部网络配置来源 '{provider.DisplayName}' 未激活，请确认对应工具已运行。",
                         MessageType.Warning);
                 }
                 else
                 {
-                    EditorGUILayout.LabelField("Profile", DescribeProfile(provider.Profile));
+                    EditorGUILayout.LabelField("配置", DescribeProfile(provider.Profile));
                 }
             }
         }
 
         private void DrawBuiltinNetworkSliders()
         {
-            // Preset buttons
+            // 预设按钮。
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Preset", GUILayout.Width(45));
+            GUILayout.Label("预设", GUILayout.Width(45));
             for (int i = 0; i < NetworkPresets.Count; i++)
             {
                 var preset = NetworkPresets[i];
@@ -307,13 +348,13 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
             EditorGUILayout.EndHorizontal();
 
-            // Parameter sliders
+            // 网络参数滑条。
             EditorGUI.BeginChangeCheck();
-            _latencyMs = EditorGUILayout.IntSlider("Latency (ms)", _latencyMs, 0, 500);
-            _jitterMs = EditorGUILayout.IntSlider("Jitter (ms)", _jitterMs, 0, 200);
-            _packetLossRate = EditorGUILayout.Slider("Packet Loss", (float)_packetLossRate, 0f, 0.5f);
-            _reorderRate = EditorGUILayout.Slider("Reorder Rate", (float)_reorderRate, 0f, 0.5f);
-            _bandwidthKbps = EditorGUILayout.IntSlider("Bandwidth (kbps)", _bandwidthKbps, 0, 10000);
+            _latencyMs = EditorGUILayout.IntSlider("延迟 (ms)", _latencyMs, 0, 500);
+            _jitterMs = EditorGUILayout.IntSlider("抖动 (ms)", _jitterMs, 0, 200);
+            _packetLossRate = EditorGUILayout.Slider("丢包率", (float)_packetLossRate, 0f, 0.5f);
+            _reorderRate = EditorGUILayout.Slider("乱序率", (float)_reorderRate, 0f, 0.5f);
+            _bandwidthKbps = EditorGUILayout.IntSlider("带宽 (kbps)", _bandwidthKbps, 0, 10000);
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -323,35 +364,35 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         private void DrawPlayerConfigSection()
         {
-            EditorGUILayout.LabelField("Players", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("玩家", EditorStyles.boldLabel);
 
             EditorGUI.BeginDisabledGroup(_running);
-            _playerCount = EditorGUILayout.IntSlider("Count", _playerCount, 1, ShooterGameplay.DefaultMaxPlayers);
-            _initialHp = EditorGUILayout.IntField("Initial HP", _initialHp);
-            _randomSeed = EditorGUILayout.IntField("Random Seed", _randomSeed);
+            _playerCount = EditorGUILayout.IntSlider("数量", _playerCount, 1, ShooterGameplay.DefaultMaxPlayers);
+            _initialHp = EditorGUILayout.IntField("初始 HP", _initialHp);
+            _randomSeed = EditorGUILayout.IntField("随机种子", _randomSeed);
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.Space(2);
 
             _enableAuthoritativeWorld = EditorGUILayout.ToggleLeft(
-                "Show Authority World (Compare)", _enableAuthoritativeWorld);
+                "显示权威世界（对比）", _enableAuthoritativeWorld);
 
             if (_enableAuthoritativeWorld)
             {
                 _showDivergence = EditorGUILayout.ToggleLeft(
-                    "  Show Divergence Lines", _showDivergence);
+                    "  显示偏差连线", _showDivergence);
             }
         }
 
         private void DrawInputSection()
         {
-            EditorGUILayout.LabelField("Input", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("输入", EditorStyles.boldLabel);
 
             _inputProvider.EnableKeyboardInput = EditorGUILayout.ToggleLeft(
-                "Enable Keyboard (WASD + Space)", _inputProvider.EnableKeyboardInput);
+                "启用键盘（WASD + Space）", _inputProvider.EnableKeyboardInput);
 
             EditorGUI.BeginDisabledGroup(!_inputProvider.EnableKeyboardInput);
-            EditorGUILayout.LabelField("Keys", _inputProvider.GetDebugKeyString());
+            EditorGUILayout.LabelField("按键", _inputProvider.GetDebugKeyString());
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.Space(2);
@@ -359,50 +400,65 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             var playerOptions = new string[_playerCount];
             for (int i = 0; i < _playerCount; i++)
             {
-                playerOptions[i] = $"Player {i + 1}";
+                playerOptions[i] = $"玩家 {i + 1}";
             }
-            _controlledPlayerId = EditorGUILayout.Popup("Control", _controlledPlayerId - 1, playerOptions) + 1;
+            _controlledPlayerId = EditorGUILayout.Popup("控制", _controlledPlayerId - 1, playerOptions) + 1;
             _inputProvider.ControlledPlayerId = _controlledPlayerId;
         }
 
+        private void DrawAcceptanceSpecSection()
+        {
+            EditorGUILayout.LabelField("验收规格", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "运行纯 C# BasicCombat 规格，并把结果写入当前诊断面板。该结果与自动化测试使用同一份规格。",
+                MessageType.Info);
+
+            EditorGUI.BeginDisabledGroup(_running);
+            if (GUILayout.Button("运行 BasicCombat 基线", GUILayout.Height(24)))
+            {
+                RunBasicCombatSpecBaseline();
+            }
+            EditorGUI.EndDisabledGroup();
+        }
+
         // =====================================================================
-        // Diagnostics Panel
+        // 诊断面板
         // =====================================================================
 
         private void DrawDiagnosticsPanel()
         {
-            EditorGUILayout.LabelField("Diagnostics", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("运行诊断", EditorStyles.boldLabel);
 
-            if (!_running)
+            if (!_running && !_showingSpecBaseline)
             {
                 EditorGUILayout.HelpBox(
-                    "Click '▶ Start' to begin the Shooter demo session.\n" +
-                    "Use WASD to move, Space to fire.\n" +
-                    "Entities render in the SceneView window.",
+                    "选择同步模式与网络环境后，点击 '▶ 启动' 开始 Shooter 演示。\n" +
+                    "Host 挂接模式会自动进入 Play 模式并启动宿主。\n" +
+                    "也可以在左侧运行验收规格，直接查看与自动化测试一致的纯 C# 基线结果。",
                     MessageType.Info);
                 return;
             }
 
-            // Stats row
+            // 关键运行统计。
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-            EditorGUILayout.LabelField($"Frame: {_diagnostics.Frame}", GUILayout.Width(100));
-            EditorGUILayout.LabelField($"Players: {_diagnostics.PlayerCount}", GUILayout.Width(90));
-            EditorGUILayout.LabelField($"Bullets: {_diagnostics.BulletCount}", GUILayout.Width(90));
-            EditorGUILayout.LabelField($"Rollbacks: {_diagnostics.TotalRollbacks}", GUILayout.Width(100));
+            EditorGUILayout.LabelField($"帧: {_diagnostics.Frame}", GUILayout.Width(100));
+            EditorGUILayout.LabelField($"玩家: {_diagnostics.PlayerCount}", GUILayout.Width(90));
+            EditorGUILayout.LabelField($"子弹: {_diagnostics.BulletCount}", GUILayout.Width(90));
+            EditorGUILayout.LabelField($"回滚: {_diagnostics.TotalRollbacks}", GUILayout.Width(100));
             EditorGUILayout.EndHorizontal();
 
-            // Divergence
+            // 客户端与权威世界偏差。
             if (_enableAuthoritativeWorld)
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-                EditorGUILayout.LabelField($"Max Divergence: {_diagnostics.MaxDivergence:F4}", GUILayout.Width(200));
-                EditorGUILayout.LabelField($"Divergences: {_diagnostics.Divergences.Count}", GUILayout.Width(120));
+                EditorGUILayout.LabelField($"最大偏差: {_diagnostics.MaxDivergence:F4}", GUILayout.Width(200));
+                EditorGUILayout.LabelField($"偏差数: {_diagnostics.Divergences.Count}", GUILayout.Width(120));
                 EditorGUILayout.EndHorizontal();
             }
 
-            // Entity list
+            // 实体列表。
             EditorGUILayout.Space(2);
-            EditorGUILayout.LabelField("Entities", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("实体", EditorStyles.miniBoldLabel);
 
             _diagnosticsScroll = EditorGUILayout.BeginScrollView(_diagnosticsScroll, GUILayout.Height(140));
             var clientEntities = _sink.ClientEntities;
@@ -412,19 +468,19 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 string label;
                 if (e.Kind == ShooterViewEntityKind.Player)
                 {
-                    label = $"  Player #{e.EntityId}  HP:{e.Hp}  Score:{e.Score}  ({e.X:F1}, {e.Y:F1})";
+                    label = $"  玩家 #{e.EntityId}  HP:{e.Hp}  分数:{e.Score}  ({e.X:F1}, {e.Y:F1})";
                 }
                 else
                 {
-                    label = $"  Bullet #{e.EntityId}  Owner:{e.OwnerEntityId}  ({e.X:F1}, {e.Y:F1})  vel:({e.VelocityX:F1}, {e.VelocityY:F1})  f:{e.RemainingFrames}";
+                    label = $"  子弹 #{e.EntityId}  归属:{e.OwnerEntityId}  ({e.X:F1}, {e.Y:F1})  速度:({e.VelocityX:F1}, {e.VelocityY:F1})  剩余帧:{e.RemainingFrames}";
                 }
                 EditorGUILayout.LabelField(label, EditorStyles.miniLabel);
             }
             EditorGUILayout.EndScrollView();
 
-            // Events log
+            // 事件日志。
             EditorGUILayout.Space(2);
-            EditorGUILayout.LabelField($"Events (Total: {_diagnostics.TotalEvents})", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField($"事件（总计: {_diagnostics.TotalEvents}）", EditorStyles.miniBoldLabel);
 
             _eventsScroll = EditorGUILayout.BeginScrollView(_eventsScroll, GUILayout.Height(120));
             var events = _diagnostics.RecentEvents;
@@ -432,17 +488,17 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             {
                 var evt = events[i];
                 string label;
-                if (evt.EventType == 1)
+                if (evt.EventType == (int)ShooterEventType.Hit)
                 {
-                    label = $"  [Hit] P{evt.SourcePlayerId}→P{evt.TargetPlayerId} Bullet#{evt.BulletId} at ({evt.X:F1},{evt.Y:F1}) dmg:{evt.Value}";
+                    label = $"  [命中] P{evt.SourcePlayerId}→P{evt.TargetPlayerId} 子弹#{evt.BulletId} 位置({evt.X:F1},{evt.Y:F1}) 伤害:{evt.Value}";
                 }
-                else if (evt.EventType == 2)
+                else if (evt.EventType == (int)ShooterEventType.Fire)
                 {
-                    label = $"  [Fire] P{evt.SourcePlayerId} Bullet#{evt.BulletId} at ({evt.X:F1},{evt.Y:F1})";
+                    label = $"  [开火] P{evt.SourcePlayerId} 子弹#{evt.BulletId} 位置({evt.X:F1},{evt.Y:F1})";
                 }
                 else
                 {
-                    label = $"  [Event{evt.EventType}] src:{evt.SourcePlayerId} tgt:{evt.TargetPlayerId} val:{evt.Value}";
+                    label = $"  [事件{evt.EventType}] 来源:{evt.SourcePlayerId} 目标:{evt.TargetPlayerId} 值:{evt.Value}";
                 }
                 EditorGUILayout.LabelField(label, EditorStyles.miniLabel);
             }
@@ -450,7 +506,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         }
 
         // =====================================================================
-        // Status Bar
+        // 状态栏
         // =====================================================================
 
         private void DrawStatusBar()
@@ -460,15 +516,14 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             if (_running && _session != null)
             {
-                EditorGUILayout.LabelField($"Sync: {_session.SyncModel}", EditorStyles.miniLabel, GUILayout.Width(160));
-                EditorGUILayout.LabelField($"Network: {_session.NetworkName}", EditorStyles.miniLabel, GUILayout.Width(140));
+                EditorGUILayout.LabelField($"同步: {_session.SyncModel}", EditorStyles.miniLabel, GUILayout.Width(160));
+                EditorGUILayout.LabelField($"网络: {_session.NetworkName}", EditorStyles.miniLabel, GUILayout.Width(140));
             }
 
             GUILayout.FlexibleSpace();
 
-            // PlayMode host lifecycle is independent of the window's attachment state.
-            // Surface it so the "Unity as host" lifecycle is observable at a glance.
-            if (_driveMode == ShooterDemoDriveMode.PlayModeAttach)
+            // PlayMode 宿主生命周期独立于窗口挂接状态，这里直接暴露给使用者。
+            if (_driveMode == ShooterDemoDriveMode.HostAttach)
             {
                 EditorGUILayout.LabelField(GetPlayModeHostStatusText(), EditorStyles.miniLabel, GUILayout.Width(150));
             }
@@ -481,28 +536,37 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         }
 
         /// <summary>
-        /// Builds a human-readable label for the PlayMode host lifecycle, which exists
-        /// independently of whether this Editor window is currently attached to it.
+        /// 生成 PlayMode 宿主生命周期提示；宿主运行状态与当前窗口是否已挂接是两个独立概念。
         /// </summary>
-        private static string GetPlayModeHostStatusText()
+        private string GetPlayModeHostStatusText()
         {
+            if (SessionState.GetBool(PendingHostAttachKey, false))
+            {
+                return "宿主: 等待进入 Play";
+            }
+
             if (!Application.isPlaying)
             {
-                return "Host: Idle (not in Play mode)";
+                return "宿主: 未进入 Play";
             }
+
             if (ShooterPlayModeSessionHost.IsRunning)
             {
-                return "Host: Running";
+                return _attachedHost?.IsRunning == true
+                    ? "宿主: 运行中 / 已挂接"
+                    : "宿主: 运行中 / 可挂接";
             }
+
             if (ShooterPlayModeSessionHost.IsInstalled)
             {
-                return "Host: Installed (no session)";
+                return "宿主: 已安装 / 未启动";
             }
-            return "Host: Idle";
+
+            return "宿主: 空闲";
         }
 
         // =====================================================================
-        // Keyboard Input Capture
+        // 键盘输入捕获
         // =====================================================================
 
         private void CaptureWindowKeyboardInput()
@@ -536,7 +600,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         {
             if (_running) return;
 
-            if (_driveMode == ShooterDemoDriveMode.PlayModeAttach)
+            if (_driveMode == ShooterDemoDriveMode.HostAttach)
             {
                 AttachInternal();
                 return;
@@ -545,6 +609,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             try
             {
                 _lastError = string.Empty;
+                _showingSpecBaseline = false;
 
                 if (!TryBuildSessionOptions(out var options))
                 {
@@ -603,7 +668,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 return;
             }
 
-            if (_running)
+            if (_running || _showingSpecBaseline)
             {
                 EditorApplication.update -= OnEditorUpdate;
                 SceneView.duringSceneGui -= OnSceneViewGUI;
@@ -611,6 +676,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             _running = false;
             _paused = false;
+            _showingSpecBaseline = false;
             _editorRunner?.Dispose();
             _editorRunner = null;
             _session = null;
@@ -634,7 +700,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 // Stop the host through the published interface so this window does not
                 // depend on the concrete PlayMode host implementation. Any registered
                 // host (now or in the future) can be stopped uniformly.
-                var host = ShooterPlayModeSessionRegistry.Active;
+                var host = ShooterHostSessionRegistry.Active;
                 if (host != null)
                 {
                     host.Stop();
@@ -650,6 +716,60 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
         }
 
+        private void RunBasicCombatSpecBaseline()
+        {
+            try
+            {
+                var runner = new ShooterAcceptanceSpecRunner();
+                var result = runner.Run(ShooterAcceptanceSpecs.BasicCombat);
+
+                _sink.Clear();
+                _sink.ShowAuthorityWorld = false;
+                _sink.ShowDivergence = false;
+
+                using var session = ShooterAcceptanceLab.Create(
+                    NetworkSyncModel.PredictRollback,
+                    NetworkConditionProfile.Ideal,
+                    players: ShooterAcceptanceSpecs.BasicCombat.Start.Players,
+                    randomSeed: ShooterAcceptanceSpecs.BasicCombat.Start.RandomSeed,
+                    enableAuthoritativeWorld: false);
+                var snapshot = result.Snapshot;
+                session.Presentation.ApplyLocalPredictionSnapshot(in snapshot);
+                var clientBatch = session.Presentation.ViewModel.Current;
+                ShooterHostPresentationFrame frame = new ShooterHostPresentationFrame(
+                    clientBatch,
+                    ShooterSnapshotViewBatch.Empty,
+                    false,
+                    1,
+                    1f,
+                    null,
+                    null,
+                    default,
+                    null);
+                _sink.Render(in frame);
+
+                _diagnostics.Reset();
+                _diagnostics.Frame = result.Frame;
+                _diagnostics.PlayerCount = result.Snapshot.Players.Length;
+                _diagnostics.BulletCount = result.Snapshot.Bullets.Length;
+                _diagnostics.RecentEvents = result.Events;
+                _diagnostics.TotalEvents = result.Events.Count;
+
+                _showingSpecBaseline = true;
+                SceneView.duringSceneGui -= OnSceneViewGUI;
+                SceneView.duringSceneGui += OnSceneViewGUI;
+
+                _lastError = $"BasicCombat 规格通过：Frame={result.Frame}, Hash={result.StateHash:X8}";
+                SceneView.RepaintAll();
+                Repaint();
+            }
+            catch (Exception ex)
+            {
+                _lastError = $"BasicCombat spec failed: {ex.Message}";
+                Debug.LogException(ex);
+            }
+        }
+
         // =====================================================================
         // Play Mode Attach Lifecycle
         // =====================================================================
@@ -660,7 +780,16 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             if (!Application.isPlaying)
             {
-                _lastError = "Enter Play mode before attaching to the Unity host.";
+                if (!TryBuildSessionOptions(out _))
+                {
+                    Repaint();
+                    return;
+                }
+
+                SaveConfigToSessionState();
+                SessionState.SetBool(PendingHostAttachKey, true);
+                _lastError = "已保存当前配置，正在进入 Play 模式并启动 Shooter 宿主。";
+                EditorApplication.isPlaying = true;
                 Repaint();
                 return;
             }
@@ -671,16 +800,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 return;
             }
 
-            var host = ShooterPlayModeSessionRegistry.Active;
-            if (host == null || !host.IsRunning)
-            {
-                ShooterPlayModeSessionHost.Start(options);
-                host = ShooterPlayModeSessionRegistry.Active;
-            }
-
+            var host = EnsurePlayModeHost(options);
             if (host == null)
             {
-                _lastError = "Failed to publish the Play-mode session host.";
+                _lastError = "未能发布 PlayMode 会话宿主。";
                 Repaint();
                 return;
             }
@@ -692,10 +815,11 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             _diagnostics.Reset();
             _diagnostics.IsRunning = host.IsRunning;
 
-            // The window observes the live host; it does not pump logic. We only poll for
-            // diagnostics and push network changes through the shared registry.
+            // 窗口只观察 PlayMode 宿主，不再自行推进逻辑；网络调参通过共享 registry 热更新。
+            EditorApplication.update -= OnAttachUpdate;
+            ShooterHostSessionRegistry.HostsChanged -= OnRegistryHostsChanged;
             EditorApplication.update += OnAttachUpdate;
-            ShooterPlayModeSessionRegistry.HostsChanged += OnRegistryHostsChanged;
+            ShooterHostSessionRegistry.HostsChanged += OnRegistryHostsChanged;
 
             Repaint();
         }
@@ -703,7 +827,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private void DetachInternal()
         {
             EditorApplication.update -= OnAttachUpdate;
-            ShooterPlayModeSessionRegistry.HostsChanged -= OnRegistryHostsChanged;
+            ShooterHostSessionRegistry.HostsChanged -= OnRegistryHostsChanged;
 
             _attachedHost = null;
             _session = null;
@@ -716,9 +840,9 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         private void OnRegistryHostsChanged()
         {
-            // If the host we were attached to went away (Play mode exited), detach gracefully.
+            // 宿主随 Play 模式退出而消失时，窗口自动解除挂接。
             if (_attachedHost != null && !_attachedHost.IsRunning &&
-                ShooterPlayModeSessionRegistry.Active == null)
+                ShooterHostSessionRegistry.Active == null)
             {
                 DetachInternal();
             }
@@ -731,10 +855,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 return;
             }
 
-            // Host destroyed (e.g. exited Play mode) — tear down the attachment.
+            // 宿主已销毁或 Play 模式退出时，窗口自动回到未运行状态。
             if (!_attachedHost.IsRunning && _attachedHost.Session == null)
             {
-                _lastError = "Play-mode session ended.";
+                _lastError = "PlayMode 会话已结束。";
                 DetachInternal();
                 return;
             }
@@ -763,7 +887,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             if (_selectedSyncIndex >= SyncModes.Count || !SyncModes[_selectedSyncIndex].Implemented)
             {
-                _lastError = "Selected sync mode is not implemented.";
+                _lastError = "当前选择的同步模式尚未实现。";
                 return false;
             }
 
@@ -786,6 +910,60 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             return true;
         }
 
+        private void TryStartPendingHostSession()
+        {
+            if (!SessionState.GetBool(PendingHostAttachKey, false) || !Application.isPlaying)
+            {
+                return;
+            }
+
+            RestoreConfigFromSessionState();
+            ApplyCustomNetwork();
+            SessionState.SetBool(PendingHostAttachKey, false);
+
+            if (!TryBuildSessionOptions(out var options))
+            {
+                Repaint();
+                return;
+            }
+
+            var host = EnsurePlayModeHost(options);
+            if (host == null)
+            {
+                _lastError = "进入 Play 模式后未能启动 Shooter 演示宿主。";
+                Repaint();
+                return;
+            }
+
+            _driveMode = ShooterDemoDriveMode.HostAttach;
+            _attachedHost = host;
+            _session = host.Session;
+            _running = true;
+            _paused = false;
+            _diagnostics.Reset();
+            _diagnostics.IsRunning = host.IsRunning;
+
+            EditorApplication.update -= OnAttachUpdate;
+            ShooterHostSessionRegistry.HostsChanged -= OnRegistryHostsChanged;
+            EditorApplication.update += OnAttachUpdate;
+            ShooterHostSessionRegistry.HostsChanged += OnRegistryHostsChanged;
+
+            _lastError = string.Empty;
+            Repaint();
+        }
+
+        private static IShooterSessionHost? EnsurePlayModeHost(ShooterPlayModeSessionOptions options)
+        {
+            var host = ShooterHostSessionRegistry.Active;
+            if (host == null || !host.IsRunning)
+            {
+                ShooterPlayModeSessionHost.Start(options);
+                host = ShooterHostSessionRegistry.Active;
+            }
+
+            return host;
+        }
+
         private void StepInternal()
         {
             if (!_running || _session == null) return;
@@ -805,7 +983,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             var delta = (float)((now - _lastTime) * _timeScale);
             _lastTime = now;
 
-            // Clamp delta to avoid spiral of death
+            // 限制单帧推进量，避免编辑器卡顿后一次性追帧过多。
             if (delta > 0.1f) delta = 0.1f;
 
             TickSession(delta);
@@ -830,7 +1008,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         private void OnSceneViewGUI(SceneView sceneView)
         {
-            if (!_running) return;
+            if (!_running && !_showingSpecBaseline) return;
             _sink.DrawSceneView();
         }
 
@@ -840,29 +1018,76 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         private void UpdateDiagnostics(in ShooterStateSnapshotPayload snapshot, object tickResult)
         {
-            _diagnostics.Frame = snapshot.Frame;
-            _diagnostics.PlayerCount = snapshot.Players?.Length ?? 0;
-            _diagnostics.BulletCount = snapshot.Bullets?.Length ?? 0;
+            if (_session == null) return;
 
-            // Events
-            if (snapshot.Events != null && snapshot.Events.Length > 0)
-            {
-                _diagnostics.RecentEvents = snapshot.Events;
-                _diagnostics.TotalEvents += snapshot.Events.Length;
-            }
-
-            // Divergence
-            if (_session != null && _session.HasAuthoritativeWorld)
-            {
-                var comparison = _session.CompareWorlds();
-                _diagnostics.MaxDivergence = comparison.MaxDistance;
-                _diagnostics.Divergences = comparison.Divergences;
-            }
+            var diagnostics = ShooterHostDiagnosticsProjector.ProjectFromSession(
+                _session,
+                in snapshot,
+                _diagnostics.TotalEvents);
+            _diagnostics.Apply(in diagnostics);
         }
 
         // =====================================================================
         // Network Helpers
         // =====================================================================
+
+        private void SaveConfigToSessionState()
+        {
+            SessionState.SetBool(HasSavedConfigKey, true);
+            SessionState.SetInt(SyncIndexKey, _selectedSyncIndex);
+            SessionState.SetInt(NetworkProviderIndexKey, _selectedNetworkProviderIndex);
+            SessionState.SetInt(NetworkPresetIndexKey, _selectedNetworkPresetIndex);
+            SessionState.SetBool(AuthoritativeWorldKey, _enableAuthoritativeWorld);
+            SessionState.SetBool(ShowDivergenceKey, _showDivergence);
+            SessionState.SetInt(PlayerCountKey, _playerCount);
+            SessionState.SetInt(InitialHpKey, _initialHp);
+            SessionState.SetInt(RandomSeedKey, _randomSeed);
+            SessionState.SetInt(ControlledPlayerIdKey, _controlledPlayerId);
+            SessionState.SetInt(LatencyMsKey, _latencyMs);
+            SessionState.SetInt(JitterMsKey, _jitterMs);
+            SessionState.SetFloat(PacketLossRateKey, (float)_packetLossRate);
+            SessionState.SetFloat(ReorderRateKey, (float)_reorderRate);
+            SessionState.SetInt(BandwidthKbpsKey, _bandwidthKbps);
+        }
+
+        private void RestoreConfigFromSessionState()
+        {
+            _selectedSyncIndex = ClampIndex(SessionState.GetInt(SyncIndexKey, _selectedSyncIndex), SyncModes.Count);
+            _selectedNetworkProviderIndex = Math.Max(0, SessionState.GetInt(NetworkProviderIndexKey, _selectedNetworkProviderIndex));
+            _selectedNetworkPresetIndex = ClampIndex(SessionState.GetInt(NetworkPresetIndexKey, _selectedNetworkPresetIndex), NetworkPresets.Count);
+            _enableAuthoritativeWorld = SessionState.GetBool(AuthoritativeWorldKey, _enableAuthoritativeWorld);
+            _showDivergence = SessionState.GetBool(ShowDivergenceKey, _showDivergence);
+            _playerCount = Math.Max(1, Math.Min(ShooterGameplay.DefaultMaxPlayers, SessionState.GetInt(PlayerCountKey, _playerCount)));
+            _initialHp = Math.Max(1, SessionState.GetInt(InitialHpKey, _initialHp));
+            _randomSeed = SessionState.GetInt(RandomSeedKey, _randomSeed);
+            _controlledPlayerId = Math.Max(1, Math.Min(_playerCount, SessionState.GetInt(ControlledPlayerIdKey, _controlledPlayerId)));
+            _latencyMs = Math.Max(0, SessionState.GetInt(LatencyMsKey, _latencyMs));
+            _jitterMs = Math.Max(0, SessionState.GetInt(JitterMsKey, _jitterMs));
+            _packetLossRate = Clamp01(SessionState.GetFloat(PacketLossRateKey, (float)_packetLossRate));
+            _reorderRate = Clamp01(SessionState.GetFloat(ReorderRateKey, (float)_reorderRate));
+            _bandwidthKbps = Math.Max(0, SessionState.GetInt(BandwidthKbpsKey, _bandwidthKbps));
+            _inputProvider.ControlledPlayerId = _controlledPlayerId;
+        }
+
+        private static int ClampIndex(int value, int count)
+        {
+            if (count <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Max(0, Math.Min(count - 1, value));
+        }
+
+        private static double Clamp01(double value)
+        {
+            if (value < 0d)
+            {
+                return 0d;
+            }
+
+            return value > 1d ? 1d : value;
+        }
 
         private void ApplyNetworkPreset(int presetIndex)
         {
@@ -886,7 +1111,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
             ShooterNetworkConditionRegistry.Builtin.ApplyProfile(profile);
 
-            // If session is running, apply immediately through the shared runner path.
+            // 会话运行中立即通过共享 runner 路径热更新网络配置。
             if (_editorRunner != null)
             {
                 _editorRunner.ApplyNetwork(profile);
@@ -918,7 +1143,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 return providers[_selectedNetworkProviderIndex].DisplayName;
             }
 
-            // Check if matches a preset
+            // 优先显示匹配的预设名称，否则显示自定义参数摘要。
             foreach (var preset in NetworkPresets)
             {
                 if (preset.Profile.BaseLatencyMs == _latencyMs
@@ -931,17 +1156,17 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 }
             }
 
-            return $"Custom ({_latencyMs}ms/{_jitterMs}ms)";
+            return $"自定义 ({_latencyMs}ms/{_jitterMs}ms)";
         }
 
         private static string DescribeProfile(NetworkConditionProfile p)
         {
-            return $"{p.BaseLatencyMs}ms ±{p.JitterMs}ms  loss:{p.PacketLossRate:P1}  reorder:{p.ReorderRate:P1}  bw:{p.BandwidthKbps}kbps";
+            return $"{p.BaseLatencyMs}ms ±{p.JitterMs}ms  丢包:{p.PacketLossRate:P1}  乱序:{p.ReorderRate:P1}  带宽:{p.BandwidthKbps}kbps";
         }
 
         private static string GetShortPresetName(string displayName)
         {
-            // Extract short name: "Ideal (0ms)" → "Ideal", "Mobile 4G (60ms)" → "4G"
+            // 从预设显示名里取括号前的短名，保持按钮宽度稳定。
             var paren = displayName.IndexOf('(');
             if (paren > 0) return displayName.Substring(0, paren).Trim();
             return displayName;

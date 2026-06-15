@@ -64,11 +64,38 @@ namespace AbilityKit.Game.Flow
                 _root = root;
             }
 
-            public IECWorld World => _root.World;
+            public bool TryGetWorld<TWorld>(out TWorld world)
+            {
+                if (_root.World is TWorld typedWorld)
+                {
+                    world = typedWorld;
+                    return true;
+                }
 
-            public IEntity CreateNode(string debugName) => EntityGenerator.CreateChild(_root, debugName: debugName);
+                world = default;
+                return false;
+            }
 
-            public void DestroyTree(IEntity root)
+            public bool TryCreateNode<TNode>(string debugName, out TNode node)
+            {
+                var entity = EntityGenerator.CreateChild(_root, debugName: debugName);
+                if (entity is TNode typedNode)
+                {
+                    node = typedNode;
+                    return true;
+                }
+
+                node = default;
+                return false;
+            }
+
+            public void DestroyTree<TNode>(TNode root)
+            {
+                if (root is not IEntity entity) return;
+                DestroyTree(entity);
+            }
+
+            private static void DestroyTree(IEntity root)
             {
                 if (!root.IsValid) return;
 

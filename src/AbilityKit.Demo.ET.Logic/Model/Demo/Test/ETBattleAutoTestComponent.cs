@@ -17,7 +17,7 @@ namespace ET.Logic
         /// <summary>
         /// 是否启用自动测试
         /// </summary>
-        public bool IsEnabled { get; set; } = true;
+        public bool IsEnabled { get; set; } = false;
 
         /// <summary>
         /// 测试的 ActorId（moba.core 逻辑层 ID）

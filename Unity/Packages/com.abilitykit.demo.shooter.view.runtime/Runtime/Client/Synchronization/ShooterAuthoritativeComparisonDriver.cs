@@ -43,6 +43,21 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterLagCompensationTelemetry Telemetry => _lagCompensation.Telemetry;
 
+        public ShooterLagCompensationEvaluation? LastLagCompensationEvaluation => _lagCompensation.LastEvaluation;
+
+        public bool TryEvaluateShot(in ShooterLagCompensationShot shot, out ShooterLagCompensationEvaluation evaluation)
+        {
+            _lagCompensation.TryEvaluateShot(in shot, out _);
+            if (_lagCompensation.LastEvaluation.HasValue)
+            {
+                evaluation = _lagCompensation.LastEvaluation.Value;
+                return evaluation.Accepted;
+            }
+
+            evaluation = default;
+            return false;
+        }
+ 
         public void ApplyNetwork(NetworkConditionProfile profile)
         {
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, profile);

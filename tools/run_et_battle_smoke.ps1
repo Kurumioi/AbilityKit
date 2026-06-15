@@ -103,15 +103,33 @@ $NoBuild = Resolve-BoolSetting -Name 'NoBuild' -CommandValue $NoBuild -Fallback 
 $SkipConfigValidation = Resolve-BoolSetting -Name 'SkipConfigValidation' -CommandValue $SkipConfigValidation -Fallback $false
 $KeepOutput = Resolve-BoolSetting -Name 'KeepOutput' -CommandValue $KeepOutput -Fallback $false
 
-if ([System.IO.Path]::IsPathRooted($SmokeCasePath)) {
-    $resolvedSmokeCasePath = $SmokeCasePath
-}
-else {
-    $resolvedSmokeCasePath = Join-Path $repoRoot $SmokeCasePath
+$smokeCasePaths = @($SmokeCasePath)
+if (-not $scriptBoundParameters.ContainsKey('SmokeCasePath') -and (Test-ConfigProperty -Config $smokeConfig -Name 'SmokeCasePaths')) {
+    $smokeCasePaths = @($smokeConfig.SmokeCasePaths)
 }
 
-if (-not (Test-Path $resolvedSmokeCasePath)) {
-    throw "Smoke case file not found: $resolvedSmokeCasePath"
+$resolvedSmokeCasePaths = @()
+foreach ($casePath in $smokeCasePaths) {
+    if ([string]::IsNullOrWhiteSpace($casePath)) {
+        continue
+    }
+
+    if ([System.IO.Path]::IsPathRooted($casePath)) {
+        $resolvedCasePath = $casePath
+    }
+    else {
+        $resolvedCasePath = Join-Path $repoRoot $casePath
+    }
+
+    if (-not (Test-Path $resolvedCasePath)) {
+        throw "Smoke case file not found: $resolvedCasePath"
+    }
+
+    $resolvedSmokeCasePaths += $resolvedCasePath
+}
+
+if ($resolvedSmokeCasePaths.Count -eq 0) {
+    throw 'At least one smoke case file is required.'
 }
 
 $project = Join-Path $repoRoot 'src\AbilityKit.Demo.ET.App\AbilityKit.Demo.ET.App.csproj'
@@ -168,10 +186,14 @@ function Invoke-ConfigValidation {
 
 function Invoke-SmokeRun {
     param(
+        [int]$CaseIndex,
+        [int]$CaseCount,
+        [string]$ResolvedSmokeCasePath,
         [int]$RunIndex
     )
 
-    $runOutput = Join-Path $outputDirectory ("smoke-output-run-{0}.txt" -f $RunIndex)
+    $caseName = [System.IO.Path]::GetFileNameWithoutExtension($ResolvedSmokeCasePath)
+    $runOutput = Join-Path $outputDirectory ("smoke-output-case-{0}-run-{1}.txt" -f $CaseIndex, $RunIndex)
     $arguments = @(
         'run',
         '--no-build',
@@ -184,10 +206,10 @@ function Invoke-SmokeRun {
         "--smoke-timeout-ms=$TimeoutMilliseconds",
         "--smoke-sleep-ms=$SleepMilliseconds",
         "--smoke-drain-frames=$DrainFrames",
-        "--smoke-case=$resolvedSmokeCasePath"
+        "--smoke-case=$ResolvedSmokeCasePath"
     )
 
-    Write-Host ("=== Smoke Run {0}/{1} ===" -f $RunIndex, $ConsistencyRuns) -ForegroundColor Cyan
+    Write-Host ("=== Smoke Case {0}/{1}: {2}, Run {3}/{4} ===" -f $CaseIndex, $CaseCount, $caseName, $RunIndex, $ConsistencyRuns) -ForegroundColor Cyan
     $null = & dotnet @arguments 2>&1 | Tee-Object -FilePath $runOutput
     $runExitCode = $LASTEXITCODE
 
@@ -202,6 +224,8 @@ function Invoke-SmokeRun {
     }
 
     [PSCustomObject]@{
+        CaseIndex = $CaseIndex
+        CaseName = $caseName
         Index = $RunIndex
         Output = $runOutput
         ExitCode = $runExitCode
@@ -216,7 +240,7 @@ $ConsistencyRuns = [Math]::Max(1, $ConsistencyRuns)
 Write-Host '=== AbilityKit ET Battle Smoke ===' -ForegroundColor Cyan
 Write-Host ("Project: {0}" -f $project)
 Write-Host ("Config: {0}" -f $resolvedConfigPath)
-Write-Host ("SmokeCase: {0}" -f $resolvedSmokeCasePath)
+Write-Host ("SmokeCases: {0}" -f ($resolvedSmokeCasePaths -join ', '))
 Write-Host ("Frames: {0}, MinBattleFrames: {1}, TimeoutMs: {2}, SleepMs: {3}, DrainFrames: {4}, ConsistencyRuns: {5}, SkipConfigValidation: {6}" -f $SmokeFrames, $MinBattleFrames, $TimeoutMilliseconds, $SleepMilliseconds, $DrainFrames, $ConsistencyRuns, $SkipConfigValidation)
 
 Stop-SmokeProcesses
@@ -235,48 +259,62 @@ if (-not $SkipConfigValidation) {
 }
 
 $results = @()
-for ($runIndex = 1; $runIndex -le $ConsistencyRuns; $runIndex++) {
-    $results += Invoke-SmokeRun -RunIndex $runIndex
+for ($caseIndex = 1; $caseIndex -le $resolvedSmokeCasePaths.Count; $caseIndex++) {
+    $casePath = $resolvedSmokeCasePaths[$caseIndex - 1]
+    for ($runIndex = 1; $runIndex -le $ConsistencyRuns; $runIndex++) {
+        $results += Invoke-SmokeRun -CaseIndex $caseIndex -CaseCount $resolvedSmokeCasePaths.Count -ResolvedSmokeCasePath $casePath -RunIndex $runIndex
+    }
 }
 
 Write-Host '=== Smoke Summary ===' -ForegroundColor Cyan
 foreach ($result in $results) {
     if ($result.ResultLine) {
-        Write-Host ("Run {0}: {1}" -f $result.Index, $result.ResultLine)
+        Write-Host ("Case {0} ({1}) Run {2}: {3}" -f $result.CaseIndex, $result.CaseName, $result.Index, $result.ResultLine)
     }
     else {
-        Write-Host ("Run {0}: missing ETBattleSmoke result line" -f $result.Index) -ForegroundColor Yellow
+        Write-Host ("Case {0} ({1}) Run {2}: missing ETBattleSmoke result line" -f $result.CaseIndex, $result.CaseName, $result.Index) -ForegroundColor Yellow
     }
 }
 
 $failedRuns = @($results | Where-Object { -not $_.Passed -or [string]::IsNullOrWhiteSpace($_.Signature) })
 if ($failedRuns.Count -gt 0) {
     foreach ($result in $failedRuns) {
-        Write-Host ("Run {0} failed, exit code {1}, output kept at {2}" -f $result.Index, $result.ExitCode, $result.Output) -ForegroundColor Red
+        Write-Host ("Case {0} ({1}) Run {2} failed, exit code {3}, output kept at {4}" -f $result.CaseIndex, $result.CaseName, $result.Index, $result.ExitCode, $result.Output) -ForegroundColor Red
     }
 
     exit $(if ($failedRuns[0].ExitCode -ne 0) { $failedRuns[0].ExitCode } else { 2 })
 }
 
-$baselineSignature = $results[0].Signature
-$mismatchedRuns = @($results | Where-Object { $_.Signature -ne $baselineSignature })
-if ($mismatchedRuns.Count -gt 0) {
-    Write-Host 'Consistency: Failed' -ForegroundColor Red
-    foreach ($result in $results) {
-        Write-Host ("Run {0} Signature: {1}" -f $result.Index, $result.Signature)
-        Write-Host ("Run {0} Output: {1}" -f $result.Index, $result.Output) -ForegroundColor Yellow
-    }
+foreach ($caseGroup in ($results | Group-Object CaseIndex)) {
+    $caseResults = @($caseGroup.Group)
+    $baselineSignature = $caseResults[0].Signature
+    $mismatchedRuns = @($caseResults | Where-Object { $_.Signature -ne $baselineSignature })
+    if ($mismatchedRuns.Count -gt 0) {
+        Write-Host ("Consistency: Failed for case {0} ({1})" -f $caseResults[0].CaseIndex, $caseResults[0].CaseName) -ForegroundColor Red
+        foreach ($result in $caseResults) {
+            Write-Host ("Case {0} Run {1} Signature: {2}" -f $result.CaseIndex, $result.Index, $result.Signature)
+            Write-Host ("Case {0} Run {1} Output: {2}" -f $result.CaseIndex, $result.Index, $result.Output) -ForegroundColor Yellow
+        }
 
-    exit 3
+        exit 3
+    }
 }
 
 Write-Host 'Result: Passed' -ForegroundColor Green
 Write-Host 'Consistency: Passed' -ForegroundColor Green
-Write-Host ("DeterminismSignature: {0}" -f $baselineSignature)
+foreach ($caseGroup in ($results | Group-Object CaseIndex)) {
+    $caseResults = @($caseGroup.Group)
+    Write-Host ("Case {0} ({1}) DeterminismSignature: {2}" -f $caseResults[0].CaseIndex, $caseResults[0].CaseName, $caseResults[0].Signature)
+}
 
 if (-not $KeepOutput) {
     Remove-Item $output -Force -ErrorAction SilentlyContinue
     Get-ChildItem -Path (Join-Path $outputDirectory 'smoke-output-run-*.txt') -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            Remove-Item $_.FullName -Force
+            Write-Host ("Removed ET smoke output {0} after successful run" -f $_.Name) -ForegroundColor DarkGray
+        }
+    Get-ChildItem -Path (Join-Path $outputDirectory 'smoke-output-case-*-run-*.txt') -ErrorAction SilentlyContinue |
         ForEach-Object {
             Remove-Item $_.FullName -Force
             Write-Host ("Removed ET smoke output {0} after successful run" -f $_.Name) -ForegroundColor DarkGray

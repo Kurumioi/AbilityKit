@@ -79,7 +79,7 @@ namespace AbilityKit.Game.Flow
 
             _runtimeAdapter = new GameFlowRuntimeAdapter(rootOverride);
             _featureBinder = featureBinder ?? _runtimeAdapter.FeatureBinder;
-            _ctx = new GamePhaseContext(_entry, _runtimeAdapter.Root, _runtimeAdapter.Features, _runtimeAdapter.BattleEntities);
+            _ctx = new GamePhaseContext(_entry, _runtimeAdapter.Features, _runtimeAdapter.BattleEntities);
             _flowConfig = MobaFlowConfiguration.CreateDefault();
             _conditionResolver = new MobaFlowConditionResolver();
             _actionExecutor = new MobaFlowActionExecutor();

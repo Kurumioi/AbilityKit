@@ -12,8 +12,6 @@ namespace ET.Logic
         {
             Log.Info($"[DemoLogin] DemoLoginComponent awake, EntityId={self.Id}, Scene={self.Scene().Name}");
 
-            // 自动触发登录（用于验证）
-            self.StartLogin("TestPlayer");
         }
 
         /// <summary>

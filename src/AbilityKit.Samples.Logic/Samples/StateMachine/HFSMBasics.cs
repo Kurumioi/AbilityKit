@@ -1,201 +1,126 @@
-using System;
-using UnityHFSM;
 using AbilityKit.Samples.Abstractions;
+using UnityHFSM;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine
 {
     /// <summary>
-    /// HFSMBasics - HFSM 基础示例
-    /// 演示 UnityHFSM 的核心概念和使用方法
+    /// 演示 UnityHFSM 如何管理角色 Idle、Casting、Dead 三个基础状态。
     /// </summary>
-    [Sample]
+    [Sample(531, "hfsm", "basic", "state", "package-api", "web", "deterministic")]
     public sealed class HFSMBasics : SampleBase
     {
-        public override string Title => "HFSM Basics";
-        public override string Description => "UnityHFSM 核心概念与基础用法";
+        public override string Title => "HFSM Basic State";
+        public override string Description => "使用 StateMachine、State 和 Transition 管理角色基础状态";
         public override SampleCategory Category => SampleCategory.StateMachine;
 
         protected override void OnRun()
         {
-            Log("=== UnityHFSM 基础示例 ===");
-            Output.Divider();
+            var actor = new ActorState();
+            var fsm = CreateStateMachine(actor);
 
-            // 1. 核心概念
-            Log("【1】核心概念");
-            Output.Bullet("StateMachine - 状态机容器，管理所有状态和转换");
-            Output.Bullet("State - 状态，执行具体逻辑");
-            Output.Bullet("Transition - 转换，定义状态之间的切换规则");
-            Output.Bullet("Hierarchy - 层次，支持嵌套状态机");
-            Log("");
+            Section("初始化状态机");
+            fsm.Init();
+            KeyValue("ActiveState", fsm.ActiveStateName);
 
-            // 2. 状态生命周期
-            Log("【2】状态生命周期");
-            Output.Bullet("OnEnter() - 进入状态时调用");
-            Output.Bullet("OnLogic() - 每帧逻辑更新");
-            Output.Bullet("OnExit() - 离开状态时调用");
-            Output.Bullet("OnExitRequest() - 请求退出时调用（当 needsExitTime = true）");
-            Log("");
+            Divider();
+            Section("Idle -> Casting -> Idle");
+            Step(fsm, actor, 0.25f, "等待输入");
+            actor.CastRequested = true;
+            Step(fsm, actor, 0.25f, "请求施法");
+            Step(fsm, actor, 0.50f, "施法推进");
+            Step(fsm, actor, 0.50f, "施法完成");
 
-            // 3. 创建基本状态机
-            Log("【3】创建基本状态机");
+            Divider();
+            Section("任意状态进入 Dead");
+            actor.Hp = 0;
+            Step(fsm, actor, 0.10f, "受到致命伤害");
+            actor.CastRequested = true;
+            Step(fsm, actor, 0.10f, "死亡后请求施法被忽略");
+
+            Divider();
+            Section("这个示例实际接入的包能力");
+            Bullet("StateMachine：注册状态、转换、任意状态转换，并维护 ActiveStateName。");
+            Bullet("State：承载 OnEnter、OnLogic、OnExit 生命周期回调。");
+            Bullet("Transition：用业务条件表达 Idle、Casting、Dead 之间的切换规则。");
+            Bullet("AddTransitionFromAny：表达死亡这类可从任意状态打断的全局门控。");
+        }
+
+        private StateMachine<string, string, string> CreateStateMachine(ActorState actor)
+        {
             var fsm = new StateMachine<string, string, string>();
+            fsm.StateChanged += state => KeyValue("StateChanged", state.name);
 
-            // 使用 Lambda 表达式创建状态
             fsm.AddState("Idle", new State(
-                onEnter: s => Log("[Idle] 进入空闲状态"),
-                onLogic: s => Log("[Idle] 等待中..."),
-                onExit: s => Log("[Idle] 离开空闲状态")
-            ));
+                onEnter: _ =>
+                {
+                    actor.CastProgress = 0f;
+                    actor.CastFinished = false;
+                    Log("[Idle] ready for command");
+                },
+                onLogic: _ => KeyValue("Idle.Command", actor.CastRequested ? "CastRequested" : "None"),
+                onExit: _ => Log("[Idle] exit")));
 
-            fsm.AddState("Move", new State(
-                onEnter: s => Log("[Move] 进入移动状态"),
-                onLogic: s => Log("[Move] 移动中..."),
-                onExit: s => Log("[Move] 停止移动")
-            ));
+            fsm.AddState("Casting", new State(
+                onEnter: _ =>
+                {
+                    actor.CastRequested = false;
+                    actor.CastProgress = 0f;
+                    actor.CastFinished = false;
+                    Log("[Casting] begin fireball");
+                },
+                onLogic: _ =>
+                {
+                    actor.CastProgress += actor.DeltaTime;
+                    KeyValue("Casting.Progress", actor.CastProgress.ToString("F2"));
+                    if (actor.CastProgress >= 1f)
+                    {
+                        actor.CastFinished = true;
+                    }
+                },
+                onExit: _ => Log("[Casting] exit")));
 
-            Log("已添加 Idle 和 Move 状态");
-            Log("");
+            fsm.AddState("Dead", new State(
+                onEnter: _ => Log("[Dead] actor disabled"),
+                onLogic: _ => KeyValue("Dead.Hp", actor.Hp.ToString("F1"))));
 
-            // 4. 添加转换
-            Log("【4】添加转换");
             fsm.AddTransition(new Transition<string>(
                 from: "Idle",
-                to: "Move",
-                condition: t => true, // 条件永远为真
-                onTransition: t => Log("[转换] Idle -> Move")
-            ));
+                to: "Casting",
+                condition: _ => actor.CastRequested && actor.Hp > 0f,
+                onTransition: _ => Log("[Transition] Idle -> Casting")));
 
             fsm.AddTransition(new Transition<string>(
-                from: "Move",
+                from: "Casting",
                 to: "Idle",
-                condition: t => true,
-                onTransition: t => Log("[转换] Move -> Idle")
-            ));
+                condition: _ => actor.CastFinished && actor.Hp > 0f,
+                onTransition: _ => Log("[Transition] Casting -> Idle")));
 
-            Log("已添加双向转换");
-            Log("");
-
-            // 5. 设置初始状态并初始化
-            Log("【5】设置初始状态并初始化");
-            fsm.SetStartState("Idle");
-            fsm.Init();
-            Log($"初始状态: {fsm.ActiveStateName}");
-            Log("");
-
-            // 6. 运行状态机
-            Log("【6】运行状态机");
-            Log("--- 第 1 帧 ---");
-            fsm.OnLogic();
-            Log("");
-
-            Log("--- 第 2 帧（触发转换）---");
-            fsm.OnLogic();
-            Log($"当前状态: {fsm.ActiveStateName}");
-            Log("");
-
-            // 7. 带条件的转换
-            Log("【7】带条件的转换");
-            var conditionalFsm = CreateConditionalFsm();
-            Log("已创建带条件的状态机");
-            Log("");
-
-            Log("初始状态:");
-            conditionalFsm.OnLogic();
-            Log("");
-
-            Log("--- 触发转换 ---");
-            conditionalFsm.OnLogic();
-            Log($"当前状态: {conditionalFsm.ActiveStateName}");
-            Log("");
-
-            // 8. 延迟转换
-            Log("【8】延迟转换（TransitionAfter）");
-            var delayedFsm = CreateDelayedFsm();
-            Log("已创建带延迟转换的状态机");
-            Log("");
-
-            Log("初始状态:");
-            delayedFsm.OnLogic();
-            Log("");
-
-            Log("--- 帧 2 ---");
-            delayedFsm.OnLogic();
-            Log("");
-
-            Log("--- 帧 3 (应该转换) ---");
-            delayedFsm.OnLogic();
-            Log($"当前状态: {delayedFsm.ActiveStateName}");
-            Log("");
-
-            Output.Divider();
-
-            Log("【9】总结");
-            Output.Bullet("StateMachine<TStateId, TEvent> - 可指定状态ID和事件类型");
-            Output.Bullet("State - 带生命周期回调的状态类");
-            Output.Bullet("Transition - 条件触发的状态转换");
-            Output.Bullet("TransitionAfter - 延迟触发的状态转换");
-        }
-
-        /// <summary>
-        /// 创建带条件的状态机
-        /// </summary>
-        private StateMachine<string, string, string> CreateConditionalFsm()
-        {
-            var fsm = new StateMachine<string, string, string>();
-
-            fsm.AddState("Idle", new State(
-                onEnter: s => Log("[Idle] 进入空闲"),
-                onLogic: s => Log("[Idle] 等待...")
-            ));
-
-            fsm.AddState("Move", new State(
-                onEnter: s => Log("[Move] 开始移动"),
-                onLogic: s => Log("[Move] 移动中...")
-            ));
-
-            // 带条件的转换 - 条件永远为 true，所以会立即转换
-            fsm.AddTransition(new Transition<string>(
-                from: "Idle",
-                to: "Move",
-                condition: t => true,
-                onTransition: t => Log("[条件转换] Idle -> Move")
-            ));
+            fsm.AddTransitionFromAny(new Transition<string>(
+                from: string.Empty,
+                to: "Dead",
+                condition: _ => actor.Hp <= 0f,
+                onTransition: _ => Log("[Transition] Any -> Dead")));
 
             fsm.SetStartState("Idle");
-            fsm.Init();
-
             return fsm;
         }
 
-        /// <summary>
-        /// 创建带延迟转换的状态机
-        /// </summary>
-        private StateMachine<string, string, string> CreateDelayedFsm()
+        private void Step(StateMachine<string, string, string> fsm, ActorState actor, float deltaTime, string label)
         {
-            var fsm = new StateMachine<string, string, string>();
+            actor.DeltaTime = deltaTime;
+            AdvanceTime(deltaTime);
+            Log($"-- {label} (+{deltaTime:F2}s) --");
+            fsm.OnLogic();
+            KeyValue("ActiveState", fsm.ActiveStateName);
+        }
 
-            fsm.AddState("Preparing", new State(
-                onEnter: s => Log("[Preparing] 准备中..."),
-                onLogic: s => Log("[Preparing] 准备倒计时...")
-            ));
-
-            fsm.AddState("Ready", new State(
-                onEnter: s => Log("[Ready] 准备完成！"),
-                onLogic: s => Log("[Ready] 就绪...")
-            ));
-
-            // 延迟 2 秒后自动转换
-            fsm.AddTransition(new TransitionAfter<string>(
-                from: "Preparing",
-                to: "Ready",
-                delay: 2.0f,
-                onTransition: t => Log("[延迟转换] Preparing -> Ready (延迟 2 秒)")
-            ));
-
-            fsm.SetStartState("Preparing");
-            fsm.Init();
-
-            return fsm;
+        private sealed class ActorState
+        {
+            public float Hp { get; set; } = 100f;
+            public bool CastRequested { get; set; }
+            public bool CastFinished { get; set; }
+            public float CastProgress { get; set; }
+            public float DeltaTime { get; set; }
         }
     }
 }

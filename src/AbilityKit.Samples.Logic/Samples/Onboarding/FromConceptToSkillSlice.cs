@@ -18,17 +18,23 @@ namespace AbilityKit.Samples.Logic.Samples.Onboarding
 
         protected override void OnRun()
         {
-            var fireballTag = GameplayTagManager.Instance.RequestTag("Ability.Fire.Fireball");
+            var manaCost = InputInt("manaCost", 30);
+            var damage = InputInt("damage", 45);
+            var fireballTagName = Input("fireballTag", "Ability.Fire.Fireball");
+            var fireballTag = GameplayTagManager.Instance.RequestTag(fireballTagName);
             var burningTag = GameplayTagManager.Instance.RequestTag("State.Burning");
 
             var caster = new CombatActor("Hero", mana: 80, hp: 100);
             var target = new CombatActor("TrainingDummy", mana: 0, hp: 150);
-            var context = new SkillCastContext(caster, target, manaCost: 30, damage: 45, fireballTag);
+            var context = new SkillCastContext(caster, target, manaCost, damage, fireballTag);
 
             Section("技能切片：Fireball");
             KeyValue("Caster", caster.ToString());
             KeyValue("Target", target.ToString());
             KeyValue("AbilityTag", fireballTag.TagName);
+            KeyValue("Input.ManaCost", manaCost.ToString());
+            KeyValue("Input.Damage", damage.ToString());
+            KeyValue("Input.AbilityTag", fireballTag.TagName);
 
             Divider();
             Section("构建 Pipeline");

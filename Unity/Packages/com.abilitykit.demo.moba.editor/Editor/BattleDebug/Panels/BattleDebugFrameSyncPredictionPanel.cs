@@ -59,9 +59,9 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorGUILayout.LabelField("启用客户端预测", flowCtx.Plan.EnableClientPrediction.ToString());
+            EditorGUILayout.LabelField("启用客户端预测", flowCtx.Plan.Authority.EnableClientPrediction.ToString());
 
-            if (!flowCtx.Plan.EnableClientPrediction)
+            if (!flowCtx.Plan.Authority.EnableClientPrediction)
             {
                 EditorGUILayout.HelpBox("当前为关闭预测模式：仍会驱动远程世界（消费权威输入），但不会进行客户端预测/回滚/对账。此时 predicted≈confirmed 属于预期行为。", MessageType.Info);
             }
@@ -112,7 +112,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("最小预测窗口", flowCtx.PredictionStats.MinPredictionWindow.ToString());
             EditorGUILayout.LabelField("积压平滑系数（Alpha）", flowCtx.PredictionStats.BacklogEwmaAlpha.ToString("F2"));
 
-            var wid = new WorldId(flowCtx.Plan.WorldId);
+            var wid = new WorldId(flowCtx.Plan.World.WorldId);
 
             if (flowCtx.PredictionStats.TryGetFrames(wid, out var confirmedFrame, out var predictedFrame))
             {

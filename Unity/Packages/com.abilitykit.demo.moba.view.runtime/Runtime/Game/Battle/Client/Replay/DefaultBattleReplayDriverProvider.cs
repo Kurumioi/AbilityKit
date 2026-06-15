@@ -14,16 +14,17 @@ namespace AbilityKit.Game.Flow.Battle.Replay
 
             try
             {
-                if (string.IsNullOrEmpty(plan.WorldId)) return false;
+                var world = plan.World;
+                if (string.IsNullOrEmpty(world.WorldId)) return false;
 
-                var path = plan.InputReplayPath;
+                var path = plan.RunModeOptions.InputReplayPath;
                 if (string.IsNullOrEmpty(path)) return false;
 
                 LockstepInputRecordFile file;
                 file = LockstepInputRecordCodecs.Current.Load(path);
                 if (file == null) return false;
 
-                driver = new LockstepReplayDriver(new WorldId(plan.WorldId), file);
+                driver = new LockstepReplayDriver(new WorldId(world.WorldId), file);
                 return true;
             }
             catch (Exception ex)

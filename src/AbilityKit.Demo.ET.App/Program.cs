@@ -38,7 +38,11 @@ namespace ET.AbilityKit.Demo.ET.App
                     return RunConfigValidation();
                 }
 
-                DemoEntry.Init(args);
+                var launchOptions = options.Smoke
+                    ? ETDemoProcessLaunchOptions.CreateLocalSmokeDefaults()
+                    : ETDemoProcessLaunchOptions.CreateLocalDemoDefaults();
+
+                DemoEntry.Init(launchOptions);
                 DemoEntry.StartAsync().NoContext();
 
                 Console.WriteLine();
@@ -712,11 +716,12 @@ namespace ET.AbilityKit.Demo.ET.App
                 HasBattleComponent = battle != null;
                 DisableBuiltinSkillTestIfRequested(battleScene);
 
-                if (battle?.BattleDriver is not ETMobaBattleDriver driver)
+                if (battle == null || battle.BattleHost == null)
                 {
                     return;
                 }
-
+    
+                var driver = battle.BattleHost;
                 HasStartedRuntime |= driver.RuntimeGameStarted;
                 HasStartedBattle |= battle.State == BattleState.InProgress && driver.IsRunning;
                 MaxBattleFrame = Math.Max(MaxBattleFrame, driver.CurrentFrame);

@@ -82,6 +82,25 @@ namespace AbilityKit.Samples.Infrastructure
             });
         }
 
+        public int Run(SampleRunRequest request)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            switch (request.SelectionKind)
+            {
+                case SampleRunSelectionKind.Index:
+                    return request.Index.HasValue && Run(request.Index.Value) ? 1 : 0;
+                case SampleRunSelectionKind.Id:
+                    return Run(request.Id) ? 1 : 0;
+                case SampleRunSelectionKind.All:
+                    return RunAll();
+                default:
+                    Console.Error.WriteLine("[ERR] Sample run request did not select a sample.");
+                    return 0;
+            }
+        }
+
         public bool Run(int index)
         {
             if (index < 0 || index >= _samples.Count)
@@ -152,7 +171,8 @@ namespace AbilityKit.Samples.Infrastructure
                 _options.HostKind,
                 _config,
                 _resources,
-                _options.OutputDirectory);
+                _options.OutputDirectory,
+                _options.HostCapabilities);
 
             try
             {

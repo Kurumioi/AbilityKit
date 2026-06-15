@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow
             IWorldAuthorityFramesSource authorityFramesSource = null,
             bool registerWorldInitData = true)
         {
-            var options = new WorldCreateOptions(worldId, plan.WorldType)
+            var options = new WorldCreateOptions(worldId, plan.World.WorldType)
             {
                 ServiceBuilder = CreateServiceBuilder(plan, authorityFramesSource, registerWorldInitData),
             };
@@ -62,7 +62,8 @@ namespace AbilityKit.Game.Flow
             builder.AddModule(new MobaConfigWorldModule());
             if (registerWorldInitData)
             {
-                builder.RegisterInstance(new WorldInitData(plan.CreateWorldOpCode, plan.CreateWorldPayload));
+                var createWorld = plan.CreateWorld;
+                builder.RegisterInstance(new WorldInitData(createWorld.OpCode, createWorld.Payload));
             }
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
 

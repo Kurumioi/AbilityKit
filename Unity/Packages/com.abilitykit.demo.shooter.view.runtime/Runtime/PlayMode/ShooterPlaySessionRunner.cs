@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.Network;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Protocol.Shooter;
@@ -11,13 +12,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public sealed class ShooterPlaySessionRunner : IDisposable
     {
-        private readonly IShooterPlayInputSource _inputSource;
-        private readonly IShooterPlayViewSink _viewSink;
+        private readonly IShooterHostInputSource _inputSource;
+        private readonly IShooterHostViewSink _viewSink;
         private ShooterAcceptanceSession? _session;
         private ShooterPlayModeSessionOptions _options;
         private float _accumulator;
 
-        public ShooterPlaySessionRunner(IShooterPlayInputSource inputSource, IShooterPlayViewSink viewSink)
+        public ShooterPlaySessionRunner(IShooterHostInputSource inputSource, IShooterHostViewSink viewSink)
         {
             _inputSource = inputSource ?? throw new ArgumentNullException(nameof(inputSource));
             _viewSink = viewSink ?? throw new ArgumentNullException(nameof(viewSink));
@@ -66,8 +67,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
+            var session = _session;
             _session = null;
             _accumulator = 0f;
+            session.Dispose();
             _viewSink.Clear();
             SessionChanged?.Invoke(null);
         }
@@ -138,7 +141,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            var frame = new ShooterPlayPresentationFrame(
+            var frame = new ShooterHostPresentationFrame(
                 _session.Presentation.ViewModel.Current,
                 _session.AuthoritativePresentation?.ViewModel.Current ?? ShooterSnapshotViewBatch.Empty,
                 _session.HasAuthoritativeWorld && _session.AuthoritativePresentation != null,

@@ -14,9 +14,10 @@ namespace AbilityKit.Game.Flow
 
         private bool ShouldPrepareGatewayRoom()
         {
+            var gateway = _plan.Gateway;
             if (_plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote) return false;
-            if (!_plan.UseGatewayTransport) return false;
-            if (!_plan.GatewayAutoCreateRoom && !_plan.GatewayAutoJoinRoom) return false;
+            if (!gateway.UseGatewayTransport) return false;
+            if (!gateway.AutoCreateRoom && !gateway.AutoJoinRoom) return false;
             return true;
         }
 
@@ -24,10 +25,11 @@ namespace AbilityKit.Game.Flow
         {
             StopGatewayRoomPreparation();
 
+            var gateway = _plan.Gateway;
             _gatewayConn = CreateGatewayRoomConnection(_plan);
-            _gatewayConn.Open(_plan.GatewayHost, _plan.GatewayPort);
+            _gatewayConn.Open(gateway.Host, gateway.Port);
 
-            var opCodes = new GatewayRoomOpCodes(_plan.GatewayCreateRoomOpCode, _plan.GatewayJoinRoomOpCode);
+            var opCodes = new GatewayRoomOpCodes(gateway.CreateRoomOpCode, gateway.JoinRoomOpCode);
             _gatewayClient = new GatewayRoomClient(_gatewayConn, opCodes);
 
             _gatewayTask = PrepareRoomAsync();

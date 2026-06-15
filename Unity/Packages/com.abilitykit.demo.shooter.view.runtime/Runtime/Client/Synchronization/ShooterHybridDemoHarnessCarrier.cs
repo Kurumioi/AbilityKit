@@ -13,10 +13,8 @@ namespace AbilityKit.Demo.Shooter.View
     /// <summary>
     /// Thin adapter that lets the framework demo harness drive a Shooter hybrid sync scenario.
     /// Hybrid sync means "local entities use PredictRollback, remote entities use AuthoritativeInterpolation".
-    /// Because the Shooter demo currently runs every entity through the predict-rollback controller, this
-    /// carrier accepts <see cref="ClientPlaybackPolicy.HybridLocalPredictRemoteInterpolate"/> profiles but
-    /// reports <see cref="SyncDemoCapabilityStatus.Degraded"/> status — the simulation completes correctly
-    /// but without the per-entity playback split that a production hybrid implementation would provide.
+    /// The carrier now requires the dedicated Hybrid controller so the acceptance matrix represents the
+    /// real local-predict/remote-interpolate path instead of a degraded predict-rollback fallback.
     /// </summary>
     public sealed class ShooterHybridDemoHarnessCarrier : ISyncDemoCarrier, ISyncDemoCarrierCapabilities
     {
@@ -54,12 +52,11 @@ namespace AbilityKit.Demo.Shooter.View
 
         public SyncDemoCapabilityResult Supports(in NetworkSyncProfile profile, in NetworkConditionProfile networkProfile)
         {
-            // Accept hybrid profiles at Degraded fidelity: the Shooter demo runs every entity
-            // through predict-rollback, so the "remote interpolation" half of hybrid is not active.
             if (profile.ClientPlayback == ClientPlaybackPolicy.HybridLocalPredictRemoteInterpolate)
             {
-                return SyncDemoCapabilityResult.Degraded(
-                    "Shooter hybrid carrier runs all entities through predict-rollback; per-entity playback split is not yet implemented.");
+                return SyncModel == NetworkSyncModel.HybridHeroPrediction
+                    ? SyncDemoCapabilityResult.Supported
+                    : SyncDemoCapabilityResult.Unsupported("Shooter hybrid carrier requires a HybridHeroPrediction controller.");
             }
 
             // Also accept pure PredictRollback profiles (for interop testing).

@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Share;
+
 namespace ET.Logic
 {
     /// <summary>
@@ -21,9 +23,6 @@ namespace ET.Logic
         /// </summary>
         void CreateAndInitialize(
             ETMobaBattleDriver driver,
-            int worldId,
-            int mapId,
-            int playerId,
-            int tickRate);
+            in BattleStartPlan plan);
     }
 }

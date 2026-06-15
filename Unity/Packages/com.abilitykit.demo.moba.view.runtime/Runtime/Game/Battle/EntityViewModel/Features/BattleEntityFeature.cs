@@ -26,10 +26,13 @@ namespace AbilityKit.Game.Flow
             if (ctx.BattleEntities == null) return;
             if (!ctx.Features.TryGet(out BattleContext battleCtx)) return;
 
-            _world = ctx.BattleEntities.World;
+            if (!ctx.BattleEntities.TryGetWorld(out EC.IECWorld world)) return;
+            if (!ctx.BattleEntities.TryCreateNode("BattleEntity", out EC.IEntity node)) return;
+
+            _world = world;
 
             _lookup = new BattleEntityLookup();
-            _node = ctx.BattleEntities.CreateNode("BattleEntity");
+            _node = node;
             _factory = new BattleEntityFactory(_world, _lookup, _node);
             _query = new BattleEntityQuery(_world, _lookup);
             if (_node.IsValid)

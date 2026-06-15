@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Flow
             _host = host;
         }
 
-        public int InputDelayFrames => _host.Plan.InputDelayFrames;
+        public int InputDelayFrames => _host.Plan.World.InputDelayFrames;
 
         public AbilityKit.Ability.World.Abstractions.IWorld RemoteDrivenWorld => _host.RemoteDrivenWorld;
         public AbilityKit.Ability.World.Abstractions.IWorld ConfirmedWorld => _host.ConfirmedWorld;

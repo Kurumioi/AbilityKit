@@ -9,6 +9,7 @@ namespace ET.Logic
     /// </summary>
     [EntitySystemOf(typeof(ETBattleSkillTestComponent))]
     [FriendOf(typeof(ETBattleSkillTestComponent))]
+    [FriendOf(typeof(ETBattleComponent))]
     [FriendOf(typeof(ETInputComponent))]
     [FriendOf(typeof(ETUnitComponent))]
     public static partial class ETBattleSkillTestComponentSystem
@@ -21,6 +22,19 @@ namespace ET.Logic
         [EntitySystem]
         private static void Update(this ETBattleSkillTestComponent self)
         {
+            if (!self.IsEnabled)
+            {
+                return;
+            }
+
+            var battleComponent = self.Scene().GetComponent<ETBattleComponent>();
+            if (battleComponent == null || battleComponent.State != BattleState.InProgress)
+            {
+                return;
+            }
+
+            var currentFrame = battleComponent.BattleDriver?.CurrentFrame ?? 0;
+            self.OnUpdate(currentFrame);
         }
 
         [EntitySystem]
@@ -88,7 +102,7 @@ namespace ET.Logic
             inputComponent.AddSkillCommand(targetFrame, self.TestPlayerId, self.SkillSlot, targetX, targetY);
             self.SkillCastCount++;
 
-            Log.Info($"[ETBattleSkillTest] Skill cast: Frame={targetFrame}, PlayerId={self.TestPlayerId}, Slot={self.SkillSlot}, Target=({targetX:F2}, {targetY:F2})");
+            Log.Debug($"[ETBattleSkillTest] Skill cast: Frame={targetFrame}, PlayerId={self.TestPlayerId}, Slot={self.SkillSlot}, Target=({targetX:F2}, {targetY:F2})");
         }
 
         /// <summary>

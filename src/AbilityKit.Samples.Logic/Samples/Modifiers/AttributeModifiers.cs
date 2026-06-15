@@ -1,181 +1,110 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Modifiers;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Modifiers
 {
     /// <summary>
-    /// AttributeModifiers - 属性修改器
-    /// 展示如何使用修改器系统统一管理 RPG 属性
+    /// 演示 ModifierData 与 ModifierCalculator 如何把基础属性、装备、Buff 和覆盖效果合成为最终属性。
     /// </summary>
-    [Sample]
+    [Sample(501, "modifiers", "attribute", "calculator", "package-api", "web", "deterministic")]
     public sealed class AttributeModifiers : SampleBase
     {
-        public override string Title => "属性修改器 (RPG Attributes)";
-        public override string Description => "使用修改器系统管理 RPG 角色属性";
+        public override string Title => "Attribute Modifiers";
+        public override string Description => "使用 ModifierData 和 ModifierCalculator 计算角色属性";
         public override SampleCategory Category => SampleCategory.Modifiers;
 
         protected override void OnRun()
         {
-            Log("=== RPG 属性修改器系统 ===");
-            Output.Divider();
+            var attributes = new CharacterAttributes();
 
-            var character = new CharacterAttributes(Log);
-            Log("创建角色: 战士 Lv.1");
-            character.PrintAttributes();
+            Section("基础属性");
+            PrintAttributes(attributes, "Base");
 
-            Output.Divider();
+            Divider();
+            Section("装备与 Buff 修改器");
+            attributes.Add("weapon", ModifierData.Add(ModifierKey.AttackPower, 35f, sourceId: 1001));
+            attributes.Add("ring", ModifierData.PercentAdd(ModifierKey.AttackPower, 0.20f, sourceId: 1002));
+            attributes.Add("battle-shout", ModifierData.Mul(ModifierKey.AttackPower, 1.25f, sourceId: 1003));
+            attributes.Add("armor", ModifierData.Add(ModifierKey.Defense, 18f, sourceId: 1004));
+            PrintAttributes(attributes, "Equipped");
 
-            Log("【1】应用装备加成 (Add):");
-            Log("  +200 生命, +50 攻击, +20 防御");
+            Divider();
+            Section("Override 的优先级");
+            attributes.Add("training-mode", ModifierData.Override(ModifierKey.AttackPower, 80f, sourceId: 2001));
+            PrintAttributes(attributes, "Override");
+            Bullet("Override 使用更高优先级，适合训练场、变身、剧情状态这类强制属性。");
 
-            character.AddModifier(ModifierData.Add(ModifierKey.MaxHealth, 200f));
-            character.AddModifier(ModifierData.Add(ModifierKey.AttackPower, 50f));
-            character.AddModifier(ModifierData.Add(ModifierKey.Defense, 20f));
-
-            character.PrintAttributes();
-
-            Output.Divider();
-
-            Log("【2】应用 BUFF 加成 (PercentAdd):");
-            Log("  +10% 生命, +20% 攻击");
-
-            character.AddModifier(ModifierData.PercentAdd(ModifierKey.MaxHealth, 0.1f));
-            character.AddModifier(ModifierData.PercentAdd(ModifierKey.AttackPower, 0.2f));
-
-            character.PrintAttributes();
-
-            Output.Divider();
-
-            Log("【3】应用套装效果 (Mul):");
-            Log("  ×1.5 攻击 (套装两件套)");
-
-            character.AddModifier(ModifierData.Mul(ModifierKey.AttackPower, 1.5f));
-
-            character.PrintAttributes();
-
-            Output.Divider();
-
-            Log("【4】应用称号覆盖 (Override):");
-            Log("  =1000 生命上限 (传说称号)");
-
-            character.AddModifier(ModifierData.Override(ModifierKey.MaxHealth, 1000f));
-
-            character.PrintAttributes();
-
-            Output.Divider();
-
-            Log("【5】移除所有修改器 (还原原始值):");
-
-            var baseHealth = character.GetBaseValue(ModifierKey.MaxHealth);
-            var baseAttack = character.GetBaseValue(ModifierKey.AttackPower);
-            var baseDefense = character.GetBaseValue(ModifierKey.Defense);
-
-            character.RemoveAllModifiers();
-            character.PrintAttributes();
-
-            Log($"  原始值: HP={baseHealth}, ATK={baseAttack}, DEF={baseDefense}");
-
-            Output.Divider();
-
-            Log("【6】时间衰减 BUFF 示例:");
-
-            var timeDecayMod = ModifierData.AddWithTimeDecay(
+            Divider();
+            Section("时间衰减修改器");
+            attributes.Remove("training-mode");
+            attributes.Add("rage-decay", ModifierData.AddWithTimeDecay(
                 ModifierKey.AttackPower,
-                initialValue: 100f,
-                duration: 5f,
-                DecayType.Linear
-            );
+                initialValue: 40f,
+                duration: 4f,
+                decayType: DecayType.Linear,
+                sourceId: 3001));
 
-            Log("  获得 BUFF: +100 攻击, 持续 5 秒 (线性衰减)");
-
-            character.AddModifier(timeDecayMod);
-            var context = new SampleModifierContext();
-            Log($"  初始: ATK = {character.GetFinalValue(ModifierKey.AttackPower, context)}");
-
-            for (int i = 1; i <= 5; i++)
+            for (var second = 0; second <= 4; second++)
             {
-                context = new SampleModifierContext { ElapsedTime = i };
-                var currentAtk = character.GetFinalValue(ModifierKey.AttackPower, context);
-                Log($"  t={i}s: ATK = {currentAtk} (BUFF 剩余 {5 - i}s)");
+                var context = new SampleModifierContext { ElapsedTime = second, CurrentTime = second, DeltaTime = 1f };
+                var attack = attributes.GetFinalValue(ModifierKey.AttackPower, context);
+                KeyValue($"t={second}s Attack", attack.ToString("F1"));
             }
 
-            Output.Divider();
-
-            Log("【7】属性百分比变化统计:");
-
-            Log($"  生命变化: {baseHealth} → {character.GetBaseValue(ModifierKey.MaxHealth)}");
-            Log($"  攻击变化: {baseAttack} → {character.GetBaseValue(ModifierKey.AttackPower)}");
-            Log($"  防御变化: {baseDefense} → {character.GetBaseValue(ModifierKey.Defense)}");
-        }
-    }
-
-    /// <summary>
-    /// 角色属性类 - 演示如何使用修改器系统
-    /// </summary>
-    internal sealed class CharacterAttributes
-    {
-        private readonly Action<string> _log;
-        private readonly Dictionary<ModifierKey, float> _baseValues = new();
-        private readonly List<ModifierData> _modifiers = new();
-        private readonly ModifierCalculator _calculator = new();
-
-        private static readonly ModifierKey AttackSpeedKey = ModifierKey.Create(1, 4);
-
-        public CharacterAttributes(Action<string> log)
-        {
-            _log = log;
-            _baseValues[ModifierKey.MaxHealth] = 1000f;
-            _baseValues[ModifierKey.AttackPower] = 100f;
-            _baseValues[ModifierKey.Defense] = 50f;
-            _baseValues[ModifierKey.MoveSpeed] = 300f;
-            _baseValues[AttackSpeedKey] = 1.0f;
+            Divider();
+            Section("这个示例实际接入的包能力");
+            Bullet("ModifierData：描述一次 Add、PercentAdd、Mul、Override 或 TimeDecay 修改。");
+            Bullet("ModifierCalculator：按 ModifierOp 和 Priority 把同一属性的修改器合成为最终值。");
+            Bullet("ModifierKey：让业务用稳定键区分 MaxHealth、AttackPower、Defense 等属性。");
+            Bullet("IModifierContext：为时间衰减、等级曲线和属性捕获提供运行时上下文。");
         }
 
-        public void AddModifier(ModifierData modifier)
-        {
-            _modifiers.Add(modifier);
-        }
-
-        public void RemoveModifier(ModifierData modifier)
-        {
-            _modifiers.Remove(modifier);
-        }
-
-        public void RemoveAllModifiers()
-        {
-            _modifiers.Clear();
-        }
-
-        public float GetBaseValue(ModifierKey key)
-        {
-            return _baseValues.TryGetValue(key, out var value) ? value : 0f;
-        }
-
-        public float GetFinalValue(ModifierKey key, IModifierContext context)
-        {
-            if (!_baseValues.TryGetValue(key, out var baseValue))
-                return 0f;
-
-            var modifiersForKey = _modifiers
-                .Where(m => m.Key == key)
-                .ToArray();
-
-            if (modifiersForKey.Length == 0)
-                return baseValue;
-
-            var result = _calculator.Calculate(modifiersForKey, baseValue, level: context.Level);
-            return result.FinalValue;
-        }
-
-        public void PrintAttributes()
+        private void PrintAttributes(CharacterAttributes attributes, string label)
         {
             var context = new SampleModifierContext();
-            _log($"  HP: {_baseValues[ModifierKey.MaxHealth]:F0} (最终: {GetFinalValue(ModifierKey.MaxHealth, context):F0})");
-            _log($"  ATK: {_baseValues[ModifierKey.AttackPower]:F0} (最终: {GetFinalValue(ModifierKey.AttackPower, context):F0})");
-            _log($"  DEF: {_baseValues[ModifierKey.Defense]:F0} (最终: {GetFinalValue(ModifierKey.Defense, context):F0})");
-            _log($"  SPD: {_baseValues[ModifierKey.MoveSpeed]:F0}");
+            KeyValue($"{label}.MaxHealth", attributes.GetFinalValue(ModifierKey.MaxHealth, context).ToString("F1"));
+            KeyValue($"{label}.AttackPower", attributes.GetFinalValue(ModifierKey.AttackPower, context).ToString("F1"));
+            KeyValue($"{label}.Defense", attributes.GetFinalValue(ModifierKey.Defense, context).ToString("F1"));
+        }
+
+        private sealed class CharacterAttributes
+        {
+            private readonly Dictionary<ModifierKey, float> _baseValues = new Dictionary<ModifierKey, float>
+            {
+                [ModifierKey.MaxHealth] = 1000f,
+                [ModifierKey.AttackPower] = 100f,
+                [ModifierKey.Defense] = 50f
+            };
+
+            private readonly Dictionary<string, ModifierData> _modifiers = new Dictionary<string, ModifierData>();
+            private readonly ModifierCalculator _calculator = new ModifierCalculator();
+
+            public void Add(string source, ModifierData modifier)
+            {
+                _modifiers[source] = modifier;
+                _calculator.Invalidate();
+            }
+
+            public void Remove(string source)
+            {
+                if (_modifiers.Remove(source))
+                {
+                    _calculator.Invalidate();
+                }
+            }
+
+            public float GetFinalValue(ModifierKey key, IModifierContext context)
+            {
+                if (!_baseValues.TryGetValue(key, out var baseValue))
+                {
+                    return 0f;
+                }
+
+                var modifiers = _modifiers.Values.Where(modifier => modifier.Key == key).ToArray();
+                return _calculator.Calculate(modifiers, baseValue, context).FinalValue;
+            }
         }
     }
 }

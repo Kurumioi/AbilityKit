@@ -18,6 +18,9 @@ namespace AbilityKit.Samples.Logic.Samples.Flow
         {
             var flowContext = new FlowContext();
             flowContext.Set(new CastState(mana: 100, damage: 45));
+            KeyValue("Flow.InitialMana", "100");
+            KeyValue("Flow.Damage", "45");
+            KeyValue("Flow.InitialTargetHp", "120");
 
             using var runner = new FlowRunner(flowContext);
             runner.Start(
@@ -34,6 +37,7 @@ namespace AbilityKit.Samples.Logic.Samples.Flow
                 AdvanceTime(delta);
                 var status = runner.Step(delta);
                 KeyValue($"Frame {frame}", $"time={Time:F2}, status={status}");
+                KeyValue("Flow.Frame", $"{frame}:time={Time:F2},status={status}");
             }
 
             Divider();
