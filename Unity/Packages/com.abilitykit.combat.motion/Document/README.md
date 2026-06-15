@@ -83,7 +83,7 @@
 
 - [目标查找模块](../com.abilitykit.combat.targeting/Document/) - 目标选择和查找
 - [实体管理模块](../com.abilitykit.combat.entitymanager/Document/) - 实体查询系统
-- [数值系统](../com.abilitykit.core/Document/数值系统模块开发设计文档.md) - 伤害计算
+- [数值系统](../com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md) - 伤害计算
 
 ---
 

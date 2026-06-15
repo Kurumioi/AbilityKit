@@ -7,9 +7,9 @@ using UnityHFSM;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// �?<c>GameFlowDomain</c> 提取的状态机构建器（Step 4.7a）�?
-    /// 负责 Root / Battle 双层 HFSM 的状态注册、转移配置和条件求值�?
-    /// 纯逻辑，零 Unity 依赖，可独立测试�?
+    /// 从 <c>GameFlowDomain</c> 提取的状态机构建器（Step 4.7a）。
+    /// 负责 Root / Battle 双层 HFSM 的状态注册、转移配置和条件求值。
+    /// 纯逻辑，零 Unity 依赖，可独立测试。
     /// </summary>
     internal sealed class FlowStateMachineBuilder
     {
@@ -20,32 +20,32 @@ namespace AbilityKit.Game.Flow
         private readonly FlowStateMachineCallbacks _callbacks;
 
         /// <summary>
-        /// 状态机构建器需要的回调集合，由 Domain 提供�?
+        /// 状态机构建器需要的回调集合，由 Domain 提供。
         /// </summary>
         internal sealed class FlowStateMachineCallbacks
         {
-            /// <summary>Root 状态进入时调用（更�?activeRoot + 触发 stateBindings + 推送事件）�?/summary>
+            /// <summary>Root 状态进入时调用（更新 activeRoot + 触发 stateBindings + 推送事件）。</summary>
             public Action<MobaRootState> OnRootStateEntered { get; set; }
 
-            /// <summary>Battle 子状态进入时调用（日�?+ stateBindings）�?/summary>
+            /// <summary>Battle 子状态进入时调用（日志 + stateBindings）。</summary>
             public Action<MobaBattleState> OnBattleStateEntered { get; set; }
 
-            /// <summary>Battle 子状态变化时调用（更�?activeBattle + 推送事件）�?/summary>
+            /// <summary>Battle 子状态变化时调用（更新 activeBattle + 推送事件）。</summary>
             public Action<MobaBattleState> OnBattleStateChanged { get; set; }
 
-            /// <summary>Root 状态进入后�?stateBindings.Enter 调用�?/summary>
+            /// <summary>Root 状态进入后由 stateBindings.Enter 调用。</summary>
             public Action<MobaRootState> EnterRootBindings { get; set; }
 
-            /// <summary>Root 状态退出后�?stateBindings.Exit 调用�?/summary>
+            /// <summary>Root 状态退出后由 stateBindings.Exit 调用。</summary>
             public Action<MobaRootState> ExitRootBindings { get; set; }
 
-            /// <summary>Battle 状态进入后�?stateBindings.Enter 调用�?/summary>
+            /// <summary>Battle 状态进入后由 stateBindings.Enter 调用。</summary>
             public Action<MobaBattleState> EnterBattleBindings { get; set; }
 
-            /// <summary>Battle 状态退出后�?stateBindings.Exit 调用�?/summary>
+            /// <summary>Battle 状态退出后由 stateBindings.Exit 调用。</summary>
             public Action<MobaBattleState> ExitBattleBindings { get; set; }
 
-            /// <summary>求�?Root 转移条件（从 Domain �?scope + 字段合成 condition context）�?/summary>
+            /// <summary>求值 Root 转移条件（从 Domain 的 scope + 字段合成 condition context）。</summary>
             public Func<string, bool> EvaluateRootCondition { get; set; }
         }
 
@@ -68,23 +68,23 @@ namespace AbilityKit.Game.Flow
         {
             var fsm = new StateMachine<string, MobaRootState, MobaRootEvent>();
 
-            fsm.AddState(MobaRootState.Boot,
+            fsm.AddState(MobaRootState.Boot, new State<MobaRootState, MobaRootEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Boot);
                     _callbacks.EnterRootBindings(MobaRootState.Boot);
                     _presentationSink.OnPhaseChanged(MobaRootState.Boot, default);
                 },
-                onExit: _ => _callbacks.ExitRootBindings(MobaRootState.Boot));
+                onExit: _ => _callbacks.ExitRootBindings(MobaRootState.Boot)));
 
-            fsm.AddState(MobaRootState.Lobby,
+            fsm.AddState(MobaRootState.Lobby, new State<MobaRootState, MobaRootEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Lobby);
                     _callbacks.EnterRootBindings(MobaRootState.Lobby);
                     _presentationSink.OnPhaseChanged(MobaRootState.Lobby, default);
                 },
-                onExit: _ => _callbacks.ExitRootBindings(MobaRootState.Lobby));
+                onExit: _ => _callbacks.ExitRootBindings(MobaRootState.Lobby)));
 
             fsm.AddState(MobaRootState.Battle, battleFsm);
 
@@ -103,43 +103,43 @@ namespace AbilityKit.Game.Flow
                 _presentationSink.OnPhaseChanged(MobaRootState.Battle, s.name);
             };
 
-            fsm.AddState(MobaBattleState.Prepare,
+            fsm.AddState(MobaBattleState.Prepare, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
                     _callbacks.OnBattleStateEntered(MobaBattleState.Prepare);
                     _callbacks.EnterBattleBindings(MobaBattleState.Prepare);
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.Prepare));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.Prepare)));
 
-            fsm.AddState(MobaBattleState.Connect,
+            fsm.AddState(MobaBattleState.Connect, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
                     _callbacks.OnBattleStateEntered(MobaBattleState.Connect);
                     _callbacks.EnterBattleBindings(MobaBattleState.Connect);
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.Connect));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.Connect)));
 
-            fsm.AddState(MobaBattleState.CreateOrJoinWorld,
+            fsm.AddState(MobaBattleState.CreateOrJoinWorld, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
                     _callbacks.OnBattleStateEntered(MobaBattleState.CreateOrJoinWorld);
                     _callbacks.EnterBattleBindings(MobaBattleState.CreateOrJoinWorld);
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.CreateOrJoinWorld));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.CreateOrJoinWorld)));
 
-            fsm.AddState(MobaBattleState.LoadAssets,
+            fsm.AddState(MobaBattleState.LoadAssets, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
                     _callbacks.OnBattleStateEntered(MobaBattleState.LoadAssets);
                     _callbacks.EnterBattleBindings(MobaBattleState.LoadAssets);
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.LoadAssets));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.LoadAssets)));
 
-            fsm.AddState(MobaBattleState.InMatch,
+            fsm.AddState(MobaBattleState.InMatch, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
@@ -147,16 +147,16 @@ namespace AbilityKit.Game.Flow
                     _callbacks.EnterBattleBindings(MobaBattleState.InMatch);
                     _presentationSink.OnBattleStart();
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.InMatch));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.InMatch)));
 
-            fsm.AddState(MobaBattleState.End,
+            fsm.AddState(MobaBattleState.End, new State<MobaBattleState, MobaBattleEvent>(
                 onEnter: _ =>
                 {
                     _callbacks.OnRootStateEntered(MobaRootState.Battle);
                     _callbacks.EnterBattleBindings(MobaBattleState.End);
                     _presentationSink.OnBattleEnd();
                 },
-                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.End));
+                onExit: _ => _callbacks.ExitBattleBindings(MobaBattleState.End)));
 
             AddBattleTransitions(fsm, _flowConfig.BattleMachine);
             fsm.SetStartState(_flowConfig.BattleMachine.StartState);
@@ -172,15 +172,16 @@ namespace AbilityKit.Game.Flow
                 var transition = spec.Transitions[i];
                 if (string.IsNullOrEmpty(transition.ConditionId))
                 {
-                    fsm.AddTriggerTransition(transition.Trigger, transition.From, transition.To);
+                    fsm.AddTriggerTransition(transition.Trigger, new Transition<MobaRootState>(transition.From, transition.To));
                     continue;
                 }
 
                 fsm.AddTriggerTransition(
                     transition.Trigger,
-                    transition.From,
-                    transition.To,
-                    condition: _ => _callbacks.EvaluateRootCondition(transition.ConditionId));
+                    new Transition<MobaRootState>(
+                        transition.From,
+                        transition.To,
+                        condition: _ => _callbacks.EvaluateRootCondition(transition.ConditionId)));
             }
         }
 
@@ -191,7 +192,7 @@ namespace AbilityKit.Game.Flow
             for (var i = 0; i < spec.Transitions.Count; i++)
             {
                 var transition = spec.Transitions[i];
-                fsm.AddTriggerTransition(transition.Trigger, transition.From, transition.To);
+                fsm.AddTriggerTransition(transition.Trigger, new Transition<MobaBattleState>(transition.From, transition.To));
             }
         }
     }

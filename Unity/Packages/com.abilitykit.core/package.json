@@ -3,6 +3,15 @@
   "version": "0.0.1",
   "displayName": "AbilityKit Core",
   "unity": "2022.3",
-  "description": "AbilityKit core runtime utilities.",
-  "author": { "name": "AbilityKit" }
+  "description": "Foundation runtime utilities for AbilityKit, including math primitives, eventing, pooling, configuration, logging, markers, and debug drawing abstractions.",
+  "keywords": [
+    "abilitykit",
+    "core",
+    "runtime",
+    "foundation",
+    "utilities"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  }
 }

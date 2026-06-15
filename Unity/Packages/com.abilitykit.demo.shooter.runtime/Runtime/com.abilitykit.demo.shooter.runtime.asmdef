@@ -3,6 +3,7 @@
   "rootNamespace": "AbilityKit.Demo.Shooter",
   "references": [
     "AbilityKit.Core",
+    "AbilityKit.Network.Runtime",
     "AbilityKit.Host",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",

@@ -1,4 +1,5 @@
 using System.Linq;
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
@@ -188,6 +189,96 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(128, limited.Profile.BandwidthKbps);
         Assert.Equal(0, limited.Profile.BaseLatencyMs);
         Assert.Equal(0d, limited.Profile.PacketLossRate);
+    }
+
+    [Fact]
+    public void AuthoritativeWorldPublishesSnapshotsThroughCarrierNetworkLink()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.Ideal,
+            enableAuthoritativeWorld: true);
+
+        var result = session.Run(stepCount: 3, deltaSeconds: 1f / 30f, seed: 23);
+
+        Assert.True(result.Completed);
+        Assert.NotNull(session.CarrierNetworkStats);
+        Assert.Equal(3, session.CarrierNetworkStats.Value.InboundReceived);
+        Assert.Equal(3, session.CarrierNetworkStats.Value.InboundDelivered);
+        Assert.Equal(0, session.CarrierNetworkStats.Value.PendingCount);
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, session.LastCarrierSnapshotApplyResult);
+        var lagCompTelemetry = Assert.IsType<ShooterLagCompensationTelemetry>(session.LagCompensationTelemetry);
+        Assert.Equal(3, lagCompTelemetry.CapturedFrameCount);
+        Assert.Equal(1, lagCompTelemetry.OldestFrame);
+        Assert.Equal(3, lagCompTelemetry.LatestFrame);
+    }
+
+    [Fact]
+    public void AuthoritativeCarrierSnapshotsAreStampedWithTimeAnchor()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.Ideal,
+            enableAuthoritativeWorld: true);
+
+        var result = session.Run(stepCount: 3, deltaSeconds: 1f / 30f, seed: 37);
+
+        Assert.True(result.Completed);
+        Assert.Equal(3, session.LastCarrierTimeAnchor.LocalFrame);
+        Assert.Equal(3, session.LastCarrierTimeAnchor.TimelineTicks);
+        Assert.True(session.LastCarrierTimeAnchor.HasAuthoritativeFrame);
+        Assert.Equal(3, session.LastCarrierTimeAnchor.AuthoritativeFrame);
+        Assert.Equal(0.1d, session.LastCarrierTimeAnchor.ElapsedSeconds, precision: 6);
+    }
+
+    [Fact]
+    public void CarrierNetworkLinkBuffersSnapshotsUntilLatencyElapses()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            new NetworkConditionProfile(baseLatencyMs: 100, jitterMs: 0, packetLossRate: 0d, reorderRate: 0d, bandwidthKbps: 0),
+            enableAuthoritativeWorld: true);
+
+        session.TickAuthoritativeWorld(1f / 30f);
+
+        Assert.NotNull(session.CarrierNetworkStats);
+        Assert.Equal(1, session.CarrierNetworkStats.Value.InboundReceived);
+        Assert.Equal(0, session.CarrierNetworkStats.Value.InboundDelivered);
+        Assert.Equal(1, session.CarrierNetworkStats.Value.PendingCount);
+    }
+
+    [Fact]
+    public void CarrierNetworkLinkAppliesPacketLossBeforeControllerDelivery()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            new NetworkConditionProfile(baseLatencyMs: 0, jitterMs: 0, packetLossRate: 1d, reorderRate: 0d, bandwidthKbps: 0),
+            enableAuthoritativeWorld: true);
+
+        var result = session.Run(stepCount: 4, deltaSeconds: 1f / 30f, seed: 29);
+
+        Assert.True(result.Completed);
+        Assert.NotNull(session.CarrierNetworkStats);
+        Assert.Equal(4, session.CarrierNetworkStats.Value.InboundReceived);
+        Assert.Equal(0, session.CarrierNetworkStats.Value.InboundDelivered);
+        Assert.Equal(4, session.CarrierNetworkStats.Value.InboundDropped);
+        Assert.Equal(ShooterSnapshotApplyResult.Ignored, session.LastCarrierSnapshotApplyResult);
+    }
+
+    [Fact]
+    public void CarrierNetworkLinkRecordsReorderedSnapshots()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            new NetworkConditionProfile(baseLatencyMs: 30, jitterMs: 0, packetLossRate: 0d, reorderRate: 1d, bandwidthKbps: 0),
+            enableAuthoritativeWorld: true);
+
+        var result = session.Run(stepCount: 4, deltaSeconds: 1f / 30f, seed: 31);
+
+        Assert.True(result.Completed);
+        Assert.NotNull(session.CarrierNetworkStats);
+        Assert.Equal(4, session.CarrierNetworkStats.Value.InboundReceived);
+        Assert.True(session.CarrierNetworkStats.Value.InboundReordered > 0);
     }
 
     [Fact]

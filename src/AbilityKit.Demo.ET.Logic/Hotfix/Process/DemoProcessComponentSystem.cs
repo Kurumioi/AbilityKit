@@ -182,7 +182,7 @@ namespace ET.Logic
 
             // ========== ����7: ģ����Ҽ����׼�������ڱ��ز��ԣ�==========
             // ��ʵ�ʶ�����Ϸ�У������ͨ������ͬ���ȴ��������
-            roomComponent.AutoSetupForLocalTest(heroId: 1001, attributeTemplateId: 1001);
+            roomComponent.AutoSetupForLocalTest(heroId: 1001, attributeTemplateId: 1001, level: 1, basicAttackSkillId: 100101, skillIds: Array.Empty<int>());
 
             // ========== ����8: ����Ѿ�׼�����ˣ�����ս����ʼ ==========
             // ��������Ϊ�˴��������ڱ��ز��Ե����
@@ -271,11 +271,14 @@ namespace ET.Logic
                     playerId: player.PlayerId.Value,
                     characterId: player.HeroId,
                     attributeTemplateId: player.AttributeTemplateId,
+                    level: player.Level,
                     basicAttackSkillId: player.BasicAttackSkillId,
                     skillIds: player.SkillIds,
                     characterName: $"Hero_{player.HeroId}",
                     teamId: player.TeamId,
-                    x, 0f, z,
+                    x: x,
+                    y: 0f,
+                    z: z,
                     rotY: 0f,
                     scale: 1f,
                     hp: 0f,

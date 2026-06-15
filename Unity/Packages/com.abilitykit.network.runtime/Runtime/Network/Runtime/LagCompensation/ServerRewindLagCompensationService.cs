@@ -24,7 +24,10 @@ namespace AbilityKit.Network.Runtime.LagCompensation
             HitRadiusPadding = hitRadiusPadding;
         }
 
-        public static ServerRewindLagCompensationConfig Default => new ServerRewindLagCompensationConfig();
+        public static ServerRewindLagCompensationConfig Default => new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 120,
+            maxRewindFrames: 30,
+            hitRadiusPadding: 0f);
     }
 
     /// <summary>

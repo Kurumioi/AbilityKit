@@ -78,9 +78,9 @@ damage = (BaseDamage + FlatBonus) * (1 + PctBonus) + FinalBonus
 
 ## 🔗 相关文档
 
-- [属性系统模块](../com.abilitykit.attributes/Document/) - 持久属性系统，与数值系统互补
-- [能力管线模块](../com.abilitykit.pipeline/Document/能力管线模块开发设计文档.md) - 技能执行管线
-- [触发器模块](../com.abilitykit.triggering/Document/触发器模块开发设计文档.md) - 事件触发系统
+- [属性系统模块](../com.abilitykit.attributes/Documentation~/) - 持久属性系统，与数值系统互补
+- [能力管线模块](../com.abilitykit.pipeline/Documentation~/能力管线模块开发设计文档.md) - 技能执行管线
+- [触发器模块](../com.abilitykit.triggering/Documentation~/触发器模块开发设计文档.md) - 事件触发系统
 
 ---
 
@@ -99,7 +99,7 @@ damage = (BaseDamage + FlatBonus) * (1 + PctBonus) + FinalBonus
 ## 📁 源码路径
 
 ```
-com.abilitykit.core/Runtime/Core/Common/Numbers/
+com.abilitykit.core/Runtime/Numerics/
 ├── NumberValue.cs           # 核心数值容器
 ├── NumberValueMode.cs       # 计算模式枚举
 ├── NumberModifier.cs        # 修饰器结构

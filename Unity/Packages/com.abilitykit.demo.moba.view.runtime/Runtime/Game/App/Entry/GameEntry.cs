@@ -51,6 +51,11 @@ namespace AbilityKit.Game
             {
                 var flow = new GameFlowDomain(this, Root, new GamePresentationSink());
                 Root.WithRef(flow);
+                Root.WithRef<IGameFlowFeatureInstaller>(flow);
+            }
+            else
+            {
+                Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
             }
         }
 

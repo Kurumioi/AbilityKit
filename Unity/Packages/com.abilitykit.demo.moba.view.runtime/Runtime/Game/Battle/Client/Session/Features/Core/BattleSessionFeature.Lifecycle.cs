@@ -1,6 +1,5 @@
 using System;
 using AbilityKit.Core.Common.Log;
-using AbilityKit.World.ECS;
 using UnityEngine;
 using AbilityKit.Game.Flow.Modules;
 
@@ -14,7 +13,7 @@ namespace AbilityKit.Game.Flow
 
             _phaseCtx = ctx;
             BattleContext battleCtx;
-            ctx.Root.TryGetRef(out battleCtx);
+            ctx.Features.TryGet(out battleCtx);
             _ctx = battleCtx;
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 

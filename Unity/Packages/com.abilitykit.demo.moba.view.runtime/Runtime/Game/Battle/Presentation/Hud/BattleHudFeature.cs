@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetRef(out _ctx);
+            ctx.Features.TryGet(out _ctx);
             _hudInput = _ctx;
 
             _camera = Camera.main;

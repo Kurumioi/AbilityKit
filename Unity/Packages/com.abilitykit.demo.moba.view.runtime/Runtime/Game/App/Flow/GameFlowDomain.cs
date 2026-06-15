@@ -1,23 +1,24 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using AbilityKit.World.ECS;
 using AbilityKit.Core.Common.Config;
 using AbilityKit.Core.Common.Log;
 using AbilityKit.Game;
 using AbilityKit.Game.View.Flow;
+using AbilityKit.World.ECS;
 using UnityHFSM;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed class GameFlowDomain : IMobaFlowActionTarget, IFlowCommandSink
+    public sealed class GameFlowDomain : IMobaFlowActionTarget, IFlowCommandSink, IGameFlowFeatureInstaller
     {
         private readonly IGameHost _entry;
         private readonly ILogSink _log;
         private readonly IFeatureBinder _featureBinder;
         private readonly IPresentationSink _presentationSink;
         private readonly GamePhaseContext _ctx;
+        private readonly GameFlowRuntimeAdapter _runtimeAdapter;
         private readonly MobaFlowConfiguration _flowConfig;
         private readonly MobaFlowConditionResolver _conditionResolver;
         private readonly MobaFlowActionExecutor _actionExecutor;
@@ -60,9 +61,7 @@ namespace AbilityKit.Game.Flow
                 entry,
                 rootOverride,
                 log: Log.Sink,
-                featureBinder: rootOverride.IsValid
-                    ? new EntityFeatureBinder(rootOverride)
-                    : throw new ArgumentNullException(nameof(rootOverride)),
+                featureBinder: null,
                 presentationSink: presentationSink)
         {
         }
@@ -71,22 +70,16 @@ namespace AbilityKit.Game.Flow
             IGameHost entry,
             IEntity rootOverride,
             ILogSink log,
-            IFeatureBinder featureBinder,
+            IFeatureBinder featureBinder = null,
             IPresentationSink presentationSink = null)
         {
             _entry = entry;
             _log = log ?? throw new ArgumentNullException(nameof(log));
-            _featureBinder = featureBinder ?? throw new ArgumentNullException(nameof(featureBinder));
             _presentationSink = presentationSink ?? NullPresentationSink.Instance;
 
-            var root = rootOverride;
-
-            if (!root.IsValid)
-            {
-                throw new ArgumentNullException(nameof(rootOverride));
-            }
-
-            _ctx = new GamePhaseContext(_entry, (IEntity)root);
+            _runtimeAdapter = new GameFlowRuntimeAdapter(rootOverride);
+            _featureBinder = featureBinder ?? _runtimeAdapter.FeatureBinder;
+            _ctx = new GamePhaseContext(_entry, _runtimeAdapter.Root, _runtimeAdapter.Features);
             _flowConfig = MobaFlowConfiguration.CreateDefault();
             _conditionResolver = new MobaFlowConditionResolver();
             _actionExecutor = new MobaFlowActionExecutor();
@@ -103,7 +96,9 @@ namespace AbilityKit.Game.Flow
                     },
                     GetActiveBattle = () => _activeBattle,
                     ClearGatewayConnectionFactory = () => _pendingGatewayConnectionFactory = null,
-                    GetGatewayConnectionFactory = () => _pendingGatewayConnectionFactory
+                    GetGatewayConnectionFactory = () => _pendingGatewayConnectionFactory,
+                    CreateBattleSessionFeature = (bootstrapper, gatewayConnectionFactory) =>
+                        new BattleSessionFeature(bootstrapper, gatewayConnectionFactory)
                 },
                 battleWorldScope: _battleWorldScope,
                 advanceDecider: _advanceDecider,
@@ -117,13 +112,14 @@ namespace AbilityKit.Game.Flow
                 battleWorldScope: _battleWorldScope,
                 conditionResolver: _conditionResolver);
 
+            var featurePlanFactory = new MobaFeaturePlanFactory(CreateFeatureFactoryRegistry());
+
             _featureScheduler = new FeatureScheduler(
                 log: _log,
                 callbacks: new FeatureScheduler.Callbacks
                 {
                     FeatureBinderAttach = f => _featureBinder.AttachFeature(f),
                     FeatureBinderDetach = f => _featureBinder.DetachFeature(f),
-                    BattleSessionFactory = _battleScopeManager.CreateBattleSessionFeature,
                     ClearBattleSessionEvents = _battleScopeManager.ClearBattleSessionEvents,
                     ExecuteFlowAction = (actionId, installedCount) =>
                     {
@@ -139,7 +135,9 @@ namespace AbilityKit.Game.Flow
                     }
                 },
                 ctx: _ctx,
-                flowConfig: _flowConfig);
+                flowConfig: _flowConfig,
+                bootFeaturePlan: featurePlanFactory.CreateBootFeaturePlan(),
+                battleFeaturePlan: featurePlanFactory.CreateBattleFeaturePlan());
 
             _flowContext = new FlowContext();
             _rootEvents = new FlowEventQueue<MobaRootEvent>();
@@ -163,6 +161,21 @@ namespace AbilityKit.Game.Flow
             _battleFsm = smBuilder.BuildBattleStateMachine();
             _root = smBuilder.BuildRootStateMachine(_battleFsm);
             _runner = new HfsmFlowRunner<string, MobaRootState, MobaRootEvent>(_flowContext, _root, _rootEvents);
+        }
+
+        private MobaFeatureFactoryRegistry CreateFeatureFactoryRegistry()
+        {
+            return new MobaFeatureFactoryRegistry()
+                .Register("boot_menu", (in GamePhaseContext ctx) => new BootMenuOnGUIFeature())
+                .Register("root_debug", (in GamePhaseContext ctx) => new RootDebugOnGUIFeature())
+                .Register("context", (in GamePhaseContext ctx) => new BattleContextFeature())
+                .Register("session", (in GamePhaseContext ctx) => _battleScopeManager.CreateBattleSessionFeature())
+                .Register("entity", (in GamePhaseContext ctx) => new BattleEntityFeature())
+                .Register("sync", (in GamePhaseContext ctx) => new BattleSyncFeature())
+                .Register("input", (in GamePhaseContext ctx) => new BattleInputFeature())
+                .Register("view", (in GamePhaseContext ctx) => new BattleViewFeature())
+                .Register("hud", (in GamePhaseContext ctx) => new BattleHudFeature())
+                .Register("debug_ongui", (in GamePhaseContext ctx) => new BattleDebugOnGUIFeature());
         }
 
         public MobaRootState CurrentPhase => _activeRoot;
@@ -237,7 +250,7 @@ namespace AbilityKit.Game.Flow
             _pendingGatewayConnectionFactory = gatewayConnectionFactory;
             try
             {
-                return _featureScheduler.AttachBattleFeatures(featureIds, gatewayConnectionFactory);
+                return _featureScheduler.AttachBattleFeatures(featureIds);
             }
             finally
             {
@@ -263,23 +276,6 @@ namespace AbilityKit.Game.Flow
         public void TryAdvanceOnLoadAssetsEnter() => _battleScopeManager.TryAdvanceOnLoadAssetsEnter();
         public void ReturnLobbyAfterBattleEnd() => _battleScopeManager.ReturnLobbyAfterBattleEnd();
 
-        private sealed class EntityFeatureBinder : IFeatureBinder
-        {
-            private readonly IEntity _entity;
-
-            public EntityFeatureBinder(IEntity entity)
-            {
-                if (!entity.IsValid)
-                {
-                    throw new ArgumentNullException(nameof(entity));
-                }
-
-                _entity = entity;
-            }
-
-            public void AttachFeature(object feature) => _entity.WithRef((object)feature);
-            public void DetachFeature(object feature) => _entity.RemoveComponent(feature.GetType());
-        }
     }
 }
 

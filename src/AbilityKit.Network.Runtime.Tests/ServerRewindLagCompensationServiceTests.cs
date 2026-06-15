@@ -16,6 +16,19 @@ public sealed class ServerRewindLagCompensationServiceTests
     }
 
     [Fact]
+    public void DefaultConfigRetainsRecordedHistory()
+    {
+        var service = new ServerRewindLagCompensationService();
+
+        service.RecordFrame(1, new[] { Entity(2, new Vec3(1f, 0f, 0f), radius: 0.5f) });
+        service.RecordFrame(2, new[] { Entity(2, new Vec3(2f, 0f, 0f), radius: 0.5f) });
+
+        Assert.Equal(2, service.CapturedFrameCount);
+        Assert.Equal(1, service.OldestFrame);
+        Assert.Equal(2, service.LatestFrame);
+    }
+
+    [Fact]
     public void AcceptsHitAgainstRewoundFrameWhenCurrentFrameWouldMiss()
     {
         var service = new ServerRewindLagCompensationService(new ServerRewindLagCompensationConfig(

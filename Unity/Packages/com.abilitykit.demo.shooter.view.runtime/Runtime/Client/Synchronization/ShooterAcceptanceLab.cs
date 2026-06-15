@@ -179,6 +179,11 @@ namespace AbilityKit.Demo.Shooter.View
         private NetworkConditionProfile _networkProfile;
         private string _networkName;
 
+        private ShooterCarrierNetworkLink? _carrierNetworkLink;
+        private ShooterLagCompensationService? _lagCompensation;
+        private SyncTimeAnchor _lastCarrierTimeAnchor;
+        private double _networkElapsedSeconds;
+
         internal ShooterAcceptanceSession(
             ShooterBattleRuntimePort runtime,
             ShooterPresentationFacade presentation,
@@ -188,7 +193,8 @@ namespace AbilityKit.Demo.Shooter.View
             NetworkConditionProfile networkProfile,
             string networkName,
             ShooterBattleRuntimePort? authoritativeWorld,
-            ShooterPresentationFacade? authoritativePresentation)
+            ShooterPresentationFacade? authoritativePresentation,
+            int networkSeed = 0)
         {
             Runtime = runtime;
             Presentation = presentation;
@@ -199,6 +205,11 @@ namespace AbilityKit.Demo.Shooter.View
             _networkName = networkName;
             AuthoritativeWorld = authoritativeWorld;
             AuthoritativePresentation = authoritativePresentation;
+            if (AuthoritativeWorld != null)
+            {
+                _carrierNetworkLink = new ShooterCarrierNetworkLink(Controller, _networkProfile, networkSeed);
+                _lagCompensation = new ShooterLagCompensationService();
+            }
         }
 
         /// <summary>Deterministic battle runtime the controller advances each step (client predicted world).</summary>
@@ -239,6 +250,18 @@ namespace AbilityKit.Demo.Shooter.View
         /// </summary>
         public ShooterPresentationFacade? AuthoritativePresentation { get; }
 
+        /// <summary>Live stats from the carrier-side network middleware link.</summary>
+        public NetworkConditioningStats? CarrierNetworkStats => _carrierNetworkLink?.Stats;
+
+        /// <summary>Last result returned by applying a conditioned authoritative snapshot to the controller.</summary>
+        public ShooterSnapshotApplyResult? LastCarrierSnapshotApplyResult => _carrierNetworkLink?.LastApplyResult;
+
+        /// <summary>Last time anchor used to publish an authoritative snapshot through the carrier link.</summary>
+        public SyncTimeAnchor LastCarrierTimeAnchor => _lastCarrierTimeAnchor;
+
+        /// <summary>Current lag-compensation history telemetry captured from the authoritative world.</summary>
+        public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _lagCompensation?.Telemetry;
+
         /// <summary>
         /// Live-tunes the network environment without rebuilding the session. The next
         /// <see cref="Run"/> / step uses the new profile. Accepts either a catalog preset or an
@@ -248,6 +271,13 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _networkProfile = profile;
             _networkName = string.IsNullOrWhiteSpace(displayName) ? DescribeNetwork(profile) : displayName!;
+            if (AuthoritativeWorld != null)
+            {
+                _carrierNetworkLink = new ShooterCarrierNetworkLink(Controller, _networkProfile);
+                _lagCompensation?.Clear();
+                _lastCarrierTimeAnchor = default;
+                _networkElapsedSeconds = 0d;
+            }
         }
 
         /// <summary>
@@ -334,6 +364,12 @@ namespace AbilityKit.Demo.Shooter.View
             for (var i = 0; i < stepCount; i++)
             {
                 AuthoritativeWorld.Tick(deltaSeconds);
+                _lagCompensation?.RecordFrame(AuthoritativeWorld);
+                _networkElapsedSeconds += deltaSeconds;
+                var anchor = SyncTimeAnchor
+                    .FromLocalFrame(AuthoritativeWorld.CurrentFrame, AuthoritativeWorld.CurrentFrame, _networkElapsedSeconds)
+                    .WithAuthoritativeFrame(AuthoritativeWorld.CurrentFrame);
+                PublishAuthoritativeSnapshot(in anchor);
             }
 
             // Project the authoritative world through its own presentation facade so the Unity
@@ -343,6 +379,20 @@ namespace AbilityKit.Demo.Shooter.View
                 var authoritySnapshot = AuthoritativeWorld.GetSnapshot();
                 AuthoritativePresentation.ApplyLocalPredictionSnapshot(in authoritySnapshot);
             }
+        }
+
+        private void PublishAuthoritativeSnapshot(in SyncTimeAnchor anchor)
+        {
+            if (AuthoritativeWorld == null || _carrierNetworkLink == null)
+            {
+                return;
+            }
+
+            _lastCarrierTimeAnchor = anchor;
+            var clockMs = (long)Math.Round(anchor.ElapsedSeconds * 1000d);
+            var packed = AuthoritativeWorld.ExportPackedSnapshot(worldId: 1UL, isFullSnapshot: true, authorityOverride: true);
+            _carrierNetworkLink.PublishSnapshot(in packed, anchor.ElapsedSeconds);
+            _carrierNetworkLink.Advance(clockMs);
         }
 
         private static Dictionary<int, ShooterPlayerSnapshot> IndexByPlayerId(ShooterPlayerSnapshot[] players)
@@ -450,7 +500,8 @@ namespace AbilityKit.Demo.Shooter.View
                 networkProfile,
                 string.IsNullOrWhiteSpace(networkName) ? DescribeNetwork(networkProfile) : networkName!,
                 authoritativeWorld,
-                authoritativePresentation);
+                authoritativePresentation,
+                randomSeed);
         }
 
         /// <summary>

@@ -34,6 +34,9 @@ namespace AbilityKit.Game.Flow
 
             /// <summary>获取瞬�?gateway 连接工厂（仅�?AttachBattleFeatures 期间有效）�?/summary>
             public Func<Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection>> GetGatewayConnectionFactory { get; set; }
+
+            /// <summary>创建 Battle session feature，由 runtime 层提供具体实现。</summary>
+            public Func<IBattleBootstrapper, Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection>, IBattleSessionFeature> CreateBattleSessionFeature { get; set; }
         }
 
         private readonly Callbacks _callbacks;
@@ -41,7 +44,7 @@ namespace AbilityKit.Game.Flow
         private readonly MobaBattleAdvanceDecider _advanceDecider;
         private readonly ILogSink _log;
 
-        private BattleSessionFeature _battleSessionFeature;
+        private IBattleSessionFeature _battleSessionFeature;
 
         internal BattleScopeManager(
             Callbacks callbacks,
@@ -83,12 +86,12 @@ namespace AbilityKit.Game.Flow
 
         // --- BattleSessionFeature 工厂 ---
 
-        internal BattleSessionFeature CreateBattleSessionFeature()
+        internal IBattleSessionFeature CreateBattleSessionFeature()
         {
             // bootstrapper �?per-battle scope 取回（EnterBattle 时播种）�?
             // 取不到（null 局未播种）则传 null——与迁移前「_pendingBootstrapper �?null」行为等价�?
             _battleWorldScope.TryResolve<IBattleBootstrapper>(out var bootstrapper);
-            _battleSessionFeature = new BattleSessionFeature(bootstrapper, _callbacks.GetGatewayConnectionFactory());
+            _battleSessionFeature = _callbacks.CreateBattleSessionFeature(bootstrapper, _callbacks.GetGatewayConnectionFactory());
             _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
             _battleSessionFeature.FirstFrameReceived += OnBattleFirstFrameReceived;
             _battleSessionFeature.SessionFailed += OnBattleSessionFailed;

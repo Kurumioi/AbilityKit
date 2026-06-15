@@ -8,7 +8,7 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleSessionFeature : IGamePhaseFeature
+    public sealed partial class BattleSessionFeature : IBattleSessionFeature
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public static bool DebugForceClientHashMismatch { get; set; }

@@ -8,8 +8,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <!-- 引用 Packages 目录下的源码 -->
+  <!-- 引用 Unity Package 中的纯运行时源码，Unity 专属桥接代码由 UPM asmdef 编译。 -->
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.core/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.core/Runtime/**/UnityJsonSettingsBootstrap.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.core/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.core/Runtime/Unity/**/*.cs" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
@@ -83,6 +85,17 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.Equal(2f, view.Frames[^1].WorldScale);
         Assert.NotEmpty(view.Frames[^1].ClientBatch.EntityChanges);
         Assert.NotEmpty(view.Frames[^1].ClientBatch.TransformChanges);
+        var carrierStats = Assert.IsType<NetworkConditioningStats>(view.Frames[^1].CarrierNetworkStats);
+        Assert.Equal(2, carrierStats.InboundReceived);
+        Assert.Equal(2, carrierStats.InboundDelivered);
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, view.Frames[^1].LastCarrierSnapshotApplyResult);
+        Assert.Equal(2, view.Frames[^1].LastCarrierTimeAnchor.LocalFrame);
+        Assert.True(view.Frames[^1].LastCarrierTimeAnchor.HasAuthoritativeFrame);
+        Assert.Equal(2, view.Frames[^1].LastCarrierTimeAnchor.AuthoritativeFrame);
+        var lagCompensationTelemetry = Assert.IsType<ShooterLagCompensationTelemetry>(view.Frames[^1].LagCompensationTelemetry);
+        Assert.Equal(2, lagCompensationTelemetry.CapturedFrameCount);
+        Assert.Equal(1, lagCompensationTelemetry.OldestFrame);
+        Assert.Equal(2, lagCompensationTelemetry.LatestFrame);
     }
 
     [Fact]

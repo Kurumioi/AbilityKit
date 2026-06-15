@@ -1,28 +1,23 @@
-using AbilityKit.World.ECS;
-
 namespace AbilityKit.Game.Flow
 {
     public sealed class BattleContextFeature : IGamePhaseFeature
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
-            if (ctx.Root.TryGetRef(out BattleContext existing) && existing != null) return;
-            ctx.Root.WithRef(BattleContext.Rent());
+            if (ctx.Features.TryGet(out BattleContext existing) && existing != null) return;
+            ctx.Features.Set(BattleContext.Rent());
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (ctx.Root.IsValid)
+            if (ctx.Features.TryGet(out BattleContext existing) && existing != null)
             {
-                if (ctx.Root.TryGetRef(out BattleContext existing) && existing != null)
-                {
-                    ctx.Root.RemoveComponent(typeof(BattleContext));
-                    BattleContext.Return(existing);
-                }
-                else
-                {
-                    ctx.Root.RemoveComponent(typeof(BattleContext));
-                }
+                ctx.Features.Remove<BattleContext>();
+                BattleContext.Return(existing);
+            }
+            else
+            {
+                ctx.Features.Remove<BattleContext>();
             }
         }
 

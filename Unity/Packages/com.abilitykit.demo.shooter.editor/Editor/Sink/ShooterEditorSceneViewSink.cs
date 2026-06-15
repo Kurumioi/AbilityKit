@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Protocol.Shooter;
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
     {
         private ShooterSnapshotViewBatch _clientBatch;
         private ShooterSnapshotViewBatch _authorityBatch;
+        private ShooterLagCompensationTelemetry? _lagCompensationTelemetry;
         private bool _hasAuthorityBatch;
         private bool _showDivergence;
 
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
 
         public void Render(in ShooterPlayPresentationFrame frame)
         {
+            _lagCompensationTelemetry = frame.LagCompensationTelemetry;
             var clientBatch = frame.ClientBatch;
             ApplySnapshot(in clientBatch);
             if (frame.HasAuthorityBatch)
@@ -79,6 +82,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
         {
             _clientBatch = default;
             _authorityBatch = default;
+            _lagCompensationTelemetry = null;
             _hasAuthorityBatch = false;
             _clientEntities.Clear();
             _authorityEntities.Clear();
@@ -118,6 +122,8 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
                     DrawDivergenceLines();
                 }
             }
+
+            DrawTelemetryOverlay();
         }
 
         /// <summary>Gets the cached client entity data for external diagnostics.</summary>
@@ -125,6 +131,9 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
 
         /// <summary>Gets the cached authority entity data for external diagnostics.</summary>
         public IReadOnlyList<EntityDrawData> AuthorityEntities => _authorityEntities;
+
+        /// <summary>Gets the latest lag compensation telemetry cached from PlayMode frames.</summary>
+        public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _lagCompensationTelemetry;
 
         private void ExtractEntities(in ShooterSnapshotViewBatch batch, List<EntityDrawData> target)
         {
@@ -338,6 +347,20 @@ namespace AbilityKit.Demo.Shooter.Editor.Sink
                 }
             }
             HandlesColor = prevColor;
+        }
+
+        private void DrawTelemetryOverlay()
+        {
+            if (!_lagCompensationTelemetry.HasValue) return;
+
+            var telemetry = _lagCompensationTelemetry.Value;
+            Handles.BeginGUI();
+            GUILayout.BeginArea(new Rect(12f, 12f, 260f, 82f), EditorStyles.helpBox);
+            GUILayout.Label("Lag Compensation", EditorStyles.boldLabel);
+            GUILayout.Label($"History: {telemetry.CapturedFrameCount} frames");
+            GUILayout.Label($"Range: {telemetry.OldestFrame} → {telemetry.LatestFrame}");
+            GUILayout.EndArea();
+            Handles.EndGUI();
         }
 
         private void DrawDivergenceLines()

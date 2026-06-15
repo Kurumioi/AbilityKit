@@ -13,7 +13,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetRef(out _ctx);
+            ctx.Features.TryGet(out _ctx);
         }
 
         public void OnDetach(in GamePhaseContext ctx)

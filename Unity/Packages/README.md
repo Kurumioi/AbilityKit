@@ -106,11 +106,11 @@
 
 ---
 
-### 11. [Core 模块](./com.abilitykit.core/Document/)
+### 11. [Core 模块](./com.abilitykit.core/Documentation~/)
 
 | 文档 | 定位 |
 |------|------|
-| [数值系统开发设计文档](./com.abilitykit.core/Document/数值系统模块开发设计文档.md) | 设计理念、轻量修饰器、伤害计算 |
+| [数值系统开发设计文档](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md) | 设计理念、轻量修饰器、伤害计算 |
 
 **核心内容**：轻量级数值修饰系统，用于伤害计算和效果加成，与属性系统互补
 
@@ -192,7 +192,7 @@
 | 为什么用索引 | [技能库模块开发设计文档 - 设计理念](./com.abilitykit.combat.skilllibrary/Document/技能库模块开发设计文档.md#一设计理念为什么要做技能库模块) |
 | 为什么用 Trigger | [触发器模块开发设计文档 - 设计理念](./com.abilitykit.triggering/Document/触发器模块开发设计文档.md#一设计理念为什么要做触发器模块) |
 | 为什么用修饰器 | [属性系统模块开发设计文档 - 设计理念](./com.abilitykit.attributes/Document/属性系统模块开发设计文档.md#一设计理念为什么要做属性系统模块) |
-| 为什么用轻量修饰器 | [数值系统模块开发设计文档 - 设计理念](./com.abilitykit.core/Document/数值系统模块开发设计文档.md#一设计理念为什么要做数值系统) |
+| 为什么用轻量修饰器 | [数值系统模块开发设计文档 - 设计理念](./com.abilitykit.core/Documentation~/数值系统模块开发设计文档.md#一设计理念为什么要做数值系统) |
 | 为什么用管线模式 | [目标查找模块开发设计文档 - 设计理念](./com.abilitykit.combat.targeting/Document/目标查找模块开发设计文档.md#一设计理念为什么要做目标查找模块) |
 | 为什么用来源组合 | [移动系统模块开发设计文档 - 设计理念](./com.abilitykit.world.motion/Document/移动系统模块开发设计文档.md#一设计理念为什么要做移动系统模块) |
 | 为什么用对象池 | [投射物系统模块开发设计文档 - 设计理念](./com.abilitykit.combat.projectile/Document/投射物系统模块开发设计文档.md#一设计理念为什么要做投射物系统模块) |

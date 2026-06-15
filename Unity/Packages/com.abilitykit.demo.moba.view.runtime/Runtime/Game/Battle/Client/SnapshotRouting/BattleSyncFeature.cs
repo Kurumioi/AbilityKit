@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetRef(out _ctx);
+            ctx.Features.TryGet(out _ctx);
 
             var syncMode = _ctx != null ? _ctx.Plan.SyncMode : BattleSyncMode.Lockstep;
 

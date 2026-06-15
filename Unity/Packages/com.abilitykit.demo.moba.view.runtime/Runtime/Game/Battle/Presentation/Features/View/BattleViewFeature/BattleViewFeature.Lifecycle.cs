@@ -1,6 +1,5 @@
 using AbilityKit.Game.Flow.Battle.Modules;
 using AbilityKit.Game.Flow.Modules;
-using AbilityKit.World.ECS;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -9,7 +8,7 @@ namespace AbilityKit.Game.Flow
     {
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Root.TryGetRef(out _ctx);
+            ctx.Features.TryGet(out _ctx);
             SetRuntimeQuery(_ctx?.EntityQuery);
             BindPresentationSession(ctx);
 

@@ -195,7 +195,7 @@ public sealed class MyCustomType : IMyInterface
 ## 核心接口
 
 ```
-Unity/Packages/com.abilitykit.core/Runtime/Core/Continuous/
+Unity/Packages/com.abilitykit.core/Runtime/Continuous/
 ├── ContinuousState.cs        # 状态枚举
 ├── ContinuousEndReason.cs   # 结束原因枚举
 ├── IContinuous.cs           # 持续体接口（核心）

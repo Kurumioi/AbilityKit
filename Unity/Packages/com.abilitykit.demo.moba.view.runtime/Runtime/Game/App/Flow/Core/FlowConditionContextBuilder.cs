@@ -1,21 +1,20 @@
-using AbilityKit.Core.Common.Log;
 using System;
 
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// �?<c>GameFlowDomain</c> 提取�?Flow 条件上下文构建器（Step 4.7d）�?
-    /// 负责构建 <c>MobaFlowConditionContext</c> 并求值转移条件�?
-    /// 纯逻辑，零 Unity 依赖，可独立测试�?
+    /// 从 <c>GameFlowDomain</c> 提取的 Flow 条件上下文构建器（Step 4.7d）。
+    /// 负责构建 <c>MobaFlowConditionContext</c> 并求值转移条件。
+    /// 纯逻辑，零 Unity 依赖，可独立测试。
     /// </summary>
     internal sealed class FlowConditionContextBuilder
     {
         /// <summary>
-        /// FlowConditionContextBuilder 需要的回调集合，由 Domain 提供�?
+        /// FlowConditionContextBuilder 需要的回调集合，由 Domain 提供。
         /// </summary>
         internal sealed class Callbacks
         {
-            /// <summary>获取 _battleRequested 标志�?/summary>
+            /// <summary>获取 _battleRequested 标志。</summary>
             public Func<bool> GetBattleRequested { get; set; }
         }
 
@@ -23,7 +22,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleWorldScopeHost _battleWorldScope;
         private readonly MobaFlowConditionResolver _conditionResolver;
 
-        // 准入 gate 的兜底来源：scope 尚未建立时（Boot/Lobby 阶段求值）用它，四项全 true�?
+        // 准入 gate 的兜底来源：scope 尚未建立时（Boot/Lobby 阶段求值）用它，四项全 true。
         private static readonly IFlowGateProvider DefaultGates = new DefaultFlowGateProvider();
 
         internal FlowConditionContextBuilder(
@@ -44,9 +43,9 @@ namespace AbilityKit.Game.Flow
 
         internal MobaFlowConditionContext BuildFlowConditionContext()
         {
-            // 四个准入 gate �?per-battle scope �?IFlowGateProvider 取（Step 3）�?
-            // 转移求值可能发生在 scope 尚未建立时（�?Boot/Lobby 阶段轮询），此时取回落空�?
-            // �?DefaultFlowGateProvider 兜底——四项全 true，与迁移前四个硬编码 return true 行为等价�?
+            // 四个准入 gate 从 per-battle scope 的 IFlowGateProvider 取（Step 3）。
+            // 转移求值可能发生在 scope 尚未建立时（如 Boot/Lobby 阶段轮询），此时取回落空。
+            // 用 DefaultFlowGateProvider 兜底——四项全 true，与迁移前四个硬编码 return true 行为等价。
             var gates = _battleWorldScope.TryResolve<IFlowGateProvider>(out var provider)
                 ? provider
                 : DefaultGates;

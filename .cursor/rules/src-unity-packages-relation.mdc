@@ -71,7 +71,7 @@ AbilityKit/
 ## 命名空间与目录映射
 
 ```
-Unity/Packages/com.abilitykit.core/Runtime/Core/Common/Marker/
+Unity/Packages/com.abilitykit.core/Runtime/Markers/
 ├── MarkerAttribute.cs
 ├── MarkerRegistry.cs
 └── MarkerScanner.cs
@@ -115,7 +115,7 @@ Unity/Packages/com.abilitykit.core/Runtime/Core/Common/Marker/
 
 | 想要找... | 去这里 |
 |-----------|--------|
-| MarkerAttribute 基类 | `Unity/Packages/com.abilitykit.core/Runtime/Core/Common/Marker/` |
+| MarkerAttribute 基类 | `Unity/Packages/com.abilitykit.core/Runtime/Markers/` |
 | Triggering 系统 | `Unity/Packages/com.abilitykit.triggering/Runtime/` |
 | GameplayTags | `Unity/Packages/com.abilitykit.gameplaytags/Runtime/` |
 | 框架核心接口 | `Unity/Packages/com.abilitykit.core/Runtime/` |

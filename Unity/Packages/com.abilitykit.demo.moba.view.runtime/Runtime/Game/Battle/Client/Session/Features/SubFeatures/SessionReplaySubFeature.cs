@@ -8,7 +8,6 @@ using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.Game.Flow.Modules;
-using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
 {
@@ -40,10 +39,7 @@ namespace AbilityKit.Game.Flow
             if (!BattleSessionFeatureRuntimeAccess.TryGet<ISessionReplayRuntime>(ctx, out var runtime)) return;
 
             IBattleReplayDriverProvider provider = null;
-            if (ctx.Phase.Root.IsValid)
-            {
-                ctx.Phase.Root.TryGetRef(out provider);
-            }
+            ctx.Phase.Features.TryGet(out provider);
             if (provider == null && ctx.Phase.Entry != null)
             {
                 ctx.Phase.Entry.TryGet(out provider);

@@ -205,6 +205,11 @@ namespace ET.Logic
             }
         }
 
+        public void OnPresentationCueSnapshot(in FrameSnapshotData snapshot)
+        {
+            // Reserved for future presentation cue rendering support
+        }
+
         #endregion
 
         #region Battle Events

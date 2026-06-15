@@ -22,7 +22,7 @@ Phase5: HFSM                    (com.abilitykit.hfsm)
 | Phase | 框架模块 | 源码位置 |
 |-------|---------|---------|
 | Phase0 | 无 | 纯 C# 实现 |
-| Phase1 | IContinuous | `com.abilitykit.core/Runtime/Core/Continuous/` |
+| Phase1 | IContinuous | `com.abilitykit.core/Runtime/Continuous/` |
 | Phase2 | Flow | `com.abilitykit.flow/Runtime/` |
 | Phase3 | Triggering | `com.abilitykit.triggering/Runtime/` |
 | Phase4 | Pipeline | `com.abilitykit.pipeline/Runtime/` |

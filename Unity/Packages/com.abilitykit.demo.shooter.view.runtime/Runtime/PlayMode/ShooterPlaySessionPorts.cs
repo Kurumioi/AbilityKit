@@ -1,5 +1,9 @@
 #nullable enable
 
+using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.Network.Runtime.Sync;
+
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public readonly struct ShooterPlayFrameInput
@@ -27,13 +31,21 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             ShooterSnapshotViewBatch authorityBatch,
             bool hasAuthorityBatch,
             int controlledPlayerId,
-            float worldScale)
+            float worldScale,
+            NetworkConditioningStats? carrierNetworkStats,
+            ShooterSnapshotApplyResult? lastCarrierSnapshotApplyResult,
+            SyncTimeAnchor lastCarrierTimeAnchor,
+            ShooterLagCompensationTelemetry? lagCompensationTelemetry)
         {
             ClientBatch = clientBatch;
             AuthorityBatch = authorityBatch;
             HasAuthorityBatch = hasAuthorityBatch;
             ControlledPlayerId = controlledPlayerId;
             WorldScale = worldScale;
+            CarrierNetworkStats = carrierNetworkStats;
+            LastCarrierSnapshotApplyResult = lastCarrierSnapshotApplyResult;
+            LastCarrierTimeAnchor = lastCarrierTimeAnchor;
+            LagCompensationTelemetry = lagCompensationTelemetry;
         }
 
         public ShooterSnapshotViewBatch ClientBatch { get; }
@@ -41,6 +53,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public bool HasAuthorityBatch { get; }
         public int ControlledPlayerId { get; }
         public float WorldScale { get; }
+        public NetworkConditioningStats? CarrierNetworkStats { get; }
+        public ShooterSnapshotApplyResult? LastCarrierSnapshotApplyResult { get; }
+        public SyncTimeAnchor LastCarrierTimeAnchor { get; }
+        public ShooterLagCompensationTelemetry? LagCompensationTelemetry { get; }
     }
 
     public interface IShooterPlayInputSource

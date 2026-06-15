@@ -143,7 +143,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.AuthoritativePresentation?.ViewModel.Current ?? ShooterSnapshotViewBatch.Empty,
                 _session.HasAuthoritativeWorld && _session.AuthoritativePresentation != null,
                 _options.ControlledPlayerId,
-                _options.WorldScale);
+                _options.WorldScale,
+                _session.CarrierNetworkStats,
+                _session.LastCarrierSnapshotApplyResult,
+                _session.LastCarrierTimeAnchor,
+                _session.LagCompensationTelemetry);
             _viewSink.Render(in frame);
         }
 

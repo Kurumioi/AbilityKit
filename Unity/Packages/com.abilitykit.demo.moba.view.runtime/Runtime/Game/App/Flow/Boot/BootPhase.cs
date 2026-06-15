@@ -4,8 +4,8 @@ namespace AbilityKit.Game.Flow
     {
         public void Enter(in GamePhaseContext ctx)
         {
-            var flow = ctx.Entry.Get<GameFlowDomain>();
-            flow.Attach(new BootMenuOnGUIFeature());
+            var featureInstaller = ctx.Entry.Get<IGameFlowFeatureInstaller>();
+            featureInstaller.AttachBootFeatures();
         }
 
         public void Exit(in GamePhaseContext ctx)
