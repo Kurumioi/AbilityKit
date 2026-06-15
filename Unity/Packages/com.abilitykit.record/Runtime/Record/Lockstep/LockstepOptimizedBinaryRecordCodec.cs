@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Core.Common.Record.Lockstep
+namespace AbilityKit.Core.Recording.Lockstep
 {
     /// <summary>
     /// 优化的二进制录像数据模型 - 直接存储字节数组，不使用 Base64

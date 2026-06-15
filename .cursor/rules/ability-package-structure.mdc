@@ -104,10 +104,10 @@ AbilityKit.Ability.Samples     - 示例代码
 
 | 组件 | 位置 | 说明 |
 |------|------|------|
-| `MarkerAttribute` | `AbilityKit.Core.Common.Marker` | 框架级类型标记基类 |
-| `MarkerScanner<TAttr>` | `AbilityKit.Core.Common.Marker` | 扫描器，自动扫描程序集 |
-| `IMarkerRegistry` | `AbilityKit.Core.Common.Marker` | 注册表接口 |
-| `MarkerRegistry<TAttr>` | `AbilityKit.Core.Common.Marker` | 默认注册表实现 |
+| `MarkerAttribute` | `AbilityKit.Core.Markers` | 框架级类型标记基类 |
+| `MarkerScanner<TAttr>` | `AbilityKit.Core.Markers` | 扫描器，自动扫描程序集 |
+| `IMarkerRegistry` | `AbilityKit.Core.Markers` | 注册表接口 |
+| `MarkerRegistry<TAttr>` | `AbilityKit.Core.Markers` | 默认注册表实现 |
 
 ## 使用模式
 

@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Systems.Area

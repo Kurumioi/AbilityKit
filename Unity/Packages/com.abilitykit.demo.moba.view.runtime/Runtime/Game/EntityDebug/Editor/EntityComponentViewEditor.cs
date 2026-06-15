@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.World.ECS;
 using AbilityKit.Game.EntityDebug;
 using UnityEditor;

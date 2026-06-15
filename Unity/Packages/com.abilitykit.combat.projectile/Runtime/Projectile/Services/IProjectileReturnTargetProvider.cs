@@ -1,8 +1,8 @@
-﻿#if false
-using AbilityKit.Core.Math;
+#if false
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public interface IProjectileReturnTargetProvider : IService
     {

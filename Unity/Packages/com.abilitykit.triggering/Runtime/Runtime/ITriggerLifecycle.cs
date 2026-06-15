@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Diagnostics;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Triggering.Runtime
 {

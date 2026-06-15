@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Game.Flow
 {

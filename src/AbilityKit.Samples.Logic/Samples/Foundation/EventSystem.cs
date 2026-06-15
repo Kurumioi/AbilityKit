@@ -45,7 +45,7 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             Output.Divider();
 
             Log("API ????:");
-            Log("  AbilityKit.Core.Common.Event");
+            Log("  AbilityKit.Core.Eventing");
 
             Output.Divider();
 

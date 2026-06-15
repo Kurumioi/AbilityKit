@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Core.Common.MotionSystem.Core
+namespace AbilityKit.Combat.MotionSystem.Core
 {
     public sealed class MotionPipelinePolicy
     {

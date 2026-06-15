@@ -5,7 +5,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace AbilityKit.Core.Common.Config
+namespace AbilityKit.Core.Configuration
 {
     public static class UnityJsonSettingsBootstrap
     {

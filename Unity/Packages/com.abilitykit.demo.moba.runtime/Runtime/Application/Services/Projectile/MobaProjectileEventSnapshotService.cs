@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;

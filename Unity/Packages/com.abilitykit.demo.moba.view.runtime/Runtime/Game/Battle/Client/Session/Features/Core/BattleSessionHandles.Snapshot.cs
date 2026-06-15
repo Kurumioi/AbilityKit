@@ -1,7 +1,7 @@
 using System;
-using AbilityKit.Core.Common;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Utilities;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Snapshots.Routing;
 
 namespace AbilityKit.Game.Flow
 {

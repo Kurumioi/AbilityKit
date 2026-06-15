@@ -1,6 +1,6 @@
-﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public interface IProjectileHitFilter
     {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Moba.Config;
@@ -6,7 +6,7 @@ using AbilityKit.Demo.Moba.Config;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;

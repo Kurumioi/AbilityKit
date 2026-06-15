@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -7,7 +7,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 鐢ㄤ簬鏍囪瀹炵幇浜?IState 鎺ュ彛鐨勭姸鎬佺被鍨?
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class StateTypeIdAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class StateTypeIdAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string StateName { get; }
 
@@ -16,7 +16,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             StateName = stateName;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is StateTypeRegistry keyedRegistry)
             {

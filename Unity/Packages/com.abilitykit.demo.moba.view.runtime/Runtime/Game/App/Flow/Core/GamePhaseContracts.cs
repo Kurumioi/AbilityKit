@@ -8,12 +8,14 @@ namespace AbilityKit.Game.Flow
         public readonly IGameHost Entry;
         public readonly IEntity Root;
         public readonly IGameFeatureStore Features;
+        public readonly IBattleEntityRuntime BattleEntities;
 
-        public GamePhaseContext(IGameHost entry, IEntity root, IGameFeatureStore features)
+        public GamePhaseContext(IGameHost entry, IEntity root, IGameFeatureStore features, IBattleEntityRuntime battleEntities)
         {
             Entry = entry;
             Root = root;
             Features = features;
+            BattleEntities = battleEntities;
         }
     }
 

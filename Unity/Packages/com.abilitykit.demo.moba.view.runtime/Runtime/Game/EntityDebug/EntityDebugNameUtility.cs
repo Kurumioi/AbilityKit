@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Reflection;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.World.ECS;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;

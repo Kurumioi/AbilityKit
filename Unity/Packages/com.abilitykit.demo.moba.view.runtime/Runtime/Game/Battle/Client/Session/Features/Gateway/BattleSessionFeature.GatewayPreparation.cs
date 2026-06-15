@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
 
 namespace AbilityKit.Game.Flow

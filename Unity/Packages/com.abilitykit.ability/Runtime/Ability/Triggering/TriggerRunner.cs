@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Triggering.Definitions;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Ability.Triggering.Runtime
 {

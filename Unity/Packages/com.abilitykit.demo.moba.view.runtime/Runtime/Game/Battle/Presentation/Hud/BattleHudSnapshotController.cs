@@ -71,7 +71,7 @@ namespace AbilityKit.Game.Flow
 
         public void BindSnapshots(
             BattleSubscriptionGroup subscriptions,
-            AbilityKit.Core.Common.SnapshotRouting.FrameSnapshotDispatcher snapshots,
+            AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher snapshots,
             Action<ISnapshotEnvelope, EnterMobaGameRes> enterGameReceived,
             Action<ISnapshotEnvelope, MobaDamageEventSnapshotEntry[]> damageEventsReceived)
         {

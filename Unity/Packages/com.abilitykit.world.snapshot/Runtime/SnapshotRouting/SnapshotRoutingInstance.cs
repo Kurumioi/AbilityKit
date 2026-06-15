@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     public sealed class SnapshotRoutingInstance : IDisposable
     {

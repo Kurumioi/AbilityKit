@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba

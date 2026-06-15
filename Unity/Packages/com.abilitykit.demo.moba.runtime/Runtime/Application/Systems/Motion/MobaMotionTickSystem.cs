@@ -1,11 +1,11 @@
 using System;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba;
 

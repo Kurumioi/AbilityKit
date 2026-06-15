@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Core.Common.Config
+namespace AbilityKit.Core.Configuration
 {
     public sealed class FlatJsonSettings
     {

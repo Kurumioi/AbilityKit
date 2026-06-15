@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;

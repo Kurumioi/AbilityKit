@@ -1,5 +1,5 @@
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;

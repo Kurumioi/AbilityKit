@@ -1,8 +1,8 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Projectile;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Triggering.Registry;

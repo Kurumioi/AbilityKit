@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Effect;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Events.Buff;
 using AbilityKit.Trace;
 

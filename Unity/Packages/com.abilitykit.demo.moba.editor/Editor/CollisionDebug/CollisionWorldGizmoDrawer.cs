@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.DebugDraw;
-using AbilityKit.Core.Math;
-using AbilityKit.Core.Editor.DebugDraw;
+using AbilityKit.Core.Debugging;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Editor.Debugging;
 using AbilityKit.Game.Battle;
 using UnityEditor;
 using UnityEngine;

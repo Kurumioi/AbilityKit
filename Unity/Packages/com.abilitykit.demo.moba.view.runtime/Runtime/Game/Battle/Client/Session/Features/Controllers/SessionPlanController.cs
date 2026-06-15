@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Game.Flow.Battle.Modules;
 
 namespace AbilityKit.Game.Flow

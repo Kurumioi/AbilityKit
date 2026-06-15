@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     public static class UnityPools
     {

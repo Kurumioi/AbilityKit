@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public interface IFrameReplaySource
     {

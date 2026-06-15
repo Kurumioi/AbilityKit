@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.DebugDraw;
+using AbilityKit.Core.Debugging;
 using UnityEditor;
 using UnityEngine;
 
-namespace AbilityKit.Core.Editor.DebugDraw
+namespace AbilityKit.Core.Editor.Debugging
 {
     [InitializeOnLoad]
     public static class DebugDrawSceneViewDriver

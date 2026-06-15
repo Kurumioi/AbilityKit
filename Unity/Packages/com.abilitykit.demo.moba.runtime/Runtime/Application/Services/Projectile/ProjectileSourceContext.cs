@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile

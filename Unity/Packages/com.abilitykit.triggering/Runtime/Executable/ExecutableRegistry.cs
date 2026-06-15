@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Variables.Numeric;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {

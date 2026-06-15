@@ -1,5 +1,5 @@
-﻿using AbilityKit.Core.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Serialization;
+using AbilityKit.Core.Mathematics;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba

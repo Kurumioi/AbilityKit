@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace AbilityKit.Core.Common.Marker
+namespace AbilityKit.Core.Markers
 {
     /// <summary>
     /// Marker 系统引导类，提供统一的标记扫描入口。

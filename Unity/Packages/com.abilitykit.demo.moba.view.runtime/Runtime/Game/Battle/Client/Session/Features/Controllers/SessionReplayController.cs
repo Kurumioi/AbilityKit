@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.IO;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Record.Lockstep;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Recording.Lockstep;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.World.ECS;

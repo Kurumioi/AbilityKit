@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     public static class SnapshotRoutingBuilder
     {

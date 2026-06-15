@@ -1,7 +1,7 @@
-﻿using AbilityKit.Core.Common.Pool;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Pooling;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     internal sealed class Projectile : IPoolable
     {

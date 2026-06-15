@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;

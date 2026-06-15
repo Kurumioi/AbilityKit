@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -7,7 +7,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 鐢ㄤ簬鏍囪瀹炵幇浜?IPipelinePhase 鎺ュ彛鐨勯樁娈电被鍨?
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class PipelinePhaseTypeIdAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class PipelinePhaseTypeIdAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string TypeName { get; }
         public bool IsTimed { get; }
@@ -18,7 +18,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             IsTimed = isTimed;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is PipelinePhaseRegistry keyedRegistry)
             {

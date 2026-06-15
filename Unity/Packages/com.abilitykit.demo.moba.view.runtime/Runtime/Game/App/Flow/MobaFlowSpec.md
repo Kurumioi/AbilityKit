@@ -315,10 +315,10 @@ Flow 与 World 是正交的两件事：
     - 覆盖：新增 `MobaFlowActionDispatchTests`（9 个用例）——action executor（2 个已知 id 派发 + 空 id 不派发 + 未知 id 返回 false）、switch executor（3 个已知 id 派发 + 空 id 不派发 + 未知 id 返回 false），通过 `FakeFlowActionTarget` mock 记录调用。dotnet test：view 159 通过（+9）；demo console 0 错误。
 
  4.3. **Step 4.3（ILogSink + IFeatureBinder 宿主抽象，已完成）**：消除 `GameFlowDomain` 对 `Log.*` 静态调用和 `IEntity.WithRef/RemoveComponent` 的直接依赖，使 domain 的日志和 feature 绑定操作通过注入的抽象接口执行，为后续在无 Unity 环境下测试 domain 核心逻辑铺路。
-    - **复用 ILogSink**：发现 `AbilityKit.Core.Common.Log.ILogSink` 已是 `public` 接口且签名兼容（`Info`/`Error`/`Exception`），无需在 Flow.Core 自建重复接口。原 `Core/ILogSink.cs` 清空为注释文件（兼容 `.meta`）。
+    - **复用 ILogSink**：发现 `AbilityKit.Core.Logging.ILogSink` 已是 `public` 接口且签名兼容（`Info`/`Error`/`Exception`），无需在 Flow.Core 自建重复接口。原 `Core/ILogSink.cs` 清空为注释文件（兼容 `.meta`）。
     - **新增 IFeatureBinder**：`Core/IFeatureBinder.cs`——暴露 `AttachFeature(object)` / `DetachFeature(object)` 两个方法，抽象 Entity 级别的 feature 绑定操作，使 domain 不再直接操作 `IEntity`。
     - **构造函数注入**：`GameFlowDomain` 新增核心构造函数 `GameFlowDomain(GameEntry, IEntity, ILogSink, IFeatureBinder)`，所有日志和 feature 绑定通过注入实例执行。旧构造函数保留为便利包装——`ILogSink` 传 `Log.Sink`（全局静态日志 sink），`IFeatureBinder` 传 `new EntityFeatureBinder(root)`。
-    - **Log.* → _log.* 替换**：全文件约 20 处 `Log.Info/Log.Error/Log.Exception` 静态调用替换为 `_log.Info/_log.Error/_log.Exception` 实例调用。`using AbilityKit.Core.Common.Log` 保留（`Log.Sink` 需要它），但不再有 `Log.*` 静态方法调用。
+    - **Log.* → _log.* 替换**：全文件约 20 处 `Log.Info/Log.Error/Log.Exception` 静态调用替换为 `_log.Info/_log.Error/_log.Exception` 实例调用。`using AbilityKit.Core.Logging` 保留（`Log.Sink` 需要它），但不再有 `Log.*` 静态方法调用。
     - **EntityFeatureBinder 适配器**：作为 `GameFlowDomain` 的 `private sealed` 内部类，桥接 `IFeatureBinder` 到 `IEntity.WithRef((object)feature)` / `IEntity.RemoveComponent(feature.GetType())`。保持与迁移前完全一致的行为。
     - 覆盖：新增 `IFeatureBinderContractTests`（3 个用例）——mock 的 `AttachFeature`/`DetachFeature` 调用记录、多次操作顺序验证，证明接口可无 Unity 依赖 mock。dotnet test：view 162 通过（+3）；demo console 0 错误。
 

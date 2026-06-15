@@ -2,7 +2,7 @@ using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;

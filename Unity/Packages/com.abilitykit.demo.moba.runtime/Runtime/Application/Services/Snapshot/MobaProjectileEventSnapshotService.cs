@@ -4,7 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Services
             _hits.Clear();
             _exits.Clear();
 
-            if (_projectiles is AbilityKit.Core.Common.Projectile.ProjectileService ps)
+            if (_projectiles is AbilityKit.Combat.Projectile.ProjectileService ps)
             {
                 ps.PeekSpawnEvents(_spawns);
                 ps.PeekHitEvents(_hits);

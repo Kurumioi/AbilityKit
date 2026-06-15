@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public interface IEventTrackReader
     {

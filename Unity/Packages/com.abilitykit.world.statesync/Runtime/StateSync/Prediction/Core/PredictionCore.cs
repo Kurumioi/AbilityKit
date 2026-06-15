@@ -106,8 +106,8 @@ public readonly struct SlotValue
 
 /// <summary>
 /// 向量类型（独立于引擎，用于预测系统内部计算）
-/// 与 AbilityKit.Core.Math.Vec3 和 AbilityKit.Ability.StateSync.Snapshot.Vec3 是不同的类型
-/// - AbilityKit.Core.Math.Vec3: 完整数学库，适合内部计算
+/// 与 AbilityKit.Core.Mathematics.Vec3 和 AbilityKit.Ability.StateSync.Snapshot.Vec3 是不同的类型
+/// - AbilityKit.Core.Mathematics.Vec3: 完整数学库，适合内部计算
 /// - AbilityKit.Ability.StateSync.Snapshot.Vec3: MemoryPackable，适合序列化
 /// - AbilityKit.Ability.StateSync.Vector3: 简化版，适合预测系统内部快速计算
 /// </summary>
@@ -135,8 +135,8 @@ public readonly struct Vector3
 
 /// <summary>
 /// 四元数类型（独立于引擎，用于预测系统内部计算）
-/// 与 AbilityKit.Core.Math.Quat 和 AbilityKit.Ability.StateSync.Snapshot.Quat 是不同的类型
-/// - AbilityKit.Core.Math.Quat: 完整数学库，适合内部计算
+/// 与 AbilityKit.Core.Mathematics.Quat 和 AbilityKit.Ability.StateSync.Snapshot.Quat 是不同的类型
+/// - AbilityKit.Core.Mathematics.Quat: 完整数学库，适合内部计算
 /// - AbilityKit.Ability.StateSync.Snapshot.Quat: MemoryPackable，适合序列化
 /// - AbilityKit.Ability.StateSync.Quaternion: 简化版，适合预测系统内部快速计算
 /// </summary>

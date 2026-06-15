@@ -1,7 +1,7 @@
-﻿
-using AbilityKit.Core.Common.MotionSystem.Collision;
-using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Common.MotionSystem.Events;
+
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Events;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 

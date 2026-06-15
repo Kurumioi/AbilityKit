@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Util.Generator;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Common.MotionSystem.Trajectory;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Logging;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Trajectory;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile

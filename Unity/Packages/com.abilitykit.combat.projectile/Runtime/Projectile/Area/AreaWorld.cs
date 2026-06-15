@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Pool;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Pooling;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public sealed class AreaWorld
     {

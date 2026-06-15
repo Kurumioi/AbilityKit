@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 

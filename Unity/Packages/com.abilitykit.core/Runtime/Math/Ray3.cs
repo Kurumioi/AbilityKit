@@ -1,4 +1,4 @@
-namespace AbilityKit.Core.Math
+namespace AbilityKit.Core.Mathematics
 {
     public readonly struct Ray3
     {

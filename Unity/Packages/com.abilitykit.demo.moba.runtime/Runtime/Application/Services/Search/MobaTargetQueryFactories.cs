@@ -6,7 +6,7 @@ using AbilityKit.Battle.SearchTarget;
 using AbilityKit.Battle.SearchTarget.Rules;
 using AbilityKit.Battle.SearchTarget.Scorers;
 using AbilityKit.Battle.SearchTarget.Selectors;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Share.Config;
 using ST = AbilityKit.Battle.SearchTarget;

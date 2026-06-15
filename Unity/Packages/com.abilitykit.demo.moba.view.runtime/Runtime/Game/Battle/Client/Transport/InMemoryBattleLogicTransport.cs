@@ -6,7 +6,7 @@ using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Demo.Moba.Systems;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;

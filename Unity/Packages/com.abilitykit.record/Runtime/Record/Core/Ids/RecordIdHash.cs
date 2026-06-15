@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Text;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public static class RecordIdHash
     {

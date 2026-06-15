@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.View;
 using AbilityKit.Demo.Moba.Share;

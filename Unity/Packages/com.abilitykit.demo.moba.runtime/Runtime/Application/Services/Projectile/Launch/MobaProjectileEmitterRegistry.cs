@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile.Launch

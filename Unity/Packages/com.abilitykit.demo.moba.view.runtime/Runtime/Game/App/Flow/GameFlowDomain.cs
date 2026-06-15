@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using AbilityKit.Core.Common.Config;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Configuration;
+using AbilityKit.Core.Logging;
 using AbilityKit.Game;
 using AbilityKit.Game.View.Flow;
 using AbilityKit.World.ECS;
@@ -79,7 +79,7 @@ namespace AbilityKit.Game.Flow
 
             _runtimeAdapter = new GameFlowRuntimeAdapter(rootOverride);
             _featureBinder = featureBinder ?? _runtimeAdapter.FeatureBinder;
-            _ctx = new GamePhaseContext(_entry, _runtimeAdapter.Root, _runtimeAdapter.Features);
+            _ctx = new GamePhaseContext(_entry, _runtimeAdapter.Root, _runtimeAdapter.Features, _runtimeAdapter.BattleEntities);
             _flowConfig = MobaFlowConfiguration.CreateDefault();
             _conditionResolver = new MobaFlowConditionResolver();
             _actionExecutor = new MobaFlowActionExecutor();

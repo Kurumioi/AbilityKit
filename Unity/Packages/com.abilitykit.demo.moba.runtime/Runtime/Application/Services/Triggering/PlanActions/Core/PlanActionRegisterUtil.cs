@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Demo.Moba.Systems;
 

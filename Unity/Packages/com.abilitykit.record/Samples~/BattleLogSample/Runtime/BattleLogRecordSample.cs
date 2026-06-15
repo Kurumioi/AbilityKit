@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Generic;
-using AbilityKit.Core.Common.Record.Core;
+using AbilityKit.Core.Serialization;
+using AbilityKit.Core.Recording.Core;
 using UnityEngine;
 
 namespace AbilityKit.Record.Samples

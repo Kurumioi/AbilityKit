@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;

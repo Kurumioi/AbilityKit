@@ -1,6 +1,6 @@
-﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.MotionSystem.Collision
+namespace AbilityKit.Combat.MotionSystem.Collision
 {
     public readonly struct MotionHit
     {

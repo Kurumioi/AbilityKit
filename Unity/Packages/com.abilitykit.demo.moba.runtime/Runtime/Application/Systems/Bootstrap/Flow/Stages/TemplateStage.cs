@@ -1,5 +1,5 @@
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {

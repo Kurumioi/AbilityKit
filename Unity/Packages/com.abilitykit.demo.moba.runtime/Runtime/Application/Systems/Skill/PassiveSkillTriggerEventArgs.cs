@@ -1,6 +1,6 @@
-﻿using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Math;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Eventing;
 
 namespace AbilityKit.Demo.Moba.Systems
 {

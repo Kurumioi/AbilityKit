@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public sealed class BasicProjectileEmitter : IProjectileEmitter
     {

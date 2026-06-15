@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
@@ -29,7 +29,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         IConsumableRemoteFrameSource<PlayerInputCommand[]> ConfirmedConsumable { get; set; }
         IRemoteFrameSink<PlayerInputCommand[]> ConfirmedSink { get; set; }
 
-        Core.Common.SnapshotRouting.FrameSnapshotDispatcher Snapshots { get; }
+        AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher Snapshots { get; }
     }
 
     /// <summary>

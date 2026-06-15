@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Samples.Abstractions;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;

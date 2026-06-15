@@ -1,5 +1,5 @@
-﻿using System;
-using AbilityKit.Core.Common.Marker;
+using System;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Triggering.Runtime.Extensions
 {

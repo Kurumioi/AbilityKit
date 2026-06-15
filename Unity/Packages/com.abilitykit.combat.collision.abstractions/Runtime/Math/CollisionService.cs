@@ -1,6 +1,6 @@
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Core.Math
+namespace AbilityKit.Core.Mathematics
 {
     /// <summary>
     /// 碰撞服务默认实现。

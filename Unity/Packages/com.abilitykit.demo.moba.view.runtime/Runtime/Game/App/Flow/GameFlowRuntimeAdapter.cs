@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Game.EntityCreation;
 using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -15,6 +16,7 @@ namespace AbilityKit.Game.Flow
             Root = root;
             Features = new EntityFeatureStore(root);
             FeatureBinder = new EntityFeatureBinder(root);
+            BattleEntities = new BattleEntityRuntime(root);
         }
 
         public IEntity Root { get; }
@@ -22,6 +24,8 @@ namespace AbilityKit.Game.Flow
         public IGameFeatureStore Features { get; }
 
         public IFeatureBinder FeatureBinder { get; }
+
+        public IBattleEntityRuntime BattleEntities { get; }
 
         private sealed class EntityFeatureStore : IGameFeatureStore
         {
@@ -49,6 +53,48 @@ namespace AbilityKit.Game.Flow
 
             public void AttachFeature(object feature) => _entity.WithRef((object)feature);
             public void DetachFeature(object feature) => _entity.RemoveComponent(feature.GetType());
+        }
+
+        private sealed class BattleEntityRuntime : IBattleEntityRuntime
+        {
+            private readonly IEntity _root;
+
+            public BattleEntityRuntime(IEntity root)
+            {
+                _root = root;
+            }
+
+            public IECWorld World => _root.World;
+
+            public IEntity CreateNode(string debugName) => EntityGenerator.CreateChild(_root, debugName: debugName);
+
+            public void DestroyTree(IEntity root)
+            {
+                if (!root.IsValid) return;
+
+                var list = new System.Collections.Generic.List<IEntity>(16);
+                var stack = new System.Collections.Generic.Stack<IEntity>();
+                stack.Push(root);
+
+                while (stack.Count > 0)
+                {
+                    var entity = stack.Pop();
+                    if (!entity.IsValid) continue;
+                    list.Add(entity);
+
+                    var count = entity.ChildCount;
+                    for (int i = 0; i < count; i++)
+                    {
+                        stack.Push(entity.GetChild(i));
+                    }
+                }
+
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var entity = list[i];
+                    if (entity.IsValid) entity.Destroy();
+                }
+            }
         }
     }
 }

@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.MotionSystem.Collision;
-using AbilityKit.Core.Common.MotionSystem.Events;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Events;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.MotionSystem.Core
+namespace AbilityKit.Combat.MotionSystem.Core
 {
     public sealed class MotionPipeline
     {

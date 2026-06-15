@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Text;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 

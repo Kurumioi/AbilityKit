@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace AbilityKit.Core.Common.Marker
+namespace AbilityKit.Core.Markers
 {
     /// <summary>
     /// Marker 引导器基类。

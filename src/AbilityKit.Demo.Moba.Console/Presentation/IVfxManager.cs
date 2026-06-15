@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using Color4 = AbilityKit.Demo.Moba.Console.Presentation.Color4;
 
 namespace AbilityKit.Demo.Moba.Console.Presentation

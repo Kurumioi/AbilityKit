@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -7,7 +7,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 鐢ㄤ簬鏍囪瀹炵幇浜?IBTNode 鎺ュ彛鐨勮妭鐐圭被鍨?(Selector, Sequence, Condition, Action)
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class BTNodeTypeIdAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class BTNodeTypeIdAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string NodeType { get; }
 
@@ -16,7 +16,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             NodeType = nodeType;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is BTNodeTypeRegistry keyedRegistry)
             {

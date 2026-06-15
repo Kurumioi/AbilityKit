@@ -1,8 +1,8 @@
 using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;

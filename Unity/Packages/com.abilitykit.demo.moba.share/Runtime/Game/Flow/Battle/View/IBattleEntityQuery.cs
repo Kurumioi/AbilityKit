@@ -68,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Share
         /// <summary>
         /// 获取位置
         /// </summary>
-        AbilityKit.Core.Math.Vec3 Position { get; }
+        AbilityKit.Core.Mathematics.Vec3 Position { get; }
 
         /// <summary>
         /// 获取旋转（Y 轴欧拉角）

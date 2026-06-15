@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Core.Common.Projectile;
+using System.Collections.Generic;
+using AbilityKit.Combat.Projectile;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {

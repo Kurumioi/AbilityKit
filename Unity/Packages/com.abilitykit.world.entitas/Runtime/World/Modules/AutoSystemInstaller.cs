@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Ability.World
 {

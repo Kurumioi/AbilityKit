@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public sealed class ScatterPattern : IProjectileSpawnPattern
     {

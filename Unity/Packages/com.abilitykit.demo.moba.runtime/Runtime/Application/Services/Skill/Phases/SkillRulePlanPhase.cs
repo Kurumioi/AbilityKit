@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Pipeline;
 

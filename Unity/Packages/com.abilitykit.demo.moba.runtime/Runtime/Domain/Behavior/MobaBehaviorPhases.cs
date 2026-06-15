@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.Behavior;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Moba.Behavior

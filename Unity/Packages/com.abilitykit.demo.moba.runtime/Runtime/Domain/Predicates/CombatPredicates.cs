@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;

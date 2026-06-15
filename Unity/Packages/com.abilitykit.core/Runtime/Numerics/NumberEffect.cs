@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.Numbers
+namespace AbilityKit.Core.Numerics
 {
     public sealed class NumberEffect
     {

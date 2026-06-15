@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions

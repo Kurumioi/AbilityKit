@@ -1,5 +1,5 @@
-﻿using System;
-using AbilityKit.Core.Common.Event;
+using System;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;

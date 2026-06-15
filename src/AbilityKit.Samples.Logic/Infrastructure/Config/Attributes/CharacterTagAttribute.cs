@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -8,7 +8,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 涓€涓鑹插彲浠ユ湁澶氫釜鏍囩
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-    public sealed class CharacterTagAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class CharacterTagAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string Tag { get; }
 
@@ -17,7 +17,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             Tag = tag;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is CharacterTagRegistry keyedRegistry)
             {

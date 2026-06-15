@@ -1,9 +1,9 @@
-using AbilityKit.Core.Common.DebugDraw;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Debugging;
+using AbilityKit.Core.Mathematics;
 using UnityEditor;
 using UnityEngine;
 
-namespace AbilityKit.Core.Editor.DebugDraw
+namespace AbilityKit.Core.Editor.Debugging
 {
     internal sealed class HandlesDebugDraw : IDebugDraw
     {

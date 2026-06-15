@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Systems;
 
 namespace AbilityKit.Demo.Moba.Gameplay.Triggering

@@ -5,7 +5,7 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Eventing;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Triggering.Runtime.Behavior.Predicates
 {

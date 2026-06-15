@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Pipeline;
 
 namespace AbilityKit.Demo.Moba.Services

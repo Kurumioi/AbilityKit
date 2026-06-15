@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace AbilityKit.Core.Common.Record.Lockstep
+namespace AbilityKit.Core.Recording.Lockstep
 {
     public static class LockstepBinaryInputRecordReader
     {

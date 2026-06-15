@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Pool;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Pooling;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {

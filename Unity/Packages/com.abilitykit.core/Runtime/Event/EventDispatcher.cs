@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Generic;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Identifiers;
+using AbilityKit.Core.Pooling;
 
-namespace AbilityKit.Core.Common.Event
+namespace AbilityKit.Core.Eventing
 {
     public sealed class EventDispatcher
     {

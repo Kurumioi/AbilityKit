@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Config.Core;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using ConfigReloadResult = AbilityKit.Ability.HotReload.ConfigReloadResult;
 using ConfigReloadBus = AbilityKit.Ability.HotReload.ConfigReloadBus;
 

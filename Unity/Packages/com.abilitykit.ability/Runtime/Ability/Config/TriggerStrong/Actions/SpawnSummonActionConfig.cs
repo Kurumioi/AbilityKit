@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering.Definitions;
 using AbilityKit.Ability.Triggering.Runtime;
 

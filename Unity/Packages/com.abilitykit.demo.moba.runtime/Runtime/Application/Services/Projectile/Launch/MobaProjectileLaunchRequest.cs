@@ -1,4 +1,4 @@
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile.Launch

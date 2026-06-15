@@ -50,7 +50,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
                 }
                 catch (Exception ex)
                 {
-                    AbilityKit.Core.Common.Log.Log.Exception(ex, $"[MobaBootstrapStageInitializer] Failed to register stage: {type.Name}");
+                    AbilityKit.Core.Logging.Log.Exception(ex, $"[MobaBootstrapStageInitializer] Failed to register stage: {type.Name}");
                 }
             }
         }

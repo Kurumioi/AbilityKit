@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     public sealed class ObjectPool<T> : IObjectPoolDebug where T : class
     {

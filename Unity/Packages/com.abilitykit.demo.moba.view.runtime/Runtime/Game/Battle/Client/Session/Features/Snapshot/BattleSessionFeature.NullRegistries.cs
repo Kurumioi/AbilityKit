@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 
 namespace AbilityKit.Game.Flow
 {

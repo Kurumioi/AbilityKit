@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Projectile;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Trace;
 

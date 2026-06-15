@@ -1,7 +1,7 @@
-﻿using System;
-using AbilityKit.Core.Common.Marker;
+using System;
+using AbilityKit.Core.Markers;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class SnapshotRegistryAttribute : MarkerAttribute

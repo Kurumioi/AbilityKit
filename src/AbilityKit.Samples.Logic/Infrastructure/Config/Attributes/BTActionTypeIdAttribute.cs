@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -7,7 +7,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 鐢ㄤ簬鏍囪瀹炵幇浜?IBTAction 鎺ュ彛鐨勫姩浣滃疄鐜扮被
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class BTActionTypeIdAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class BTActionTypeIdAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string ActionName { get; }
 
@@ -16,7 +16,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             ActionName = actionName;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is BTActionTypeRegistry keyedRegistry)
             {

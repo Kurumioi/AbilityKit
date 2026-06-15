@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Game.View.Foundation
 {

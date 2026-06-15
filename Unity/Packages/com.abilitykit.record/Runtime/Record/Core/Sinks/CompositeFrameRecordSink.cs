@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public sealed class CompositeFrameRecordSink : IFrameRecordSink
     {

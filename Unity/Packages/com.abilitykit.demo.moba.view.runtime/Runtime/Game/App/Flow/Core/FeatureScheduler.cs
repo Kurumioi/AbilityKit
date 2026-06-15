@@ -2,7 +2,7 @@ using AbilityKit.Game.View.Flow;
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
 {

@@ -1,4 +1,4 @@
-﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Share.ECS; using AbilityKit.ECS; using AbilityKit.Ability.Share.ECS;
 
 namespace AbilityKit.Demo.Moba.Services

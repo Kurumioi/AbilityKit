@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using UnityEngine;
 using AbilityKit.Game.Flow.Modules;
 

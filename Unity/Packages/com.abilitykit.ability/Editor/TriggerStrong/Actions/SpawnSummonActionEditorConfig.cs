@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Config;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering.Runtime;
 using Sirenix.OdinInspector;
 

@@ -76,8 +76,8 @@ namespace AbilityKit.Demo.Moba.Share
                 if (TryGetEntityTransform(entity, out var transform))
                 {
                     view.SetPosition(transform.Position);
-                    view.SetRotation(new AbilityKit.Core.Math.Vec3(0, transform.RotationY, 0));
-                    view.SetScale(new AbilityKit.Core.Math.Vec3(transform.Scale, transform.Scale, transform.Scale));
+                    view.SetRotation(new AbilityKit.Core.Mathematics.Vec3(0, transform.RotationY, 0));
+                    view.SetScale(new AbilityKit.Core.Mathematics.Vec3(transform.Scale, transform.Scale, transform.Scale));
                 }
             }
         }
@@ -183,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Share
             ClearAll();
         }
 
-        private static AbilityKit.Core.Math.Vec3 GetTransformPosition(IEntityHandle entity)
+        private static AbilityKit.Core.Mathematics.Vec3 GetTransformPosition(IEntityHandle entity)
         {
             // 这里简化处理，实际实现需要从组件中获取
             return default;
@@ -196,7 +196,7 @@ namespace AbilityKit.Demo.Moba.Share
     /// </summary>
     public struct TransformComponent
     {
-        public AbilityKit.Core.Math.Vec3 Position;
+        public AbilityKit.Core.Mathematics.Vec3 Position;
         public float RotationY;
         public float Scale;
     }

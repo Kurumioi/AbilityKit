@@ -1,6 +1,6 @@
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.EntityManager;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile

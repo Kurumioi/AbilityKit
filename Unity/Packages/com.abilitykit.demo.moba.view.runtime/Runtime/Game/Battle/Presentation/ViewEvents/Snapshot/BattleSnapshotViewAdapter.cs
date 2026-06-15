@@ -1,10 +1,10 @@
 using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
-using FrameSnapshotDispatcher = AbilityKit.Core.Common.SnapshotRouting.FrameSnapshotDispatcher;
+using FrameSnapshotDispatcher = AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot
 {

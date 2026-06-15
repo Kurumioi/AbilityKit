@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Coordinator;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 

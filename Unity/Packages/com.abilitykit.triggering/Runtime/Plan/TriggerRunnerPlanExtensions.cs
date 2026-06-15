@@ -1,6 +1,6 @@
 using System;
 using System.Reflection;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Triggering.Runtime

@@ -1,7 +1,7 @@
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.DebugDraw
+namespace AbilityKit.Core.Debugging
 {
     public readonly struct DebugDrawMask : IEquatable<DebugDrawMask>
     {

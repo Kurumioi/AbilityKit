@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Events.Buff;
 using AbilityKit.Demo.Moba.Events.Summon;

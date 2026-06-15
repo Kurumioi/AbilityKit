@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;

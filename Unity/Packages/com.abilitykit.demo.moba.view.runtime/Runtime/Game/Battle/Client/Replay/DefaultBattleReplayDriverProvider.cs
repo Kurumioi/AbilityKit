@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.IO;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Record.Lockstep;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Recording.Lockstep;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.Replay

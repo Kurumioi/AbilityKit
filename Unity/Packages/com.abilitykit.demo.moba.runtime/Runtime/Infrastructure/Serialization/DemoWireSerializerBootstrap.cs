@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Reflection;
-using AbilityKit.Core.Common.Config;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Reflection;
+using AbilityKit.Core.Configuration;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Reflection;
 
 namespace AbilityKit.Demo.Moba.Serialization
 {

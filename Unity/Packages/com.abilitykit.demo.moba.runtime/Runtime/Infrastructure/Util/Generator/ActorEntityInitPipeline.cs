@@ -1,15 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.Core;
 using BattleDemo = AbilityKit.Demo.Moba.Config.BattleDemo;
 using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Effect;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;

@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Services.Templates
 {
@@ -21,16 +23,16 @@ namespace AbilityKit.Demo.Moba.Services.Templates
             if (_disposed) throw new ObjectDisposedException(ServiceName);
         }
 
-        protected void LogInfo(string message) => Core.Common.Log.Log.Info($"[{ServiceName}] {message}");
+        protected void LogInfo(string message) => Log.Info($"[{ServiceName}] {message}");
 
-        protected void LogWarning(string message) => Core.Common.Log.Log.Warning($"[{ServiceName}] {message}");
+        protected void LogWarning(string message) => Log.Warning($"[{ServiceName}] {message}");
 
-        protected void LogError(string message) => Core.Common.Log.Log.Error($"[{ServiceName}] {message}");
+        protected void LogError(string message) => Log.Error($"[{ServiceName}] {message}");
 
         protected void LogException(Exception ex, string context = "")
         {
             var msg = string.IsNullOrEmpty(context) ? ex.Message : $"{context}: {ex.Message}";
-            Core.Common.Log.Log.Exception(ex, $"[{ServiceName}] {msg}");
+            Log.Exception(ex, $"[{ServiceName}] {msg}");
         }
 
         public void Dispose()
@@ -118,10 +120,10 @@ namespace AbilityKit.Demo.Moba.Services.Templates
             }
 
             var eid = TriggeringIdUtil.GetEventEid(eventId);
-            EventBus.Publish(new Core.Common.Event.EventKey<T>(eid), in payload);
+            EventBus.Publish(new EventKey<T>(eid), in payload);
 
             object boxed = payload;
-            EventBus.Publish(new Core.Common.Event.EventKey<object>(eid), in boxed);
+            EventBus.Publish(new EventKey<object>(eid), in boxed);
         }
     }
 

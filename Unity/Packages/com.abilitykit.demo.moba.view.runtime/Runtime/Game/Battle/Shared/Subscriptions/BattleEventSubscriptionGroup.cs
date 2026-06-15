@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Triggering;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Game.View.Foundation;
 
 namespace AbilityKit.Game.Flow

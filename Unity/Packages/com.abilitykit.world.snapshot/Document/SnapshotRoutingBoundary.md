@@ -14,11 +14,11 @@
 
 | 类型 | 命名空间 | 说明 |
 |------|----------|------|
-| `FrameSnapshotDispatcher` | `AbilityKit.Core.Common.SnapshotRouting` | 按 opCode 分发快照 payload |
-| `SnapshotPipeline` | `AbilityKit.Core.Common.SnapshotRouting` | 有序阶段管线，按 order 执行 |
-| `SnapshotCmdHandler` | `AbilityKit.Core.Common.SnapshotRouting` | 命令型处理器 |
-| `ISnapshotDecoderRegistry` | `AbilityKit.Core.Common.SnapshotRouting` | decoder 注册接口 |
-| `ISnapshotPipelineStageRegistry` | `AbilityKit.Core.Common.SnapshotRouting` | 管线阶段注册接口 |
+| `FrameSnapshotDispatcher` | `AbilityKit.Core.Snapshots.Routing` | 按 opCode 分发快照 payload |
+| `SnapshotPipeline` | `AbilityKit.Core.Snapshots.Routing` | 有序阶段管线，按 order 执行 |
+| `SnapshotCmdHandler` | `AbilityKit.Core.Snapshots.Routing` | 命令型处理器 |
+| `ISnapshotDecoderRegistry` | `AbilityKit.Core.Snapshots.Routing` | decoder 注册接口 |
+| `ISnapshotPipelineStageRegistry` | `AbilityKit.Core.Snapshots.Routing` | 管线阶段注册接口 |
 | `ISnapshotEnvelope` | `AbilityKit.Ability.Host` | 快照信封接口（来自 `world.networkfragments`） |
 
 ## 架构约束

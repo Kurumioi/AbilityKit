@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Demo.Moba.Services
 {

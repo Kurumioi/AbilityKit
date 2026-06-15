@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public sealed class BasicReplayController : IReplayController
     {

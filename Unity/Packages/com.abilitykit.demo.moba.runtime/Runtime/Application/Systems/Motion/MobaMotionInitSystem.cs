@@ -1,5 +1,5 @@
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;

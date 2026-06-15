@@ -1,4 +1,4 @@
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile.Launch

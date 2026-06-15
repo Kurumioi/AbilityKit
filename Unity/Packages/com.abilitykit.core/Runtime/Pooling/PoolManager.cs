@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     public sealed class PoolManager
     {

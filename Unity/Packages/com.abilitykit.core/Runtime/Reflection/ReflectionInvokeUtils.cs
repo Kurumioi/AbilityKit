@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace AbilityKit.Core.Common.Reflection
+namespace AbilityKit.Core.Reflection
 {
     public static class ReflectionInvokeUtils
     {

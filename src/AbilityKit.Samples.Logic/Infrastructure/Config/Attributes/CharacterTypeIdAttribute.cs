@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
 {
@@ -7,7 +7,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
     /// 鐢ㄤ簬鏍囪瀹炵幇浜?ICharacter 鎺ュ彛鐨勮鑹插疄鐜扮被 (Hero, Boss, Tower 绛?
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class CharacterTypeIdAttribute : AbilityKit.Core.Common.Marker.MarkerAttribute
+    public sealed class CharacterTypeIdAttribute : AbilityKit.Core.Markers.MarkerAttribute
     {
         public string CharacterId { get; }
 
@@ -16,7 +16,7 @@ namespace AbilityKit.Samples.Logic.Infrastructure.Config.Attributes
             CharacterId = characterId;
         }
 
-        public override void OnScanned(Type implType, AbilityKit.Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, AbilityKit.Core.Markers.IMarkerRegistry registry)
         {
             if (registry is CharacterTypeRegistry keyedRegistry)
             {

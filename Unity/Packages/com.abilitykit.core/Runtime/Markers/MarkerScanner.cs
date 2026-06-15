@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace AbilityKit.Core.Common.Marker
+namespace AbilityKit.Core.Markers
 {
     /// <summary>
     /// 标记系统扫描器。

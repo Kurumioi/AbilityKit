@@ -7,7 +7,7 @@ using AbilityKit.Battle.SearchTarget.Selectors;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services.Search
 {

@@ -76,7 +76,7 @@ Unity/Packages/com.abilitykit.core/Runtime/Markers/
 ├── MarkerRegistry.cs
 └── MarkerScanner.cs
 
-对应命名空间：AbilityKit.Core.Common.Marker
+对应命名空间：AbilityKit.Core.Markers
 ```
 
 ## 工作流程

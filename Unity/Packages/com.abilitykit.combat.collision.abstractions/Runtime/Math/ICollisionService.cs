@@ -1,6 +1,6 @@
-﻿using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Core.Math
+namespace AbilityKit.Core.Mathematics
 {
     public interface ICollisionService : IService
     {

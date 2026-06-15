@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;

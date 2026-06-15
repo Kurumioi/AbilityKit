@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -16,7 +16,7 @@ using AbilityKit.Protocol.Moba;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Trace;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Services
 {

@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Samples.Logic.Samples.Config;
 
 namespace AbilityKit.Samples.Logic.Samples.Pipeline

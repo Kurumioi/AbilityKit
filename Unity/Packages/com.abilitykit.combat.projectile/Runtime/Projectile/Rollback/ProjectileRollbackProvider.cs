@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public sealed class ProjectileRollbackProvider : IRollbackStateProvider
     {

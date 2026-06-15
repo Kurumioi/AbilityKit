@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     public sealed class ObjectPoolOptions<T> where T : class
     {

@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     public sealed class UnityGameObjectPool
     {

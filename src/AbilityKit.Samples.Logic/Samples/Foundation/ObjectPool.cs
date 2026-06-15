@@ -45,7 +45,7 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             Output.Divider();
 
             Log("API ????:");
-            Log("  AbilityKit.Core.Common.Pool");
+            Log("  AbilityKit.Core.Pooling");
 
             Output.Divider();
 

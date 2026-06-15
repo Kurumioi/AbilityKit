@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Util.Generator
 {

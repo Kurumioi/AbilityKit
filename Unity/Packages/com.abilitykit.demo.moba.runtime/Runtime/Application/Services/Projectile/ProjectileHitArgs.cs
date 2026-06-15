@@ -1,5 +1,5 @@
-using AbilityKit.Core.Common.Projectile;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {

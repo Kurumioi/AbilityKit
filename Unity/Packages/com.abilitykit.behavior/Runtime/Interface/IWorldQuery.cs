@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using AbilityKit.Core.Math;
+using System.Collections.Generic;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Ability.Behavior
 {

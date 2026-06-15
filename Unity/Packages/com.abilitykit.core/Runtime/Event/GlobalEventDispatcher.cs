@@ -1,4 +1,4 @@
-namespace AbilityKit.Core.Common.Event
+namespace AbilityKit.Core.Eventing
 {
     public static class GlobalEventDispatcher
     {

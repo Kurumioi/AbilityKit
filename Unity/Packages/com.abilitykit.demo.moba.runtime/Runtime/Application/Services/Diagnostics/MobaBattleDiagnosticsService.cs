@@ -131,10 +131,10 @@ namespace AbilityKit.Demo.Moba.Services
             if (string.IsNullOrEmpty(message)) return;
             if (!ShouldLog(key, maxCount, out var suppressedAtLimit)) return;
 
-            AbilityKit.Core.Common.Log.Log.Warning(message);
+            AbilityKit.Core.Logging.Log.Warning(message);
             if (suppressedAtLimit)
             {
-                AbilityKit.Core.Common.Log.Log.Warning($"[MobaDiagnostics] Further diagnostics suppressed for key={key}.");
+                AbilityKit.Core.Logging.Log.Warning($"[MobaDiagnostics] Further diagnostics suppressed for key={key}.");
             }
         }
 
@@ -144,10 +144,10 @@ namespace AbilityKit.Demo.Moba.Services
             if (!ShouldLog(key, maxCount, out var suppressedAtLimit)) return;
 
             var message = string.IsNullOrEmpty(context) ? exception.Message : context;
-            AbilityKit.Core.Common.Log.Log.Exception(exception, $"[MobaDiagnostics] {message}");
+            AbilityKit.Core.Logging.Log.Exception(exception, $"[MobaDiagnostics] {message}");
             if (suppressedAtLimit)
             {
-                AbilityKit.Core.Common.Log.Log.Warning($"[MobaDiagnostics] Further exceptions suppressed for key={key}.");
+                AbilityKit.Core.Logging.Log.Warning($"[MobaDiagnostics] Further exceptions suppressed for key={key}.");
             }
         }
 

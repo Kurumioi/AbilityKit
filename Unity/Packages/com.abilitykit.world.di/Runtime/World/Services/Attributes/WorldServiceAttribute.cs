@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Ability.World.Services.Attributes
 {

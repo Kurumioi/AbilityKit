@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Trace;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -82,7 +82,7 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        public bool UpdateInput(long runtimeId, in AbilityKit.Core.Math.Vec3 aimPos, in AbilityKit.Core.Math.Vec3 aimDir, int targetActorId)
+        public bool UpdateInput(long runtimeId, in AbilityKit.Core.Mathematics.Vec3 aimPos, in AbilityKit.Core.Mathematics.Vec3 aimDir, int targetActorId)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
             runtime.UpdateInput(in aimPos, in aimDir, targetActorId);

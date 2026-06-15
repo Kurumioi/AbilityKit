@@ -4,7 +4,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     [WorldSystem(WorldSystemOrder.CoreBase + 2000 + WorldSystemOrder.Normal, Phase = WorldSystemPhase.Execute)]
     public sealed class ProjectileTickSystem : WorldSystemBase

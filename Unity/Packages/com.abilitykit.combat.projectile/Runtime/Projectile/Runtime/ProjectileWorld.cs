@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.Pool;
-using AbilityKit.Core.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Pooling;
+using AbilityKit.Core.Serialization;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.Services;
 
-namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public interface IProjectileReturnTargetProvider : IService
     {

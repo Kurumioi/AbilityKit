@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 using UnityEditor;
 using UnityEngine;
 

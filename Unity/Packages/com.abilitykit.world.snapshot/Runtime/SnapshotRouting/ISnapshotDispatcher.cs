@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     /// <summary>
     /// Minimal interface for snapshot dispatching, allowing View Runtime to provide

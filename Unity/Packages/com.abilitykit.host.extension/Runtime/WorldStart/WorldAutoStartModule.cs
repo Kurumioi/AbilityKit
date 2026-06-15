@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 

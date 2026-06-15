@@ -5,7 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Services
             _spawns.Clear();
             _expires.Clear();
 
-            if (_projectiles is AbilityKit.Core.Common.Projectile.ProjectileService ps)
+            if (_projectiles is AbilityKit.Combat.Projectile.ProjectileService ps)
             {
                 ps.PeekAreaSpawnEvents(_spawns);
                 ps.PeekAreaExpireEvents(_expires);

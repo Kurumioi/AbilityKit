@@ -1,4 +1,4 @@
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Console.Services

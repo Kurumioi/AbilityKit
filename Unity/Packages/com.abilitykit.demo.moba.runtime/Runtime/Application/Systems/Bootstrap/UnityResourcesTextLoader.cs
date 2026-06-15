@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Triggering.Json;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Systems
 {

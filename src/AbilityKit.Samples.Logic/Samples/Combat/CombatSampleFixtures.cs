@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Battle.SearchTarget;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using SearchVec2 = AbilityKit.Battle.SearchTarget.Vec2;
 
 namespace AbilityKit.Samples.Logic.Samples.Combat

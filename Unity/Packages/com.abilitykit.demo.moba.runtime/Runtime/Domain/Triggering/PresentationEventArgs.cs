@@ -1,4 +1,4 @@
-﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Triggering

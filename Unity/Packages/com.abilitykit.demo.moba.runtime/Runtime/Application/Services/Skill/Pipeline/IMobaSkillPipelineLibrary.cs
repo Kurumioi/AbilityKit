@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Pipeline;
 

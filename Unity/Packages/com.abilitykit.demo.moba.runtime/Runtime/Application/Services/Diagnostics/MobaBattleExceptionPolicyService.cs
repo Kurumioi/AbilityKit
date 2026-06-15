@@ -110,7 +110,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return true;
             }
 
-            AbilityKit.Core.Common.Log.Log.Exception(exception, "[MobaExceptionPolicy] " + message);
+            AbilityKit.Core.Logging.Log.Exception(exception, "[MobaExceptionPolicy] " + message);
             return true;
         }
 

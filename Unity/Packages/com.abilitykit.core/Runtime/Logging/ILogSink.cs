@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.Log
+namespace AbilityKit.Core.Logging
 {
     public interface ILogSink
     {

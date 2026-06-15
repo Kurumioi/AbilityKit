@@ -1,6 +1,6 @@
-﻿using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Util.Generator;

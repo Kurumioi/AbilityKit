@@ -7,7 +7,7 @@ namespace AbilityKit.Ability.StateSync.Snapshot
     /// 通用向量类型（独立于引擎，用于序列化）
     /// 用于网络传输和快照序列化
     ///
-    /// 注意：此类型与 AbilityKit.Core.Math.Vec3 是不同的类型
+    /// 注意：此类型与 AbilityKit.Core.Mathematics.Vec3 是不同的类型
     /// - Vec3: 完整数学库，适合内部计算
     /// - Vec3 (snapshot): MemoryPackable，适合序列化
     /// 业务层在转换时应注意类型匹配
@@ -46,19 +46,19 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         /// <summary>
         /// 从 Core.Math.Vec3 转换
         /// </summary>
-        public static Vec3 FromCoreVec3(AbilityKit.Core.Math.Vec3 v) => new Vec3(v.X, v.Y, v.Z);
+        public static Vec3 FromCoreVec3(AbilityKit.Core.Mathematics.Vec3 v) => new Vec3(v.X, v.Y, v.Z);
 
         /// <summary>
         /// 转换为 Core.Math.Vec3
         /// </summary>
-        public AbilityKit.Core.Math.Vec3 ToCoreVec3() => new AbilityKit.Core.Math.Vec3(X, Y, Z);
+        public AbilityKit.Core.Mathematics.Vec3 ToCoreVec3() => new AbilityKit.Core.Mathematics.Vec3(X, Y, Z);
     }
 
     /// <summary>
     /// 通用四元数类型（独立于引擎，用于序列化）
     /// 用于网络传输和快照序列化
     ///
-    /// 注意：此类型与 AbilityKit.Core.Math.Quat 是不同的类型
+    /// 注意：此类型与 AbilityKit.Core.Mathematics.Quat 是不同的类型
     /// - Quat: 完整数学库，适合内部计算
     /// - Quat (snapshot): MemoryPackable，适合序列化
     /// 业务层在转换时应注意类型匹配
@@ -89,12 +89,12 @@ namespace AbilityKit.Ability.StateSync.Snapshot
         /// <summary>
         /// 从 Core.Math.Quat 转换
         /// </summary>
-        public static Quat FromCoreQuat(AbilityKit.Core.Math.Quat q) => new Quat(q.X, q.Y, q.Z, q.W);
+        public static Quat FromCoreQuat(AbilityKit.Core.Mathematics.Quat q) => new Quat(q.X, q.Y, q.Z, q.W);
 
         /// <summary>
         /// 转换为 Core.Math.Quat
         /// </summary>
-        public AbilityKit.Core.Math.Quat ToCoreQuat() => new AbilityKit.Core.Math.Quat(X, Y, Z, W);
+        public AbilityKit.Core.Mathematics.Quat ToCoreQuat() => new AbilityKit.Core.Mathematics.Quat(X, Y, Z, W);
     }
 
     /// <summary>

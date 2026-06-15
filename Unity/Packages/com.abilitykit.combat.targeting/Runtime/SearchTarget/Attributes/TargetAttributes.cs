@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Battle.SearchTarget
 {
@@ -17,7 +17,7 @@ namespace AbilityKit.Battle.SearchTarget
             Order = order;
         }
 
-        public override void OnScanned(Type implType, Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
         {
             if (registry is TargetRuleRegistry ruleRegistry)
             {
@@ -38,7 +38,7 @@ namespace AbilityKit.Battle.SearchTarget
             Name = name ?? string.Empty;
         }
 
-        public override void OnScanned(Type implType, Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
         {
             if (registry is TargetScorerRegistry scorerRegistry)
             {
@@ -59,7 +59,7 @@ namespace AbilityKit.Battle.SearchTarget
             Name = name ?? string.Empty;
         }
 
-        public override void OnScanned(Type implType, Core.Common.Marker.IMarkerRegistry registry)
+        public override void OnScanned(Type implType, IMarkerRegistry registry)
         {
             if (registry is TargetSelectorRegistry selectorRegistry)
             {

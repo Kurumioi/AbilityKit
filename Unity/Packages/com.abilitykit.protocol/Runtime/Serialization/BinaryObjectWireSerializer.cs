@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 
 namespace AbilityKit.Protocol.Serialization
 {

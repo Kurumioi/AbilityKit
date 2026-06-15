@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Flow;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Game.Flow
 {

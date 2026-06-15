@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Numerics;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Game.View
 {

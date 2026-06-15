@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Util.Converter;

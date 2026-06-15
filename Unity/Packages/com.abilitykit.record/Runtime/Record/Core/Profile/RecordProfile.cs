@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     [Serializable]
     public sealed class RecordProfile

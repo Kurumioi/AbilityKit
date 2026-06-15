@@ -1,6 +1,6 @@
-using AbilityKit.Core.Common.DebugDraw;
+using AbilityKit.Core.Debugging;
 
-namespace AbilityKit.Core.Editor.DebugDraw
+namespace AbilityKit.Core.Editor.Debugging
 {
     public static class DebugDrawEditorSettings
     {

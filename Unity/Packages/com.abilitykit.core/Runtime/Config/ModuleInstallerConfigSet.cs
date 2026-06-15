@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Common.Config
+namespace AbilityKit.Core.Configuration
 {
     public sealed class ModuleInstallerConfigSet
     {

@@ -5,7 +5,7 @@ using System.Reflection;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace ET.Logic.Model.Driver
 {

@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Logging;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Demo.Moba.Services;
 

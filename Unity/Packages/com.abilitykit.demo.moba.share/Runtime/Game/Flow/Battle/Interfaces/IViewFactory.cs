@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Share
 {

@@ -1,13 +1,13 @@
 using System;
 
-// Alias for AbilityKit.Core.Common.Log to avoid conflict with ET.Log
-using AKLog = AbilityKit.Core.Common.Log;
+// Alias for AbilityKit.Core.Logging to avoid conflict with ET.Log
+using AKLog = AbilityKit.Core.Logging;
 
 namespace ET.Logic
 {
     /// <summary>
     /// ET version of AbilityKit.Core.Log Sink
-    /// Bridges AbilityKit.Core.Common.Log to ET Log
+    /// Bridges AbilityKit.Core.Logging to ET Log
     /// </summary>
     public sealed class ETLogSink : AKLog.ILogSink
     {

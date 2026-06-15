@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Record.Core;
+using AbilityKit.Core.Recording.Core;
 
-namespace AbilityKit.Core.Common.Record.Lockstep
+namespace AbilityKit.Core.Recording.Lockstep
 {
     public sealed class LockstepInputRecordReplaySource : IFrameReplaySource
     {

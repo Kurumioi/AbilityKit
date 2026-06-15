@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 /// <summary>
 /// 文件名称: MobaInputCommandHandlerAttribute.cs

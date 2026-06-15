@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.WorldStart;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;

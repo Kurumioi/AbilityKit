@@ -1,4 +1,4 @@
-﻿namespace AbilityKit.Core.Common.MotionSystem.Core
+namespace AbilityKit.Combat.MotionSystem.Core
 {
     public enum MotionStacking
     {

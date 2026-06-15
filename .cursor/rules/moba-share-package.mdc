@@ -130,7 +130,7 @@ com.abilitykit.demo.moba.share/Runtime/Game/Flow/Battle/
 ❌ **禁止**：在 Share 包中包含任何 Unity 特有类型
 - 禁止：`UnityEngine.GameObject`, `UnityEngine.Transform`, `UnityEngine.Vector3`
 - 禁止：`UnityEngine.UI.*`, `UnityEngine.EventSystems.*`
-- 解决方案：使用 `AbilityKit.Core.Math.Vec3` 或自定义 struct
+- 解决方案：使用 `AbilityKit.Core.Mathematics.Vec3` 或自定义 struct
 
 ❌ **禁止**：在 Share 包中包含任何 Console 特有类型
 - 禁止：`System.Console` 相关逻辑

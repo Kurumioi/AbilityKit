@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     public interface ISnapshotCmdHandlerRegistry
     {

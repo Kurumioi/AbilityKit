@@ -1,4 +1,4 @@
-﻿namespace AbilityKit.Core.Common.Record.Core
+namespace AbilityKit.Core.Recording.Core
 {
     public interface ISeekStrategy
     {

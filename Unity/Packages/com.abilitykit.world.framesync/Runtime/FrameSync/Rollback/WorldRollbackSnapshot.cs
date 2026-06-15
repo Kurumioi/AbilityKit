@@ -1,4 +1,4 @@
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {

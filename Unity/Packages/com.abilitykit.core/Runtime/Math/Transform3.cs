@@ -1,6 +1,6 @@
 using System;
 
-namespace AbilityKit.Core.Math
+namespace AbilityKit.Core.Mathematics
 {
     public readonly struct Transform3 : IEquatable<Transform3>
     {

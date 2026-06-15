@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Share;

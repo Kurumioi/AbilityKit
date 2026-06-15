@@ -1,4 +1,4 @@
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.LagCompensation;
 using Xunit;

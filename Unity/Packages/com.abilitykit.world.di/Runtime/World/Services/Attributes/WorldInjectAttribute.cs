@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Ability.World.Services.Attributes
 {

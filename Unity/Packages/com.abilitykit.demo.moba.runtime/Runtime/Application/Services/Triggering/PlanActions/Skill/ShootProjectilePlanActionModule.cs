@@ -5,7 +5,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;

@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Triggering.Runtime;

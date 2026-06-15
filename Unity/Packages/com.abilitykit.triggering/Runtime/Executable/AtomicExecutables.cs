@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;

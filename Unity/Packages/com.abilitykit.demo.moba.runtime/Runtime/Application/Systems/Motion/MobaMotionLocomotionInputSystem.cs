@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Attributes;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.MotionSystem.Core;
+using AbilityKit.Core.Logging;
+using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;

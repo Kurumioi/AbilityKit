@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Network.Runtime.LagCompensation;
 using AbilityKit.Protocol.Shooter;
 

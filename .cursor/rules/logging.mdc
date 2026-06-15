@@ -2,12 +2,12 @@
 
 ## 核心原则
 
-**禁止使用 `UnityEngine.Debug.Log`**（`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`）。必须使用 `AbilityKit.Core.Common.Log.Log` 工具类。
+**禁止使用 `UnityEngine.Debug.Log`**（`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`）。必须使用 `AbilityKit.Core.Logging.Log` 工具类。
 
 ## Log 类接口
 
 ```csharp
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 // 信息日志 - 一般流程信息
 Log.Info("message");
@@ -52,10 +52,10 @@ Log.Exception(ex, "[Context] operation failed");
 
 ```csharp
 // MOBA Runtime/Share 包
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 // 或使用全名
-AbilityKit.Core.Common.Log.Log.Info("message");
+AbilityKit.Core.Logging.Log.Info("message");
 ```
 
 ## 日志级别说明

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Samples.Logic.Infrastructure.Config.Attributes;
 
 namespace AbilityKit.Samples.Logic.Samples.Pipeline

@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
             else
             {
-                AbilityKit.Core.Common.Log.Log.Exception(exception, $"[MobaRuntimeGuard] domain={domain} operation={operation} severity={severity} {detail}");
+                AbilityKit.Core.Logging.Log.Exception(exception, $"[MobaRuntimeGuard] domain={domain} operation={operation} severity={severity} {detail}");
             }
 
             throw exception;

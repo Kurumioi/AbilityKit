@@ -4,7 +4,7 @@ using AbilityKit.Ability.Config;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.ECS.Components;

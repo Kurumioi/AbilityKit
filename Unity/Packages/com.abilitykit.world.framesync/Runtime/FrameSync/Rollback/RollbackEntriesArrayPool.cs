@@ -1,5 +1,5 @@
 using System;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Ability.FrameSync.Rollback
 {

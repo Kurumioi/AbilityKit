@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Requests;
 

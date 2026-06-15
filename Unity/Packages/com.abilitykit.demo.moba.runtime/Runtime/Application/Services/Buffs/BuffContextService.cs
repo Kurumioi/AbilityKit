@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;

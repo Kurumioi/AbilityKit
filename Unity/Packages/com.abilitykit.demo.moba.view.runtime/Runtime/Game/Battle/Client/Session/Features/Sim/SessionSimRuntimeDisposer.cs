@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow

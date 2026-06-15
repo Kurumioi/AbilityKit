@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Serialization;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Pipeline;
 
 namespace AbilityKit.Ability.Behavior

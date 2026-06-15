@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.SnapshotRouting;
+using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;

@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Moba.Behavior
 {

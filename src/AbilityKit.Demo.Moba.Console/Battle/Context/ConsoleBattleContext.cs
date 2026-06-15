@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Pool;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Battle.ECS;
 using AbilityKit.Demo.Moba.Console.Battle.ECS.Entities;

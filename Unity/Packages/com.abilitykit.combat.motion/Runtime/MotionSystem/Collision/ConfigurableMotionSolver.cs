@@ -1,9 +1,9 @@
-﻿using System;
-using AbilityKit.Core.Common.MotionSystem.Constraints;
-using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Math;
+using System;
+using AbilityKit.Combat.MotionSystem.Constraints;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.MotionSystem.Collision
+namespace AbilityKit.Combat.MotionSystem.Collision
 {
     public sealed class ConfigurableMotionSolver : IMotionSolver
     {

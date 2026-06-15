@@ -1,7 +1,7 @@
 using System;
-using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Common.MotionSystem.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Generic;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;

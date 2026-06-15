@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Linq;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 namespace AbilityKit.Samples.Logic.Samples.Pipeline
 {

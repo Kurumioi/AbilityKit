@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Protocol.Moba;

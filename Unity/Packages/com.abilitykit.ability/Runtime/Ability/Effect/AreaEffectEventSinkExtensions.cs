@@ -1,4 +1,4 @@
-﻿using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Combat.Projectile;
 
 namespace AbilityKit.Ability.Share.Effect
 {

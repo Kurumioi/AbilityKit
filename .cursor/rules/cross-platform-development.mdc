@@ -39,7 +39,7 @@ UnityEngine.Mathf.*;
 
 | Unity API | 跨平台替代 |
 |-----------|-----------|
-| `UnityEngine.Debug.Log` | `AbilityKit.Core.Common.Log.Log.Info()` |
+| `UnityEngine.Debug.Log` | `AbilityKit.Core.Logging.Log.Info()` |
 | `UnityEngine.Random.Range` | `CrossPlatformRandom.Range()` |
 | `UnityEngine.Time.time` | 注入 `ITimeService` 或外部时钟 |
 | `UnityEngine.Mathf` | `System.Math` 或 `MathF` (C# 9+) |
@@ -49,7 +49,7 @@ UnityEngine.Mathf.*;
 ### 使用 Core 包的 Log 系统
 
 ```csharp
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Example
 {
@@ -224,6 +224,6 @@ System.Math.Sqrt(value);
 - [ ] 没有 `UnityEngine.Random`
 - [ ] 没有 `UnityEngine.Time`
 - [ ] 没有 `#if UNITY_EDITOR`
-- [ ] 日志使用 `AbilityKit.Core.Common.Log.Log`
+- [ ] 日志使用 `AbilityKit.Core.Logging.Log`
 - [ ] 随机数使用 `CrossPlatformRandom`
 - [ ] 编译通过（`dotnet build`）

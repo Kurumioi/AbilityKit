@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;

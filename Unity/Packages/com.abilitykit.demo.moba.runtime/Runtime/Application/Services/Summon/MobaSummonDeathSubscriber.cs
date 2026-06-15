@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Events.Summon;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 

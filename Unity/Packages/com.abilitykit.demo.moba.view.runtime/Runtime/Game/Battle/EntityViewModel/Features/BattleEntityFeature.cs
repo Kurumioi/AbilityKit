@@ -23,14 +23,13 @@ namespace AbilityKit.Game.Flow
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            if (!ctx.Root.IsValid) return;
+            if (ctx.BattleEntities == null) return;
+            if (!ctx.Features.TryGet(out BattleContext battleCtx)) return;
 
-            if (!ctx.Root.TryGetRef(out BattleContext battleCtx)) return;
-
-            _world = ctx.Root.World;
+            _world = ctx.BattleEntities.World;
 
             _lookup = new BattleEntityLookup();
-            _node = EntityGenerator.CreateChild(ctx.Root, debugName: "BattleEntity");
+            _node = ctx.BattleEntities.CreateNode("BattleEntity");
             _factory = new BattleEntityFactory(_world, _lookup, _node);
             _query = new BattleEntityQuery(_world, _lookup);
             if (_node.IsValid)
@@ -49,7 +48,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in GamePhaseContext ctx)
         {
-            if (ctx.Root.IsValid && ctx.Root.TryGetRef(out BattleContext battleCtx))
+            if (ctx.Features.TryGet(out BattleContext battleCtx))
             {
                 battleCtx.EntityNode = default;
                 battleCtx.EntityWorld = null;
@@ -60,7 +59,7 @@ namespace AbilityKit.Game.Flow
 
             if (_node.IsValid)
             {
-                DestroyTree(_node);
+                ctx.BattleEntities?.DestroyTree(_node);
             }
 
             _lookup?.Clear();
@@ -69,34 +68,6 @@ namespace AbilityKit.Game.Flow
             _factory = null;
             _query = null;
             _node = default;
-        }
-
-        private static void DestroyTree(EC.IEntity root)
-        {
-            if (!root.IsValid) return;
-
-            var list = new System.Collections.Generic.List<EC.IEntity>(16);
-            var stack = new System.Collections.Generic.Stack<EC.IEntity>();
-            stack.Push(root);
-
-            while (stack.Count > 0)
-            {
-                var e = stack.Pop();
-                if (!e.IsValid) continue;
-                list.Add(e);
-
-                var count = e.ChildCount;
-                for (int i = 0; i < count; i++)
-                {
-                    stack.Push(e.GetChild(i));
-                }
-            }
-
-            for (int i = list.Count - 1; i >= 0; i--)
-            {
-                var e = list[i];
-                if (e.IsValid) e.Destroy();
-            }
         }
 
         public void Tick(in GamePhaseContext ctx, float deltaTime)

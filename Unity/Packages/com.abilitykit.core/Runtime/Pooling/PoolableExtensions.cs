@@ -1,4 +1,4 @@
-namespace AbilityKit.Core.Common.Pool
+namespace AbilityKit.Core.Pooling
 {
     internal static class PoolableExtensions
     {

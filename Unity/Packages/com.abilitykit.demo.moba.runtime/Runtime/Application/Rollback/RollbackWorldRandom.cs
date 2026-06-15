@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Moba.Rollback

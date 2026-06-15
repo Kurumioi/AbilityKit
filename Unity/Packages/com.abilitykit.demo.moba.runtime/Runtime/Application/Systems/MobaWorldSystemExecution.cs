@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 return;
             }
 
-            AbilityKit.Core.Common.Log.Log.Warning(message);
+            AbilityKit.Core.Logging.Log.Warning(message);
         }
 
         public static void Require(
@@ -106,7 +106,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 return;
             }
 
-            AbilityKit.Core.Common.Log.Log.Exception(exception, message);
+            AbilityKit.Core.Logging.Log.Exception(exception, message);
         }
 
         public static void Sample(in MobaWorldSystemServices services, string metricName, double value)

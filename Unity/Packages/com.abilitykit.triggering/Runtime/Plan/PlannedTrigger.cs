@@ -1,6 +1,6 @@
 using System;
 using System.Buffers;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;

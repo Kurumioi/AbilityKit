@@ -1,4 +1,4 @@
-﻿namespace AbilityKit.Core.Common.Projectile
+namespace AbilityKit.Combat.Projectile
 {
     public readonly struct ProjectileScheduleId
     {

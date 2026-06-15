@@ -1,5 +1,5 @@
-﻿using System;
-using AbilityKit.Core.Common.Projectile;
+using System;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO

@@ -1,6 +1,6 @@
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;

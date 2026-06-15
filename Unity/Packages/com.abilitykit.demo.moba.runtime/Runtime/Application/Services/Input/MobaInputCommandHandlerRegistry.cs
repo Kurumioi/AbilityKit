@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 
 /// <summary>
 /// 文件名称: MobaInputCommandHandlerRegistry.cs

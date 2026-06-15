@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Generic;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Share.Config;
@@ -139,12 +139,12 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception policyEx)
             {
-                AbilityKit.Core.Common.Log.Log.Exception(
+                AbilityKit.Core.Logging.Log.Exception(
                     policyEx,
                     $"[SkillPipelineContext] Cleanup exception policy failed. kind={kind} actor={CasterActorId} skill={SkillId} runtime={RuntimeId}");
             }
 
-            AbilityKit.Core.Common.Log.Log.Exception(
+            AbilityKit.Core.Logging.Log.Exception(
                 ex,
                 $"[SkillPipelineContext] Cleanup failed. kind={kind} actor={CasterActorId} skill={SkillId} runtime={RuntimeId}");
         }

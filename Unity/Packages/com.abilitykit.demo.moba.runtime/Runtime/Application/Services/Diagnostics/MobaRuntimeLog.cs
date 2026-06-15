@@ -107,7 +107,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (exception == null) return;
             if (!ShouldLog(MobaRuntimeLogLevel.Error, purpose)) return;
-            AbilityKit.Core.Common.Log.Log.Exception(exception, Format(module, purpose, owner, message));
+            AbilityKit.Core.Logging.Log.Exception(exception, Format(module, purpose, owner, message));
         }
 
         public static void Info(in MobaRuntimeLogContext context, string message)
@@ -145,15 +145,15 @@ namespace AbilityKit.Demo.Moba.Services
             switch (level)
             {
                 case MobaRuntimeLogLevel.Error:
-                    AbilityKit.Core.Common.Log.Log.Error(formatted);
+                    AbilityKit.Core.Logging.Log.Error(formatted);
                     break;
                 case MobaRuntimeLogLevel.Warning:
-                    AbilityKit.Core.Common.Log.Log.Warning(formatted);
+                    AbilityKit.Core.Logging.Log.Warning(formatted);
                     break;
                 case MobaRuntimeLogLevel.Info:
                 case MobaRuntimeLogLevel.Debug:
                 case MobaRuntimeLogLevel.Trace:
-                    AbilityKit.Core.Common.Log.Log.Info(formatted);
+                    AbilityKit.Core.Logging.Log.Info(formatted);
                     break;
             }
         }

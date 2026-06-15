@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Game.Flow.Battle.Replay;
 
@@ -21,7 +21,7 @@ namespace AbilityKit.Game.Flow
 
             public void DisposeNetworkIoDispatcher()
             {
-                AbilityKit.Core.Common.DisposeUtils.TryDispose(ref NetworkIoDispatcher, ex => Log.Exception(ex));
+                AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref NetworkIoDispatcher, ex => Log.Exception(ex));
             }
         }
 

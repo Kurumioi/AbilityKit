@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using System.Reflection;
-using AbilityKit.Core.Common.Marker;
+using AbilityKit.Core.Markers;
 using AbilityKit.Samples.Logic.Infrastructure.Config.Attributes;
 
 namespace AbilityKit.Samples.Logic.Infrastructure.Config

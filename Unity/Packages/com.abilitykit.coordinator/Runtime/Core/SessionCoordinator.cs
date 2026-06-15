@@ -4,7 +4,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Coordinator.Core;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Coordinator
 {

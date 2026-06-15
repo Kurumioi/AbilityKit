@@ -1,6 +1,6 @@
-﻿using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.MotionSystem.Trajectory
+namespace AbilityKit.Combat.MotionSystem.Trajectory
 {
     public sealed class LinearTrajectory3D : ITrajectory3D
     {

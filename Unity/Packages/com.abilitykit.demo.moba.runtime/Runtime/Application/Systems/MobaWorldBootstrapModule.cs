@@ -3,7 +3,7 @@ using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 using AbilityKit.ECS;
 
@@ -48,11 +48,11 @@ namespace AbilityKit.Demo.Moba.Systems
                 contexts,
                 systems,
                 services,
-                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Core.Common.Projectile.ProjectileTickSystem).Assembly },
+                assemblies: new[] { typeof(MobaWorldBootstrapModule).Assembly, typeof(AbilityKit.Combat.Projectile.ProjectileTickSystem).Assembly },
                 namespacePrefixes: new[]
                 {
                     "AbilityKit.Demo.Moba",
-                    "AbilityKit.Core.Common.Projectile",
+                    "AbilityKit.Combat.Projectile",
                 }
             );
 

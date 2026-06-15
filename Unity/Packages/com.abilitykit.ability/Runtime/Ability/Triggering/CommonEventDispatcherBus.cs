@@ -1,6 +1,6 @@
-﻿using System;
-using AbilityKit.Core.Common.Event;
-using AbilityKit.Core.Common.Log;
+using System;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Ability.Triggering
 {
@@ -58,9 +58,9 @@ namespace AbilityKit.Ability.Triggering
 
         private sealed class SubscriptionAdapter : IEventSubscription
         {
-            private AbilityKit.Core.Common.Event.IEventSubscription _sub;
+            private AbilityKit.Core.Eventing.IEventSubscription _sub;
 
-            public SubscriptionAdapter(AbilityKit.Core.Common.Event.IEventSubscription sub)
+            public SubscriptionAdapter(AbilityKit.Core.Eventing.IEventSubscription sub)
             {
                 _sub = sub;
             }

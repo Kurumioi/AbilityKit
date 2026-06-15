@@ -8,7 +8,7 @@
 
 ## 一、设计理念
 
-`com.abilitykit.unity.pool` 是 Core 对象池在 Unity 对象上的适配层。它不重新实现通用池算法，而是使用 `AbilityKit.Core.Common.Pool.ObjectPool<T>`，只补充 GameObject/Component 的 Instantiate、SetActive、Destroy、Parent 处理。
+`com.abilitykit.unity.pool` 是 Core 对象池在 Unity 对象上的适配层。它不重新实现通用池算法，而是使用 `AbilityKit.Core.Pooling.ObjectPool<T>`，只补充 GameObject/Component 的 Instantiate、SetActive、Destroy、Parent 处理。
 
 适用场景：
 

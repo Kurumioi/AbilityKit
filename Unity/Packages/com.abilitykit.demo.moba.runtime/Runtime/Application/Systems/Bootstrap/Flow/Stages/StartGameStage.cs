@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages

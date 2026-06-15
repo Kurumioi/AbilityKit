@@ -1,6 +1,6 @@
 using System;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Logging;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba;
 

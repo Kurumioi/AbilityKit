@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace AbilityKit.Core.Common.Config
+namespace AbilityKit.Core.Configuration
 {
     public static class JsonSettingsFiles
     {

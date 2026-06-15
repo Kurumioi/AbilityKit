@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 
-namespace AbilityKit.Core.Common.SnapshotRouting
+namespace AbilityKit.Core.Snapshots.Routing
 {
     public sealed class SnapshotCmdHandler : IDisposable, ISnapshotCmdHandlerRegistry
     {
@@ -32,7 +32,7 @@ namespace AbilityKit.Core.Common.SnapshotRouting
                 }
                 catch (Exception ex)
                 {
-                    AbilityKit.Core.Common.Log.Log.Exception(ex);
+                    AbilityKit.Core.Logging.Log.Exception(ex);
                 }
             }
             _subscriptions.Clear();

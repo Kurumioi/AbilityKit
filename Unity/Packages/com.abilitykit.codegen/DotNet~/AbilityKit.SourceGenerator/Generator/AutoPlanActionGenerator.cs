@@ -121,7 +121,7 @@ namespace AbilityKit.SourceGenerator
                 sb.AppendLine("            }");
                 sb.AppendLine("            catch (Exception ex)");
                 sb.AppendLine("            {");
-                sb.AppendLine($"                Core.Common.Log.Log.Exception(ex, \"[Plan] {action.Name} execution failed\");");
+                sb.AppendLine($"                AbilityKit.Core.Logging.Log.Exception(ex, \"[Plan] {action.Name} execution failed\");");
                 sb.AppendLine("            }");
                 sb.AppendLine("        }");
                 sb.AppendLine();

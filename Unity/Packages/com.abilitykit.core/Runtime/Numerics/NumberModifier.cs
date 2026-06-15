@@ -1,4 +1,4 @@
-namespace AbilityKit.Core.Common.Numbers
+namespace AbilityKit.Core.Numerics
 {
     public enum NumberModifierOp
     {

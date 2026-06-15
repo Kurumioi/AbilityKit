@@ -1,8 +1,8 @@
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Projectile;
+using AbilityKit.Core.Logging;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;

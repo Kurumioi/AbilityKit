@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Math;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services

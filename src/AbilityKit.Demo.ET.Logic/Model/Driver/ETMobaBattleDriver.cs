@@ -16,7 +16,7 @@ using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using ET.AbilityKit.Demo.ET.Share;
 using ActorKind = ET.AbilityKit.Demo.ET.Share.ActorKind;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 
 namespace ET.Logic

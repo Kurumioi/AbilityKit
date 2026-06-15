@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Trace;

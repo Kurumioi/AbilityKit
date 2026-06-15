@@ -1,5 +1,5 @@
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Math;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions

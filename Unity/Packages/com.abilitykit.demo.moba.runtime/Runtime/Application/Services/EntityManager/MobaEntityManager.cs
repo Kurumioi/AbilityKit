@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Battle.EntityManager;
 using AbilityKit.Ability.Host;
@@ -7,7 +7,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Eventing;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services.EntityManager

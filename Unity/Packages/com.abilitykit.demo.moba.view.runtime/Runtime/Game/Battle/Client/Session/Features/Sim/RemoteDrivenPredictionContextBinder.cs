@@ -1,7 +1,7 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Moba.Config;
 
 namespace AbilityKit.Game.Flow

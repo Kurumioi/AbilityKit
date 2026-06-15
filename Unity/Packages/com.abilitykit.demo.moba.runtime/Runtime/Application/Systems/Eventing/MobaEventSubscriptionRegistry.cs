@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
-using AbilityKit.Core.Common.Log;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;

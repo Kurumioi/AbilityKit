@@ -1,5 +1,5 @@
-﻿using AbilityKit.Core.Math;
-using AbilityKit.Core.Common.Event;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba

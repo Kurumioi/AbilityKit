@@ -1,7 +1,7 @@
-﻿using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Common.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Collision;
 
-namespace AbilityKit.Core.Common.MotionSystem.Events
+namespace AbilityKit.Combat.MotionSystem.Events
 {
     public interface IMotionEventSink
     {

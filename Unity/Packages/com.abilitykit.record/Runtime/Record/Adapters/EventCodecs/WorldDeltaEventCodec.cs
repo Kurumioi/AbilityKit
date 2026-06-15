@@ -1,3 +1,3 @@
-﻿namespace AbilityKit.Core.Common.Record.Adapters.EventCodecs
+namespace AbilityKit.Core.Recording.Adapters.EventCodecs
 {
 }

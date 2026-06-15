@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Network.Abstractions
 {

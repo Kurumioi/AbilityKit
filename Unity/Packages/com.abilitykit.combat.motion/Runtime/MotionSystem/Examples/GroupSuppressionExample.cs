@@ -1,8 +1,8 @@
-﻿using AbilityKit.Core.Common.MotionSystem.Core;
-using AbilityKit.Core.Common.MotionSystem.Generic;
-using AbilityKit.Core.Math;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Generic;
+using AbilityKit.Core.Mathematics;
 
-namespace AbilityKit.Core.Common.MotionSystem.Examples
+namespace AbilityKit.Combat.MotionSystem.Examples
 {
     public static class GroupSuppressionExample
     {

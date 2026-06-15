@@ -3,7 +3,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Common.Log;
+using AbilityKit.Core.Logging;
 
 using HostWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
