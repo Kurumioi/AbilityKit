@@ -1,10 +1,12 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.Host.Extensions.Client.FrameSync;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -17,9 +19,12 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ClientPredictionReconciliationCoordinator<ShooterPlayerCommand> _predictionReconciliation = new ClientPredictionReconciliationCoordinator<ShooterPlayerCommand>();
         private readonly RollbackCoordinator _rollback;
         private readonly ShooterClientDriftRecoveryPolicy _recoveryPolicy;
+        private readonly ShooterFastReconnectDriver _fastReconnect;
         private readonly float _fixedDeltaTime;
         private float _accumulator;
         private int _catchUpTargetFrame;
+        private ShooterClientRecoveryState _recoveryState = ShooterClientRecoveryState.Normal;
+        private SyncHealthEvent[] _lastHealthEvents = Array.Empty<SyncHealthEvent>();
 
         public ShooterClientFrameSyncController(IShooterBattleRuntimePort runtime, ShooterPresentationFacade presentation, int tickRate)
             : this(runtime, presentation, tickRate, null)
@@ -57,6 +62,8 @@ namespace AbilityKit.Demo.Shooter.View
             registry.Register(new ShooterPackedSnapshotRollbackProvider(_runtime, rollbackWorldId));
             _rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
             _recoveryPolicy = recoveryPolicy;
+            // §4.3 阈值映射: replayThreshold(120) 作为框架短追帧 vs 全量的总分界 (resumeWindowFrames)。
+            _fastReconnect = new ShooterFastReconnectDriver(recoveryPolicy.ReplayThreshold);
             _fixedDeltaTime = 1f / tickRate;
         }
 
@@ -74,7 +81,23 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool NeedsFullSnapshotResync { get; private set; }
 
-        public ShooterClientRecoveryState RecoveryState { get; private set; } = ShooterClientRecoveryState.Normal;
+        public ShooterClientRecoveryState RecoveryState
+        {
+            get => _recoveryState;
+            private set => SetRecoveryState(value);
+        }
+
+        /// <summary>
+        /// The framework <see cref="FastReconnectPhase"/> the embedded <see cref="FastReconnectSession"/>
+        /// is currently in. Projection target for <see cref="RecoveryState"/> (audit §10.4 consumer proof).
+        /// </summary>
+        public FastReconnectPhase FastReconnectPhase => _fastReconnect.Phase;
+
+        /// <summary>
+        /// Health events emitted by the embedded <see cref="FastReconnectSession"/> during the most
+        /// recent recovery-state transition, for forwarding into DemoHarness telemetry (design §4.4.5).
+        /// </summary>
+        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _lastHealthEvents;
 
         public ShooterClientResyncReason LastResyncReason { get; private set; } = ShooterClientResyncReason.None;
 
@@ -234,6 +257,14 @@ namespace AbilityKit.Demo.Shooter.View
 
                 _presentation.PublishReconciliation(in reconciliation);
                 PublishRuntimeSnapshot();
+
+                // §4.4.1: a clean authoritative receipt that left us in steady state is a heartbeat;
+                // acknowledge the frame on the framework session so it tracks LastAckedServerFrame and
+                // emits SnapshotReceived (only when no recovery transition already drove the session).
+                if (RecoveryState == ShooterClientRecoveryState.Normal && !wasAwaitingFullSnapshot)
+                {
+                    HeartbeatFastReconnect(authoritativeFrame);
+                }
             }
             else
             {
@@ -403,12 +434,14 @@ namespace AbilityKit.Demo.Shooter.View
             uint authoritativeStateHash)
         {
             NeedsFullSnapshotResync = true;
-            RecoveryState = ShooterClientRecoveryState.AwaitingFullSnapshot;
             LastResyncReason = reason;
             LastResyncClientFrame = clientFrame;
             LastResyncAuthoritativeFrame = authoritativeFrame;
             LastResyncClientStateHash = clientStateHash;
             LastResyncAuthoritativeStateHash = authoritativeStateHash;
+            // Set the recovery state last so the FastReconnect driver observes the freshly written
+            // resync frames/hashes when it computes the gap for the framework transition.
+            RecoveryState = ShooterClientRecoveryState.AwaitingFullSnapshot;
         }
 
         private void ClearFullSnapshotResync()
@@ -424,6 +457,93 @@ namespace AbilityKit.Demo.Shooter.View
         private static bool IsStrongRecoverySnapshot(uint snapshotFlags)
         {
             return (snapshotFlags & (ShooterPackedSnapshotFlags.Full | ShooterPackedSnapshotFlags.AuthorityOverride)) != 0u;
+        }
+
+        /// <summary>
+        /// Single funnel for every <see cref="RecoveryState"/> mutation. Stores the new Shooter state
+        /// and drives the embedded framework <see cref="FastReconnectSession"/> toward the matching
+        /// <see cref="FastReconnectPhase"/> (design §4.2 state mapping), capturing the unified health
+        /// events the session emits along the way (§4.4.5). Shooter routing remains the source of truth;
+        /// the framework owns phase adjudication + telemetry.
+        /// </summary>
+        private void SetRecoveryState(ShooterClientRecoveryState next)
+        {
+            var previous = _recoveryState;
+            _recoveryState = next;
+            if (previous == next)
+            {
+                return;
+            }
+
+            DriveFastReconnect(next);
+        }
+
+        private void DriveFastReconnect(ShooterClientRecoveryState next)
+        {
+            _fastReconnect.ResetEventBuffer();
+
+            switch (next)
+            {
+                case ShooterClientRecoveryState.CatchUp:
+                {
+                    // Short catch-up: resume path. Gap is the (small) frames-behind the catch-up target.
+                    var gap = _catchUpTargetFrame > _runtime.CurrentFrame
+                        ? _catchUpTargetFrame - _runtime.CurrentFrame
+                        : 1;
+                    _fastReconnect.Reconcile(FastReconnectPhase.Resuming, LastResyncAuthoritativeFrame, gap);
+                    break;
+                }
+
+                case ShooterClientRecoveryState.AwaitingFullSnapshot:
+                {
+                    // Large gap / business-classified resync: full snapshot path.
+                    var gap = LastResyncAuthoritativeFrame - LastResyncClientFrame;
+                    _fastReconnect.Reconcile(FastReconnectPhase.AwaitingFullSnapshot, LastResyncAuthoritativeFrame, gap);
+                    break;
+                }
+
+                case ShooterClientRecoveryState.ApplyingFullSnapshot:
+                    // §4.2: Applying is a Shooter-private sub-state of the framework AwaitingFullSnapshot
+                    // phase (snapshot import in flight). No framework transition until CompleteRecovery.
+                    break;
+
+                case ShooterClientRecoveryState.Recovered:
+                    _fastReconnect.Reconcile(FastReconnectPhase.Recovered, LastResyncAuthoritativeFrame, 0);
+                    break;
+
+                case ShooterClientRecoveryState.Normal:
+                default:
+                    // Back to steady state: complete any in-flight recovery and re-acknowledge the frame.
+                    _fastReconnect.Reconcile(FastReconnectPhase.Connected, _runtime.CurrentFrame, 0);
+                    break;
+            }
+
+            CaptureHealthEvents();
+        }
+
+        private void HeartbeatFastReconnect(int authoritativeFrame)
+        {
+            _fastReconnect.ResetEventBuffer();
+            _fastReconnect.Heartbeat(authoritativeFrame);
+            CaptureHealthEvents();
+        }
+
+        private void CaptureHealthEvents()
+        {
+            var collected = _fastReconnect.CollectedEvents;
+            if (collected.Count == 0)
+            {
+                _lastHealthEvents = Array.Empty<SyncHealthEvent>();
+                return;
+            }
+
+            var buffer = new SyncHealthEvent[collected.Count];
+            for (var i = 0; i < collected.Count; i++)
+            {
+                buffer[i] = collected[i];
+            }
+
+            _lastHealthEvents = buffer;
         }
 
         private void PublishRuntimeSnapshot()

@@ -1,0 +1,14 @@
+{
+  "name": "com.abilitykit.demo.shooter.editor",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Shooter Editor",
+  "unity": "2022.3",
+  "description": "Shooter demo editor tools for network sync demonstration.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.demo.shooter.runtime": "0.0.1",
+    "com.abilitykit.demo.shooter.view.runtime": "0.0.1",
+    "com.abilitykit.demo.shooter.share": "0.0.1",
+    "com.abilitykit.network.runtime": "0.0.1"
+  }
+}

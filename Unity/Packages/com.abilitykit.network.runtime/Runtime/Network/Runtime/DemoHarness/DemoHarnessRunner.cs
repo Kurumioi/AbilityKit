@@ -324,13 +324,18 @@ namespace AbilityKit.Network.Runtime.DemoHarness
 
     public readonly struct DemoHarnessStepTelemetry
     {
+        private static readonly SyncHealthEvent[] EmptyEvents = Array.Empty<SyncHealthEvent>();
+
+        private readonly SyncHealthEvent[]? _healthEvents;
+
         public DemoHarnessStepTelemetry(
             SyncTickResult tickResult,
             SyncReconciliationReport reconciliationReport,
             NetworkConditioningStats networkStats,
             double remoteJitter = 0d,
             long acceptedHits = 0,
-            long rejectedHits = 0)
+            long rejectedHits = 0,
+            params SyncHealthEvent[]? healthEvents)
         {
             if (remoteJitter < 0d) throw new ArgumentOutOfRangeException(nameof(remoteJitter));
             if (acceptedHits < 0) throw new ArgumentOutOfRangeException(nameof(acceptedHits));
@@ -342,6 +347,7 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             RemoteJitter = remoteJitter;
             AcceptedHits = acceptedHits;
             RejectedHits = rejectedHits;
+            _healthEvents = healthEvents != null && healthEvents.Length > 0 ? healthEvents : null;
         }
 
         public SyncTickResult TickResult { get; }
@@ -355,6 +361,12 @@ namespace AbilityKit.Network.Runtime.DemoHarness
         public long AcceptedHits { get; }
 
         public long RejectedHits { get; }
+
+        /// <summary>
+        /// Gameplay-agnostic health signals emitted during this step (snapshot flow, interpolation,
+        /// recovery, input, validation). Empty when the carrier only reports reconciliation data.
+        /// </summary>
+        public IReadOnlyList<SyncHealthEvent> HealthEvents => _healthEvents ?? EmptyEvents;
     }
 
     public readonly struct DemoHarnessMetrics
@@ -371,7 +383,10 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             double maxRemoteJitter,
             long acceptedHits,
             long rejectedHits,
-            NetworkConditioningStats networkStats)
+            NetworkConditioningStats networkStats,
+            int healthEventCount = 0,
+            int healthWarningCount = 0,
+            int healthErrorCount = 0)
         {
             StepsRun = stepsRun;
             TotalTicks = totalTicks;
@@ -385,6 +400,9 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             AcceptedHits = acceptedHits;
             RejectedHits = rejectedHits;
             NetworkStats = networkStats;
+            HealthEventCount = healthEventCount;
+            HealthWarningCount = healthWarningCount;
+            HealthErrorCount = healthErrorCount;
         }
 
         public int StepsRun { get; }
@@ -412,6 +430,15 @@ namespace AbilityKit.Network.Runtime.DemoHarness
         public long RejectedHits { get; }
 
         public NetworkConditioningStats NetworkStats { get; }
+
+        /// <summary>Total number of <see cref="SyncHealthEvent"/>s observed across all steps.</summary>
+        public int HealthEventCount { get; }
+
+        /// <summary>Number of observed health events with <see cref="SyncHealthSeverity.Warning"/> severity.</summary>
+        public int HealthWarningCount { get; }
+
+        /// <summary>Number of observed health events with <see cref="SyncHealthSeverity.Error"/> severity.</summary>
+        public int HealthErrorCount { get; }
     }
 
     public readonly struct DemoHarnessRunResult
@@ -576,6 +603,28 @@ namespace AbilityKit.Network.Runtime.DemoHarness
 
     public sealed class DemoHarnessRunner
     {
+        private readonly Func<DemoHarnessScenario, SyncClock> _clockFactory;
+
+        public DemoHarnessRunner()
+            : this(null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a runner with a custom clock factory. Hosts inject a factory backed by a
+        /// <see cref="TimeSyncBridge"/> so produced anchors carry an estimated server clock; the
+        /// default factory builds a bare local-frame clock with no server-time stamping.
+        /// </summary>
+        public DemoHarnessRunner(Func<DemoHarnessScenario, SyncClock>? clockFactory)
+        {
+            _clockFactory = clockFactory ?? DefaultClockFactory;
+        }
+
+        private static SyncClock DefaultClockFactory(DemoHarnessScenario scenario)
+        {
+            return new SyncClock(scenario.DeltaSeconds);
+        }
+
         public DemoHarnessBatchResult RunMany(IEnumerable<DemoHarnessScenario> scenarios, IEnumerable<ISyncDemoCarrier?> carriers)
         {
             if (scenarios == null) throw new ArgumentNullException(nameof(scenarios));
@@ -628,13 +677,13 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             return Run(in scenario, carrier, capability);
         }
 
-        private static DemoHarnessRunResult Run(in DemoHarnessScenario scenario, ISyncDemoCarrier carrier, SyncDemoCapabilityResult capability)
+        private DemoHarnessRunResult Run(in DemoHarnessScenario scenario, ISyncDemoCarrier carrier, SyncDemoCapabilityResult capability)
         {
             var metrics = new MetricsBuilder();
+            var clock = _clockFactory(scenario) ?? new SyncClock(scenario.DeltaSeconds);
             for (var step = 0; step < scenario.StepCount; step++)
             {
-                var elapsedSeconds = step * scenario.DeltaSeconds;
-                var timeAnchor = SyncTimeAnchor.FromLocalFrame(step, step, elapsedSeconds);
+                var timeAnchor = clock.Advance();
                 var context = new DemoHarnessStepContext(in scenario, step, timeAnchor);
                 var telemetry = carrier.Step(in context);
                 metrics.Observe(in telemetry);
@@ -726,6 +775,9 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             private long _acceptedHits;
             private long _rejectedHits;
             private NetworkConditioningStats _networkStats;
+            private int _healthEventCount;
+            private int _healthWarningCount;
+            private int _healthErrorCount;
 
             public void Observe(in DemoHarnessStepTelemetry telemetry)
             {
@@ -759,6 +811,26 @@ namespace AbilityKit.Network.Runtime.DemoHarness
                 _acceptedHits += telemetry.AcceptedHits;
                 _rejectedHits += telemetry.RejectedHits;
                 _networkStats = telemetry.NetworkStats;
+
+                var events = telemetry.HealthEvents;
+                for (var i = 0; i < events.Count; i++)
+                {
+                    var healthEvent = events[i];
+                    if (!healthEvent.HasEvent)
+                    {
+                        continue;
+                    }
+
+                    _healthEventCount++;
+                    if (healthEvent.Severity == SyncHealthSeverity.Warning)
+                    {
+                        _healthWarningCount++;
+                    }
+                    else if (healthEvent.Severity == SyncHealthSeverity.Error)
+                    {
+                        _healthErrorCount++;
+                    }
+                }
             }
 
             public DemoHarnessMetrics Build()
@@ -775,7 +847,10 @@ namespace AbilityKit.Network.Runtime.DemoHarness
                     _maxRemoteJitter,
                     _acceptedHits,
                     _rejectedHits,
-                    _networkStats);
+                    _networkStats,
+                    _healthEventCount,
+                    _healthWarningCount,
+                    _healthErrorCount);
             }
         }
     }

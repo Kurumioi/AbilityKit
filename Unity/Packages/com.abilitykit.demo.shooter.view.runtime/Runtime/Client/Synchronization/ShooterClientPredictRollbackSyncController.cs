@@ -51,6 +51,11 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientRecoveryState RecoveryState => _frameSync.RecoveryState;
 
+        public AbilityKit.Network.Runtime.Sync.FastReconnectPhase FastReconnectPhase => _frameSync.FastReconnectPhase;
+
+        public System.Collections.Generic.IReadOnlyList<AbilityKit.Network.Runtime.Sync.SyncHealthEvent> LastFastReconnectHealthEvents
+            => _frameSync.LastFastReconnectHealthEvents;
+
         public ShooterClientResyncReason LastResyncReason => _frameSync.LastResyncReason;
 
         public int LastResyncClientFrame => _frameSync.LastResyncClientFrame;

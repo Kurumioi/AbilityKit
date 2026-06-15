@@ -187,7 +187,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return false;
             }
 
-            _state.Reset(default);
+            var isDelta = (snapshot.SnapshotFlags & ShooterPackedSnapshotFlags.Delta) != 0;
+
+            if (!isDelta)
+            {
+                // Full (key-frame) snapshot: reset world state before importing.
+                _state.Reset(default);
+            }
+
             _state.CurrentFrame = snapshot.Frame;
 
             var componentChunks = snapshot.ComponentChunks;
@@ -196,7 +203,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return snapshot.EntityCount == 0;
             }
 
-            ImportComponentChunks(componentChunks);
+            ImportComponentChunks(componentChunks, isDelta);
 
             _state.IsStarted = _entities.PlayerCount > 0;
             return _state.IsStarted || snapshot.EntityCount == 0;
@@ -479,7 +486,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Empty<int>());
         }
 
-        private void ImportComponentChunks(ShooterPackedComponentChunk[] componentChunks)
+        private void ImportComponentChunks(ShooterPackedComponentChunk[] componentChunks, bool isDelta = false)
         {
             var players = new Dictionary<int, ShooterSveltoPlayerComponent>();
             var projectiles = new Dictionary<int, ShooterSveltoProjectileComponent>();
@@ -510,13 +517,27 @@ namespace AbilityKit.Demo.Shooter.Runtime
             foreach (var player in players.Values)
             {
                 var value = player;
-                _entities.AddPlayer(in value);
+                if (isDelta && _entities.HasPlayer(value.PlayerId))
+                {
+                    _entities.SetPlayer(in value);
+                }
+                else
+                {
+                    _entities.AddPlayer(in value);
+                }
             }
 
             foreach (var projectile in projectiles.Values)
             {
                 var value = projectile;
-                _entities.AddProjectile(in value);
+                if (isDelta && _entities.HasProjectile(value.BulletId))
+                {
+                    _entities.SetProjectile(in value);
+                }
+                else
+                {
+                    _entities.AddProjectile(in value);
+                }
                 _state.AdvanceBulletIdPast(value.BulletId);
             }
         }

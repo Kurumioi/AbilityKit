@@ -95,7 +95,16 @@ public sealed class ServerMobaWorldManager : IDisposable
             Id = new WorldId(roomId)
         };
 
-        var world = _worldManager.Create(options);
+        IWorld world;
+        if (string.Equals(worldType, ShooterGameplay.WorldType, StringComparison.Ordinal))
+        {
+            new ShooterBattleWorldBlueprint().Configure(options);
+            world = new ShooterLogicWorld(options);
+        }
+        else
+        {
+            world = _worldManager.Create(options);
+        }
         _worlds[roomId] = world;
 
         _logger.LogInformation("[ServerMobaWorldManager] Created battle world for room: {RoomId}, WorldType: {WorldType}, WorldId: {WorldId}",

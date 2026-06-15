@@ -1,4 +1,3 @@
-using static AbilityKit.Game.Flow.GameFlowDomain;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -25,15 +24,17 @@ namespace AbilityKit.Game.Flow
             if (!_show) return;
             if (!ctx.Entry.DebugEnabled) return;
 
-            var flow = ctx.Entry.Get<GameFlowDomain>();
-            if (flow != null && flow.CurrentPhase == MobaRootState.Battle) return;
+            var sink = ctx.Entry.Get<IFlowCommandSink>();
+            if (sink != null && sink.CurrentRootPhase == MobaRootState.Battle) return;
 
             GUILayout.BeginArea(new Rect(10, 10, 320, 120), GUI.skin.window);
             GUILayout.Label("Game Flow");
 
             if (GUILayout.Button("Enter Battle (Test)", GUILayout.Height(28)))
             {
-                flow = ctx.Entry.Get<GameFlowDomain>();
+                // TestBattleBootstrapper 需要通过 GameFlowDomain 具体方法传入，
+                // IFlowCommandSink.RequestEnterBattle() 不带 bootstrapper。
+                var flow = ctx.Entry.Get<GameFlowDomain>();
                 flow.EnterBattle(new TestBattleBootstrapper());
             }
 

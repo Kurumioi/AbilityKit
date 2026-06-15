@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AbilityKit.Ability.Config;
 using ET.AbilityKit.Demo.ET.Share;
 using BattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;

@@ -31,6 +31,15 @@ namespace AbilityKit.Game.View.Flow
             PhaseFeatureCatalog catalog,
             PhaseActionCatalog? actionCatalog)
         {
+            return Validate(specs, catalog, actionCatalog, switchFlowCatalog: null);
+        }
+
+        public PhaseStateFeatureValidationResult Validate(
+            IReadOnlyList<PhaseStateFeatureSpec> specs,
+            PhaseFeatureCatalog catalog,
+            PhaseActionCatalog? actionCatalog,
+            PhaseSwitchFlowCatalog? switchFlowCatalog)
+        {
             if (specs == null) throw new ArgumentNullException(nameof(specs));
             if (catalog == null) throw new ArgumentNullException(nameof(catalog));
  
@@ -57,6 +66,7 @@ namespace AbilityKit.Game.View.Flow
 
                 ValidateFeatureIds(spec, catalog, errors);
                 ValidateActionIds(spec, actionCatalog, errors);
+                ValidateSwitchFlowIds(spec, switchFlowCatalog, errors);
             }
  
             return new PhaseStateFeatureValidationResult(errors);
@@ -134,6 +144,38 @@ namespace AbilityKit.Game.View.Flow
                 if (catalog != null && !catalog.Contains(actionId))
                 {
                     errors.Add($"Phase state '{spec.StateId}' references unknown {stageName} action id: {actionId}");
+                }
+            }
+        }
+
+        private static void ValidateSwitchFlowIds(
+            PhaseStateFeatureSpec spec,
+            PhaseSwitchFlowCatalog? catalog,
+            List<string> errors)
+        {
+            using var ids = ViewFrameworkPools.GetList<string>(spec.SwitchFlowIds.Count);
+
+            for (var i = 0; i < spec.SwitchFlowIds.Count; i++)
+            {
+                var switchFlowId = spec.SwitchFlowIds[i];
+                if (string.IsNullOrEmpty(switchFlowId))
+                {
+                    errors.Add($"Phase state '{spec.StateId}' has empty switch flow id at index {i}.");
+                    continue;
+                }
+
+                if (ids.List.Contains(switchFlowId))
+                {
+                    errors.Add($"Phase state '{spec.StateId}' references switch flow id more than once: {switchFlowId}");
+                }
+                else
+                {
+                    ids.List.Add(switchFlowId);
+                }
+
+                if (catalog != null && !catalog.Contains(switchFlowId))
+                {
+                    errors.Add($"Phase state '{spec.StateId}' references unknown switch flow id: {switchFlowId}");
                 }
             }
         }

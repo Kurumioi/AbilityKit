@@ -9,6 +9,7 @@ namespace AbilityKit.Game.View.Flow
         private readonly List<string> _enterBeforeActionIds;
         private readonly List<string> _enterAfterActionIds;
         private readonly List<string> _exitActionIds;
+        private readonly List<string> _switchFlowIds;
  
         public PhaseStateFeatureSpec(string stateId, bool clearBeforeEnter = false, int initialFeatureCapacity = 4)
         {
@@ -20,6 +21,7 @@ namespace AbilityKit.Game.View.Flow
             _enterBeforeActionIds = new List<string>(1);
             _enterAfterActionIds = new List<string>(1);
             _exitActionIds = new List<string>(1);
+            _switchFlowIds = new List<string>(1);
         }
  
         public string StateId { get; }
@@ -28,6 +30,7 @@ namespace AbilityKit.Game.View.Flow
         public IReadOnlyList<string> EnterBeforeActionIds => _enterBeforeActionIds;
         public IReadOnlyList<string> EnterAfterActionIds => _enterAfterActionIds;
         public IReadOnlyList<string> ExitActionIds => _exitActionIds;
+        public IReadOnlyList<string> SwitchFlowIds => _switchFlowIds;
 
         public PhaseStateFeatureSpec AddFeature(string featureId)
         {
@@ -52,6 +55,14 @@ namespace AbilityKit.Game.View.Flow
         public PhaseStateFeatureSpec AddExitAction(string actionId)
         {
             AddActionId(actionId, _exitActionIds, nameof(actionId));
+            return this;
+        }
+
+        public PhaseStateFeatureSpec AddSwitchFlow(string switchFlowId)
+        {
+            if (string.IsNullOrEmpty(switchFlowId)) throw new ArgumentException("Switch flow id is required.", nameof(switchFlowId));
+
+            _switchFlowIds.Add(switchFlowId);
             return this;
         }
 

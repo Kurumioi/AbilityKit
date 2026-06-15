@@ -61,6 +61,14 @@ namespace AbilityKit.Network.Runtime.Conditioning
         public static NetworkConditionProfile PoorWifi =>
             new NetworkConditionProfile(80, 60, 0.05d, 0.05d, 0);
 
+        /// <summary>
+        /// Low-bandwidth link (128 Kbps) with otherwise ideal conditions.
+        /// Exercises bandwidth budget — useful for verifying that sync models
+        /// remain correct when the transport throttles throughput.
+        /// </summary>
+        public static NetworkConditionProfile LimitedBandwidth =>
+            new NetworkConditionProfile(0, 0, 0d, 0d, 128);
+
         private static double Clamp01(double value)
         {
             if (value < 0d) return 0d;

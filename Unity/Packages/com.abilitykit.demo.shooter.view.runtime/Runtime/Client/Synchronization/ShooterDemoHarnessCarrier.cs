@@ -69,13 +69,40 @@ namespace AbilityKit.Demo.Shooter.View
             var tick = _strategy.Tick(context.DeltaSeconds);
             var report = _strategy.GetReconciliationReport();
 
+            // §4.4.5: forward the framework FastReconnect health events the Shooter controller
+            // collected this step into the shared DemoHarness telemetry stream.
+            var healthEvents = CollectFastReconnectHealthEvents();
+
             return new DemoHarnessStepTelemetry(
                 tick,
                 report,
                 _networkStats(),
                 _remoteJitter(),
                 _acceptedHits(),
-                _rejectedHits());
+                _rejectedHits(),
+                healthEvents);
+        }
+
+        private SyncHealthEvent[]? CollectFastReconnectHealthEvents()
+        {
+            if (_strategy is not IShooterClientSyncController controller)
+            {
+                return null;
+            }
+
+            var events = controller.LastFastReconnectHealthEvents;
+            if (events == null || events.Count == 0)
+            {
+                return null;
+            }
+
+            var buffer = new SyncHealthEvent[events.Count];
+            for (var i = 0; i < events.Count; i++)
+            {
+                buffer[i] = events[i];
+            }
+
+            return buffer;
         }
     }
 }

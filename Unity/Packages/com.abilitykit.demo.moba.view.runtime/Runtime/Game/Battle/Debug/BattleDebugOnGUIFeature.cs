@@ -40,14 +40,13 @@ namespace AbilityKit.Game.Flow
 #if UNITY_EDITOR
             if (!ctx.Entry.DebugEnabled) return;
 
-            var flowDomain = ctx.Entry.Get<GameFlowDomain>();
-            if (flowDomain == null || flowDomain.CurrentPhase != MobaRootState.Battle) return;
+            var sink = ctx.Entry.Get<IFlowCommandSink>();
+            if (sink == null || sink.CurrentRootPhase != MobaRootState.Battle) return;
 
             GUILayout.BeginArea(new Rect(10, 10, 170, 110), GUI.skin.window);
             if (GUILayout.Button("Exit Battle", GUILayout.Height(34)))
             {
-                var flow = ctx.Entry.Get<GameFlowDomain>();
-                flow.ReturnToBoot();
+                sink.RequestReturnLobby();
             }
 
             if (GUILayout.Button("Rebind Views", GUILayout.Height(34)))

@@ -2,11 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Game.View.Presentation;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
-    public readonly struct ShooterSnapshotViewBatch
+    public readonly struct ShooterSnapshotViewBatch : IViewBatch
     {
         private static readonly IReadOnlyList<ShooterViewEntityChange> EmptyEntityChanges = Array.Empty<ShooterViewEntityChange>();
         private static readonly IReadOnlyList<ShooterViewEntityKey> EmptyRemovedEntities = Array.Empty<ShooterViewEntityKey>();

@@ -100,6 +100,36 @@ public sealed class PhaseStateFeatureBindingFactoryTests
     }
 
     [Fact]
+    public void Create_WithSwitchFlowRefs_RunsAfterEnterCompletes()
+    {
+        var events = new List<string>();
+        var ctx = new TestContext(5);
+        var spec = new PhaseStateFeatureSpec("Battle.Connect")
+            .AddFeature("hud")
+            .AddSwitchFlow("battle.advance_connect");
+        var plan = new PhaseFeaturePlan<TestContext, IPhaseFeature<TestContext>>()
+            .Add("hud", (in TestContext c) => new TestFeature("hud", c.Value, events));
+
+        var binding = PhaseStateFeatureBindingFactory.Create<TestContext, IPhaseFeature<TestContext>>(
+            spec,
+            feature => feature.OnAttach(in ctx),
+            plan,
+            afterEnter: (in TestContext c, int count) => events.Add($"after-hook:{c.Value}:{count}"),
+            switchFlowAction: (in TestContext c, string switchFlowId, int count) => events.Add($"switch:{switchFlowId}:{c.Value}:{count}"));
+
+        var installed = binding.Enter(in ctx);
+
+        Assert.Equal(new[] { "battle.advance_connect" }, spec.SwitchFlowIds);
+        Assert.Equal(1, installed);
+        Assert.Equal(new[]
+        {
+            "attach:hud:5",
+            "after-hook:5:1",
+            "switch:battle.advance_connect:5:1"
+        }, events);
+    }
+
+    [Fact]
     public void Create_WithNullSpec_Throws()
     {
         Assert.Throws<System.ArgumentNullException>(() =>

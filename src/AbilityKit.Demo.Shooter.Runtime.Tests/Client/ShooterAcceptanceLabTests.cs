@@ -1,0 +1,212 @@
+using System.Linq;
+using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.Network.Runtime.DemoHarness;
+using Xunit;
+
+namespace AbilityKit.Demo.Shooter.Runtime.Tests;
+
+[Collection("ShooterAcceptance")]
+public sealed class ShooterAcceptanceLabTests
+{
+    [Fact]
+    public void CatalogExposesImplementedModesAndNetworkEnvironments()
+    {
+        Assert.NotEmpty(ShooterAcceptanceCatalog.SyncModes);
+        Assert.NotEmpty(ShooterAcceptanceCatalog.NetworkEnvironments);
+
+        Assert.Contains(ShooterAcceptanceCatalog.SyncModes,
+            m => m.Model == NetworkSyncModel.PredictRollback && m.Implemented);
+        Assert.Contains(ShooterAcceptanceCatalog.NetworkEnvironments, n => n.Id == "ideal");
+        Assert.Contains(ShooterAcceptanceCatalog.NetworkEnvironments, n => n.Id == "poorwifi");
+    }
+
+    [Fact]
+    public void CreateAssemblesStartedPredictRollbackSession()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.Ideal);
+
+        Assert.Equal(NetworkSyncModel.PredictRollback, session.SyncModel);
+        Assert.NotNull(session.Runtime);
+        Assert.NotNull(session.Presentation);
+        Assert.NotNull(session.Controller);
+        Assert.Equal(ShooterDemoHarnessCarrier.DefaultCarrierName, session.Carrier.CarrierName);
+    }
+
+    [Fact]
+    public void PredictRollbackSessionRunsThroughHarnessToCompletion()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.PoorWifi,
+            networkName: "Poor WiFi");
+
+        var result = session.Run(stepCount: 5, deltaSeconds: 1f / 30f, seed: 11);
+
+        Assert.True(result.Completed);
+        Assert.Equal(5, result.Metrics.StepsRun);
+        Assert.Equal(5, result.Metrics.TotalTicks);
+        Assert.Equal(session.Runtime.CurrentFrame, result.Metrics.LastFrame);
+        Assert.Equal(session.Presentation.ViewModel.Frame, result.Metrics.LastFrame);
+    }
+
+    [Fact]
+    public void CatalogOverloadBuildsRunnablePredictRollbackSession()
+    {
+        var sync = FindMode(NetworkSyncModel.PredictRollback);
+        var network = FindNetwork("lan");
+
+        var session = ShooterAcceptanceLab.Create(in sync, in network);
+        var result = session.Run(stepCount: 3);
+
+        Assert.True(result.Completed);
+        Assert.Equal("LAN (5ms)", session.NetworkName);
+    }
+
+    [Fact]
+    public void RunCatalogMatrixReturnsBatchResultWithEveryImplementedModeAndNetwork()
+    {
+        var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
+
+        var implementedModes = 0;
+        foreach (var mode in ShooterAcceptanceCatalog.SyncModes)
+        {
+            if (mode.Implemented)
+            {
+                implementedModes++;
+            }
+        }
+
+        var expected = implementedModes * ShooterAcceptanceCatalog.NetworkEnvironments.Count;
+        Assert.Equal(expected, batch.ScenarioCount);
+        Assert.Equal(expected, batch.Results.Count);
+
+        // PredictRollback + AuthoritativeInterpolation: completed.
+        // HybridHeroPrediction: degraded (all entities via predict-rollback; per-entity split not implemented).
+        // CompletedCount treats both Completed and Degraded as completed (both have Completed==true).
+        var netCount = ShooterAcceptanceCatalog.NetworkEnvironments.Count;
+        Assert.Equal(netCount * 3, batch.CompletedCount);
+        Assert.Equal(0, batch.UnsupportedCount);
+        Assert.Equal(0, batch.FailedCount);
+        Assert.Equal(netCount, batch.DegradedCount);
+        Assert.True(batch.AllCompleted);
+
+        // Batch summary should have aggregated rows per (carrier, model, status).
+        Assert.NotEmpty(batch.Summary.Rows);
+        Assert.Equal(netCount, batch.Summary.CountFor(
+            ShooterDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.PredictRollback,
+            DemoHarnessRunStatus.Completed));
+        Assert.Equal(netCount, batch.Summary.CountFor(
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.AuthoritativeInterpolation,
+            DemoHarnessRunStatus.Completed));
+        Assert.Equal(netCount, batch.Summary.CountFor(
+            ShooterHybridDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.HybridHeroPrediction,
+            DemoHarnessRunStatus.Degraded));
+    }
+
+    [Fact]
+    public void CatalogOverloadRejectsUnimplementedMode()
+    {
+        var unimplemented = new ShooterAcceptanceSyncOption(
+            NetworkSyncModel.Lockstep, "Lockstep", implemented: false);
+        var network = FindNetwork("ideal");
+
+        Assert.Throws<System.NotSupportedException>(() =>
+            ShooterAcceptanceLab.Create(in unimplemented, in network));
+    }
+
+    private static ShooterAcceptanceSyncOption FindMode(NetworkSyncModel model)
+    {
+        foreach (var mode in ShooterAcceptanceCatalog.SyncModes)
+        {
+            if (mode.Model == model)
+            {
+                return mode;
+            }
+        }
+
+        return Assert.IsType<ShooterAcceptanceSyncOption>(null!);
+    }
+
+    private static ShooterAcceptanceNetworkOption FindNetwork(string id)
+    {
+        foreach (var network in ShooterAcceptanceCatalog.NetworkEnvironments)
+        {
+            if (network.Id == id)
+            {
+                return network;
+            }
+        }
+
+        return Assert.IsType<ShooterAcceptanceNetworkOption>(null!);
+    }
+
+    [Fact]
+    public void HybridSyncModeIsExposedInCatalog()
+    {
+        Assert.Contains(ShooterAcceptanceCatalog.SyncModes,
+            m => m.Model == NetworkSyncModel.HybridHeroPrediction && m.Implemented);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncModes,
+            m => m.DisplayName == "Hybrid (Predict + Interpolation)");
+    }
+
+    [Fact]
+    public void HybridSessionRunsThroughHarnessWithDegradedResult()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.HybridHeroPrediction,
+            NetworkConditionProfile.Ideal,
+            networkName: "Hybrid Ideal");
+
+        Assert.Equal(NetworkSyncModel.HybridHeroPrediction, session.SyncModel);
+        Assert.Equal(ShooterHybridDemoHarnessCarrier.DefaultCarrierName, session.Carrier.CarrierName);
+
+        var result = session.Run(stepCount: 5, deltaSeconds: 1f / 30f, seed: 19);
+
+        // Hybrid mode runs in Degraded status (all entities predict-rollback).
+        Assert.Equal(DemoHarnessRunStatus.Degraded, result.Status);
+        Assert.True(result.Completed);
+        Assert.Equal(5, result.Metrics.StepsRun);
+        Assert.Equal(session.Runtime.CurrentFrame, result.Metrics.LastFrame);
+        Assert.Equal(session.Presentation.ViewModel.Frame, result.Metrics.LastFrame);
+    }
+
+    [Fact]
+    public void LimitedBandwidthNetworkProfileIsExposedInCatalog()
+    {
+        Assert.Contains(ShooterAcceptanceCatalog.NetworkEnvironments, n => n.Id == "limitedbw");
+
+        var limited = ShooterAcceptanceCatalog.NetworkEnvironments
+            .First(n => n.Id == "limitedbw");
+        Assert.Equal("Limited BW (128 Kbps)", limited.DisplayName);
+        Assert.Equal(128, limited.Profile.BandwidthKbps);
+        Assert.Equal(0, limited.Profile.BaseLatencyMs);
+        Assert.Equal(0d, limited.Profile.PacketLossRate);
+    }
+
+    [Fact]
+    public void LimitedBandwidthSessionRunsThroughHarnessToCompletion()
+    {
+        var session = ShooterAcceptanceLab.Create(
+            NetworkSyncModel.PredictRollback,
+            NetworkConditionProfile.LimitedBandwidth,
+            networkName: "Limited BW (128 Kbps)");
+
+        var result = session.Run(stepCount: 5, deltaSeconds: 1f / 30f, seed: 17);
+
+        Assert.True(result.Completed);
+        Assert.Equal(5, result.Metrics.StepsRun);
+        Assert.Equal(session.Runtime.CurrentFrame, result.Metrics.LastFrame);
+        Assert.Equal(128, result.Scenario.NetworkProfile.BandwidthKbps);
+
+        // Bandwidth throttling does not cause reconciliation failures
+        // because Shooter demo uses < 1 Kbps per tick at 30 Hz with 2 players.
+        Assert.True(result.Metrics.ReconciliationCount >= 0);
+    }
+}

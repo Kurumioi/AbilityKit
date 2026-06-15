@@ -126,6 +126,60 @@ public sealed class PhaseStateFeatureValidatorTests
     }
 
     [Fact]
+    public void Validate_WithKnownSwitchFlowRefs_ReturnsValidResult()
+    {
+        var featureCatalog = new PhaseFeatureCatalog().Add("hud");
+        var switchFlowCatalog = new PhaseSwitchFlowCatalog()
+            .Add("battle.advance_connect")
+            .Add("battle.advance_load");
+        var specs = new[]
+        {
+            new PhaseStateFeatureSpec("Battle")
+                .AddFeature("hud")
+                .AddSwitchFlow("battle.advance_connect")
+                .AddSwitchFlow("battle.advance_load")
+        };
+
+        var result = new PhaseStateFeatureValidator().Validate(specs, featureCatalog, actionCatalog: null, switchFlowCatalog);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void Validate_WithDuplicateOrUnknownSwitchFlowRefs_ReportsErrors()
+    {
+        var featureCatalog = new PhaseFeatureCatalog().Add("hud");
+        var switchFlowCatalog = new PhaseSwitchFlowCatalog()
+            .Add("battle.advance_connect");
+        var specs = new[]
+        {
+            new PhaseStateFeatureSpec("Battle")
+                .AddFeature("hud")
+                .AddSwitchFlow("battle.advance_connect")
+                .AddSwitchFlow("battle.advance_connect")
+                .AddSwitchFlow("battle.missing")
+        };
+
+        var result = new PhaseStateFeatureValidator().Validate(specs, featureCatalog, actionCatalog: null, switchFlowCatalog);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Phase state 'Battle' references switch flow id more than once: battle.advance_connect", result.Errors);
+        Assert.Contains("Phase state 'Battle' references unknown switch flow id: battle.missing", result.Errors);
+    }
+
+    [Fact]
+    public void SwitchFlowCatalog_Add_WithDuplicateId_KeepsSingleRegistration()
+    {
+        var catalog = new PhaseSwitchFlowCatalog()
+            .Add("battle.advance_connect")
+            .Add("battle.advance_connect");
+
+        Assert.Equal(1, catalog.Count);
+        Assert.True(catalog.Contains("battle.advance_connect"));
+    }
+
+    [Fact]
     public void Validate_WithNullSpec_ReportsErrorAndContinues()
     {
         var catalog = new PhaseFeatureCatalog().Add("hud");

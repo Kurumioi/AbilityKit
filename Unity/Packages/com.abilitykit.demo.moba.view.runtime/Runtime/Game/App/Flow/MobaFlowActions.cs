@@ -1,45 +1,4 @@
-using System;
-
-namespace AbilityKit.Game.Flow
-{
-    internal static class MobaFlowActionIds
-    {
-        public const string ResetBattleSessionRuntimeState = "battle.reset_session_runtime_state";
-        public const string ReturnLobbyAfterBattleEnd = "battle.return_lobby_after_end";
-    }
-
-    internal readonly struct MobaFlowActionContext
-    {
-        public MobaFlowActionContext(GameFlowDomain domain, int installedCount = 0)
-        {
-            Domain = domain ?? throw new ArgumentNullException(nameof(domain));
-            InstalledCount = installedCount;
-        }
-
-        public GameFlowDomain Domain { get; }
-        public int InstalledCount { get; }
-    }
-
-    internal sealed class MobaFlowActionExecutor
-    {
-        public bool Execute(string actionId, in MobaFlowActionContext ctx)
-        {
-            if (string.IsNullOrEmpty(actionId))
-            {
-                return true;
-            }
-
-            switch (actionId)
-            {
-                case MobaFlowActionIds.ResetBattleSessionRuntimeState:
-                    ctx.Domain.ResetBattleSessionRuntimeState();
-                    return true;
-                case MobaFlowActionIds.ReturnLobbyAfterBattleEnd:
-                    ctx.Domain.ReturnLobbyAfterBattleEnd();
-                    return true;
-                default:
-                    return false;
-            }
-        }
-    }
-}
+// 注：MobaFlowActionIds / MobaFlowSwitchIds 已拆到 Core/MobaFlowActionIds.cs（纯数据）。
+// 注：MobaFlowActionContext / MobaFlowActionExecutor / MobaFlowSwitchExecutor 已迁入
+//     Core/MobaFlowActionDispatch.cs（通过 IMobaFlowActionTarget 接口解耦，可独立测试）。
+// 本文件保留仅为兼容旧 .meta 引用；无编译内容。

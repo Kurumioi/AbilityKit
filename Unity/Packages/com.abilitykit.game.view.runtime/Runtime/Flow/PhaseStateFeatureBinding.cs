@@ -15,6 +15,7 @@ namespace AbilityKit.Game.View.Flow
         private readonly PhaseContextAction? _clear;
         private readonly PhaseContextAction? _beforeEnter;
         private readonly PhaseEnterCompleteAction? _afterEnter;
+        private readonly PhaseEnterCompleteAction? _switchFlow;
         private readonly PhaseContextAction? _onExit;
         private readonly Action<string>? _fail;
 
@@ -28,7 +29,8 @@ namespace AbilityKit.Game.View.Flow
             PhaseContextAction? beforeEnter = null,
             PhaseEnterCompleteAction? afterEnter = null,
             PhaseContextAction? onExit = null,
-            Action<string>? fail = null)
+            Action<string>? fail = null,
+            PhaseEnterCompleteAction? switchFlow = null)
         {
             if (string.IsNullOrEmpty(name)) throw new ArgumentException("State binding name is required.", nameof(name));
             Name = name;
@@ -39,6 +41,7 @@ namespace AbilityKit.Game.View.Flow
             _clear = clear;
             _beforeEnter = beforeEnter;
             _afterEnter = afterEnter;
+            _switchFlow = switchFlow;
             _onExit = onExit;
             _fail = fail;
         }
@@ -68,6 +71,7 @@ namespace AbilityKit.Game.View.Flow
             }
 
             _afterEnter?.Invoke(in ctx, installed);
+            _switchFlow?.Invoke(in ctx, installed);
             return installed;
         }
  

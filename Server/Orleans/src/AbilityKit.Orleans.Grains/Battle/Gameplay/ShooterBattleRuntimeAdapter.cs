@@ -107,7 +107,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _battleWorld.Tick(deltaTime);
-            return _runtime.Tick(deltaTime);
+            return _runtime.CurrentFrame >= frame;
         }
 
         public BattleSnapshot? GetSnapshot(int frame)
@@ -161,9 +161,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             {
                 var player = players[i];
                 var playerId = player.PlayerId == 0 ? i + 1 : (int)player.PlayerId;
-                var angle = players.Count <= 1 ? 0 : (Math.PI * 2.0 * i / players.Count);
-                var spawnX = Math.Abs(player.PosX) > 0.0001f ? player.PosX : (float)Math.Cos(angle) * 3f;
-                var spawnY = Math.Abs(player.PosZ) > 0.0001f ? player.PosZ : (float)Math.Sin(angle) * 3f;
+                var spawnX = player.PosX;
+                var spawnY = player.PosZ;
                 result[i] = new ShooterStartPlayer(
                     playerId,
                     playerId.ToString(),

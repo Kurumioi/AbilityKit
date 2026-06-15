@@ -182,12 +182,7 @@ namespace ET.Logic
 
             // ========== ����7: ģ����Ҽ����׼�������ڱ��ز��ԣ�==========
             // ��ʵ�ʶ�����Ϸ�У������ͨ������ͬ���ȴ��������
-            roomComponent.AutoSetupForLocalTest(
-                heroId: 1001,
-                attributeTemplateId: 1001,
-                level: 1,
-                basicAttackSkillId: 10010101,
-                skillIds: new[] { 10010101, 10010201, 10010301 });
+            roomComponent.AutoSetupForLocalTest(heroId: 1001, attributeTemplateId: 1001);
 
             // ========== ����8: ����Ѿ�׼�����ˣ�����ս����ʼ ==========
             // ��������Ϊ�˴��������ڱ��ز��Ե����
@@ -273,19 +268,18 @@ namespace ET.Logic
                 }
 
                 var spawnData = new ETPlayerSpawnData(
-                    player.PlayerId.Value,
-                    player.HeroId,
-                    player.AttributeTemplateId,
-                    player.Level,
-                    player.BasicAttackSkillId,
-                    player.SkillIds,
-                    "Hero_" + player.HeroId,
-                    player.TeamId,
+                    playerId: player.PlayerId.Value,
+                    characterId: player.HeroId,
+                    attributeTemplateId: player.AttributeTemplateId,
+                    basicAttackSkillId: player.BasicAttackSkillId,
+                    skillIds: player.SkillIds,
+                    characterName: $"Hero_{player.HeroId}",
+                    teamId: player.TeamId,
                     x, 0f, z,
-                    0f,
-                    1f,
-                    0f,
-                    0f);
+                    rotY: 0f,
+                    scale: 1f,
+                    hp: 0f,
+                    maxHp: 0f);
 
                 spawnList.Add(spawnData);
                 Log.Info($"[DemoProcess] Converted player: {player.PlayerId.Value}, HeroId={player.HeroId}, AttrTemplateId={player.AttributeTemplateId}, BasicAttackSkillId={player.BasicAttackSkillId}, Team={player.TeamId}");

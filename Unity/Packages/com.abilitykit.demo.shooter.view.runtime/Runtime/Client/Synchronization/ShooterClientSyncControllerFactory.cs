@@ -50,6 +50,9 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 case NetworkSyncModel.Unspecified:
                 case NetworkSyncModel.PredictRollback:
+                case NetworkSyncModel.HybridHeroPrediction:
+                    // Hybrid falls back to predict-rollback for all entities; per-entity playback
+                    // split (local rollback + remote interpolation) is not yet implemented.
                     return new ShooterClientPredictRollbackSyncController(runtime, presentation, tickRate, decoder, gateway);
                 case NetworkSyncModel.AuthoritativeInterpolation:
                     return new ShooterClientAuthoritativeInterpolationSyncController(

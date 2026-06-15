@@ -1,5 +1,3 @@
-using System;
-
 namespace AbilityKit.Network.Runtime.Sync
 {
     public static class NetworkSyncProfiles
@@ -85,21 +83,15 @@ namespace AbilityKit.Network.Runtime.Sync
             RecoveryPolicy.None,
             ServerValidationPolicy.LagCompensatedHitValidation);
 
+        /// <summary>
+        /// Resolves the canonical profile for a legacy compatibility model. The mapping is now owned
+        /// by <see cref="NetworkSyncProfileRegistry"/> (audit migration step 6 enum convergence), so
+        /// the model→profile relationship lives in exactly one place instead of being duplicated here
+        /// as a hand-written switch. This method is retained as the established call site.
+        /// </summary>
         public static NetworkSyncProfile FromCompatibilityModel(NetworkSyncModel compatibilityModel)
         {
-            return compatibilityModel switch
-            {
-                NetworkSyncModel.Unspecified => Unspecified,
-                NetworkSyncModel.Lockstep => Lockstep,
-                NetworkSyncModel.PredictRollback => PredictRollback,
-                NetworkSyncModel.AuthoritativeInterpolation => AuthoritativeInterpolation,
-                NetworkSyncModel.BatchStateSync => BatchStateSync,
-                NetworkSyncModel.MassBattleLodSync => MassBattleLodSync,
-                NetworkSyncModel.HybridHeroPrediction => HybridHeroPrediction,
-                NetworkSyncModel.FastReconnect => FastReconnect,
-                NetworkSyncModel.ServerRewindLagCompensation => ServerRewindLagCompensation,
-                _ => throw new ArgumentOutOfRangeException(nameof(compatibilityModel), compatibilityModel, "Unknown network sync compatibility model.")
-            };
+            return NetworkSyncProfileRegistry.Resolve(compatibilityModel);
         }
     }
 }

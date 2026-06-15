@@ -1,4 +1,3 @@
-using AbilityKit.Game;
 using AbilityKit.Game.View.Flow;
 using AbilityKit.World.ECS;
 
@@ -6,10 +5,10 @@ namespace AbilityKit.Game.Flow
 {
     public readonly struct GamePhaseContext
     {
-        public readonly GameEntry Entry;
+        public readonly IGameHost Entry;
         public readonly IEntity Root;
 
-        public GamePhaseContext(GameEntry entry, IEntity root)
+        public GamePhaseContext(IGameHost entry, IEntity root)
         {
             Entry = entry;
             Root = root;

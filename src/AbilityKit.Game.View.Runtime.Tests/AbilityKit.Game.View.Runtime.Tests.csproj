@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Game.View.Runtime\AbilityKit.Game.View.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Game.Flow.Core\AbilityKit.Game.Flow.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.DI\AbilityKit.World.DI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

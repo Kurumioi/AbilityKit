@@ -1,6 +1,8 @@
+using AbilityKit.Game.View.Presentation;
+
 namespace AbilityKit.Demo.Shooter.View
 {
-    public sealed class ShooterSnapshotViewModel
+    public sealed class ShooterSnapshotViewModel : IViewModelStore<ShooterSnapshotViewBatch>
     {
         private ShooterSnapshotViewBatch _current = ShooterSnapshotViewBatch.Empty;
 

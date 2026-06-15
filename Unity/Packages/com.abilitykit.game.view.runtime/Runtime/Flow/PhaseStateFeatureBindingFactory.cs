@@ -18,7 +18,8 @@ namespace AbilityKit.Game.View.Flow
             PhaseActionResolver<TContext>? enterBeforeAction = null,
             PhaseEnterCompleteActionResolver<TContext>? enterAfterAction = null,
             PhaseActionResolver<TContext>? exitAction = null,
-            Action<string>? fail = null)
+            Action<string>? fail = null,
+            PhaseEnterCompleteActionResolver<TContext>? switchFlowAction = null)
             where TFeature : class, IPhaseFeature<TContext>
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
@@ -33,7 +34,8 @@ namespace AbilityKit.Game.View.Flow
                 BuildBeforeEnter(spec, beforeEnter, enterBeforeAction),
                 BuildAfterEnter(spec, afterEnter, enterAfterAction),
                 BuildExit(spec, onExit, exitAction),
-                fail);
+                fail,
+                BuildSwitchFlow<TContext, TFeature>(spec, switchFlowAction));
         }
 
         private static PhaseStateFeatureBinding<TContext, TFeature>.PhaseContextAction? BuildBeforeEnter<TContext, TFeature>(
@@ -95,6 +97,25 @@ namespace AbilityKit.Game.View.Flow
                 for (var i = 0; i < spec.ExitActionIds.Count; i++)
                 {
                     exitAction(in ctx, spec.ExitActionIds[i]);
+                }
+            };
+        }
+
+        private static PhaseStateFeatureBinding<TContext, TFeature>.PhaseEnterCompleteAction? BuildSwitchFlow<TContext, TFeature>(
+            PhaseStateFeatureSpec spec,
+            PhaseEnterCompleteActionResolver<TContext>? switchFlowAction)
+            where TFeature : class, IPhaseFeature<TContext>
+        {
+            if (switchFlowAction == null || spec.SwitchFlowIds.Count == 0)
+            {
+                return null;
+            }
+
+            return (in TContext ctx, int installedCount) =>
+            {
+                for (var i = 0; i < spec.SwitchFlowIds.Count; i++)
+                {
+                    switchFlowAction(in ctx, spec.SwitchFlowIds[i], installedCount);
                 }
             };
         }

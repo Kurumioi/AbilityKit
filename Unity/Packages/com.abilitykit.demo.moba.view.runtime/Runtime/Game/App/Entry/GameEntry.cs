@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using AbilityKit.World.ECS;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
@@ -6,7 +7,7 @@ using UnityEngine;
 
 namespace AbilityKit.Game
 {
-    public sealed class GameEntry : MonoBehaviour
+    public sealed class GameEntry : MonoBehaviour, IGameHost
     {
         private static GameEntry _instance;
 
@@ -48,7 +49,7 @@ namespace AbilityKit.Game
 
             if (!Root.TryGetRef<GameFlowDomain>(out var existingFlow))
             {
-                var flow = new GameFlowDomain(this);
+                var flow = new GameFlowDomain(this, Root, new GamePresentationSink());
                 Root.WithRef(flow);
             }
         }
@@ -130,6 +131,11 @@ namespace AbilityKit.Game
             }
 
             return Root.TryGetChildById(childId, out node);
+        }
+
+        public void RunCoroutine(IEnumerator coroutine)
+        {
+            StartCoroutine(coroutine);
         }
     }
 }

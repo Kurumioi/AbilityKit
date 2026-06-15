@@ -41,6 +41,47 @@ namespace AbilityKit.Ability.World.DI
             return new WorldScope(this);
         }
 
+        /// <summary>
+        /// 创建一个 scope 并在返回前把跨阶段输入「播种」进去。
+        ///
+        /// 用于解决「容器构造期一次建好、但 per-scope 数据此时尚不存在」的矛盾：
+        /// <paramref name="configure"/> 在 scope 创建后、首次解析前执行，可通过
+        /// <see cref="IWorldScopeSeeder"/> 注入实例。播种实例的生命周期归调用方，
+        /// <c>scope.Dispose()</c> 不接管其释放。
+        /// </summary>
+        public WorldScope CreateScope(Action<IWorldScopeSeeder> configure)
+        {
+            ThrowIfDisposed();
+            var scope = new WorldScope(this);
+            if (configure != null)
+            {
+                configure(new ScopeSeeder(scope));
+            }
+            return scope;
+        }
+
+        private sealed class ScopeSeeder : IWorldScopeSeeder
+        {
+            private readonly WorldScope _scope;
+
+            public ScopeSeeder(WorldScope scope)
+            {
+                _scope = scope;
+            }
+
+            public IWorldScopeSeeder Seed(Type serviceType, object instance)
+            {
+                _scope.SeedInstance(serviceType, instance);
+                return this;
+            }
+
+            public IWorldScopeSeeder Seed<TService>(TService instance)
+            {
+                _scope.SeedInstance(typeof(TService), instance);
+                return this;
+            }
+        }
+
         public object Resolve(Type serviceType)
         {
             ThrowIfDisposed();

@@ -1,0 +1,17 @@
+{
+  "name": "AbilityKit.Game.Flow.Core",
+  "rootNamespace": "AbilityKit",
+  "references": [
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.World.DI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

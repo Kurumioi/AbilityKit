@@ -37,6 +37,19 @@ namespace AbilityKit.Demo.Shooter.View
 
         ShooterClientRecoveryState RecoveryState { get; }
 
+        /// <summary>
+        /// Current framework <see cref="FastReconnectPhase"/> the embedded
+        /// <see cref="FastReconnectSession"/> projects from <see cref="RecoveryState"/>
+        /// (audit §10.4: real consumer of FastReconnect).
+        /// </summary>
+        FastReconnectPhase FastReconnectPhase { get; }
+
+        /// <summary>
+        /// Framework <see cref="SyncHealthEvent"/>s the session emitted during the most recent
+        /// recovery/heartbeat step, for forwarding into DemoHarness telemetry (design §4.4.5).
+        /// </summary>
+        System.Collections.Generic.IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents { get; }
+
         ShooterClientResyncReason LastResyncReason { get; }
 
         int LastResyncClientFrame { get; }
