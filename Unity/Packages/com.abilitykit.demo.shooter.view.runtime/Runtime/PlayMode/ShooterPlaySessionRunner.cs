@@ -16,7 +16,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private readonly IShooterHostViewSink _viewSink;
         private ShooterAcceptanceSession? _session;
         private ShooterPlayModeSessionOptions _options;
+        private ShooterHostFrameInput _lastInput;
+        private ShooterClientInputSubmitResult _lastSubmitResult;
+        private ShooterClientFrameTickResult _lastTickResult;
+        private int _lastAuthorityAcceptedInputs;
         private float _accumulator;
+        private long _stepCount;
+        private long _renderCount;
 
         public ShooterPlaySessionRunner(IShooterHostInputSource inputSource, IShooterHostViewSink viewSink)
         {
@@ -30,6 +36,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public bool IsRunning => _session != null;
         public ShooterAcceptanceSession? Session => _session;
         public ShooterPlayModeSessionOptions Options => _options;
+        public ShooterHostFrameInput LastInput => _lastInput;
+        public ShooterClientInputSubmitResult LastSubmitResult => _lastSubmitResult;
+        public ShooterClientFrameTickResult LastTickResult => _lastTickResult;
+        public int LastAuthorityAcceptedInputs => _lastAuthorityAcceptedInputs;
+        public long StepCount => _stepCount;
+        public long RenderCount => _renderCount;
 
         public ShooterAcceptanceSession Start(ShooterPlayModeSessionOptions options)
         {
@@ -53,8 +65,20 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 randomSeed: _options.RandomSeed,
                 enableAuthoritativeWorld: _options.EnableAuthoritativeWorld);
 
+            _session.Presentation.ControlledPlayerId = _options.ControlledPlayerId;
+            if (_session.AuthoritativePresentation != null)
+            {
+                _session.AuthoritativePresentation.ControlledPlayerId = _options.ControlledPlayerId;
+            }
+
             ShooterNetworkConditionRegistry.Builtin.ApplyProfile(profile);
+            _lastInput = default;
+            _lastSubmitResult = default;
+            _lastTickResult = default;
+            _lastAuthorityAcceptedInputs = 0;
             _accumulator = 0f;
+            _stepCount = 0;
+            _renderCount = 0;
             SessionChanged?.Invoke(_session);
             return _session;
         }
@@ -69,7 +93,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             var session = _session;
             _session = null;
+            _lastInput = default;
+            _lastSubmitResult = default;
+            _lastTickResult = default;
+            _lastAuthorityAcceptedInputs = 0;
             _accumulator = 0f;
+            _stepCount = 0;
+            _renderCount = 0;
             session.Dispose();
             _viewSink.Clear();
             SessionChanged?.Invoke(null);
@@ -114,6 +144,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             var input = _inputSource.ReadInput(_options.ControlledPlayerId);
+            _lastInput = input;
+            _stepCount++;
             var command = ShooterClientInputBuilder.CreateCommand(
                 _options.ControlledPlayerId,
                 input.MoveX,
@@ -122,12 +154,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 input.AimY,
                 input.Fire);
 
-            _session.Controller.SubmitLocalInput(in command);
-            _session.Controller.Tick(deltaSeconds);
+            _lastSubmitResult = _session.Controller.SubmitLocalInput(in command);
+            _lastTickResult = _session.Controller.Tick(deltaSeconds);
 
-            if (_session.HasAuthoritativeWorld)
+            _lastAuthorityAcceptedInputs = 0;
+            if (_session.AuthoritativeWorld != null)
             {
+                _session.EnqueueAuthoritativeInput(in command);
                 _session.TickAuthoritativeWorld(deltaSeconds);
+                _lastAuthorityAcceptedInputs = _session.LastAuthorityDeliveredInputCount;
             }
 
             var snapshot = _session.Runtime.GetSnapshot();
@@ -152,6 +187,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.LastCarrierTimeAnchor,
                 _session.LagCompensationTelemetry);
             _viewSink.Render(in frame);
+            _renderCount++;
         }
 
         private static NetworkConditionProfile CreateProfile(ShooterPlayModeSessionOptions options)

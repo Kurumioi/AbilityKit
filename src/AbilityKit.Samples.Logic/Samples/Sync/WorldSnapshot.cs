@@ -49,11 +49,13 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
                         target.Trace.Add($"pipeline frame={summary.Frame}, hp={summary.HitPoints}, alive={summary.Alive}");
                     });
                 }));
+            KeyValue("WorldSnapshot.RoutingBuilt", "registry=world-summary,op=3001");
 
             Section("构建并投递快照包");
             FeedSnapshot(routing, worldId, frame: 0, hitPoints: 100, alive: true);
             FeedSnapshot(routing, worldId, frame: 1, hitPoints: 75, alive: true);
             FeedSnapshot(routing, worldId, frame: 2, hitPoints: 0, alive: false);
+            KeyValue("WorldSnapshot.Fed", "count=3,lastFrame=2");
 
             Divider();
             Section("直接订阅记录");
@@ -61,6 +63,7 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             {
                 Log(item);
             }
+            KeyValue("WorldSnapshot.DirectEvents", directEvents.Count.ToString());
 
             Divider();
             Section("Pipeline 应用结果");
@@ -70,9 +73,12 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             }
 
             KeyValue("Applied", state.AppliedCount.ToString());
+            KeyValue("WorldSnapshot.Applied", state.AppliedCount.ToString());
             KeyValue("LastFrame", state.LastFrame.ToString());
+            KeyValue("WorldSnapshot.LastFrame", state.LastFrame.ToString());
             KeyValue("LastHp", state.LastHitPoints.ToString());
             KeyValue("Alive", state.IsAlive.ToString());
+            KeyValue("WorldSnapshot.Alive", state.IsAlive.ToString());
         }
 
         private static void FeedSnapshot(SnapshotRoutingInstance routing, WorldId worldId, int frame, int hitPoints, bool alive)

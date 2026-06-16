@@ -30,6 +30,7 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             AddPacket(aggregator, worldId, frame: 1, CreateInput(1, "player-1", OpCast, 9));
             AddPacket(aggregator, worldId, frame: 1, CreateInput(1, "player-2", OpMove, 2));
             AddPacket(aggregator, worldId, frame: 3, CreateInput(3, "player-2", OpCast, 7));
+            KeyValue("SyncInput.Packet", "count=4");
 
             Divider();
             Section("按帧构建输入并推进 World");
@@ -37,10 +38,14 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             {
                 var frame = new FrameIndex(frameValue);
                 var remoteFrame = aggregator.BuildInputFrame(frame);
+                KeyValue("SyncInput.FrameBuilt", $"frame={frame.Value},commands={remoteFrame.Commands.Length}");
                 inputSink.Submit(frame, remoteFrame.Commands);
+                KeyValue("SyncInput.Submitted", $"frame={frame.Value},commands={remoteFrame.Commands.Length}");
                 worldManager.Apply(remoteFrame.Commands);
                 driver.Step(0.05f);
+                KeyValue("SyncInput.WorldTick", $"ticks={worldManager.TickCount},driverNext={driver.Frame.Value},score={worldManager.Score}");
                 aggregator.TrimBefore(driver.Frame.Value - 1);
+                KeyValue("SyncInput.Trimmed", $"minFrame={driver.Frame.Value - 1}");
 
                 KeyValue(
                     $"Frame {frame.Value}",

@@ -23,12 +23,16 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             Section("宿主负责推进时间");
             KeyValue("InitialTime", Time.ToString("F3"));
             KeyValue("InitialDelta", Environment.DeltaTime.ToString("F3"));
+            KeyValue("EnvironmentTick.InitialTime", Time.ToString("F3"));
+            KeyValue("EnvironmentTick.InitialDelta", Environment.DeltaTime.ToString("F3"));
             Bullet("Sample 不创建线程、不 sleep，也不直接绑定 Unity Update 或浏览器 requestAnimationFrame。");
             Bullet("宿主只需要调用 Environment.Advance(delta)，逻辑层就能收到 OnTick。");
 
             Divider();
             Section("模拟 5 个固定帧");
             SimulateFrames(5, 0.02f);
+            KeyValue("EnvironmentTick.TickCount", tickCount.ToString());
+            KeyValue("EnvironmentTick.AccumulatedDelta", accumulated.ToString("F3"));
 
             Divider();
             Section("暂停不会推进");
@@ -36,6 +40,8 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             AdvanceTime(0.02f);
             KeyValue("Paused", Environment.IsPaused.ToString());
             KeyValue("TimeWhilePaused", Time.ToString("F3"));
+            KeyValue("EnvironmentTick.Paused", Environment.IsPaused.ToString());
+            KeyValue("EnvironmentTick.TimeWhilePaused", Time.ToString("F3"));
 
             Resume();
             AdvanceTime(0.04f);
@@ -43,6 +49,10 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             KeyValue("FinalTime", Time.ToString("F3"));
             KeyValue("TickCount", tickCount.ToString());
             KeyValue("AccumulatedDelta", accumulated.ToString("F3"));
+            KeyValue("EnvironmentTick.PausedAfterResume", Environment.IsPaused.ToString());
+            KeyValue("EnvironmentTick.FinalTime", Time.ToString("F3"));
+            KeyValue("EnvironmentTick.TickCount", tickCount.ToString());
+            KeyValue("EnvironmentTick.AccumulatedDelta", accumulated.ToString("F3"));
 
             Environment.OnTick -= OnTick;
 
@@ -51,6 +61,7 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
                 tickCount++;
                 accumulated += delta;
                 KeyValue($"Frame[{tickCount}]", $"delta={delta:F3}, time={Time:F3}");
+                KeyValue($"EnvironmentTick.Frame[{tickCount}]", $"delta={delta:F3}, time={Time:F3}");
             }
         }
     }

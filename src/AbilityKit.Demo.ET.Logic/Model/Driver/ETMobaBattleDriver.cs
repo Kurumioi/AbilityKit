@@ -4,40 +4,32 @@ using AbilityKit.Ability.Config;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Framework;
-using AbilityKit.Ability.World;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
-using AbilityKit.Ability.World.Services;
+using AbilityKit.Coordinator;
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Session;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using ET.AbilityKit.Demo.ET.Share;
 using ActorKind = ET.AbilityKit.Demo.ET.Share.ActorKind;
-using AbilityKit.Core.Mathematics;
-using AbilityKit.Demo.Moba;
+using MobaFrameSnapshotData = AbilityKit.Demo.Moba.Share.FrameSnapshotData;
 
 namespace ET.Logic
 {
     /// <summary>
     /// ET battle host component and facade for the MOBA Runtime world.
-    ///
-    /// Responsibilities:
-    /// - Host the AbilityKit world and ET-side lifecycle state.
-    /// - Route input, startup, and snapshots through the Runtime port.
-    /// - Dispatch snapshots and view events back to ET presentation.
-    ///
-    /// Boundary:
-    /// - Keep combat rules in MOBA Runtime services/systems.
-    /// - Keep ET glue in handlers, coordinators, and world modules.
-    /// - Do not expand this component as a direct rules implementation surface.
     /// </summary>
     [ComponentOf(typeof(Scene))]
     public class ETMobaBattleDriver : Entity, IAwake, IUpdate, IDestroy
     {
-        // ============== Runtime Driver State ==============
+        private readonly List<WorldStateSnapshot> _runtimeSnapshots = new List<WorldStateSnapshot>(32);
+        private readonly List<PlayerInputCommand> _playerCommands = new List<PlayerInputCommand>(16);
 
         public int CurrentFrame { get; set; }
         public double LogicTimeSeconds { get; set; }
@@ -47,67 +39,39 @@ namespace ET.Logic
         public BattleStartPlan Plan { get; set; }
         public bool RuntimeGameStarted { get; set; }
 
-        // ============== Core (World Management) ==============
-
         public IWorldManager WorldManager { get; set; }
         public HostRuntime HostRuntime { get; set; }
         public IWorld World { get; set; }
 
-        // ============== View Sink (for ETBridge) ==============
+        private MobaSessionCoordinatorHost _sessionHost;
+        private MobaBattleDriverHost _driverHost;
 
         private IBattleViewEventSink _viewSink;
         public IBattleViewEventSink ViewSink
         {
             get => _viewSink;
-            set => _viewSink = value;
+            set
+            {
+                _viewSink = value;
+                ViewEventSink = value;
+            }
         }
-
-        // ============== Config Access ==============
 
         public ITextAssetLoader TextAssetLoader { get; set; }
 
-        // ============== Player Spawn Data ==============
-
         public List<ETPlayerSpawnData> PlayerSpawnData { get; set; } = new List<ETPlayerSpawnData>();
-
-        // ============== Snapshot Dispatcher ==============
 
         public FrameSnapshotDispatcher SnapshotDispatcher { get; set; }
         public ActorSpawnData[] LastActorSpawnSnapshot { get; private set; } = Array.Empty<ActorSpawnData>();
         public ActorTransformData[] LastActorTransformSnapshot { get; private set; } = Array.Empty<ActorTransformData>();
         public StateHashData LastStateHashSnapshot { get; private set; }
 
-        // ============== Entity Registry (moba.core integration) ==============
-
-        /// <summary>
-        /// ActorId -> ETUnit 映射（用于 moba.core 实体跟踪）
-        /// 由 EnterGameHandler 在创建实体时填充
-        /// </summary>
         public Dictionary<int, ETUnit> Units { get; } = new Dictionary<int, ETUnit>();
-
-        // ============== State ==============
 
         public double LastTickTime { get; set; }
 
-        // ============== Handler Collections ==============
-
-        /// <summary>
-        /// 快照处理器列表
-        /// </summary>
-        public List<ISnapshotHandler> SnapshotHandlers { get; set; } = new List<ISnapshotHandler>();
-
-        private BattleFramePipeline _framePipeline;
-
-        // ============== Lifecycle Methods ==============
-
         public void Awake()
         {
-            EnsureSnapshotHandlersRegistered();
-        }
-
-        public void EnsureSnapshotHandlersRegistered()
-        {
-            HandlerRegistry.RegisterSnapshotHandlers(this);
         }
 
         public void Update(ETMobaBattleDriver self)
@@ -117,8 +81,6 @@ namespace ET.Logic
         public void OnDestroy(ETMobaBattleDriver self)
         {
         }
-
-        // ============== Runtime Driver Methods ==============
 
         public void Initialize(in BattleStartPlan plan, IBattleViewEventSink viewSink)
         {
@@ -135,22 +97,14 @@ namespace ET.Logic
             try
             {
                 SnapshotDispatcher = new FrameSnapshotDispatcher();
-
-                var worldType = BattleWorldTypes.Battle;
-                var creator = LogicWorldRegistry.GetCreator(worldType);
-                if (creator == null)
-                {
-                    throw new InvalidOperationException($"No LogicWorldCreator registered for world type '{worldType}'");
-                }
-
-                creator.CreateAndInitialize(this, in plan);
+                CreateFrameworkWorld(in plan);
 
                 CurrentFrame = 0;
                 LogicTimeSeconds = 0;
                 LastTickTime = 0;
                 IsRunning = false;
 
-                Log.Info($"[ETMobaBattleDriver] Initialized: TickRate={TickRate}, WorldId={Plan.WorldId}, World={World?.Id}");
+                Log.Info($"[ETMobaBattleDriver] Initialized via MobaSessionCoordinatorHost: TickRate={TickRate}, WorldId={Plan.WorldId}, World={World?.Id}");
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is ArgumentException)
             {
@@ -166,17 +120,14 @@ namespace ET.Logic
 
         public void Start()
         {
-            IMobaBattleRuntimePort runtime = null;
-            if (World?.Services == null ||
-                !World.Services.TryResolve(out runtime) ||
-                runtime == null ||
-                !runtime.Status.IsReadyForBattleLoop)
+            if (!TryResolve(out IMobaBattleRuntimePort runtime) || runtime == null || !runtime.Status.IsReadyForBattleLoop)
             {
                 var status = runtime != null ? runtime.Status.ToString() : "runtime port missing";
                 Log.Error($"[ETMobaBattleDriver] IMobaBattleRuntimePort is not ready: {status}");
                 throw new InvalidOperationException("IMobaBattleRuntimePort must be ready for battle loop");
             }
 
+            _driverHost?.Start();
             IsRunning = true;
             LastTickTime = 0;
             CurrentFrame = 0;
@@ -185,6 +136,7 @@ namespace ET.Logic
 
         public void Stop()
         {
+            _driverHost?.Stop();
             IsRunning = false;
             RuntimeGameStarted = false;
             Log.Info("[ETMobaBattleDriver] Stopped");
@@ -192,13 +144,17 @@ namespace ET.Logic
 
         public void Destroy()
         {
+            _driverHost?.Stop();
             SnapshotDispatcher = null;
             Units.Clear();
             World = null;
             HostRuntime = null;
             WorldManager = null;
             ViewSink = null;
-            _framePipeline = null;
+            _sessionHost = null;
+            _driverHost = null;
+            _runtimeSnapshots.Clear();
+            _playerCommands.Clear();
 
             RuntimeGameStarted = false;
             IsRunning = false;
@@ -206,39 +162,241 @@ namespace ET.Logic
             LogicTimeSeconds = 0;
             LastTickTime = 0;
 
-            SnapshotHandlers?.Clear();
             Log.Info("[ETMobaBattleDriver] Destroyed");
         }
 
         public void Tick(float deltaTime)
         {
-            if (!IsRunning)
+            if (!IsRunning || _driverHost == null)
             {
                 return;
             }
 
-            _framePipeline ??= new BattleFramePipeline();
-            LogicTimeSeconds += deltaTime;
+            var targetFrame = new FrameIndex(CurrentFrame + 1);
+            SubmitBufferedInputs(targetFrame);
+
+            _driverHost.Step(deltaTime);
+
+            CurrentFrame = _driverHost.CurrentFrame;
+            LogicTimeSeconds = _driverHost.LogicTimeSeconds;
             LastTickTime = LogicTimeSeconds;
-            _framePipeline.Tick(this, deltaTime);
+
+            CollectAndDispatchSnapshots(new FrameIndex(CurrentFrame));
         }
 
-        // ============== Snapshot Handling ==============
-
-        public void HandleSnapshot(in FrameSnapshotData snapshot)
+        public void HandleSnapshot(in MobaFrameSnapshotData snapshot)
         {
             DispatchFrameSnapshot(in snapshot);
+            DispatchViewSnapshot(in snapshot);
+        }
 
-            foreach (var handler in SnapshotHandlers)
+        public bool TryResolve<T>(out T service) where T : class
+        {
+            service = null;
+            if (World?.Services != null)
             {
-                if (handler.CanHandle(in snapshot))
+                return World.Services.TryResolve(out service);
+            }
+
+            return false;
+        }
+
+        public bool OnAllPlayersReady(List<ETPlayerSpawnData> players)
+        {
+            if (RuntimeGameStarted)
+            {
+                return true;
+            }
+
+            PlayerSpawnData.Clear();
+            if (players != null)
+            {
+                PlayerSpawnData.AddRange(players);
+            }
+ 
+            var started = ETBattleEnterGameCoordinator.Trigger(this);
+            return started;
+        }
+
+        private void CreateFrameworkWorld(in BattleStartPlan plan)
+        {
+            if (PlayerSpawnData == null || PlayerSpawnData.Count == 0)
+            {
+                throw new InvalidOperationException("ET battle world initialization requires player spawn data before creating the MOBA runtime world.");
+            }
+
+            var launchSpec = ETBattleEnterGameSpecBuilder.BuildLaunchSpec(plan, PlayerSpawnData);
+            var defaults = CreateSessionDefaults(in plan, in launchSpec);
+            var sessionConfig = CreateSessionConfig(in plan, in launchSpec);
+
+            _sessionHost = new MobaSessionCoordinatorHost(TextAssetLoader, defaults);
+            _sessionHost.ConfigureSession(ref sessionConfig);
+            _sessionHost.SetPendingPlayerLoadouts(launchSpec.Players);
+
+            var worldHost = _sessionHost.CreateWorldHost(sessionConfig);
+            var options = new WorldCreateOptions();
+            _sessionHost.ConfigureWorldCreateOptions(in sessionConfig, options);
+
+            World = worldHost.CreateWorld(options);
+            if (World == null)
+            {
+                throw new InvalidOperationException($"Failed to create moba logic world: WorldId={plan.WorldId}, WorldType={sessionConfig.WorldType}");
+            }
+
+            World.Initialize();
+            _sessionHost.RegisterServices(World, sessionConfig);
+            _sessionHost.LoadConfig(World, sessionConfig);
+
+            HostRuntime = _sessionHost.HostRuntime;
+            WorldManager = HostRuntime?.Worlds;
+
+            _driverHost = new MobaBattleDriverHost();
+            _driverHost.BindLogicWorld(World, HostRuntime);
+        }
+
+        private static MobaSessionDefaults CreateSessionDefaults(in BattleStartPlan plan, in MobaBattleLaunchSpec launchSpec)
+        {
+            return new MobaSessionDefaults
+            {
+                WorldId = launchSpec.WorldId,
+                WorldType = launchSpec.WorldType,
+                MatchId = launchSpec.MatchId,
+                MapId = plan.MapId,
+                TickRate = plan.TickRate > 0 ? plan.TickRate : 30,
+                InputDelayFrames = plan.InputDelayFrames,
+                RandomSeed = launchSpec.RandomSeed
+            };
+        }
+
+        private static SessionConfig CreateSessionConfig(in BattleStartPlan plan, in MobaBattleLaunchSpec launchSpec)
+        {
+            var localPlayerId = plan.PlayerId > 0 ? plan.PlayerId : ParsePlayerId(launchSpec.LocalPlayerId);
+            var clientId = plan.ClientId > 0 ? plan.ClientId : localPlayerId;
+            return new SessionConfig
+            {
+                SessionId = new SessionId(plan.WorldId > 0 ? plan.WorldId : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
+                MapId = plan.MapId,
+                WorldId = plan.WorldId,
+                WorldType = launchSpec.WorldType,
+                LocalPlayerId = localPlayerId,
+                ClientId = clientId,
+                SyncMode = global::AbilityKit.Coordinator.Core.SyncMode.Lockstep,
+                HostMode = global::AbilityKit.Coordinator.Core.HostMode.Local,
+                TickRate = plan.TickRate > 0 ? plan.TickRate : 30,
+                ServerEndpoint = NetworkEndpoint.None,
+                RoomId = plan.WorldId
+            };
+        }
+
+        private static int ParsePlayerId(PlayerId playerId)
+        {
+            return int.TryParse(playerId.Value, out var value) ? value : 1;
+        }
+
+        private void SubmitBufferedInputs(FrameIndex targetFrame)
+        {
+            var inputComponent = this.Scene()?.GetComponent<ETInputComponent>();
+            if (inputComponent == null)
+            {
+                return;
+            }
+
+            var commands = inputComponent.GetInputsUpToFrame(targetFrame.Value);
+            if (commands == null || commands.Count == 0)
+            {
+                return;
+            }
+
+            _playerCommands.Clear();
+            for (int i = 0; i < commands.Count; i++)
+            {
+                if (TryConvertInputCommand(commands[i], targetFrame, out var playerCommand))
                 {
-                    handler.Handle(this, in snapshot);
+                    _playerCommands.Add(playerCommand);
+                }
+            }
+
+            if (_playerCommands.Count == 0)
+            {
+                inputComponent.ClearProcessedInputs(targetFrame.Value);
+                return;
+            }
+
+            var result = _driverHost.SubmitCommands(targetFrame, _playerCommands);
+            if (result.Succeeded)
+            {
+                inputComponent.ClearProcessedInputs(targetFrame.Value);
+                return;
+            }
+
+            Log.Warning($"[ETMobaBattleDriver] Submit input rejected. Frame={targetFrame.Value}, Count={_playerCommands.Count}, Result={result}");
+        }
+
+        private static bool TryConvertInputCommand(object command, FrameIndex frameIndex, out PlayerInputCommand playerCommand)
+        {
+            switch (command)
+            {
+                case MoveCommand move:
+                    playerCommand = new PlayerInputCommand(
+                        frameIndex,
+                        new PlayerId(move.PlayerId),
+                        MobaOpCodes.Input.Move,
+                        MobaMoveCodec.Serialize(move.Dx, move.Dz));
+                    return true;
+
+                case SkillCommand skill:
+                    var runtimeSlot = skill.SkillSlot <= 0 ? 1 : skill.SkillSlot;
+                    var skillEvent = new SkillInputEvent(
+                        slot: runtimeSlot,
+                        phase: SkillInputPhase.Press,
+                        targetActorId: skill.TargetActorId,
+                        aimPos: new Vec3(skill.TargetX, 0, skill.TargetY));
+                    playerCommand = new PlayerInputCommand(
+                        frameIndex,
+                        new PlayerId(skill.PlayerId),
+                        MobaOpCodes.Input.SkillInput,
+                        SkillInputCodec.Serialize(in skillEvent));
+                    return true;
+
+                case StopCommand stop:
+                    playerCommand = new PlayerInputCommand(
+                        frameIndex,
+                        new PlayerId(stop.PlayerId),
+                        MobaOpCodes.Input.Stop,
+                        null);
+                    return true;
+
+                default:
+                    playerCommand = default;
+                    Log.Debug($"[ETMobaBattleDriver] Unsupported input command: {command?.GetType().Name ?? "null"}");
+                    return false;
+            }
+        }
+
+        private void CollectAndDispatchSnapshots(FrameIndex frame)
+        {
+            _runtimeSnapshots.Clear();
+            var count = _driverHost.CollectSnapshots(frame, _runtimeSnapshots);
+            if (count <= 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _runtimeSnapshots.Count; i++)
+            {
+                var runtimeSnapshot = _runtimeSnapshots[i];
+                if (ETBattleWorldSnapshotAdapter.TryConvert(
+                    in runtimeSnapshot,
+                    frame.Value,
+                    LogicTimeSeconds,
+                    out var frameSnapshot))
+                {
+                    HandleSnapshot(in frameSnapshot);
                 }
             }
         }
 
-        private void DispatchFrameSnapshot(in FrameSnapshotData snapshot)
+        private void DispatchFrameSnapshot(in MobaFrameSnapshotData snapshot)
         {
             var dispatcher = SnapshotDispatcher;
             if (dispatcher == null)
@@ -287,6 +445,44 @@ namespace ET.Logic
             }
         }
 
+        private void DispatchViewSnapshot(in MobaFrameSnapshotData snapshot)
+        {
+            if (snapshot.EnterGame.HasValue || (snapshot.ActorSpawns != null && snapshot.ActorSpawns.Count > 0))
+            {
+                ViewSink?.OnEnterGameSnapshot(in snapshot);
+            }
+
+            if (snapshot.ActorTransforms != null && snapshot.ActorTransforms.Count > 0)
+            {
+                ViewSink?.OnActorTransformSnapshot(in snapshot);
+            }
+
+            if (snapshot.DamageEvents != null && snapshot.DamageEvents.Count > 0)
+            {
+                ViewSink?.OnDamageEventSnapshot(in snapshot);
+            }
+
+            if (snapshot.PresentationCues != null && snapshot.PresentationCues.Count > 0)
+            {
+                ViewSink?.OnPresentationCueSnapshot(in snapshot);
+            }
+
+            if (snapshot.ProjectileEvents != null && snapshot.ProjectileEvents.Count > 0)
+            {
+                ViewSink?.OnProjectileEventSnapshot(in snapshot);
+            }
+
+            if (snapshot.AreaEvents != null && snapshot.AreaEvents.Count > 0)
+            {
+                ViewSink?.OnAreaEventSnapshot(in snapshot);
+            }
+
+            if (snapshot.StateHash.HasValue)
+            {
+                ViewSink?.OnStateHashSnapshot(in snapshot);
+            }
+        }
+
         private static T[] ToArray<T>(IReadOnlyList<T> source)
         {
             if (source == null || source.Count == 0)
@@ -306,39 +502,6 @@ namespace ET.Logic
             }
 
             return copy;
-        }
-
-        // ============== Service Resolution ==============
-
-        public bool TryResolve<T>(out T service) where T : class
-        {
-            service = null;
-            if (World?.Services != null)
-            {
-                return World.Services.TryResolve(out service);
-            }
-            return false;
-        }
-
-        // ============== Additional Methods ==============
-
-        public bool OnAllPlayersReady(List<ETPlayerSpawnData> players)
-        {
-            if (RuntimeGameStarted)
-            {
-                return true;
-            }
-
-            PlayerSpawnData.Clear();
-            if (players != null)
-            {
-                PlayerSpawnData.AddRange(players);
-            }
- 
-            var started = ETBattleEnterGameCoordinator.Trigger(this);
-            // Note: OnBattleStart is called by StartBattle in DemoProcessComponentSystem.
-            // Demo test fixtures must be enabled by the demo/test entry, not by the formal battle driver.
-            return started;
         }
     }
 }

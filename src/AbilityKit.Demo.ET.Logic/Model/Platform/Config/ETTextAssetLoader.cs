@@ -43,7 +43,7 @@ namespace ET.Logic
             try
             {
                 text = File.ReadAllText(fullPath);
-                Log.Info($"[ETTextAssetLoader] Loaded: {fullPath}");
+                Log.Debug($"[ETTextAssetLoader] Loaded: {fullPath}");
                 return !string.IsNullOrEmpty(text);
             }
             catch (Exception ex)

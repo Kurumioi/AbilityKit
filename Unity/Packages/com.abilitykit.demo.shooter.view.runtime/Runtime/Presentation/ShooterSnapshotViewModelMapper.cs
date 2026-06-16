@@ -66,10 +66,15 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotViewBatch Map(in ShooterGatewaySnapshot snapshot)
         {
+            return Map(in snapshot, controlledPlayerId: -1);
+        }
+
+        public ShooterSnapshotViewBatch Map(in ShooterGatewaySnapshot snapshot, int controlledPlayerId)
+        {
             if (snapshot.PackedSnapshot.HasValue)
             {
                 var packed = snapshot.PackedSnapshot.Value;
-                return MapPackedSnapshot(snapshot.WorldId, in packed, ShooterViewBatchSource.AuthoritativeCorrection);
+                return MapPackedSnapshot(snapshot.WorldId, in packed, ShooterViewBatchSource.AuthoritativeCorrection, controlledPlayerId);
             }
 
             BeginSnapshot();
@@ -80,8 +85,14 @@ namespace AbilityKit.Demo.Shooter.View
                 var actor = actors[i];
                 var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, actor.ActorId);
                 AddEntity(key, 0, actor.Hp > 0f);
-                AddTransform(key, actor.X, actor.Y, 0f, 1f, actor.VelocityX, actor.VelocityY);
                 AddHealth(key, ToDisplayHp(actor.Hp));
+
+                if (actor.ActorId == controlledPlayerId)
+                {
+                    continue;
+                }
+
+                AddTransform(key, actor.X, actor.Y, 0f, 1f, actor.VelocityX, actor.VelocityY);
             }
 
             return CompleteSnapshot(
@@ -93,10 +104,14 @@ namespace AbilityKit.Demo.Shooter.View
  
         public ShooterSnapshotViewBatch Map(in ShooterPackedSnapshotPayload snapshot)
         {
-            return MapPackedSnapshot(0UL, in snapshot, ShooterViewBatchSource.AuthoritativeCorrection);
+            return MapPackedSnapshot(0UL, in snapshot, ShooterViewBatchSource.AuthoritativeCorrection, controlledPlayerId: -1);
         }
 
-        private ShooterSnapshotViewBatch MapPackedSnapshot(ulong worldId, in ShooterPackedSnapshotPayload snapshot, ShooterViewBatchSource source)
+        private ShooterSnapshotViewBatch MapPackedSnapshot(
+            ulong worldId,
+            in ShooterPackedSnapshotPayload snapshot,
+            ShooterViewBatchSource source,
+            int controlledPlayerId)
         {
             BeginSnapshot();
 
@@ -106,7 +121,7 @@ namespace AbilityKit.Demo.Shooter.View
                 for (int i = 0; i < componentChunks.Length; i++)
                 {
                     var chunk = componentChunks[i];
-                    ApplyPackedComponentChunk(in chunk);
+                    ApplyPackedComponentChunk(in chunk, controlledPlayerId);
                 }
             }
 
@@ -121,7 +136,7 @@ namespace AbilityKit.Demo.Shooter.View
                 source);
         }
 
-        private void ApplyPackedComponentChunk(in ShooterPackedComponentChunk chunk)
+        private void ApplyPackedComponentChunk(in ShooterPackedComponentChunk chunk, int controlledPlayerId)
         {
             switch (chunk.ComponentKind)
             {
@@ -129,7 +144,7 @@ namespace AbilityKit.Demo.Shooter.View
                     ApplyPackedLifecycleComponents(in chunk);
                     break;
                 case ShooterPackedComponentKinds.Transform:
-                    ApplyPackedTransformComponents(in chunk);
+                    ApplyPackedTransformComponents(in chunk, controlledPlayerId);
                     break;
                 case ShooterPackedComponentKinds.Health:
                     ApplyPackedHealthComponents(in chunk);
@@ -159,7 +174,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
-        private void ApplyPackedTransformComponents(in ShooterPackedComponentChunk chunk)
+        private void ApplyPackedTransformComponents(in ShooterPackedComponentChunk chunk, int controlledPlayerId)
         {
             var count = Math.Max(0, chunk.Count);
             for (int i = 0; i < count; i++)
@@ -169,6 +184,7 @@ namespace AbilityKit.Demo.Shooter.View
 
                 var key = CreateViewEntityKey(chunk.EntityKind, entityId);
                 if (!key.HasValue) continue;
+                if (IsControlledPlayerTransform(key.Value, controlledPlayerId)) continue;
 
                 AddTransform(
                     key.Value,
@@ -294,6 +310,11 @@ namespace AbilityKit.Demo.Shooter.View
                 _scoreChanges.ToArray(),
                 _projectileLifetimeChanges.ToArray(),
                 _events.ToArray());
+        }
+
+        private static bool IsControlledPlayerTransform(ShooterViewEntityKey key, int controlledPlayerId)
+        {
+            return controlledPlayerId > 0 && key.Kind == ShooterViewEntityKind.Player && key.EntityId == controlledPlayerId;
         }
 
         private static ShooterViewEntityKey? CreateViewEntityKey(int entityKind, int entityId)

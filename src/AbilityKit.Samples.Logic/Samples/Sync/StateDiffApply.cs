@@ -30,6 +30,7 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             stateManager.CaptureState(frame: 10);
             var baseBusinessHash = StateHashComputer.ComputeWithBusinessData(CreateSnapshot(frame: 10), hashProvider);
             LogState("frame=10", hero, baseBusinessHash);
+            KeyValue("StateDiff.BaseCaptured", $"frame=10,x={hero.Position.X:0.0},hp={hero.HealthPercent}");
 
             Divider();
             Section("捕获目标帧");
@@ -37,6 +38,7 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
             stateManager.CaptureState(frame: 11);
             var targetBusinessHash = StateHashComputer.ComputeWithBusinessData(CreateSnapshot(frame: 11), hashProvider);
             LogState("frame=11", hero, targetBusinessHash);
+            KeyValue("StateDiff.TargetCaptured", $"frame=11,x={hero.Position.X:0.0},hp={hero.HealthPercent},flags={hero.StateFlags}");
 
             Divider();
             Section("计算并应用快照差异");
@@ -47,15 +49,19 @@ namespace AbilityKit.Samples.Logic.Samples.Sync
 
             KeyValue("IncrementalFullSnapshot", incrementalDiff.IsFullSnapshot.ToString());
             KeyValue("IncrementalDiffBytes", (incrementalDiff.CompressedData?.Length ?? 0).ToString());
+            KeyValue("StateDiff.Computed", $"incrementalFull={incrementalDiff.IsFullSnapshot},bytes={incrementalDiff.CompressedData?.Length ?? 0}");
             KeyValue("AppliedFullSnapshot", fullDiff.IsFullSnapshot.ToString());
             KeyValue("AppliedFrame", appliedSnapshot.Frame.ToString());
-            KeyValue("FrameHashMatched", StateHashComputer.ValidateHash(appliedSnapshot.ComputeHash(), targetSnapshot.ComputeHash()).ToString());
+            var frameHashMatched = StateHashComputer.ValidateHash(appliedSnapshot.ComputeHash(), targetSnapshot.ComputeHash());
+            KeyValue("FrameHashMatched", frameHashMatched.ToString());
+            KeyValue("StateDiff.HashMatched", frameHashMatched.ToString());
 
             Divider();
             Section("回滚到基线帧");
             var restored = stateManager.TryRestore(frame: 10);
             var restoredBusinessHash = StateHashComputer.ComputeWithBusinessData(CreateSnapshot(frame: 10), hashProvider);
             KeyValue("Restored", restored.ToString());
+            KeyValue("StateDiff.Restored", $"restored={restored},x={hero.Position.X:0.0},hp={hero.HealthPercent}");
             LogState("rollback=10", hero, restoredBusinessHash);
         }
 

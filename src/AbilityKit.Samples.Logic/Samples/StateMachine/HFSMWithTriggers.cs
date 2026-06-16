@@ -23,11 +23,12 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             var damageKey = new EventKey<DamageEvent>("damage-taken");
             var commandKey = new EventKey<CommandEvent>("command-issued");
 
-            using var bridge = new HfsmEventBridge(eventBus, fsm, actor, damageKey, commandKey, Log);
+            using var bridge = new HfsmEventBridge(eventBus, fsm, actor, damageKey, commandKey, Log, KeyValue);
 
             Section("初始化状态机与事件桥");
             fsm.Init();
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSMBridge.InitialState", fsm.ActiveStateName);
             Bullet("业务只发布事件；桥接层把事件翻译为 HFSM trigger。 ");
 
             Divider();
@@ -35,13 +36,16 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             PublishCommand(eventBus, commandKey, "Attack");
             Step(fsm, actor, 0.25f, "攻击帧");
             fsm.Trigger("FinishAttack");
+            KeyValue("HFSMBridge.Trigger", "FinishAttack");
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSMBridge.Combo", actor.Combo.ToString());
 
             Divider();
             Section("DamageEvent -> Stagger trigger");
             PublishDamage(eventBus, damageKey, amount: 30f, source: "orc");
             Step(fsm, actor, 0.25f, "硬直帧");
             fsm.Trigger("Recover");
+            KeyValue("HFSMBridge.Trigger", "Recover");
             KeyValue("ActiveState", fsm.ActiveStateName);
 
             Divider();
@@ -50,6 +54,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             Step(fsm, actor, 0.10f, "死亡帧");
             PublishCommand(eventBus, commandKey, "Attack");
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSMBridge.FinalState", fsm.ActiveStateName);
 
             Divider();
             Section("这个示例实际接入的包能力");
@@ -128,12 +133,14 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
         private void PublishCommand(EventBus eventBus, EventKey<CommandEvent> key, string command)
         {
             Log($"Publish CommandEvent({command})");
+            KeyValue("HFSMBridge.Command", command);
             eventBus.Publish(key, new CommandEvent(command));
         }
 
         private void PublishDamage(EventBus eventBus, EventKey<DamageEvent> key, float amount, string source)
         {
             Log($"Publish DamageEvent({amount:F1}, {source})");
+            KeyValue("HFSMBridge.Damage", $"amount={amount:F1},source={source}");
             eventBus.Publish(key, new DamageEvent(amount, source));
         }
 
@@ -144,6 +151,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             Log($"-- {label} (+{deltaTime:F2}s) --");
             fsm.OnLogic();
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSMBridge.FinalState", fsm.ActiveStateName);
         }
 
         private readonly struct CommandEvent
@@ -184,17 +192,21 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             private readonly ActorState _actor;
             private readonly System.Action<string> _log;
 
+            private readonly System.Action<string, string> _keyValue;
+
             public HfsmEventBridge(
                 EventBus eventBus,
                 StateMachine<string, string, string> fsm,
                 ActorState actor,
                 EventKey<DamageEvent> damageKey,
                 EventKey<CommandEvent> commandKey,
-                System.Action<string> log)
+                System.Action<string> log,
+                System.Action<string, string> keyValue)
             {
                 _fsm = fsm;
                 _actor = actor;
                 _log = log;
+                _keyValue = keyValue;
                 _damageSubscription = eventBus.Subscribe<DamageEvent>(damageKey, OnDamage);
                 _commandSubscription = eventBus.Subscribe<CommandEvent>(commandKey, OnCommand);
             }
@@ -208,6 +220,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             private void OnCommand(CommandEvent args)
             {
                 _log($"Bridge CommandEvent -> {args.Command} trigger");
+                _keyValue("HFSMBridge.Trigger", args.Command);
                 _fsm.Trigger(args.Command);
             }
 
@@ -215,8 +228,10 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             {
                 _actor.Hp -= args.Amount;
                 _actor.LastDamageSource = args.Source;
+                var trigger = _actor.Hp <= 0f ? "Dead" : "Stagger";
                 _log($"Bridge DamageEvent -> hp={_actor.Hp:F1}");
-                _fsm.Trigger(_actor.Hp <= 0f ? "Dead" : "Stagger");
+                _keyValue("HFSMBridge.Trigger", trigger);
+                _fsm.Trigger(trigger);
             }
         }
     }

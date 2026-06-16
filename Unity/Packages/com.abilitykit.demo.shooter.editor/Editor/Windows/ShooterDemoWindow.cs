@@ -32,6 +32,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private ShooterEditorSceneViewSink _sink = new();
         private ShooterEditorInputProvider _inputProvider = new();
         private ShooterDemoDiagnostics _diagnostics = new();
+        private ShooterHostFrameInput _lastEditorRunnerInput;
 
         // --- Drive mode ---
         private ShooterDemoDriveMode _driveMode = ShooterDemoDriveMode.EditorDirect;
@@ -389,11 +390,13 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             EditorGUILayout.LabelField("输入", EditorStyles.boldLabel);
 
             _inputProvider.EnableKeyboardInput = EditorGUILayout.ToggleLeft(
-                "启用键盘（WASD + Space）", _inputProvider.EnableKeyboardInput);
+                "启用键盘（WASD / 方向键 + Space）", _inputProvider.EnableKeyboardInput);
 
             EditorGUI.BeginDisabledGroup(!_inputProvider.EnableKeyboardInput);
-            EditorGUILayout.LabelField("按键", _inputProvider.GetDebugKeyString());
+            EditorGUILayout.LabelField("Editor按键", _inputProvider.GetDebugKeyString());
             EditorGUI.EndDisabledGroup();
+
+            DrawInputDiagnostics();
 
             EditorGUILayout.Space(2);
 
@@ -404,6 +407,42 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
             _controlledPlayerId = EditorGUILayout.Popup("控制", _controlledPlayerId - 1, playerOptions) + 1;
             _inputProvider.ControlledPlayerId = _controlledPlayerId;
+        }
+
+        private void DrawInputDiagnostics()
+        {
+            if (!_running)
+            {
+                return;
+            }
+
+            var input = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.LastInput
+                : _lastEditorRunnerInput;
+            var stepCount = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.StepCount
+                : _editorRunner?.StepCount ?? 0L;
+            var renderCount = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.RenderCount
+                : _editorRunner?.RenderCount ?? 0L;
+
+            var submit = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.LastSubmitResult
+                : _editorRunner?.LastSubmitResult ?? default;
+            var tick = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.LastTickResult
+                : _editorRunner?.LastTickResult ?? default;
+            var authorityAccepted = _driveMode == ShooterDemoDriveMode.HostAttach
+                ? ShooterPlayModeSessionHost.LastAuthorityAcceptedInputs
+                : _editorRunner?.LastAuthorityAcceptedInputs ?? 0;
+
+            EditorGUILayout.LabelField("最后输入", FormatInput(input), EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Runner", $"Step:{stepCount} Render:{renderCount} Submit:{submit.AcceptedInputs}@{submit.RequestedFrame} Tick:{tick.Ticks}@{tick.Frame} Hash:{tick.StateHash:X8} AuthSubmit:{authorityAccepted}", EditorStyles.miniLabel);
+        }
+
+        private static string FormatInput(in ShooterHostFrameInput input)
+        {
+            return $"Move({input.MoveX:F1},{input.MoveY:F1}) Aim({input.AimX:F1},{input.AimY:F1}) Fire:{input.Fire}";
         }
 
         private void DrawAcceptanceSpecSection()
@@ -461,20 +500,28 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             EditorGUILayout.LabelField("实体", EditorStyles.miniBoldLabel);
 
             _diagnosticsScroll = EditorGUILayout.BeginScrollView(_diagnosticsScroll, GUILayout.Height(140));
-            var clientEntities = _sink.ClientEntities;
-            for (int i = 0; i < clientEntities.Count; i++)
+            if (_driveMode == ShooterDemoDriveMode.HostAttach && _session != null)
             {
-                var e = clientEntities[i];
-                string label;
-                if (e.Kind == ShooterViewEntityKind.Player)
+                var snapshot = _session.Runtime.GetSnapshot();
+                DrawRuntimeSnapshotEntities(in snapshot);
+            }
+            else
+            {
+                var clientEntities = _sink.ClientEntities;
+                for (int i = 0; i < clientEntities.Count; i++)
                 {
-                    label = $"  玩家 #{e.EntityId}  HP:{e.Hp}  分数:{e.Score}  ({e.X:F1}, {e.Y:F1})";
+                    var e = clientEntities[i];
+                    string label;
+                    if (e.Kind == ShooterViewEntityKind.Player)
+                    {
+                        label = $"  玩家 #{e.EntityId}  HP:{e.Hp}  分数:{e.Score}  ({e.X:F1}, {e.Y:F1})";
+                    }
+                    else
+                    {
+                        label = $"  子弹 #{e.EntityId}  归属:{e.OwnerEntityId}  ({e.X:F1}, {e.Y:F1})  速度:({e.VelocityX:F1}, {e.VelocityY:F1})  剩余帧:{e.RemainingFrames}";
+                    }
+                    EditorGUILayout.LabelField(label, EditorStyles.miniLabel);
                 }
-                else
-                {
-                    label = $"  子弹 #{e.EntityId}  归属:{e.OwnerEntityId}  ({e.X:F1}, {e.Y:F1})  速度:({e.VelocityX:F1}, {e.VelocityY:F1})  剩余帧:{e.RemainingFrames}";
-                }
-                EditorGUILayout.LabelField(label, EditorStyles.miniLabel);
             }
             EditorGUILayout.EndScrollView();
 
@@ -503,6 +550,27 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 EditorGUILayout.LabelField(label, EditorStyles.miniLabel);
             }
             EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawRuntimeSnapshotEntities(in ShooterStateSnapshotPayload snapshot)
+        {
+            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            for (int i = 0; i < players.Length; i++)
+            {
+                var player = players[i];
+                EditorGUILayout.LabelField(
+                    $"  玩家 #{player.PlayerId}  HP:{player.Hp}  分数:{player.Score}  ({player.X:F1}, {player.Y:F1})  Aim:({player.AimX:F1}, {player.AimY:F1}) Alive:{player.Alive}",
+                    EditorStyles.miniLabel);
+            }
+
+            var bullets = snapshot.Bullets ?? Array.Empty<ShooterBulletSnapshot>();
+            for (int i = 0; i < bullets.Length; i++)
+            {
+                var bullet = bullets[i];
+                EditorGUILayout.LabelField(
+                    $"  子弹 #{bullet.BulletId}  归属:{bullet.OwnerPlayerId}  ({bullet.X:F1}, {bullet.Y:F1})  速度:({bullet.VelocityX:F1}, {bullet.VelocityY:F1})  剩余帧:{bullet.RemainingFrames}",
+                    EditorStyles.miniLabel);
+            }
         }
 
         // =====================================================================
@@ -997,6 +1065,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             if (_session == null || _editorRunner == null) return;
 
             _editorRunner.Tick(deltaSeconds);
+            _lastEditorRunnerInput = _editorRunner.LastInput;
 
             var snapshot = _session.Runtime.GetSnapshot();
             UpdateDiagnostics(in snapshot, null!);

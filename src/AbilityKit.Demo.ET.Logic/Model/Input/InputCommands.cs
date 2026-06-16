@@ -11,7 +11,7 @@ namespace ET.Logic
     ///
     /// Design:
     /// - PlayerId 是与 moba.core 中 MobaPlayerActorMapService 注册时一致的 PlayerId
-    /// - 在 ProcessETInputPhase 中直接使用 PlayerId，不再进行类型转换
+    /// - 由 ETMobaBattleDriver 直接转换为框架 PlayerInputCommand，不再经过反射注册器
     /// </summary>
     public sealed record MoveCommand(int Frame, string PlayerId, float Dx, float Dz);
 

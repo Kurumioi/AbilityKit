@@ -27,9 +27,12 @@ namespace AbilityKit.Samples.Logic.Samples.Foundation
             Divider();
             Section("最小运行时状态");
             KeyValue("HostKind", Context.HostKind.ToString());
+            KeyValue("HelloWorld.HostKind", Context.HostKind.ToString());
             KeyValue("Time", Time.ToString("F3"));
+            KeyValue("HelloWorld.TimeBeforeFrame", Time.ToString("F3"));
             AdvanceTime(0.016f);
             KeyValue("Time after one frame", Time.ToString("F3"));
+            KeyValue("HelloWorld.TimeAfterFrame", Time.ToString("F3"));
         }
     }
 }

@@ -48,13 +48,17 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             ExecutePlan(database, TemplateLightTriggerId, "light-burn", context, execCtx);
             ExecutePlan(database, TemplateHeavyTriggerId, "heavy-burn", context, execCtx);
             KeyValue("效果日志", string.Join(" | ", context.Effects));
+            KeyValue("TriggerConfig.TemplateEffects", string.Join(" | ", context.Effects));
             KeyValue("累计数值", context.TotalAmount.ToString("0.##"));
+            KeyValue("TriggerConfig.TemplateTotal", context.TotalAmount.ToString("0.##"));
 
             Section("嵌套行为和条件");
             context.Reset();
             ExecuteRoot(database, NestedTriggerId, "nested-tree", context, execCtx);
             KeyValue("执行路径", string.Join(" -> ", context.Effects));
+            KeyValue("TriggerConfig.NestedPath", string.Join(" -> ", context.Effects));
             KeyValue("累计数值", context.TotalAmount.ToString("0.##"));
+            KeyValue("TriggerConfig.NestedTotal", context.TotalAmount.ToString("0.##"));
         }
 
         private static ActionRegistry CreateActions()
@@ -127,6 +131,7 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
             trigger.Execute(new SamplePayload(label), execCtx);
             var executed = context.Effects.Count - before;
             KeyValue(label, $"actions={executed}, total={context.TotalAmount:0.##}");
+            KeyValue($"TriggerConfig.Template[{label}]", $"actions={executed}, total={context.TotalAmount:0.##}");
         }
 
         private void ExecuteRoot(
@@ -144,6 +149,7 @@ namespace AbilityKit.Samples.Logic.Samples.Triggering
 
             var result = root.Execute(new SamplePayload(label), execCtx);
             KeyValue(label, $"success={result.IsSuccess}, executed={result.ExecutedCount}, reason={result.Reason ?? string.Empty}");
+            KeyValue($"TriggerConfig.Root[{label}]", $"success={result.IsSuccess}, executed={result.ExecutedCount}, reason={result.Reason ?? string.Empty}");
         }
 
         private static double ReadArg(object rawArgs, string key)

@@ -26,13 +26,22 @@ namespace AbilityKit.Game.View.Presentation
     {
         protected IViewBinder<TViewBatch>? Binder { get; private set; }
         protected IViewShellLoader? ShellLoader { get; private set; }
+        protected ViewRenderBackend Backend { get; private set; }
 
         public virtual void Initialize(IViewShellLoader shellLoader)
+        {
+            Initialize(shellLoader, ViewRenderBackend.GameObject);
+        }
+
+        public virtual void Initialize(
+            IViewShellLoader shellLoader,
+            ViewRenderBackend backend)
         {
             if (shellLoader == null) throw new System.ArgumentNullException(nameof(shellLoader));
 
             ShellLoader = shellLoader;
-            Binder = CreateBinder(shellLoader);
+            Backend = backend;
+            Binder = ViewRenderBackendFactory<TViewBatch>.CreateBinder(shellLoader, backend, CreateBinder);
         }
 
         protected abstract IViewBinder<TViewBatch> CreateBinder(IViewShellLoader shellLoader);
@@ -47,6 +56,7 @@ namespace AbilityKit.Game.View.Presentation
             Binder?.Clear();
             Binder = null;
             ShellLoader = null;
+            Backend = ViewRenderBackend.GameObject;
         }
     }
 }

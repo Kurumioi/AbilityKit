@@ -21,6 +21,7 @@ namespace AbilityKit.Samples.Logic.Samples.World
         {
             var registry = new WorldTypeRegistry();
             registry.Register("BattleWorld", CreateWorld);
+            KeyValue("WorldLifecycle.RegisteredType", "BattleWorld");
 
             var worldManager = new WorldManager(new RegistryWorldFactory(registry));
 
@@ -34,6 +35,8 @@ namespace AbilityKit.Samples.Logic.Samples.World
             KeyValue("WorldId", world.Id.Value);
             KeyValue("WorldType", world.WorldType);
             KeyValue("Initialized", ((LifecycleWorld)world).Initialized.ToString());
+            KeyValue("WorldLifecycle.Created", $"id={world.Id.Value},type={world.WorldType}");
+            KeyValue("WorldLifecycle.Initialized", ((LifecycleWorld)world).Initialized.ToString());
 
             Divider();
             Section("固定帧驱动 WorldManager.Tick");
@@ -42,12 +45,14 @@ namespace AbilityKit.Samples.Logic.Samples.World
                 worldManager.Tick(0.05f);
                 var clock = world.Services.Resolve<IWorldClock>();
                 KeyValue($"Frame {frame}", $"WorldTime={clock.Time:F2}s");
+                KeyValue("WorldLifecycle.Tick", $"frame={frame},time={clock.Time:F2}");
             }
 
             Divider();
             Section("销毁 World");
             var destroyed = worldManager.Destroy(world.Id);
             KeyValue("Destroyed", destroyed.ToString());
+            KeyValue("WorldLifecycle.Destroyed", destroyed.ToString());
             KeyValue("RemainingWorlds", worldManager.Worlds.Count.ToString());
 
             Divider();

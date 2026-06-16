@@ -49,6 +49,13 @@ namespace AbilityKit.Demo.Shooter.View
             return batch;
         }
 
+        public ShooterSnapshotViewBatch ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot, int controlledPlayerId)
+        {
+            var batch = _mapper.Map(in snapshot, controlledPlayerId);
+            _viewModel.Apply(in batch);
+            return batch;
+        }
+
         public ShooterSnapshotViewBatch Clear()
         {
             _viewModel.Clear();

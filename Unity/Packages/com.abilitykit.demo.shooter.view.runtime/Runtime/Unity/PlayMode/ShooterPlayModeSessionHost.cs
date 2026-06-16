@@ -2,6 +2,7 @@
 
 using System;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.Network;
 using AbilityKit.Network.Runtime.Conditioning;
 using UnityEngine;
@@ -33,6 +34,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static bool IsRunning => _runner?.IsRunning == true;
         public static ShooterAcceptanceSession? Current => _runner?.Session;
         public static ShooterPlayModeSessionOptions Options => _runner?.Options ?? ShooterPlayModeSessionOptions.Default;
+        public static ShooterHostFrameInput LastInput => _runner?.LastInput ?? default;
+        public static ShooterClientInputSubmitResult LastSubmitResult => _runner?.LastSubmitResult ?? default;
+        public static ShooterClientFrameTickResult LastTickResult => _runner?.LastTickResult ?? default;
+        public static int LastAuthorityAcceptedInputs => _runner?.LastAuthorityAcceptedInputs ?? 0;
+        public static long StepCount => _runner?.StepCount ?? 0L;
+        public static long RenderCount => _runner?.RenderCount ?? 0L;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()

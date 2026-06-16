@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using AbilityKit.Game.View.Presentation;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -14,14 +15,28 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public ShooterPresentationSessionContext(ShooterPresentationFacade presentation, IShooterSnapshotViewSink? viewSink)
+            : this(presentation, viewSink, ViewRenderBackend.GameObject)
+        {
+        }
+
+        public ShooterPresentationSessionContext(
+            ShooterPresentationFacade presentation,
+            IShooterSnapshotViewSink? viewSink,
+            ViewRenderBackend renderBackend)
         {
             Presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
-            View = new ShooterSnapshotViewBinder(Presentation, viewSink);
+            RenderBackend = renderBackend;
+            Binder = ShooterViewRenderBackendFactory.Create(Presentation, viewSink, renderBackend);
+            View = Binder as ShooterSnapshotViewBinder;
         }
 
         public ShooterPresentationFacade Presentation { get; }
 
-        public ShooterSnapshotViewBinder View { get; }
+        public ViewRenderBackend RenderBackend { get; }
+
+        public IShooterViewBinder Binder { get; }
+
+        public ShooterSnapshotViewBinder? View { get; }
 
         public int RetainCount => _retainCount;
 
@@ -39,7 +54,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             if (_retainCount == 0)
             {
-                View.Dispose();
+                DisposeBinder();
                 return true;
             }
 
@@ -53,7 +68,14 @@ namespace AbilityKit.Demo.Shooter.View
 
         public static ShooterPresentationSessionContext CreateDefault(IShooterSnapshotViewSink? viewSink)
         {
-            return new ShooterPresentationSessionContext(new ShooterPresentationFacade(), viewSink);
+            return CreateDefault(viewSink, ViewRenderBackend.GameObject);
+        }
+
+        public static ShooterPresentationSessionContext CreateDefault(
+            IShooterSnapshotViewSink? viewSink,
+            ViewRenderBackend renderBackend)
+        {
+            return new ShooterPresentationSessionContext(new ShooterPresentationFacade(), viewSink, renderBackend);
         }
 
         public static ShooterPresentationSessionContext CreateFromFacade(ShooterPresentationFacade presentation)
@@ -63,7 +85,26 @@ namespace AbilityKit.Demo.Shooter.View
 
         public static ShooterPresentationSessionContext CreateFromFacade(ShooterPresentationFacade presentation, IShooterSnapshotViewSink? viewSink)
         {
-            return new ShooterPresentationSessionContext(presentation, viewSink);
+            return CreateFromFacade(presentation, viewSink, ViewRenderBackend.GameObject);
+        }
+
+        public static ShooterPresentationSessionContext CreateFromFacade(
+            ShooterPresentationFacade presentation,
+            IShooterSnapshotViewSink? viewSink,
+            ViewRenderBackend renderBackend)
+        {
+            return new ShooterPresentationSessionContext(presentation, viewSink, renderBackend);
+        }
+
+        internal void DisposeBinder()
+        {
+            if (Binder is IDisposable disposable)
+            {
+                disposable.Dispose();
+                return;
+            }
+
+            Binder.Clear();
         }
     }
 }

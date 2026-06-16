@@ -43,7 +43,7 @@ namespace AbilityKit.Demo.Shooter.View.Session
         public void Tick(float deltaTime)
         {
             _client?.Tick(deltaTime);
-            _context.View.TickInterpolation(deltaTime);
+            _context.Binder.TickInterpolation(deltaTime);
         }
 
         public void Connect()
@@ -67,7 +67,7 @@ namespace AbilityKit.Demo.Shooter.View.Session
                 _client.Dispose();
             }
             
-            _context.View.Dispose();
+            _context.DisposeBinder();
         }
     }
 }

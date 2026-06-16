@@ -20,6 +20,7 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
             var attributes = new CharacterAttributes();
 
             Section("基础属性");
+            KeyValue("Modifier.BaseKeys", "MaxHealth,AttackPower,Defense");
             PrintAttributes(attributes, "Base");
 
             Divider();
@@ -28,11 +29,14 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
             attributes.Add("ring", ModifierData.PercentAdd(ModifierKey.AttackPower, 0.20f, sourceId: 1002));
             attributes.Add("battle-shout", ModifierData.Mul(ModifierKey.AttackPower, 1.25f, sourceId: 1003));
             attributes.Add("armor", ModifierData.Add(ModifierKey.Defense, 18f, sourceId: 1004));
+            KeyValue("Modifier.SourceCount", attributes.ModifierCount.ToString());
+            KeyValue("Modifier.AttackSources", attributes.GetModifierCount(ModifierKey.AttackPower).ToString());
             PrintAttributes(attributes, "Equipped");
 
             Divider();
             Section("Override 的优先级");
             attributes.Add("training-mode", ModifierData.Override(ModifierKey.AttackPower, 80f, sourceId: 2001));
+            KeyValue("Modifier.OverrideSource", "training-mode");
             PrintAttributes(attributes, "Override");
             Bullet("Override 使用更高优先级，适合训练场、变身、剧情状态这类强制属性。");
 
@@ -51,6 +55,7 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
                 var context = new SampleModifierContext { ElapsedTime = second, CurrentTime = second, DeltaTime = 1f };
                 var attack = attributes.GetFinalValue(ModifierKey.AttackPower, context);
                 KeyValue($"t={second}s Attack", attack.ToString("F1"));
+                KeyValue("Modifier.Decay.Attack", $"t={second}s,value={attack:F1}");
             }
 
             Divider();
@@ -80,6 +85,13 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
 
             private readonly Dictionary<string, ModifierData> _modifiers = new Dictionary<string, ModifierData>();
             private readonly ModifierCalculator _calculator = new ModifierCalculator();
+
+            public int ModifierCount => _modifiers.Count;
+
+            public int GetModifierCount(ModifierKey key)
+            {
+                return _modifiers.Values.Count(modifier => modifier.Key == key);
+            }
 
             public void Add(string source, ModifierData modifier)
             {

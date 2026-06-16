@@ -40,6 +40,9 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             blockedContainer.Add(Tag("Status.Dead"));
 
             var requirements = new GameplayTagRequirements(requiredContainer, blockedContainer);
+            KeyValue("TagRequirements.RequiredCount", requiredContainer.Count.ToString());
+            KeyValue("TagRequirements.BlockedCount", blockedContainer.Count.ToString());
+            KeyValue("TagRequirements.Predicate", "Require Buff.AttackSpeed + Unit.Hero, Block Status.Dead");
 
             Log("需求: 需要 Buff.AttackSpeed + Unit.Hero，阻止 Status.Dead");
             Log("");
@@ -52,7 +55,9 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             containerA.Add(Tag("Unit.Hero"));
 
             Log("场景 A - 角色拥有: Buff.AttackSpeed, Buff.MoveSpeed, Unit.Hero");
-            Log($"IsSatisfiedBy: {requirements.IsSatisfiedBy(containerA)}");
+            var sceneA = requirements.IsSatisfiedBy(containerA);
+            KeyValue("TagRequirements.SceneA", sceneA.ToString());
+            Log($"IsSatisfiedBy: {sceneA}");
             Log("");
 
             // 测试场景 B - 缺少 Required
@@ -61,7 +66,9 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             containerB.Add(Tag("Unit.Hero"));
 
             Log("场景 B - 角色拥有: Buff.MoveSpeed, Unit.Hero (缺少 AttackSpeed)");
-            Log($"IsSatisfiedBy: {requirements.IsSatisfiedBy(containerB)}");
+            var sceneB = requirements.IsSatisfiedBy(containerB);
+            KeyValue("TagRequirements.SceneB", sceneB.ToString());
+            Log($"IsSatisfiedBy: {sceneB}");
             Log("");
 
             // 测试场景 C - 包含 Blocked
@@ -71,7 +78,9 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             containerC.Add(Tag("Status.Dead"));
 
             Log("场景 C - 角色拥有: Buff.AttackSpeed, Unit.Hero, Status.Dead");
-            Log($"IsSatisfiedBy: {requirements.IsSatisfiedBy(containerC)}");
+            var sceneC = requirements.IsSatisfiedBy(containerC);
+            KeyValue("TagRequirements.SceneC", sceneC.ToString());
+            Log($"IsSatisfiedBy: {sceneC}");
             Log("");
 
             // 4. 快捷方法
@@ -89,6 +98,8 @@ namespace AbilityKit.Samples.Logic.Samples.Tags
             var quickBlock = GameplayTagRequirements.Block(
                 Tag("Status.Silenced"));
 
+            KeyValue("TagRequirements.QuickRequire", quickRequire.Required.Count.ToString());
+            KeyValue("TagRequirements.QuickBlock", quickBlock.Blocked.Count.ToString());
             Log($"快捷 Require: {quickRequire.Required.Count} 个必需标签");
             Log($"快捷 Block: {quickBlock.Blocked.Count} 个阻止标签");
             Log("");

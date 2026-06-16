@@ -28,6 +28,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("实体注册");
             KeyValue("Registry.Count", world.EntityManager.Registry.Count.ToString());
+            KeyValue("CombatEntityIndex.RegistryCount", world.EntityManager.Registry.Count.ToString());
             foreach (var entity in world.Entities.OrderBy(x => x.Id))
             {
                 KeyValue(entity.Id.ToString(), $"{entity.Name}, faction={entity.Faction}, kind={entity.Kind}, pos={CombatSampleFormatting.FormatVec3(entity.Position)}");
@@ -36,6 +37,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             Divider();
             Section("KeyedEntityIndex");
             KeyValue("Heroes", string.Join(", ", world.ByFaction.Get(SampleFaction.Heroes)));
+            KeyValue("CombatEntityIndex.Heroes", string.Join(", ", world.ByFaction.Get(SampleFaction.Heroes)));
             KeyValue("Monsters", string.Join(", ", world.ByFaction.Get(SampleFaction.Monsters)));
             KeyValue("Monster kind", string.Join(", ", world.ByKind.Get(SampleEntityKind.Monster)));
 
@@ -46,6 +48,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             world.EntityManager.Remove(2002);
             KeyValue("After Remove(2002), tag:enemy", string.Join(", ", world.ByTag.Get("enemy")));
+            KeyValue("CombatEntityIndex.EnemiesAfterRemove", string.Join(", ", world.ByTag.Get("enemy")));
         }
     }
 
@@ -68,6 +71,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("技能目录");
             KeyValue("Count", library.Count.ToString());
+            KeyValue("CombatSkillLibrary.Count", library.Count.ToString());
             foreach (var id in library.Keys.OrderBy(x => x))
             {
                 var skill = library.Get(id);
@@ -77,10 +81,12 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             Divider();
             Section("派生索引");
             KeyValue("Fire school", string.Join(", ", bySchool.Get(SampleSkillSchool.Fire)));
+            KeyValue("CombatSkillLibrary.FireSchool", string.Join(", ", bySchool.Get(SampleSkillSchool.Fire)));
             KeyValue("tag:damage", string.Join(", ", byTag.Get("damage")));
 
             library.Update(10002, new SampleSkillData("Holy Light", SampleSkillSchool.Holy, 9000, "heal", "target", "support"), new SkillUpdate(1, "balance"));
             KeyValue("tag:support after update", string.Join(", ", byTag.Get("support")));
+            KeyValue("CombatSkillLibrary.SupportAfterUpdate", string.Join(", ", byTag.Get("support")));
         }
     }
 
@@ -113,12 +119,14 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("候选来源");
             KeyValue("ByFaction(Monsters)", string.Join(", ", candidateIds));
+            KeyValue("CombatTargeting.Candidates", string.Join(", ", candidateIds));
             KeyValue("Shape", "Circle origin=(0,0), radius=7");
             KeyValue("Score", "nearest to actor 1001");
 
             Divider();
             Section("搜索结果");
             KeyValue("Result ids", CombatSampleFormatting.FormatIds(results));
+            KeyValue("CombatTargeting.Results", CombatSampleFormatting.FormatIds(results));
             foreach (var id in results)
             {
                 if (world.TryGet(id.ActorId, out var entity))
@@ -181,13 +189,16 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             Divider();
             Section("处理结果");
             KeyValue("ProcessedCount", result.ProcessedCount.ToString());
+            KeyValue("CombatDamage.ProcessedCount", result.ProcessedCount.ToString());
             KeyValue("IsCritical", damage.IsCritical.ToString());
             KeyValue("RawDamage", damage.RawDamage.ToString("F1"));
             KeyValue("ResistReduction", damage.ResistReduction.ToString("F1"));
             KeyValue("FinalDamage", damage.FinalDamage.ToString("F1"));
             KeyValue("ShieldDamage", damage.ShieldDamage.ToString("F1"));
             KeyValue("ActualDamage", damage.ActualDamage.ToString("F1"));
+            KeyValue("CombatDamage.ActualDamage", damage.ActualDamage.ToString("F1"));
             KeyValue("TargetHpAfterApply", target.Hp.ToString("F1"));
+            KeyValue("CombatDamage.TargetHpAfterApply", target.Hp.ToString("F1"));
         }
     }
 
@@ -213,7 +224,9 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
                 world.TryGetByCollider(hit.Collider, out var entity);
                 KeyValue("HitCollider", hit.Collider.ToString());
                 KeyValue("HitActor", entity?.Label ?? "unknown");
+                KeyValue("CombatCollision.HitActor", entity?.Label ?? "unknown");
                 KeyValue("HitDistance", hit.Distance.ToString("F2"));
+                KeyValue("CombatCollision.HitDistance", hit.Distance.ToString("F2"));
                 KeyValue("HitPoint", CombatSampleFormatting.FormatVec3(hit.Point));
             }
             else
@@ -247,6 +260,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("Area spawn");
             KeyValue("AreaId", area.ToString());
+            KeyValue("CombatArea.AreaId", area.ToString());
             KeyValue("Center", "(5.5, 0, 0)");
             KeyValue("Radius", "2.2");
 
@@ -277,16 +291,19 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             {
                 world.TryGetByCollider(e.Collider, out var actor);
                 KeyValue("Enter", actor?.Label ?? e.Collider.ToString());
+                KeyValue($"CombatArea.Frame[{frame}].Enter", actor?.Label ?? e.Collider.ToString());
             }
             foreach (var e in stayEvents)
             {
                 world.TryGetByCollider(e.Collider, out var actor);
                 KeyValue("Stay", actor?.Label ?? e.Collider.ToString());
+                KeyValue($"CombatArea.Frame[{frame}].Stay", actor?.Label ?? e.Collider.ToString());
             }
             foreach (var e in exitEvents)
             {
                 world.TryGetByCollider(e.Collider, out var actor);
                 KeyValue("Exit", actor?.Label ?? e.Collider.ToString());
+                KeyValue($"CombatArea.Frame[{frame}].Exit", actor?.Label ?? e.Collider.ToString());
             }
             foreach (var e in expireEvents)
             {
@@ -325,6 +342,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("Projectile spawn");
             KeyValue("ProjectileId", projectile.ToString());
+            KeyValue("CombatProjectile.ProjectileId", projectile.ToString());
             KeyValue("Policy", "ExitOnHit");
 
             CombatProjectileSampleSupport.RunProjectileFrames(Section, KeyValue, Info, world, projectiles, hits, exits, ticks, applyDamage: false);
@@ -379,6 +397,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
 
             Section("Skill chain");
             KeyValue("Cast", "Knight casts Fireball");
+            KeyValue("CombatProjectileDamage.Cast", "Knight casts Fireball");
             KeyValue("ProjectileId", projectile.ToString());
             KeyValue("OnHit", "DamagePipeline -> ApplyHp");
 
@@ -407,18 +426,21 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
                 foreach (var tick in ticks)
                 {
                     keyValue("Tick", $"projectile={tick.Projectile}, pos={CombatSampleFormatting.FormatVec3(tick.Position)}");
+                keyValue($"CombatProjectile.Frame[{frame}].Tick", $"projectile={tick.Projectile}, pos={CombatSampleFormatting.FormatVec3(tick.Position)}");
                 }
 
                 foreach (var hit in hits)
                 {
                     world.TryGetByCollider(hit.HitCollider, out var actor);
                     keyValue("Hit", $"{actor?.Label ?? hit.HitCollider.ToString()} at {CombatSampleFormatting.FormatVec3(hit.Point)}, count={hit.HitCount}");
+                    keyValue($"CombatProjectile.Frame[{frame}].Hit", $"{actor?.Label ?? hit.HitCollider.ToString()} at {CombatSampleFormatting.FormatVec3(hit.Point)}, count={hit.HitCount}");
 
                     if (applyDamage && actor != null && world.TryGet(hit.OwnerId, out var attacker))
                     {
                         var damage = CombatDamagePipelineSampleSupport.CalculateProjectileDamage(attacker, actor);
                         actor.Hp -= damage.ActualDamage;
                         keyValue("ApplyDamage", $"{damage.ActualDamage:F0}, {actor.Name}.Hp={actor.Hp:F0}");
+                        keyValue($"CombatProjectileDamage.Frame[{frame}].ApplyDamage", $"{damage.ActualDamage:F0}, {actor.Name}.Hp={actor.Hp:F0}");
                     }
                 }
 
@@ -439,6 +461,7 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
                 if (projectiles.ActiveCount == 0)
                 {
                     keyValue("ActiveCount", "0");
+                    keyValue($"CombatProjectile.Frame[{frame}].ActiveCount", "0");
                     break;
                 }
             }

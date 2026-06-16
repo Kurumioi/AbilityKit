@@ -1,9 +1,11 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -18,9 +20,13 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterPresentationFacade? _authoritativePresentation;
         private readonly ShooterLagCompensationService _lagCompensation = new ShooterLagCompensationService();
 
+        private readonly Queue<PendingAuthoritativeInput> _pendingInputs = new Queue<PendingAuthoritativeInput>();
+        private readonly Random _inputRandom;
         private ShooterCarrierNetworkLink _carrierNetworkLink;
+        private NetworkConditionProfile _networkProfile;
         private SyncTimeAnchor _lastCarrierTimeAnchor;
         private double _networkElapsedSeconds;
+        private int _lastDeliveredInputCount;
 
         public ShooterAuthoritativeComparisonDriver(
             IShooterClientSyncController controller,
@@ -32,6 +38,8 @@ namespace AbilityKit.Demo.Shooter.View
             _controller = controller ?? throw new ArgumentNullException(nameof(controller));
             _authoritativeWorld = authoritativeWorld ?? throw new ArgumentNullException(nameof(authoritativeWorld));
             _authoritativePresentation = authoritativePresentation;
+            _networkProfile = networkProfile;
+            _inputRandom = new Random(networkSeed);
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, networkProfile, networkSeed);
         }
 
@@ -44,6 +52,8 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterLagCompensationTelemetry Telemetry => _lagCompensation.Telemetry;
 
         public ShooterLagCompensationEvaluation? LastLagCompensationEvaluation => _lagCompensation.LastEvaluation;
+
+        public int LastDeliveredInputCount => _lastDeliveredInputCount;
 
         public bool TryEvaluateShot(in ShooterLagCompensationShot shot, out ShooterLagCompensationEvaluation evaluation)
         {
@@ -60,10 +70,30 @@ namespace AbilityKit.Demo.Shooter.View
  
         public void ApplyNetwork(NetworkConditionProfile profile)
         {
+            _networkProfile = profile;
+            _pendingInputs.Clear();
+            _lastDeliveredInputCount = 0;
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, profile);
             _lagCompensation.Clear();
             _lastCarrierTimeAnchor = default;
             _networkElapsedSeconds = 0d;
+        }
+
+        public void EnqueueInput(in ShooterPlayerCommand command)
+        {
+            if (_networkProfile.PacketLossRate > 0d && _inputRandom.NextDouble() < _networkProfile.PacketLossRate)
+            {
+                return;
+            }
+
+            var latencyMs = _networkProfile.BaseLatencyMs;
+            if (_networkProfile.JitterMs > 0)
+            {
+                latencyMs += _inputRandom.Next(-_networkProfile.JitterMs, _networkProfile.JitterMs + 1);
+            }
+
+            var deliverAt = _networkElapsedSeconds + Math.Max(0, latencyMs) / 1000d;
+            _pendingInputs.Enqueue(new PendingAuthoritativeInput(deliverAt, command));
         }
 
         public void Advance(int stepCount, float deltaSeconds)
@@ -75,6 +105,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             for (var i = 0; i < stepCount; i++)
             {
+                _lastDeliveredInputCount = DeliverDueInputs();
                 _authoritativeWorld.Tick(deltaSeconds);
                 _lagCompensation.RecordFrame(_authoritativeWorld);
                 _networkElapsedSeconds += deltaSeconds;
@@ -91,6 +122,18 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        private int DeliverDueInputs()
+        {
+            var delivered = 0;
+            while (_pendingInputs.Count > 0 && _pendingInputs.Peek().DeliverAtSeconds <= _networkElapsedSeconds)
+            {
+                var pending = _pendingInputs.Dequeue();
+                delivered += _authoritativeWorld.SubmitInput(_authoritativeWorld.CurrentFrame, new[] { pending.Command });
+            }
+
+            return delivered;
+        }
+
         private void PublishSnapshot(in SyncTimeAnchor anchor)
         {
             _lastCarrierTimeAnchor = anchor;
@@ -98,6 +141,18 @@ namespace AbilityKit.Demo.Shooter.View
             var packed = _authoritativeWorld.ExportPackedSnapshot(worldId: 1UL, isFullSnapshot: true, authorityOverride: true);
             _carrierNetworkLink.PublishSnapshot(in packed, anchor.ElapsedSeconds);
             _carrierNetworkLink.Advance(clockMs);
+        }
+
+        private readonly struct PendingAuthoritativeInput
+        {
+            public readonly double DeliverAtSeconds;
+            public readonly ShooterPlayerCommand Command;
+
+            public PendingAuthoritativeInput(double deliverAtSeconds, in ShooterPlayerCommand command)
+            {
+                DeliverAtSeconds = deliverAtSeconds;
+                Command = command;
+            }
         }
     }
 }

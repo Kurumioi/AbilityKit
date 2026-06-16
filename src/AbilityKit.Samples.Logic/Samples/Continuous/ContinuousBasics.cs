@@ -28,14 +28,18 @@ namespace AbilityKit.Samples.Logic.Samples.Continuous
             burning.OnEnded += (_, reason) => Log($"[Event] burning ended: {reason}");
 
             Section("激活 DOT");
+            KeyValue("DOT.TargetInitialHp", target.Hp.ToString("F1"));
+            KeyValue("DOT.Burning.State", burning.State.ToString());
             KeyValue("Register", manager.Register(burning).ToString());
             KeyValue("TryActivate", manager.TryActivate(burning).ToString());
             KeyValue("State", burning.State.ToString());
+            KeyValue("DOT.ActiveCount", manager.ActiveCount.ToString());
 
             Divider();
             Section("宿主固定步进 Tick");
             Step(manager, target, 1f);
             Step(manager, target, 1f);
+            KeyValue("DOT.Burning.EndReason", burning.IsTerminated ? burning.State.ToString() : "Running");
 
             Divider();
             Section("暂停与恢复");
@@ -44,6 +48,7 @@ namespace AbilityKit.Samples.Logic.Samples.Continuous
             KeyValue("TryResume", manager.TryResume(burning).ToString());
             Step(manager, target, 1f);
             Step(manager, target, 1f);
+            KeyValue("DOT.Step", $"pause={burning.IsPaused}, active={burning.IsActive}");
 
             Divider();
             Section("中断另一个 DOT");
@@ -55,8 +60,9 @@ namespace AbilityKit.Samples.Logic.Samples.Continuous
             manager.Register(poison);
             manager.TryActivate(poison);
             Step(manager, target, 1f);
-            KeyValue("TryInterrupt", manager.TryInterrupt(poison, "cleanse").ToString());
+            KeyValue("DOT.Poison.Interrupted", manager.TryInterrupt(poison, "cleanse").ToString());
             KeyValue("ActiveCount", manager.ActiveCount.ToString());
+            KeyValue("DOT.ActiveCount", manager.ActiveCount.ToString());
             KeyValue("TotalCount", manager.TotalCount.ToString());
 
             Divider();

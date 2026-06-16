@@ -24,6 +24,7 @@ namespace AbilityKit.Samples.Logic.Samples.Battle
             ScheduleInput(buffer, state, requestedFrame: 0, new PlayerCommand("player-1", "MoveRight"));
             ScheduleInput(buffer, state, requestedFrame: -1, new PlayerCommand("player-2", "Guard"));
             ScheduleInput(buffer, state, requestedFrame: 4, new PlayerCommand("player-1", "CastFireball"));
+            KeyValue("BattleRuntimeLoop.Scheduled", "count=3");
 
             Divider();
             Section("固定帧 Tick");
@@ -33,7 +34,13 @@ namespace AbilityKit.Samples.Logic.Samples.Battle
                 KeyValue(
                     $"Frame {result.Frame}",
                     $"inputs={result.InputCount}, commands={result.CommandCount}, ticked={result.WorldTicked}, hp={simulation.TargetHp}, next={state.Frame}");
+                KeyValue(
+                    $"BattleRuntimeLoop.Frame[{result.Frame}]",
+                    $"inputs={result.InputCount}, commands={result.CommandCount}, ticked={result.WorldTicked}, hp={simulation.TargetHp}, next={state.Frame}");
             }
+
+            KeyValue("BattleRuntimeLoop.FinalHp", simulation.TargetHp.ToString());
+            KeyValue("BattleRuntimeLoop.FinalFrame", state.Frame.ToString());
         }
 
         private void ScheduleInput(
@@ -50,6 +57,9 @@ namespace AbilityKit.Samples.Logic.Samples.Battle
 
             KeyValue(
                 command.Action,
+                $"request={requestedFrame}, accepted={result.Accepted}, frame={result.AcceptedFrame}, status={result.Status}");
+            KeyValue(
+                $"BattleRuntimeLoop.Schedule[{command.Action}]",
                 $"request={requestedFrame}, accepted={result.Accepted}, frame={result.AcceptedFrame}, status={result.Status}");
 
             if (result.Accepted)

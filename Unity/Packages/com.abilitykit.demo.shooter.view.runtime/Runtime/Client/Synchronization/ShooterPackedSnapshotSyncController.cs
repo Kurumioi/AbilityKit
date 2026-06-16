@@ -53,9 +53,12 @@ namespace AbilityKit.Demo.Shooter.View
                 return ShooterSnapshotApplyResult.IgnoredStaleSnapshot;
             }
 
+            // Authoritative snapshots should not overwrite the locally predicted actor when the
+            // prediction path is already healthy; the runtime publish that follows reconciliation
+            // will refresh the local actor from the corrected simulation state.
             if (!snapshot.PackedSnapshot.HasValue)
             {
-                _presentation.ApplyGatewaySnapshot(in snapshot);
+                _presentation.ApplyInterpolatedGatewaySnapshot(in snapshot);
                 LastAppliedFrame = snapshot.Frame;
                 LastAppliedStateHash = 0;
                 LastAppliedSnapshotFlags = 0;
@@ -73,7 +76,7 @@ namespace AbilityKit.Demo.Shooter.View
             LastAppliedStateHash = packed.StateHash;
             LastAppliedSnapshotFlags = packed.SnapshotFlags;
             _hasAppliedSnapshot = true;
-            _presentation.ApplyGatewaySnapshot(in snapshot);
+            _presentation.ApplyInterpolatedGatewaySnapshot(in snapshot);
             return ShooterSnapshotApplyResult.AppliedPackedSnapshot;
         }
     }

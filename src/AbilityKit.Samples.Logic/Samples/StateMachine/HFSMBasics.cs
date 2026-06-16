@@ -21,11 +21,14 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             Section("初始化状态机");
             fsm.Init();
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSM.InitialState", fsm.ActiveStateName);
+            KeyValue("HFSM.ActiveState", fsm.ActiveStateName);
 
             Divider();
             Section("Idle -> Casting -> Idle");
             Step(fsm, actor, 0.25f, "等待输入");
             actor.CastRequested = true;
+            KeyValue("HFSM.CastRequested", actor.CastRequested.ToString());
             Step(fsm, actor, 0.25f, "请求施法");
             Step(fsm, actor, 0.50f, "施法推进");
             Step(fsm, actor, 0.50f, "施法完成");
@@ -33,6 +36,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             Divider();
             Section("任意状态进入 Dead");
             actor.Hp = 0;
+            KeyValue("HFSM.FatalHp", actor.Hp.ToString("F1"));
             Step(fsm, actor, 0.10f, "受到致命伤害");
             actor.CastRequested = true;
             Step(fsm, actor, 0.10f, "死亡后请求施法被忽略");
@@ -112,6 +116,8 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             Log($"-- {label} (+{deltaTime:F2}s) --");
             fsm.OnLogic();
             KeyValue("ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSM.ActiveState", fsm.ActiveStateName);
+            KeyValue("HFSM.Step", $"{label}:time={Time:F2},state={fsm.ActiveStateName}");
         }
 
         private sealed class ActorState

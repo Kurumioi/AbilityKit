@@ -10,8 +10,8 @@ namespace AbilityKit.Demo.Shooter.Editor.Input
 {
     /// <summary>
     /// Collects keyboard input from the Editor window and produces <see cref="ShooterPlayerCommand"/>.
-    /// Uses WASD for movement, mouse position for aiming (relative to player in SceneView), and
-    /// Space for firing.
+    /// Uses WASD or arrow keys for movement, mouse position for aiming (relative to player in SceneView),
+    /// and Space for firing.
     /// </summary>
     public sealed class ShooterEditorInputProvider : IShooterPlayInputSource
     {
@@ -58,10 +58,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Input
 
             var moveX = 0f;
             var moveY = 0f;
-            if (_keysDown.Contains(KeyCode.W)) moveY += 1f;
-            if (_keysDown.Contains(KeyCode.S)) moveY -= 1f;
-            if (_keysDown.Contains(KeyCode.A)) moveX -= 1f;
-            if (_keysDown.Contains(KeyCode.D)) moveX += 1f;
+            if (_keysDown.Contains(KeyCode.W) || _keysDown.Contains(KeyCode.UpArrow)) moveY += 1f;
+            if (_keysDown.Contains(KeyCode.S) || _keysDown.Contains(KeyCode.DownArrow)) moveY -= 1f;
+            if (_keysDown.Contains(KeyCode.A) || _keysDown.Contains(KeyCode.LeftArrow)) moveX -= 1f;
+            if (_keysDown.Contains(KeyCode.D) || _keysDown.Contains(KeyCode.RightArrow)) moveX += 1f;
 
             var fire = _keysDown.Contains(KeyCode.Space);
 
@@ -86,10 +86,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Input
 
             var moveX = 0f;
             var moveY = 0f;
-            if (_keysDown.Contains(KeyCode.W)) moveY += 1f;
-            if (_keysDown.Contains(KeyCode.S)) moveY -= 1f;
-            if (_keysDown.Contains(KeyCode.A)) moveX -= 1f;
-            if (_keysDown.Contains(KeyCode.D)) moveX += 1f;
+            if (_keysDown.Contains(KeyCode.W) || _keysDown.Contains(KeyCode.UpArrow)) moveY += 1f;
+            if (_keysDown.Contains(KeyCode.S) || _keysDown.Contains(KeyCode.DownArrow)) moveY -= 1f;
+            if (_keysDown.Contains(KeyCode.A) || _keysDown.Contains(KeyCode.LeftArrow)) moveX -= 1f;
+            if (_keysDown.Contains(KeyCode.D) || _keysDown.Contains(KeyCode.RightArrow)) moveX += 1f;
 
             return new ShooterPlayFrameInput(
                 moveX,
@@ -114,6 +114,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Input
         private static bool IsGameKey(KeyCode keyCode)
         {
             return keyCode is KeyCode.W or KeyCode.A or KeyCode.S or KeyCode.D
+                or KeyCode.UpArrow or KeyCode.DownArrow or KeyCode.LeftArrow or KeyCode.RightArrow
                 or KeyCode.Space or KeyCode.Q;
         }
     }

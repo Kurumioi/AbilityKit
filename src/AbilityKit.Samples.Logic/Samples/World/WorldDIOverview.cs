@@ -28,6 +28,7 @@ namespace AbilityKit.Samples.Logic.Samples.World
             world.Initialize();
             KeyValue("WorldId", world.Id.Value);
             KeyValue("Initialized", ((DiWorld)world).Initialized.ToString());
+            KeyValue("WorldDI.Initialized", ((DiWorld)world).Initialized.ToString());
 
             Divider();
             Section("Singleton 与 Transient 生命周期");
@@ -37,7 +38,9 @@ namespace AbilityKit.Samples.Logic.Samples.World
             var requestB = world.Services.Resolve<RequestTrace>();
 
             KeyValue("SingletonSame", ReferenceEquals(rulesA, rulesB).ToString());
+            KeyValue("WorldDI.SingletonSame", ReferenceEquals(rulesA, rulesB).ToString());
             KeyValue("TransientSame", ReferenceEquals(requestA, requestB).ToString());
+            KeyValue("WorldDI.TransientSame", ReferenceEquals(requestA, requestB).ToString());
             KeyValue("RequestA", requestA.Id.ToString());
             KeyValue("RequestB", requestB.Id.ToString());
 
@@ -49,7 +52,9 @@ namespace AbilityKit.Samples.Logic.Samples.World
 
             var clock = world.Services.Resolve<IWorldClock>();
             KeyValue("WorldTime", clock.Time.ToString("F2"));
+            KeyValue("WorldDI.WorldTime", clock.Time.ToString("F2"));
             KeyValue("DamageLog", rulesA.LastLog);
+            KeyValue("WorldDI.DamageLog", rulesA.LastLog);
 
             Divider();
             Section("接入 WorldManager");
@@ -62,6 +67,7 @@ namespace AbilityKit.Samples.Logic.Samples.World
                 WorldType = "TrainingWorld"
             });
             KeyValue("ManagedWorld", managed.Id.Value);
+            KeyValue("WorldDI.ManagedWorld", managed.Id.Value);
             manager.DisposeAll();
             world.Dispose();
 

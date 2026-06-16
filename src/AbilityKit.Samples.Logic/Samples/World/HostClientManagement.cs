@@ -36,6 +36,7 @@ namespace AbilityKit.Samples.Logic.Samples.World
             Section("连接客户端并创建 World");
             host.Connect(player1);
             host.Connect(player2);
+            KeyValue("HostClient.ConnectedClients", "2");
             var lobby = host.CreateWorld(new WorldCreateOptions
             {
                 Id = new WorldId("lobby"),
@@ -43,8 +44,11 @@ namespace AbilityKit.Samples.Logic.Samples.World
             });
 
             KeyValue("WorldId", lobby.Id.Value);
+            KeyValue("HostClient.WorldCreated", lobby.Id.Value);
             KeyValue("Player1Messages", player1.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player1Messages", player1.ReceivedMessages.Count.ToString());
             KeyValue("Player2Messages", player2.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player2Messages", player2.ReceivedMessages.Count.ToString());
             KeyValue("FirstMessage", player1.LastMessageName);
 
             Divider();
@@ -53,8 +57,11 @@ namespace AbilityKit.Samples.Logic.Samples.World
             host.SendTo(player2, new TextServerMessage("private-loadout"));
 
             KeyValue("Player1Messages", player1.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player1Messages", player1.ReceivedMessages.Count.ToString());
             KeyValue("Player2Messages", player2.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player2Messages", player2.ReceivedMessages.Count.ToString());
             KeyValue("BeforeSend", _beforeSendCount.ToString());
+            KeyValue("HostClient.BeforeSend", _beforeSendCount.ToString());
             KeyValue("AfterSend", _afterSendCount.ToString());
 
             Divider();
@@ -65,14 +72,19 @@ namespace AbilityKit.Samples.Logic.Samples.World
 
             var clock = lobby.Services.Resolve<IWorldClock>();
             KeyValue("Player1Messages", player1.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player1Messages", player1.ReceivedMessages.Count.ToString());
             KeyValue("Player2Messages", player2.ReceivedMessages.Count.ToString());
+            KeyValue("HostClient.Player2Messages", player2.ReceivedMessages.Count.ToString());
             KeyValue("LobbyTime", clock.Time.ToString("F2"));
+            KeyValue("HostClient.LobbyTime", clock.Time.ToString("F2"));
 
             Divider();
             Section("销毁 World 自动广播");
             var destroyed = host.DestroyWorld(lobby.Id);
             KeyValue("Destroyed", destroyed.ToString());
+            KeyValue("HostClient.Destroyed", destroyed.ToString());
             KeyValue("Player2LastMessage", player2.LastMessageName);
+            KeyValue("HostClient.Player2LastMessage", player2.LastMessageName);
 
             Divider();
             Section("这个示例实际接入的包能力");

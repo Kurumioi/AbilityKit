@@ -10,9 +10,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         public ShooterHostFrameInput ReadInput(int controlledPlayerId)
         {
+            var moveX = Input.GetAxisRaw("Horizontal");
+            var moveY = Input.GetAxisRaw("Vertical");
+
+            if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) moveX -= 1f;
+            if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) moveX += 1f;
+            if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S)) moveY -= 1f;
+            if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W)) moveY += 1f;
+
             return new ShooterHostFrameInput(
-                Input.GetAxisRaw("Horizontal"),
-                Input.GetAxisRaw("Vertical"),
+                Mathf.Clamp(moveX, -1f, 1f),
+                Mathf.Clamp(moveY, -1f, 1f),
                 0f,
                 1f,
                 Input.GetKey(KeyCode.Space));
@@ -30,6 +38,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private Transform? _viewRoot;
         private Transform? _clientRoot;
         private Transform? _authorityRoot;
+        private Camera? _camera;
+        private Light? _light;
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
@@ -74,6 +84,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 Object.Destroy(_viewRoot.gameObject);
                 _viewRoot = null;
+                _clientRoot = null;
+                _authorityRoot = null;
+                _camera = null;
+                _light = null;
             }
         }
 
@@ -114,6 +128,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 {
                     var view = GetOrCreatePlayerView(playerViews, parent, transform.Key.EntityId, controlledPlayerId, isAuthority);
                     view.transform.localPosition = new Vector3(transform.X * worldScale, isAuthority ? 0.15f : 0f, transform.Y * worldScale);
+                    ApplyFacing(view.transform, transform.FacingX, transform.FacingY);
                 }
                 else if (transform.Key.Kind == ShooterViewEntityKind.Bullet && _seenBullets.Contains(transform.Key.EntityId))
                 {
@@ -176,6 +191,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _clientRoot.SetParent(_viewRoot, false);
             _authorityRoot = new GameObject("Authority").transform;
             _authorityRoot.SetParent(_viewRoot, false);
+
+            var cameraObject = new GameObject("ShooterPlayModeCamera");
+            cameraObject.transform.SetParent(_viewRoot, false);
+            cameraObject.transform.localPosition = new Vector3(4f, 14f, -10f);
+            cameraObject.transform.localRotation = Quaternion.Euler(55f, 0f, 0f);
+            _camera = cameraObject.AddComponent<Camera>();
+            _camera.orthographic = true;
+            _camera.orthographicSize = 8f;
+            _camera.clearFlags = CameraClearFlags.Skybox;
+            _camera.depth = 10f;
+
+            var lightObject = new GameObject("ShooterPlayModeLight");
+            lightObject.transform.SetParent(_viewRoot, false);
+            lightObject.transform.localRotation = Quaternion.Euler(50f, -30f, 0f);
+            _light = lightObject.AddComponent<Light>();
+            _light.type = LightType.Directional;
+            _light.intensity = 1.2f;
         }
 
         private static void ClearViews(Dictionary<int, GameObject> views)
@@ -216,6 +248,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
 
                 views.Remove(stale[i]);
+            }
+        }
+
+        private static void ApplyFacing(Transform transform, float facingX, float facingY)
+        {
+            var direction = new Vector3(facingX, 0f, facingY);
+            if (direction.sqrMagnitude > 0.0001f)
+            {
+                transform.localRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
             }
         }
 

@@ -191,7 +191,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var projected = _projector.Project(in interpolation);
-            _presentation.ApplyGatewaySnapshot(in projected);
+            _presentation.ApplyInterpolatedGatewaySnapshot(in projected);
         }
 
         /// <summary>

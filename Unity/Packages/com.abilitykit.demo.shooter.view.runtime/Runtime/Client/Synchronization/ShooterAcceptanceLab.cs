@@ -260,6 +260,8 @@ namespace AbilityKit.Demo.Shooter.View
         /// <summary>从权威世界采集到的当前 LagComp 历史遥测。</summary>
         public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _authoritativeDriver?.Telemetry;
 
+        public int LastAuthorityDeliveredInputCount => _authoritativeDriver?.LastDeliveredInputCount ?? 0;
+
         /// <summary>最近一次服务端回溯命中验证结果。</summary>
         public ShooterLagCompensationEvaluation? LastLagCompensationEvaluation => _authoritativeDriver?.LastLagCompensationEvaluation;
 
@@ -317,6 +319,11 @@ namespace AbilityKit.Demo.Shooter.View
             AdvanceAuthoritativeWorld(result.Metrics.StepsRun, deltaSeconds);
 
             return result;
+        }
+
+        public void EnqueueAuthoritativeInput(in ShooterPlayerCommand command)
+        {
+            _authoritativeDriver?.EnqueueInput(in command);
         }
 
         /// <summary>
