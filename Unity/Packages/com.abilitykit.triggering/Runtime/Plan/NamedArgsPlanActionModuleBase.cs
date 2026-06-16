@@ -8,9 +8,8 @@ using AbilityKit.Triggering.Runtime;
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     // ================================================================
-    // Shared delegate types for NamedArgs action execution
-    // Used by both the triggering runtime (PlannedTrigger) and business
-    // packages (PlanActionModule implementations)
+    // 具名参数 Action 执行使用的共享委托类型
+    // 同时供触发器运行时（PlannedTrigger）与业务包（PlanActionModule 实现）使用
     // ================================================================
 
     /// <summary>
@@ -33,6 +32,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
     /// </summary>
     public sealed class NamedArgsDict
     {
+        public static readonly NamedArgsDict Empty = new NamedArgsDict(new Dictionary<string, ActionArgValue>());
+
         public readonly Dictionary<string, ActionArgValue> InnerDict;
 
         public NamedArgsDict(Dictionary<string, ActionArgValue> inner)
@@ -46,8 +47,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
     }
 
     // ================================================================
-    // Base class for business package implementations
-    // Note: IPlanActionModule lives in business packages, not in triggering
+    // 业务包实现使用的基础类
+    // 注意：IPlanActionModule 定义在业务包中，而不是 Triggering 包中
     // ================================================================
 
     /// <summary>

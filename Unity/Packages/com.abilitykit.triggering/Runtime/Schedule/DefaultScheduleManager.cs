@@ -6,14 +6,12 @@ using AbilityKit.Triggering.Runtime.Schedule.Data;
 namespace AbilityKit.Triggering.Runtime.Schedule
 {
     /// <summary>
-    /// 默认调度管理器
-    /// IScheduleManager 的框架默认实现
-    /// 使用策略模式处理状态机逻辑，支持自定义调度策略
-    /// 
-    /// 注意：此实现已被 TriggerScheduleManager 取代
-    /// TriggerScheduleManager 提供了更好的 Trigger 分组管理和更完整的 API
+    /// 默认调度管理器。
+    /// IScheduleManager 的早期框架默认实现，使用策略模式处理状态机逻辑。
+    ///
+    /// 注意：此实现仅保留兼容用途。新代码优先使用 SimpleScheduleManager；需要按 Trigger 分组管理时使用 GroupedScheduleManager。
     /// </summary>
-    [Obsolete("请使用 TriggerScheduleManager 替代")]
+    [Obsolete("DefaultScheduleManager 仅保留兼容用途；新代码请使用 SimpleScheduleManager，按 Trigger 分组时使用 GroupedScheduleManager。")]
     public sealed class DefaultScheduleManager : IScheduleManager
     {
         #region 字段

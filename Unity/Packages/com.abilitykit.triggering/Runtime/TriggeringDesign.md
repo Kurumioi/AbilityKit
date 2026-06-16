@@ -38,6 +38,30 @@ Runtime 目录大致按职责拆分：
   - 黑板：`DictionaryBlackboard` / `IBlackboardResolver` 等
   - payload：`PayloadAccessorRegistry` / `IPayloadDoubleAccessor<TArgs>` / `IPayloadIntAccessor<TArgs>` 等（numeric 读取优先 double，其次 int->double fallback）
 
+- `ActionScheduler/`
+  - Trigger Action 调度主线：管理由 `TriggerPlan.Actions` 派生出的延迟、周期、持续型 Action 实例
+  - 由 `TriggerRunner` / `PlannedTrigger` 通过 `ExecCtx.ActionSchedulerManager` 接入，不与通用业务调度混用
+
+- `Schedule/`
+  - 通用业务调度：Buff、子弹、AOE、延迟任务等非 Trigger Action 生命周期
+  - `DefaultScheduleManager` 仅保留兼容用途，新代码优先使用 `SimpleScheduleManager` 或 `GroupedScheduleManager`
+
+- `Scheduler/`
+  - 旧版通用调度注册体系，仅作为兼容层保留
+  - 新 Trigger Action 调度不再扩展此目录；需要通用业务调度时优先接入 `Schedule/`
+
+- `Dispatcher/`
+  - 外部驱动方式适配层：事件、定时、持续 tick 等 Dispatcher API
+  - 新的事件订阅、条件评估、执行控制主线优先使用 `Runtime/TriggerRunner`
+
+- `Plan/Executables/`
+  - TriggerPlan 行为树主线节点：Sequence、Selector、If、Repeat、ActionCall 等正式执行结构
+  - 与 `Executable/` 的旧 DSL/示例体系分离，后者仅作为兼容和迁移参考
+
+- 根目录兼容占位文件
+  - `ActionScheduler.cs`、`TriggerRunner.cs`、`PlannedTrigger.cs` 等根目录空文件仅用于保留旧路径和 `.meta` GUID
+  - 删除条件：确认包内外不再依赖对应根目录占位文件及其 `.meta` GUID 后，随兼容清理批次移除
+
 - `Example/`
   - 纯 C# 示例（无 Unity 场景依赖），用于快速理解 API 组合方式
 

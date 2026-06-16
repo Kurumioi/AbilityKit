@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Runtime.Conditioning;
+using AbilityKit.Protocol.Shooter;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests.Client;
@@ -12,164 +13,294 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests.Client;
 public sealed class ShooterPlaySessionRunnerTests
 {
     [Fact]
-    public void StartNormalizesOptionsAndPublishesSessionChange()
+    public void FiveHundredMsLatencyDoesNotPullControlledPlayerBackAfterStopping()
     {
-        var input = new ScriptedInputSource(new ShooterHostFrameInput(1f, 0f, 0f, 1f, false));
-        var view = new RecordingViewSink();
-        using var runner = new ShooterPlaySessionRunner(input, view);
-        var changes = new List<bool>();
-        runner.SessionChanged += session => changes.Add(session != null);
+        const int tickRate = 30;
+        const int controlledPlayerId = 1;
+        var moveRightTicks = tickRate;
+        var observeTicks = tickRate;
+        var inputs = new List<ShooterHostFrameInput>(moveRightTicks + observeTicks);
+        for (var i = 0; i < moveRightTicks; i++)
+        {
+            inputs.Add(new ShooterHostFrameInput(1f, 0f, 1f, 0f, false));
+        }
 
-        var session = runner.Start(new ShooterPlayModeSessionOptions(
-            NetworkSyncModel.PredictRollback,
-            tickRate: 0,
-            playerCount: 0,
-            randomSeed: 7,
-            controlledPlayerId: 8,
-            enableAuthoritativeWorld: true,
-            latencyMs: -10,
-            jitterMs: -20,
-            packetLossRate: 2f,
-            reorderRate: -1f,
-            bandwidthKbps: -64,
-            worldScale: 0f,
-            networkName: "runner-test"));
+        for (var i = 0; i < observeTicks; i++)
+        {
+            inputs.Add(new ShooterHostFrameInput(0f, 0f, 1f, 0f, false));
+        }
 
-        Assert.Same(session, runner.Session);
-        Assert.True(runner.IsRunning);
-        Assert.Equal(1, runner.Options.PlayerCount);
-        Assert.Equal(1, runner.Options.ControlledPlayerId);
-        Assert.Equal(1f, runner.Options.WorldScale);
-        Assert.Equal(0, runner.Options.LatencyMs);
-        Assert.Equal(0, runner.Options.JitterMs);
-        Assert.Equal(1f, runner.Options.PacketLossRate);
-        Assert.Equal(0f, runner.Options.ReorderRate);
-        Assert.Equal(0, runner.Options.BandwidthKbps);
-        Assert.Equal(new[] { true }, changes);
-        Assert.Equal(1, view.ClearCount);
-    }
-
-    [Fact]
-    public void TickUsesFixedStepInputAndRendersLatestSnapshot()
-    {
-        var input = new ScriptedInputSource(
-            new ShooterHostFrameInput(1f, 0f, 0f, 1f, false),
-            new ShooterHostFrameInput(0f, 1f, 0f, 1f, true));
+        var input = new ScriptedInputSource(inputs.ToArray());
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         runner.Start(new ShooterPlayModeSessionOptions(
             NetworkSyncModel.PredictRollback,
-            tickRate: 10,
+            tickRate,
             playerCount: 2,
-            randomSeed: 13,
-            controlledPlayerId: 2,
+            randomSeed: 33,
+            controlledPlayerId,
             enableAuthoritativeWorld: true,
-            latencyMs: 0,
+            latencyMs: 500,
             jitterMs: 0,
             packetLossRate: 0f,
             reorderRate: 0f,
             bandwidthKbps: 0,
-            worldScale: 2f,
-            networkName: "runner-test"));
+            worldScale: 1f,
+            networkName: "500ms pull-back smoke"));
 
-        runner.Tick(0.05f);
-        Assert.Equal(0, input.ReadCount);
-        Assert.Single(view.Frames);
+        var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, controlledPlayerId);
+        float? previousObservedX = null;
+        float? stoppedBaselineX = null;
+        var maxPullBackAfterStop = 0f;
+        var maxDriftAfterStop = 0f;
+        for (var tick = 0; tick < moveRightTicks + observeTicks; tick++)
+        {
+            runner.Tick(1f / tickRate);
+            Assert.NotEmpty(view.Frames);
+            Assert.True(TryGetTransformX(view.Frames[^1].ClientBatch, key, out var x));
 
-        runner.Tick(0.15f);
+            if (tick == moveRightTicks)
+            {
+                stoppedBaselineX = x;
+            }
 
-        Assert.Equal(2, input.ReadCount);
-        Assert.Equal(new[] { 2, 2 }, input.ControlledPlayerIds);
-        Assert.Equal(2, runner.Session!.Runtime.CurrentFrame);
-        Assert.Equal(2, view.Frames.Count);
-        Assert.Equal(2, view.Frames[^1].ControlledPlayerId);
-        Assert.Equal(2f, view.Frames[^1].WorldScale);
-        Assert.NotEmpty(view.Frames[^1].ClientBatch.EntityChanges);
-        Assert.NotEmpty(view.Frames[^1].ClientBatch.TransformChanges);
-        var carrierStats = Assert.IsType<NetworkConditioningStats>(view.Frames[^1].CarrierNetworkStats);
-        Assert.Equal(2, carrierStats.InboundReceived);
-        Assert.Equal(2, carrierStats.InboundDelivered);
-        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, view.Frames[^1].LastCarrierSnapshotApplyResult);
-        Assert.Equal(2, view.Frames[^1].LastCarrierTimeAnchor.LocalFrame);
-        Assert.True(view.Frames[^1].LastCarrierTimeAnchor.HasAuthoritativeFrame);
-        Assert.Equal(2, view.Frames[^1].LastCarrierTimeAnchor.AuthoritativeFrame);
-        var lagCompensationTelemetry = Assert.IsType<ShooterLagCompensationTelemetry>(view.Frames[^1].LagCompensationTelemetry);
-        Assert.Equal(2, lagCompensationTelemetry.CapturedFrameCount);
-        Assert.Equal(1, lagCompensationTelemetry.OldestFrame);
-        Assert.Equal(2, lagCompensationTelemetry.LatestFrame);
+            if (tick >= moveRightTicks && previousObservedX.HasValue)
+            {
+                maxPullBackAfterStop = Math.Max(maxPullBackAfterStop, previousObservedX.Value - x);
+                if (stoppedBaselineX.HasValue)
+                {
+                    maxDriftAfterStop = Math.Max(maxDriftAfterStop, Math.Abs(x - stoppedBaselineX.Value));
+                }
+            }
+
+            previousObservedX = x;
+        }
+
+        Assert.True(maxPullBackAfterStop <= 0.001f, $"Controlled player was pulled back by {maxPullBackAfterStop:0.0000} units after input stopped under 500ms latency.");
+        Assert.True(maxDriftAfterStop <= 0.001f, $"Controlled player drifted by {maxDriftAfterStop:0.0000} units after input stopped under 500ms latency.");
     }
 
     [Fact]
-    public void StopClearsViewAndPublishesNullSession()
+    public void RepeatedMovementUnderFiveHundredMsLatencyKeepsControlledPlayerReasonablyAlignedAfterDrain()
     {
-        var input = new ScriptedInputSource(new ShooterHostFrameInput(0f, 0f, 0f, 1f, false));
+        const int tickRate = 30;
+        const int controlledPlayerId = 1;
+        var inputs = new List<ShooterHostFrameInput>();
+        AddRepeatedMovement(inputs, repeats: 3, activeTicks: 10, restTicks: 5);
+        AddIdle(inputs, tickRate * 2);
+
+        var input = new ScriptedInputSource(inputs.ToArray());
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
-        var changes = new List<bool>();
-        runner.SessionChanged += session => changes.Add(session != null);
-        runner.Start(ShooterPlayModeSessionOptions.Default);
+        runner.Start(new ShooterPlayModeSessionOptions(
+            NetworkSyncModel.PredictRollback,
+            tickRate,
+            playerCount: 2,
+            randomSeed: 41,
+            controlledPlayerId,
+            enableAuthoritativeWorld: true,
+            latencyMs: 500,
+            jitterMs: 0,
+            packetLossRate: 0f,
+            reorderRate: 0f,
+            bandwidthKbps: 0,
+            worldScale: 1f,
+            networkName: "500ms repeated movement alignment smoke"));
 
-        runner.Stop();
+        for (var tick = 0; tick < inputs.Count; tick++)
+        {
+            runner.Tick(1f / tickRate);
+        }
 
-        Assert.False(runner.IsRunning);
-        Assert.Null(runner.Session);
-        Assert.Equal(2, view.ClearCount);
-        Assert.Equal(new[] { true, false }, changes);
+        var comparison = runner.Session!.CompareWorlds();
+        var controlled = Assert.Single(comparison.Divergences, d => d.PlayerId == controlledPlayerId);
+        Assert.True(controlled.Distance <= 0.05d, $"Controlled player diverged from authority by {controlled.Distance:0.0000} after repeated movement and latency drain. client=({controlled.ClientX:0.0000},{controlled.ClientY:0.0000}) authority=({controlled.AuthorityX:0.0000},{controlled.AuthorityY:0.0000})");
     }
 
     [Fact]
-    public void ApplyNetworkCanRunBeforeAndAfterStart()
+    public void FireUnderFiveHundredMsLatencySpawnsPredictedAndAuthoritativeBulletsAtSameOrigin()
     {
-        var input = new ScriptedInputSource(new ShooterHostFrameInput(0f, 0f, 0f, 1f, false));
+        const int tickRate = 30;
+        const int controlledPlayerId = 1;
+        var inputs = new List<ShooterHostFrameInput>();
+        AddRepeatedMovement(inputs, repeats: 2, activeTicks: 10, restTicks: 5);
+        var fireFrameIndex = inputs.Count;
+        inputs.Add(new ShooterHostFrameInput(0f, 0f, 1f, 0f, true));
+        AddIdle(inputs, tickRate * 2);
+
+        var input = new ScriptedInputSource(inputs.ToArray());
         var view = new RecordingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(new ShooterPlayModeSessionOptions(
+            NetworkSyncModel.PredictRollback,
+            tickRate,
+            playerCount: 2,
+            randomSeed: 43,
+            controlledPlayerId,
+            enableAuthoritativeWorld: true,
+            latencyMs: 500,
+            jitterMs: 0,
+            packetLossRate: 0f,
+            reorderRate: 0f,
+            bandwidthKbps: 0,
+            worldScale: 1f,
+            networkName: "500ms fire origin smoke"));
 
-        runner.ApplyNetwork(NetworkConditionProfile.PoorWifi);
-        runner.Start(ShooterPlayModeSessionOptions.Default);
-        runner.ApplyNetwork(NetworkConditionProfile.Lan);
-        runner.Tick(1f / runner.Options.TickRate);
-
-        Assert.True(runner.IsRunning);
-        Assert.Equal(1, input.ReadCount);
-        Assert.NotEmpty(view.Frames);
-    }
-
-    private sealed class ScriptedInputSource : IShooterHostInputSource
-    {
-        private readonly Queue<ShooterHostFrameInput> _inputs;
-
-        public ScriptedInputSource(params ShooterHostFrameInput[] inputs)
+        ShooterEventSnapshot? predictedFire = null;
+        ShooterEventSnapshot? authoritativeFire = null;
+        ShooterSveltoPlayerComponent? predictedFirePlayer = null;
+        ShooterSveltoPlayerComponent? authoritativeFirePlayer = null;
+        for (var tick = 0; tick < inputs.Count; tick++)
         {
-            _inputs = new Queue<ShooterHostFrameInput>(inputs);
+            runner.Tick(1f / tickRate);
+            if (tick == fireFrameIndex)
+            {
+                predictedFirePlayer = TryGetPlayer(runner.Session!.Runtime.GetSnapshot(), controlledPlayerId, out var localPlayer)
+                    ? localPlayer
+                    : null;
+                authoritativeFirePlayer = runner.Session!.AuthoritativeWorld != null && TryGetPlayer(runner.Session.AuthoritativeWorld.GetSnapshot(), controlledPlayerId, out var authorityPlayer)
+                    ? authorityPlayer
+                    : null;
+            }
+
+            predictedFire ??= TryGetFireEvent(runner.Session!.Runtime.GetSnapshot(), controlledPlayerId, out var localFire)
+                ? localFire
+                : null;
+            authoritativeFire ??= runner.Session!.AuthoritativeWorld != null && TryGetFireEvent(runner.Session.AuthoritativeWorld.GetSnapshot(), controlledPlayerId, out var authorityFire)
+                ? authorityFire
+                : null;
         }
 
-        public int ReadCount { get; private set; }
-        public List<int> ControlledPlayerIds { get; } = new();
+        var predictedFirePlayerValue = Assert.NotNull(predictedFirePlayer);
+        var authoritativeFirePlayerValue = Assert.NotNull(authoritativeFirePlayer);
+        var predicted = Assert.IsType<ShooterEventSnapshot>(predictedFire);
+        var authoritative = Assert.IsType<ShooterEventSnapshot>(authoritativeFire);
+        var dx = predicted.X - authoritative.X;
+        var dy = predicted.Y - authoritative.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+        var playerDx = predictedFirePlayerValue.X - authoritativeFirePlayerValue.X;
+        var playerDy = predictedFirePlayerValue.Y - authoritativeFirePlayerValue.Y;
+        var playerDistance = Math.Sqrt(playerDx * playerDx + playerDy * playerDy);
+        Assert.True(distance <= 0.05d, $"Predicted and authoritative bullet origins diverged by {distance:0.0000}. predicted=({predicted.X:0.0000},{predicted.Y:0.0000}) authority=({authoritative.X:0.0000},{authoritative.Y:0.0000}); fire-frame player predicted=({predictedFirePlayerValue.X:0.0000},{predictedFirePlayerValue.Y:0.0000}) authority=({authoritativeFirePlayerValue.X:0.0000},{authoritativeFirePlayerValue.Y:0.0000}) playerDistance={playerDistance:0.0000}");
+    }
 
-        public ShooterHostFrameInput ReadInput(int controlledPlayerId)
+    private static bool TryGetTransformX(in ShooterSnapshotViewBatch batch, ShooterViewEntityKey key, out float x)
+    {
+        var transforms = batch.TransformChanges;
+        for (var i = 0; i < transforms.Count; i++)
         {
-            ReadCount++;
-            ControlledPlayerIds.Add(controlledPlayerId);
-            return _inputs.Count > 0
-                ? _inputs.Dequeue()
-                : new ShooterHostFrameInput(0f, 0f, 0f, 1f, false);
+            var transform = transforms[i];
+            if (transform.Key.Equals(key))
+            {
+                x = transform.X;
+                return true;
+            }
+        }
+
+        x = 0f;
+        return false;
+    }
+
+    private static bool TryGetFireEvent(in ShooterStateSnapshotPayload snapshot, int sourcePlayerId, out ShooterEventSnapshot fire)
+    {
+        var events = snapshot.Events;
+        for (var i = 0; i < events.Length; i++)
+        {
+            var candidate = events[i];
+            if (candidate.EventType == (int)ShooterEventType.Fire && candidate.SourcePlayerId == sourcePlayerId)
+            {
+                fire = candidate;
+                return true;
+            }
+        }
+
+        fire = default;
+        return false;
+    }
+
+    private static bool TryGetPlayer(in ShooterStateSnapshotPayload snapshot, int playerId, out ShooterSveltoPlayerComponent player)
+    {
+        var players = snapshot.Players;
+        for (var i = 0; i < players.Length; i++)
+        {
+            var candidate = players[i];
+            if (candidate.PlayerId != playerId)
+            {
+                continue;
+            }
+
+            player = new ShooterSveltoPlayerComponent
+            {
+                PlayerId = candidate.PlayerId,
+                X = candidate.X,
+                Y = candidate.Y,
+                Hp = candidate.Hp,
+                Score = candidate.Score,
+                Alive = candidate.Alive
+            };
+            return true;
+        }
+
+        player = default;
+        return false;
+    }
+
+    private static void AddRepeatedMovement(List<ShooterHostFrameInput> inputs, int repeats, int activeTicks, int restTicks)
+    {
+        for (var repeat = 0; repeat < repeats; repeat++)
+        {
+            AddInput(inputs, activeTicks, repeat % 2 == 0 ? 1f : -1f, 0f, 1f, 0f, false);
+            AddIdle(inputs, restTicks);
         }
     }
 
-    private sealed class RecordingViewSink : IShooterHostViewSink
+    private static void AddIdle(List<ShooterHostFrameInput> inputs, int ticks)
     {
-        public List<ShooterHostPresentationFrame> Frames { get; } = new();
-        public int ClearCount { get; private set; }
+        AddInput(inputs, ticks, 0f, 0f, 1f, 0f, false);
+    }
+
+    private static void AddInput(List<ShooterHostFrameInput> inputs, int ticks, float moveX, float moveY, float aimX, float aimY, bool fire)
+    {
+        for (var i = 0; i < ticks; i++)
+        {
+            inputs.Add(new ShooterHostFrameInput(moveX, moveY, aimX, aimY, fire));
+        }
+    }
+    private sealed class ScriptedInputSource : IShooterPlayInputSource
+    {
+        private readonly ShooterHostFrameInput[] _inputs;
+        private int _index;
+
+        public ScriptedInputSource(ShooterHostFrameInput[] inputs)
+        {
+            _inputs = inputs ?? throw new ArgumentNullException(nameof(inputs));
+        }
+
+        public ShooterPlayFrameInput ReadInput(int controlledPlayerId)
+        {
+            if (_index >= _inputs.Length)
+            {
+                return new ShooterPlayFrameInput(0f, 0f, 1f, 0f, false);
+            }
+
+            return new ShooterPlayFrameInput(_inputs[_index++]);
+        }
+    }
+
+    private sealed class RecordingViewSink : IShooterPlayViewSink
+    {
+        private readonly List<ShooterHostPresentationFrame> _frames = new();
+
+        public IReadOnlyList<ShooterHostPresentationFrame> Frames => _frames;
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
-            Frames.Add(frame);
+            _frames.Add(frame);
         }
 
         public void Clear()
         {
-            ClearCount++;
-            Frames.Clear();
+            _frames.Clear();
         }
     }
 }

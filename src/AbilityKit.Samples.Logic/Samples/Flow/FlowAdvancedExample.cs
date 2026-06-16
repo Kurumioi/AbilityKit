@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Flow;
+using AbilityKit.Ability.Flow.Nodes;
+using AbilityKit.Ability.Flow.Pooling;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Flow
@@ -18,6 +22,20 @@ namespace AbilityKit.Samples.Logic.Samples.Flow
 
         protected override void OnRun()
         {
+            FlowPools.RegisterDefaultConfig();
+            using var businessPoolOverride = FlowPools.RegisterOverride(
+                config => config
+                    .Pool<FlowContext>(FlowPools.ScopeName, defaultCapacity: 16, maxSize: 256, prewarmCount: 16, collectionCheck: true, key: FlowPools.ContextKey)
+                    .Pool<FlowRunner>(FlowPools.ScopeName, defaultCapacity: 16, maxSize: 256, prewarmCount: 16, collectionCheck: true, key: FlowPools.RunnerKey)
+                    .Pool<FlowSession>(FlowPools.ScopeName, defaultCapacity: 16, maxSize: 256, prewarmCount: 16, collectionCheck: true, key: FlowPools.SessionKey)
+                    .PoolHost<object>(defaultCapacity: 8, maxSize: 128, prewarmCount: 0, collectionCheck: true)
+                    .Pool<Dictionary<Type, object>>(FlowPools.ScopeName, defaultCapacity: 32, maxSize: 512, prewarmCount: 32, collectionCheck: true, key: FlowPools.ContextScopeMapKey)
+                    .Pool<List<IFlowNode>>(FlowPools.ScopeName, defaultCapacity: 32, maxSize: 512, prewarmCount: 32, collectionCheck: true, key: FlowPools.StageNodeListKey)
+                    .Pool<FlowCompletion>(FlowPools.ScopeName, defaultCapacity: 32, maxSize: 512, prewarmCount: 32, collectionCheck: true, key: FlowPools.CompletionKey),
+                moduleName: "Sample.Flow.BusinessPools",
+                source: "AbilityKit.Samples.Logic",
+                priority: 200);
+
             Log("=== Flow 复杂异步流程进阶示例 ===");
             Output.Divider();
 
@@ -274,6 +292,13 @@ namespace AbilityKit.Samples.Logic.Samples.Flow
             Output.Bullet("AbilityKit.Ability.Flow.Blocks");
             Output.Bullet("AbilityKit.Ability.Flow.FlowHost");
             Output.Bullet("AbilityKit.Ability.Flow.FlowContext");
+            Output.Bullet("AbilityKit.Ability.Flow.Pooling.FlowPools - Flow 包默认池化配置入口");
+            Output.Bullet("FlowPools.RegisterOverride - 业务包高优先级覆盖 Flow 池容量、预热数量与裁剪策略");
+            Output.Bullet("FlowPools.RentSession / ReleaseSession - 会级生命周期池化入口，递归管理 Runner 与 Context");
+            Output.Bullet("FlowPools.PoolHost<TArgs> - 按实际参数类型配置泛型 Host 池；FlowHost<object> 不会覆盖其他 TArgs");
+            Output.Bullet("FlowPools.RentHost<TArgs> / ReleaseHost<TArgs> - 宿主级生命周期池化入口，适合业务侧显式租借释放");
+            Output.Bullet("FlowPools.RentCompletion / ReleaseCompletion - 可重置异步完成对象池化入口");
+            Output.Bullet("FlowPools.RentEventQueue<TEvent> / ReleaseEventQueue<TEvent> - HFSM 事件队列池化入口");
             Log("");
 
             Output.Divider();

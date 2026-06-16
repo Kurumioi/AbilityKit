@@ -8,7 +8,59 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public readonly struct ShooterPlayModeSessionOptions
     {
-        public static ShooterPlayModeSessionOptions Default => new(
+        public static ShooterPlayModeSessionOptions Default => FromTemplate(
+            ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority"));
+
+        public static ShooterPlayModeSessionOptions FromTemplate(in ShooterSyncTemplate template)
+        {
+            var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId);
+            return new ShooterPlayModeSessionOptions(
+                template.SyncModel,
+                ShooterAcceptanceLab.DefaultTickRate,
+                template.RecommendedPlayerCount,
+                randomSeed: 3901,
+                controlledPlayerId: 1,
+                enableAuthoritativeWorld: template.EnableAuthoritativeWorld,
+                latencyMs: network.Profile.BaseLatencyMs,
+                jitterMs: network.Profile.JitterMs,
+                packetLossRate: (float)network.Profile.PacketLossRate,
+                reorderRate: (float)network.Profile.ReorderRate,
+                bandwidthKbps: network.Profile.BandwidthKbps,
+                worldScale: 1f,
+                networkName: template.DisplayName,
+                syncTemplateId: template.Id);
+        }
+
+        public static ShooterPlayModeSessionOptions FromTemplateId(string templateId)
+        {
+            return FromTemplate(ShooterAcceptanceCatalog.GetSyncTemplate(templateId));
+        }
+
+        public static ShooterPlayModeSessionOptions FromTemplate(
+            in ShooterSyncTemplate template,
+            int randomSeed,
+            int controlledPlayerId,
+            float worldScale)
+        {
+            var options = FromTemplate(in template);
+            return new ShooterPlayModeSessionOptions(
+                options.SyncModel,
+                options.TickRate,
+                options.PlayerCount,
+                randomSeed,
+                controlledPlayerId,
+                options.EnableAuthoritativeWorld,
+                options.LatencyMs,
+                options.JitterMs,
+                options.PacketLossRate,
+                options.ReorderRate,
+                options.BandwidthKbps,
+                worldScale,
+                options.NetworkName,
+                options.SyncTemplateId);
+        }
+
+        public static ShooterPlayModeSessionOptions LegacyDefault => new(
             NetworkSyncModel.PredictRollback,
             ShooterAcceptanceLab.DefaultTickRate,
             playerCount: 2,
@@ -21,7 +73,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             reorderRate: 0f,
             bandwidthKbps: 0,
             worldScale: 1f,
-            networkName: null);
+            networkName: null,
+            syncTemplateId: null);
 
         public ShooterPlayModeSessionOptions(
             NetworkSyncModel syncModel,
@@ -36,7 +89,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             float reorderRate,
             int bandwidthKbps,
             float worldScale,
-            string? networkName)
+            string? networkName,
+            string? syncTemplateId = null)
         {
             SyncModel = syncModel;
             TickRate = tickRate;
@@ -51,6 +105,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             BandwidthKbps = bandwidthKbps;
             WorldScale = worldScale;
             NetworkName = networkName;
+            SyncTemplateId = syncTemplateId;
         }
 
         public NetworkSyncModel SyncModel { get; }
@@ -66,6 +121,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public int BandwidthKbps { get; }
         public float WorldScale { get; }
         public string? NetworkName { get; }
+        public string? SyncTemplateId { get; }
 
         public ShooterPlayModeSessionOptions Normalized()
         {
@@ -87,7 +143,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 Clamp01(ReorderRate),
                 Math.Max(0, BandwidthKbps),
                 worldScale,
-                NetworkName);
+                NetworkName,
+                SyncTemplateId);
         }
 
         private static float Clamp01(float value)

@@ -4,7 +4,7 @@ namespace AbilityKit.Ability.Flow
 {
     public sealed class FlowRunner : IDisposable
     {
-        private readonly FlowContext _ctx;
+        private FlowContext _ctx;
         private IFlowNode _root;
         private FlowStatus _status;
         private bool _entered;
@@ -25,13 +25,18 @@ namespace AbilityKit.Ability.Flow
         private readonly FlowWakeUp _wakeUp;
         private bool _wakeRequested;
         private bool _pumping;
+        private bool _disposed;
+
+        internal FlowRunner()
+        {
+            _wakeUp = new FlowWakeUp(Wake);
+            _disposed = true;
+        }
 
         public FlowRunner(FlowContext ctx)
+            : this()
         {
-            _ctx = ctx ?? throw new ArgumentNullException(nameof(ctx));
-            _status = FlowStatus.NotStarted;
-
-            _wakeUp = new FlowWakeUp(Wake);
+            ResetForRent(ctx);
         }
 
         public FlowContext Context => _ctx;
@@ -44,6 +49,7 @@ namespace AbilityKit.Ability.Flow
 
         public void Start(IFlowNode root, Action<FlowStatus> onFinished, Action<FlowStatus, FlowStatus> onStatusChanged)
         {
+            ThrowIfDisposed();
             if (root == null) throw new ArgumentNullException(nameof(root));
 
             Stop();
@@ -67,6 +73,7 @@ namespace AbilityKit.Ability.Flow
 
         public FlowStatus Step(float deltaTime)
         {
+            ThrowIfDisposed();
             if (_root == null) return _status;
             if (_status != FlowStatus.Running) return _status;
 
@@ -139,6 +146,7 @@ namespace AbilityKit.Ability.Flow
 
         private void Wake()
         {
+            if (_disposed) return;
             if (_status != FlowStatus.Running) return;
             _wakeRequested = true;
             if (_pumping) return;
@@ -198,6 +206,7 @@ namespace AbilityKit.Ability.Flow
 
         public void Stop()
         {
+            ThrowIfDisposed();
             if (_root == null) return;
 
             try
@@ -242,7 +251,66 @@ namespace AbilityKit.Ability.Flow
 
         public void Dispose()
         {
+            if (_disposed) return;
             Stop();
+            ResetCallbacks();
+            _ctx?.Clear();
+            _ctx = null;
+            _disposed = true;
+        }
+
+        internal void ResetForRent(FlowContext context)
+        {
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
+            _ctx = context;
+            _ctx.Clear();
+            _root = null;
+            _status = FlowStatus.NotStarted;
+            _entered = false;
+            _rootScope = null;
+            _pumpIterations = 0;
+            _wakeRequested = false;
+            _pumping = false;
+            MaxPumpIterationsPerWake = 128;
+            ResetCallbacks();
+            _disposed = false;
+        }
+
+        internal FlowContext ResetForRelease()
+        {
+            if (!_disposed)
+            {
+                Stop();
+            }
+
+            ResetCallbacks();
+            var context = _ctx;
+            context?.Clear();
+            _ctx = null;
+            _root = null;
+            _status = FlowStatus.NotStarted;
+            _entered = false;
+            _rootScope = null;
+            _pumpIterations = 0;
+            _wakeRequested = false;
+            _pumping = false;
+            MaxPumpIterationsPerWake = 128;
+            _disposed = true;
+            return context;
+        }
+
+        private void ResetCallbacks()
+        {
+            _onFinished = null;
+            _onStatusChanged = null;
+            UnhandledException = null;
+            ExceptionHandler = null;
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(FlowRunner));
         }
     }
 }

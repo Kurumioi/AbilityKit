@@ -8,10 +8,14 @@ using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 using AbilityKit.Triggering.Runtime.ActionScheduler;
-using AbilityKit.Triggering.Runtime.ActionScheduler;
 
 namespace AbilityKit.Triggering.Runtime
 {
+    /// <summary>
+    /// Trigger 运行时主线编排器。
+    /// 负责事件订阅、触发器排序、条件评估、执行控制、生命周期通知与 ActionScheduler 推进。
+    /// Dispatcher 目录中的调度器仅负责外部驱动方式适配，不承载 TriggerRunner 的主线执行语义。
+    /// </summary>
     public sealed class TriggerRunner<TCtx>
     {
         private readonly IEventBus _eventBus;
@@ -144,10 +148,65 @@ namespace AbilityKit.Triggering.Runtime
 
             _lifecycle.OnEventDispatching(key, in args);
 
-            var ctx = _contextSource != null ? _contextSource.GetContext() : default;
+            control = PrepareDispatchControl(control);
+            var execCtx = CreateExecCtx(control);
+
+            int executedCount = 0;
+            int shortCircuitedCount = 0;
+
+            for (int i = 0; i < triggers.Count; i++)
+            {
+                var entry = triggers[i];
+
+                if (TryHandlePriorityBlock(key, in args, in entry, control, in execCtx))
+                {
+                    shortCircuitedCount++;
+                    continue;
+                }
+
+                var evaluation = EvaluateEntry(key, in args, in entry, control, in execCtx);
+                if (evaluation == DispatchEvaluationResult.FailedByException)
+                {
+                    break;
+                }
+
+                if (evaluation == DispatchEvaluationResult.ConditionFailed)
+                {
+                    shortCircuitedCount++;
+                    if (HandleConditionRejected(key, in args, in entry, control, in execCtx))
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (ExecuteEntry(key, in args, in entry, control, in execCtx, out var wasInterrupted))
+                {
+                    executedCount++;
+                }
+
+                if (wasInterrupted)
+                {
+                    shortCircuitedCount++;
+                    break;
+                }
+            }
+
+            _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
+        }
+
+        private static ExecutionControl PrepareDispatchControl(ExecutionControl control)
+        {
             if (control == null) control = new ExecutionControl();
             control.Reset();
-            var execCtx = new ExecCtx<TCtx>(
+            return control;
+        }
+
+        private ExecCtx<TCtx> CreateExecCtx(ExecutionControl control)
+        {
+            var ctx = _contextSource != null ? _contextSource.GetContext() : default;
+            return new ExecCtx<TCtx>(
                 ctx,
                 _eventBus,
                 _functions,
@@ -159,148 +218,305 @@ namespace AbilityKit.Triggering.Runtime
                 _numericFunctions,
                 _policy,
                 control,
-                _actionSchedulerManager);  // ✅ 注入 ActionSchedulerManager
+                _actionSchedulerManager);
+        }
 
-            int executedCount = 0;
-            int shortCircuitedCount = 0;
-
-            for (int i = 0; i < triggers.Count; i++)
+        /// <summary>
+        /// 处理因更高优先级或失败条件传播导致的触发器跳过。
+        /// </summary>
+        private bool TryHandlePriorityBlock<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            if (!control.ShouldBlock(entry.Phase, entry.Priority))
             {
-                var entry = triggers[i];
-                var cue = entry.Trigger.Cue;
-
-                // ========== 检查优先级打断 ==========
-                if (control.ShouldBlock(entry.Phase, entry.Priority))
-                {
-                    var reason = control.InterruptConditionPassed
-                        ? ShortCircuitReason.InterruptedByHigherPriority
-                        : ShortCircuitReason.InterruptedByFailedCondition;
-                    _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
-                    _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
-                        control.InterruptConditionPassed
-                            ? ETriggerShortCircuitReason.InterruptedByHigherPriority
-                            : ETriggerShortCircuitReason.InterruptedByFailedCondition,
-                        in execCtx);
-                    shortCircuitedCount++;
-
-                    // --- Cue: 被优先级打断跳过 ---
-                    var cueCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger, reason,
-                        control.InterruptSourceName, control.InterruptTriggerId, control.InterruptConditionPassed, control);
-                    cue.OnSkipped(in cueCtx);
-                    continue;
-                }
-
-                // ========== Evaluate 阶段 ==========
-                _lifecycle.OnBeforeEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order);
-                _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
-
-                bool ok;
-                try
-                {
-                    ok = entry.Trigger.Evaluate(in args, in execCtx);
-                }
-                catch (Exception ex)
-                {
-                    _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
-                    _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
-                    _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);
-                    _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message, in execCtx);
-
-                    // --- Cue: 条件异常视为失败 ---
-                    var failCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                        ShortCircuitReason.ConditionFailed, null, 0, false, control);
-                    cue.OnConditionFailed(in failCtx);
-                    break;
-                }
-
-                _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
-                _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
-
-                if (ok)
-                {
-                    _lifecycle.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
-                    _observer.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
-
-                    // --- Cue: 条件通过，进入 Execute ---
-                    var passCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                        ShortCircuitReason.None, null, 0, true, control);
-                    cue.OnConditionPassed(in passCtx);
-                }
-                else
-                {
-                    // 条件失败：默认跳过（continue），仅记录生命周期
-                    // 只有 Strict 策略才打断全部
-                    _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
-                    _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
-                    shortCircuitedCount++;
-
-                    // --- Cue: 条件失败跳过 ---
-                    var failCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                        ShortCircuitReason.ConditionFailed, null, 0, false, control);
-                    cue.OnConditionFailed(in failCtx);
-
-                    if (_interruptPolicy == EInterruptPolicy.Strict)
-                    {
-                        _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
-                        _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
-
-                        // --- Cue: 严格模式下被条件失败打断 ---
-                        var strictCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                            ShortCircuitReason.ConditionFailed, null, 0, false, control);
-                        cue.OnInterrupted(in strictCtx);
-                        break;
-                    }
-
-                    continue;
-                }
-
-                // ========== Execute 阶段 ==========
-                _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
-                var executeCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                    ShortCircuitReason.None, null, 0, true, control);
-                cue.OnBeforeAction(in executeCtx, 0);
-
-                bool wasInterrupted = false;
-                bool actionExecuted = false;
-
-                try
-                {
-                    entry.Trigger.Execute(in args, in execCtx);
-                    actionExecuted = true;
-                }
-                catch (Exception ex)
-                {
-                    _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message);
-                    _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message, in execCtx);
-                }
-
-                if (control.IsHardStopped)
-                {
-                    wasInterrupted = true;
-                    shortCircuitedCount++;
-                    var reason = control.Cancel ? ShortCircuitReason.Cancel : ShortCircuitReason.StopPropagation;
-                    _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
-                    _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
-                        control.Cancel ? ETriggerShortCircuitReason.Cancel : ETriggerShortCircuitReason.StopPropagation, in execCtx);
-
-                    // --- Cue: Execute 被硬停止打断 ---
-                    var interruptCtx = BuildCueContext(key, in args, entry.Phase, entry.Priority, entry.Order, entry.Trigger,
-                        reason, control.InterruptSourceName ?? entry.Trigger.GetType().Name, control.InterruptTriggerId, true, control);
-                    cue.OnInterrupted(in interruptCtx);
-                    break;
-                }
-
-                _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
-                _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
-
-                if (!wasInterrupted && actionExecuted)
-                {
-                    cue.OnExecuted(in executeCtx);
-                    executedCount++;
-                }
+                return false;
             }
 
-            _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
+            var reason = control.InterruptConditionPassed
+                ? ShortCircuitReason.InterruptedByHigherPriority
+                : ShortCircuitReason.InterruptedByFailedCondition;
+            var observerReason = control.InterruptConditionPassed
+                ? ETriggerShortCircuitReason.InterruptedByHigherPriority
+                : ETriggerShortCircuitReason.InterruptedByFailedCondition;
+
+            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
+            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, observerReason, in execCtx);
+
+            var cueCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                reason,
+                control.InterruptSourceName,
+                control.InterruptTriggerId,
+                control.InterruptConditionPassed,
+                control);
+            entry.Trigger.Cue.OnSkipped(in cueCtx);
+            return true;
+        }
+
+        /// <summary>
+        /// 执行触发条件评估，并统一派发生命周期、观察者与 Cue 回调。
+        /// </summary>
+        private DispatchEvaluationResult EvaluateEntry<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            _lifecycle.OnBeforeEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order);
+            _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
+
+            bool ok;
+            try
+            {
+                ok = entry.Trigger.Evaluate(in args, in execCtx);
+            }
+            catch (Exception ex)
+            {
+                NotifyEvaluationException(key, in args, in entry, control, in execCtx, ex);
+                return DispatchEvaluationResult.FailedByException;
+            }
+
+            _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
+            _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
+
+            if (!ok)
+            {
+                NotifyConditionFailed(key, in args, in entry, control, in execCtx);
+                return DispatchEvaluationResult.ConditionFailed;
+            }
+
+            NotifyConditionPassed(key, in args, in entry, control, in execCtx);
+            return DispatchEvaluationResult.ConditionPassed;
+        }
+
+        private void NotifyEvaluationException<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx,
+            Exception ex)
+        {
+            _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+            _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+            _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);
+            _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message, in execCtx);
+
+            var failCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.ConditionFailed,
+                null,
+                0,
+                false,
+                control);
+            entry.Trigger.Cue.OnConditionFailed(in failCtx);
+        }
+
+        private void NotifyConditionPassed<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            _lifecycle.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+            _observer.OnConditionPassed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+
+            var passCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.None,
+                null,
+                0,
+                true,
+                control);
+            entry.Trigger.Cue.OnConditionPassed(in passCtx);
+        }
+
+        private void NotifyConditionFailed<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
+            _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
+
+            var failCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.ConditionFailed,
+                null,
+                0,
+                false,
+                control);
+            entry.Trigger.Cue.OnConditionFailed(in failCtx);
+        }
+
+        /// <summary>
+        /// 处理条件失败后的中断策略；返回 true 表示当前事件派发应立即结束。
+        /// </summary>
+        private bool HandleConditionRejected<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            if (_interruptPolicy != EInterruptPolicy.Strict)
+            {
+                return false;
+            }
+
+            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
+            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
+
+            var strictCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.ConditionFailed,
+                null,
+                0,
+                false,
+                control);
+            entry.Trigger.Cue.OnInterrupted(in strictCtx);
+            return true;
+        }
+
+        /// <summary>
+        /// 执行触发器动作；返回 true 表示动作完整执行并触发完成 Cue。
+        /// </summary>
+        private bool ExecuteEntry<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx,
+            out bool wasInterrupted)
+        {
+            wasInterrupted = false;
+
+            _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+            var executeCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.None,
+                null,
+                0,
+                true,
+                control);
+            entry.Trigger.Cue.OnBeforeAction(in executeCtx, 0);
+
+            var actionExecuted = TryExecuteTrigger(key, in args, in entry, in execCtx);
+            if (TryHandleHardStop(key, in args, in entry, control, in execCtx))
+            {
+                wasInterrupted = true;
+                return false;
+            }
+
+            _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+            _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
+
+            if (!actionExecuted)
+            {
+                return false;
+            }
+
+            entry.Trigger.Cue.OnExecuted(in executeCtx);
+            return true;
+        }
+
+        private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in Entry<TArgs> entry, in ExecCtx<TCtx> execCtx)
+        {
+            try
+            {
+                entry.Trigger.Execute(in args, in execCtx);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message);
+                _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message, in execCtx);
+                return false;
+            }
+        }
+
+        private bool TryHandleHardStop<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx)
+        {
+            if (!control.IsHardStopped)
+            {
+                return false;
+            }
+
+            var reason = control.Cancel ? ShortCircuitReason.Cancel : ShortCircuitReason.StopPropagation;
+            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
+            _observer.OnShortCircuit(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                control.Cancel ? ETriggerShortCircuitReason.Cancel : ETriggerShortCircuitReason.StopPropagation,
+                in execCtx);
+
+            var interruptCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                reason,
+                control.InterruptSourceName ?? entry.Trigger.GetType().Name,
+                control.InterruptTriggerId,
+                true,
+                control);
+            entry.Trigger.Cue.OnInterrupted(in interruptCtx);
+            return true;
+        }
+
+        private enum DispatchEvaluationResult
+        {
+            ConditionPassed,
+            ConditionFailed,
+            FailedByException
         }
 
         private TriggerCueContext BuildCueContext<TArgs>(

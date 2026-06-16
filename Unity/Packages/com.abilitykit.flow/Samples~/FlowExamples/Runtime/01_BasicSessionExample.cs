@@ -1,5 +1,6 @@
 using AbilityKit.Ability.Flow;
 using AbilityKit.Ability.Flow.Blocks;
+using AbilityKit.Ability.Flow.Pooling;
 
 namespace AbilityKit.FlowExamples
 {
@@ -7,6 +8,8 @@ namespace AbilityKit.FlowExamples
     {
         public static FlowStatus RunOnce(float deltaTime)
         {
+            FlowPools.RegisterDefaultConfig();
+
             using var session = new FlowSession();
 
             var root = new DoNode(

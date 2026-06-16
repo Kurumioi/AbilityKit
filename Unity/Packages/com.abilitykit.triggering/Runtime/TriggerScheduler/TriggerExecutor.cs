@@ -1,3 +1,7 @@
+// TODO-OPTIMIZE: 这是非主线 Trigger 执行策略，已镜像到
+// Runtime/Experimental/Todo/TriggerScheduler/TriggerExecutorTodo.cs 用于迁移跟踪。
+// 当前仅作为兼容入口保留；在 Plan/Executables 主线吸收有价值的调度策略前不要删除。
+// 注意：非主线路径不得使用占位 Action 伪装成功执行。
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Executable;
@@ -78,9 +82,8 @@ namespace AbilityKit.Triggering.Runtime.TriggerScheduler
             {
                 var actionPlan = actions[i];
 
-                // 解析 Action 委托（延迟解析，与 PlannedTrigger 保持一致）
-                // 注意：这里简化处理，实际需要从 ActionRegistry 解析
-                var actionDelegate = CreateActionDelegate(actionPlan.Id);
+                // 非主线路径当前尚未接入 ActionRegistry，创建显式失败委托，避免占位执行被误认为成功。
+                var actionDelegate = CreateUnsupportedActionDelegate(actionPlan.Id);
                 var conditionDelegate = CreateConditionDelegate<TArgs>(plan); // TODO: 解析条件
 
                 // 创建或获取执行器
@@ -103,13 +106,12 @@ namespace AbilityKit.Triggering.Runtime.TriggerScheduler
             return ExecutionResult.Success(registeredCount);
         }
 
-        private Action<object, ITriggerDispatcherContext> CreateActionDelegate(ActionId actionId)
+        private Action<object, ITriggerDispatcherContext> CreateUnsupportedActionDelegate(ActionId actionId)
         {
-            // TODO: 从 ActionRegistry 解析委托
-            return (args, ctx) =>
+            return (_, _) =>
             {
-                // 占位实现
-                Console.WriteLine($"Action[{actionId}] executed");
+                throw new NotSupportedException(
+                    $"TriggerScheduler.DefaultTriggerExecutor 未接入 ActionRegistry，无法执行 Action[{actionId.Value}]。请使用 PlannedTrigger 主线或提供正式 Action 委托解析。");
             };
         }
 

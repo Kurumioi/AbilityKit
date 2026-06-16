@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.Flow.Blocks;
 using AbilityKit.Ability.Flow.Nodes;
+using AbilityKit.Ability.Flow.Pooling;
 
 namespace AbilityKit.Ability.Flow.Stages
 {
@@ -38,17 +39,23 @@ namespace AbilityKit.Ability.Flow.Stages
 
         private IFlowNode BuildStages(IReadOnlyList<FlowStageKey> stages, TArgs args)
         {
-            var nodes = new List<IFlowNode>();
-
-            for (int i = 0; i < stages.Count; i++)
+            var nodes = FlowPools.RentStageNodeList();
+            try
             {
-                var stage = stages[i];
-                AddStageNodes(stage, args, nodes);
-            }
+                for (int i = 0; i < stages.Count; i++)
+                {
+                    var stage = stages[i];
+                    AddStageNodes(stage, args, nodes);
+                }
 
-            if (nodes.Count == 0) return new DoNode();
-            if (nodes.Count == 1) return nodes[0];
-            return new SequenceNode(nodes);
+                if (nodes.Count == 0) return new DoNode();
+                if (nodes.Count == 1) return nodes[0];
+                return new SequenceNode(nodes);
+            }
+            finally
+            {
+                FlowPools.ReleaseStageNodeList(nodes);
+            }
         }
 
         private void AddStageNodes(FlowStageKey stage, TArgs args, List<IFlowNode> into)

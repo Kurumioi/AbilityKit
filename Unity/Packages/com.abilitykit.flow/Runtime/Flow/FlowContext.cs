@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.Flow.Pooling;
 
 namespace AbilityKit.Ability.Flow
 {
@@ -63,20 +64,23 @@ namespace AbilityKit.Ability.Flow
 
         public IDisposable BeginScope()
         {
-            _scopes.Push(new Dictionary<Type, object>());
+            _scopes.Push(FlowPools.RentContextScopeMap());
             return new ScopeHandle(this);
         }
 
         private void EndScope()
         {
             if (_scopes.Count <= 0) return;
-            _scopes.Pop();
+            FlowPools.ReleaseContextScopeMap(_scopes.Pop());
         }
 
         public void Clear()
         {
             _map.Clear();
-            _scopes.Clear();
+            while (_scopes.Count > 0)
+            {
+                FlowPools.ReleaseContextScopeMap(_scopes.Pop());
+            }
         }
 
         private sealed class ScopeHandle : IDisposable

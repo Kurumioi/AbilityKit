@@ -5,6 +5,7 @@ using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.DemoHarness;
 using AbilityKit.Network.Runtime.LagCompensation;
+using AbilityKit.Demo.Shooter.View.PlayMode;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
@@ -22,6 +23,62 @@ public sealed class ShooterAcceptanceLabTests
             m => m.Model == NetworkSyncModel.PredictRollback && m.Implemented);
         Assert.Contains(ShooterAcceptanceCatalog.NetworkEnvironments, n => n.Id == "ideal");
         Assert.Contains(ShooterAcceptanceCatalog.NetworkEnvironments, n => n.Id == "poorwifi");
+    }
+
+    [Fact]
+    public void CatalogExposesSyncTemplatesForEveryImplementedMode()
+    {
+        Assert.NotEmpty(ShooterAcceptanceCatalog.SyncTemplates);
+
+        foreach (var mode in ShooterAcceptanceCatalog.SyncModes.Where(m => m.Implemented))
+        {
+            Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates, template => template.SyncModel == mode.Model);
+        }
+
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "predict-rollback-authority"
+                && template.ExpectedCarrierName == ShooterDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshot);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "authoritative-interpolation-presentation"
+                && template.ExpectedCarrierName == ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.PresentationInterpolation);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "hybrid-hero-prediction"
+                && template.ExpectedCarrierName == ShooterHybridDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation);
+    }
+
+    [Fact]
+    public void SyncTemplateCreatesSessionWithAssociatedConfiguration()
+    {
+        foreach (var template in ShooterAcceptanceCatalog.SyncTemplates)
+        {
+            using (var session = ShooterAcceptanceLab.Create(in template))
+            {
+                Assert.Equal(template.SyncModel, session.SyncModel);
+                Assert.Equal(template.DisplayName, session.NetworkName);
+                Assert.Equal(template.ExpectedCarrierName, session.Carrier.CarrierName);
+                Assert.Equal(template.EnableAuthoritativeWorld, session.HasAuthoritativeWorld);
+                Assert.Equal(template.RecommendedPlayerCount, session.Runtime.GetSnapshot().Players.Length);
+                Assert.Equal(template.ExpectsInterpolationDiagnostics, session.Controller is IInterpolationDiagnosticsProvider);
+            }
+        }
+    }
+
+    [Fact]
+    public void PlayModeOptionsCanBeBuiltFromSyncTemplate()
+    {
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate("hybrid-hero-prediction");
+
+        var options = ShooterPlayModeSessionOptions.FromTemplate(in template).Normalized();
+
+        Assert.Equal(template.Id, options.SyncTemplateId);
+        Assert.Equal(template.SyncModel, options.SyncModel);
+        Assert.Equal(template.RecommendedPlayerCount, options.PlayerCount);
+        Assert.Equal(template.EnableAuthoritativeWorld, options.EnableAuthoritativeWorld);
+        Assert.Equal(template.DisplayName, options.NetworkName);
+        Assert.Equal(NetworkConditionProfile.Lan.BaseLatencyMs, options.LatencyMs);
     }
 
     [Fact]

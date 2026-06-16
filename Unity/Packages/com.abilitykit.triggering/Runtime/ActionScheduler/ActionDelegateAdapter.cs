@@ -8,8 +8,8 @@ using AbilityKit.Triggering.Variables.Numeric;
 namespace AbilityKit.Triggering.Runtime.ActionScheduler
 {
     /// <summary>
-    /// Action 委托适配器
-    /// 将 PlannedTrigger 中强类型的 Action 委托适配为 ActionScheduler 使用的通用委托
+    /// Action 委托兼容适配器。
+    /// 当前不接入 PlannedTrigger 主线，仅保留强类型委托到 ActionScheduler 通用委托的旧适配入口。
     /// </summary>
     internal static class ActionDelegateAdapter
     {
@@ -101,14 +101,14 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 从 ITriggerDispatcherContext 创建 ExecCtx
+        /// 从 ITriggerDispatcherContext 创建 ExecCtx。
+        /// 当前兼容适配器无法从派发上下文还原完整 ExecCtx，禁止返回默认上下文伪装成功。
         /// </summary>
         private static ExecCtx<TCtx> CreateExecCtx<TArgs, TCtx>(ITriggerDispatcherContext dispatcherCtx)
             where TArgs : class
         {
-            // TODO: 从 dispatcherCtx 获取服务并构建 ExecCtx
-            // 当前返回默认值，实际应从 dispatcherCtx.GetService<T>() 获取各服务
-            return default;
+            throw new NotSupportedException(
+                "ActionDelegateAdapter 无法从 ITriggerDispatcherContext 构建完整 ExecCtx；请使用 PlannedTrigger 主线或传入已构建的 ExecCtx。");
         }
     }
 }

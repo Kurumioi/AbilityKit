@@ -126,25 +126,11 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
             ElapsedMs += deltaTimeMs;
 
-            // 阶段1: 延迟等待
-            if (Plan.ScheduleMode == Config.EActionScheduleMode.Delayed && !_hasDelayStart)
+            // 阶段1: 调度时间窗检查
+            if (!CanEnterExecutionWindow())
             {
-                if (State == EActionInstanceState.Registered)
-                {
-                    _delayStartMs = 0;
-                    _hasDelayStart = true;
-                }
-
-                if (ElapsedMs < Plan.ScheduleParam)
-                {
-                    State = EActionInstanceState.WaitingDelay;
-                    return ExecutionResult.None;
-                }
-
-                // 延迟完成，重置时间并进入执行阶段
-                ElapsedMs = 0;
-                LastExecuteMs = 0;
-                State = EActionInstanceState.Executing;
+                State = EActionInstanceState.WaitingDelay;
+                return ExecutionResult.None;
             }
 
             // 阶段2: 条件检查（如果需要）
@@ -161,6 +147,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
 
             // 阶段3: 根据调度模式执行
+            if (Plan.ScheduleMode == Config.EActionScheduleMode.Timeline)
+            {
+                State = EActionInstanceState.Failed;
+                return ExecutionResult.Failed("ActionScheduler 尚未定义 Timeline 子 Action 序列，不能按单一 ActionCallPlan 执行 Timeline。请改用 Plan/Executables 主线承载时间线行为。");
+            }
+
             var result = ExecuteInternal(ctx);
 
             // 检查是否完成
@@ -176,6 +168,43 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             return result;
         }
 
+        private bool CanEnterExecutionWindow()
+        {
+            switch (Plan.ScheduleMode)
+            {
+                case Config.EActionScheduleMode.Immediate:
+                    return true;
+
+                case Config.EActionScheduleMode.Delayed:
+                    if (!_hasDelayStart)
+                    {
+                        _delayStartMs = ElapsedMs;
+                        _hasDelayStart = true;
+                    }
+                    return ElapsedMs - _delayStartMs >= Math.Max(0f, Plan.ScheduleParam);
+
+                case Config.EActionScheduleMode.Periodic:
+                case Config.EActionScheduleMode.Continuous:
+                    if (Plan.ScheduleParam <= 0f)
+                    {
+                        return true;
+                    }
+
+                    if (ExecutionCount <= 0)
+                    {
+                        return ElapsedMs >= Plan.ScheduleParam;
+                    }
+
+                    return ElapsedMs - LastExecuteMs >= Plan.ScheduleParam;
+
+                case Config.EActionScheduleMode.Timeline:
+                    return true;
+
+                default:
+                    return true;
+            }
+        }
+
         private ExecutionResult ExecuteInternal(ActionExecutionContext ctx)
         {
             // 检查执行条件（ExecutionPolicy）
@@ -185,15 +214,16 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
 
             // 通过执行器执行
-            if (Executor.TryExecute(ctx, out var result))
+            var executed = Executor.TryExecute(ctx, out var result);
+            if (result.IsFailed && Plan.ExecutionPolicy == Config.EActionExecutionPolicy.WithRollback)
+            {
+                return ExecutionResult.Failed($"Action[{Plan.Id.Value}] 执行失败且请求回滚，但 ActionCallPlan 未携带回滚委托或补偿计划。原始错误：{result.FailureReason}");
+            }
+
+            if (executed)
             {
                 ExecutionCount++;
                 LastExecuteMs = ElapsedMs;
-
-                if (Plan.ExecutionPolicy == Config.EActionExecutionPolicy.WithRollback && result.IsFailed)
-                {
-                    // TODO: 触发回滚逻辑
-                }
             }
 
             return result;
@@ -237,8 +267,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                     break;
 
                 case Config.EActionScheduleMode.Timeline:
-                    // TODO: Timeline 实现
-                    break;
+                    return ExecutionCount >= 1;
             }
 
             return false;

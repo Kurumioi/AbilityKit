@@ -35,8 +35,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         {
             if (_isSignaled) return;
 
-            // 将当前 Action 加入等待队列
-            // 实际实现会在 ActionScheduler.Update 中处理
             throw new NotImplementedException("Wait 应在 ActionExecutionContext 中通过协程/状态机实现");
         }
 
@@ -46,7 +44,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         public void Set()
         {
             _isSignaled = true;
-            // 唤醒所有等待的 Action
             lock (_waitingActions)
             {
                 foreach (var continuation in _waitingActions)
@@ -101,7 +98,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             {
                 if (_isHeld)
                 {
-                    // 当前已被占用
                     return false;
                 }
 
@@ -158,6 +154,33 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         public int ActiveActionCount { get; private set; }
 
         /// <summary>
+        /// 每帧更新（支持复用控制上下文）
+        /// </summary>
+        public void Update(float deltaTimeMs, ITriggerDispatcherContext context, ExecutionControl control)
+        {
+            ActiveActionCount = 0;
+
+            for (int i = _allSchedulers.Count - 1; i >= 0; i--)
+            {
+                var scheduler = _allSchedulers[i];
+                var ctx = new ActionExecutionContext(
+                    instance: null,
+                    globalContext: context?.Context,
+                    dispatcherContext: context,
+                    control: control ?? new ExecutionControl());
+
+                scheduler.Update(deltaTimeMs, ctx);
+                ActiveActionCount += scheduler.ActiveCount;
+
+                if (scheduler.ActionCount == 0)
+                {
+                    _allSchedulers.RemoveAt(i);
+                    _schedulersByTriggerId.Remove(scheduler.TriggerId);
+                }
+            }
+        }
+
+        /// <summary>
         /// 创建或获取 Trigger 对应的 ActionScheduler
         /// </summary>
         public ActionScheduler GetOrCreateScheduler(int triggerId)
@@ -202,29 +225,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         /// </summary>
         public void Update(float deltaTimeMs, ITriggerDispatcherContext context)
         {
-            ActiveActionCount = 0;
-
-            // 遍历所有调度器
-            for (int i = _allSchedulers.Count - 1; i >= 0; i--)
-            {
-                var scheduler = _allSchedulers[i];
-                var ctx = new ActionExecutionContext(
-                    instance: null,
-                    globalContext: context?.Context,
-                    dispatcherContext: context,
-                    control: new ExecutionControl()
-                );
-
-                scheduler.Update(deltaTimeMs, ctx);
-                ActiveActionCount += scheduler.ActiveCount;
-
-                // 如果调度器不再活跃（无 Action），则清理
-                if (scheduler.ActionCount == 0)
-                {
-                    _allSchedulers.RemoveAt(i);
-                    _schedulersByTriggerId.Remove(scheduler.TriggerId);
-                }
-            }
+            Update(deltaTimeMs, context, null);
         }
 
         /// <summary>

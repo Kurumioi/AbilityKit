@@ -160,7 +160,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastAuthorityAcceptedInputs = 0;
             if (_session.AuthoritativeWorld != null)
             {
-                _session.EnqueueAuthoritativeInput(in command);
+                _session.EnqueueAuthoritativeInput(_lastSubmitResult.RequestedFrame, in command);
                 _session.TickAuthoritativeWorld(deltaSeconds);
                 _lastAuthorityAcceptedInputs = _session.LastAuthorityDeliveredInputCount;
             }
@@ -201,3 +201,5 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         }
     }
 }
+
+

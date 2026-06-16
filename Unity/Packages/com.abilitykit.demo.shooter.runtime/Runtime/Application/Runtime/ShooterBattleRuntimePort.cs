@@ -152,6 +152,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return _packedSnapshotImporter.Import(in snapshot);
         }
 
+        public bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player)
+        {
+            return _entities.TryGetPlayer(playerId, out player);
+        }
+
+        public void SetPlayer(in ShooterSveltoPlayerComponent player)
+        {
+            _entities.SetPlayer(in player);
+        }
+
         public byte[] ExportPackedSnapshotBytes(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
         {
             return _bytesCodec.Export(this, worldId, isFullSnapshot, authorityOverride);

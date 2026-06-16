@@ -7,15 +7,18 @@ using AbilityKit.Triggering.Runtime.Plan;
 namespace AbilityKit.Triggering.Runtime.Dispatcher
 {
     /// <summary>
-    /// 统一触发器调度入口
-    /// 封装 TriggerDispatcherRegistry，提供简洁的 API
+    /// Dispatcher 兼容聚合入口。
+    /// 封装 TriggerDispatcherRegistry，统一事件、定时和持续执行等外部驱动方式。
+    /// 新的事件订阅、条件评估和执行控制主线优先使用 Runtime/TriggerRunner；此类型保留用于旧 Dispatcher API 与外部驱动适配。
     /// </summary>
     public class TriggerDispatcherHub
     {
         private readonly TriggerDispatcherRegistry _registry;
         private ITriggerDispatcherContext _currentContext;
 
-        // ✅ 新增：ActionScheduler 全局管理器
+        /// <summary>
+        /// Action 调度器管理器，用于维护由计划 Action 派生出的延迟、周期和持续型 Action 实例。
+        /// </summary>
         private readonly ActionSchedulerManager _actionSchedulerManager;
 
         /// <summary>
@@ -129,12 +132,12 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         }
 
         /// <summary>
-        /// 每帧更新
+        /// 每帧更新。
+        /// 先推进触发器级 Dispatcher，再推进由触发器计划派生出的 Action 级调度实例。
         /// </summary>
         public void Update(float deltaTimeMs)
         {
             _registry.Update(deltaTimeMs, _currentContext);
-            // ✅ 更新 ActionScheduler（Trigger 级别之后）
             _actionSchedulerManager.Update(deltaTimeMs, _currentContext);
         }
 
@@ -163,11 +166,12 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
         }
 
         /// <summary>
-        /// 销毁
+        /// 销毁调度中心并清理触发器级与 Action 级调度资源。
         /// </summary>
         public void Dispose()
         {
             _registry.Dispose();
+            _actionSchedulerManager.Clear();
         }
     }
 }

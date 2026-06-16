@@ -4,10 +4,10 @@ using AbilityKit.Core.Logging;
 namespace AbilityKit.Triggering.Runtime.Scheduler
 {
     /// <summary>
-    /// 调度器实现
-    /// 主动调度模式：通过回调执行行为，支持周期性、延迟、持续执行
+    /// 旧版通用调度器实现。
+    /// 主动调度模式：通过回调执行行为，支持周期性、延迟、持续执行。
     ///
-    /// 【框架层】默认调度器实现，具体项目可实现 IScheduler 接口提供自定义实现
+    /// 【兼容层】保留给依赖 Runtime/Scheduler 的旧代码；新触发器 Action 调度优先使用 Runtime/ActionScheduler，通用业务调度优先使用 Runtime/Schedule。
     /// </summary>
     public sealed class Scheduler : IScheduler
     {

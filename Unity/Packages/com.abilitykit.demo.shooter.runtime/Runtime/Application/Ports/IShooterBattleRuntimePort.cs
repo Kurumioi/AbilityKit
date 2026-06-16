@@ -10,5 +10,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         IShooterStateHashProvider,
         IShooterPackedSnapshotPort
     {
+        bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player);
+
+        void SetPlayer(in ShooterSveltoPlayerComponent player);
     }
 }

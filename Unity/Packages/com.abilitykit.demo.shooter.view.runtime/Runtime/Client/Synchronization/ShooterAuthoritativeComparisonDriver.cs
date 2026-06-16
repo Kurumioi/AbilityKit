@@ -10,8 +10,8 @@ using AbilityKit.Protocol.Shooter;
 namespace AbilityKit.Demo.Shooter.View
 {
     /// <summary>
-    /// 负责验收会话中的权威世界推进、Carrier 快照发布与 LagComp 历史采集。
-    /// <see cref="ShooterAcceptanceSession"/> 只保留会话门面职责，具体的权威侧编排集中在这里。
+    /// 负责验收会话中的权威世界推进、Carrier 快照发布�?LagComp 历史采集�?
+    /// <see cref="ShooterAcceptanceSession"/> 只保留会话门面职责，具体的权威侧编排集中在这里�?
     /// </summary>
     internal sealed class ShooterAuthoritativeComparisonDriver
     {
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Shooter.View
             _networkElapsedSeconds = 0d;
         }
 
-        public void EnqueueInput(in ShooterPlayerCommand command)
+        public void EnqueueInput(int commandFrame, in ShooterPlayerCommand command)
         {
             if (_networkProfile.PacketLossRate > 0d && _inputRandom.NextDouble() < _networkProfile.PacketLossRate)
             {
@@ -93,7 +93,7 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var deliverAt = _networkElapsedSeconds + Math.Max(0, latencyMs) / 1000d;
-            _pendingInputs.Enqueue(new PendingAuthoritativeInput(deliverAt, command));
+            _pendingInputs.Enqueue(new PendingAuthoritativeInput(deliverAt, commandFrame, command));
         }
 
         public void Advance(int stepCount, float deltaSeconds)
@@ -128,7 +128,7 @@ namespace AbilityKit.Demo.Shooter.View
             while (_pendingInputs.Count > 0 && _pendingInputs.Peek().DeliverAtSeconds <= _networkElapsedSeconds)
             {
                 var pending = _pendingInputs.Dequeue();
-                delivered += _authoritativeWorld.SubmitInput(_authoritativeWorld.CurrentFrame, new[] { pending.Command });
+                delivered += _authoritativeWorld.SubmitInput(pending.CommandFrame, new[] { pending.Command });
             }
 
             return delivered;
@@ -146,13 +146,16 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly struct PendingAuthoritativeInput
         {
             public readonly double DeliverAtSeconds;
+            public readonly int CommandFrame;
             public readonly ShooterPlayerCommand Command;
 
-            public PendingAuthoritativeInput(double deliverAtSeconds, in ShooterPlayerCommand command)
+            public PendingAuthoritativeInput(double deliverAtSeconds, int commandFrame, in ShooterPlayerCommand command)
             {
                 DeliverAtSeconds = deliverAtSeconds;
+                CommandFrame = commandFrame;
                 Command = command;
             }
         }
     }
 }
+

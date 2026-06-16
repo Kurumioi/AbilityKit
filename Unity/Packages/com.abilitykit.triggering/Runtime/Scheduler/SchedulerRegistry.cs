@@ -4,11 +4,10 @@ using System.Collections.Generic;
 namespace AbilityKit.Triggering.Runtime.Scheduler
 {
     /// <summary>
-    /// 调度器注册中心
-    /// 提供统一的调度器生命周期管理和查询能力
+    /// 旧版调度器注册中心。
+    /// 提供统一的调度器生命周期管理和查询能力。
     ///
-    /// 【框架层】默认实现，支持依赖注入
-    /// 具体项目可实现 ISchedulerRegistry 接口提供自定义实现
+    /// 【兼容层】保留给依赖 Runtime/Scheduler 的旧代码；新触发器 Action 调度优先使用 Runtime/ActionScheduler，通用业务调度优先使用 Runtime/Schedule。
     /// </summary>
     public sealed class SchedulerRegistry : ISchedulerRegistry
     {

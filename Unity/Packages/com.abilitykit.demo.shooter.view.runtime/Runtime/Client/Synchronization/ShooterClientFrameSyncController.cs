@@ -62,23 +62,16 @@ namespace AbilityKit.Demo.Shooter.View
             registry.Register(new ShooterPackedSnapshotRollbackProvider(_runtime, rollbackWorldId));
             _rollback = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(rollbackBufferFrames));
             _recoveryPolicy = recoveryPolicy;
-            // §4.3 阈值映射: replayThreshold(120) 作为框架短追帧 vs 全量的总分界 (resumeWindowFrames)。
             _fastReconnect = new ShooterFastReconnectDriver(recoveryPolicy.ReplayThreshold);
             _fixedDeltaTime = 1f / tickRate;
         }
 
         public int CurrentFrame => _runtime.CurrentFrame;
-
         public float FixedDeltaTime => _fixedDeltaTime;
-
         public float AccumulatedTime => _accumulator;
-
         public int PendingInputFrameCount => _predictionReconciliation.PendingInputFrameCount;
-
         public ShooterSnapshotApplyResult LastSnapshotApplyResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
-
         public ShooterClientReconciliationResult LastReconciliationResult { get; private set; } = ShooterClientReconciliationResult.None;
-
         public bool NeedsFullSnapshotResync { get; private set; }
 
         public ShooterClientRecoveryState RecoveryState
@@ -87,26 +80,12 @@ namespace AbilityKit.Demo.Shooter.View
             private set => SetRecoveryState(value);
         }
 
-        /// <summary>
-        /// The framework <see cref="FastReconnectPhase"/> the embedded <see cref="FastReconnectSession"/>
-        /// is currently in. Projection target for <see cref="RecoveryState"/> (audit §10.4 consumer proof).
-        /// </summary>
         public FastReconnectPhase FastReconnectPhase => _fastReconnect.Phase;
-
-        /// <summary>
-        /// Health events emitted by the embedded <see cref="FastReconnectSession"/> during the most
-        /// recent recovery-state transition, for forwarding into DemoHarness telemetry (design §4.4.5).
-        /// </summary>
         public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _lastHealthEvents;
-
         public ShooterClientResyncReason LastResyncReason { get; private set; } = ShooterClientResyncReason.None;
-
         public int LastResyncClientFrame { get; private set; }
-
         public int LastResyncAuthoritativeFrame { get; private set; }
-
         public uint LastResyncClientStateHash { get; private set; }
-
         public uint LastResyncAuthoritativeStateHash { get; private set; }
 
         public bool TryRestorePredictedSnapshot(int frame)
@@ -186,11 +165,40 @@ namespace AbilityKit.Demo.Shooter.View
             return accepted;
         }
 
+        public bool TryEnterCatchUp(int authoritativeFrame)
+        {
+            if (!_runtime.IsStarted || authoritativeFrame <= _runtime.CurrentFrame)
+            {
+                return false;
+            }
+
+            _catchUpTargetFrame = authoritativeFrame;
+            LastResyncAuthoritativeFrame = authoritativeFrame;
+            RecoveryState = ShooterClientRecoveryState.CatchUp;
+            return true;
+        }
+
+        public void MarkGatewayInputResyncRequested(int clientFrame, int authoritativeFrame, uint clientStateHash = 0u, uint authoritativeStateHash = 0u)
+        {
+            MarkFullSnapshotResyncNeeded(
+                ShooterClientResyncReason.ClientHashRejectedByServer,
+                clientFrame,
+                authoritativeFrame,
+                clientStateHash,
+                authoritativeStateHash);
+        }
+
+        private void RecordPendingInput(int frame, ShooterPlayerCommand[] commands)
+        {
+            _predictionReconciliation.RecordLocalInput(frame, commands);
+        }
+
         public ShooterSnapshotApplyResult ApplyGatewayPush(uint opCode, ArraySegment<byte> payload)
         {
             var replayTargetFrame = _runtime.CurrentFrame;
             var predictedHashBeforeCorrection = _runtime.IsStarted ? _runtime.ComputeStateHash() : 0u;
             var wasAwaitingFullSnapshot = NeedsFullSnapshotResync;
+            var hasPredictedControlledPlayer = TryCapturePredictedControlledPlayer(out var predictedControlledPlayer);
 
             LastSnapshotApplyResult = _snapshotSync.TryApplyGatewayPush(opCode, payload);
             if (LastSnapshotApplyResult == ShooterSnapshotApplyResult.AppliedPackedSnapshot)
@@ -218,6 +226,7 @@ namespace AbilityKit.Demo.Shooter.View
                         StepRuntimeFrameAndCapture));
 
                 LastReconciliationResult = reconciliation;
+                PreserveReasonableControlledPrediction(hasPredictedControlledPlayer, in predictedControlledPlayer, in reconciliation);
                 if (reconciliation.AuthoritativeHashMatched)
                 {
                     var frameDelta = replayTargetFrame - authoritativeFrame;
@@ -258,9 +267,6 @@ namespace AbilityKit.Demo.Shooter.View
                 _presentation.PublishReconciliation(in reconciliation);
                 PublishRuntimeSnapshot();
 
-                // §4.4.1: a clean authoritative receipt that left us in steady state is a heartbeat;
-                // acknowledge the frame on the framework session so it tracks LastAckedServerFrame and
-                // emits SnapshotReceived (only when no recovery transition already drove the session).
                 if (RecoveryState == ShooterClientRecoveryState.Normal && !wasAwaitingFullSnapshot)
                 {
                     HeartbeatFastReconnect(authoritativeFrame);
@@ -286,7 +292,6 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientFrameTickResult Tick(float deltaTime)
         {
             if (deltaTime < 0f) throw new ArgumentOutOfRangeException(nameof(deltaTime));
-
             if (!_runtime.IsStarted)
             {
                 return ShooterClientFrameTickResult.NotStarted;
@@ -306,19 +311,21 @@ namespace AbilityKit.Demo.Shooter.View
             if (RecoveryState == ShooterClientRecoveryState.Recovered)
             {
                 RecoveryState = ShooterClientRecoveryState.Normal;
+                _accumulator = 0f;
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
             }
 
             _accumulator += deltaTime;
             var ticks = 0;
-            while (_accumulator + 0.000001f >= _fixedDeltaTime)
+            while (_accumulator >= _fixedDeltaTime)
             {
                 if (!StepRuntimeFrameAndCapture())
                 {
                     break;
                 }
 
-                ticks++;
                 _accumulator -= _fixedDeltaTime;
+                ticks++;
             }
 
             if (ticks > 0)
@@ -331,7 +338,12 @@ namespace AbilityKit.Demo.Shooter.View
 
         private bool StepRuntimeFrameAndCapture()
         {
-            if (!StepRuntimeFrame())
+            if (!_runtime.IsStarted)
+            {
+                return false;
+            }
+
+            if (!_runtime.Tick(_fixedDeltaTime))
             {
                 return false;
             }
@@ -340,9 +352,39 @@ namespace AbilityKit.Demo.Shooter.View
             return true;
         }
 
-        private bool StepRuntimeFrame()
+        private ShooterClientFrameTickResult TickCatchUp()
         {
-            return _runtime.Tick(_fixedDeltaTime);
+            var targetFrame = _catchUpTargetFrame;
+            if (targetFrame <= _runtime.CurrentFrame)
+            {
+                RecoveryState = ShooterClientRecoveryState.Recovered;
+                _accumulator = 0f;
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+            }
+
+            var ticks = 0;
+            while (_runtime.CurrentFrame < targetFrame)
+            {
+                if (!StepRuntimeFrameAndCapture())
+                {
+                    break;
+                }
+
+                ticks++;
+            }
+
+            _accumulator = 0f;
+            if (ticks > 0)
+            {
+                PublishRuntimeSnapshot();
+            }
+
+            if (_runtime.CurrentFrame >= targetFrame)
+            {
+                RecoveryState = ShooterClientRecoveryState.Recovered;
+            }
+
+            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());
         }
 
         private void CaptureRollbackSnapshot()
@@ -351,79 +393,6 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 _rollback.CaptureAndStore(new FrameIndex(_runtime.CurrentFrame));
             }
-        }
-
-        private ShooterClientFrameTickResult TickCatchUp()
-        {
-            var ticks = 0;
-            while (_runtime.CurrentFrame < _catchUpTargetFrame && ticks < _recoveryPolicy.MaxCatchUpTicksPerUpdate)
-            {
-                if (!StepRuntimeFrameAndCapture())
-                {
-                    MarkFullSnapshotResyncNeeded(
-                        ShooterClientResyncReason.FrameTooFarBehind,
-                        _runtime.CurrentFrame,
-                        _catchUpTargetFrame,
-                        _runtime.ComputeStateHash(),
-                        0u);
-                    break;
-                }
-
-                ticks++;
-            }
-
-            _accumulator = 0f;
-            if (_runtime.CurrentFrame >= _catchUpTargetFrame && RecoveryState == ShooterClientRecoveryState.CatchUp)
-            {
-                RecoveryState = ShooterClientRecoveryState.Normal;
-                _catchUpTargetFrame = 0;
-            }
-
-            if (ticks > 0)
-            {
-                PublishRuntimeSnapshot();
-            }
-
-            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());
-        }
-
-        private void RecordPendingInput(int frame, ShooterPlayerCommand[] commands)
-        {
-            _predictionReconciliation.RecordLocalInput(frame, commands);
-        }
-
-        public void MarkGatewayInputResyncRequested(int clientFrame, int authoritativeFrame, uint clientStateHash = 0u, uint authoritativeStateHash = 0u)
-        {
-            MarkFullSnapshotResyncNeeded(
-                ShooterClientResyncReason.ClientHashRejectedByServer,
-                clientFrame,
-                authoritativeFrame,
-                clientStateHash,
-                authoritativeStateHash);
-        }
-
-        public bool TryEnterCatchUp(int authoritativeFrame)
-        {
-            if (!_runtime.IsStarted || authoritativeFrame <= _runtime.CurrentFrame)
-            {
-                return false;
-            }
-
-            var frameDelta = authoritativeFrame - _runtime.CurrentFrame;
-            if (frameDelta > _recoveryPolicy.SmallCatchUpThreshold)
-            {
-                MarkFullSnapshotResyncNeeded(
-                    ShooterClientResyncReason.FrameTooFarBehind,
-                    _runtime.CurrentFrame,
-                    authoritativeFrame,
-                    _runtime.ComputeStateHash(),
-                    0u);
-                return false;
-            }
-
-            RecoveryState = ShooterClientRecoveryState.CatchUp;
-            _catchUpTargetFrame = authoritativeFrame;
-            return true;
         }
 
         private void MarkFullSnapshotResyncNeeded(
@@ -439,8 +408,7 @@ namespace AbilityKit.Demo.Shooter.View
             LastResyncAuthoritativeFrame = authoritativeFrame;
             LastResyncClientStateHash = clientStateHash;
             LastResyncAuthoritativeStateHash = authoritativeStateHash;
-            // Set the recovery state last so the FastReconnect driver observes the freshly written
-            // resync frames/hashes when it computes the gap for the framework transition.
+            _catchUpTargetFrame = authoritativeFrame > clientFrame ? authoritativeFrame : clientFrame;
             RecoveryState = ShooterClientRecoveryState.AwaitingFullSnapshot;
         }
 
@@ -452,20 +420,15 @@ namespace AbilityKit.Demo.Shooter.View
             LastResyncAuthoritativeFrame = 0;
             LastResyncClientStateHash = 0u;
             LastResyncAuthoritativeStateHash = 0u;
+            _catchUpTargetFrame = 0;
         }
 
         private static bool IsStrongRecoverySnapshot(uint snapshotFlags)
         {
-            return (snapshotFlags & (ShooterPackedSnapshotFlags.Full | ShooterPackedSnapshotFlags.AuthorityOverride)) != 0u;
+            return (snapshotFlags & ShooterPackedSnapshotFlags.Full) != 0u
+                || (snapshotFlags & ShooterPackedSnapshotFlags.AuthorityOverride) != 0u;
         }
 
-        /// <summary>
-        /// Single funnel for every <see cref="RecoveryState"/> mutation. Stores the new Shooter state
-        /// and drives the embedded framework <see cref="FastReconnectSession"/> toward the matching
-        /// <see cref="FastReconnectPhase"/> (design §4.2 state mapping), capturing the unified health
-        /// events the session emits along the way (§4.4.5). Shooter routing remains the source of truth;
-        /// the framework owns phase adjudication + telemetry.
-        /// </summary>
         private void SetRecoveryState(ShooterClientRecoveryState next)
         {
             var previous = _recoveryState;
@@ -481,39 +444,27 @@ namespace AbilityKit.Demo.Shooter.View
         private void DriveFastReconnect(ShooterClientRecoveryState next)
         {
             _fastReconnect.ResetEventBuffer();
-
             switch (next)
             {
                 case ShooterClientRecoveryState.CatchUp:
                 {
-                    // Short catch-up: resume path. Gap is the (small) frames-behind the catch-up target.
-                    var gap = _catchUpTargetFrame > _runtime.CurrentFrame
-                        ? _catchUpTargetFrame - _runtime.CurrentFrame
-                        : 1;
+                    var gap = _catchUpTargetFrame > _runtime.CurrentFrame ? _catchUpTargetFrame - _runtime.CurrentFrame : 1;
                     _fastReconnect.Reconcile(FastReconnectPhase.Resuming, LastResyncAuthoritativeFrame, gap);
                     break;
                 }
-
                 case ShooterClientRecoveryState.AwaitingFullSnapshot:
                 {
-                    // Large gap / business-classified resync: full snapshot path.
                     var gap = LastResyncAuthoritativeFrame - LastResyncClientFrame;
                     _fastReconnect.Reconcile(FastReconnectPhase.AwaitingFullSnapshot, LastResyncAuthoritativeFrame, gap);
                     break;
                 }
-
                 case ShooterClientRecoveryState.ApplyingFullSnapshot:
-                    // §4.2: Applying is a Shooter-private sub-state of the framework AwaitingFullSnapshot
-                    // phase (snapshot import in flight). No framework transition until CompleteRecovery.
                     break;
-
                 case ShooterClientRecoveryState.Recovered:
                     _fastReconnect.Reconcile(FastReconnectPhase.Recovered, LastResyncAuthoritativeFrame, 0);
                     break;
-
                 case ShooterClientRecoveryState.Normal:
                 default:
-                    // Back to steady state: complete any in-flight recovery and re-acknowledge the frame.
                     _fastReconnect.Reconcile(FastReconnectPhase.Connected, _runtime.CurrentFrame, 0);
                     break;
             }
@@ -546,6 +497,61 @@ namespace AbilityKit.Demo.Shooter.View
             _lastHealthEvents = buffer;
         }
 
+        private bool TryCapturePredictedControlledPlayer(out ShooterSveltoPlayerComponent player)
+        {
+            var controlledPlayerId = _presentation.ControlledPlayerId;
+            if (controlledPlayerId <= 0 || !_runtime.IsStarted)
+            {
+                player = default;
+                return false;
+            }
+
+            return _runtime.TryGetPlayer(controlledPlayerId, out player);
+        }
+
+        private void PreserveReasonableControlledPrediction(
+            bool hasPredictedControlledPlayer,
+            in ShooterSveltoPlayerComponent predictedControlledPlayer,
+            in ShooterClientReconciliationResult reconciliation)
+        {
+            if (!hasPredictedControlledPlayer || predictedControlledPlayer.PlayerId <= 0)
+            {
+                return;
+            }
+
+            if (!_runtime.TryGetPlayer(predictedControlledPlayer.PlayerId, out var reconciledPlayer))
+            {
+                return;
+            }
+
+            var dx = predictedControlledPlayer.X - reconciledPlayer.X;
+            var dy = predictedControlledPlayer.Y - reconciledPlayer.Y;
+            var distanceSquared = dx * dx + dy * dy;
+            var maxReasonableDistance = GetMaxReasonableControlledPredictionDistance(in reconciliation);
+            if (distanceSquared > maxReasonableDistance * maxReasonableDistance)
+            {
+                return;
+            }
+
+            if (distanceSquared <= 0.000001f)
+            {
+                return;
+            }
+
+            reconciledPlayer.X = predictedControlledPlayer.X;
+            reconciledPlayer.Y = predictedControlledPlayer.Y;
+            reconciledPlayer.AimX = predictedControlledPlayer.AimX;
+            reconciledPlayer.AimY = predictedControlledPlayer.AimY;
+            _runtime.SetPlayer(in reconciledPlayer);
+        }
+
+        private float GetMaxReasonableControlledPredictionDistance(in ShooterClientReconciliationResult reconciliation)
+        {
+            var replayFrames = Math.Max(1, Math.Abs(reconciliation.PredictedFrameBeforeCorrection - reconciliation.AuthoritativeFrame));
+            var replayDistance = ShooterBattleTuning.PlayerSpeed * _fixedDeltaTime * replayFrames;
+            return replayDistance + ShooterBattleTuning.PlayerSpeed * _fixedDeltaTime + 0.05f;
+        }
+
         private void PublishRuntimeSnapshot()
         {
             _presentation.ApplyLocalPredictionSnapshot(_runtime.GetSnapshot());
@@ -567,11 +573,9 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterClientFrameTickResult
     {
         public static readonly ShooterClientFrameTickResult NotStarted = new ShooterClientFrameTickResult(0, 0, 0u);
-
         public readonly int Ticks;
         public readonly int Frame;
         public readonly uint StateHash;
-
         public ShooterClientFrameTickResult(int ticks, int frame, uint stateHash)
         {
             Ticks = ticks;
@@ -582,21 +586,7 @@ namespace AbilityKit.Demo.Shooter.View
 
     public readonly struct ShooterClientReconciliationResult
     {
-        public static readonly ShooterClientReconciliationResult None = new ShooterClientReconciliationResult(
-            ShooterSnapshotApplyResult.Ignored,
-            0,
-            0u,
-            0,
-            0u,
-            0u,
-            false,
-            0,
-            0,
-            0u,
-            0,
-            0,
-            0);
-
+        public static readonly ShooterClientReconciliationResult None = new ShooterClientReconciliationResult(ShooterSnapshotApplyResult.Ignored, 0, 0u, 0, 0u, 0u, false, 0, 0, 0u, 0, 0, 0);
         public readonly ShooterSnapshotApplyResult ApplyResult;
         public readonly int PredictedFrameBeforeCorrection;
         public readonly uint PredictedHashBeforeCorrection;

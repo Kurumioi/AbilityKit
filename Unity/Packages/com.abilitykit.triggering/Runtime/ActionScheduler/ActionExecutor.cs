@@ -160,25 +160,22 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
-            int attempt = 0;
-            while (attempt <= _maxRetries)
+            if (_retryDelayMs > 0f)
             {
-                if (_inner.TryExecute(ctx, out var result))
-                {
-                    return result;
-                }
-
-                attempt++;
-                if (attempt > _maxRetries)
-                {
-                    return ExecutionResult.Failed($"Failed after {_maxRetries} retries");
-                }
-
-                // 延迟后重试
-                // TODO: 需要调度器支持延迟执行
+                return ExecutionResult.Failed("RetryActionExecutor 当前只支持同步零延迟重试；如需延迟重试，请通过 ActionCallPlan.ScheduleMode 或 ActionScheduler 扩展重试状态机。设置 retryDelayMs <= 0 可启用立即重试。");
             }
 
-            return ExecutionResult.Failed("Retry logic error");
+            ExecutionResult lastResult = ExecutionResult.Failed("Retry not executed");
+            for (int attempt = 0; attempt <= _maxRetries; attempt++)
+            {
+                _inner.TryExecute(ctx, out lastResult);
+                if (lastResult.IsSuccess)
+                {
+                    return lastResult;
+                }
+            }
+
+            return ExecutionResult.Failed($"Failed after {_maxRetries} retries. Last error: {lastResult.FailureReason}");
         }
 
         public override void Cancel(string reason)
