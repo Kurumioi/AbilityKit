@@ -20,10 +20,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         private readonly Dictionary<int, int> _planIndexByInstanceId = new();
         private int _nextInstanceId;
         private bool _isActive = true;
+        private float _elapsedMs;
 
         public int ActionCount => _actions.Count;
         public int ActiveCount { get; private set; }
         public bool IsActive => _isActive;
+        public float ElapsedMs => _elapsedMs;
 
         /// <summary>
         /// 创建指定触发器的 Action 调度器。
@@ -48,7 +50,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 triggerId: TriggerId,
                 plan: plan,
                 executor: executor ?? new DefaultActionExecutor(actionDelegate),
-                globalContext: boundArgs
+                globalContext: boundArgs,
+                createdAtMs: _elapsedMs
             )
             {
                 ActionDelegate = actionDelegate,
@@ -107,6 +110,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         public void Update(float deltaTimeMs, ActionExecutionContext ctx)
         {
             if (!_isActive) return;
+
+            _elapsedMs += Math.Max(0f, deltaTimeMs);
 
             for (int i = _actions.Count - 1; i >= 0; i--)
             {

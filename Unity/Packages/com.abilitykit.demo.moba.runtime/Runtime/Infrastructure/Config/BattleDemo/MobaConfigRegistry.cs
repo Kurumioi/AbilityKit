@@ -100,6 +100,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
 
             // Tag templates
             new Entry(MobaConfigPaths.TagTemplatesFile, typeof(TagTemplateDTO), typeof(MO.TagTemplateMO)),
+            new Entry(MobaConfigPaths.ContinuousTagTemplatesFile, typeof(ContinuousTagTemplateDTO), typeof(MO.ContinuousTagTemplateMO)),
 
             // Search query templates
             new Entry(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(MO.SearchQueryTemplateMO)),

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter;
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 using Xunit;
@@ -44,7 +45,15 @@ public sealed class ShooterRoomGameplayAdapterTests
                 ConfigVersion: 8,
                 ProtocolVersion: 9,
                 WorldType: null,
-                ClientId: "client-a"));
+                ClientId: "client-a",
+                SyncOptions: new BattleSyncStartOptions(
+                    SyncTemplateId: "predict-rollback-authority",
+                    SyncModel: 2,
+                    NetworkEnvironmentId: "ideal",
+                    CarrierName: "DemoHarness",
+                    EnableAuthoritativeWorld: true,
+                    InterpolationEnabled: false,
+                    InputDelayFrames: 3)));
 
         Assert.True(adapter.CanStart(state));
         Assert.Equal(ShooterGameplay.RoomType, initParams.RoomType);
@@ -57,6 +66,15 @@ public sealed class ShooterRoomGameplayAdapterTests
         Assert.Equal(8, initParams.ConfigVersion);
         Assert.Equal(9, initParams.ProtocolVersion);
         Assert.Equal("client-a", initParams.ClientId);
+        Assert.Equal(3, initParams.InputDelayFrames);
+        Assert.NotNull(initParams.SyncOptions);
+        Assert.Equal("predict-rollback-authority", initParams.SyncOptions!.SyncTemplateId);
+        Assert.Equal(2, initParams.SyncOptions.SyncModel);
+        Assert.Equal("ideal", initParams.SyncOptions.NetworkEnvironmentId);
+        Assert.Equal("DemoHarness", initParams.SyncOptions.CarrierName);
+        Assert.True(initParams.SyncOptions.EnableAuthoritativeWorld);
+        Assert.False(initParams.SyncOptions.InterpolationEnabled);
+        Assert.Equal(3, initParams.SyncOptions.InputDelayFrames);
         Assert.NotEqual(0UL, initParams.WorldId);
         Assert.Collection(
             initParams.Players!,

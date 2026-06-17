@@ -148,11 +148,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 if (!_textLoader.TryLoad(file, out var content) || string.IsNullOrEmpty(content))
                 {
-                    var diagnostic = new TriggerPlanJsonDiagnostic(
-                        TriggerPlanJsonDiagnosticSeverity.Warning,
+                    HandleFileLoadFailure(
+                        options,
+                        file,
                         "Trigger plan file is empty or missing",
-                        file);
-                    options.AddDiagnostic(diagnostic);
+                        null);
                     continue;
                 }
 
@@ -166,12 +166,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         var message = string.IsNullOrEmpty(error.Message)
                             ? "Unknown trigger plan json parse error"
                             : error.Message;
-                        if (options.ThrowOnFileParseError)
-                        {
-                            throw new InvalidOperationException($"Failed to load trigger plan file {file}: {message}", error.Exception);
-                        }
-
-                        LogWarning($"[TriggerPlanDirectoryLoader] Failed to load file {file}: {message}");
+                        HandleFileLoadFailure(options, file, message, error.Exception);
                         continue;
                     }
 
@@ -191,23 +186,34 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
                 catch (Exception ex)
                 {
-                    var diagnostic = new TriggerPlanJsonDiagnostic(
-                        TriggerPlanJsonDiagnosticSeverity.Error,
-                        ex.Message,
-                        file,
-                        exception: ex);
-                    options.AddDiagnostic(diagnostic);
-                    if (options.ThrowOnFileParseError)
-                    {
-                        throw;
-                    }
-
-                    LogWarning($"[TriggerPlanDirectoryLoader] Failed to load file {file}: {ex.Message}");
+                    HandleFileLoadFailure(options, file, ex.Message, ex);
                 }
             }
 
             db.LoadFromDto(mergedDto);
             return db;
+        }
+
+        private static void HandleFileLoadFailure(
+            TriggerPlanDirectoryLoadOptions options,
+            string file,
+            string message,
+            Exception exception)
+        {
+            var diagnostic = new TriggerPlanJsonDiagnostic(
+                TriggerPlanJsonDiagnosticSeverity.Error,
+                message,
+                file,
+                exception: exception);
+            options.AddDiagnostic(diagnostic);
+
+            var formattedMessage = $"Failed to load trigger plan file {file}: {message}";
+            if (options.ThrowOnFileParseError)
+            {
+                throw new InvalidOperationException(formattedMessage, exception);
+            }
+
+            LogWarning($"[TriggerPlanDirectoryLoader] {formattedMessage}");
         }
 
         private static string NormalizePath(string baseDir, string relativePath)
@@ -227,6 +233,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
         #region JSON DTOs
 
+#pragma warning disable 0649 // DTO fields are populated by JSON deserialization.
         private class TriggerPlanManifest
         {
             [JsonProperty("entries")]
@@ -241,6 +248,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             [JsonProperty("path")]
             public string Path;
         }
+#pragma warning restore 0649
 
         #endregion
     }

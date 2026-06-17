@@ -57,6 +57,16 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly Config.EActionExecutionPolicy ExecutionPolicy;
 
         /// <summary>
+        /// WithRetry 策略的最大重试次数。
+        /// </summary>
+        public readonly int RetryMaxRetries;
+
+        /// <summary>
+        /// WithRetry 策略的单次重试延迟（毫秒）。0 表示同帧立即重试。
+        /// </summary>
+        public readonly float RetryDelayMs;
+
+        /// <summary>
         /// 创建无参数的动作调用（默认 Immediate）
         /// </summary>
         public ActionCallPlan(ActionId id)
@@ -71,6 +81,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             MaxExecutions = -1;
             CanBeInterrupted = true;
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
+            RetryMaxRetries = 3;
+            RetryDelayMs = 0f;
         }
 
         /// <summary>
@@ -112,6 +124,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             MaxExecutions = -1;
             CanBeInterrupted = true;
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
+            RetryMaxRetries = 3;
+            RetryDelayMs = 0f;
         }
 
         /// <summary>
@@ -154,6 +168,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             MaxExecutions = -1;
             CanBeInterrupted = true;
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
+            RetryMaxRetries = 3;
+            RetryDelayMs = 0f;
         }
 
         /// <summary>
@@ -176,6 +192,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             MaxExecutions = -1;
             CanBeInterrupted = true;
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
+            RetryMaxRetries = 3;
+            RetryDelayMs = 0f;
         }
 
         /// <summary>
@@ -196,8 +214,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
             float scheduleParam,
             int maxExecutions,
             bool canBeInterrupted,
-            Config.EActionExecutionPolicy executionPolicy)
+            Config.EActionExecutionPolicy executionPolicy,
+            int retryMaxRetries = 3,
+            float retryDelayMs = 0f)
         {
+            if (retryMaxRetries < 0) throw new ArgumentOutOfRangeException(nameof(retryMaxRetries));
+            if (retryDelayMs < 0f) throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
             Id = id;
             Arity = arity;
             Arg0 = arg0;
@@ -208,6 +231,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             MaxExecutions = maxExecutions;
             CanBeInterrupted = canBeInterrupted;
             ExecutionPolicy = executionPolicy;
+            RetryMaxRetries = retryMaxRetries;
+            RetryDelayMs = retryDelayMs;
         }
     }
 
@@ -704,7 +729,18 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return new ActionCallPlan(
                 plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
                 plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
-                policy);
+                policy, plan.RetryMaxRetries, plan.RetryDelayMs);
+        }
+
+        /// <summary>
+        /// 创建带重试策略的动作。
+        /// </summary>
+        public static ActionCallPlan WithRetry(this ActionCallPlan plan, int maxRetries = 3, float retryDelayMs = 0f)
+        {
+            return new ActionCallPlan(
+                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
+                plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
+                Config.EActionExecutionPolicy.WithRetry, maxRetries, retryDelayMs);
         }
 
         /// <summary>
@@ -715,7 +751,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return new ActionCallPlan(
                 plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
                 mode, param, maxExecutions, canBeInterrupted,
-                plan.ExecutionPolicy);
+                plan.ExecutionPolicy, plan.RetryMaxRetries, plan.RetryDelayMs);
         }
     }
 }

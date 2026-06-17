@@ -11,7 +11,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class ExecutableTypeIdAttribute : MarkerAttribute
     {
-        public int TypeId { get; }
+        public new int TypeId { get; }
         public string TypeName { get; }
         public bool IsComposite { get; }
 
@@ -37,7 +37,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class ConditionTypeIdAttribute : MarkerAttribute
     {
-        public int TypeId { get; }
+        public new int TypeId { get; }
         public string TypeName { get; }
 
         public ConditionTypeIdAttribute(int typeId, string typeName)

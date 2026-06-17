@@ -85,10 +85,10 @@ namespace AbilityKit.Demo.Moba.Util.Generator
     [WorldService(typeof(IMobaActorSpawnService))]
     public sealed class MobaActorSpawnService : IMobaActorSpawnService
     {
-        [WorldInject(required: false)] private global::Entitas.IContexts _contexts;
-        [WorldInject(required: false)] private ActorIdAllocator _actorIds;
-        [WorldInject(required: false)] private MobaActorRegistry _registry;
-        [WorldInject(required: false)] private MobaEntityManager _entities;
+        [WorldInject(required: false)] private global::Entitas.IContexts _contexts = null;
+        [WorldInject(required: false)] private ActorIdAllocator _actorIds = null;
+        [WorldInject(required: false)] private MobaActorRegistry _registry = null;
+        [WorldInject(required: false)] private MobaEntityManager _entities = null;
 
         public bool TrySpawn(in MobaActorSpawnRequest request, out MobaActorSpawnResult result)
         {

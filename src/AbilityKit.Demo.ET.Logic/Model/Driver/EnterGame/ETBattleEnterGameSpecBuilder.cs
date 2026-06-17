@@ -17,10 +17,15 @@ namespace ET.Logic
     {
         public static MobaGameStartSpec Build(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
         {
-            return BuildLaunchSpec(plan, playerSpawnData).ToGameStartSpec();
+            return BuildCanonicalLaunchSpec(plan, playerSpawnData).ToGameStartSpec();
         }
 
         public static MobaBattleLaunchSpec BuildLaunchSpec(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
+        {
+            return BuildCanonicalLaunchSpec(plan, playerSpawnData);
+        }
+
+        public static MobaBattleLaunchSpec BuildCanonicalLaunchSpec(BattleStartPlan plan, IReadOnlyList<ETPlayerSpawnData> playerSpawnData)
         {
             ValidatePlan(plan);
 

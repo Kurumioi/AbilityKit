@@ -118,6 +118,23 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void StartAlignsRuntimeOptionsWithSelectedGameplayScenario()
+    {
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        var options = ShooterPlayModeSessionOptions.FromTemplate(
+            ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority"),
+            ShooterSveltoGameplayScenarioCatalog.WaveSurvival);
+
+        runner.Start(options);
+
+        Assert.Equal(ShooterSveltoGameplayScenarioCatalog.WaveSurvival.Id, runner.Options.GameplayScenario.Id);
+        Assert.Equal(30, runner.Options.TickRate);
+        Assert.Equal(ShooterSveltoGameplayScenarioCatalog.WaveSurvival.ShooterCount, runner.Options.PlayerCount);
+    }
+
+    [Fact]
     public void FireUnderFiveHundredMsLatencySpawnsPredictedAndAuthoritativeBulletsAtSameOrigin()
     {
         const int tickRate = 30;

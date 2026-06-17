@@ -23,17 +23,16 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaEffectExecutionService))]
     public sealed class MobaEffectExecutionService : IService
     {
-        [WorldInject] private IWorldResolver _services;
-        [WorldInject] private TriggerPlanJsonDatabase _planDb;
-        [WorldInject] private AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver> _planRunner;
-        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _planEventBus;
-        [WorldInject] private FunctionRegistry _planFunctions;
-        [WorldInject] private ActionRegistry _planActions;
-        [WorldInject(required: false)] private IPayloadAccessorRegistry _planPayloads;
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
-        [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers;
-        [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions;
+        [WorldInject] private IWorldResolver _services = null;
+        [WorldInject] private TriggerPlanJsonDatabase _planDb = null;
+        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _planEventBus = null;
+        [WorldInject] private FunctionRegistry _planFunctions = null;
+        [WorldInject] private ActionRegistry _planActions = null;
+        [WorldInject(required: false)] private IPayloadAccessorRegistry _planPayloads = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers = null;
+        [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions = null;
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
         private MobaTriggerPlanExecutor _planExecutor;

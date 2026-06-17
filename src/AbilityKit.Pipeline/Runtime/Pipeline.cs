@@ -8,8 +8,7 @@ namespace AbilityKit.Pipeline
     /// </summary>
     public static class Pipeline
     {
-        internal static IPipelineRegistry _registry;
-        internal static IPipelineTraceRecorder _traceRecorder;
+        private static PipelineRuntime? _defaultRuntime;
         private static bool _isInitialized;
 
         /// <summary>
@@ -17,7 +16,7 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public static void SetRegistry(IPipelineRegistry registry)
         {
-            _registry = registry;
+            DefaultRuntime.SetRegistry(registry);
         }
 
         /// <summary>
@@ -25,37 +24,35 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public static void SetTraceRecorder(IPipelineTraceRecorder recorder)
         {
-            _traceRecorder = recorder;
+            DefaultRuntime.SetTraceRecorder(recorder);
+        }
+
+        /// <summary>
+        /// 默认管线运行时上下文
+        /// </summary>
+        public static PipelineRuntime DefaultRuntime
+        {
+            get
+            {
+                EnsureInitialized();
+                return _defaultRuntime!;
+            }
         }
 
         /// <summary>
         /// 管线注册表
         /// </summary>
-        public static IPipelineRegistry Registry
-        {
-            get
-            {
-                EnsureInitialized();
-                return _registry;
-            }
-        }
+        public static IPipelineRegistry Registry => DefaultRuntime.Registry;
 
         /// <summary>
         /// 追踪记录器
         /// </summary>
-        public static IPipelineTraceRecorder TraceRecorder
-        {
-            get
-            {
-                EnsureInitialized();
-                return _traceRecorder;
-            }
-        }
+        public static IPipelineTraceRecorder TraceRecorder => DefaultRuntime.TraceRecorder;
 
         /// <summary>
         /// 是否启用调试追踪
         /// </summary>
-        public static bool IsDebugEnabled => _traceRecorder?.IsEnabled ?? false;
+        public static bool IsDebugEnabled => DefaultRuntime.IsDebugEnabled;
 
         /// <summary>
         /// 初始化管线系统
@@ -64,8 +61,8 @@ namespace AbilityKit.Pipeline
         {
             if (_isInitialized) return;
 
-            _registry = PipelineRegistry.Instance;
-            _traceRecorder = NoOpPipelineTraceRecorder.Instance;
+            _defaultRuntime = new PipelineRuntime();
+            _defaultRuntime.Initialize();
             _isInitialized = true;
         }
 
@@ -74,10 +71,8 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public static void Shutdown()
         {
-            if (_registry is PipelineRegistry runtime)
-            {
-                runtime.Shutdown();
-            }
+            _defaultRuntime?.Shutdown();
+            _defaultRuntime = null;
             _isInitialized = false;
         }
 
@@ -86,7 +81,7 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public static void RecordTrace(IPipelineLifeOwner owner, PipelineTraceData data)
         {
-            _traceRecorder?.Record(owner, data);
+            DefaultRuntime.RecordTrace(owner, data);
         }
 
         private static void EnsureInitialized()

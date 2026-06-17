@@ -10,7 +10,7 @@ namespace AbilityKit.Coordinator
     /// Design:
     /// - Provides platform-specific implementations
     /// - Creates WorldHost, registers services, loads config
-    /// - Implemented by game projects (ET Demo, Console Demo, etc.)
+    /// - Implemented by application or game integration layers.
     /// </summary>
     public interface ISessionCoordinatorConfigPolicy
     {

@@ -74,7 +74,18 @@ public class BattleInitParams
     [Id(11)] public string? ClientId { get; set; }
     [Id(12)] public string? RoomType { get; set; }
     [Id(13)] public WorldStartAnchor? WorldStartAnchor { get; set; }
+    [Id(14)] public BattleSyncStartOptions? SyncOptions { get; set; }
 }
+
+[GenerateSerializer]
+public sealed record BattleSyncStartOptions(
+    [property: Id(0)] string? SyncTemplateId,
+    [property: Id(1)] int SyncModel,
+    [property: Id(2)] string? NetworkEnvironmentId,
+    [property: Id(3)] string? CarrierName,
+    [property: Id(4)] bool EnableAuthoritativeWorld,
+    [property: Id(5)] bool InterpolationEnabled,
+    [property: Id(6)] int InputDelayFrames);
 
 /// <summary>
 /// 玩家初始化信息

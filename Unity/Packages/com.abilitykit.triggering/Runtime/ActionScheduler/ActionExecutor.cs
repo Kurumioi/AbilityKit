@@ -89,10 +89,18 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         {
             if (_isQueued)
             {
-                return ExecutionResult.Failed("Action is already queued");
+                return ExecutionResult.Skipped("Action is already queued");
             }
+
             _isQueued = true;
-            return _inner.TryExecute(ctx, out var result) ? result : ExecutionResult.Failed("Failed to execute from queue");
+            try
+            {
+                return _inner.TryExecute(ctx, out var result) ? result : ExecutionResult.Failed("Failed to execute from queue");
+            }
+            finally
+            {
+                _isQueued = false;
+            }
         }
 
         public override void Cancel(string reason)
@@ -102,6 +110,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         public int QueuePriority => _queuePriority;
+
+        public bool IsQueued => _isQueued;
     }
 
     /// <summary>
@@ -120,9 +130,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
-            // 等待信号
-            _waitHandle.WaitOne();
-
             if (!_waitHandle.IsSignaled)
             {
                 return ExecutionResult.Skipped("Wait handle not signaled");
@@ -150,21 +157,67 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         private readonly ActionExecutorBase _inner;
         private readonly int _maxRetries;
         private readonly float _retryDelayMs;
+        private int _attemptCount;
+        private float _nextRetryAtMs;
+        private bool _hasPendingRetry;
+        private bool _isCancelled;
+        private ExecutionResult _lastResult;
 
-        public RetryActionExecutor(ActionExecutorBase inner, int maxRetries = 3, float retryDelayMs = 100f)
+        public RetryActionExecutor(ActionExecutorBase inner, int maxRetries = 3, float retryDelayMs = 0f)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            if (maxRetries < 0) throw new ArgumentOutOfRangeException(nameof(maxRetries));
+            if (retryDelayMs < 0f) throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
             _maxRetries = maxRetries;
             _retryDelayMs = retryDelayMs;
+            _lastResult = ExecutionResult.Failed("Retry not executed");
+        }
+
+        public override bool TryExecute(ActionExecutionContext ctx, out ExecutionResult result)
+        {
+            if (_isCancelled)
+            {
+                result = ExecutionResult.Failed("Retry action was cancelled");
+                return false;
+            }
+
+            if (_retryDelayMs <= 0f)
+            {
+                result = ExecuteCore(ctx);
+                return result.IsSuccess;
+            }
+
+            if (_hasPendingRetry && ctx.Instance.ElapsedMs < _nextRetryAtMs)
+            {
+                result = ExecutionResult.None;
+                return false;
+            }
+
+            _hasPendingRetry = false;
+            _inner.TryExecute(ctx, out _lastResult);
+
+            if (_lastResult.IsSuccess)
+            {
+                ResetRetryState();
+                result = _lastResult;
+                return true;
+            }
+
+            if (_attemptCount >= _maxRetries)
+            {
+                result = ExecutionResult.Failed($"Failed after {_maxRetries} retries. Last error: {_lastResult.FailureReason}");
+                return false;
+            }
+
+            _attemptCount++;
+            _nextRetryAtMs = ctx.Instance.ElapsedMs + _retryDelayMs;
+            _hasPendingRetry = true;
+            result = ExecutionResult.None;
+            return false;
         }
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
-            if (_retryDelayMs > 0f)
-            {
-                return ExecutionResult.Failed("RetryActionExecutor 当前只支持同步零延迟重试；如需延迟重试，请通过 ActionCallPlan.ScheduleMode 或 ActionScheduler 扩展重试状态机。设置 retryDelayMs <= 0 可启用立即重试。");
-            }
-
             ExecutionResult lastResult = ExecutionResult.Failed("Retry not executed");
             for (int attempt = 0; attempt <= _maxRetries; attempt++)
             {
@@ -180,7 +233,17 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         public override void Cancel(string reason)
         {
+            _isCancelled = true;
+            _hasPendingRetry = false;
             _inner.Cancel(reason);
+        }
+
+        private void ResetRetryState()
+        {
+            _attemptCount = 0;
+            _nextRetryAtMs = 0f;
+            _hasPendingRetry = false;
+            _lastResult = ExecutionResult.Failed("Retry not executed");
         }
     }
 }

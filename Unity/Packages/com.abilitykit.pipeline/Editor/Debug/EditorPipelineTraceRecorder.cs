@@ -33,7 +33,7 @@ namespace AbilityKit.Pipeline.Editor
             }
         }
 
-        public IPipelineRunTrace GetTrace(int ownerId)
+        public IPipelineRunTrace? GetTrace(int ownerId)
         {
             lock (_lock)
             {

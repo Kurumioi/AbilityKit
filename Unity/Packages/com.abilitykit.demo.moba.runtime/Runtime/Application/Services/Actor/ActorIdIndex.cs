@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly Dictionary<int, global::ActorEntity> _map = new Dictionary<int, global::ActorEntity>();
         private readonly IGroup<global::ActorEntity> _group;
 
-        // 鐢ㄤ簬澶勭悊 ReplaceActorId 鐨勫洖璋冭В缁?
+        // 处理 ReplaceActorId 组件替换回调。
         private readonly Dictionary<global::ActorEntity, EntityComponentReplaced> _replaceHandlers
             = new Dictionary<global::ActorEntity, EntityComponentReplaced>();
 

@@ -1,7 +1,9 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Networking;
+using Orleans;
 
 namespace AbilityKit.Orleans.Gateway.Core;
 
@@ -12,14 +14,21 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
 {
     private readonly IGatewaySessionRegistry _sessionRegistry;
     private readonly IGatewayRequestRouter _router;
+    private readonly IClusterClient _clusterClient;
     private readonly ConcurrentDictionary<long, TcpTransportSession> _sessions = new();
+
+    private readonly GatewayBackgroundTaskQueue _backgroundTasks;
 
     public GatewayTransportHandler(
         IGatewaySessionRegistry sessionRegistry,
-        IGatewayRequestRouter router)
+        IGatewayRequestRouter router,
+        IClusterClient clusterClient,
+        GatewayBackgroundTaskQueue backgroundTasks)
     {
         _sessionRegistry = sessionRegistry;
         _router = router;
+        _clusterClient = clusterClient;
+        _backgroundTasks = backgroundTasks;
     }
 
     public void OnConnected(TcpTransportSession session)
@@ -32,18 +41,11 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         if (!_sessions.TryGetValue(connectionId, out var session))
             return;
 
-        _ = Task.Run(async () =>
+        _backgroundTasks.TryQueue(async cancellationToken =>
         {
-            try
-            {
-                var response = await _router.RouteAsync(session.Context, opCode, seq, payload, CancellationToken.None);
-                var responsePayload = BuildResponsePayload(response);
-                await session.SendResponseAsync(opCode, response.Seq, responsePayload, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Route error: {ex.Message}");
-            }
+            var response = await _router.RouteAsync(session.Context, opCode, seq, payload, cancellationToken);
+            var responsePayload = BuildResponsePayload(response);
+            await session.SendResponseAsync(opCode, response.Seq, responsePayload, cancellationToken);
         });
     }
 
@@ -58,8 +60,28 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
 
     public void OnClosed(long connectionId)
     {
-        _sessions.TryRemove(connectionId, out _);
+        if (_sessions.TryRemove(connectionId, out var session))
+        {
+            MarkRoomMemberOffline(session.Context);
+        }
+
         _sessionRegistry.Unregister(connectionId);
+    }
+
+    private void MarkRoomMemberOffline(GatewaySessionContext context)
+    {
+        var accountId = context.AccountId;
+        var roomId = context.RoomId;
+        if (string.IsNullOrWhiteSpace(accountId) || string.IsNullOrWhiteSpace(roomId))
+        {
+            return;
+        }
+
+        _backgroundTasks.TryQueue(async _ =>
+        {
+            var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
+            await room.MarkOfflineAsync(accountId);
+        });
     }
 
     internal void RegisterSession(TcpTransportSession session)

@@ -5,34 +5,33 @@ using AbilityKit.Core.Logging;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// �?<c>GameFlowDomain</c> 提取�?Battle 作用域管理器（Step 4.7c）�?
-    /// 负责 per-battle �?BattleWorldScope 管理、BattleSessionFeature 创建与事件处理�?
-    /// session 推进逻辑�?
-    /// 纯逻辑，零 Unity 依赖，可独立测试�?
+    /// 从 <c>GameFlowDomain</c> 提取的 Battle 作用域管理器。
+    /// 负责 per-battle 的 BattleWorldScope 管理、BattleSessionFeature 创建、事件处理和 session 推进逻辑。
+    /// 纯逻辑，零 Unity 依赖，可独立测试。
     /// </summary>
     internal sealed class BattleScopeManager
     {
         /// <summary>
-        /// BattleScopeManager 需要的回调集合，由 Domain 提供�?
+        /// BattleScopeManager 需要的回调集合，由 Domain 提供。
         /// </summary>
         internal sealed class Callbacks
         {
-            /// <summary>设置 _battleRequested 标志�?/summary>
+            /// <summary>设置 _battleRequested 标志。</summary>
             public Action<bool> SetBattleRequested { get; set; }
 
-            /// <summary>入队 Root 事件（用于触�?HFSM 根状态转移）�?/summary>
+            /// <summary>入队 Root 事件，用于触发 HFSM 根状态转移。</summary>
             public Action<MobaRootEvent> EnqueueRootEvent { get; set; }
 
-            /// <summary>触发 Battle 状态机事件（内部做 null 守卫）�?/summary>
+            /// <summary>触发 Battle 状态机事件，内部做 null 守卫。</summary>
             public Action<MobaBattleEvent> TriggerBattleFsm { get; set; }
 
-            /// <summary>获取当前活跃�?Battle 状态�?/summary>
+            /// <summary>获取当前活跃 Battle 状态。</summary>
             public Func<MobaBattleState> GetActiveBattle { get; set; }
 
-            /// <summary>清除瞬�?gateway 连接工厂�?/summary>
+            /// <summary>清除瞬态 gateway 连接工厂。</summary>
             public Action ClearGatewayConnectionFactory { get; set; }
 
-            /// <summary>获取瞬�?gateway 连接工厂（仅�?AttachBattleFeatures 期间有效）�?/summary>
+            /// <summary>获取瞬态 gateway 连接工厂，仅在 AttachBattleFeatures 期间有效。</summary>
             public Func<Func<BattleStartPlan, AbilityKit.Network.Abstractions.IConnection>> GetGatewayConnectionFactory { get; set; }
 
             /// <summary>创建 Battle session feature，由 runtime 层提供具体实现。</summary>
@@ -58,13 +57,13 @@ namespace AbilityKit.Game.Flow
             _log = log ?? throw new ArgumentNullException(nameof(log));
         }
 
-        // --- Battle 作用域生命周�?---
+        // --- Battle 作用域生命周期 ---
 
         public void EnterBattle(IBattleBootstrapper bootstrapper)
         {
             _callbacks.SetBattleRequested(true);
-            // per-battle �?bootstrapper 在建 scope 时播种（生命周期�?flow，scope 不接管释放）�?
-            // bootstrapper 可为 null（某些进入路径不�?bootstrapper）：null 局不播种，取回�?TryResolve 落空�?null�?
+            // per-battle bootstrapper 在建 scope 时播种，生命周期由 flow 管理，scope 不接管释放。
+            // bootstrapper 可为 null：null 局不播种，后续 TryResolve 落空并传 null。
             if (bootstrapper != null)
             {
                 _battleWorldScope.BeginBattle(s => s.Seed<IBattleBootstrapper>(bootstrapper));
@@ -88,8 +87,7 @@ namespace AbilityKit.Game.Flow
 
         internal IBattleSessionFeature CreateBattleSessionFeature()
         {
-            // bootstrapper �?per-battle scope 取回（EnterBattle 时播种）�?
-            // 取不到（null 局未播种）则传 null——与迁移前「_pendingBootstrapper �?null」行为等价�?
+            // bootstrapper 从 per-battle scope 取回；取不到则传 null，与迁移前 _pendingBootstrapper 为 null 行为等价。
             _battleWorldScope.TryResolve<IBattleBootstrapper>(out var bootstrapper);
             _battleSessionFeature = _callbacks.CreateBattleSessionFeature(bootstrapper, _callbacks.GetGatewayConnectionFactory());
             _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
@@ -136,7 +134,7 @@ namespace AbilityKit.Game.Flow
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
         }
 
-        // --- 抽取的推进判�?---
+        // --- 抽取的推进判断 ---
 
         internal void TryAdvanceOnConnectEnter()
         {

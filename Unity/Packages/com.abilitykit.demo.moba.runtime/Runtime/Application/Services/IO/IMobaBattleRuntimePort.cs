@@ -2,65 +2,13 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    [Flags]
-    public enum MobaBattleRuntimeCapability
-    {
-        None = 0,
-        GameStart = 1 << 0,
-        Input = 1 << 1,
-        SnapshotOutput = 1 << 2,
-        StateReadModel = 1 << 3,
-    }
-
-    public readonly struct MobaBattleRuntimeStatus
-    {
-        public readonly MobaBattleRuntimeCapability Capabilities;
-        public readonly string MissingServices;
-
-        public MobaBattleRuntimeStatus(MobaBattleRuntimeCapability capabilities, string missingServices)
-        {
-            Capabilities = capabilities;
-            MissingServices = missingServices;
-        }
-
-        public bool Has(MobaBattleRuntimeCapability capability)
-        {
-            return (Capabilities & capability) == capability;
-        }
-
-        public bool IsReadyForBattleLoop => Has(MobaBattleRuntimeCapability.Input | MobaBattleRuntimeCapability.SnapshotOutput);
-
-        public bool IsReadyForGameStart => Has(MobaBattleRuntimeCapability.GameStart);
-
-        public override string ToString()
-        {
-            return string.IsNullOrEmpty(MissingServices)
-                ? $"Capabilities={Capabilities}"
-                : $"Capabilities={Capabilities}, Missing={MissingServices}";
-        }
-    }
-
-    public interface IMobaBattleRuntimePort : IService
-    {
-        MobaBattleRuntimeStatus Status { get; }
-
-        MobaGameStartResult TryStartGame(in MobaGameStartSpec spec);
-
-        MobaInputSubmitResult Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs);
-
-        bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot);
-
-        int CollectSnapshots(FrameIndex frame, IList<WorldStateSnapshot> snapshots, int maxSnapshots = 32);
-
-        LogicWorldEntityState[] GetAllEntityStates();
-    }
-
     [WorldService(typeof(IMobaBattleRuntimePort))]
     [WorldService(typeof(MobaBattleRuntimePort))]
     public sealed class MobaBattleRuntimePort : IService, IMobaBattleRuntimePort

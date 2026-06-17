@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Legacy executable trigger database intentionally references compatibility-only converters.
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
@@ -220,3 +221,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
             => NullTriggerCue.Instance;
     }
 }
+#pragma warning restore CS0618

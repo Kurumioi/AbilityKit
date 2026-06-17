@@ -25,7 +25,7 @@ namespace ET.Logic
         public ETTeamSpawnLayout SpawnLayout { get; set; } = ETTeamSpawnLayout.CreateDefaultLaneLayout();
         public ETBattleAutomationOptions AutomationOptions { get; set; } = ETBattleAutomationOptions.CreateDisabled();
  
-        public static ETLocalMobaScenarioConfig CreateLocalDemoDefaults()
+        public static ETLocalMobaScenarioConfig CreateLocalScenarioDefaults()
         {
             return new ETLocalMobaScenarioConfig();
         }

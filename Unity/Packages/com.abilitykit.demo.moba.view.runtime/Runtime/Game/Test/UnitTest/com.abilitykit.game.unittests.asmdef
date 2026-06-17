@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "AbilityKit.Demo.Moba.View.Runtime",
+        "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Attributes",
         "AbilityKit.Modifiers",
         "AbilityKit.Ability",

@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Legacy Runtime/Executable atomic nodes intentionally keep compatibility-only fallback hooks.
 using System;
 using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Registry;
@@ -278,3 +279,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 }
+#pragma warning restore CS0618

@@ -2,42 +2,53 @@
 
 本文按风险、收益、主线影响范围整理后续建议修改项，方便逐轮选择推进。
 
+## 当前待办总览
+
+### 已落地/可划掉
+
+1. P0-1：`PlannedTrigger` 主线执行器第一轮拆分已完成。
+   - `PlannedTriggerActionBindingResolver`：Action 绑定解析。
+   - `PlannedTriggerPredicateEvaluator`：Function/Expr Predicate 评估与调度条件委托。
+   - `PlannedTriggerArgumentResolver`：NamedArgs、位置参数与 NumericValueRef 解析。
+   - `PlannedTriggerScheduleRegistrar`：调度型 Action 注册与 Executor 选择。
+2. P0-2：`Legacy/TriggerScheduler/DefaultTriggerExecutor` 遇到带条件的 `TriggerPlan` 会显式失败，不再注册空条件委托伪装成功。
+3. P0-3：`ActionScheduler/ActionDelegateAdapter` 已从有效主线路径移除；正式调度路径由 `PlannedTrigger.CreateActionDelegate` 复用立即执行解析，不再反向构造不完整 `ExecCtx`。
+4. P2-9 的一部分：`ActionExecutor` 队列、同步、立即重试、执行器层延迟重试与计划级 retry 参数已收口；Queued 策略已改为检查真实队列运行状态；`ActionScheduler` 已维护调度累计时间并写入 Action 实例创建时间；Timeline 和 Rollback 已明确偏向显式不支持/失败语义。
+5. `NumericValueRef` 表达式解析、Schema 数值解析、源计划非法配置降级等 P0/P1 风险已在主线收口。
+
+### 仍待正式推进
+
+1. P1-5：`Plan/Executables` 与 `Executable` 双体系收敛：旧示例已迁出，主线 DSL 已补齐 Action 常量/命名参数、组合节点 guard/weight 构造、RandomSelector、Success/NoOp、AlwaysSuccess/Failure/AlwaysFail/Not 与条件表达式桥接入口；旧 `ExecutableRegistry` 默认运行时扫描已收敛为内建显式注册 + 兼容扩展按需扫描；剩余 Decorator、ScheduledExecutable 仍需逐步评估是否迁入主线。
+2. P2-8：持续更新 `TriggeringDesign.md`，确保新使用者只看到一条推荐主线。
+3. P2-9：ActionScheduler 剩余语义策略：执行器层延迟重试已支持跨帧等待，计划级 retry 次数与延迟参数已接入 `ActionCallPlan`、JSON 计划和调度注册；若后续需要完整 Timeline 或 Rollback，需要作为独立功能实现。
+
 ## P0：优先修改，避免误导主线或隐藏运行风险
 
-### 1. 继续拆分 PlannedTrigger 主线执行器
+### 1. PlannedTrigger 主线执行器拆分（已完成第一轮）
 
 - 文件：[`PlannedTrigger.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/PlannedTrigger.cs)
-- 目标：把 Predicate 解析、Action 解析、NamedArgs 解析、调度注册从单类中继续拆出，降低主线复杂度。
-- 建议步骤：
-  1. 抽出 Action 绑定解析模块：`ActionBindingResolver`。
-  2. 抽出 Predicate 评估模块：`PredicateEvaluator`。
-  3. 抽出 Numeric 参数解析模块：`NumericValueResolver` 或复用现有变量解析能力。
-  4. 保留 [`PlannedTrigger.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/PlannedTrigger.cs) 只负责执行编排。
-- 优先原因：当前主线已稳定，但类体仍偏大，是后续功能扩展的主要复杂度来源。
-- 风险：中等，需要分批改动并每批编译。
+- 状态：已落地。
+- 已完成：
+  1. 抽出 Action 绑定解析模块：`PlannedTriggerActionBindingResolver`。
+  2. 抽出 Predicate 评估模块：`PlannedTriggerPredicateEvaluator`。
+  3. 抽出 Numeric/NamedArgs 参数解析模块：`PlannedTriggerArgumentResolver`。
+  4. 抽出调度注册模块：`PlannedTriggerScheduleRegistrar`。
+  5. 保留 [`PlannedTrigger.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/PlannedTrigger.cs) 主要负责执行编排与单 Action 执行适配。
+- 后续：如果继续拆分，应优先评估立即执行路径与 ExecutionControl 状态是否还需要进一步独立，而不是重复拆 Predicate/Args/Schedule。
 
-### 2. 修复 TriggerScheduler 的占位执行风险
+### 2. TriggerScheduler 的占位执行风险（已完成）
 
-- 文件：[`TriggerExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggerScheduler/TriggerExecutor.cs)
-- 目标：去掉非主线路径中的 `Console.WriteLine` 占位执行，改为显式异常或不可用提示。
-- 建议步骤：
-  1. 将文件头 TODO 中文化，明确该路径是实验/兼容执行策略。
-  2. `CreateActionDelegate` 不再返回假执行委托。
-  3. 如果未接入 Registry，直接抛出 `NotSupportedException` 或返回会显式失败的委托。
-  4. 同步更新 [`Experimental/Todo`](../Unity/Packages/com.abilitykit.triggering/Runtime/Experimental/Todo) 说明。
-- 优先原因：这是会产生“看似成功执行”的占位逻辑，误用风险最高。
-- 风险：低到中等；如果外部有人依赖该占位输出，会改变行为，但这是正确收敛方向。
+- 文件：[`Legacy/TriggerScheduler/TriggerExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/TriggerScheduler/TriggerExecutor.cs)
+- 状态：已落地。
+- 结果：带条件 `TriggerPlan` 在该兼容路径会显式失败，不再注册 `null` 条件委托后表现为成功。
+- 后续：该路径继续保持非主线兼容定位；可复用的触发器级执行策略概念后续再迁入 `Plan/Executables`。
 
-### 3. 明确 ActionDelegateAdapter 的上下文构建 TODO
+### 3. ActionDelegateAdapter 上下文构建 TODO（已完成）
 
 - 文件：[`ActionDelegateAdapter.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionDelegateAdapter.cs)
-- 目标：处理 `BuildExecCtx` 占位返回默认上下文的问题。
-- 建议步骤：
-  1. 先确认该适配器是否仍被主线调用。
-  2. 如果非主线使用，标记兼容/实验并补充显式限制。
-  3. 如果主线可能调用，则接入真实 `ExecCtx` 构建依赖或要求调用方传入上下文。
-- 优先原因：上下文缺失会导致 Action 执行时黑板、Payload、Registry 不完整。
-- 风险：中等，需先检索调用方。
+- 状态：已落地。
+- 结果：主线调度 Action 不再通过该适配器从 `ITriggerDispatcherContext` 反向构造 `ExecCtx`；`PlannedTrigger` 直接复用已绑定的计划执行上下文。
+- 后续：该文件如继续保留，应只作为兼容/占位文件，不再接回主线。
 
 ## P1：主线结构收敛，建议按批次推进
 
@@ -47,6 +58,7 @@
   - [`ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler)
   - [`Schedule`](../Unity/Packages/com.abilitykit.triggering/Runtime/Schedule)
   - [`Scheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler)
+- 状态：已完成第一轮边界文档化。
 - 目标：明确三套调度体系边界，减少命名与职责混淆。
 - 建议步骤：
   1. 在 [`Scheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler) 增加目录级 legacy 说明。
@@ -61,13 +73,17 @@
 - 文件/目录：
   - [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)
   - [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable)
-- 目标：让新业务只优先使用 [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)，逐步吸收 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 的成熟概念。
+  - [`Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable)
+- 状态：已完成低风险收敛第一轮，并开始推进 Registry 扫描收敛。
+- 目标：让新业务只优先使用 [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)，逐步吸收 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 与 [`Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable) 的成熟概念。
+- 已完成：[`ExecutableExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Documentation~/LegacyExecutable/ExecutableExamples.cs) 和 [`RefactoredExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Documentation~/LegacyExecutable/RefactoredExamples.cs) 已迁出 Runtime 默认编译路径，保留为 LegacyExecutable 文档参考。
+- 已完成：[`TriggerPlanExecutableDsl.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables/TriggerPlanExecutableDsl.cs) 已补齐常量参数 Action、命名参数 Action、组合节点 guard/weight 构造、RandomSelector、Success/NoOp、AlwaysSuccess/Failure/AlwaysFail/Not 与条件表达式桥接入口，旧 `ExecutableDsl.Action` / `ExecutableDsl.RandomSelector` / `ExecutableDsl.Success` / `ExecutableDsl.NoOp`、失败语义别名、反转装饰器、组合节点守卫和基础条件构造方式可迁移到主线 DSL。
+- 已完成：[`ExecutableRegistry.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable/ExecutableRegistry.cs) 默认构造路径不再扫描程序集，旧内建 Executable/Condition 改为显式注册；Attribute 扫描保留为 `ScanAssemblies` / `ScanRuntimeExecutableAssembly` 兼容入口。
 - 建议步骤：
-  1. 将 [`ExecutableExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable/ExecutableExamples.cs) 和 [`RefactoredExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable/RefactoredExamples.cs) 从 Runtime 默认编译路径移出或降级。
-  2. 逐个评估 Decorator、ScheduledExecutable、Registry 扫描是否迁入 [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)。
-  3. 在设计文档中明确 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 是实验/兼容行为组合体系。
+  1. 逐个评估 Decorator、ScheduledExecutable 是否迁入 [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)，并继续观察外部扩展是否仍依赖 Registry Attribute 扫描。
+  2. 在设计文档中明确 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 是旧行为组合体系，[`Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable) 是旧 DSL/转换器兼容入口。
 - 优先原因：这是当前最大的双体系理解成本来源。
-- 风险：中等；涉及文件多，建议先从示例迁出开始。
+- 风险：中等；涉及文件多，建议先从示例迁出或禁编开始。
 
 ### 6. Dispatcher 与 TriggerRunner 使用边界正式化
 
@@ -75,11 +91,13 @@
   - [`TriggerRunner.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Runtime/TriggerRunner.cs)
   - [`Dispatcher`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher)
   - [`TriggerDispatcherHub.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher/TriggerDispatcherHub.cs)
+- 状态：已完成目录级兼容说明，后续按调用方继续收口。
 - 目标：明确事件计划触发优先走 [`TriggerRunner.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Runtime/TriggerRunner.cs)，旧 Dispatcher 只承担兼容或持续行为集成。
+- 已完成：`TriggeringDesign.md`、`TriggerDispatcherHub` 注释与 [`Dispatcher/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher/README.md) 已描述推荐主线和兼容定位。
 - 建议步骤：
-  1. 更新设计文档说明推荐入口。
-  2. 给 [`Dispatcher`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher) 补充兼容层说明。
-  3. 逐步评估 `EventBusDispatcher`、`TimedDispatcher` 是否仍需被新代码直接使用。
+  1. 给 [`Dispatcher`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher) 补充目录级兼容层说明。
+  2. 逐步评估 `EventBusDispatcher`、`TimedDispatcher` 是否仍需被新代码直接使用。
+  3. 如果 `TriggerRunner + ActionScheduler` 覆盖多数能力，将旧 Dispatcher 进一步降级为兼容层。
 - 优先原因：派发入口双轨会影响后续集成方式。
 - 风险：低，前期主要是文档和注释。
 
@@ -88,6 +106,7 @@
 ### 7. 根目录兼容文件收敛
 
 - 目录：[`Runtime`](../Unity/Packages/com.abilitykit.triggering/Runtime)
+- 状态：已完成兼容入口清单第一轮。
 - 目标：处理根目录大量 Deprecated compatibility files。
 - 建议步骤：
   1. 统一根目录兼容文件中文注释。
@@ -100,13 +119,13 @@
 ### 8. 更新 TriggeringDesign 设计文档
 
 - 文件：[`TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md)
-- 目标：让设计文档反映当前真实主线。
-- 建议补充：
+- 状态：部分完成，后续随代码收敛持续更新。
+- 已补充：
   1. [`ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler) 的主线地位。
-  2. [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables) 与 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 的边界。
+  2. [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables) 与旧 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) / [`Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable) 的边界。
   3. [`Schedule`](../Unity/Packages/com.abilitykit.triggering/Runtime/Schedule) 与 [`Scheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler) 的定位差异。
   4. 推荐入口：事件计划触发使用 [`TriggerRunner.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Runtime/TriggerRunner.cs)。
-- 优先原因：避免后续修改和文档脱节。
+- 后续：每次目录/代码收敛后同步更新，避免设计文档再次滞后。
 - 风险：低。
 
 ### 9. ActionScheduler 剩余 TODO 正式化
@@ -114,22 +133,17 @@
 - 文件：
   - [`ActionExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionExecutor.cs)
   - [`ActionInstance.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionInstance.cs)
-- 目标：处理 Retry 延迟执行、Rollback、Timeline 等未闭环语义。
-- 建议步骤：
-  1. 先将 TODO 分类为“暂不支持”或“待实现”。
-  2. Timeline 未实现时显式返回不可用状态或保留跳过说明。
-  3. Retry 延迟如果不做真实调度，需明确当前仅立即重试。
-- 优先原因：主线已接入 [`ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler)，剩余 TODO 会影响使用者预期。
+- 状态：部分完成。
+- 已完成：队列、同步、立即重试、执行器层跨帧延迟重试、计划级 retry 次数/延迟参数、注册/替换、生命周期释放与 Timeline 显式失败语义已收口；Queued 策略已使用 `QueuedActionExecutor.IsQueued` 运行状态，不再把 `QueuePriority` 当作已入队标记；`ActionScheduler` 已维护 `ElapsedMs` 并在注册时写入 `ActionInstance.CreatedAtMs`；等待队列/同步/延迟重试等未实际执行帧不会提前终结 Action 实例。
+- 已完成：`ActionCallPlan` 已暴露 `RetryMaxRetries` / `RetryDelayMs`，`WithRetry` 与 JSON `ExecutionPolicy=WithRetry` 可配置重试次数和重试延迟，`PlannedTriggerScheduleRegistrar` 会将参数传入 `RetryActionExecutor`。
+- 仍待决策：
+  1. 是否实现完整 Rollback/补偿语义。
+  2. 是否引入真正 Timeline 子 Action 序列执行模型。
+- 优先原因：主线已接入 [`ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler)，剩余语义会影响使用者预期。
 - 风险：中等，涉及执行语义。
 
 ## 推荐落地顺序
 
-1. P0-1：继续拆分 [`PlannedTrigger.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/PlannedTrigger.cs)，先抽 Action 绑定解析。
-2. P0-2：处理 [`TriggerScheduler/TriggerExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggerScheduler/TriggerExecutor.cs) 占位执行。
-3. P0-3：梳理 [`ActionDelegateAdapter.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionDelegateAdapter.cs) 的上下文构建。
-4. P1-4：调度目录边界文档化与 legacy 标记。
-5. P1-5：迁出 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 示例，再逐步迁移成熟节点概念。
-6. P1-6：明确 [`Dispatcher`](../Unity/Packages/com.abilitykit.triggering/Runtime/Dispatcher) 与 [`TriggerRunner`](../Unity/Packages/com.abilitykit.triggering/Runtime/Runtime/TriggerRunner.cs) 边界。
-7. P2-7：根目录兼容入口统一整理。
-8. P2-8：更新 [`TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md)。
-9. P2-9：处理 [`ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler) 剩余 TODO。
+1. P1-5：继续评估 [`Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable) 的剩余 Decorator、ScheduledExecutable 是否迁入主线；Registry 默认扫描已先收敛为显式注册 + 兼容按需扫描，`Not` 反转装饰器入口已先收敛到主线 DSL，并保持 [`Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable) 仅做旧 DSL/转换器兼容。
+2. P2-8：随代码收敛持续更新 [`TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md)。
+3. P2-9：计划级 retry 参数已落地；后续按产品需求决定是否继续实现 Timeline、Rollback 等完整能力。

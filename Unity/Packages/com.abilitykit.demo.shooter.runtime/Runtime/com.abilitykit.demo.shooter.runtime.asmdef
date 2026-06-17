@@ -8,15 +8,18 @@
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.Svelto",
+    "Svelto.Common",
     "Svelto.ECS",
     "AbilityKit.Demo.Shooter.Share",
     "AbilityKit.Protocol.Shooter"
+  ],
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
-  "precompiledReferences": [],
   "autoReferenced": true,
   "defineConstraints": [],
   "versionDefines": [],

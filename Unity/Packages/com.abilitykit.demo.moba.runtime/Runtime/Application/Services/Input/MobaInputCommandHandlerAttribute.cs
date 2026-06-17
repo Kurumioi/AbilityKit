@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
         /// </summary>
         /// <param name="opCode">输入命令码</param>
         public MobaInputCommandHandlerAttribute(int opCode)
-            : base(opCode, MobaBattleRouteKind.ClientInput)
+            : base(opCode, MobaBattleRouteKind.RuntimeInput)
         {
         }
 
@@ -43,7 +43,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return new MobaBattleRouteDescriptor(
                 OpCode,
-                MobaBattleRouteKind.ClientInput,
+                MobaBattleRouteKind.RuntimeInput,
                 ownerType,
                 payloadType: PayloadType,
                 handlerType: ownerType,

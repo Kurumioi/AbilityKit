@@ -1,28 +1,27 @@
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// blink Action 鐨勫己绫诲瀷鍙傛暟
+    /// blink Action 的强类型参数。
     /// </summary>
     public readonly struct BlinkArgs
     {
         /// <summary>
-        /// 闂儊璺濈锛堝崟浣嶏級
+        /// 闪烁距离，单位为逻辑距离。
         /// </summary>
         public readonly float Distance;
 
         /// <summary>
-        /// 闂儊鏂瑰悜妯″紡
-        /// 0=鏈濇妧鑳界瀯鍑嗘柟鍚? 1=鏈濈洰鏍囨柟鍚?
+        /// 闪烁方向模式：0=朝技能瞄准方向，1=朝目标方向。
         /// </summary>
         public readonly int DirectionMode;
 
         /// <summary>
-        /// 浼樺厛绾?
+        /// 运动优先级。
         /// </summary>
         public readonly int Priority;
 
         /// <summary>
-        /// 鏄惁搴旂敤鍒伴噴鏀捐€咃紙榛樿 caster锛?
+        /// 是否应用到释放者，默认 caster。
         /// </summary>
         public readonly bool ApplyToCaster;
 

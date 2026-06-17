@@ -12,8 +12,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// give_damage Action �?Schema 鐎规矮绠?
-    /// 鐎圭偟骞?IActionSchema閿涘本褰佹笟娑樺棘閺佹媽袙閺嬫劕鎷版宀冪槈闁槒绶?
+    /// give_damage Action 的强类型参数 Schema。
     /// </summary>
     public sealed class GiveDamageSchema : MobaPlanActionSchemaBase<GiveDamageArgs>
     {

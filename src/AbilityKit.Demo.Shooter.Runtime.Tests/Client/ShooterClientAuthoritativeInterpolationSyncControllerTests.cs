@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Shooter;
 using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
@@ -35,6 +36,49 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
 
     private static ShooterGatewayActorSnapshot Actor(int actorId, float x) =>
         new ShooterGatewayActorSnapshot(actorId: actorId, x: x, y: 0f, rotation: 0f, velocityX: 0f, velocityY: 0f, hp: 100f, hpMax: 100f, teamId: 1);
+
+    private static ShooterStartGamePayload SinglePlayerStart() =>
+        new ShooterStartGamePayload(
+            "authoritative-interpolation-prediction",
+            30,
+            9001,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+    private static ShooterGatewaySnapshot PackedProjectileSnapshot(int frame, long serverTicks, int ownerPlayerId, int bulletId)
+    {
+        var projectileLifecycle = new ShooterPackedComponentChunk(
+            ShooterPackedComponentKinds.EntityLifecycle,
+            ShooterPackedEntityKinds.Projectile,
+            1,
+            new[] { bulletId },
+            Array.Empty<float>(),
+            Array.Empty<float>(),
+            Array.Empty<float>(),
+            Array.Empty<float>(),
+            Array.Empty<int>(),
+            new[] { (byte)(ShooterPackedEntityFlags.Alive | ShooterPackedEntityFlags.Projectile) },
+            new[] { ownerPlayerId },
+            Array.Empty<int>());
+        var packed = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            9001ul,
+            frame,
+            serverTicks,
+            ShooterPackedSnapshotFlags.Full,
+            0u,
+            1,
+            Array.Empty<byte>(),
+            new[] { projectileLifecycle });
+
+        return new ShooterGatewaySnapshot(
+            worldId: 9001ul,
+            frame: frame,
+            timestamp: 0d,
+            serverTicks: serverTicks,
+            isFullSnapshot: true,
+            actors: Array.Empty<ShooterGatewayActorSnapshot>(),
+            packedSnapshot: packed);
+    }
 
     [Fact]
     public void ControllerBuffersRemoteSnapshotsAndSeedsTimeline()
@@ -119,6 +163,67 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         Assert.Equal(5f, midX, 2);
 
         Assert.True(controller.HasPublishedRemoteFrame);
+    }
+
+    [Fact]
+    public void ControllerTracksLocalPredictedPoseForStateSyncMode()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade { ControlledPlayerId = 1 };
+        var controller = new ShooterClientAuthoritativeInterpolationSyncController(
+            runtime,
+            presentation,
+            tickRate: 30,
+            decoder: null,
+            gateway: null);
+        var start = SinglePlayerStart();
+        Assert.True(controller.StartGame(in start));
+
+        controller.SubmitLocalInput(1, moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: false);
+        controller.Tick(1f / 30f);
+
+        var prediction = controller.PredictionState;
+        Assert.True(prediction.HasPredictedPose);
+        Assert.Equal(1, prediction.PlayerId);
+        Assert.Equal(1, prediction.PredictedFrame);
+        Assert.True(prediction.PredictedX > 0f);
+        Assert.Equal(0f, prediction.PredictedY, 3);
+    }
+
+    [Fact]
+    public void ControllerDoesNotApplyLocalFireUntilAuthoritativeProjectileArrives()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade { ControlledPlayerId = 1 };
+        var config = new InterpolationConfig(ticksPerSecond: 1000L, interpolationDelayTicks: 0L, bufferCapacity: 16, catchUpRate: 0d);
+        var controller = new ShooterClientAuthoritativeInterpolationSyncController(
+            runtime,
+            presentation,
+            tickRate: 30,
+            decoder: null,
+            gateway: null,
+            config);
+        var start = SinglePlayerStart();
+        Assert.True(controller.StartGame(in start));
+        controller.SubmitLocalInput(1, moveX: 0f, moveY: 0f, aimX: 1f, aimY: 0f, fire: true);
+        controller.Tick(1f / 30f);
+
+        var localPrediction = controller.PredictionState;
+        Assert.Equal(ShooterStateSyncPredictedAction.None, localPrediction.Action);
+        Assert.Equal(0, localPrediction.ActionPlayerId);
+        Assert.False(localPrediction.NeedsActionCatchUp);
+
+        controller.BufferRemoteSnapshot(PackedProjectileSnapshot(frame: 1, serverTicks: 1000L, ownerPlayerId: 1, bulletId: 77));
+        controller.Tick(1f / 30f);
+
+        var authoritativePrediction = controller.PredictionState;
+        Assert.Equal(ShooterStateSyncPredictedAction.Fire, authoritativePrediction.Action);
+        Assert.Equal(1, authoritativePrediction.ActionPlayerId);
+        Assert.Equal(1, authoritativePrediction.ActionSourceFrame);
+        Assert.Equal(1000L, authoritativePrediction.ActionSourceServerTicks);
+        Assert.True(authoritativePrediction.NeedsActionCatchUp);
+        Assert.Equal(77, authoritativePrediction.ActionBulletId);
+        Assert.True(authoritativePrediction.ActionCatchUpFrames >= 0);
     }
 
     [Fact]

@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             typeof(SkillDTO),
             typeof(SkillButtonTemplateDTO),
             typeof(TagTemplateDTO),
+            typeof(ContinuousTagTemplateDTO),
             typeof(SearchQueryTemplateDTO),
             typeof(PassiveSkillDTO),
             typeof(SkillFlowDTO),
@@ -37,6 +38,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
+            typeof(GameplayDTO),
         };
 
         public override Array DeserializeFromBytes(byte[] bytes, Type dtoType)

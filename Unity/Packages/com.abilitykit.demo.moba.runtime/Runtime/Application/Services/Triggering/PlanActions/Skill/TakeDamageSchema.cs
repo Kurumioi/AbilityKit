@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// take_damage Action �?Schema 瀹氫�?
+    /// take_damage Action 参数 Schema 定义。
     /// </summary>
     public sealed class TakeDamageSchema : MobaPlanActionSchemaBase<TakeDamageArgs>
     {

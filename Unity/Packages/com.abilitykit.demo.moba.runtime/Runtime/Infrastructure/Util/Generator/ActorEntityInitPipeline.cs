@@ -18,13 +18,13 @@ using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Demo.Moba.Util.Generator
 {
-    /*
-     * 閸掓繂顫愰崠鏍吀缁惧尅绱伴幎濠傚嚒 Spawn 閸戠儤娼甸惃?ActorEntity 閺嶈宓侀柊宥囩枂/Loadout 婵夘偄鍘栨稉鍝勫讲閹存ɑ鏋熼幀浣碘偓?
-     *
-     * 閼卞矁鐭楁潏鍦櫕閿?
-     * - 閸忕鐎峰銉ょ稊閿涙艾鐫橀幀褎膩閺夊灝鍨垫慨瀣閵嗕焦濡ч懗鍊燁棅闁板秲鈧浇绁┃鎰啇閸?鐏炵偞鈧冾啇閸ｃ劌鍘规惔鏇犵搼閵?
-     * - 娑撳秷绀嬬拹锝呭灡瀵ゅ搫鐤勬担鎿勭礄閸掓稑缂撻悽?ActorArchetypeFactory/ActorSpawnPipeline 鐠愮喕鐭楅敍澶堚偓?
-     */
+    /// <summary>
+    /// Actor 初始化管线：负责把配置和进入战斗 loadout 写入 Entitas ActorEntity。
+    ///
+    /// 设计边界：
+    /// - 只做运行时组件初始化，不负责 Actor 创建、注册和生命周期治理。
+    /// - Actor 创建与注册统一交给 ActorArchetypeFactory/ActorSpawnPipeline。
+    /// </summary>
     [WorldService(typeof(ActorEntityInitPipeline), WorldLifetime.Scoped)]
     public sealed class ActorEntityInitPipeline : IService
     {
@@ -195,7 +195,7 @@ namespace AbilityKit.Demo.Moba.Util.Generator
                 var activeSkillIds = loadout.SkillIds;
                 int[] passiveSkillIds = null;
 
-                // 婵″倹鐏?loadout 娑擃厽鐥呴張澶嬪Η閼虫枻绱濇禒?AttributeTemplate 閼惧嘲褰?
+                // loadout 未显式指定技能时，回退使用 AttributeTemplate 上配置的默认技能。
                 if (activeSkillIds == null || activeSkillIds.Length == 0)
                 {
                     var attributeTemplateId = loadout.AttributeTemplateId > 0 ? loadout.AttributeTemplateId :

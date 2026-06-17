@@ -17,7 +17,8 @@ namespace AbilityKit.Game.Flow
 
         public static PlayerInputCommand CreateSkillSlot(int frame, PlayerId playerId, int slot)
         {
-            return Create(frame, playerId, SkillSlotToOpCode(slot), Array.Empty<byte>());
+            var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Press);
+            return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }
 
         public static PlayerInputCommand CreateSkillAimRelease(int frame, PlayerId playerId, int slot, float dx, float dz)
@@ -33,9 +34,5 @@ namespace AbilityKit.Game.Flow
             return new PlayerInputCommand(new FrameIndex(frame), playerId, opCode, payload);
         }
 
-        private static int SkillSlotToOpCode(int slot)
-        {
-            return slot == 1 ? MobaOpCodes.Input.Skill1 : slot == 2 ? MobaOpCodes.Input.Skill2 : MobaOpCodes.Input.Skill3;
-        }
     }
 }

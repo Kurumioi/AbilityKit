@@ -158,6 +158,15 @@ namespace AbilityKit.Demo.Shooter.View
             return _syncController.SubmitLocalInputToGatewayAsync(context, command, timeout, cancellationToken);
         }
 
+        public Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
+            ShooterGatewayBattleInputContext context,
+            ShooterClientInputSubmitResult local,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return _syncController.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
+        }
+
         public ShooterClientFrameTickResult Tick(float deltaTime)
         {
             return _syncController.Tick(deltaTime);

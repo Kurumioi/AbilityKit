@@ -198,7 +198,7 @@ namespace AbilityKit.Triggering.Runtime.Behavior.Composite
         public void Resume() => _state = EBehaviorState.Running;
         public void Interrupt(string reason) => _state = EBehaviorState.Interrupted;
 
-        public new BehaviorSnapshot CreateSnapshot()
+        public BehaviorSnapshot CreateSnapshot()
         {
             return new BehaviorSnapshot
             {
@@ -210,7 +210,7 @@ namespace AbilityKit.Triggering.Runtime.Behavior.Composite
             };
         }
 
-        public new void RestoreFromSnapshot(BehaviorSnapshot snapshot)
+        public void RestoreFromSnapshot(BehaviorSnapshot snapshot)
         {
             _elapsedMs = snapshot.ElapsedMs;
             _executedCount = snapshot.ExecutionCount;

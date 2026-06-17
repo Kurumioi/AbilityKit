@@ -9,8 +9,8 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaAuthorityFrameService))]
     public sealed class MobaAuthorityFrameService : IService
     {
-        [WorldInject] private IFrameTime _time;
-        [WorldInject(required: false)] private IWorldAuthorityFramesSource _authorityFrames;
+        [WorldInject] private IFrameTime _time = null;
+        [WorldInject(required: false)] private IWorldAuthorityFramesSource _authorityFrames = null;
 
         private WorldId _worldId;
         private bool _hasWorldId;

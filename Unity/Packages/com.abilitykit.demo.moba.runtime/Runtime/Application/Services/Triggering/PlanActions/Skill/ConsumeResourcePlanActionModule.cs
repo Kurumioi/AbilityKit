@@ -12,8 +12,7 @@ using AbilityKit.Triggering.Runtime.Plan;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// 消耗资源的Plan Action模块
-    /// 在技能释放前扣除资源（蓝�?能量等）
+    /// 消耗资源的 Plan Action 模块，在技能释放前扣除资源（蓝量、能量等）。
     /// </summary>
     [PlanActionModule(order: MobaPlanActionModuleOrders.ConsumeResource)]
     public sealed class ConsumeResourcePlanActionModule : MobaPlanActionModuleBase<ConsumeResourceArgs, ConsumeResourcePlanActionModule>

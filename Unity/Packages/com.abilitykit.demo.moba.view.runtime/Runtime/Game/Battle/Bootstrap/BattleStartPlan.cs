@@ -1,4 +1,6 @@
+using System;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Protocol.Moba;
 
 namespace AbilityKit.Game.Flow
 {
@@ -63,6 +65,28 @@ namespace AbilityKit.Game.Flow
                 enabledSnapshotRegistryIds: options.EnabledSnapshotRegistryIds,
                 launchSpec: options.LaunchSpec)
         {
+        }
+
+        public bool HasCanonicalLaunchSpec => !string.IsNullOrEmpty(LaunchSpec.MatchId) || LaunchSpec.Players != null;
+
+        public MobaBattleLaunchSpec GetCanonicalLaunchSpec()
+        {
+            if (!HasCanonicalLaunchSpec)
+            {
+                throw new InvalidOperationException("BattleStartPlan requires a canonical MobaBattleLaunchSpec before runtime world startup.");
+            }
+
+            return LaunchSpec;
+        }
+
+        public MobaBattleStartPlan ToCanonicalStartPlan()
+        {
+            return GetCanonicalLaunchSpec().ToStartPlan();
+        }
+
+        public MobaGameStartSpec ToGameStartSpec()
+        {
+            return GetCanonicalLaunchSpec().ToGameStartSpec();
         }
 
         public BattleStartPlan WithGatewaySessionToken(string gatewaySessionToken)

@@ -5,7 +5,6 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Protocol.Moba;
-using AbilityKit.Protocol.Moba;
 using AbilityKit.Demo.Moba.Util.Converter;
 
 namespace AbilityKit.Demo.Moba.Util.Generator

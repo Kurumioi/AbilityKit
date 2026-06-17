@@ -95,16 +95,16 @@ namespace AbilityKit.Demo.Moba.Attributes
         }
 
         /// <summary>
-        /// 娣诲姞淇敼鍣?
+        /// 添加修改器。
         /// </summary>
-        /// <returns>淇敼鍣ㄥ彞鏌?/returns>
+        /// <returns>修改器句柄。</returns>
         public int AddModifier(BattleAttributeType type, ModifierData modifierData)
         {
             return RequireGroup().AddModifier(MobaAttributeIds.Get(type), modifierData);
         }
 
         /// <summary>
-        /// 娣诲姞淇敼鍣紙渚挎嵎鏂规硶锛?
+        /// 便捷添加修改器。
         /// </summary>
         public int AddModifier(BattleAttributeType type, ModifierOp op, float value, int sourceId = 0)
         {
@@ -112,7 +112,7 @@ namespace AbilityKit.Demo.Moba.Attributes
         }
 
         /// <summary>
-        /// 绉婚櫎淇敼鍣?
+        /// 移除修改器。
         /// </summary>
         public bool RemoveModifier(BattleAttributeType type, int handle)
         {

@@ -18,7 +18,13 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class WorldInitStage : MobaBootstrapStageBase
     {
-        public override string Name => "Install.WorldInit";
+        public override string Name => MobaBootstrapStageNames.WorldInit;
+
+        public override string[] Dependencies => new[]
+        {
+            MobaBootstrapStageNames.TargetingAndSkills,
+            MobaBootstrapStageNames.TriggerPlans,
+        };
 
         protected internal override void Install(
             Entitas.IContexts contexts,

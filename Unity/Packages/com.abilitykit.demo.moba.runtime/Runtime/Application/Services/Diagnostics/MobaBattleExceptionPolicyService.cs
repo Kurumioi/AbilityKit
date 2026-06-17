@@ -84,7 +84,7 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaBattleExceptionPolicyService), WorldLifetime.Scoped)]
     public sealed class MobaBattleExceptionPolicyService : IMobaBattleExceptionPolicy, IService
     {
-        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
 
         public void Handle(Exception exception, in MobaBattleExceptionContext context, MobaBattleExceptionSeverity severity)
         {

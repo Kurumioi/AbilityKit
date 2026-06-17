@@ -1,3 +1,4 @@
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
@@ -38,6 +39,14 @@ public sealed class StartRoomBattleHandler : GatewayRequestHandlerBase
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
 
             var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
+            var syncOptions = new BattleSyncStartOptions(
+                req.SyncTemplateId,
+                req.SyncModel,
+                req.NetworkEnvironmentId,
+                req.CarrierName,
+                req.EnableAuthoritativeWorld,
+                req.InterpolationEnabled,
+                req.InputDelayFrames);
             var resp = await room.StartBattleAsync(new StartRoomBattleRequest(
                 accountId,
                 req.GameplayId,
@@ -45,7 +54,8 @@ public sealed class StartRoomBattleHandler : GatewayRequestHandlerBase
                 req.ConfigVersion,
                 req.ProtocolVersion,
                 req.WorldType,
-                req.ClientId));
+                req.ClientId,
+                syncOptions));
 
             var wire = new WireStartRoomBattleRes
             {

@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
@@ -8,11 +9,11 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class StartGameStage : MobaBootstrapStageBase
     {
-        public override string Name => "StartGame";
+        public override string Name => MobaBootstrapStageNames.StartGame;
 
         public override string[] Dependencies => new[]
         {
-            "Install.WorldInit",
+            MobaBootstrapStageNames.WorldInit,
         };
 
         protected internal override void Install(

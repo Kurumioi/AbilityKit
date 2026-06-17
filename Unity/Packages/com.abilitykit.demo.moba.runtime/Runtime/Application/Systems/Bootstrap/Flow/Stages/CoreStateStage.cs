@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class CoreStateStage : MobaBootstrapStageBase
     {
-        public override string Name => "CoreState";
+        public override string Name => MobaBootstrapStageNames.CoreState;
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {

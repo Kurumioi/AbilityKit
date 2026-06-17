@@ -273,8 +273,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 return ModifierResult.Empty(baseValue);
 
             var level = context?.Level ?? Level;
-            float GetAttribute(ModifierKey key) => context?.GetAttribute(key) ?? 0f;
-
             return _calculator.Calculate(_modifiers.ToArray(), baseValue, level);
         }
 

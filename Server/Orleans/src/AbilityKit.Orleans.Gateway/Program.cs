@@ -27,6 +27,7 @@ builder.Services.AddSingleton<GatewayHandlers.GuestLoginHandler>();
 builder.Services.AddSingleton<GatewayHandlers.TimeSyncHandler>();
 builder.Services.AddSingleton<GatewayHandlers.CreateRoomHandler>();
 builder.Services.AddSingleton<GatewayHandlers.JoinRoomHandler>();
+builder.Services.AddSingleton<GatewayHandlers.RestoreRoomHandler>();
 builder.Services.AddSingleton<GatewayHandlers.RoomReadyHandler>();
 builder.Services.AddSingleton<GatewayHandlers.RoomPickHeroHandler>();
 builder.Services.AddSingleton<GatewayHandlers.StartRoomBattleHandler>();
@@ -48,11 +49,14 @@ builder.Services.AddSingleton<GatewayCore.GatewayRequestRouter>();
 builder.Services.AddSingleton<GatewayAbstractions.IGatewayRequestRouter>(sp => sp.GetRequiredService<GatewayCore.GatewayRequestRouter>());
 
 // 注册传输层事件处理器（在 TcpTransportServer 之前）
+builder.Services.AddSingleton<GatewayCore.GatewayBackgroundTaskQueue>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GatewayCore.GatewayBackgroundTaskQueue>());
 builder.Services.AddSingleton<GatewayNetworking.IGatewayTransportEvents, GatewayCore.GatewayTransportHandler>();
 builder.Services.AddSingleton<GatewayCore.GatewayTransportHandler>();
 
 // 注册传输层
 builder.Services.AddSingleton<GatewayNetworking.TcpTransportServer>();
+builder.Services.AddHostedService<GatewayCore.TcpTransportHostedService>();
 
 // 注册 Gateway Push Target Grain
 builder.Services.AddSingleton<GatewayCore.GatewayPushTargetGrain>();
@@ -70,10 +74,6 @@ builder.Host.UseOrleansClient(client =>
 });
 
 var app = builder.Build();
-
-// 启动 TCP 传输层
-var transportServer = app.Services.GetRequiredService<GatewayNetworking.TcpTransportServer>();
-_ = Task.Run(() => transportServer.StartAsync());
 
 app.UseStaticFiles();
 

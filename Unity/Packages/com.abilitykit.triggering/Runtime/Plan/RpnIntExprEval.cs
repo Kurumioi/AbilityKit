@@ -87,47 +87,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         private static double ResolveNumericValueRef<TArgs, TCtx>(in TArgs args, in NumericValueRef valueRef, in ExecCtx<TCtx> ctx)
         {
-            if (valueRef.Kind == ENumericValueRefKind.Const) return valueRef.ConstValue;
+            if (ActionSchemaRegistry.TryResolveNumericRef(in valueRef, in args, in ctx, out var value))
+                return value;
 
-            if (valueRef.Kind == ENumericValueRefKind.Blackboard)
-            {
-                var resolver = ctx.Blackboards;
-                if (resolver == null) throw new InvalidOperationException("Blackboard resolver is null");
-                if (!resolver.TryResolve(valueRef.BoardId, out var bb) || bb == null) throw new InvalidOperationException("Blackboard not found: " + valueRef.BoardId);
-                if (!bb.TryGetDouble(valueRef.KeyId, out var v)) throw new InvalidOperationException("Blackboard numeric key not found: " + valueRef.KeyId);
-                return v;
-            }
-
-            if (valueRef.Kind == ENumericValueRefKind.PayloadField)
-            {
-                // 使用 ExecCtx 的强类型访问方法（如果可用）
-                // 注意：这里需要 struct 约束，所以在低级别评估中直接使用 legacy accessor
-                var payloads = ctx.Payloads;
-                if (payloads == null) throw new InvalidOperationException("Payload accessor registry is null");
-                if (!payloads.TryGetDouble(in args, valueRef.FieldId, out var v)) throw new InvalidOperationException("Payload numeric field not found: " + valueRef.FieldId);
-                return v;
-            }
-
-            if (valueRef.Kind == ENumericValueRefKind.Var)
-            {
-                if (string.IsNullOrEmpty(valueRef.DomainId) || string.IsNullOrEmpty(valueRef.Key))
-                    throw new InvalidOperationException("Numeric var ref is empty");
-                if (!ctx.TryGetNumericVar(valueRef.DomainId, valueRef.Key, out var v))
-                    throw new InvalidOperationException("Numeric var not found: " + valueRef.DomainId + "." + valueRef.Key);
-                return v;
-            }
-
-            if (valueRef.Kind == ENumericValueRefKind.Expr)
-            {
-                if (string.IsNullOrEmpty(valueRef.ExprText)) throw new InvalidOperationException("Numeric expr text is empty");
-                if (!NumericExpressionCompiler.TryCompileCached(valueRef.ExprText, out var program) || program == null)
-                    throw new InvalidOperationException("Numeric expr compile failed: " + valueRef.ExprText);
-                if (!NumericExpressionEvaluator.TryEvaluate(in ctx, program, out var v))
-                    throw new InvalidOperationException("Numeric expr evaluate failed: " + valueRef.ExprText);
-                return v;
-            }
-
-            throw new InvalidOperationException("Unsupported NumericValueRef kind: " + valueRef.Kind);
+            throw new InvalidOperationException("NumericValueRef resolve failed. kind=" + valueRef.Kind);
         }
     }
 }

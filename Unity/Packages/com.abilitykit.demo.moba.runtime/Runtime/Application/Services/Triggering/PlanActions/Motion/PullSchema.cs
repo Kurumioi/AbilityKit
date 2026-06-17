@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// pull Action �?Schema 瀹氫�?
+    /// pull Action 参数 Schema 定义。
     /// </summary>
     public sealed class PullSchema : MobaPlanActionSchemaBase<PullArgs>
     {

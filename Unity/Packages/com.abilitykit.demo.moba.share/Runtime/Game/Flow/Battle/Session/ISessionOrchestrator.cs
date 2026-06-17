@@ -4,8 +4,68 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Share
 {
     /// <summary>
-    /// 会话启动计划
-    /// 定义启动会话所需的所有配置
+    /// ET/Share 层战斗启动计划。
+    /// 该类型用于和 View 层 BattleStartPlan 区分，避免两个同名启动计划继续产生语义漂移。
+    /// </summary>
+    public readonly struct EtBattleStartPlan
+    {
+        public int MapId { get; }
+        public int WorldId { get; }
+        public int GameplayId { get; }
+        public int PlayerId { get; }
+        public int ClientId { get; }
+        public SyncMode SyncMode { get; }
+        public HostMode HostMode { get; }
+        public int TickRate { get; }
+        public bool UseGatewayTransport { get; }
+        public bool EnableConfirmedAuthorityWorld { get; }
+        public bool EnableReplayRecording { get; }
+        public bool EnableReplayPlayback { get; }
+        public IReadOnlyList<int> PlayerIds { get; }
+        public int InputDelayFrames { get; }
+        public string ServerAddress { get; }
+        public int ServerPort { get; }
+
+        public EtBattleStartPlan(
+            int mapId,
+            int worldId,
+            int playerId,
+            int clientId,
+            SyncMode syncMode,
+            HostMode hostMode,
+            int tickRate,
+            bool useGatewayTransport,
+            bool enableConfirmedAuthorityWorld,
+            bool enableReplayRecording,
+            bool enableReplayPlayback,
+            IReadOnlyList<int> playerIds,
+            string serverAddress = null,
+            int serverPort = 0,
+            int inputDelayFrames = 0,
+            int gameplayId = 1)
+        {
+            MapId = mapId;
+            WorldId = worldId;
+            GameplayId = gameplayId;
+            PlayerId = playerId;
+            ClientId = clientId;
+            SyncMode = syncMode;
+            HostMode = hostMode;
+            TickRate = tickRate;
+            UseGatewayTransport = useGatewayTransport;
+            EnableConfirmedAuthorityWorld = enableConfirmedAuthorityWorld;
+            EnableReplayRecording = enableReplayRecording;
+            EnableReplayPlayback = enableReplayPlayback;
+            PlayerIds = playerIds;
+            InputDelayFrames = inputDelayFrames;
+            ServerAddress = serverAddress;
+            ServerPort = serverPort;
+        }
+    }
+
+    /// <summary>
+    /// 会话启动计划。
+    /// 兼容旧 ET/Share 调用点；新代码优先使用 EtBattleStartPlan 表达边界语义。
     /// </summary>
     public readonly struct BattleStartPlan
     {
@@ -124,8 +184,49 @@ namespace AbilityKit.Demo.Moba.Share
             ServerAddress = serverAddress;
             ServerPort = serverPort;
         }
-    }
+        public BattleStartPlan(EtBattleStartPlan plan)
+            : this(
+                plan.MapId,
+                plan.WorldId,
+                plan.PlayerId,
+                plan.ClientId,
+                plan.SyncMode,
+                plan.HostMode,
+                plan.TickRate,
+                plan.UseGatewayTransport,
+                plan.EnableConfirmedAuthorityWorld,
+                plan.EnableReplayRecording,
+                plan.EnableReplayPlayback,
+                plan.PlayerIds,
+                plan.ServerAddress,
+                plan.ServerPort,
+                plan.InputDelayFrames,
+                plan.GameplayId)
+        {
+        }
 
+        public EtBattleStartPlan ToEtBattleStartPlan()
+        {
+            return new EtBattleStartPlan(
+                MapId,
+                WorldId,
+                PlayerId,
+                ClientId,
+                SyncMode,
+                HostMode,
+                TickRate,
+                UseGatewayTransport,
+                EnableConfirmedAuthorityWorld,
+                EnableReplayRecording,
+                EnableReplayPlayback,
+                PlayerIds,
+                ServerAddress,
+                ServerPort,
+                InputDelayFrames,
+                GameplayId);
+        }
+    }
+ 
     /// <summary>
     /// 同步模式
     /// </summary>

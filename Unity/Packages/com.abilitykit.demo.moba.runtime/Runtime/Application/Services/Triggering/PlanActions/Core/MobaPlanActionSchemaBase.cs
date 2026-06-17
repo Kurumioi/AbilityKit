@@ -157,6 +157,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return TryResolvePayloadField(fieldId, ctx, out value);
         }
 
+        protected static int ReadCurrentPayloadInt(ExecCtx<IWorldResolver> ctx, int fieldId, int defaultValue = 0)
+        {
+            return TryResolvePayloadField(fieldId, ctx, out var value) ? (int)Math.Round(value) : defaultValue;
+        }
+
+        protected static int ReadCurrentPayloadInt(ExecCtx<IWorldResolver> ctx, string fieldName, Func<string, int> resolveFieldId, int defaultValue = 0)
+        {
+            if (string.IsNullOrWhiteSpace(fieldName) || resolveFieldId == null)
+            {
+                return defaultValue;
+            }
+
+            return ReadCurrentPayloadInt(ctx, resolveFieldId(fieldName), defaultValue);
+        }
+
         private static bool TryResolvePayloadField(int fieldId, ExecCtx<IWorldResolver> ctx, out double value)
         {
             if (ctx.Payloads != null && _currentTriggerArgs != null)

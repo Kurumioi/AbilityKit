@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 管线追踪记录器接口
-    /// Runtime 使用 NoOp 实现，Editor 使用完整实现
+    /// 管线追踪记录器接口。
+    /// 运行时使用空实现，编辑器使用完整实现。
     /// </summary>
     public interface IPipelineTraceRecorder
     {
@@ -19,13 +19,13 @@ namespace AbilityKit.Pipeline
         void Record(IPipelineLifeOwner owner, PipelineTraceData data);
 
         /// <summary>
-        /// 获取指定拥有者的追踪记录
+        /// 获取指定拥有者的追踪记录；未记录时返回空。
         /// </summary>
-        IPipelineRunTrace GetTrace(int ownerId);
+        IPipelineRunTrace? GetTrace(int ownerId);
     }
 
     /// <summary>
-    /// 管线追踪记录接口（Ring Buffer 实现）
+    /// 管线追踪记录接口（环形缓冲区实现）。
     /// </summary>
     public interface IPipelineRunTrace
     {

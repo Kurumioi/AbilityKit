@@ -171,7 +171,18 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return new ActionCallPlan(
                 plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
                 plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
-                policy);
+                policy, plan.RetryMaxRetries, plan.RetryDelayMs);
+        }
+
+        /// <summary>
+        /// 创建带重试策略的动作
+        /// </summary>
+        public static ActionCallPlan WithRetry(ActionCallPlan plan, int maxRetries = 3, float retryDelayMs = 0f)
+        {
+            return new ActionCallPlan(
+                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
+                plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
+                EActionExecutionPolicy.WithRetry, maxRetries, retryDelayMs);
         }
 
         /// <summary>
@@ -182,7 +193,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             return new ActionCallPlan(
                 plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
                 mode, param, maxExecutions, canBeInterrupted,
-                plan.ExecutionPolicy);
+                plan.ExecutionPolicy, plan.RetryMaxRetries, plan.RetryDelayMs);
         }
     }
 }

@@ -47,7 +47,9 @@ namespace AbilityKit.Triggering.Runtime.Context
         [NonSerialized] private IVariableRepository _variables;
         [NonSerialized] private ITimeService _time;
         [NonSerialized] private IEventBus _events;
+#pragma warning disable CS0618
         [NonSerialized] private IEntityFinder _entities;
+#pragma warning restore CS0618
 
         public IBlackboardResolver Blackboard
         {
@@ -79,11 +81,14 @@ namespace AbilityKit.Triggering.Runtime.Context
             set => _events = value;
         }
 
+        [Obsolete("Entity lookup belongs to the targeting framework package. Formal triggering code should use registered predicates instead of ActionContext.Entities.")]
+#pragma warning disable CS0618
         public IEntityFinder Entities
         {
             get => _entities ?? GetService<IEntityFinder>();
             set => _entities = value;
         }
+#pragma warning restore CS0618
 
         // ========== 便捷访问器 ==========
         public T GetNumericParam<T>(string key) where T : unmanaged => Parameters.Get<T>(key);

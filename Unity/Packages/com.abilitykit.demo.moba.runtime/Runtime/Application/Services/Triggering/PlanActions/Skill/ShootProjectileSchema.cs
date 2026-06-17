@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// shoot_projectile Action �?Schema 瀹氫�?
+    /// shoot_projectile Action 参数 Schema 定义。
     /// </summary>
     public sealed class ShootProjectileSchema : MobaPlanActionSchemaBase<ShootProjectileArgs>
     {

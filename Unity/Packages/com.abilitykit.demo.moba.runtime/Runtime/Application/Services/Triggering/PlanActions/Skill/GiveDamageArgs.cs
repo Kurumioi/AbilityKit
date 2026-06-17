@@ -4,22 +4,22 @@ using AbilityKit.Demo.Moba;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// give_damage Action 閻ㄥ嫬宸辩猾璇茬€烽崣鍌涙殶
+    /// give_damage Action 的强类型参数。
     /// </summary>
     public readonly struct GiveDamageArgs
     {
         /// <summary>
-        /// 娴笺倕濂栭崐?
+        /// 伤害数值。
         /// </summary>
         public readonly float DamageValue;
 
         /// <summary>
-        /// 娴笺倕濂栭崢鐔锋礈閸欏倹鏆熼敍鍫濆彠閼?DamageReasonKind閿?
+        /// 伤害原因参数，对应 DamageReasonKind。
         /// </summary>
         public readonly int ReasonParam;
 
         /// <summary>
-        /// 娴笺倕濂栫猾璇茬€烽敍鍫㈠⒖閻?姒勬梹纭?閻喎鐤勯敍?
+        /// 伤害类型，如物理或法术。
         /// </summary>
         public readonly DamageType DamageType;
         public readonly MobaActionTargetRequest TargetRequest;

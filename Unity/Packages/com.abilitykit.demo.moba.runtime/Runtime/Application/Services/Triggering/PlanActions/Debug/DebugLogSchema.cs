@@ -11,7 +11,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// debug_log Action �?Schema 瀹氫�?
+    /// debug_log Action 参数 Schema 定义。
     /// </summary>
     public sealed class DebugLogSchema : MobaPlanActionSchemaBase<DebugLogArgs>
     {

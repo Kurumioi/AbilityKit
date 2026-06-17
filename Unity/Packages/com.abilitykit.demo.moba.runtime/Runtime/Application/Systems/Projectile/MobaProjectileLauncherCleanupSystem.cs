@@ -63,17 +63,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
         private void RequestDespawn(global::ActorEntity entity, ActorDespawnReason reason)
         {
-            if (entity == null) return;
-
-            var frame = CurrentFrame;
-            if (entity.hasActorDespawnRequest)
-            {
-                entity.ReplaceActorDespawnRequest(frame, frame, reason, 0, 0L);
-            }
-            else
-            {
-                entity.AddActorDespawnRequest(frame, frame, reason, 0, 0L);
-            }
+            ActorLifecycleRequests.RequestDespawn(entity, CurrentFrame, reason);
         }
 
         private int CurrentFrame

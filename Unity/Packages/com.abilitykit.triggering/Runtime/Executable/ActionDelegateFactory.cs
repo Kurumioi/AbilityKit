@@ -55,20 +55,26 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private static void Invoke0(ActionId id, ActionRegistry actions, Context.ActionContext ctx)
         {
-            if (actions.TryGet<Action<object>>(id, out var action, out _))
-                action(ctx);
+            if (!actions.TryGet<Action<object>>(id, out var action, out _))
+                throw new InvalidOperationException($"Action with id {id} and arity 0 is no longer registered.");
+
+            action(ctx);
         }
 
         private static void Invoke1(ActionId id, ActionRegistry actions, Context.ActionContext ctx, double arg0)
         {
-            if (actions.TryGet<Action<object, double>>(id, out var action, out _))
-                action(ctx, arg0);
+            if (!actions.TryGet<Action<object, double>>(id, out var action, out _))
+                throw new InvalidOperationException($"Action with id {id} and arity 1 is no longer registered.");
+
+            action(ctx, arg0);
         }
 
         private static void Invoke2(ActionId id, ActionRegistry actions, Context.ActionContext ctx, double arg0, double arg1)
         {
-            if (actions.TryGet<Action<object, double, double>>(id, out var action, out _))
-                action(ctx, arg0, arg1);
+            if (!actions.TryGet<Action<object, double, double>>(id, out var action, out _))
+                throw new InvalidOperationException($"Action with id {id} and arity 2 is no longer registered.");
+
+            action(ctx, arg0, arg1);
         }
     }
 }

@@ -38,6 +38,14 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private ShooterDemoDriveMode _driveMode = ShooterDemoDriveMode.EditorDirect;
         private IShooterSessionHost? _attachedHost;
 
+        // --- Remote state-sync ---
+        private string _remoteHost = ShooterRemoteStateSyncDefaults.DefaultHost;
+        private int _remotePort = ShooterRemoteStateSyncDefaults.DefaultPort;
+        private string _remoteSessionToken = ShooterRemoteStateSyncDefaults.DefaultSessionToken;
+        private string _remoteRegion = ShooterRemoteStateSyncDefaults.DefaultRegion;
+        private string _remoteServerId = ShooterRemoteStateSyncDefaults.DefaultServerId;
+        private bool _remoteLaunchPending;
+
         // --- Run state ---
         private bool _running;
         private bool _paused;
@@ -76,6 +84,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         // --- 跨 PlayMode 切换保留的宿主启动配置 ---
         private const string PendingHostAttachKey = "AbilityKit.ShooterDemo.PendingPlayModeAttach";
+        private const string PendingRemoteStateSyncKey = "AbilityKit.ShooterDemo.PendingRemoteStateSync";
         private const string HasSavedConfigKey = "AbilityKit.ShooterDemo.HasSavedConfig";
         private const string SyncIndexKey = "AbilityKit.ShooterDemo.SyncIndex";
         private const string NetworkProviderIndexKey = "AbilityKit.ShooterDemo.NetworkProviderIndex";
@@ -91,6 +100,11 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private const string PacketLossRateKey = "AbilityKit.ShooterDemo.PacketLossRate";
         private const string ReorderRateKey = "AbilityKit.ShooterDemo.ReorderRate";
         private const string BandwidthKbpsKey = "AbilityKit.ShooterDemo.BandwidthKbps";
+        private const string RemoteHostKey = "AbilityKit.ShooterDemo.RemoteHost";
+        private const string RemotePortKey = "AbilityKit.ShooterDemo.RemotePort";
+        private const string RemoteSessionTokenKey = "AbilityKit.ShooterDemo.RemoteSessionToken";
+        private const string RemoteRegionKey = "AbilityKit.ShooterDemo.RemoteRegion";
+        private const string RemoteServerIdKey = "AbilityKit.ShooterDemo.RemoteServerId";
 
         [MenuItem("Tools/AbilityKit/Shooter Demo")]
         private static void Open()
@@ -114,10 +128,16 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             // 宿主生命周期独立于窗口挂接状态，订阅后状态栏可以持续显示最新运行状态。
             ShooterHostSessionRegistry.HostsChanged += OnHostLifecycleChanged;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            ShooterRemoteStateSyncPlayModeHost.StateChanged += OnRemoteStateSyncHostChanged;
 
             if (SessionState.GetBool(PendingHostAttachKey, false) && Application.isPlaying)
             {
                 EditorApplication.delayCall += TryStartPendingHostSession;
+            }
+
+            if (SessionState.GetBool(PendingRemoteStateSyncKey, false) && Application.isPlaying)
+            {
+                EditorApplication.delayCall += TryStartPendingRemoteStateSyncSession;
             }
         }
 
@@ -126,6 +146,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             StopInternal();
             ShooterHostSessionRegistry.HostsChanged -= OnHostLifecycleChanged;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            ShooterRemoteStateSyncPlayModeHost.StateChanged -= OnRemoteStateSyncHostChanged;
         }
 
         private void OnHostLifecycleChanged()
@@ -140,12 +161,23 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             {
                 EditorApplication.delayCall += TryStartPendingHostSession;
             }
+
+            if (state == PlayModeStateChange.EnteredPlayMode && SessionState.GetBool(PendingRemoteStateSyncKey, false))
+            {
+                EditorApplication.delayCall += TryStartPendingRemoteStateSyncSession;
+            }
             else if (state == PlayModeStateChange.ExitingPlayMode)
             {
                 SessionState.SetBool(PendingHostAttachKey, false);
+                SessionState.SetBool(PendingRemoteStateSyncKey, false);
             }
 
             // 进入或退出 Play 模式会改变宿主状态与按钮可用性。
+            Repaint();
+        }
+
+        private void OnRemoteStateSyncHostChanged()
+        {
             Repaint();
         }
 
@@ -196,17 +228,18 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             EditorGUI.EndDisabledGroup();
 
             var attachMode = _driveMode == ShooterDemoDriveMode.HostAttach;
+            var remoteMode = _driveMode == ShooterDemoDriveMode.RemoteStateSync;
 
-            EditorGUI.BeginDisabledGroup(_running);
-            var startLabel = attachMode ? "🔗 启动并挂接" : "▶ 启动";
+            EditorGUI.BeginDisabledGroup(_running || _remoteLaunchPending || ShooterRemoteStateSyncPlayModeHost.IsStarting);
+            var startLabel = attachMode ? "🔗 启动并挂接" : remoteMode ? "🌐 连接/重连" : "▶ 启动";
             if (GUILayout.Button(startLabel, EditorStyles.toolbarButton, GUILayout.Width(110)))
             {
                 StartInternal();
             }
             EditorGUI.EndDisabledGroup();
 
-            EditorGUI.BeginDisabledGroup(!_running);
-            var stopLabel = attachMode ? "✂ 断开" : "■ 停止";
+            EditorGUI.BeginDisabledGroup(!_running && !_remoteLaunchPending);
+            var stopLabel = attachMode ? "✂ 断开" : remoteMode ? "■ 断开远程" : "■ 停止";
             if (GUILayout.Button(stopLabel, EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
                 StopInternal();
@@ -226,7 +259,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
 
             // 暂停与单步只适用于窗口自驱的 Editor Direct 模式。
-            EditorGUI.BeginDisabledGroup(!_running || attachMode);
+            EditorGUI.BeginDisabledGroup(!_running || attachMode || remoteMode);
             _paused = GUILayout.Toggle(_paused, "‖ 暂停", EditorStyles.toolbarButton, GUILayout.Width(70));
 
             if (GUILayout.Button("▶ 单步", EditorStyles.toolbarButton, GUILayout.Width(70)))
@@ -238,7 +271,7 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             GUILayout.FlexibleSpace();
 
             // 速度只影响 Editor 自驱循环。
-            EditorGUI.BeginDisabledGroup(attachMode);
+            EditorGUI.BeginDisabledGroup(attachMode || remoteMode);
             GUILayout.Label("速度", GUILayout.Width(35));
             _timeScale = EditorGUILayout.Slider(_timeScale, 0f, 4f, GUILayout.Width(160));
             EditorGUI.EndDisabledGroup();
@@ -257,6 +290,8 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             DrawNetworkSection();
             EditorGUILayout.Space(4);
             DrawPlayerConfigSection();
+            EditorGUILayout.Space(4);
+            DrawRemoteStateSyncSection();
             EditorGUILayout.Space(4);
             DrawInputSection();
             EditorGUILayout.Space(4);
@@ -385,6 +420,27 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
         }
 
+        private void DrawRemoteStateSyncSection()
+        {
+            if (_driveMode != ShooterDemoDriveMode.RemoteStateSync)
+            {
+                return;
+            }
+
+            EditorGUILayout.LabelField("远程状态同步", EditorStyles.boldLabel);
+            EditorGUI.BeginDisabledGroup(_running || _remoteLaunchPending || ShooterRemoteStateSyncPlayModeHost.IsStarting);
+            _remoteHost = EditorGUILayout.TextField("Host", _remoteHost);
+            _remotePort = EditorGUILayout.IntField("Port", _remotePort);
+            _remoteSessionToken = EditorGUILayout.TextField("Session", _remoteSessionToken);
+            _remoteRegion = EditorGUILayout.TextField("Region", _remoteRegion);
+            _remoteServerId = EditorGUILayout.TextField("Server", _remoteServerId);
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUILayout.HelpBox(
+                "先尝试 RestoreRoom，失败后自动 Create/Ready/Start/Subscribe。默认连接 Server/Orleans/tools/restart_shooter_state_sync.bat 启动的 127.0.0.1:41001。",
+                MessageType.Info);
+        }
+
         private void DrawInputSection()
         {
             EditorGUILayout.LabelField("输入", EditorStyles.boldLabel);
@@ -416,28 +472,50 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 return;
             }
 
-            var input = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.LastInput
-                : _lastEditorRunnerInput;
-            var stepCount = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.StepCount
-                : _editorRunner?.StepCount ?? 0L;
-            var renderCount = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.RenderCount
-                : _editorRunner?.RenderCount ?? 0L;
+            var remoteMode = _driveMode == ShooterDemoDriveMode.RemoteStateSync;
+            var input = remoteMode
+                ? ShooterRemoteStateSyncPlayModeHost.LastInput
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.LastInput
+                    : _lastEditorRunnerInput;
+            var stepCount = remoteMode
+                ? ShooterRemoteStateSyncPlayModeHost.StepCount
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.StepCount
+                    : _editorRunner?.StepCount ?? 0L;
+            var renderCount = remoteMode
+                ? ShooterRemoteStateSyncPlayModeHost.RenderCount
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.RenderCount
+                    : _editorRunner?.RenderCount ?? 0L;
 
-            var submit = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.LastSubmitResult
-                : _editorRunner?.LastSubmitResult ?? default;
-            var tick = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.LastTickResult
-                : _editorRunner?.LastTickResult ?? default;
-            var authorityAccepted = _driveMode == ShooterDemoDriveMode.HostAttach
-                ? ShooterPlayModeSessionHost.LastAuthorityAcceptedInputs
-                : _editorRunner?.LastAuthorityAcceptedInputs ?? 0;
+            var submit = remoteMode
+                ? ShooterRemoteStateSyncPlayModeHost.LastSubmitResult
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.LastSubmitResult
+                    : _editorRunner?.LastSubmitResult ?? default;
+            var tick = remoteMode
+                ? ShooterRemoteStateSyncPlayModeHost.LastTickResult
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.LastTickResult
+                    : _editorRunner?.LastTickResult ?? default;
+            var authorityAccepted = remoteMode
+                ? 0
+                : _driveMode == ShooterDemoDriveMode.HostAttach
+                    ? ShooterPlayModeSessionHost.LastAuthorityAcceptedInputs
+                    : _editorRunner?.LastAuthorityAcceptedInputs ?? 0;
 
             EditorGUILayout.LabelField("最后输入", FormatInput(input), EditorStyles.miniLabel);
             EditorGUILayout.LabelField("Runner", $"Step:{stepCount} Render:{renderCount} Submit:{submit.AcceptedInputs}@{submit.RequestedFrame} Tick:{tick.Ticks}@{tick.Frame} Hash:{tick.StateHash:X8} AuthSubmit:{authorityAccepted}", EditorStyles.miniLabel);
+            if (remoteMode)
+            {
+                var gateway = ShooterRemoteStateSyncPlayModeHost.LastGatewaySubmitResult.Remote;
+                var gatewayError = ShooterRemoteStateSyncPlayModeHost.LastGatewayInputError;
+                var gatewayStatus = gatewayError != null
+                    ? gatewayError.Message
+                    : $"Pending:{ShooterRemoteStateSyncPlayModeHost.HasPendingGatewayInput} Queued:{ShooterRemoteStateSyncPlayModeHost.HasQueuedGatewayInput} Sent:{ShooterRemoteStateSyncPlayModeHost.GatewayInputSubmittedCount} Done:{ShooterRemoteStateSyncPlayModeHost.GatewayInputCompletedCount} Replaced:{ShooterRemoteStateSyncPlayModeHost.GatewayInputReplacedCount} Failed:{ShooterRemoteStateSyncPlayModeHost.GatewayInputFailedCount} Resyncs:{ShooterRemoteStateSyncPlayModeHost.GatewayInputResyncRequestedCount} Accepted:{gateway.AcceptedFrame} Current:{gateway.CurrentFrame} {gateway.Status}";
+                EditorGUILayout.LabelField("Gateway输入", gatewayStatus, EditorStyles.miniLabel);
+            }
         }
 
         private static string FormatInput(in ShooterHostFrameInput input)
@@ -595,6 +673,10 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             {
                 EditorGUILayout.LabelField(GetPlayModeHostStatusText(), EditorStyles.miniLabel, GUILayout.Width(150));
             }
+            else if (_driveMode == ShooterDemoDriveMode.RemoteStateSync)
+            {
+                EditorGUILayout.LabelField(GetRemoteStateSyncStatusText(), EditorStyles.miniLabel, GUILayout.Width(220));
+            }
 
             if (!string.IsNullOrEmpty(_lastError))
             {
@@ -631,6 +713,43 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
 
             return "宿主: 空闲";
+        }
+
+        private string GetRemoteStateSyncStatusText()
+        {
+            if (SessionState.GetBool(PendingRemoteStateSyncKey, false))
+            {
+                return "远程: 等待进入 Play";
+            }
+
+            if (!Application.isPlaying)
+            {
+                return "远程: 未进入 Play";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.IsStarting || _remoteLaunchPending)
+            {
+                return "远程: 连接中";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.IsRunning)
+            {
+                var flow = ShooterRemoteStateSyncPlayModeHost.Flow;
+                if (!flow.HasValue)
+                {
+                    return "远程: 已连接";
+                }
+
+                var flowValue = flow.Value;
+                return $"远程: {flowValue.EntryKind} Room:{flowValue.RoomId}";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.LastError != null)
+            {
+                return "远程: 连接失败";
+            }
+
+            return ShooterRemoteStateSyncPlayModeHost.IsInstalled ? "远程: 已安装 / 未连接" : "远程: 空闲";
         }
 
         // =====================================================================
@@ -671,6 +790,12 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             if (_driveMode == ShooterDemoDriveMode.HostAttach)
             {
                 AttachInternal();
+                return;
+            }
+
+            if (_driveMode == ShooterDemoDriveMode.RemoteStateSync)
+            {
+                StartRemoteStateSyncInternal();
                 return;
             }
 
@@ -730,6 +855,12 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
 
         private void StopInternal()
         {
+            if (_driveMode == ShooterDemoDriveMode.RemoteStateSync || _remoteLaunchPending)
+            {
+                StopRemoteStateSyncInternal();
+                return;
+            }
+
             if (_attachedHost != null)
             {
                 DetachInternal();
@@ -836,6 +967,212 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
                 _lastError = $"BasicCombat spec failed: {ex.Message}";
                 Debug.LogException(ex);
             }
+        }
+
+        // =====================================================================
+        // Remote State Sync Lifecycle
+        // =====================================================================
+
+        private async void StartRemoteStateSyncInternal()
+        {
+            if (_remoteLaunchPending || _running)
+            {
+                return;
+            }
+
+            _lastError = string.Empty;
+            _showingSpecBaseline = false;
+
+            if (!TryBuildSessionOptions(out var options) || !TryBuildRemoteEndpoint(out var endpoint))
+            {
+                Repaint();
+                return;
+            }
+
+            SaveConfigToSessionState();
+
+            if (!Application.isPlaying)
+            {
+                SessionState.SetBool(PendingRemoteStateSyncKey, true);
+                _lastError = "已保存当前配置，正在进入 Play 模式并连接 Shooter 状态同步服务器。";
+                EditorApplication.isPlaying = true;
+                Repaint();
+                return;
+            }
+
+            await StartRemoteStateSyncInPlayModeAsync(BuildRemoteLaunchOptions(options, endpoint));
+        }
+
+        private async void TryStartPendingRemoteStateSyncSession()
+        {
+            if (!SessionState.GetBool(PendingRemoteStateSyncKey, false) || !Application.isPlaying)
+            {
+                return;
+            }
+
+            RestoreConfigFromSessionState();
+            ApplyCustomNetwork();
+            SessionState.SetBool(PendingRemoteStateSyncKey, false);
+
+            if (!TryBuildSessionOptions(out var options) || !TryBuildRemoteEndpoint(out var endpoint))
+            {
+                Repaint();
+                return;
+            }
+
+            _driveMode = ShooterDemoDriveMode.RemoteStateSync;
+            await StartRemoteStateSyncInPlayModeAsync(BuildRemoteLaunchOptions(options, endpoint));
+        }
+
+        private ShooterRemoteStateSyncLaunchOptions BuildRemoteLaunchOptions(
+            ShooterPlayModeSessionOptions options,
+            ShooterClientNetworkEndpoint endpoint)
+        {
+            return ShooterRemoteStateSyncLaunchOptions.RestoreFirst(
+                options,
+                endpoint,
+                _remoteSessionToken,
+                _remoteRegion,
+                _remoteServerId);
+        }
+
+        private async System.Threading.Tasks.Task StartRemoteStateSyncInPlayModeAsync(
+            ShooterRemoteStateSyncLaunchOptions launchOptions)
+        {
+            try
+            {
+                _remoteLaunchPending = true;
+                _running = false;
+                _paused = false;
+                _diagnostics.Reset();
+                _diagnostics.IsRunning = true;
+                _lastError = $"正在连接 {launchOptions.Endpoint.Host}:{launchOptions.Endpoint.Port} ...";
+                Repaint();
+
+                await ShooterRemoteStateSyncPlayModeHost.StartAsync(launchOptions);
+
+                _remoteLaunchPending = false;
+                _running = true;
+                _paused = false;
+                _lastError = string.Empty;
+
+                EditorApplication.update -= OnRemoteStateSyncUpdate;
+                EditorApplication.update += OnRemoteStateSyncUpdate;
+                OnRemoteStateSyncUpdate();
+            }
+            catch (Exception ex)
+            {
+                _remoteLaunchPending = false;
+                _running = false;
+                _diagnostics.Reset();
+                _lastError = $"Remote state-sync failed: {ex.Message}";
+                Debug.LogException(ex);
+                Repaint();
+            }
+        }
+
+        private void StopRemoteStateSyncInternal()
+        {
+            EditorApplication.update -= OnRemoteStateSyncUpdate;
+            SessionState.SetBool(PendingRemoteStateSyncKey, false);
+            _remoteLaunchPending = false;
+            _running = false;
+            _paused = false;
+            _showingSpecBaseline = false;
+            ShooterRemoteStateSyncPlayModeHost.Stop();
+            _diagnostics.Reset();
+            _lastError = string.Empty;
+            Repaint();
+        }
+
+        private void OnRemoteStateSyncUpdate()
+        {
+            if (_driveMode != ShooterDemoDriveMode.RemoteStateSync)
+            {
+                return;
+            }
+
+            var session = ShooterRemoteStateSyncPlayModeHost.Session;
+            if (!_remoteLaunchPending && !ShooterRemoteStateSyncPlayModeHost.IsRunning && session == null)
+            {
+                var error = ShooterRemoteStateSyncPlayModeHost.LastError;
+                if (error != null)
+                {
+                    _lastError = $"Remote state-sync stopped: {error.Message}";
+                }
+                _running = false;
+                _diagnostics.IsRunning = false;
+                Repaint();
+                return;
+            }
+
+            UpdateRemoteDiagnostics(session);
+            Repaint();
+        }
+
+        private void UpdateRemoteDiagnostics(ShooterClientSession? session)
+        {
+            _diagnostics.IsRunning = _remoteLaunchPending || ShooterRemoteStateSyncPlayModeHost.IsRunning;
+            _diagnostics.IsPaused = false;
+
+            if (session == null)
+            {
+                return;
+            }
+
+            var batch = session.Presentation.ViewModel.Current;
+            var players = 0;
+            var bullets = 0;
+            for (var i = 0; i < batch.EntityChangeCount; i++)
+            {
+                var entity = batch.EntityChanges[i];
+                if (!entity.Alive)
+                {
+                    continue;
+                }
+
+                if (entity.Kind == ShooterViewEntityKind.Player)
+                {
+                    players++;
+                }
+                else if (entity.Kind == ShooterViewEntityKind.Bullet)
+                {
+                    bullets++;
+                }
+            }
+
+            _diagnostics.Frame = session.CurrentFrame;
+            _diagnostics.PlayerCount = players;
+            _diagnostics.BulletCount = bullets;
+            _diagnostics.TotalRollbacks = 0;
+            _diagnostics.MaxDivergence = 0d;
+        }
+
+        private bool TryBuildRemoteEndpoint(out ShooterClientNetworkEndpoint endpoint)
+        {
+            endpoint = default;
+            var host = string.IsNullOrWhiteSpace(_remoteHost)
+                ? ShooterRemoteStateSyncDefaults.DefaultHost
+                : _remoteHost.Trim();
+            var port = _remotePort;
+            if (port <= 0 || port > 65535)
+            {
+                _lastError = "远程状态同步端口必须在 1-65535 范围内。";
+                return false;
+            }
+
+            _remoteHost = host;
+            _remotePort = port;
+            _remoteSessionToken = NormalizeRemoteText(_remoteSessionToken, ShooterRemoteStateSyncDefaults.DefaultSessionToken);
+            _remoteRegion = NormalizeRemoteText(_remoteRegion, ShooterRemoteStateSyncDefaults.DefaultRegion);
+            _remoteServerId = NormalizeRemoteText(_remoteServerId, ShooterRemoteStateSyncDefaults.DefaultServerId);
+            endpoint = new ShooterClientNetworkEndpoint(host, port);
+            return true;
+        }
+
+        private static string NormalizeRemoteText(string value, string fallback)
+        {
+            return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
         }
 
         // =====================================================================
@@ -1117,6 +1454,11 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             SessionState.SetFloat(PacketLossRateKey, (float)_packetLossRate);
             SessionState.SetFloat(ReorderRateKey, (float)_reorderRate);
             SessionState.SetInt(BandwidthKbpsKey, _bandwidthKbps);
+            SessionState.SetString(RemoteHostKey, _remoteHost);
+            SessionState.SetInt(RemotePortKey, _remotePort);
+            SessionState.SetString(RemoteSessionTokenKey, _remoteSessionToken);
+            SessionState.SetString(RemoteRegionKey, _remoteRegion);
+            SessionState.SetString(RemoteServerIdKey, _remoteServerId);
         }
 
         private void RestoreConfigFromSessionState()
@@ -1135,6 +1477,11 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             _packetLossRate = Clamp01(SessionState.GetFloat(PacketLossRateKey, (float)_packetLossRate));
             _reorderRate = Clamp01(SessionState.GetFloat(ReorderRateKey, (float)_reorderRate));
             _bandwidthKbps = Math.Max(0, SessionState.GetInt(BandwidthKbpsKey, _bandwidthKbps));
+            _remoteHost = SessionState.GetString(RemoteHostKey, _remoteHost);
+            _remotePort = SessionState.GetInt(RemotePortKey, _remotePort);
+            _remoteSessionToken = SessionState.GetString(RemoteSessionTokenKey, _remoteSessionToken);
+            _remoteRegion = SessionState.GetString(RemoteRegionKey, _remoteRegion);
+            _remoteServerId = SessionState.GetString(RemoteServerIdKey, _remoteServerId);
             _inputProvider.ControlledPlayerId = _controlledPlayerId;
         }
 

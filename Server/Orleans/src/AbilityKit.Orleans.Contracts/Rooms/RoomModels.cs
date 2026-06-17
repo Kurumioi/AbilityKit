@@ -19,6 +19,12 @@ public sealed record RoomSummary(
     [property: Id(10)] Dictionary<string, string>? Tags);
 
 [GenerateSerializer]
+public sealed record RoomMemberState(
+    [property: Id(0)] bool IsOnline,
+    [property: Id(1)] long LastSeenTicks,
+    [property: Id(2)] long OfflineSinceTicks);
+
+[GenerateSerializer]
 public sealed record CreateRoomRequest(
     [property: Id(0)] string AccountId,
     [property: Id(1)] string Region,
@@ -75,13 +81,73 @@ public sealed record RoomSnapshot(
     [property: Id(3)] bool CanStart,
     [property: Id(4)] string? BattleId,
     [property: Id(5)] WorldStartAnchor? WorldStartAnchor,
-    [property: Id(6)] ulong WorldId);
+    [property: Id(6)] ulong WorldId,
+    [property: Id(7)] Dictionary<string, RoomMemberState>? MemberStates);
+
+[GenerateSerializer]
+public sealed record RoomRuntimeState(
+    [property: Id(0)] string RoomId,
+    [property: Id(1)] string RoomType,
+    [property: Id(2)] string? BattleId,
+    [property: Id(3)] ulong WorldId,
+    [property: Id(4)] bool IsClosed,
+    [property: Id(5)] bool IsInBattle,
+    [property: Id(6)] List<string> Members,
+    [property: Id(7)] Dictionary<string, RoomMemberState>? MemberStates,
+    [property: Id(8)] long ServerNowTicks,
+    [property: Id(9)] Dictionary<string, string>? Tags);
 
 [GenerateSerializer]
 public sealed record JoinRoomResponse(
     [property: Id(0)] RoomSnapshot Snapshot,
     [property: Id(1)] RoomJoinKind JoinKind,
     [property: Id(2)] long ServerNowTicks);
+
+[GenerateSerializer]
+public enum RoomRestoreStatus
+{
+    Restored = 0,
+    NoActiveRoom = 1,
+    NotMember = 2,
+    RoomClosed = 3,
+    RoomExpired = 4,
+    InvalidSession = 5,
+    Failed = 100
+}
+
+[GenerateSerializer]
+public enum RoomRestoreErrorCode
+{
+    None = 0,
+    NoAccountRoomMapping = 1,
+    AccountNotInRoom = 2,
+    RoomClosed = 3,
+    RoomExpired = 4,
+    InvalidSession = 5,
+    InternalError = 100
+}
+
+[GenerateSerializer]
+public sealed record RestoreRoomResponse(
+    [property: Id(0)] RoomSnapshot Snapshot,
+    [property: Id(1)] RoomJoinKind JoinKind,
+    [property: Id(2)] bool HasActiveRoom,
+    [property: Id(3)] bool IsInBattle,
+    [property: Id(4)] long ServerNowTicks,
+    [property: Id(5)] RoomRestoreStatus Status = RoomRestoreStatus.Restored,
+    [property: Id(6)] RoomRestoreErrorCode ErrorCode = RoomRestoreErrorCode.None,
+    [property: Id(7)] string Message = "")
+{
+    public static RestoreRoomResponse Active(RoomSnapshot snapshot, RoomJoinKind joinKind, bool IsInBattle, long serverNowTicks)
+    {
+        return new RestoreRoomResponse(snapshot, joinKind, true, IsInBattle, serverNowTicks, RoomRestoreStatus.Restored, RoomRestoreErrorCode.None, string.Empty);
+    }
+
+    public static RestoreRoomResponse Failed(RoomRestoreStatus status, RoomRestoreErrorCode errorCode, string message)
+    {
+        return new RestoreRoomResponse(default!, RoomJoinKind.TeamLobby, false, false, DateTime.UtcNow.Ticks, status, errorCode, message ?? string.Empty);
+    }
+}
 
 [GenerateSerializer]
 public sealed record RoomReadyRequest(
@@ -107,7 +173,8 @@ public sealed record StartRoomBattleRequest(
     [property: Id(3)] int ConfigVersion,
     [property: Id(4)] int ProtocolVersion,
     [property: Id(5)] string? WorldType,
-    [property: Id(6)] string? ClientId);
+    [property: Id(6)] string? ClientId,
+    [property: Id(7)] BattleSyncStartOptions? SyncOptions = null);
 
 [GenerateSerializer]
 public sealed record StartRoomBattleResponse(

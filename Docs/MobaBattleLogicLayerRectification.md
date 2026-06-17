@@ -87,8 +87,35 @@ flowchart TB
 3. “合法无结果”与“配置/依赖错误”必须分离。例如目标搜索没有目标可以返回无结果，缺少查询模板必须抛错。
 4. 技能与效果以表驱动流程为正式路径，旧接口、旧阶段、旧默认行为在确认无正式价值后删除。
 5. 快照输出要从“按需捞当前状态”逐步转向“结构化变更事件 + 按帧聚合输出”，便于网络同步、回放和调试。
+6. 运行时内部的路由、快照、表现意图只能表达纯数据契约，不能使用 Client/Server/View 这类传输或表现宿主命名。
 
-## 3. 合理设计，应保留并强化
+## 3. 职责边界审计与迁移清单
+
+### 3.1 应外部化的集成适配层
+
+| 模块 | 当前职责 | 判断 | 迁移建议 |
+|---|---|---|---|
+| Session 宿主 | [`MobaSessionCoordinatorHost`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaSessionCoordinatorHost.cs:40) 创建 `HostRuntime`、配置 `SessionConfig`、注册 create-world init payload | 不是纯战斗规则。它是 ET/Coordinator/Host 到 MOBA runtime 的接入适配层 | 中期迁移到 host extension moba 或单独的 moba integration 包；runtime 只保留 world blueprint、bootstrap stage 与运行时端口 |
+| Driver 宿主 | [`MobaBattleDriverHost`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaBattleDriverHost.cs:37) 绑定 `IWorld`/`HostRuntime`，转发输入、Tick、快照 | 不是纯战斗规则，但当前只通过 `IMobaBattleRuntimePort` 访问 runtime，边界方向正确 | 暂留为兼容适配器；后续抽到 host extension moba adapter，runtime 包只暴露端口契约和世界创建能力 |
+| Coordinator 适配器 | [`MobaPlayerInputCommandConverter`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaPlayerInputCommandConverter.cs:21)、[`MobaCoordinatorStateAdapter`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaCoordinatorStateAdapter.cs:10)、[`MobaCoordinatorSpawnAdapter`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaCoordinatorSpawnAdapter.cs:1) 负责 coordinator DTO 与 runtime DTO 转换 | 明确是外部框架适配，不应继续向战斗规则层扩展 | 随 Driver 宿主一起迁移；迁移前禁止新增实体直接访问，只允许端口/DTO 转换 |
+| 表现快照派发 | [`MobaTransformSnapshotDispatcher`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Session/MobaTransformSnapshotDispatcher.cs:18) 从 runtime port 读取 ActorTransform 并回调外部 | 派发 callback 是表现/宿主集成职责；ActorTransform snapshot 本身仍是纯数据输出 | 后续迁移 dispatcher；runtime 保留 `MobaActorTransformSnapshotService` 与 snapshot codec |
+
+### 3.2 应保留在运行时但需命名中性化
+
+| 模块 | 当前职责 | 判断 | 已处理/后续动作 |
+|---|---|---|---|
+| 路由描述 | [`MobaBattleRouteKind`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Routing/MobaBattleRouteDescriptor.cs:5) 曾使用 `ClientInput`、`ServerSnapshot`、`ViewCommand` | 这是内部契约注册，不应暗示网络端或视图端所有权 | 已新增 `RuntimeInput`、`RuntimeSnapshot`、`RuntimeOutputIntent`、`RuntimeLifecycle`，旧名称保留为 obsolete 兼容别名 |
+| 输入处理器标记 | [`MobaInputCommandHandlerAttribute`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Input/MobaInputCommandHandlerAttribute.cs:18) 注册输入 opcode | 输入 opcode 是纯运行时命令契约，不是客户端传输协议本身 | 已改用 `RuntimeInput`，避免新代码继续引用 `ClientInput` |
+| 表现意图事件 | [`MobaPresentationCueSnapshotService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs:1) 与 `PresentationEventArgs` 输出表现 cue | 如果保持数据-only，可作为战斗结果意图；不能引用 Unity View 或直接调表现对象 | 后续建议命名为 Cue/OutputIntent，并补 snapshot contract 标明其为可选表现意图流 |
+| EnterGame 快照 | [`MobaEnterGameFlowService`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/EnterGame/MobaEnterGameFlowService.cs:22) 生成进入游戏响应与出生快照 | Actor 构建属于启动应用逻辑；网络进入流程不应放入 runtime，但启动应用后的初始状态快照可保留 | 后续引入 `BattleStartPlan`，把外部 enter/create-world 协议翻译移到 host extension，runtime 只应用已验证计划 |
+
+### 3.3 不建议手动迁移的生成代码
+
+| 模块 | 当前职责 | 判断 | 处理方式 |
+|---|---|---|---|
+| Entitas 生成调试代码 | [`Contexts`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Common/Shared/Entitas/Generated/Contexts.cs:1) 与 [`Feature`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Common/Shared/Entitas/Generated/Feature.cs:1) 包含 Unity visual debug/profiler hook | 这是生成器输出的 Unity 调试依赖，不宜手工局部改生成文件 | 后续从 Entitas 生成配置或编译宏治理；不能在纯逻辑代码中新增类似 UnityEngine 依赖 |
+
+## 4. 合理设计，应保留并强化
 
 | 模块 | 当前设计 | 判断 | 后续动作 |
 |---|---|---|---|
@@ -101,7 +128,7 @@ flowchart TB
 | 主链路健康校验 | [`MobaBattleMainFlowHealthValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleMainFlowHealthValidator.cs:6) 验证 runtime/input/execute/output | 合理。它可以成为整改后的启动闸门 | 保留并扩展到启动计划、命令路由、快照 emitter 必选集 |
 | 快照路由 | [`MobaSnapshotRouter`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaSnapshotRouter.cs:13) 通过 emitter 收集多类快照 | 合理。比各模块各自暴露输出更可维护 | 保留，收紧空参数和 emitter 注册失败语义 |
 
-## 4. 待优化设计，按优先级处理
+## 5. 待优化设计，按优先级处理
 
 ### P0：会导致主流程不可控的治理项
 
@@ -150,7 +177,7 @@ flowchart TB
 3. [`MobaRuntimeDependencyHealthValidator`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeDependencyHealthValidator.cs:17) 现在是大清单式校验，建议拆成能力域 validator 并由主链路 validator 聚合关键能力。
 4. [`LogicWorldEntityState`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/IO/IMobaBattleOutputPort.cs:11) 同时承担诊断、host 读模型、fallback inspection，建议拆成 `BattleDiagnosticsEntityState` 与正式 snapshot DTO。
 
-## 5. 缺失能力清单
+## 6. 缺失能力清单
 
 | 缺失能力 | 影响 | 建议落地 |
 |---|---|---|
@@ -163,7 +190,7 @@ flowchart TB
 | Config Reference Validator 全覆盖 | 技能、TriggerPlan、搜索、召唤、投射物、区域、快照 emitter 引用还需要全链路校验 | 扩展配置引用校验器，启动前发现缺表、缺 plan、缺模板、缺 action |
 | Trace Lineage 强约束 | trace 缺失时部分执行仍能继续 | 决定 trace 是否为必选能力；如果必选，缺失阻断；如果可选，必须显式标记为 diagnostics-only |
 
-## 6. 推荐整改顺序
+## 7. 推荐整改顺序
 
 ### 第一轮：主链路失败语义收紧
 
@@ -187,7 +214,7 @@ flowchart TB
 3. 明确读模型与快照模型边界，避免 [`LogicWorldEntityState`](../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/IO/IMobaBattleOutputPort.cs:11) 成为表现同步的隐式替代路线。
 4. 清理不再参与正式路径的旧函数、旧接口、旧兼容字段。
 
-## 7. 总结
+## 8. 总结
 
 当前战斗逻辑层已经有可保留的正式骨架：统一运行时端口、输入协调基类、表驱动技能管线、TriggerPlan 效果执行、快照路由、主链路健康校验。这些设计方向是合理的。
 

@@ -17,9 +17,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
     [WorldService(typeof(MobaTriggerPlanSubscriptionService))]
     public sealed class MobaTriggerPlanSubscriptionService : IWorldInitializable, IWorldDeinitializable
     {
-        [WorldInject] private TriggerPlanJsonDatabase _db;
-        [WorldInject] private TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner;
-        [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry;
+        [WorldInject] private TriggerPlanJsonDatabase _db = null;
+        [WorldInject] private TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner = null;
+        [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry = null;
 
         private readonly Dictionary<int, TriggerPlanJsonDatabase.Record> _byTriggerId = new Dictionary<int, TriggerPlanJsonDatabase.Record>();
         private readonly Dictionary<int, Type> _argsTypeByTriggerId = new Dictionary<int, Type>();

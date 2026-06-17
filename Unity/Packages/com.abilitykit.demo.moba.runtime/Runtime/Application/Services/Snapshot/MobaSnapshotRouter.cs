@@ -23,6 +23,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private List<IMobaSnapshotEmitter> _emitters;
         private List<MobaSnapshotEmitterHealthEntry> _emitterHealthEntries;
+        private List<string> _missingRequiredEmitters;
+        private MobaSnapshotOutputContract _outputContract;
         private IMobaBattleDiagnosticsService _diagnostics;
         private long _singleRequests;
         private long _batchRequests;
@@ -37,6 +39,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _emitters = new List<IMobaSnapshotEmitter>(8);
             _emitterHealthEntries = new List<MobaSnapshotEmitterHealthEntry>(8);
+            _missingRequiredEmitters = new List<string>(4);
+            _outputContract = MobaSnapshotOutputContract.CreateDefault();
             _lastFrame = -1;
             _lastSnapshotOpCode = 0;
             _lastBatchSnapshotCount = 0;
@@ -50,6 +54,7 @@ namespace AbilityKit.Demo.Moba.Services
             var resolved = registry.ResolveEmitters(services);
             _emitters = resolved;
             RebuildEmitterHealthEntries();
+            RebuildOutputContractHealth();
             _usedAttributeRegistry = resolved.Count > 0;
 
             RecordEmitterCount();
@@ -109,7 +114,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaSnapshotRouterHealth GetHealth()
         {
-            return new MobaSnapshotRouterHealth(_emitters.Count, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries);
+            var requiredCount = _outputContract != null ? _outputContract.RequiredEmitters.Count : 0;
+            var missingCount = _missingRequiredEmitters != null ? _missingRequiredEmitters.Count : 0;
+            return new MobaSnapshotRouterHealth(_emitters.Count, requiredCount, missingCount, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries, _missingRequiredEmitters);
         }
 
         private void RecordHit(int opCode, int batchCount)
@@ -142,6 +149,34 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        private void RebuildOutputContractHealth()
+        {
+            _missingRequiredEmitters.Clear();
+            if (_outputContract == null) return;
+
+            var required = _outputContract.RequiredEmitters;
+            for (int i = 0; i < required.Count; i++)
+            {
+                var contract = required[i];
+                if (HasEmitter(contract.EmitterType)) continue;
+
+                _missingRequiredEmitters.Add($"{contract.Name}:{contract.OpCode}:{contract.EmitterType.Name}");
+            }
+        }
+
+        private bool HasEmitter(Type emitterType)
+        {
+            if (emitterType == null || _emitters == null) return false;
+
+            for (int i = 0; i < _emitters.Count; i++)
+            {
+                var emitter = _emitters[i];
+                if (emitter != null && emitter.GetType() == emitterType) return true;
+            }
+
+            return false;
+        }
+
         private void RecordEmitterCount()
         {
             var count = _emitters != null ? _emitters.Count : 0;
@@ -157,6 +192,7 @@ namespace AbilityKit.Demo.Moba.Services
             _diagnostics = null;
             _emitters?.Clear();
             _emitterHealthEntries?.Clear();
+            _missingRequiredEmitters?.Clear();
         }
     }
 }

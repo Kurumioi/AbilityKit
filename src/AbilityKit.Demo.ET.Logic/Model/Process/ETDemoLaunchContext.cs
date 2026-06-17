@@ -5,13 +5,13 @@ namespace ET.Logic
     /// </summary>
     public static class ETDemoLaunchContext
     {
-        private static ETDemoProcessLaunchOptions _launchOptions = ETDemoProcessLaunchOptions.CreateLocalDemoDefaults();
+        private static ETDemoProcessLaunchOptions _launchOptions = ETDemoProcessLaunchOptions.CreateLocalScenarioDefaults();
 
         public static ETDemoProcessLaunchOptions LaunchOptions => _launchOptions;
 
         public static void SetLaunchOptions(ETDemoProcessLaunchOptions launchOptions)
         {
-            _launchOptions = launchOptions ?? ETDemoProcessLaunchOptions.CreateLocalDemoDefaults();
+            _launchOptions = launchOptions ?? ETDemoProcessLaunchOptions.CreateLocalScenarioDefaults();
         }
     }
 }

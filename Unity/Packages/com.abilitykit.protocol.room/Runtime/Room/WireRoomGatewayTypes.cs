@@ -56,6 +56,28 @@ namespace AbilityKit.Protocol.Room
         LateJoin = 2
     }
 
+    public enum WireRoomRestoreStatus
+    {
+        Restored = 0,
+        NoActiveRoom = 1,
+        NotMember = 2,
+        RoomClosed = 3,
+        RoomExpired = 4,
+        InvalidSession = 5,
+        Failed = 100
+    }
+
+    public enum WireRoomRestoreErrorCode
+    {
+        None = 0,
+        NoAccountRoomMapping = 1,
+        AccountNotInRoom = 2,
+        RoomClosed = 3,
+        RoomExpired = 4,
+        InvalidSession = 5,
+        InternalError = 100
+    }
+
     [MemoryPackable]
     public partial struct WireJoinRoomRes
     {
@@ -67,6 +89,31 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public string Message { get; set; }
         [MemoryPackOrder(6)] public WireRoomJoinKind JoinKind { get; set; }
         [MemoryPackOrder(7)] public long ServerNowTicks { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireRestoreRoomReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string Region { get; set; }
+        [MemoryPackOrder(2)] public string ServerId { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireRestoreRoomRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public bool HasActiveRoom { get; set; }
+        [MemoryPackOrder(2)] public bool IsInBattle { get; set; }
+        [MemoryPackOrder(3)] public string RoomId { get; set; }
+        [MemoryPackOrder(4)] public ulong NumericRoomId { get; set; }
+        [MemoryPackOrder(5)] public WireRoomSnapshot Snapshot { get; set; }
+        [MemoryPackOrder(6)] public WireWorldStartAnchor WorldStartAnchor { get; set; }
+        [MemoryPackOrder(7)] public string Message { get; set; }
+        [MemoryPackOrder(8)] public WireRoomJoinKind JoinKind { get; set; }
+        [MemoryPackOrder(9)] public long ServerNowTicks { get; set; }
+        [MemoryPackOrder(10)] public WireRoomRestoreStatus Status { get; set; }
+        [MemoryPackOrder(11)] public WireRoomRestoreErrorCode ErrorCode { get; set; }
     }
 
     [MemoryPackable]
@@ -112,6 +159,13 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public int ProtocolVersion { get; set; }
         [MemoryPackOrder(6)] public string WorldType { get; set; }
         [MemoryPackOrder(7)] public string ClientId { get; set; }
+        [MemoryPackOrder(8)] public string SyncTemplateId { get; set; }
+        [MemoryPackOrder(9)] public int SyncModel { get; set; }
+        [MemoryPackOrder(10)] public string NetworkEnvironmentId { get; set; }
+        [MemoryPackOrder(11)] public string CarrierName { get; set; }
+        [MemoryPackOrder(12)] public bool EnableAuthoritativeWorld { get; set; }
+        [MemoryPackOrder(13)] public bool InterpolationEnabled { get; set; }
+        [MemoryPackOrder(14)] public int InputDelayFrames { get; set; }
     }
 
     [MemoryPackable]

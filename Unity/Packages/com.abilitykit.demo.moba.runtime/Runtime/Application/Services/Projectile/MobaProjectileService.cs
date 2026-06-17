@@ -15,6 +15,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Components;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -24,19 +25,19 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private const int CollisionLayer_Unit = 1 << 0;
         private const int CollisionLayer_World = 1 << 2;
 
-        [WorldInject] private IProjectileService _projectiles;
-        [WorldInject] private ActorIdAllocator _actorIds;
-        [WorldInject] private MobaActorRegistry _registry;
-        [WorldInject] private MobaEntityManager _entities;
-        [WorldInject] private MobaProjectileLinkService _links;
-        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots;
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace;
-        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes;
-        [WorldInject(required: false)] private MobaSkillParamModifierService _skillParamModifiers;
-        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn;
-        [WorldInject(required: false)] private IContinuousManager _continuous;
-        [WorldInject(required: false)] private IMobaProjectileEmitterManager _emitters;
+        [WorldInject] private IProjectileService _projectiles = null;
+        [WorldInject] private ActorIdAllocator _actorIds = null;
+        [WorldInject] private MobaActorRegistry _registry = null;
+        [WorldInject] private MobaEntityManager _entities = null;
+        [WorldInject] private MobaProjectileLinkService _links = null;
+        [WorldInject(required: false)] private MobaActorSpawnSnapshotService _spawnSnapshots = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private MobaSkillParamModifierService _skillParamModifiers = null;
+        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
+        [WorldInject(required: false)] private IContinuousManager _continuous = null;
+        [WorldInject(required: false)] private IMobaProjectileEmitterManager _emitters = null;
 
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
         {
@@ -392,6 +393,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var endTimeMs = durationMs > 0 ? nowMs + durationMs : nowMs;
             if (!TryCreateLaunchSequence(launcher, out var sequence, out var sequenceError))
             {
+                RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
                 result = MobaProjectileLaunchResult.Failed(sequenceError);
                 return false;
             }
@@ -415,7 +417,18 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _skillParamModifiers,
                 this);
 
-            return sequence.TryStart(in context, out result);
+            var started = sequence.TryStart(in context, out result);
+            if (!started || !result.Success)
+            {
+                RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
+            }
+
+            return started;
+        }
+
+        private void RequestLauncherDespawn(global::ActorEntity launcherEntity, ActorDespawnReason reason)
+        {
+            ActorLifecycleRequests.RequestDespawn(launcherEntity, CurrentFrame, reason);
         }
 
         public bool IsLaunchComplete(in MobaProjectileLaunchResult result)

@@ -10,8 +10,8 @@ namespace AbilityKit.Demo.Moba.Gameplay
     [WorldService(typeof(MobaGameplayConfigService), WorldLifetime.Scoped)]
     public sealed class MobaGameplayConfigService : IService
     {
-        [WorldInject(required: false)] private MobaConfigDatabase _configs;
-        [WorldInject(required: false)] private MobaGameplayConfigSettings _settings;
+        [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
+        [WorldInject(required: false)] private MobaGameplayConfigSettings _settings = null;
 
         public int ResolveDefaultGameplayId()
         {

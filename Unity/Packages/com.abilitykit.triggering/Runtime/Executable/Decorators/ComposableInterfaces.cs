@@ -27,7 +27,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public abstract string Name { get; }
         public abstract ExecutableMetadata Metadata { get; }
 
-        public new ISimpleExecutable Inner { get; set; }
+        public ISimpleExecutable Inner { get; set; }
 
         public virtual ExecutionResult Execute(object ctx)
         {

@@ -7,7 +7,7 @@ using AbilityKit.Demo.Moba.Share.Config;
 namespace AbilityKit.Demo.Moba.Config.BattleDemo
 {
     /// <summary>
-    /// Luban 瀛楄妭鐮佸弽搴忓垪鍖栧櫒锛堝凡寮冪敤锛屾敼鐢?JSON 鏍煎紡锛?
+    /// 已废弃的 Luban 文本反序列化器；运行时配置统一使用 JSON DTO 反序列化。
     /// </summary>
     public sealed class LubanMobaConfigDtoDeserializer : IMobaConfigDtoDeserializer
     {
@@ -34,6 +34,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
+            typeof(GameplayDTO),
         };
 
         public Array DeserializeDtoArray(string text, Type dtoType)

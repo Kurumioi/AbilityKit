@@ -52,7 +52,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static MobaInputCommandContractRegistry CreateDefault()
         {
-            var registry = new MobaInputCommandContractRegistry(MobaInputCommandHandlerRegistry.CreateDefault());
+            var handlerRegistry = MobaInputCommandHandlerRegistry.CreateEmpty();
+            var registry = new MobaInputCommandContractRegistry(handlerRegistry);
             registry.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move, typeof(MobaMoveInputCommandHandler), "Move");
             registry.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput, typeof(MobaSkillInputCommandHandler), "SkillInput");
             return registry;
@@ -87,6 +88,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             _contracts.Add(contract.OpCode, contract);
             _contractList.Add(contract);
+            HandlerRegistry.Register(contract.OpCode, contract.HandlerType);
         }
 
         public bool TryGetContract(int opCode, out MobaInputCommandContract contract)

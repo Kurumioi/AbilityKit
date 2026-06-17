@@ -208,6 +208,71 @@ namespace AbilityKit.Demo.Shooter.View
                 subscribe.Message);
         }
 
+        public async Task<ShooterRoomGatewayFlowResult> RestoreRoomAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(region))
+            {
+                throw new ArgumentException("region is required.", nameof(region));
+            }
+
+            if (string.IsNullOrWhiteSpace(serverId))
+            {
+                throw new ArgumentException("serverId is required.", nameof(serverId));
+            }
+
+            if (playerId == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(playerId));
+            }
+
+            var restored = await _roomClient.RestoreRoomAsync(
+                new ShooterGatewayRestoreRoomRequest(sessionToken, region, serverId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(restored.Success, restored.Message, "restore room");
+
+            if (!restored.HasActiveRoom || string.IsNullOrWhiteSpace(restored.RoomId))
+            {
+                throw new InvalidOperationException("restore room did not find an active room.");
+            }
+
+            if (!restored.IsInBattle || string.IsNullOrWhiteSpace(restored.BattleId))
+            {
+                throw new InvalidOperationException("restore room did not find a running battle.");
+            }
+
+            var subscribe = await _roomClient.SubscribeStateSyncAsync(
+                new ShooterGatewayStateSyncSubscriptionRequest(sessionToken, restored.BattleId, restored.RoomId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
+
+            return new ShooterRoomGatewayFlowResult(
+                sessionToken,
+                restored.RoomId,
+                restored.NumericRoomId,
+                restored.BattleId,
+                restored.WorldId,
+                playerId,
+                in restored.WorldStartAnchor,
+                restored.ServerNowTicks,
+                ToEntryKind(restored.JoinKind),
+                restored.CanStart,
+                started: true,
+                subscribe.Success,
+                subscribe.Message,
+                restored.Status,
+                restored.ErrorCode);
+        }
+
         private static ShooterRoomGatewayEntryKind ToEntryKind(ShooterGatewayRoomJoinKind joinKind)
         {
             return joinKind switch
@@ -266,6 +331,8 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly bool Started;
         public readonly bool Subscribed;
         public readonly string Message;
+        public readonly ShooterGatewayRoomRestoreStatus RestoreStatus;
+        public readonly ShooterGatewayRoomRestoreErrorCode RestoreErrorCode;
 
         public ShooterRoomGatewayFlowResult(
             string sessionToken,
@@ -281,6 +348,26 @@ namespace AbilityKit.Demo.Shooter.View
             bool started,
             bool subscribed,
             string message)
+            : this(sessionToken, roomId, numericRoomId, battleId, worldId, playerId, in worldStartAnchor, serverNowTicks, entryKind, canStart, started, subscribed, message, ShooterGatewayRoomRestoreStatus.Restored, ShooterGatewayRoomRestoreErrorCode.None)
+        {
+        }
+
+        public ShooterRoomGatewayFlowResult(
+            string sessionToken,
+            string roomId,
+            ulong numericRoomId,
+            string battleId,
+            ulong worldId,
+            uint playerId,
+            in ShooterGatewayWorldStartAnchor worldStartAnchor,
+            long serverNowTicks,
+            ShooterRoomGatewayEntryKind entryKind,
+            bool canStart,
+            bool started,
+            bool subscribed,
+            string message,
+            ShooterGatewayRoomRestoreStatus restoreStatus,
+            ShooterGatewayRoomRestoreErrorCode restoreErrorCode)
         {
             SessionToken = sessionToken ?? string.Empty;
             RoomId = roomId ?? string.Empty;
@@ -298,6 +385,8 @@ namespace AbilityKit.Demo.Shooter.View
             Started = started;
             Subscribed = subscribed;
             Message = message ?? string.Empty;
+            RestoreStatus = restoreStatus;
+            RestoreErrorCode = restoreErrorCode;
         }
 
         public ShooterRoomGatewayLaunchSummary ToSummary()
@@ -314,7 +403,9 @@ namespace AbilityKit.Demo.Shooter.View
                 CanStart,
                 Started,
                 Subscribed,
-                Message);
+                Message,
+                RestoreStatus,
+                RestoreErrorCode);
         }
 
         public ShooterGatewayBattleInputContext CreateBattleInputContext(int frame)
@@ -338,6 +429,25 @@ namespace AbilityKit.Demo.Shooter.View
             bool started,
             bool subscribed,
             string message)
+            : this(roomId, numericRoomId, battleId, worldId, playerId, targetFrame, catchUpFrames, entryKind, canStart, started, subscribed, message, ShooterGatewayRoomRestoreStatus.Restored, ShooterGatewayRoomRestoreErrorCode.None)
+        {
+        }
+
+        public ShooterRoomGatewayLaunchSummary(
+            string roomId,
+            ulong numericRoomId,
+            string battleId,
+            ulong worldId,
+            uint playerId,
+            int targetFrame,
+            int catchUpFrames,
+            ShooterRoomGatewayEntryKind entryKind,
+            bool canStart,
+            bool started,
+            bool subscribed,
+            string message,
+            ShooterGatewayRoomRestoreStatus restoreStatus,
+            ShooterGatewayRoomRestoreErrorCode restoreErrorCode)
         {
             RoomId = roomId ?? string.Empty;
             NumericRoomId = numericRoomId;
@@ -351,6 +461,8 @@ namespace AbilityKit.Demo.Shooter.View
             Started = started;
             Subscribed = subscribed;
             Message = message ?? string.Empty;
+            RestoreStatus = restoreStatus;
+            RestoreErrorCode = restoreErrorCode;
         }
 
         public string RoomId { get; }
@@ -376,6 +488,10 @@ namespace AbilityKit.Demo.Shooter.View
         public bool Subscribed { get; }
 
         public string Message { get; }
+
+        public ShooterGatewayRoomRestoreStatus RestoreStatus { get; }
+
+        public ShooterGatewayRoomRestoreErrorCode RestoreErrorCode { get; }
 
         public bool IsRunningEntry => EntryKind == ShooterRoomGatewayEntryKind.Reconnect || EntryKind == ShooterRoomGatewayEntryKind.LateJoin;
 

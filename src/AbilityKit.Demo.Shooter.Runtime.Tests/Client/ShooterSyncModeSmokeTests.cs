@@ -381,6 +381,71 @@ public sealed class ShooterSyncModeSmokeTests
     }
 
     [Fact]
+    public void AuthoritativeInterpolationRunsStateSyncSnapshotPushSmoke()
+    {
+        const int playerCount = 4;
+        var syncModel = NetworkSyncModel.AuthoritativeInterpolation;
+        var matchId = "authoritative-interpolation-state-sync-smoke";
+        var players = FourPlayerRosterArray();
+        var start = new ShooterStartGamePayload(
+            matchId,
+            ShooterAcceptanceLab.DefaultTickRate,
+            5401,
+            players);
+        using var server = ShooterBattleWorldSession.Create($"{matchId}-server");
+        Assert.True(server.Runtime.StartGame(in start));
+
+        using var session = ShooterAcceptanceLab.Create(
+            syncModel,
+            NetworkConditionProfile.Ideal,
+            networkName: "Authoritative Interpolation State Sync Smoke",
+            randomSeed: 5401,
+            players: players,
+            matchId: matchId,
+            interpolationConfig: SmokeInterpolationConfig(),
+            enableAuthoritativeWorld: false);
+        var link = new ShooterCarrierNetworkLink(session.Controller, NetworkConditionProfile.Ideal, seed: 5401);
+
+        for (var commandFrame = 0; commandFrame < SmokeStepCount; commandFrame++)
+        {
+            var commands = BuildClientServerFrameCommands(commandFrame);
+            Assert.Equal(playerCount, commands.Length);
+
+            for (var i = 0; i < commands.Length; i++)
+            {
+                session.Controller.SubmitLocalInput(in commands[i]);
+            }
+
+            Assert.Equal(playerCount, server.Runtime.SubmitInput(commandFrame, commands));
+            var tick = session.Controller.Tick(SmokeDeltaSeconds);
+            Assert.Equal(commandFrame + 1, tick.Frame);
+            Assert.True(server.Runtime.Tick(SmokeDeltaSeconds));
+
+            var timestamp = (commandFrame + 1) * SmokeDeltaSeconds;
+            var clockMs = (long)System.Math.Round(timestamp * 1000d);
+            var packed = server.Runtime.ExportPackedSnapshot(worldId: 1UL, isFullSnapshot: true, authorityOverride: true);
+            link.PublishSnapshot(in packed, timestamp);
+            link.Advance(clockMs);
+
+            Assert.NotEqual(ShooterSnapshotApplyResult.Ignored, link.LastApplyResult);
+            Assert.Equal(commandFrame + 1, session.Runtime.CurrentFrame);
+            Assert.False(session.Controller.NeedsFullSnapshotResync);
+        }
+
+        var serverSnapshot = server.Runtime.GetSnapshot();
+        Assert.Equal(syncModel, session.SyncModel);
+        Assert.Equal(ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName, session.Carrier.CarrierName);
+        Assert.IsType<ShooterClientAuthoritativeInterpolationSyncController>(session.Controller);
+        Assert.False(session.HasAuthoritativeWorld);
+        Assert.Equal(SmokeStepCount, session.Runtime.CurrentFrame);
+        Assert.Equal(SmokeStepCount, serverSnapshot.Frame);
+        Assert.Equal(playerCount, serverSnapshot.Players.Length);
+        Assert.Equal(server.Runtime.ComputeStateHash(), session.Runtime.ComputeStateHash());
+        AssertFinalSnapshotEqual(serverSnapshot, session.Runtime.GetSnapshot());
+        AssertClientServerInterpolationBuffer(session, expectsInterpolationDiagnostics: true);
+    }
+
+    [Fact]
     public void ImplementedSyncModeSmokeMatrixContainsEveryCatalogModeOnce()
     {
         var seen = new HashSet<NetworkSyncModel>();

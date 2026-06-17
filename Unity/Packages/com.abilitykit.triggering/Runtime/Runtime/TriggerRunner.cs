@@ -239,26 +239,18 @@ namespace AbilityKit.Triggering.Runtime
             var reason = control.InterruptConditionPassed
                 ? ShortCircuitReason.InterruptedByHigherPriority
                 : ShortCircuitReason.InterruptedByFailedCondition;
-            var observerReason = control.InterruptConditionPassed
-                ? ETriggerShortCircuitReason.InterruptedByHigherPriority
-                : ETriggerShortCircuitReason.InterruptedByFailedCondition;
 
-            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
-            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, observerReason, in execCtx);
-
-            var cueCtx = BuildCueContext(
+            NotifyShortCircuit(
                 key,
                 in args,
-                entry.Phase,
-                entry.Priority,
-                entry.Order,
-                entry.Trigger,
+                in entry,
+                control,
+                in execCtx,
                 reason,
                 control.InterruptSourceName,
                 control.InterruptTriggerId,
                 control.InterruptConditionPassed,
-                control);
-            entry.Trigger.Cue.OnSkipped(in cueCtx);
+                ShortCircuitCueKind.Skipped);
             return true;
         }
 
@@ -392,22 +384,17 @@ namespace AbilityKit.Triggering.Runtime
                 return false;
             }
 
-            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
-            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
-
-            var strictCtx = BuildCueContext(
+            NotifyShortCircuit(
                 key,
                 in args,
-                entry.Phase,
-                entry.Priority,
-                entry.Order,
-                entry.Trigger,
+                in entry,
+                control,
+                in execCtx,
                 ShortCircuitReason.ConditionFailed,
                 null,
                 0,
                 false,
-                control);
-            entry.Trigger.Cue.OnInterrupted(in strictCtx);
+                ShortCircuitCueKind.Interrupted);
             return true;
         }
 
@@ -467,8 +454,7 @@ namespace AbilityKit.Triggering.Runtime
             }
             catch (Exception ex)
             {
-                _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message);
-                _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message, in execCtx);
+                NotifyActionFailed(key, in args, in entry, in execCtx, entry.Trigger.GetType().Name, 0, 1, ex.Message);
                 return false;
             }
         }
@@ -486,17 +472,36 @@ namespace AbilityKit.Triggering.Runtime
             }
 
             var reason = control.Cancel ? ShortCircuitReason.Cancel : ShortCircuitReason.StopPropagation;
-            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
-            _observer.OnShortCircuit(
+            NotifyShortCircuit(
                 key,
                 in args,
-                entry.Phase,
-                entry.Priority,
-                entry.Order,
-                control.Cancel ? ETriggerShortCircuitReason.Cancel : ETriggerShortCircuitReason.StopPropagation,
-                in execCtx);
+                in entry,
+                control,
+                in execCtx,
+                reason,
+                control.InterruptSourceName ?? entry.Trigger.GetType().Name,
+                control.InterruptTriggerId,
+                true,
+                ShortCircuitCueKind.Interrupted);
+            return true;
+        }
 
-            var interruptCtx = BuildCueContext(
+        private void NotifyShortCircuit<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            ExecutionControl control,
+            in ExecCtx<TCtx> execCtx,
+            ShortCircuitReason reason,
+            string interruptSourceName,
+            int interruptTriggerId,
+            bool interruptConditionPassed,
+            ShortCircuitCueKind cueKind)
+        {
+            _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
+            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, MapReason(reason), in execCtx);
+
+            var cueContext = BuildCueContext(
                 key,
                 in args,
                 entry.Phase,
@@ -504,12 +509,47 @@ namespace AbilityKit.Triggering.Runtime
                 entry.Order,
                 entry.Trigger,
                 reason,
-                control.InterruptSourceName ?? entry.Trigger.GetType().Name,
-                control.InterruptTriggerId,
-                true,
+                interruptSourceName,
+                interruptTriggerId,
+                interruptConditionPassed,
                 control);
-            entry.Trigger.Cue.OnInterrupted(in interruptCtx);
-            return true;
+            DispatchShortCircuitCue(entry.Trigger, in cueContext, cueKind);
+        }
+
+        private static void DispatchShortCircuitCue<TArgs>(
+            ITrigger<TArgs, TCtx> trigger,
+            in TriggerCueContext cueContext,
+            ShortCircuitCueKind cueKind)
+        {
+            switch (cueKind)
+            {
+                case ShortCircuitCueKind.Skipped:
+                    trigger.Cue.OnSkipped(in cueContext);
+                    break;
+                case ShortCircuitCueKind.Interrupted:
+                    trigger.Cue.OnInterrupted(in cueContext);
+                    break;
+            }
+        }
+
+        private void NotifyActionFailed<TArgs>(
+            EventKey<TArgs> key,
+            in TArgs args,
+            in Entry<TArgs> entry,
+            in ExecCtx<TCtx> execCtx,
+            string actionName,
+            int actionIndex,
+            int actionCount,
+            string message)
+        {
+            _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, actionName, actionIndex, actionCount, message);
+            _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, actionName, actionIndex, actionCount, message, in execCtx);
+        }
+
+        private enum ShortCircuitCueKind
+        {
+            Skipped,
+            Interrupted
         }
 
         private enum DispatchEvaluationResult

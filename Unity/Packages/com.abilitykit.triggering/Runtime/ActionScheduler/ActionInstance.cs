@@ -98,7 +98,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             int triggerId,
             ActionCallPlan plan,
             IActionExecutor executor,
-            object globalContext)
+            object globalContext,
+            float createdAtMs = 0f)
         {
             InstanceId = instanceId;
             TriggerId = triggerId;
@@ -109,7 +110,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             ElapsedMs = 0;
             LastExecuteMs = 0;
             ExecutionCount = 0;
-            CreatedAtMs = 0; // 将由 Scheduler 设置
+            CreatedAtMs = Math.Max(0f, createdAtMs);
             _hasDelayStart = false;
         }
 
@@ -153,19 +154,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 return ExecutionResult.Failed("ActionScheduler 尚未定义 Timeline 子 Action 序列，不能按单一 ActionCallPlan 执行 Timeline。请改用 Plan/Executables 主线承载时间线行为。");
             }
 
-            var result = ExecuteInternal(ctx);
+            var execution = ExecuteInternal(ctx);
 
-            // 检查是否完成
-            if (result.IsFailed)
+            // 检查是否完成。等待队列/同步/延迟重试等未实际执行的帧不能终结实例。
+            if (execution.Result.IsFailed)
             {
                 State = EActionInstanceState.Failed;
             }
-            else if (ShouldTerminate())
+            else if (execution.Executed && ShouldTerminate())
             {
                 State = EActionInstanceState.Completed;
             }
 
-            return result;
+            return execution.Result;
         }
 
         private bool CanEnterExecutionWindow()
@@ -205,19 +206,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
         }
 
-        private ExecutionResult ExecuteInternal(ActionExecutionContext ctx)
+        private ActionExecutionStep ExecuteInternal(ActionExecutionContext ctx)
         {
             // 检查执行条件（ExecutionPolicy）
             if (!CanExecuteByPolicy(ctx))
             {
-                return ExecutionResult.Skipped("Policy check failed");
+                return new ActionExecutionStep(false, ExecutionResult.Skipped("Policy check failed"));
             }
 
             // 通过执行器执行
             var executed = Executor.TryExecute(ctx, out var result);
             if (result.IsFailed && Plan.ExecutionPolicy == Config.EActionExecutionPolicy.WithRollback)
             {
-                return ExecutionResult.Failed($"Action[{Plan.Id.Value}] 执行失败且请求回滚，但 ActionCallPlan 未携带回滚委托或补偿计划。原始错误：{result.FailureReason}");
+                return new ActionExecutionStep(false, ExecutionResult.Failed($"Action[{Plan.Id.Value}] 执行失败且请求回滚，但 ActionCallPlan 未携带回滚委托或补偿计划。原始错误：{result.FailureReason}"));
             }
 
             if (executed)
@@ -226,7 +227,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 LastExecuteMs = ElapsedMs;
             }
 
-            return result;
+            return new ActionExecutionStep(executed, result);
+        }
+
+        private readonly struct ActionExecutionStep
+        {
+            public readonly bool Executed;
+            public readonly ExecutionResult Result;
+
+            public ActionExecutionStep(bool executed, ExecutionResult result)
+            {
+                Executed = executed;
+                Result = result;
+            }
         }
 
         private bool CanExecuteByPolicy(ActionExecutionContext ctx)
@@ -243,8 +256,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         private bool IsQueued()
         {
-            // 简单检查：如果 Executor 是队列执行器且已被标记
-            return Executor is QueuedActionExecutor queued && queued.QueuePriority > 0;
+            return Executor is QueuedActionExecutor queued && queued.IsQueued;
         }
 
         private bool ShouldTerminate()

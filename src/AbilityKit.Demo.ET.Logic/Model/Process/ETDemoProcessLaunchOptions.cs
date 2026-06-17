@@ -9,15 +9,15 @@ namespace ET.Logic
         public string PlayerName { get; set; } = "TestPlayer";
         public bool AutoLogin { get; set; }
         public bool AutoEnterBattle { get; set; }
-        public ETLocalMobaScenarioConfig ScenarioConfig { get; set; } = ETLocalMobaScenarioConfig.CreateLocalDemoDefaults();
+        public ETLocalMobaScenarioConfig ScenarioConfig { get; set; } = ETLocalMobaScenarioConfig.CreateLocalScenarioDefaults();
  
-        public static ETDemoProcessLaunchOptions CreateLocalDemoDefaults()
+        public static ETDemoProcessLaunchOptions CreateLocalScenarioDefaults()
         {
             return new ETDemoProcessLaunchOptions
             {
                 AutoLogin = false,
                 AutoEnterBattle = false,
-                ScenarioConfig = ETLocalMobaScenarioConfig.CreateLocalDemoDefaults()
+                ScenarioConfig = ETLocalMobaScenarioConfig.CreateLocalScenarioDefaults()
             };
         }
 

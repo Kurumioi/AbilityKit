@@ -11,8 +11,7 @@
         "AbilityKit.World.DI",
         "AbilityKit.World.FrameSync",
         "AbilityKit.World.Snapshot",
-        "AbilityKit.Network.Runtime",
-        "AbilityKit.Demo.Moba.Runtime"
+        "AbilityKit.Network.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -27,7 +27,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterPackedSnapshotBytesCodec _bytesCodec;
 
         public ShooterBattleRuntimePort()
-            : this(CreateDefaultEntityManager())
+            : this(ShooterEntityLimitOptions.Default)
+        {
+        }
+
+        public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits)
+            : this(CreateDefaultEntityManager(entityLimits))
         {
         }
 
@@ -172,9 +177,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return _bytesCodec.Import(this, payload);
         }
 
-        private static IShooterEntityManager CreateDefaultEntityManager()
+        private static IShooterEntityManager CreateDefaultEntityManager(ShooterEntityLimitOptions entityLimits)
         {
-            return new ShooterEntityManager(new SveltoWorldContext());
+            return new ShooterEntityManager(new SveltoWorldContext(), entityLimits);
         }
 
         private static ShooterBattleState CreateState(IShooterEntityManager entities)

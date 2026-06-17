@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly Dictionary<int, ProjectileSourceContext> _sourceByLauncherActorId = new Dictionary<int, ProjectileSourceContext>();
         private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _retainByLauncherActorId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
 
-        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
 
         public int ActiveCount => _actorIdByProjectile.Count;
 

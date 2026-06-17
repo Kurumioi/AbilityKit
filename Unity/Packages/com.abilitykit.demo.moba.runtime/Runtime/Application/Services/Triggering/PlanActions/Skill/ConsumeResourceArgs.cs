@@ -4,23 +4,22 @@ using AbilityKit.Demo.Moba.Components;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// consume_resource Action 鐨勫己绫诲瀷鍙傛暟
-    /// 鐢ㄤ簬鎶€鑳介噴鏀炬椂娑堣€楄祫婧愶紙钃濋噺/鐢熷懡鍊?鑳介噺绛夛級
+    /// consume_resource Action 的强类型参数，用于技能释放时消耗资源。
     /// </summary>
     public readonly struct ConsumeResourceArgs
     {
         /// <summary>
-        /// 璧勬簮绫诲瀷
+        /// 资源类型。
         /// </summary>
         public readonly ResourceType ResourceType;
 
         /// <summary>
-        /// 娑堣€楅噺锛堥€氳繃 NumericValueRef 鏀寔甯搁噺/榛戞澘/鍙橀噺绛夊绉嶆潵婧愶級
+        /// 消耗量。
         /// </summary>
         public readonly float Amount;
 
         /// <summary>
-        /// 娑堣€楀け璐ユ椂鐨勬彁绀轰俊鎭?Key
+        /// 消耗失败时的提示信息 Key。
         /// </summary>
         public readonly string FailMessageKey;
 

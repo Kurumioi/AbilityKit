@@ -39,6 +39,9 @@ public sealed class JoinRoomHandler : GatewayRequestHandlerBase
             var room = _clusterClient.GetGrain<IRoomGrain>(req.RoomId);
             var join = await room.JoinAsync(accountId);
 
+            var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+            await mapping.BindAccountRoomAsync(accountId, req.RoomId);
+
             var wire = RoomGatewayWireMapper.ToJoinRoomRes(join);
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 

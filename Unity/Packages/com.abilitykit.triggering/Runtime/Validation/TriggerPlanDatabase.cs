@@ -197,7 +197,7 @@ namespace AbilityKit.Triggering.Validation
                 case ENumericValueRefKind.Expr:
                     return Math.Max(3, (ref_.ExprText?.Length ?? 0) / 10);
                 default:
-                    return 0;
+                    throw new InvalidOperationException($"Unsupported numeric value reference kind: {ref_.Kind}");
             }
         }
 

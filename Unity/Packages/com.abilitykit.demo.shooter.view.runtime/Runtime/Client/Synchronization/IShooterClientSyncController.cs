@@ -74,6 +74,12 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
+            ShooterGatewayBattleInputContext context,
+            ShooterClientInputSubmitResult local,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         ShooterClientFrameTickResult Tick(float deltaTime);
 
         ShooterClientFrameTickResult CatchUpToFrame(int targetFrame);

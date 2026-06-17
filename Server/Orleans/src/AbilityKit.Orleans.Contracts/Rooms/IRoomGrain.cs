@@ -8,7 +8,13 @@ public interface IRoomGrain : IGrainWithStringKey
 
     Task<RoomSnapshot> GetSnapshotAsync();
 
+    Task<RoomRuntimeState> GetRuntimeStateAsync();
+
     Task<JoinRoomResponse> JoinAsync(string accountId);
+
+    Task<RestoreRoomResponse> RestoreAsync(string accountId);
+
+    Task MarkOfflineAsync(string accountId);
 
     Task LeaveAsync(string accountId);
 

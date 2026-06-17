@@ -90,6 +90,133 @@ namespace AbilityKit.Demo.Shooter.View
                 cancellationToken);
         }
 
+        public Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            ShooterClientNetworkEndpoint endpoint,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationFacade presentation,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
+                endpoint.Host,
+                endpoint.Port,
+                runtime,
+                ShooterPresentationSessionContext.CreateFromFacade(presentation),
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            ShooterClientNetworkEndpoint endpoint,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
+                endpoint.Host,
+                endpoint.Port,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            string host,
+            int port,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationFacade presentation,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
+                host,
+                port,
+                runtime,
+                ShooterPresentationSessionContext.CreateFromFacade(presentation),
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public async Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            string host,
+            int port,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            OpenIfNeeded(host, port);
+
+            var launcher = new ShooterClientGatewayLauncher(_gatewayConnection);
+            var launched = await launcher.RestoreRoomAsync(
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                tickRate,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+
+            _gatewayConnection.AttachSession(launched.Session);
+            return new ShooterClientNetworkRestoreResult(_connection, _gatewayConnection, launched);
+        }
+
         public Task<ShooterClientNetworkLaunchResult> CreateReadyStartAndSubscribeAsync(
             ShooterClientNetworkEndpoint endpoint,
             IShooterBattleRuntimePort runtime,
@@ -323,7 +450,20 @@ namespace AbilityKit.Demo.Shooter.View
         }
     }
 
-    public sealed class ShooterClientNetworkLaunchResult
+    public sealed class ShooterClientNetworkRestoreResult : ShooterClientNetworkLaunchResult
+    {
+        public ShooterClientNetworkRestoreResult(
+            IConnection connection,
+            ShooterRoomGatewayConnection gatewayConnection,
+            ShooterClientGatewayRestoreResult gatewayRestore)
+            : base(connection, gatewayConnection, gatewayRestore)
+        {
+        }
+
+        public ShooterClientGatewayRestoreResult GatewayRestore => (ShooterClientGatewayRestoreResult)GatewayLaunch;
+    }
+
+    public class ShooterClientNetworkLaunchResult
     {
         public ShooterClientNetworkLaunchResult(
             IConnection connection,

@@ -72,6 +72,17 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
+        public async Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
+            ShooterClientInputSubmitResult local,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            var context = _flow.CreateBattleInputContext(local.RequestedFrame);
+            var result = await _session.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken).ConfigureAwait(false);
+            await RequestFullSnapshotResyncIfNeededAsync(timeout, cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+
         public async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotResyncIfNeededAsync(
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)

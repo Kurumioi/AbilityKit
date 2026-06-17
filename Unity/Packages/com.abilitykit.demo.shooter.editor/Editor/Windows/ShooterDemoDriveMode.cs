@@ -19,5 +19,11 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         /// observes diagnostics and hot-tunes network conditions via the shared registry.
         /// </summary>
         HostAttach = 1,
+
+        /// <summary>
+        /// The window starts a Unity Play-mode client that connects to the remote Shooter
+        /// state-sync server, restoring an active room before creating a new one.
+        /// </summary>
+        RemoteStateSync = 2,
     }
 }

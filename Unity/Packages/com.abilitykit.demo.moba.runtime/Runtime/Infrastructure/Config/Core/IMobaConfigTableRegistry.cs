@@ -4,12 +4,12 @@ using AbilityKit.Ability.Config;
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// MOBA 閰嶇疆琛ㄦ敞鍐屽櫒鎺ュ彛锛堟墿灞曢€氱敤 IConfigTableRegistry锛?
+    /// MOBA 配置表注册器接口，扩展通用 IConfigTableRegistry。
     /// </summary>
     public interface IMobaConfigTableRegistry : IConfigTableRegistry
     {
         /// <summary>
-        /// 鑾峰彇鎵€鏈夐厤缃〃鏉＄洰锛圡OBA 涓撶敤 API锛?
+        /// 获取所有配置表条目，供 MOBA 运行时加载管线使用。
         /// </summary>
         BattleDemo.MobaRuntimeConfigTableRegistry.Entry[] MobaTables { get; }
     }

@@ -6,6 +6,7 @@ using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Rooms;
 
 namespace AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
@@ -115,7 +116,7 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
             roomSpec.Players,
             request.GameplayId);
 
-        return OrleansRoomBattleStartMapper.ToBattleInitParams(
+        var initParams = OrleansRoomBattleStartMapper.ToBattleInitParams(
             summary.RoomId,
             in roomSpec,
             request.RuleSetId,
@@ -124,6 +125,9 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
             request.WorldType,
             request.ClientId,
             summary.RoomType);
+        initParams.SyncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
+        initParams.InputDelayFrames = initParams.SyncOptions.InputDelayFrames;
+        return initParams;
     }
 
     private static MobaRoomState RequireMobaState(object state)

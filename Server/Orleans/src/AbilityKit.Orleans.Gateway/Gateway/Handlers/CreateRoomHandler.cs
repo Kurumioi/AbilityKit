@@ -51,6 +51,9 @@ public sealed class CreateRoomHandler : GatewayRequestHandlerBase
 
             if (!string.IsNullOrEmpty(resp.RoomId))
             {
+                var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+                await mapping.BindAccountRoomAsync(accountId, resp.RoomId);
+
                 context.RoomId = resp.RoomId;
                 context.AccountId = accountId;
             }

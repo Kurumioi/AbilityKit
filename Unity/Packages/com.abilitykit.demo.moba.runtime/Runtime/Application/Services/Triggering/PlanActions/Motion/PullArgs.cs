@@ -1,33 +1,32 @@
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// pull Action 鐨勫己绫诲瀷鍙傛暟
+    /// pull Action 的强类型参数。
     /// </summary>
     public readonly struct PullArgs
     {
         /// <summary>
-        /// 鎷夊姏閫熷害锛堝崟浣?绉掞級
+        /// 拉取速度，单位为距离/秒。
         /// </summary>
         public readonly float Speed;
 
         /// <summary>
-        /// 鎷夊彇鎸佺画鏃堕棿锛堟绉掞級
+        /// 拉取持续时间，单位毫秒。
         /// </summary>
         public readonly float DurationMs;
 
         /// <summary>
-        /// 鎷夊彇鏂瑰悜妯″紡
-        /// 0=浠庣洰鏍囨媺鍒版妧鑳介噴鏀捐€? 1=浠庣洰鏍囨媺鍒版寚瀹氳窛绂? 2=鍨傜洿鍚戜笂鎷?
+        /// 拉取方向模式：0=从目标拉向技能释放者，1=从目标拉到指定距离，2=垂直向上拉。
         /// </summary>
         public readonly int DirectionMode;
 
         /// <summary>
-        /// 鐩爣璺濈锛圖irectionMode=1鏃朵娇鐢級
+        /// 目标距离，仅 DirectionMode=1 时使用。
         /// </summary>
         public readonly float TargetDistance;
 
         /// <summary>
-        /// 浼樺厛绾?
+        /// 运动优先级。
         /// </summary>
         public readonly int Priority;
 

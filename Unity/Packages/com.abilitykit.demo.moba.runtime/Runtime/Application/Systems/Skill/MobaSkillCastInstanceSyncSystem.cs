@@ -74,63 +74,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (actor == null || !actor.hasActorId) continue;
 
                 _skills.FillRunningSnapshots(actor.actorId.Value, _buffer);
-                if (_buffer.Count == 0) continue;
-
-                for (int j = 0; j < _buffer.Count; j++)
-                {
-                    var s = _buffer[j];
-                    if (s.InstanceId == 0) continue;
-
-                    _seenThisFrame.Add(s.InstanceId);
-                    _lastSeenFrame[s.InstanceId] = frame;
-
-                    if (!_byInstanceId.TryGetValue(s.InstanceId, out var inst) || inst == null)
-                    {
-                        inst = _actorContext.CreateEntity();
-                        inst.AddSkillCastInstanceId(s.InstanceId);
-                        _byInstanceId[s.InstanceId] = inst;
-                    }
-
-                    if (!inst.hasSkillCastOwnerActorId) inst.AddSkillCastOwnerActorId(s.OwnerActorId);
-                    else inst.ReplaceSkillCastOwnerActorId(s.OwnerActorId);
-
-                    if (!inst.hasSkillCastSkillId) inst.AddSkillCastSkillId(s.SkillId);
-                    else inst.ReplaceSkillCastSkillId(s.SkillId);
-
-                    if (!inst.hasSkillCastSlot) inst.AddSkillCastSlot(s.SkillSlot);
-                    else inst.ReplaceSkillCastSlot(s.SkillSlot);
-
-                    if (!inst.hasSkillCastSkillLevel) inst.AddSkillCastSkillLevel(s.SkillLevel);
-                    else inst.ReplaceSkillCastSkillLevel(s.SkillLevel);
-
-                    if (!inst.hasSkillCastSequence) inst.AddSkillCastSequence(s.Sequence);
-                    else inst.ReplaceSkillCastSequence(s.Sequence);
-
-                    if (!inst.hasSkillCastStartFrame) inst.AddSkillCastStartFrame(s.StartFrame);
-                    else if (inst.skillCastStartFrame.Value == 0 && s.StartFrame != 0) inst.ReplaceSkillCastStartFrame(s.StartFrame);
-
-                    if (!inst.hasSkillCastStage) inst.AddSkillCastStage(s.Stage);
-                    else inst.ReplaceSkillCastStage(s.Stage);
-
-                    if (!inst.hasSkillCastTargetActorId) inst.AddSkillCastTargetActorId(s.TargetActorId);
-                    else inst.ReplaceSkillCastTargetActorId(s.TargetActorId);
-
-                    if (!inst.hasSkillCastAim) inst.AddSkillCastAim(s.AimPos, s.AimDir);
-                    else inst.ReplaceSkillCastAim(s.AimPos, s.AimDir);
-
-                    if (!inst.hasSkillCastTimelineRuntime)
-                    {
-                        inst.AddSkillCastTimelineRuntime(s.ElapsedMs, s.NextEventIndex);
-                    }
-                    else
-                    {
-                        inst.ReplaceSkillCastTimelineRuntime(s.ElapsedMs, s.NextEventIndex);
-                    }
-
-                    if (!inst.isSkillCastRunningTag) inst.isSkillCastRunningTag = true;
-
-                    if (inst.hasSkillCastCancelRequest) inst.RemoveSkillCastCancelRequest();
-                }
+                UpsertSkillCastInstances(_buffer, frame, isRunning: true);
             }
 
             for (int i = 0; i < entities.Length; i++)
@@ -139,64 +83,78 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (actor == null || !actor.hasActorId) continue;
 
                 _skills.FillEndedSnapshots(actor.actorId.Value, _endedBuffer);
-                if (_endedBuffer.Count == 0) continue;
-
-                for (int j = 0; j < _endedBuffer.Count; j++)
-                {
-                    var s = _endedBuffer[j];
-                    if (s.InstanceId == 0) continue;
-
-                    _seenThisFrame.Add(s.InstanceId);
-                    _lastSeenFrame[s.InstanceId] = frame;
-
-                    if (!_byInstanceId.TryGetValue(s.InstanceId, out var inst) || inst == null)
-                    {
-                        inst = _actorContext.CreateEntity();
-                        inst.AddSkillCastInstanceId(s.InstanceId);
-                        _byInstanceId[s.InstanceId] = inst;
-                    }
-
-                    if (!inst.hasSkillCastOwnerActorId) inst.AddSkillCastOwnerActorId(s.OwnerActorId);
-                    else inst.ReplaceSkillCastOwnerActorId(s.OwnerActorId);
-
-                    if (!inst.hasSkillCastSkillId) inst.AddSkillCastSkillId(s.SkillId);
-                    else inst.ReplaceSkillCastSkillId(s.SkillId);
-
-                    if (!inst.hasSkillCastSlot) inst.AddSkillCastSlot(s.SkillSlot);
-                    else inst.ReplaceSkillCastSlot(s.SkillSlot);
-
-                    if (!inst.hasSkillCastSkillLevel) inst.AddSkillCastSkillLevel(s.SkillLevel);
-                    else inst.ReplaceSkillCastSkillLevel(s.SkillLevel);
-
-                    if (!inst.hasSkillCastSequence) inst.AddSkillCastSequence(s.Sequence);
-                    else inst.ReplaceSkillCastSequence(s.Sequence);
-
-                    if (!inst.hasSkillCastStartFrame) inst.AddSkillCastStartFrame(s.StartFrame);
-                    else if (inst.skillCastStartFrame.Value == 0 && s.StartFrame != 0) inst.ReplaceSkillCastStartFrame(s.StartFrame);
-
-                    if (!inst.hasSkillCastStage) inst.AddSkillCastStage(s.Stage);
-                    else inst.ReplaceSkillCastStage(s.Stage);
-
-                    if (!inst.hasSkillCastTargetActorId) inst.AddSkillCastTargetActorId(s.TargetActorId);
-                    else inst.ReplaceSkillCastTargetActorId(s.TargetActorId);
-
-                    if (!inst.hasSkillCastAim) inst.AddSkillCastAim(s.AimPos, s.AimDir);
-                    else inst.ReplaceSkillCastAim(s.AimPos, s.AimDir);
-
-                    if (!inst.hasSkillCastTimelineRuntime)
-                    {
-                        inst.AddSkillCastTimelineRuntime(s.ElapsedMs, s.NextEventIndex);
-                    }
-                    else
-                    {
-                        inst.ReplaceSkillCastTimelineRuntime(s.ElapsedMs, s.NextEventIndex);
-                    }
-
-                    if (inst.isSkillCastRunningTag) inst.isSkillCastRunningTag = false;
-                }
+                UpsertSkillCastInstances(_endedBuffer, frame, isRunning: false);
             }
 
             CleanupNotSeenRunningInstances();
+        }
+
+        private void UpsertSkillCastInstances(List<SkillPipelineRunner.RunningSnapshot> snapshots, int frame, bool isRunning)
+        {
+            if (snapshots == null || snapshots.Count == 0) return;
+
+            for (int i = 0; i < snapshots.Count; i++)
+            {
+                UpsertSkillCastInstance(snapshots[i], frame, isRunning);
+            }
+        }
+
+        private void UpsertSkillCastInstance(in SkillPipelineRunner.RunningSnapshot snapshot, int frame, bool isRunning)
+        {
+            if (snapshot.InstanceId == 0) return;
+
+            _seenThisFrame.Add(snapshot.InstanceId);
+            _lastSeenFrame[snapshot.InstanceId] = frame;
+
+            if (!_byInstanceId.TryGetValue(snapshot.InstanceId, out var inst) || inst == null)
+            {
+                inst = _actorContext.CreateEntity();
+                inst.AddSkillCastInstanceId(snapshot.InstanceId);
+                _byInstanceId[snapshot.InstanceId] = inst;
+            }
+
+            if (!inst.hasSkillCastOwnerActorId) inst.AddSkillCastOwnerActorId(snapshot.OwnerActorId);
+            else inst.ReplaceSkillCastOwnerActorId(snapshot.OwnerActorId);
+
+            if (!inst.hasSkillCastSkillId) inst.AddSkillCastSkillId(snapshot.SkillId);
+            else inst.ReplaceSkillCastSkillId(snapshot.SkillId);
+
+            if (!inst.hasSkillCastSlot) inst.AddSkillCastSlot(snapshot.SkillSlot);
+            else inst.ReplaceSkillCastSlot(snapshot.SkillSlot);
+
+            if (!inst.hasSkillCastSkillLevel) inst.AddSkillCastSkillLevel(snapshot.SkillLevel);
+            else inst.ReplaceSkillCastSkillLevel(snapshot.SkillLevel);
+
+            if (!inst.hasSkillCastSequence) inst.AddSkillCastSequence(snapshot.Sequence);
+            else inst.ReplaceSkillCastSequence(snapshot.Sequence);
+
+            if (!inst.hasSkillCastStartFrame) inst.AddSkillCastStartFrame(snapshot.StartFrame);
+            else if (inst.skillCastStartFrame.Value == 0 && snapshot.StartFrame != 0) inst.ReplaceSkillCastStartFrame(snapshot.StartFrame);
+
+            if (!inst.hasSkillCastStage) inst.AddSkillCastStage(snapshot.Stage);
+            else inst.ReplaceSkillCastStage(snapshot.Stage);
+
+            if (!inst.hasSkillCastTargetActorId) inst.AddSkillCastTargetActorId(snapshot.TargetActorId);
+            else inst.ReplaceSkillCastTargetActorId(snapshot.TargetActorId);
+
+            if (!inst.hasSkillCastAim) inst.AddSkillCastAim(snapshot.AimPos, snapshot.AimDir);
+            else inst.ReplaceSkillCastAim(snapshot.AimPos, snapshot.AimDir);
+
+            if (!inst.hasSkillCastTimelineRuntime)
+            {
+                inst.AddSkillCastTimelineRuntime(snapshot.ElapsedMs, snapshot.NextEventIndex);
+            }
+            else
+            {
+                inst.ReplaceSkillCastTimelineRuntime(snapshot.ElapsedMs, snapshot.NextEventIndex);
+            }
+
+            inst.isSkillCastRunningTag = isRunning;
+
+            if (isRunning && inst.hasSkillCastCancelRequest)
+            {
+                inst.RemoveSkillCastCancelRequest();
+            }
         }
 
         private void CleanupNotSeenRunningInstances()

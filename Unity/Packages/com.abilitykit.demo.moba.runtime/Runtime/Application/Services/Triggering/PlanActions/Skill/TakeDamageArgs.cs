@@ -2,17 +2,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     using AbilityKit.Demo.Moba;
     /// <summary>
-    /// take_damage Action 鐨勫己绫诲瀷鍙傛暟
+    /// take_damage Action 的强类型参数。
     /// </summary>
     public readonly struct TakeDamageArgs
     {
         /// <summary>
-        /// 浼ゅ鍊嶇巼
+        /// 伤害倍率。
         /// </summary>
         public readonly float Rate;
 
         /// <summary>
-        /// 浼ゅ鍘熷洜鍙傛暟锛堝叧鑱?DamageReasonKind锛?
+        /// 伤害原因参数，对应 DamageReasonKind。
         /// </summary>
         public readonly int ReasonParam;
 

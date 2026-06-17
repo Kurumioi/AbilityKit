@@ -13,13 +13,22 @@ namespace AbilityKit.Demo.Shooter.Runtime
     public sealed class ShooterEntityManager : IShooterEntityManager
     {
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterEntityLimitOptions _limits;
         private readonly HashSet<int> _playerIds = new HashSet<int>();
         private readonly HashSet<int> _projectileIds = new HashSet<int>();
 
         public ShooterEntityManager(ISveltoWorldContext context)
+            : this(context, ShooterEntityLimitOptions.Default)
+        {
+        }
+
+        public ShooterEntityManager(ISveltoWorldContext context, ShooterEntityLimitOptions limits)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
+            _limits = limits;
         }
+
+        public int MaxEntityCount => _limits.MaxEntityCount;
 
         public int PlayerCount => _playerIds.Count;
 
@@ -85,6 +94,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (_playerIds.Contains(player.PlayerId))
             {
                 SetPlayer(in player);
+                return;
+            }
+
+            if (IsEntityBudgetFull())
+            {
                 return;
             }
 
@@ -161,6 +175,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
+            if (IsEntityBudgetFull())
+            {
+                return;
+            }
+
             var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoProjectileDescriptor>((uint)projectile.BulletId, ShooterSveltoGroups.Projectiles);
             initializer.Init(projectile);
             _projectileIds.Add(projectile.BulletId);
@@ -197,6 +216,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoProjectileDescriptor>((uint)bulletId, ShooterSveltoGroups.Projectiles);
             _context.SubmitEntities();
+        }
+
+        private bool IsEntityBudgetFull()
+        {
+            return PlayerCount + ProjectileCount >= MaxEntityCount;
         }
     }
 }

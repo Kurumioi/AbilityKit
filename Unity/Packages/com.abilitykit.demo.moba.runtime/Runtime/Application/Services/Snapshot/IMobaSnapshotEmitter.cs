@@ -42,6 +42,8 @@ namespace AbilityKit.Demo.Moba.Services
     public readonly struct MobaSnapshotRouterHealth
     {
         public readonly int EmitterCount;
+        public readonly int RequiredEmitterCount;
+        public readonly int MissingRequiredEmitterCount;
         public readonly long SingleRequests;
         public readonly long BatchRequests;
         public readonly long HitCount;
@@ -51,10 +53,13 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int LastBatchSnapshotCount;
         public readonly bool UsedAttributeRegistry;
         public readonly IReadOnlyList<MobaSnapshotEmitterHealthEntry> Emitters;
+        public readonly IReadOnlyList<string> MissingRequiredEmitters;
 
-        public MobaSnapshotRouterHealth(int emitterCount, long singleRequests, long batchRequests, long hitCount, long emptyCount, int lastFrame, int lastSnapshotOpCode, int lastBatchSnapshotCount, bool usedAttributeRegistry, IReadOnlyList<MobaSnapshotEmitterHealthEntry> emitters)
+        public MobaSnapshotRouterHealth(int emitterCount, int requiredEmitterCount, int missingRequiredEmitterCount, long singleRequests, long batchRequests, long hitCount, long emptyCount, int lastFrame, int lastSnapshotOpCode, int lastBatchSnapshotCount, bool usedAttributeRegistry, IReadOnlyList<MobaSnapshotEmitterHealthEntry> emitters, IReadOnlyList<string> missingRequiredEmitters)
         {
             EmitterCount = emitterCount;
+            RequiredEmitterCount = requiredEmitterCount;
+            MissingRequiredEmitterCount = missingRequiredEmitterCount;
             SingleRequests = singleRequests;
             BatchRequests = batchRequests;
             HitCount = hitCount;
@@ -64,9 +69,11 @@ namespace AbilityKit.Demo.Moba.Services
             LastBatchSnapshotCount = lastBatchSnapshotCount;
             UsedAttributeRegistry = usedAttributeRegistry;
             Emitters = emitters;
+            MissingRequiredEmitters = missingRequiredEmitters;
         }
 
         public bool HasEmitters => EmitterCount > 0;
+        public bool IsOutputContractSatisfied => MissingRequiredEmitterCount == 0;
 
         public bool HasEmitter(Type emitterType)
         {
@@ -82,7 +89,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public override string ToString()
         {
-            return $"emitters={EmitterCount}, singleRequests={SingleRequests}, batchRequests={BatchRequests}, hits={HitCount}, empty={EmptyCount}, lastFrame={LastFrame}, lastOp={LastSnapshotOpCode}, lastBatch={LastBatchSnapshotCount}, attributeRegistry={UsedAttributeRegistry}";
+            return $"emitters={EmitterCount}/{RequiredEmitterCount}, missingRequired={MissingRequiredEmitterCount}, contractReady={IsOutputContractSatisfied}, singleRequests={SingleRequests}, batchRequests={BatchRequests}, hits={HitCount}, empty={EmptyCount}, lastFrame={LastFrame}, lastOp={LastSnapshotOpCode}, lastBatch={LastBatchSnapshotCount}, attributeRegistry={UsedAttributeRegistry}";
         }
     }
 

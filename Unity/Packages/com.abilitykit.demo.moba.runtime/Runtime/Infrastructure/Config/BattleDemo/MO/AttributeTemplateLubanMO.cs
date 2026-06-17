@@ -4,42 +4,42 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
     /// <summary>
-    /// 鍩轰簬 Luban 浜岃繘鍒堕厤缃殑灞炴€фā鏉?MO
+    /// 基于 Luban 二进制配置的属性模板 MO。
     /// </summary>
     public sealed class AttributeTemplateLubanMO
     {
         /// <summary>
-        /// 妯℃澘缂栧彿
+        /// 模板编号。
         /// </summary>
         public int Id { get; }
 
         /// <summary>
-        /// 鍗囩骇鎴樻枟灞炴€ф柟妗堢紪鍙?
+        /// 升级战斗属性方案编号。
         /// </summary>
         public int UpgradeCode { get; }
 
         /// <summary>
-        /// 涓诲姩鎶€鑳藉垪琛?
+        /// 主动技能列表。
         /// </summary>
         public IReadOnlyList<int> ActiveSkills { get; }
 
         /// <summary>
-        /// 琚姩鎶€鑳藉垪琛?
+        /// 被动技能列表。
         /// </summary>
         public IReadOnlyList<int> PassiveSkills { get; }
 
         /// <summary>
-        /// 鐢熷懡鍊?
+        /// 生命值。
         /// </summary>
         public int Hp { get; }
 
         /// <summary>
-        /// 鏈€澶х敓鍛藉€?
+        /// 最大生命值。
         /// </summary>
         public int MaxHp { get; }
 
         /// <summary>
-        /// 棰濆鐢熷懡鍊?
+        /// 额外生命值。
         /// </summary>
         public int ExtraHp { get; }
 
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int Mana { get; }
 
         /// <summary>
-        /// 鏈€澶ф硶鍔涘€?
+        /// 最大法力值。
         /// </summary>
         public int MaxMana { get; }
 
@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int AttackSpeedR { get; }
 
         /// <summary>
-        /// 鍐峰嵈缂╁噺
+        /// 冷却缩减。
         /// </summary>
         public int CooldownReduceR { get; }
 
@@ -114,12 +114,12 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int MoveSpeed { get; }
 
         /// <summary>
-        /// 鐗╃悊鍚歌
+        /// 物理吸血。
         /// </summary>
         public int PhysicsBloodsuckingR { get; }
 
         /// <summary>
-        /// 娉曟湳鍚歌
+        /// 法术吸血。
         /// </summary>
         public int MagicBloodsuckingR { get; }
 
@@ -129,12 +129,12 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int AttackRange { get; }
 
         /// <summary>
-        /// 姣忕鍥炶
+        /// 每秒回血。
         /// </summary>
         public int PerSecondBloodR { get; }
 
         /// <summary>
-        /// 姣忕鍥炶摑
+        /// 每秒回蓝。
         /// </summary>
         public int PerSecondManaR { get; }
 

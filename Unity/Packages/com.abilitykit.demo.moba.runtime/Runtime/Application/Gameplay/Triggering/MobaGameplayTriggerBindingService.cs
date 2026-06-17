@@ -16,9 +16,9 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
     [WorldService(typeof(MobaGameplayTriggerBindingService), WorldLifetime.Scoped)]
     public sealed class MobaGameplayTriggerBindingService : IService
     {
-        [WorldInject(required: false)] private TriggerPlanJsonDatabase _triggerDb;
-        [WorldInject(required: false)] private TriggerRunner<IWorldResolver> _runner;
-        [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry;
+        [WorldInject(required: false)] private TriggerPlanJsonDatabase _triggerDb = null;
+        [WorldInject(required: false)] private TriggerRunner<IWorldResolver> _runner = null;
+        [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry = null;
 
         private readonly List<IDisposable> _registrations = new List<IDisposable>();
         private int _boundGameplayId;

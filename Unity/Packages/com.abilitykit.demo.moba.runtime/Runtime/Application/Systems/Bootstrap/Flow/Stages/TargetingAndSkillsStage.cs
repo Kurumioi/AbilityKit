@@ -12,7 +12,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class TargetingAndSkillsStage : MobaBootstrapStageBase
     {
-        public override string Name => "TargetingAndSkills";
+        public override string Name => MobaBootstrapStageNames.TargetingAndSkills;
+
+        public override string[] Dependencies => new[]
+        {
+            MobaBootstrapStageNames.WorldModules,
+        };
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {

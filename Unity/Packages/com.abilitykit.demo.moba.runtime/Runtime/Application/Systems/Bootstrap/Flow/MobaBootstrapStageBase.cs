@@ -5,6 +5,18 @@ using AbilityKit.Core.Logging;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow
 {
+    public static class MobaBootstrapStageNames
+    {
+        public const string CoreState = "CoreState";
+        public const string Config = "Config";
+        public const string WorldModules = "WorldModules";
+        public const string TriggerPlans = "TriggerPlans";
+        public const string TargetingAndSkills = "TargetingAndSkills";
+        public const string WorldInit = "Install.WorldInit";
+        public const string StartGame = "StartGame";
+        public const string PlanTriggering = "Install.PlanTriggering";
+    }
+
     /// <summary>
     /// Bootstrap Stage 基类
     /// 所有引导阶段继承此类，实现具体配置逻辑

@@ -292,6 +292,9 @@ namespace AbilityKit.Samples.Logic.Samples.Flow
             Output.Bullet("AbilityKit.Ability.Flow.Blocks");
             Output.Bullet("AbilityKit.Ability.Flow.FlowHost");
             Output.Bullet("AbilityKit.Ability.Flow.FlowContext");
+            Output.Bullet("AbilityKit.Ability.Flow.FlowGraph - 推荐的正式节点工厂入口");
+            Output.Bullet("IFlowNode.Execute - 一次性同步执行节点图并自动管理 Runner/Context 生命周期");
+            Output.Bullet("FlowExecutionOptions / FlowExecutionResult - 统一执行边界、异常和结果契约");
             Output.Bullet("AbilityKit.Ability.Flow.Pooling.FlowPools - Flow 包默认池化配置入口");
             Output.Bullet("FlowPools.RegisterOverride - 业务包高优先级覆盖 Flow 池容量、预热数量与裁剪策略");
             Output.Bullet("FlowPools.RentSession / ReleaseSession - 会级生命周期池化入口，递归管理 Runner 与 Context");

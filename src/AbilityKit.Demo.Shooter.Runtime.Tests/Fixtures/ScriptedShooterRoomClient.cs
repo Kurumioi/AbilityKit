@@ -87,4 +87,23 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
         Calls.Add("request-full-state:" + request.RoomId + ":" + request.BattleId + ":" + request.Reason);
         return Task.FromResult(new ShooterGatewayFullStateSyncRequestResult(true, true, "accepted", 123456789L));
     }
+
+    public Task<ShooterGatewayRestoreRoomResult> RestoreRoomAsync(ShooterGatewayRestoreRoomRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("restore:" + request.Region + ":" + request.ServerId);
+        var anchor = JoinWorldStartAnchor;
+        return Task.FromResult(new ShooterGatewayRestoreRoomResult(
+            true,
+            true,
+            false,
+            "room-1",
+            1001ul,
+            in anchor,
+            "restored",
+            JoinBattleId,
+            JoinCanStart,
+            JoinKind,
+            JoinServerNowTicks,
+            JoinWorldId));
+    }
 }

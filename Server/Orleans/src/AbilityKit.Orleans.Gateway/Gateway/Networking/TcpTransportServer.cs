@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Orleans.Gateway.Abstractions;
 
@@ -124,7 +125,7 @@ public sealed class TcpTransportServer : IGatewayTransportServer
                 var client = await _listener.AcceptTcpClientAsync(cancellationToken);
                 client.NoDelay = true;
 
-                _ = Task.Run(() => HandleClientAsync(client, cancellationToken), cancellationToken);
+                TrackClientTask(Task.Run(() => HandleClientAsync(client, cancellationToken), cancellationToken));
             }
         }
         catch (OperationCanceledException)
@@ -207,6 +208,15 @@ public sealed class TcpTransportServer : IGatewayTransportServer
             client.Close();
             _logger.LogInformation("TCP client disconnected: ConnectionId={ConnectionId}", connectionId);
         }
+    }
+
+    private void TrackClientTask(Task task)
+    {
+        _ = task.ContinueWith(
+            completed => _logger.LogError(completed.Exception, "TCP client task failed."),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static long _nextConnectionId;

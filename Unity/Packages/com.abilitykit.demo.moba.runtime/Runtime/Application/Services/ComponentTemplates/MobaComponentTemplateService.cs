@@ -9,9 +9,9 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaComponentTemplateService))]
     public sealed class MobaComponentTemplateService : IService
     {
-        [WorldInject] private MobaConfigDatabase _config;
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private IWorldClock _clock;
+        [WorldInject] private MobaConfigDatabase _config = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IWorldClock _clock = null;
 
         public bool TryApply(global::ActorEntity entity, int templateId)
         {

@@ -21,7 +21,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         // Key: 修饰器接口 Type (e.g. typeof(IDurationDecorator))
         // Value: 具体实现类 Type (e.g. typeof(DefaultDurationDecorator))
         private static readonly Dictionary<Type, Type> _registry = new();
-        private static bool _isInitialized;
 
         /// <summary>
         /// 业务包是否已注册
@@ -172,7 +171,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public static void Clear()
         {
             _registry.Clear();
-            _isInitialized = false;
         }
     }
 }

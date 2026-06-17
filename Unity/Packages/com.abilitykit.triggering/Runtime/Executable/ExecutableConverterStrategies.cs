@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Legacy executable conversion strategies intentionally reference compatibility-only converter/module types.
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
@@ -397,3 +398,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 }
+#pragma warning restore CS0618

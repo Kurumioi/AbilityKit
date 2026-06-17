@@ -36,8 +36,7 @@ namespace AbilityKit.Ability.Share.ECS.Entitas
                 return true;
             }
 
-            // NOTE: 閻╊喖澧犻崗鍫㈡暏 facade cache 閻ㄥ嫭鏌熷蹇斿鏉?Tags/Attributes/Effects閵?
-            // 閸氬海鐢绘担鐘冲Ω鏉╂瑤绨虹€圭懓娅掗弨瑙勫灇 Entitas Component 閹稿倸婀?entity 娑撳﹥妞傞敍瀹巇apter 閸欘亪娓剁憰浣告躬濮濄倕顦╅弨閫涜礋娴犲海绮嶆禒鎯邦嚢閸欐牕宓嗛崣顖樷偓?
+            // NOTE: 这里仅做 facade 缓存，避免重复包装同一 ActorId；Tags/Attributes/Effects 继续由组件层实时读取。
             var created = new EntitasUnitFacade(id.ActorId);
             _cache[id.ActorId] = created;
             unit = created;

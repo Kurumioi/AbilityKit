@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Pipeline.Pooling;
 
 namespace AbilityKit.Pipeline.Editor
 {
@@ -44,7 +45,7 @@ namespace AbilityKit.Pipeline.Editor
 
             public bool IsAlive => OwnerRef.Target != null;
 
-            public IPipelineLifeOwner GetOwner()
+            public IPipelineLifeOwner? GetOwner()
             {
                 return OwnerRef.Target as IPipelineLifeOwner;
             }
@@ -55,7 +56,7 @@ namespace AbilityKit.Pipeline.Editor
         /// <summary>
         /// 当前选中的运行实例（调试专用）
         /// </summary>
-        public object SelectedRun { get; set; }
+        public object? SelectedRun { get; set; }
 
         public void Initialize()
         {
@@ -105,7 +106,7 @@ namespace AbilityKit.Pipeline.Editor
         {
             if (owner == null) return;
 
-            DebugEntry entry = null;
+            DebugEntry? entry = null;
             lock (_lock)
             {
                 int index = FindEntryIndex_Unsafe(owner.OwnerId);
@@ -129,9 +130,10 @@ namespace AbilityKit.Pipeline.Editor
                 CleanupDeadEntries();
                 for (int i = 0; i < _entries.Count; i++)
                 {
-                    if (_entries[i].IsAlive)
+                    var entryOwner = _entries[i].GetOwner();
+                    if (entryOwner != null)
                     {
-                        result.Add(_entries[i].GetOwner());
+                        result.Add(entryOwner);
                     }
                 }
             }
@@ -157,36 +159,74 @@ namespace AbilityKit.Pipeline.Editor
         public IReadOnlyList<IPipelineLifeOwner> GetOwnersByPhase(AbilityPipelinePhaseId phaseId)
         {
             var result = new List<IPipelineLifeOwner>();
+            FillOwnersByPhase(phaseId, result);
+            return result;
+        }
+
+        public int FillOwnersByPhase(AbilityPipelinePhaseId phaseId, IList<IPipelineLifeOwner> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+
+            int addedCount = 0;
             lock (_lock)
             {
+                CleanupDeadEntries();
                 for (int i = 0; i < _entries.Count; i++)
                 {
-                    if (_entries[i].IsAlive && _entries[i].LastPhaseId == phaseId)
+                    var owner = _entries[i].GetOwner();
+                    if (owner != null && _entries[i].LastPhaseId == phaseId)
                     {
-                        result.Add(_entries[i].GetOwner());
+                        results.Add(owner);
+                        addedCount++;
                     }
                 }
             }
-            return result;
+            return addedCount;
+        }
+
+        public PipelineRegistryOwnerListLease RentOwnersByPhase(AbilityPipelinePhaseId phaseId)
+        {
+            var result = PipelinePools.RentLifeOwnerList();
+            FillOwnersByPhase(phaseId, result);
+            return new PipelineRegistryOwnerListLease(result);
         }
 
         public IReadOnlyList<IPipelineLifeOwner> GetOwnersByState(EAbilityPipelineState state)
         {
             var result = new List<IPipelineLifeOwner>();
-            lock (_lock)
-            {
-                for (int i = 0; i < _entries.Count; i++)
-                {
-                    if (_entries[i].IsAlive && _entries[i].LastState == state)
-                    {
-                        result.Add(_entries[i].GetOwner());
-                    }
-                }
-            }
+            FillOwnersByState(state, result);
             return result;
         }
 
-        public EditorPipelineRunTrace GetTrace(IPipelineLifeOwner owner)
+        public int FillOwnersByState(EAbilityPipelineState state, IList<IPipelineLifeOwner> results)
+        {
+            if (results == null) throw new ArgumentNullException(nameof(results));
+
+            int addedCount = 0;
+            lock (_lock)
+            {
+                CleanupDeadEntries();
+                for (int i = 0; i < _entries.Count; i++)
+                {
+                    var owner = _entries[i].GetOwner();
+                    if (owner != null && _entries[i].LastState == state)
+                    {
+                        results.Add(owner);
+                        addedCount++;
+                    }
+                }
+            }
+            return addedCount;
+        }
+
+        public PipelineRegistryOwnerListLease RentOwnersByState(EAbilityPipelineState state)
+        {
+            var result = PipelinePools.RentLifeOwnerList();
+            FillOwnersByState(state, result);
+            return new PipelineRegistryOwnerListLease(result);
+        }
+
+        public EditorPipelineRunTrace? GetTrace(IPipelineLifeOwner owner)
         {
             lock (_lock)
             {
@@ -195,7 +235,7 @@ namespace AbilityKit.Pipeline.Editor
             }
         }
 
-        public bool TryGetOwner(int ownerId, out IPipelineLifeOwner owner)
+        public bool TryGetOwner(int ownerId, out IPipelineLifeOwner? owner)
         {
             owner = null;
             lock (_lock)
@@ -203,9 +243,8 @@ namespace AbilityKit.Pipeline.Editor
                 int index = FindEntryIndex_Unsafe(ownerId);
                 if (index < 0) return false;
                 var entry = _entries[index];
-                if (!entry.IsAlive) return false;
                 owner = entry.GetOwner();
-                return true;
+                return owner != null;
             }
         }
 

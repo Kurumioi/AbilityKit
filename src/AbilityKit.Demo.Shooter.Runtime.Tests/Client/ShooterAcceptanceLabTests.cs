@@ -82,6 +82,84 @@ public sealed class ShooterAcceptanceLabTests
     }
 
     [Fact]
+    public void PlayModeOptionsCanSelectGameplayScenarioFromSyncTemplate()
+    {
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority");
+        var scenario = ShooterSveltoGameplayScenarioCatalog.ProjectileStorm;
+
+        var options = ShooterPlayModeSessionOptions.FromTemplate(in template, in scenario).Normalized();
+
+        Assert.Equal(template.Id, options.SyncTemplateId);
+        Assert.Equal(scenario.Id, options.GameplayScenario.Id);
+        Assert.Equal(scenario.BattleFlow.DurationFrames, options.GameplayScenario.BattleFlow.DurationFrames);
+        Assert.Equal(scenario.BattleFlow.Waves.Length, options.GameplayScenario.BattleFlow.Waves.Length);
+    }
+
+    [Fact]
+    public void PlayModeOptionsCanSelectGameplayScenarioFromJsonSource()
+    {
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate("hybrid-hero-prediction");
+        var source = ShooterSveltoGameplayScenarioJsonSource.BuiltIn;
+
+        var options = ShooterPlayModeSessionOptions
+            .FromTemplateAndScenarioSource(in template, source, "svelto-wave-survival")
+            .Normalized();
+
+        Assert.Equal(template.Id, options.SyncTemplateId);
+        Assert.Equal(NetworkSyncModel.HybridHeroPrediction, options.SyncModel);
+        Assert.Equal(ShooterSveltoGameplayScenarioCatalog.WaveSurvival.Id, options.GameplayScenario.Id);
+        Assert.Equal(ShooterSveltoGameplayScenarioCatalog.WaveSurvival.BattleFlow.DurationFrames, options.GameplayScenario.BattleFlow.DurationFrames);
+    }
+
+    [Fact]
+    public void PlayModeOptionsCanSelectGameplayScenarioFromExternalJson()
+    {
+        const string json = @"
+{
+  ""id"": ""playmode-external-json"",
+  ""displayName"": ""PlayMode External Json"",
+  ""description"": ""Unity PlayMode 可以从 TextAsset 或外部文件读取的玩法配置。"",
+  ""shooterCount"": 3,
+  ""targetCount"": 18,
+  ""tickCount"": 75,
+  ""tickDeltaTime"": 0.05,
+  ""arenaRadius"": 11.0,
+  ""loadout"": {
+    ""loadoutId"": 9,
+    ""name"": ""external-json-rifle"",
+    ""projectileSpeed"": 14.0,
+    ""projectileLifeFrames"": 28,
+    ""damage"": 2,
+    ""cooldownFrames"": 4,
+    ""projectilesPerShot"": 2,
+    ""spreadDegrees"": 6.0
+  },
+  ""battleFlow"": {
+    ""durationFrames"": 75,
+    ""victoryTargetDefeats"": 12,
+    ""maxActiveEnemies"": 8,
+    ""waves"": [
+      { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 3, ""enemyCount"": 8, ""enemyHp"": 2, ""spawnRadius"": 7.0 }
+    ]
+  }
+}";
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority");
+        var source = ShooterSveltoGameplayScenarioJsonSource.FromJson("playmode-external-json", "PlayMode External Json", json);
+
+        var options = ShooterPlayModeSessionOptions
+            .FromTemplateAndScenarioSource(in template, source, "playmode-external-json")
+            .Normalized();
+
+        Assert.Equal("playmode-external-json", options.GameplayScenario.Id);
+        Assert.Equal(3, options.GameplayScenario.ShooterCount);
+        Assert.Equal(18, options.GameplayScenario.TargetCount);
+        Assert.Equal(75, options.GameplayScenario.TickCount);
+        Assert.Equal("external-json-rifle", options.GameplayScenario.Loadout.Name);
+        Assert.Equal(75, options.GameplayScenario.BattleFlow.DurationFrames);
+        Assert.Single(options.GameplayScenario.BattleFlow.Waves);
+    }
+
+    [Fact]
     public void CreateAssemblesStartedPredictRollbackSession()
     {
         var session = ShooterAcceptanceLab.Create(

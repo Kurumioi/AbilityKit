@@ -1,17 +1,17 @@
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// shoot_projectile Action 鐨勫己绫诲瀷鍙傛暟
+    /// shoot_projectile Action 的强类型参数。
     /// </summary>
     public readonly struct ShootProjectileArgs
     {
         /// <summary>
-        /// 鍙戝皠鍣↖D
+        /// 发射器 ID。
         /// </summary>
         public readonly int LauncherId;
 
         /// <summary>
-        /// 寮逛綋ID
+        /// 弹体 ID。
         /// </summary>
         public readonly int ProjectileId;
 

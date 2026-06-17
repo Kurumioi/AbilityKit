@@ -14,12 +14,11 @@ namespace AbilityKit.Demo.Moba.Gameplay
     [WorldService(typeof(MobaGameplayService), WorldLifetime.Scoped)]
     public sealed class MobaGameplayService : IService
     {
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private IWorldClock _clock;
-        [WorldInject(required: false)] private IEventBus _eventBus;
-        [WorldInject(required: false)] private IMobaGameplayEventSink _eventSink;
-        [WorldInject(required: false)] private MobaGameplayConfigService _gameplayConfigs;
-        [WorldInject(required: false)] private MobaGameplayTriggerBindingService _triggerBindings;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IEventBus _eventBus = null;
+        [WorldInject(required: false)] private IMobaGameplayEventSink _eventSink = null;
+        [WorldInject(required: false)] private MobaGameplayConfigService _gameplayConfigs = null;
+        [WorldInject(required: false)] private MobaGameplayTriggerBindingService _triggerBindings = null;
  
         private MobaGameplayPhase _phase = MobaGameplayPhase.NotStarted;
         private float _elapsedSeconds;

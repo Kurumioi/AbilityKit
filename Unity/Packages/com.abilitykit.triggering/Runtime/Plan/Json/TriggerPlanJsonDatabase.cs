@@ -49,6 +49,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             bool TryLoad(string id, out string text);
         }
 
+#pragma warning disable 0649 // DTO fields are populated by JSON deserialization.
         [Serializable]
         internal sealed class TriggerPlanDatabaseDto
         {
@@ -128,6 +129,10 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             /// 优先级高于 Arg0/Arg1
             /// </summary>
             public Dictionary<string, NumericValueRefDto> Args;
+
+            public string ExecutionPolicy;
+            public int RetryMaxRetries = 3;
+            public float RetryDelayMs;
         }
 
         [Serializable]
@@ -169,6 +174,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public string ExprText;
         }
 
+#pragma warning restore 0649
         public readonly struct Record
         {
             public readonly int TriggerId;

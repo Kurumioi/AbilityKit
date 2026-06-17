@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// dash Action �?Schema 瀹氫�?
+    /// dash Action 参数 Schema 定义。
     /// </summary>
     public sealed class DashSchema : MobaPlanActionSchemaBase<DashArgs>
     {

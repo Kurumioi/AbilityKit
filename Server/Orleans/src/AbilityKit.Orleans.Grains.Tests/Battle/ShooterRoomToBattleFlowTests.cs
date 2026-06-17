@@ -60,6 +60,15 @@ public sealed class ShooterRoomToBattleFlowTests
         Assert.Equal(11, initParams.RuleSetId);
         Assert.Equal(12, initParams.ConfigVersion);
         Assert.Equal(13, initParams.ProtocolVersion);
+        Assert.Equal(4, initParams.InputDelayFrames);
+        Assert.NotNull(initParams.SyncOptions);
+        Assert.Equal("runtime-snapshot-interpolation", initParams.SyncOptions!.SyncTemplateId);
+        Assert.Equal(3, initParams.SyncOptions.SyncModel);
+        Assert.Equal("wan-lossy", initParams.SyncOptions.NetworkEnvironmentId);
+        Assert.Equal("OrleansGateway", initParams.SyncOptions.CarrierName);
+        Assert.False(initParams.SyncOptions.EnableAuthoritativeWorld);
+        Assert.True(initParams.SyncOptions.InterpolationEnabled);
+        Assert.Equal(4, initParams.SyncOptions.InputDelayFrames);
 
         var initialSnapshot = session.GetSnapshot(0);
         Assert.NotNull(initialSnapshot);
@@ -132,7 +141,14 @@ public sealed class ShooterRoomToBattleFlowTests
             {
                 ["tickRate"] = "30",
                 ["mapId"] = "77",
-                ["randomSeed"] = "2468"
+                ["randomSeed"] = "2468",
+                ["syncTemplateId"] = "runtime-snapshot-interpolation",
+                ["syncModel"] = "3",
+                ["networkEnvironmentId"] = "wan-lossy",
+                ["carrierName"] = "OrleansGateway",
+                ["enableAuthoritativeWorld"] = "false",
+                ["interpolationEnabled"] = "true",
+                ["inputDelayFrames"] = "4"
             });
     }
 }

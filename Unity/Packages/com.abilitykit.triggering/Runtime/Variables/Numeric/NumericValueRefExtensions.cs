@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Variables.Numeric
 {
@@ -13,55 +14,88 @@ namespace AbilityKit.Triggering.Variables.Numeric
         /// </summary>
         public static double Resolve(this in NumericValueRef ref_, object ctx)
         {
+            if (TryResolve(in ref_, ctx, out var value))
+                return value;
+
+            throw new InvalidOperationException("Failed to resolve numeric value reference: " + Describe(in ref_));
+        }
+
+        public static bool TryResolve(this in NumericValueRef ref_, object ctx, out double value)
+        {
+            value = 0.0;
             return ref_.Kind switch
             {
-                ENumericValueRefKind.Const => ref_.ConstValue,
-                ENumericValueRefKind.Blackboard => ResolveBlackboard(ref_, ctx),
-                ENumericValueRefKind.PayloadField => ResolvePayloadField(ref_, ctx),
-                ENumericValueRefKind.Var => ResolveVar(ref_, ctx),
-                ENumericValueRefKind.Expr => ResolveExpr(ref_, ctx),
-                _ => 0.0
+                ENumericValueRefKind.Const => TryResolveConst(in ref_, out value),
+                ENumericValueRefKind.Blackboard => TryResolveBlackboard(in ref_, ctx, out value),
+                ENumericValueRefKind.PayloadField => TryResolvePayloadField(in ref_, ctx, out value),
+                ENumericValueRefKind.Var => TryResolveVar(in ref_, ctx, out value),
+                ENumericValueRefKind.Expr => TryResolveExpr(in ref_, ctx, out value),
+                _ => false
             };
         }
 
-        private static double ResolveBlackboard(in NumericValueRef ref_, object ctx)
+        private static bool TryResolveConst(in NumericValueRef ref_, out double value)
         {
-            // 通过黑板解析器获取值
-            if (ctx is IBlackboardResolvable resolvable)
-            {
-                if (resolvable.TryResolveBlackboardValue(ref_.BoardId, ref_.KeyId, out var value))
-                    return value;
-            }
-            return 0.0;
+            value = ref_.ConstValue;
+            return true;
         }
 
-        private static double ResolvePayloadField(in NumericValueRef ref_, object ctx)
+        private static bool TryResolveBlackboard(in NumericValueRef ref_, object ctx, out double value)
         {
-            // 通过 Payload 访问器获取值
-            if (ctx is Runtime.Executable.IHasPayload payload)
-            {
-                if (payload.TryGetPayloadDouble(ref_.FieldId, out var value))
-                    return value;
-            }
-            return 0.0;
+            value = 0.0;
+            return ctx is IBlackboardResolvable resolvable &&
+                   resolvable.TryResolveBlackboardValue(ref_.BoardId, ref_.KeyId, out value);
         }
 
-        private static double ResolveVar(in NumericValueRef ref_, object ctx)
+        private static bool TryResolvePayloadField(in NumericValueRef ref_, object ctx, out double value)
         {
-            // 通过变量域解析器获取值
-            if (ctx is IVarResolvable varResolvable)
-            {
-                if (varResolvable.TryResolveVarValue(ref_.DomainId, ref_.Key, out var value))
-                    return value;
-            }
-            return 0.0;
+            value = 0.0;
+            return ctx is Runtime.Executable.IHasPayload payload &&
+                   payload.TryGetPayloadDouble(ref_.FieldId, out value);
         }
 
-        private static double ResolveExpr(in NumericValueRef ref_, object ctx)
+        private static bool TryResolveVar(in NumericValueRef ref_, object ctx, out double value)
         {
-            // 表达式求值（需要表达式解析器）
-            // 这里暂时返回常量值，实际应该通过表达式引擎计算
-            return 0.0;
+            return TryResolveVar(ctx, ref_.DomainId, ref_.Key, out value);
+        }
+
+        private static bool TryResolveExpr(in NumericValueRef ref_, object ctx, out double value)
+        {
+            value = 0.0;
+            if (string.IsNullOrEmpty(ref_.ExprText))
+                return false;
+
+            if (!NumericExpressionCompiler.TryCompileCached(ref_.ExprText, out var program) || program == null)
+                return false;
+
+            return NumericRpnTokenEvaluator.TryEvaluate(
+                program,
+                (string domainId, string key, out double resolved) => TryResolveVar(ctx, domainId, key, out resolved),
+                DefaultNumericRpnFunctionRegistry.Instance,
+                out value);
+        }
+
+        private static bool TryResolveVar(object ctx, string domainId, string key, out double value)
+        {
+            value = 0.0;
+            if (string.IsNullOrEmpty(domainId) || string.IsNullOrEmpty(key))
+                return false;
+
+            return ctx is IVarResolvable varResolvable &&
+                   varResolvable.TryResolveVarValue(domainId, key, out value);
+        }
+
+        private static string Describe(in NumericValueRef ref_)
+        {
+            return ref_.Kind switch
+            {
+                ENumericValueRefKind.Const => $"Const({ref_.ConstValue})",
+                ENumericValueRefKind.Blackboard => $"Blackboard(boardId={ref_.BoardId}, keyId={ref_.KeyId})",
+                ENumericValueRefKind.PayloadField => $"PayloadField(fieldId={ref_.FieldId})",
+                ENumericValueRefKind.Var => $"Var(domainId='{ref_.DomainId}', key='{ref_.Key}')",
+                ENumericValueRefKind.Expr => "Expr(" + ref_.ExprText + ")",
+                _ => "Unsupported(" + ref_.Kind + ")"
+            };
         }
     }
 

@@ -88,9 +88,9 @@ namespace AbilityKit.Triggering.Runtime
         /// <summary>
         /// 尝试将上下文转换为目标类型
         /// </summary>
-        public static bool TryCast<TCtx, TTarget>(in ExecCtx<TCtx> ctx, out ExecCtx<TTarget> result)
+        public static bool TryCast<TSourceContext, TTarget>(in ExecCtx<TSourceContext> ctx, out ExecCtx<TTarget> result)
         {
-            if (typeof(TCtx) == typeof(TTarget))
+            if (typeof(TSourceContext) == typeof(TTarget))
             {
                 result = new ExecCtx<TTarget>(
                     context: (TTarget)(object)ctx.Context,

@@ -14,8 +14,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// 鎵垮彈浼ゅ鐨凱lan Action妯″潡
-    /// 浣跨敤寮虹被鍨嬪弬鏁?Schema API
+    /// 承受伤害的 Plan Action 模块，使用强类型参数 Schema API。
     /// </summary>
     [PlanActionModule(order: MobaPlanActionModuleOrders.TakeDamage)]
     public sealed class TakeDamagePlanActionModule : MobaPlanActionModuleBase<TakeDamageArgs, TakeDamagePlanActionModule>

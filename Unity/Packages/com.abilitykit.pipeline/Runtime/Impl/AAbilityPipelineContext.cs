@@ -11,7 +11,7 @@ namespace AbilityKit.Pipeline
         /// <summary>
         /// 能力实例
         /// </summary>
-        public object AbilityInstance { get; protected set; }
+        public object? AbilityInstance { get; protected set; }
         
         /// <summary>
         /// 当前阶段ID
@@ -46,12 +46,12 @@ namespace AbilityKit.Pipeline
         /// <summary>
         /// 共享数据
         /// </summary>
-        public Dictionary<string, object> SharedData { get; } = new Dictionary<string, object>();
+        public Dictionary<string, object?> SharedData { get; } = new Dictionary<string, object?>();
         
         /// <summary>
         /// 获取共享数据
         /// </summary>
-        public T GetData<T>(string key, T defaultValue = default)
+        public T GetData<T>(string key, T defaultValue = default!)
         {
             if (SharedData.TryGetValue(key, out var value) && value is T typedValue)
                 return typedValue;
@@ -76,7 +76,7 @@ namespace AbilityKit.Pipeline
                 value = typedValue;
                 return true;
             }
-            value = default;
+            value = default!;
             return false;
         }
         

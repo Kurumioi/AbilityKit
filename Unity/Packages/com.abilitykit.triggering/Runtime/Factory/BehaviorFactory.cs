@@ -12,6 +12,9 @@ using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Runtime.Config.Predicates;
 using AbilityKit.Triggering.Runtime.Config.Schedule;
 using AbilityKit.Triggering.Runtime.Config.Values;
+using AbilityKit.Triggering.Runtime.Executable;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Runtime.Factory
 {
@@ -132,7 +135,8 @@ namespace AbilityKit.Triggering.Runtime.Factory
     {
         public double Resolve(IValueRefConfig valueRef, IBehaviorContext context)
         {
-            if (valueRef == null) return 0;
+            if (valueRef == null) throw new ArgumentNullException(nameof(valueRef));
+            if (context == null) throw new ArgumentNullException(nameof(context));
 
             return valueRef.Kind switch
             {
@@ -141,33 +145,71 @@ namespace AbilityKit.Triggering.Runtime.Factory
                 EValueRefKind.PayloadField => ResolvePayloadField(valueRef, context),
                 EValueRefKind.Var => ResolveVar(valueRef, context),
                 EValueRefKind.Expr => ResolveExpr(valueRef, context),
-                _ => 0
+                EValueRefKind.ContextField => ResolvePayloadField(valueRef, context),
+                _ => throw new NotSupportedException($"Unsupported value reference kind: {valueRef.Kind}")
             };
         }
 
         private double ResolveBlackboard(IValueRefConfig valueRef, IBehaviorContext context)
         {
-            if (context.Blackboards == null) return 0;
+            if (context.Blackboards == null)
+                throw new InvalidOperationException($"Blackboard resolver is not available for boardId={valueRef.BlackboardId}, key='{valueRef.BlackboardKey}'.");
+
             if (context.Blackboards.TryGetValue<double>(valueRef.BlackboardId, valueRef.BlackboardKey, out var value))
                 return value;
-            return 0;
+
+            throw new InvalidOperationException($"Blackboard value not found. boardId={valueRef.BlackboardId}, key='{valueRef.BlackboardKey}'.");
         }
 
         private double ResolvePayloadField(IValueRefConfig valueRef, IBehaviorContext context)
         {
-            return 0;
+            if (context.Args is IHasPayload payload && payload.TryGetPayloadDouble(valueRef.PayloadFieldId, out var value))
+                return value;
+
+            throw new InvalidOperationException($"Payload field value not found or payload access is not available. fieldId={valueRef.PayloadFieldId}.");
         }
 
         private double ResolveVar(IValueRefConfig valueRef, IBehaviorContext context)
         {
-            if (context.Values != null)
-                return context.Values.Resolve(valueRef, context);
-            return 0;
+            if (TryResolveVar(context, valueRef.DomainId, valueRef.BlackboardKey, out var value))
+                return value;
+
+            throw new InvalidOperationException($"Numeric var not found. domainId='{valueRef.DomainId}', key='{valueRef.BlackboardKey}'.");
         }
 
         private double ResolveExpr(IValueRefConfig valueRef, IBehaviorContext context)
         {
-            return 0;
+            if (string.IsNullOrEmpty(valueRef.ExprText))
+                throw new InvalidOperationException("Expression value reference has empty ExprText.");
+
+            if (!NumericExpressionCompiler.TryCompileCached(valueRef.ExprText, out var program) || program == null)
+                throw new InvalidOperationException("Expression compile failed: " + valueRef.ExprText);
+
+            if (NumericRpnTokenEvaluator.TryEvaluate(
+                program,
+                (string domainId, string key, out double value) => TryResolveVar(context, domainId, key, out value),
+                DefaultNumericRpnFunctionRegistry.Instance,
+                out var result))
+            {
+                return result;
+            }
+
+            throw new InvalidOperationException("Expression evaluate failed: " + valueRef.ExprText);
+        }
+
+        private static bool TryResolveVar(IBehaviorContext context, string domainId, string key, out double value)
+        {
+            value = 0.0;
+            if (string.IsNullOrEmpty(domainId) || string.IsNullOrEmpty(key))
+                return false;
+
+            if (context is IVarResolvable contextResolvable)
+                return contextResolvable.TryResolveVarValue(domainId, key, out value);
+
+            if (context.Args is IVarResolvable argsResolvable)
+                return argsResolvable.TryResolveVarValue(domainId, key, out value);
+
+            return false;
         }
     }
 

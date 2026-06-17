@@ -42,6 +42,49 @@ internal static class RoomGatewayWireMapper
         };
     }
 
+    public static WireRestoreRoomRes ToRestoreRoomRes(RestoreRoomResponse response, string message = "")
+    {
+        var snapshot = response.Snapshot;
+        var roomId = snapshot.Summary?.RoomId ?? string.Empty;
+        return new WireRestoreRoomRes
+        {
+            Success = true,
+            HasActiveRoom = response.HasActiveRoom,
+            IsInBattle = response.IsInBattle,
+            RoomId = roomId,
+            NumericRoomId = RoomGatewayIds.CreateNumericRoomId(roomId),
+            Snapshot = ToWireSnapshot(snapshot),
+            WorldStartAnchor = ToWireAnchor(snapshot.WorldStartAnchor),
+            Message = string.IsNullOrEmpty(message) ? response.Message ?? string.Empty : message,
+            JoinKind = ToWireJoinKind(response.JoinKind),
+            ServerNowTicks = response.ServerNowTicks,
+            Status = ToWireRestoreStatus(response.Status),
+            ErrorCode = ToWireRestoreErrorCode(response.ErrorCode)
+        };
+    }
+
+    public static WireRestoreRoomRes ToEmptyRestoreRoomRes(string message)
+    {
+        return ToEmptyRestoreRoomRes(RoomRestoreStatus.NoActiveRoom, RoomRestoreErrorCode.NoAccountRoomMapping, message);
+    }
+
+    public static WireRestoreRoomRes ToEmptyRestoreRoomRes(RoomRestoreStatus status, RoomRestoreErrorCode errorCode, string message)
+    {
+        return new WireRestoreRoomRes
+        {
+            Success = true,
+            HasActiveRoom = false,
+            IsInBattle = false,
+            RoomId = string.Empty,
+            NumericRoomId = 0ul,
+            Message = message ?? string.Empty,
+            JoinKind = WireRoomJoinKind.TeamLobby,
+            ServerNowTicks = DateTime.UtcNow.Ticks,
+            Status = ToWireRestoreStatus(status),
+            ErrorCode = ToWireRestoreErrorCode(errorCode)
+        };
+    }
+
     public static WireRoomSnapshotRes ToSnapshotRes(RoomSnapshot snapshot, string message = "")
     {
         var roomId = snapshot.Summary?.RoomId ?? string.Empty;
@@ -75,6 +118,34 @@ internal static class RoomGatewayWireMapper
             RoomJoinKind.Reconnect => WireRoomJoinKind.Reconnect,
             RoomJoinKind.LateJoin => WireRoomJoinKind.LateJoin,
             _ => WireRoomJoinKind.TeamLobby
+        };
+    }
+
+    public static WireRoomRestoreStatus ToWireRestoreStatus(RoomRestoreStatus status)
+    {
+        return status switch
+        {
+            RoomRestoreStatus.NoActiveRoom => WireRoomRestoreStatus.NoActiveRoom,
+            RoomRestoreStatus.NotMember => WireRoomRestoreStatus.NotMember,
+            RoomRestoreStatus.RoomClosed => WireRoomRestoreStatus.RoomClosed,
+            RoomRestoreStatus.RoomExpired => WireRoomRestoreStatus.RoomExpired,
+            RoomRestoreStatus.InvalidSession => WireRoomRestoreStatus.InvalidSession,
+            RoomRestoreStatus.Failed => WireRoomRestoreStatus.Failed,
+            _ => WireRoomRestoreStatus.Restored
+        };
+    }
+
+    public static WireRoomRestoreErrorCode ToWireRestoreErrorCode(RoomRestoreErrorCode errorCode)
+    {
+        return errorCode switch
+        {
+            RoomRestoreErrorCode.NoAccountRoomMapping => WireRoomRestoreErrorCode.NoAccountRoomMapping,
+            RoomRestoreErrorCode.AccountNotInRoom => WireRoomRestoreErrorCode.AccountNotInRoom,
+            RoomRestoreErrorCode.RoomClosed => WireRoomRestoreErrorCode.RoomClosed,
+            RoomRestoreErrorCode.RoomExpired => WireRoomRestoreErrorCode.RoomExpired,
+            RoomRestoreErrorCode.InvalidSession => WireRoomRestoreErrorCode.InvalidSession,
+            RoomRestoreErrorCode.InternalError => WireRoomRestoreErrorCode.InternalError,
+            _ => WireRoomRestoreErrorCode.None
         };
     }
 

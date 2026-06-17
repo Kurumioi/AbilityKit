@@ -164,14 +164,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                 throw new System.InvalidOperationException($"MobaProjectileSyncSystem requires authority or frame time before requesting projectile despawn. reason={reason}, sourceActorId={sourceActorId}, sourceContextId={sourceContextId}");
             }
 
-            if (entity.hasActorDespawnRequest)
-            {
-                entity.ReplaceActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
-            }
-            else
-            {
-                entity.AddActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
-            }
+            ActorLifecycleRequests.RequestDespawn(entity, frame, reason, sourceActorId, sourceContextId);
         }
 
         private bool TryGetFrame(out int frame)

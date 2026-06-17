@@ -21,7 +21,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class WorldModulesStage : MobaBootstrapStageBase
     {
-        public override string Name => "WorldModules";
+        public override string Name => MobaBootstrapStageNames.WorldModules;
+
+        public override string[] Dependencies => new[]
+        {
+            MobaBootstrapStageNames.Config,
+        };
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {

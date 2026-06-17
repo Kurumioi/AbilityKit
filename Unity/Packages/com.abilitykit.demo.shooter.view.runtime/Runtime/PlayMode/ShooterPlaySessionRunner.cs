@@ -47,7 +47,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             Stop();
 
-            _options = options.Normalized();
+            _options = AlignWithGameplayScenario(options.Normalized());
 
             var profile = CreateProfile(_options);
             var players = new List<ShooterStartPlayer>(_options.PlayerCount);
@@ -188,6 +188,30 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.LagCompensationTelemetry);
             _viewSink.Render(in frame);
             _renderCount++;
+        }
+
+        private static ShooterPlayModeSessionOptions AlignWithGameplayScenario(ShooterPlayModeSessionOptions options)
+        {
+            var scenario = options.GameplayScenario;
+            var tickRate = Math.Max(1, (int)Math.Round(1f / scenario.TickDeltaTime));
+            var playerCount = Math.Max(options.PlayerCount, scenario.ShooterCount);
+
+            return new ShooterPlayModeSessionOptions(
+                options.SyncModel,
+                tickRate,
+                playerCount,
+                options.RandomSeed,
+                Math.Min(options.ControlledPlayerId, playerCount),
+                options.EnableAuthoritativeWorld,
+                options.LatencyMs,
+                options.JitterMs,
+                options.PacketLossRate,
+                options.ReorderRate,
+                options.BandwidthKbps,
+                options.WorldScale,
+                options.NetworkName,
+                options.SyncTemplateId,
+                scenario).Normalized();
         }
 
         private static NetworkConditionProfile CreateProfile(ShooterPlayModeSessionOptions options)

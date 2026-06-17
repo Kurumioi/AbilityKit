@@ -15,7 +15,7 @@
     }
 
     /// <summary>
-    /// 浣跨敤 Luban 浜岃繘鍒舵牸寮忕殑 Provider
+    /// 使用 Luban 二进制格式的配置 Provider。
     /// </summary>
     public sealed class LubanBinaryMobaConfigFormatProvider : IMobaConfigFormatProvider
     {

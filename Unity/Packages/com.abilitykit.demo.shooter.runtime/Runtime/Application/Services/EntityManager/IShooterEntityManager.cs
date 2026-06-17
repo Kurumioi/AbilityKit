@@ -4,6 +4,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 {
     public interface IShooterEntityManager
     {
+        int MaxEntityCount { get; }
+
         int PlayerCount { get; }
 
         int ProjectileCount { get; }

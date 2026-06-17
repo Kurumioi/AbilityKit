@@ -35,6 +35,7 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
         services.AddSingleton<GatewayHandlers.JoinRoomHandler>();
         services.AddSingleton<GatewayHandlers.RoomReadyHandler>();
         services.AddSingleton<GatewayHandlers.RoomPickHeroHandler>();
+        services.AddSingleton<GatewayHandlers.RestoreRoomHandler>();
         services.AddSingleton<GatewayHandlers.StartRoomBattleHandler>();
         services.AddSingleton<GatewayHandlers.SubmitBattleInputHandler>();
         services.AddSingleton<GatewayHandlers.SubscribeStateSyncHandler>();
@@ -51,6 +52,8 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
         services.AddSingleton<GatewayCore.GatewayRequestRouter>();
         services.AddSingleton<GatewayAbstractions.IGatewayRequestRouter>(sp => sp.GetRequiredService<GatewayCore.GatewayRequestRouter>());
 
+        services.AddSingleton<GatewayCore.GatewayBackgroundTaskQueue>();
+        services.AddHostedService(sp => sp.GetRequiredService<GatewayCore.GatewayBackgroundTaskQueue>());
         services.AddSingleton<GatewayNetworking.IGatewayTransportEvents, GatewayCore.GatewayTransportHandler>();
         services.AddSingleton<GatewayCore.GatewayTransportHandler>();
         services.AddSingleton<GatewayNetworking.TcpTransportServer>();

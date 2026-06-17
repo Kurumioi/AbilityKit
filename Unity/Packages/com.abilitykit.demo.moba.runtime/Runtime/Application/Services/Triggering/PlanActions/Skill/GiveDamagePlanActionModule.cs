@@ -16,8 +16,7 @@ using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// 閫犳垚浼ゅ鐨凱lan Action妯″潡
-    /// 浣跨敤鏂扮殑鍏峰悕鍙傛暟 Schema API
+    /// 造成伤害的 Plan Action 模块，使用强类型命名参数 Schema API。
     /// </summary>
     [PlanActionModule(order: MobaPlanActionModuleOrders.GiveDamage)]
     public sealed class GiveDamagePlanActionModule : MobaPlanActionModuleBase<GiveDamageArgs, GiveDamagePlanActionModule>

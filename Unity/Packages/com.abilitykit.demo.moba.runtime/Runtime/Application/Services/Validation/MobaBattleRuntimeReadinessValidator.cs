@@ -1,4 +1,5 @@
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services
 {

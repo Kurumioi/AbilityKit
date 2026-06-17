@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services
         private int _nextGeneration = 1;
 
         [WorldInject(required: false)]
-        private MobaTraceRegistry _trace;
+        private MobaTraceRegistry _trace = null;
 
         public int Count => _runtimes.Count;
 

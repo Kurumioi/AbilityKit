@@ -31,9 +31,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
     }
 
     /// <summary>
-    /// 行为类型注册表
-    /// 基于 Attribute 自动发现和注册类型，包外扩展只需在类型上标记 Attribute
-    /// 继承 MarkerRegistry 模式，支持 MarkerScanner 自动扫描
+    /// 行为类型注册表。
+    /// 旧 Runtime/Executable 兼容路径默认只注册内建类型，外部扩展需要显式注册或显式触发 Attribute 扫描。
     /// </summary>
     public sealed class ExecutableRegistry : IMarkerRegistry
     {
@@ -48,9 +47,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         private ExecutableRegistry()
         {
             RegisterBuiltin();
-            var assembly = typeof(SequenceExecutable).Assembly;
-            MarkerScanner<ExecutableTypeIdAttribute>.Scan(new[] { assembly }, this);
-            MarkerScanner<ConditionTypeIdAttribute>.Scan(new[] { assembly }, this);
         }
 
         /// <summary>
@@ -131,6 +127,24 @@ namespace AbilityKit.Triggering.Runtime.Executable
             => _conditions.Values;
 
         /// <summary>
+        /// 兼容旧扩展的 Attribute 扫描入口。主线与内建类型不依赖运行时扫描。
+        /// </summary>
+        public void ScanAssemblies(params Assembly[] assemblies)
+        {
+            if (assemblies == null || assemblies.Length == 0) return;
+            MarkerScanner<ExecutableTypeIdAttribute>.Scan(assemblies, this);
+            MarkerScanner<ConditionTypeIdAttribute>.Scan(assemblies, this);
+        }
+
+        /// <summary>
+        /// 扫描旧 Runtime/Executable 所在程序集。仅为兼容旧 Attribute 扩展保留。
+        /// </summary>
+        public void ScanRuntimeExecutableAssembly()
+        {
+            ScanAssemblies(typeof(SequenceExecutable).Assembly);
+        }
+
+        /// <summary>
         /// 通过 Attribute 注册 Executable 类型（供 MarkerAttribute.OnScanned 调用）
         /// </summary>
         internal void RegisterByAttribute(ExecutableTypeIdAttribute attr, Type implType)
@@ -191,8 +205,26 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private void RegisterBuiltin()
         {
-            // 仅用于兼容旧代码，不推荐新代码使用
-            // 新代码应使用 Attribute 标记类型
+            Register<SequenceExecutable>(TypeIdRegistry.Executable.Sequence, "Sequence", new ExecutableMetadata(TypeIdRegistry.Executable.Sequence, "Sequence", isComposite: true));
+            Register<SelectorExecutable>(TypeIdRegistry.Executable.Selector, "Selector", new ExecutableMetadata(TypeIdRegistry.Executable.Selector, "Selector", isComposite: true));
+            Register<ParallelExecutable>(TypeIdRegistry.Executable.Parallel, "Parallel", new ExecutableMetadata(TypeIdRegistry.Executable.Parallel, "Parallel", isComposite: true));
+            Register<IfExecutable>(TypeIdRegistry.Executable.If, "If", new ExecutableMetadata(TypeIdRegistry.Executable.If, "If", isComposite: true));
+            Register<IfElseExecutable>(TypeIdRegistry.Executable.IfElse, "IfElse", new ExecutableMetadata(TypeIdRegistry.Executable.IfElse, "IfElse", isComposite: true));
+            Register<SwitchExecutable>(TypeIdRegistry.Executable.Switch, "Switch", new ExecutableMetadata(TypeIdRegistry.Executable.Switch, "Switch", isComposite: true));
+            Register<RandomSelectorExecutable>(TypeIdRegistry.Executable.RandomSelector, "RandomSelector", new ExecutableMetadata(TypeIdRegistry.Executable.RandomSelector, "RandomSelector", isComposite: true));
+            Register<RepeatExecutable>(TypeIdRegistry.Executable.Repeat, "Repeat", new ExecutableMetadata(TypeIdRegistry.Executable.Repeat, "Repeat", isComposite: true));
+            Register<UntilExecutable>(TypeIdRegistry.Executable.Until, "Until", new ExecutableMetadata(TypeIdRegistry.Executable.Until, "Until", isComposite: true));
+            Register<ActionCallExecutable>(TypeIdRegistry.Executable.ActionCall, "ActionCall", new ExecutableMetadata(TypeIdRegistry.Executable.ActionCall, "ActionCall"));
+            Register<DelayExecutable>(TypeIdRegistry.Executable.Delay, "Delay", new ExecutableMetadata(TypeIdRegistry.Executable.Delay, "Delay"));
+
+            RegisterCondition<ConstCondition>(TypeIdRegistry.Condition.Const, "Const");
+            RegisterCondition<AndCondition>(TypeIdRegistry.Condition.And, "And");
+            RegisterCondition<OrCondition>(TypeIdRegistry.Condition.Or, "Or");
+            RegisterCondition<NotCondition>(TypeIdRegistry.Condition.Not, "Not");
+            RegisterCondition<NumericCompareCondition>(TypeIdRegistry.Condition.NumericCompare, "NumericCompare");
+            RegisterCondition<PayloadCompareCondition>(TypeIdRegistry.Condition.PayloadCompare, "PayloadCompare");
+            RegisterCondition<HasTargetCondition>(TypeIdRegistry.Condition.HasTarget, "HasTarget");
+            RegisterCondition<MultiCondition>(TypeIdRegistry.Condition.Multi, "Multi");
         }
 
         #region IMarkerRegistry 实现
@@ -226,7 +258,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             }
         }
 
-        public Type? Find(Func<Type, bool> predicate)
+        public Type Find(Func<Type, bool> predicate)
         {
             for (int i = 0; i < _types.Count; i++)
             {

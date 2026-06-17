@@ -9,8 +9,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// 调试日志Plan Action模块
-    /// 使用强类型参�?Schema API
+    /// 调试日志 Plan Action 模块，使用强类型参数 Schema API。
     /// </summary>
     [PlanActionModule(order: MobaPlanActionModuleOrders.DebugLog)]
     public sealed class DebugLogPlanActionModule : MobaPlanActionModuleBase<DebugLogArgs, DebugLogPlanActionModule>

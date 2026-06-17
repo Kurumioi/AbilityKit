@@ -41,20 +41,21 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 创建默认注册表并扫描已加载程序集。
+        /// 创建空注册表，由输入契约注册表作为唯一真源写入处理器。
         /// </summary>
-        public static MobaInputCommandHandlerRegistry CreateDefault()
+        public static MobaInputCommandHandlerRegistry CreateEmpty()
+        {
+            return new MobaInputCommandHandlerRegistry();
+        }
+
+        /// <summary>
+        /// 创建自动扫描注册表，供扩展工具和兼容路径使用。
+        /// </summary>
+        public static MobaInputCommandHandlerRegistry CreateScanned()
         {
             MobaInputCommandHandlerRegistry registry = new MobaInputCommandHandlerRegistry();
             MarkerScanner<MobaInputCommandHandlerAttribute>.ScanAll(registry);
-            registry.RegisterCoreHandlers();
             return registry;
-        }
-
-        private void RegisterCoreHandlers()
-        {
-            Register(AbilityKit.Protocol.Moba.MobaOpCodes.Input.Move, typeof(MobaMoveInputCommandHandler));
-            Register(AbilityKit.Protocol.Moba.MobaOpCodes.Input.SkillInput, typeof(MobaSkillInputCommandHandler));
         }
 
         /// <summary>

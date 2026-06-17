@@ -200,7 +200,7 @@ namespace ET.Logic
             var launchOptions = self.GetLaunchOptions();
             if (launchOptions.ScenarioConfig == null)
             {
-                launchOptions.ScenarioConfig = ETLocalMobaScenarioConfig.CreateLocalDemoDefaults();
+                launchOptions.ScenarioConfig = ETLocalMobaScenarioConfig.CreateLocalScenarioDefaults();
             }
 
             return launchOptions.ScenarioConfig;

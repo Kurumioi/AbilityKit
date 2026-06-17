@@ -40,9 +40,19 @@ namespace AbilityKit.Demo.Shooter.View
             return new ShooterClientInputSubmitResult(accepted, _frameSync.CurrentFrame, packet);
         }
 
-        public async Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(
+        public Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(
             ShooterGatewayBattleInputContext context,
             ShooterPlayerCommand command,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            var local = SubmitLocalInput(in command).WithRequestedFrame(context.Frame);
+            return SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
+        }
+
+        public async Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
+            ShooterGatewayBattleInputContext context,
+            ShooterClientInputSubmitResult local,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
@@ -51,7 +61,6 @@ namespace AbilityKit.Demo.Shooter.View
                 throw new InvalidOperationException("Shooter room gateway client is not configured.");
             }
 
-            var local = SubmitLocalInput(in command).WithRequestedFrame(context.Frame);
             var remote = await _gateway.SubmitBattleInputAsync(context, local.Packet, timeout, cancellationToken).ConfigureAwait(false);
             if (remote.ShouldResync)
             {

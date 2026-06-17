@@ -5,10 +5,22 @@ namespace AbilityKit.Demo.Moba.Services
     public enum MobaBattleRouteKind
     {
         Unknown = 0,
-        ClientInput = 1,
-        ServerSnapshot = 2,
-        ViewCommand = 3,
-        Lifecycle = 4,
+        RuntimeInput = 1,
+        RuntimeSnapshot = 2,
+        RuntimeOutputIntent = 3,
+        RuntimeLifecycle = 4,
+
+        [Obsolete("Use RuntimeInput. Route descriptors describe battle-runtime contracts, not client transport ownership.")]
+        ClientInput = RuntimeInput,
+
+        [Obsolete("Use RuntimeSnapshot. Route descriptors describe battle-runtime contracts, not server transport ownership.")]
+        ServerSnapshot = RuntimeSnapshot,
+
+        [Obsolete("Use RuntimeOutputIntent. Route descriptors describe data-only runtime output intent, not view commands.")]
+        ViewCommand = RuntimeOutputIntent,
+
+        [Obsolete("Use RuntimeLifecycle. Route descriptors describe runtime lifecycle contracts, not host/session lifecycle ownership.")]
+        Lifecycle = RuntimeLifecycle,
     }
 
     public readonly struct MobaBattleRouteDescriptor

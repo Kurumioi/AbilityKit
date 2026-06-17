@@ -35,12 +35,13 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             typeof(SpawnSummonActionTemplateDTO),
             typeof(ComponentTemplateDTO),
             typeof(PresentationTemplateDTO),
+            typeof(GameplayDTO),
         };
 
         private JsonNetMobaConfigDtoDeserializer() { }
 
         /// <summary>
-        /// MOBA 涓撶敤锛氫粠 JSON 鏂囨湰鍙嶅簭鍒楀寲 DTO 鏁扮粍
+        /// MOBA 专用：从 JSON 文本反序列化 DTO 数组。
         /// </summary>
         public Array DeserializeDtoArray(string text, Type dtoType)
         {
@@ -74,7 +75,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
         }
 
         /// <summary>
-        /// 閫氱敤 IConfigDeserializer 瀹炵幇
+        /// 通用 IConfigDeserializer 实现。
         /// </summary>
         public Array DeserializeBytes(byte[] bytes, Type targetType)
         {

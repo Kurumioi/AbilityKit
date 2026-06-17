@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;

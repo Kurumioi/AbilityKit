@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
@@ -40,7 +41,7 @@ namespace ET.AbilityKit.Demo.ET.App
 
                 var launchOptions = options.Smoke
                     ? ETDemoProcessLaunchOptions.CreateLocalSmokeDefaults()
-                    : ETDemoProcessLaunchOptions.CreateLocalDemoDefaults();
+                    : ETDemoProcessLaunchOptions.CreateLocalScenarioDefaults();
 
                 DemoEntry.Init(launchOptions);
                 DemoEntry.StartAsync().NoContext();

@@ -1,7 +1,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 
-namespace AbilityKit.Game.Battle.DemoLegacy.Requests
+namespace AbilityKit.Game.Battle.Legacy.Requests
 {
     public readonly struct LeaveWorldRequest
     {

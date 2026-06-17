@@ -14,6 +14,7 @@ namespace AbilityKit.Protocol.Room
         public const uint StartBattle = 106;
         public const uint SubmitBattleInput = 107;
         public const uint RequestFullStateSync = 108;
+        public const uint RestoreRoom = 109;
 
         public const uint SnapshotPushed = 9002;
         public const uint DeltaSnapshotPushed = 9003;

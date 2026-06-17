@@ -4,12 +4,12 @@ using AbilityKit.Ability.Config;
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// MOBA DTO 鍙嶅簭鍒楀寲鍣ㄦ帴鍙ｏ紙鎵╁睍閫氱敤 IConfigDeserializer锛?
+    /// MOBA DTO 反序列化器接口，扩展通用 IConfigDeserializer。
     /// </summary>
     public interface IMobaConfigDtoDeserializer : IConfigDeserializer
     {
         /// <summary>
-        /// 鍙嶅簭鍒楀寲 DTO 鏁扮粍锛圡OBA 涓撶敤鏂规硶锛?
+        /// 从文本反序列化 DTO 数组，供 MOBA 配置加载管线使用。
         /// </summary>
         Array DeserializeDtoArray(string text, Type dtoType);
     }

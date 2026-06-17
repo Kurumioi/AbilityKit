@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
@@ -10,19 +11,16 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IMobaBattleInputPort))]
     [WorldService(typeof(IMobaBattleOutputPort))]
-    [WorldService(typeof(IMobaLogicWorldStateReadModel))]
     [WorldService(typeof(MobaBattleIOPort))]
-    public sealed class MobaBattleIOPort : IService, IMobaBattleInputPort, IMobaBattleOutputPort, IMobaLogicWorldStateReadModel
+    public sealed class MobaBattleIOPort : IService, IMobaBattleInputPort, IMobaBattleOutputPort
     {
         private readonly IMobaInputCoordinator _input;
         private readonly IWorldStateSnapshotProvider _snapshots;
-        private readonly MobaActorRegistry _actors;
 
-        public MobaBattleIOPort(IMobaInputCoordinator input, IWorldStateSnapshotProvider snapshots, MobaActorRegistry actors)
+        public MobaBattleIOPort(IMobaInputCoordinator input, IWorldStateSnapshotProvider snapshots)
         {
             _input = input ?? throw new ArgumentNullException(nameof(input));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
-            _actors = actors ?? throw new ArgumentNullException(nameof(actors));
         }
 
         public MobaInputSubmitResult Submit(FrameIndex frame, IReadOnlyList<PlayerInputCommand> inputs)
@@ -94,6 +92,22 @@ namespace AbilityKit.Demo.Moba.Services
             return 1;
         }
 
+        public void Dispose()
+        {
+        }
+    }
+
+    [WorldService(typeof(IMobaLogicWorldStateReadModel))]
+    [WorldService(typeof(MobaBattleStateQueryService))]
+    public sealed class MobaBattleStateQueryService : IService, IMobaLogicWorldStateReadModel
+    {
+        private readonly MobaActorRegistry _actors;
+
+        public MobaBattleStateQueryService(MobaActorRegistry actors)
+        {
+            _actors = actors ?? throw new ArgumentNullException(nameof(actors));
+        }
+
         public LogicWorldEntityState[] GetAllEntityStates()
         {
             var states = new List<LogicWorldEntityState>(8);
@@ -104,44 +118,49 @@ namespace AbilityKit.Demo.Moba.Services
                 var entity = kv.Value;
                 if (entity == null) continue;
 
-                var state = new LogicWorldEntityState(actorId);
-
-                if (entity.hasTransform)
-                {
-                    var pos = entity.transform.Value.Position;
-                    state.X = pos.X;
-                    state.Y = pos.Y;
-                    state.Z = pos.Z;
-                }
-
-                if (entity.hasTeam)
-                {
-                    state.TeamId = (int)entity.team.Value;
-                }
-
-                state.HasAttributeGroup = entity.hasAttributeGroup;
-                state.HasResourceContainer = entity.hasResourceContainer && entity.resourceContainer.Value != null;
-                state.HasSkillLoadout = entity.hasSkillLoadout;
-                state.ActiveSkillCount = entity.hasSkillLoadout && entity.skillLoadout.ActiveSkills != null
-                    ? entity.skillLoadout.ActiveSkills.Length
-                    : 0;
-
-                if (state.HasAttributeGroup && state.HasResourceContainer)
-                {
-                    var attrs = entity.GetMobaAttrs();
-                    state.Hp = attrs.Hp;
-                    state.HpMax = attrs.MaxHp;
-                    state.IsDead = attrs.Hp <= 0f;
-                }
-                else
-                {
-                    state.IsDead = false;
-                }
-
-                states.Add(state);
+                states.Add(CreateState(actorId, entity));
             }
 
             return states.ToArray();
+        }
+
+        private static LogicWorldEntityState CreateState(int actorId, ActorEntity entity)
+        {
+            var state = new LogicWorldEntityState(actorId);
+
+            if (entity.hasTransform)
+            {
+                var pos = entity.transform.Value.Position;
+                state.X = pos.X;
+                state.Y = pos.Y;
+                state.Z = pos.Z;
+            }
+
+            if (entity.hasTeam)
+            {
+                state.TeamId = (int)entity.team.Value;
+            }
+
+            state.HasAttributeGroup = entity.hasAttributeGroup;
+            state.HasResourceContainer = entity.hasResourceContainer && entity.resourceContainer.Value != null;
+            state.HasSkillLoadout = entity.hasSkillLoadout;
+            state.ActiveSkillCount = entity.hasSkillLoadout && entity.skillLoadout.ActiveSkills != null
+                ? entity.skillLoadout.ActiveSkills.Length
+                : 0;
+
+            if (state.HasAttributeGroup && state.HasResourceContainer)
+            {
+                var attrs = entity.GetMobaAttrs();
+                state.Hp = attrs.Hp;
+                state.HpMax = attrs.MaxHp;
+                state.IsDead = attrs.Hp <= 0f;
+            }
+            else
+            {
+                state.IsDead = false;
+            }
+
+            return state;
         }
 
         public void Dispose()

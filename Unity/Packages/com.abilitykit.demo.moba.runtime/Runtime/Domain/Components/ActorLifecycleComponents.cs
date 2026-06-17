@@ -27,4 +27,22 @@ namespace AbilityKit.Demo.Moba.Components
         public int SourceActorId;
         public long SourceContextId;
     }
+    public static class ActorLifecycleRequests
+    {
+        public static bool RequestDespawn(global::ActorEntity entity, int frame, ActorDespawnReason reason, int sourceActorId = 0, long sourceContextId = 0L)
+        {
+            if (entity == null) return false;
+
+            if (entity.hasActorDespawnRequest)
+            {
+                entity.ReplaceActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
+            }
+            else
+            {
+                entity.AddActorDespawnRequest(frame, frame, reason, sourceActorId, sourceContextId);
+            }
+
+            return true;
+        }
+    }
 }

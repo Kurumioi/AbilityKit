@@ -22,19 +22,18 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaSummonService))]
     public sealed class MobaSummonService : IService
     {
-        [WorldInject] private ActorIdAllocator _actorIds;
-        [WorldInject] private MobaActorRegistry _registry;
-        [WorldInject] private MobaEntityManager _entities;
-        [WorldInject] private MobaActorLookupService _actors;
-        [WorldInject] private AbilityKit.Demo.Moba.Util.Generator.ActorEntityInitPipeline _generator;
-        [WorldInject] private MobaConfigDatabase _config;
-        [WorldInject] private MobaComponentTemplateService _componentTemplates;
-        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private IWorldClock _clock;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace;
-        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn;
-        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
+        [WorldInject] private ActorIdAllocator _actorIds = null;
+        [WorldInject] private MobaActorRegistry _registry = null;
+        [WorldInject] private MobaEntityManager _entities = null;
+        [WorldInject] private AbilityKit.Demo.Moba.Util.Generator.ActorEntityInitPipeline _generator = null;
+        [WorldInject] private MobaConfigDatabase _config = null;
+        [WorldInject] private MobaComponentTemplateService _componentTemplates = null;
+        [WorldInject] private AbilityKit.Triggering.Eventing.IEventBus _eventBus = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IWorldClock _clock = null;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+        [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
 
         private enum SummonOverflowPolicy
         {
@@ -175,16 +174,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (_registry == null) return false;
             if (!_registry.TryGet(summonActorId, out var e) || e == null) return false;
 
-            var frame = CurrentFrame;
-            var actorReason = ToActorDespawnReason(reason);
-            if (e.hasActorDespawnRequest)
-            {
-                e.ReplaceActorDespawnRequest(frame, frame, actorReason, 0, 0L);
-            }
-            else
-            {
-                e.AddActorDespawnRequest(frame, frame, actorReason, 0, 0L);
-            }
+            ActorLifecycleRequests.RequestDespawn(e, CurrentFrame, ToActorDespawnReason(reason));
 
             return true;
         }

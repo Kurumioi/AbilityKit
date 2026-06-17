@@ -1,3 +1,4 @@
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Area;

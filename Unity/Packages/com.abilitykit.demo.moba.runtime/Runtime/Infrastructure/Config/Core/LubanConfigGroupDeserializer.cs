@@ -8,12 +8,12 @@ using AbilityKit.Demo.Moba.Share.Config;
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// Luban 閰嶇疆缁勫弽搴忓垪鍖栧櫒銆?
-    /// 灏?Luban 瀵煎嚭鐨?JSON 杞崲涓烘鏋剁殑 MO DTO 绫诲瀷銆?
-    /// 
-    /// Luban 瀵煎嚭鐨?JSON 瀛楁鍚嶄笌妗嗘灦 DTO 涓嶅悓锛?
-    /// - Luban 浣跨敤 "Code"锛屾鏋朵娇鐢?"Id"
-    /// - 闇€瑕佸鐞嗗瓧娈垫槧灏勫拰榛樿鍊?
+    /// Luban 配置组反序列化器。
+    /// 将 Luban 导出的 JSON 转换为框架的 MO DTO 类型。
+    ///
+    /// Luban 导出的 JSON 字段名与框架 DTO 不同：
+    /// - Luban 使用 "Code"，框架使用 "Id"
+    /// - 需要处理字段映射和默认值
     /// </summary>
     public sealed class LubanConfigGroupDeserializer : ConfigGroupDeserializerBase
     {
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         {
             if (obj == null) return null;
 
-            // 鏍规嵁绫诲瀷鍒嗗彂
+            // 根据类型分发。
             if (dtoType == typeof(CharacterDTO)) return DeserializeCharacter(obj);
             if (dtoType == typeof(BattleAttributeTemplateDTO)) return DeserializeBattleAttributeTemplate(obj);
             if (dtoType == typeof(SkillDTO)) return DeserializeSkill(obj);
@@ -85,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(PresentationTemplateDTO)) return DeserializePresentationTemplate(obj);
             if (dtoType == typeof(SpawnSummonActionTemplateDTO)) return DeserializeSpawnSummonActionTemplate(obj);
 
-            // 榛樿锛氬皾璇曚娇鐢?JObject 鍙嶅簭鍒楀寲
+            // 默认：尝试使用 JObject 反序列化。
             return obj.ToObject(dtoType);
         }
 
@@ -107,8 +107,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static BattleAttributeTemplateDTO DeserializeBattleAttributeTemplate(JObject obj)
         {
-            // 妗嗘灦 DTO: Id, ActiveSkills, PassiveSkills, Hp, MaxHp, ExtraHp, ...
-            // 娌℃湁 Name 瀛楁
+            // 框架 DTO: Id, ActiveSkills, PassiveSkills, Hp, MaxHp, ExtraHp, ...
+            // 没有 Name 字段。
             var dto = new BattleAttributeTemplateDTO
             {
                 Id = obj["Code"]?.Value<int>() ?? 0,

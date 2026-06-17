@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Abstractions;
 using AbilityKit.Triggering.Runtime.Context;
@@ -27,7 +26,6 @@ namespace AbilityKit.Triggering.Runtime.Context
         private IPayloadAccessor _payloadAccessor;
         private IVariableRepository _variableRepository;
         private ITimeService _timeService;
-        private IEntityFinder _entityFinder;
 
         public ExecCtxAdapter(
             ActionRegistry actions,
@@ -53,7 +51,7 @@ namespace AbilityKit.Triggering.Runtime.Context
             if (serviceType == typeof(IVariableRepository)) return VariableRepository;
             if (serviceType == typeof(ITimeService)) return TimeService;
             if (serviceType == typeof(IEventBus)) return EventBus;
-            if (serviceType == typeof(IEntityFinder)) return EntityFinder;
+            if (serviceType == typeof(IEntityFinder)) return null;
             if (serviceType == typeof(ActionRegistry)) return _actions;
             return null;
         }
@@ -74,9 +72,6 @@ namespace AbilityKit.Triggering.Runtime.Context
             _timeService ??= new TimeServiceAdapter(_policy);
 
         public IEventBus EventBus => _eventBus;
-
-        public IEntityFinder EntityFinder =>
-            _entityFinder ??= new EntityFinderAdapter();
     }
 
     /// <summary>
@@ -127,15 +122,12 @@ namespace AbilityKit.Triggering.Runtime.Context
         public VariableRepositoryAdapter(INumericVarDomainRegistry domainRegistry) => _domainRegistry = domainRegistry;
         public double GetNumeric(string domainId, string key)
         {
-            if (_domainRegistry != null && _domainRegistry.TryGetDomain(domainId, out var domain))
-            {
-                // 使用默认空的 ExecCtx，因为 GetNumeric 没有泛型上下文
-                if (domain.TryGet<object>(default, key, out var value))
-                    return value;
-            }
-            return 0;
+            throw new NotSupportedException("VariableRepositoryAdapter.GetNumeric is compatibility-only. Use the typed ExecCtx numeric domain path instead.");
         }
-        public void SetNumeric(string domainId, string key, double value) { }
+        public void SetNumeric(string domainId, string key, double value)
+        {
+            throw new NotSupportedException("VariableRepositoryAdapter.SetNumeric is compatibility-only. Use the typed ExecCtx numeric domain path instead.");
+        }
         public bool Has(string domainId, string key) => _domainRegistry != null && _domainRegistry.TryGetDomain(domainId, out _);
     }
 
@@ -149,16 +141,5 @@ namespace AbilityKit.Triggering.Runtime.Context
         public float DeltaTimeMs => _policy.DeltaTimeMs;
         public float TotalTimeMs => 0;
         public long CurrentTimestampMs => DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond;
-    }
-
-    /// <summary>
-    /// 实体查找器适配器（占位实现）
-    /// </summary>
-    internal sealed class EntityFinderAdapter : IEntityFinder
-    {
-        public T FindById<T>(int entityId) where T : class => null;
-        public IEnumerable<T> FindByTag<T>(string tag) where T : class => Array.Empty<T>();
-        public T FindNearest<T>(Abstractions.Vector3 position, float maxDistance = float.MaxValue) where T : class => null;
-        public IEnumerable<T> FindInRange<T>(Abstractions.Vector3 center, float radius) where T : class => Array.Empty<T>();
     }
 }

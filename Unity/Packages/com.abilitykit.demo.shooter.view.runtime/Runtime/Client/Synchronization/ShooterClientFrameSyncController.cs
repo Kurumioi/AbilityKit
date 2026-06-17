@@ -172,6 +172,18 @@ namespace AbilityKit.Demo.Shooter.View
                 return false;
             }
 
+            var frameGap = authoritativeFrame - _runtime.CurrentFrame;
+            if (frameGap > _recoveryPolicy.SmallCatchUpThreshold)
+            {
+                MarkFullSnapshotResyncNeeded(
+                    ShooterClientResyncReason.FrameTooFarBehind,
+                    _runtime.CurrentFrame,
+                    authoritativeFrame,
+                    _runtime.ComputeStateHash(),
+                    0u);
+                return false;
+            }
+
             _catchUpTargetFrame = authoritativeFrame;
             LastResyncAuthoritativeFrame = authoritativeFrame;
             RecoveryState = ShooterClientRecoveryState.CatchUp;
@@ -363,7 +375,8 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var ticks = 0;
-            while (_runtime.CurrentFrame < targetFrame)
+            var maxTicks = Math.Min(_recoveryPolicy.MaxCatchUpTicksPerUpdate, targetFrame - _runtime.CurrentFrame);
+            while (ticks < maxTicks && _runtime.CurrentFrame < targetFrame)
             {
                 if (!StepRuntimeFrameAndCapture())
                 {
@@ -381,7 +394,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             if (_runtime.CurrentFrame >= targetFrame)
             {
-                RecoveryState = ShooterClientRecoveryState.Recovered;
+                RecoveryState = ShooterClientRecoveryState.Normal;
             }
 
             return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());

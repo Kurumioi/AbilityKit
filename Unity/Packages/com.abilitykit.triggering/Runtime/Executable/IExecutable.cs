@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Legacy Runtime/Executable condition interfaces intentionally reference compatibility-only converters.
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Config;
@@ -394,14 +395,15 @@ namespace AbilityKit.Triggering.Runtime.Executable
  
         public ConditionResult Evaluate(object ctx)
         {
-            var compareVal = CompareValue.Resolve(ctx);
-            return Negate ? ConditionResult.Fail("Payload compare not implemented") : ConditionResult.Pass;
+            throw new NotSupportedException("PayloadCompareCondition belongs to the legacy Runtime/Executable path. Use TriggerPlan predicates or source JSON conditions on the formal runtime path.");
         }
     }
 
     /// <summary>
-    /// 是否有目标条件
+    /// 是否有目标条件。
+    /// 旧 Executable DSL 兼容入口；目标查找属于目标框架包职责，触发器正式路径应使用通用条件/谓词扩展。
     /// </summary>
+    [Obsolete("HasTargetCondition belongs to the legacy Runtime/Executable path. Use formal TriggerPlan predicates or a targeting package predicate extension instead.")]
     [ConditionTypeId(TypeIdRegistry.Condition.HasTarget, "HasTarget")]
     public sealed class HasTargetCondition : IConfigurableCondition
     {
@@ -415,8 +417,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
  
         public ConditionResult Evaluate(object ctx)
         {
-            // TODO: 实现目标检测逻辑
-            return Negate ? ConditionResult.Fail("HasTarget not implemented") : ConditionResult.Pass;
+            throw new NotSupportedException("HasTargetCondition is not implemented in the triggering package. Target lookup belongs to the targeting framework package and should be exposed to triggering as a formal predicate extension.");
         }
     }
 
@@ -508,3 +509,4 @@ namespace AbilityKit.Triggering.Runtime.Executable
         private NullScheduleController() { }
     }
 }
+#pragma warning restore CS0618

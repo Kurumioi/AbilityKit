@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// blink Action �?Schema 瀹氫�?
+    /// blink Action 参数 Schema 定义。
     /// </summary>
     public sealed class BlinkSchema : MobaPlanActionSchemaBase<BlinkArgs>
     {

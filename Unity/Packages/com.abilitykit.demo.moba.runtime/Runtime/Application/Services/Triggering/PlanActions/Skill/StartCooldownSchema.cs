@@ -22,12 +22,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (skillId <= 0)
             {
-                skillId = ReadSkillPayloadInt(ctx, SkillRulePayloadFields.SkillId);
+                skillId = ReadCurrentPayloadInt(ctx, SkillRulePayloadFields.SkillId, SkillRulePayloadFields.FieldId);
             }
 
             if (skillSlot <= 0)
             {
-                skillSlot = ReadSkillPayloadInt(ctx, SkillRulePayloadFields.SkillSlot);
+                skillSlot = ReadCurrentPayloadInt(ctx, SkillRulePayloadFields.SkillSlot, SkillRulePayloadFields.FieldId);
             }
 
             return new StartCooldownArgs(skillId, skillSlot, cooldownMs);
@@ -40,10 +40,5 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return true;
         }
 
-        private static int ReadSkillPayloadInt(ExecCtx<IWorldResolver> ctx, string fieldName)
-        {
-            var fieldId = SkillRulePayloadFields.FieldId(fieldName);
-            return TryReadCurrentPayloadNumber(ctx, fieldId, out var value) ? (int)Math.Round(value) : 0;
-        }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Triggering.Runtime.Abstractions;
 using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Triggering.Variables.Numeric
 {
@@ -16,77 +17,104 @@ namespace AbilityKit.Triggering.Variables.Numeric
         /// </summary>
         public static double Resolve(this in NumericValueRef valueRef, ActionContext context)
         {
+            if (TryResolve(in valueRef, context, out var value))
+                return value;
+
+            throw new InvalidOperationException("Failed to resolve numeric value reference from ActionContext: " + Describe(in valueRef));
+        }
+
+        public static bool TryResolve(this in NumericValueRef valueRef, ActionContext context, out double value)
+        {
+            value = 0.0;
             if (context == null) throw new ArgumentNullException(nameof(context));
 
             return valueRef.Kind switch
             {
-                ENumericValueRefKind.Const => valueRef.ConstValue,
-                ENumericValueRefKind.Blackboard => ResolveBlackboard(in valueRef, context),
-                ENumericValueRefKind.PayloadField => ResolvePayloadField(in valueRef, context),
-                ENumericValueRefKind.Var => ResolveVar(in valueRef, context),
-                ENumericValueRefKind.Expr => ResolveExpr(in valueRef, context),
-                _ => 0.0
+                ENumericValueRefKind.Const => TryResolveConst(in valueRef, out value),
+                ENumericValueRefKind.Blackboard => TryResolveBlackboard(in valueRef, context, out value),
+                ENumericValueRefKind.PayloadField => TryResolvePayloadField(in valueRef, context, out value),
+                ENumericValueRefKind.Var => TryResolveVar(in valueRef, context, out value),
+                ENumericValueRefKind.Expr => TryResolveExpr(in valueRef, context, out value),
+                _ => false
             };
         }
 
-        private static double ResolveBlackboard(in NumericValueRef valueRef, ActionContext context)
+        private static bool TryResolveConst(in NumericValueRef valueRef, out double value)
         {
-            var resolver = context.Blackboard;
-            if (resolver == null)
-                return 0.0;
-
-            if (resolver.TryResolve(valueRef.BoardId, out var board) && board != null)
-            {
-                if (board.TryGetDouble(valueRef.KeyId, out var value))
-                    return value;
-            }
-
-            return 0.0;
+            value = valueRef.ConstValue;
+            return true;
         }
 
-        private static double ResolvePayloadField(in NumericValueRef valueRef, ActionContext context)
+        private static bool TryResolveBlackboard(in NumericValueRef valueRef, ActionContext context, out double value)
         {
+            value = 0.0;
+            var resolver = context.Blackboard;
+            if (resolver == null)
+                return false;
+
+            return resolver.TryResolve(valueRef.BoardId, out var board) &&
+                   board != null &&
+                   board.TryGetDouble(valueRef.KeyId, out value);
+        }
+
+        private static bool TryResolvePayloadField(in NumericValueRef valueRef, ActionContext context, out double value)
+        {
+            value = 0.0;
             var accessor = context.Payloads;
             if (accessor == null)
-                return 0.0;
+                return false;
 
-            // 获取 context 的 payload args（通常是 args 对象本身）
             var payloadService = context.GetService<IPayloadAccessor>();
             var payloadArgs = payloadService?.Target;
             if (payloadArgs == null)
-                return 0.0;
+                return false;
 
-            // 使用局部变量来满足 in 参数要求
             object args = payloadArgs;
-            if (accessor.TryGetPayloadDouble(in args, valueRef.FieldId, out var value))
-                return value;
-
-            return 0.0;
+            return accessor.TryGetPayloadDouble(in args, valueRef.FieldId, out value);
         }
 
-        private static double ResolveVar(in NumericValueRef valueRef, ActionContext context)
+        private static bool TryResolveVar(in NumericValueRef valueRef, ActionContext context, out double value)
         {
-            var repo = context.Variables;
-            if (repo == null)
-                return 0.0;
-
-            return repo.GetNumeric(valueRef.DomainId, valueRef.Key);
+            return TryResolveActionContextVar(context, valueRef.DomainId, valueRef.Key, out value);
         }
 
-        private static double ResolveExpr(in NumericValueRef valueRef, ActionContext context)
+        private static bool TryResolveExpr(in NumericValueRef valueRef, ActionContext context, out double value)
         {
-            // 表达式求值需要额外的表达式解析器
-            // 暂时返回 0，后续可扩展
-            // 可以从 context 中获取表达式服务
+            value = 0.0;
             if (string.IsNullOrEmpty(valueRef.ExprText))
-                return 0.0;
+                return false;
 
-            // TODO: 集成 NumericExpressionEvaluator
-            // var program = NumericExpressionCompiler.Compile(valueRef.ExprText);
-            // NumericExpressionEvaluator.Evaluate(context, program, out var result);
-            // return result;
+            if (!NumericExpressionCompiler.TryCompileCached(valueRef.ExprText, out var program) || program == null)
+                return false;
 
-            return 0.0;
+            return NumericRpnTokenEvaluator.TryEvaluate(
+                program,
+                (string domainId, string key, out double resolved) => TryResolveActionContextVar(context, domainId, key, out resolved),
+                DefaultNumericRpnFunctionRegistry.Instance,
+                out value);
+        }
+
+        private static bool TryResolveActionContextVar(ActionContext context, string domainId, string key, out double value)
+        {
+            value = 0.0;
+            if (context?.Variables == null || string.IsNullOrEmpty(domainId) || string.IsNullOrEmpty(key))
+                return false;
+
+            value = context.Variables.GetNumeric(domainId, key);
+            return true;
+        }
+
+        private static string Describe(in NumericValueRef valueRef)
+        {
+            return valueRef.Kind switch
+            {
+                ENumericValueRefKind.Const => $"Const({valueRef.ConstValue})",
+                ENumericValueRefKind.Blackboard => $"Blackboard(boardId={valueRef.BoardId}, keyId={valueRef.KeyId})",
+                ENumericValueRefKind.PayloadField => $"PayloadField(fieldId={valueRef.FieldId})",
+                ENumericValueRefKind.Var => $"Var(domainId='{valueRef.DomainId}', key='{valueRef.Key}')",
+                ENumericValueRefKind.Expr => "Expr(" + valueRef.ExprText + ")",
+                _ => "Unsupported(" + valueRef.Kind + ")"
+            };
         }
     }
 }

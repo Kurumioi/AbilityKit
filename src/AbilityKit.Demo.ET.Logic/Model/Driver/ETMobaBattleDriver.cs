@@ -220,77 +220,14 @@ namespace ET.Logic
 
         private void CreateFrameworkWorld(in BattleStartPlan plan)
         {
-            if (PlayerSpawnData == null || PlayerSpawnData.Count == 0)
-            {
-                throw new InvalidOperationException("ET battle world initialization requires player spawn data before creating the MOBA runtime world.");
-            }
+            var context = new ETBattleWorldCreateContext(in plan, PlayerSpawnData, TextAssetLoader);
+            var result = new ETBattleWorldFactory().Create(in context);
 
-            var launchSpec = ETBattleEnterGameSpecBuilder.BuildLaunchSpec(plan, PlayerSpawnData);
-            var defaults = CreateSessionDefaults(in plan, in launchSpec);
-            var sessionConfig = CreateSessionConfig(in plan, in launchSpec);
-
-            _sessionHost = new MobaSessionCoordinatorHost(TextAssetLoader, defaults);
-            _sessionHost.ConfigureSession(ref sessionConfig);
-            _sessionHost.SetPendingPlayerLoadouts(launchSpec.Players);
-
-            var worldHost = _sessionHost.CreateWorldHost(sessionConfig);
-            var options = new WorldCreateOptions();
-            _sessionHost.ConfigureWorldCreateOptions(in sessionConfig, options);
-
-            World = worldHost.CreateWorld(options);
-            if (World == null)
-            {
-                throw new InvalidOperationException($"Failed to create moba logic world: WorldId={plan.WorldId}, WorldType={sessionConfig.WorldType}");
-            }
-
-            World.Initialize();
-            _sessionHost.RegisterServices(World, sessionConfig);
-            _sessionHost.LoadConfig(World, sessionConfig);
-
-            HostRuntime = _sessionHost.HostRuntime;
-            WorldManager = HostRuntime?.Worlds;
-
-            _driverHost = new MobaBattleDriverHost();
-            _driverHost.BindLogicWorld(World, HostRuntime);
-        }
-
-        private static MobaSessionDefaults CreateSessionDefaults(in BattleStartPlan plan, in MobaBattleLaunchSpec launchSpec)
-        {
-            return new MobaSessionDefaults
-            {
-                WorldId = launchSpec.WorldId,
-                WorldType = launchSpec.WorldType,
-                MatchId = launchSpec.MatchId,
-                MapId = plan.MapId,
-                TickRate = plan.TickRate > 0 ? plan.TickRate : 30,
-                InputDelayFrames = plan.InputDelayFrames,
-                RandomSeed = launchSpec.RandomSeed
-            };
-        }
-
-        private static SessionConfig CreateSessionConfig(in BattleStartPlan plan, in MobaBattleLaunchSpec launchSpec)
-        {
-            var localPlayerId = plan.PlayerId > 0 ? plan.PlayerId : ParsePlayerId(launchSpec.LocalPlayerId);
-            var clientId = plan.ClientId > 0 ? plan.ClientId : localPlayerId;
-            return new SessionConfig
-            {
-                SessionId = new SessionId(plan.WorldId > 0 ? plan.WorldId : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()),
-                MapId = plan.MapId,
-                WorldId = plan.WorldId,
-                WorldType = launchSpec.WorldType,
-                LocalPlayerId = localPlayerId,
-                ClientId = clientId,
-                SyncMode = global::AbilityKit.Coordinator.Core.SyncMode.Lockstep,
-                HostMode = global::AbilityKit.Coordinator.Core.HostMode.Local,
-                TickRate = plan.TickRate > 0 ? plan.TickRate : 30,
-                ServerEndpoint = NetworkEndpoint.None,
-                RoomId = plan.WorldId
-            };
-        }
-
-        private static int ParsePlayerId(PlayerId playerId)
-        {
-            return int.TryParse(playerId.Value, out var value) ? value : 1;
+            _sessionHost = result.SessionHost;
+            _driverHost = result.DriverHost;
+            World = result.World;
+            HostRuntime = result.HostRuntime;
+            WorldManager = result.WorldManager;
         }
 
         private void SubmitBufferedInputs(FrameIndex targetFrame)

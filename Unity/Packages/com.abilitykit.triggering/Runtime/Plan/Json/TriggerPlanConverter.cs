@@ -273,16 +273,33 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             if (dto == null) return default;
 
             var id = new ActionId(dto.ActionId);
+            var executionPolicy = ParseActionExecutionPolicy(dto.ExecutionPolicy);
+            var retryMaxRetries = dto.RetryMaxRetries;
+
+            if (dto.RetryMaxRetries < 0)
+            {
+                throw new InvalidOperationException($"RetryMaxRetries cannot be negative: {dto.RetryMaxRetries} actionId={dto.ActionId}");
+            }
+
+            if (dto.RetryDelayMs < 0f)
+            {
+                throw new InvalidOperationException($"RetryDelayMs cannot be negative: {dto.RetryDelayMs} actionId={dto.ActionId}");
+            }
 
             if (dto.Args != null && dto.Args.Count > 0)
             {
+                if (dto.Arity > 2)
+                {
+                    throw new InvalidOperationException($"Unsupported named action arity: {dto.Arity} actionId={dto.ActionId}. PlannedTrigger currently supports arity 0/1/2; use Action schema named args for additional business parameters.");
+                }
+
                 var namedArgs = new System.Collections.Generic.Dictionary<string, ActionArgValue>(dto.Args.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (var kv in dto.Args)
                 {
                     namedArgs[kv.Key] = new ActionArgValue(ConvertNumericValueRef(kv.Value), kv.Key);
                 }
 
-                var arity = Math.Min(dto.Arity, 2);
+                var arity = dto.Arity;
                 var arg0 = arity > 0 ? ConvertNumericValueRef(dto.Arg0) : default;
                 var arg1 = arity > 1 ? ConvertNumericValueRef(dto.Arg1) : default;
                 return new ActionCallPlan(
@@ -295,20 +312,55 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     0,
                     -1,
                     true,
-                    EActionExecutionPolicy.Immediate);
+                    executionPolicy,
+                    retryMaxRetries,
+                    dto.RetryDelayMs);
             }
 
+            ActionCallPlan plan;
             switch (dto.Arity)
             {
                 case 0:
-                    return new ActionCallPlan(id);
+                    plan = new ActionCallPlan(id);
+                    break;
                 case 1:
-                    return new ActionCallPlan(id, ConvertNumericValueRef(dto.Arg0));
+                    plan = new ActionCallPlan(id, ConvertNumericValueRef(dto.Arg0));
+                    break;
                 case 2:
-                    return new ActionCallPlan(id, ConvertNumericValueRef(dto.Arg0), ConvertNumericValueRef(dto.Arg1));
+                    plan = new ActionCallPlan(id, ConvertNumericValueRef(dto.Arg0), ConvertNumericValueRef(dto.Arg1));
+                    break;
                 default:
                     throw new InvalidOperationException($"Unsupported action arity: {dto.Arity} actionId={dto.ActionId}");
             }
+
+            return new ActionCallPlan(
+                plan.Id,
+                plan.Arity,
+                plan.Arg0,
+                plan.Arg1,
+                plan.Args,
+                plan.ScheduleMode,
+                plan.ScheduleParam,
+                plan.MaxExecutions,
+                plan.CanBeInterrupted,
+                executionPolicy,
+                retryMaxRetries,
+                dto.RetryDelayMs);
+        }
+
+        private static EActionExecutionPolicy ParseActionExecutionPolicy(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return EActionExecutionPolicy.Immediate;
+            }
+
+            if (Enum.TryParse<EActionExecutionPolicy>(value, true, out var policy))
+            {
+                return policy;
+            }
+
+            throw new InvalidOperationException($"Unknown action execution policy: {value}");
         }
 
         private NumericValueRef ConvertNumericValueRef(TriggerPlanJsonDatabase.NumericValueRefDto dto)

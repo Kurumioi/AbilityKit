@@ -251,13 +251,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private static int ParsePhase(string phase)
         {
             if (string.IsNullOrEmpty(phase)) return 0;
-            return phase.ToLowerInvariant() switch
+
+            return phase.Trim().ToLowerInvariant() switch
             {
                 "immediate" => 0,
                 "delayed" => 1,
                 "precondition" => 2,
                 "postcondition" => 3,
-                _ => 0
+                _ => throw new InvalidOperationException($"Unsupported trigger phase: {phase}")
             };
         }
 
@@ -272,8 +273,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 case "owner-bound":
                     return TriggerPlanScope.OwnerBound;
                 case "global":
-                default:
                     return TriggerPlanScope.Global;
+                default:
+                    throw new InvalidOperationException($"Unsupported trigger scope: {scope}");
             }
         }
 
@@ -307,8 +309,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (conditions == null || conditions.Count == 0)
             {
-                WriteBoolConst(writer, true);
-                return;
+                throw new InvalidOperationException($"Condition group '{logicalOp}' must contain at least one condition.");
             }
 
             for (var i = 0; i < conditions.Count; i++)
@@ -325,15 +326,13 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (cond == null)
             {
-                WriteBoolConst(writer, true);
-                return;
+                throw new InvalidOperationException("Condition item cannot be null.");
             }
 
             var type = cond["type"]?.ToString();
             if (string.IsNullOrEmpty(type))
             {
-                WriteBoolConst(writer, true);
-                return;
+                throw new InvalidOperationException("Condition type is required.");
             }
 
             switch (type)
@@ -383,8 +382,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     break;
 
                 default:
-                    WriteBoolConst(writer, true);
-                    break;
+                    throw new InvalidOperationException($"Unsupported condition type: {type}");
             }
         }
 
@@ -614,7 +612,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 case "action":
                     return "Action";
                 default:
-                    return HasCompositeChildren(node) ? "Sequence" : "Action";
+                    throw new InvalidOperationException($"Unsupported execution node kind: {type}");
             }
         }
 
@@ -1416,8 +1414,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (value == null || value.Type == JTokenType.Null)
             {
-                WriteConstValue(writer, 0);
-                return;
+                throw new InvalidOperationException("Action parameter value cannot be null.");
             }
 
             switch (value.Type)
@@ -1440,8 +1437,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     break;
 
                 default:
-                    WriteConstValue(writer, 0);
-                    break;
+                    throw new InvalidOperationException($"Unsupported action parameter token type: {value.Type}");
             }
         }
 
@@ -1483,7 +1479,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
-            WriteConstValue(writer, 0);
+            throw new InvalidOperationException("Unsupported action parameter value object. Expected const/value, payload, var or expr.");
         }
 
         private void WriteStringValue(JsonTextWriter writer, string value)
@@ -1530,7 +1526,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
-            WriteConstValue(writer, 0);
+            throw new InvalidOperationException($"Unsupported action parameter string value: {value}");
         }
 
         private static bool IsKind(string kind, params string[] values)
@@ -1640,6 +1636,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         /// <summary>
         /// 源格式 JSON 结构
         /// </summary>
+#pragma warning disable 0649 // DTO fields are populated by JSON deserialization.
         private class TriggerPlanSourceJson
         {
             public string version;
@@ -1755,5 +1752,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public float cooldownMs;
             public float cooldown_ms;
         }
+#pragma warning restore 0649
     }
 }

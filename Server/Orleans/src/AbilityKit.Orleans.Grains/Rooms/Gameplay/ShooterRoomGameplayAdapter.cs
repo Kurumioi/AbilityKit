@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Rooms;
 
 namespace AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
@@ -86,13 +87,14 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             });
         }
 
+        var syncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
         return new BattleInitParams
         {
             WorldId = CreateNumericWorldId(summary.RoomId),
             TickRate = ReadIntTag(summary, "tickRate", ShooterGameplay.DefaultTickRate),
             MapId = ReadIntTag(summary, "mapId", 1),
             RandomSeed = ReadIntTag(summary, "randomSeed", Environment.TickCount),
-            InputDelayFrames = 0,
+            InputDelayFrames = syncOptions.InputDelayFrames,
             Players = players,
             GameplayId = request.GameplayId > 0 ? request.GameplayId : ShooterGameplay.GameplayId,
             RuleSetId = request.RuleSetId,
@@ -100,7 +102,8 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             ProtocolVersion = request.ProtocolVersion,
             WorldType = string.IsNullOrWhiteSpace(request.WorldType) ? ShooterGameplay.WorldType : request.WorldType,
             ClientId = request.ClientId,
-            RoomType = summary.RoomType
+            RoomType = summary.RoomType,
+            SyncOptions = syncOptions
         };
     }
 

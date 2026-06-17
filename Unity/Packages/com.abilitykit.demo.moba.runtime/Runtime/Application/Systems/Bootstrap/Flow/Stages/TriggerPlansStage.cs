@@ -19,7 +19,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class TriggerPlansStage : MobaBootstrapStageBase
     {
-        public override string Name => "TriggerPlans";
+        public override string Name => MobaBootstrapStageNames.TriggerPlans;
+
+        public override string[] Dependencies => new[]
+        {
+            MobaBootstrapStageNames.WorldModules,
+        };
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {
@@ -34,20 +39,36 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             });
 
             builder.TryRegister<MobaTriggerPlanLoadProfile>(WorldLifetime.Singleton, _ => MobaTriggerPlanLoadProfile.Default);
+            builder.TryRegister<IMobaTriggerPlanDatabaseFactory>(WorldLifetime.Singleton, _ => new MobaTriggerPlanDatabaseFactory());
 
             builder.TryRegister<TriggerPlanJsonDatabase>(WorldLifetime.Scoped, r =>
             {
-                var db = new TriggerPlanJsonDatabase();
-                db.CueFactory = new MobaPresentationCueFactory(r.Resolve<MobaPresentationCueSnapshotService>());
-                var textAssetLoader = r.Resolve<ITextAssetLoader>();
-                var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
-                var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
-                var profile = r.Resolve<MobaTriggerPlanLoadProfile>() ?? MobaTriggerPlanLoadProfile.Default;
-
-                LoadEntries(db, fsAdapter, directoryLoader, profile.Entries, db.CueFactory);
-
-                return db;
+                var factory = r.Resolve<IMobaTriggerPlanDatabaseFactory>() ?? new MobaTriggerPlanDatabaseFactory();
+                return factory.Create(r);
             });
+        }
+    }
+
+    public interface IMobaTriggerPlanDatabaseFactory
+    {
+        TriggerPlanJsonDatabase Create(IWorldResolver resolver);
+    }
+
+    public sealed class MobaTriggerPlanDatabaseFactory : IMobaTriggerPlanDatabaseFactory
+    {
+        public TriggerPlanJsonDatabase Create(IWorldResolver resolver)
+        {
+            if (resolver == null) throw new ArgumentNullException(nameof(resolver));
+
+            var db = new TriggerPlanJsonDatabase();
+            db.CueFactory = new MobaPresentationCueFactory(resolver.Resolve<MobaPresentationCueSnapshotService>());
+            var textAssetLoader = resolver.Resolve<ITextAssetLoader>();
+            var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
+            var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);
+            var profile = resolver.Resolve<MobaTriggerPlanLoadProfile>() ?? MobaTriggerPlanLoadProfile.Default;
+
+            LoadEntries(db, fsAdapter, directoryLoader, profile.Entries, db.CueFactory);
+            return db;
         }
 
         private static void LoadEntries(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry[] entries, TriggerPlanJsonDatabase.ICueFactory cueFactory)
@@ -72,17 +93,17 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
         private static void LoadFile(TriggerPlanJsonDatabase db, EtFileSystemAdapter fsAdapter, TriggerPlanLoadEntry entry, TriggerPlanJsonDatabase.ICueFactory cueFactory)
         {
-            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Loading {entry.Name} from {entry.Path}");
+            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"Loading {entry.Name} from {entry.Path}");
             try
             {
                 var loadedDb = new TriggerPlanJsonDatabase { CueFactory = cueFactory };
                 loadedDb.Load(fsAdapter, entry.Path);
                 db.MergeFrom(loadedDb, replaceExisting: true);
-                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
+                MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
             }
             catch (Exception ex)
             {
-                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(TriggerPlansStage), $"Failed to load required trigger plan file. name={entry.Name}, path={entry.Path}");
+                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(MobaTriggerPlanDatabaseFactory), $"Failed to load required trigger plan file. name={entry.Name}, path={entry.Path}");
                 throw;
             }
         }
@@ -90,7 +111,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         private static void LoadDirectory(TriggerPlanJsonDatabase db, TriggerPlanDirectoryLoader directoryLoader, TriggerPlanLoadEntry entry, TriggerPlanJsonDatabase.ICueFactory cueFactory)
         {
             var pattern = string.IsNullOrEmpty(entry.Pattern) ? "**/*.json" : entry.Pattern;
-            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"Loading {entry.Name} from {entry.Path} directory");
+            MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"Loading {entry.Name} from {entry.Path} directory");
             try
             {
                 var options = new TriggerPlanDirectoryLoadOptions { CueFactory = cueFactory };
@@ -98,12 +119,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 if (loadedDb != null && loadedDb.Records != null)
                 {
                     db.MergeFrom(loadedDb, replaceExisting: true);
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(TriggerPlansStage), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
+                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
                 }
             }
             catch (Exception ex)
             {
-                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(TriggerPlansStage), $"Failed to load required trigger plan directory. name={entry.Name}, path={entry.Path}, pattern={pattern}");
+                MobaRuntimeLog.Exception(ex, MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Exception, nameof(MobaTriggerPlanDatabaseFactory), $"Failed to load required trigger plan directory. name={entry.Name}, path={entry.Path}, pattern={pattern}");
                 throw;
             }
         }

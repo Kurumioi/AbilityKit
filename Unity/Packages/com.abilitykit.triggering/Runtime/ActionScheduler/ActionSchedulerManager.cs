@@ -33,9 +33,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         /// </summary>
         public void WaitOne()
         {
-            if (_isSignaled) return;
+            if (_isSignaled)
+            {
+                return;
+            }
 
-            throw new NotImplementedException("Wait 应在 ActionExecutionContext 中通过协程/状态机实现");
+            throw new NotSupportedException("TriggerWaitHandle.WaitOne is not supported in the mainline scheduler. Use Signal/Set to release waiting actions, or move coordination into a coroutine/state-machine based executor.");
         }
 
         /// <summary>

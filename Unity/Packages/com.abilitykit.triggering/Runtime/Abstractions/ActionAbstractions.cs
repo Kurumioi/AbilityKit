@@ -133,9 +133,10 @@ namespace AbilityKit.Triggering.Runtime.Abstractions
     }
 
     /// <summary>
-    /// 实体查找器
-    /// 用于查询游戏单位（如查找最近的敌人、特定ID的单位）
+    /// 实体查找器。
+    /// 旧 ActionContext 兼容接口；目标查询属于目标框架包职责，触发器正式路径只接收已注册的谓词/条件扩展。
     /// </summary>
+    [Obsolete("Entity lookup belongs to the targeting framework package. Do not add new triggering runtime dependencies on IEntityFinder.")]
     public interface IEntityFinder
     {
         /// <summary>

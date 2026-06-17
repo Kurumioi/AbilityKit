@@ -27,9 +27,9 @@ namespace AbilityKit.Demo.Moba.Services
             public int BuffId => ApplyRequest != null ? ApplyRequest.BuffId : RemoveRequest != null ? RemoveRequest.BuffId : 0;
         }
 
-        [WorldInject] private MobaActorLookupService _actors;
-        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics;
-        [WorldInject(required: false)] private IMobaBattleExceptionPolicy _exceptions;
+        [WorldInject] private MobaActorLookupService _actors = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
+        [WorldInject(required: false)] private IMobaBattleExceptionPolicy _exceptions = null;
         private BuffLifecycleExecutor _lifecycle;
         private long _nextCommandSeq;
         private readonly List<BuffCommand> _pending = new List<BuffCommand>(32);

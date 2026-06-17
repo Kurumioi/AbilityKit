@@ -85,12 +85,12 @@ namespace AbilityKit.Triggering.Runtime
             return ctx != null;
         }
 
-        private readonly struct ContextSourceEntry<TCtx>
+        private readonly struct ContextSourceEntry<TSourceContext>
         {
-            public readonly ITriggerContextSource<TCtx> Source;
+            public readonly ITriggerContextSource<TSourceContext> Source;
             public readonly int Priority;
 
-            public ContextSourceEntry(ITriggerContextSource<TCtx> source, int priority)
+            public ContextSourceEntry(ITriggerContextSource<TSourceContext> source, int priority)
             {
                 Source = source;
                 Priority = priority;

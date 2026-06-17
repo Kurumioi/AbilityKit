@@ -13,10 +13,10 @@ namespace AbilityKit.Demo.Moba.Services.Area
     [WorldService(typeof(MobaAreaRuntimeService))]
     public sealed class MobaAreaRuntimeService : IService
     {
-        [WorldInject(required: false)] private IProjectileService _projectiles;
-        [WorldInject(required: false)] private IFrameTime _frameTime;
-        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle;
-        [WorldInject(required: false)] private MobaTraceRegistry _trace;
+        [WorldInject(required: false)] private IProjectileService _projectiles = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
 
         private readonly Dictionary<int, MobaAreaRuntimeInfo> _areas = new Dictionary<int, MobaAreaRuntimeInfo>();
         private readonly Dictionary<int, List<int>> _areasByOwner = new Dictionary<int, List<int>>();

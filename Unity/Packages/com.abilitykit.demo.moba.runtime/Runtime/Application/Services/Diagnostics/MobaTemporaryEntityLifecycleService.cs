@@ -88,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private const string MetricPrefix = "moba.temp_entity.";
 
-        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
 
         private CounterState _projectiles;
         private CounterState _areas;

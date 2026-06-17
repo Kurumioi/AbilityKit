@@ -17,7 +17,13 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
     [MobaBootstrapStage]
     public sealed class PlanTriggeringStage : MobaBootstrapStageBase
     {
-        public override string Name => "Install.PlanTriggering";
+        public override string Name => MobaBootstrapStageNames.PlanTriggering;
+
+        public override string[] Dependencies => new[]
+        {
+            MobaBootstrapStageNames.TriggerPlans,
+            MobaBootstrapStageNames.WorldInit,
+        };
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {

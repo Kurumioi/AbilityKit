@@ -16,8 +16,7 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// 发射投射物的Plan Action模块
-    /// 使用强类型参�?Schema API
+    /// 发射投射物的 Plan Action 模块，使用强类型参数 Schema API。
     /// </summary>
     [PlanActionModule(order: MobaPlanActionModuleOrders.ShootProjectile)]
     public sealed class ShootProjectilePlanActionModule : MobaPlanActionModuleBase<ShootProjectileArgs, ShootProjectilePlanActionModule>
