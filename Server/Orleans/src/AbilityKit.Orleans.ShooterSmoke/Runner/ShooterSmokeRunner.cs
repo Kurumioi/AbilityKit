@@ -22,12 +22,11 @@ internal static class ShooterSmokeRunner
         connection.Tick(0f);
 
         var login = await LoginGuestAsync(connection);
-        var runtime = new ShooterBattleRuntimePort();
-        var presentation = new ShooterPresentationFacade();
-        var projectedRecorder = new RecordingProjectedViewSink();
-        var projectedSink = new ShooterProjectedSnapshotViewSink(projectedRecorder);
-        var presentationSession = ShooterPresentationSessionContext.CreateFromFacade(presentation, projectedSink);
-        presentationSession.View.InterpolationEnabled = false;
+        var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
+        var runtime = presentationContext.Runtime;
+        var presentation = presentationContext.Presentation;
+        var projectedRecorder = presentationContext.Recorder;
+        var presentationSession = presentationContext.Session;
         var start = new ShooterStartGamePayload(
             "shooter-smoke-client",
             ShooterGameplay.DefaultTickRate,
@@ -188,43 +187,11 @@ internal static class ShooterSmokeRunner
         return result;
     }
 
-    public static async Task WaitForTcpAsync(string host, int port, TimeSpan timeout)
-    {
-        using var timeoutCts = new CancellationTokenSource(timeout);
-        while (!timeoutCts.IsCancellationRequested)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(host, port, timeoutCts.Token);
-                return;
-            }
-            catch when (!timeoutCts.IsCancellationRequested)
-            {
-                await Task.Delay(50, timeoutCts.Token);
-            }
-        }
+    public static Task WaitForTcpAsync(string host, int port, TimeSpan timeout) =>
+        ShooterSmokeScenarioBase.WaitForTcpAsync(host, port, timeout);
 
-        throw new TimeoutException($"TCP Gateway did not listen on {host}:{port} in time.");
-    }
-
-    private static async Task<ShooterSmokeLogin> LoginGuestAsync(AbilityKit.Network.Abstractions.IConnection connection)
-    {
-        using var requestClient = new RequestClient(connection);
-        var request = new WireRoomGuestLoginReq
-        {
-            GuestId = $"shooter-smoke-{Guid.NewGuid():N}"
-        };
-        var payload = WireRoomGatewayBinary.Serialize(in request);
-        var responsePayload = await requestClient.SendRequestAsync(RoomGatewayOpCodes.GuestLogin, payload, TimeSpan.FromSeconds(10));
-        var response = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(responsePayload);
-        if (!response.Success || string.IsNullOrWhiteSpace(response.SessionToken) || string.IsNullOrWhiteSpace(response.AccountId))
-        {
-            throw new InvalidOperationException($"Shooter smoke guest login failed: {response.Message}");
-        }
-
-        return new ShooterSmokeLogin(response.AccountId, response.SessionToken);
-    }
+    private static Task<ShooterSmokeLogin> LoginGuestAsync(AbilityKit.Network.Abstractions.IConnection connection) =>
+        ShooterSmokeScenarioBase.LoginGuestAsync(connection);
 
     private static async Task<List<ShooterClientGatewayInputSubmitResult>> SubmitSmokeInputsAsync(
         ShooterClientNetworkLaunchResult launched,
@@ -391,38 +358,13 @@ internal static class ShooterSmokeRunner
         int expectedPlayerCount,
         string label,
         bool requireFullSync,
-        bool exactPlayerCount = true)
-    {
-        if (recorder.ApplyCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter {label} did not project any snapshot view batch.");
-        }
-
-        var result = requireFullSync ? recorder.LastFullSyncApplyResult : recorder.LastApplyResult;
-        if (requireFullSync && recorder.FullSyncApplyCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter {label} did not project a full snapshot view batch.");
-        }
-
-        if (result.FinalEntityCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter {label} projection has no entities after snapshot apply.");
-        }
-
-        if (exactPlayerCount)
-        {
-            if (result.FinalPlayerCount != expectedPlayerCount)
-            {
-                throw new InvalidOperationException($"Shooter {label} projection player count mismatch. Expected={expectedPlayerCount}, Actual={result.FinalPlayerCount}");
-            }
-        }
-        else if (result.FinalPlayerCount < expectedPlayerCount)
-        {
-            throw new InvalidOperationException($"Shooter {label} projection player count below minimum. Minimum={expectedPlayerCount}, Actual={result.FinalPlayerCount}");
-        }
-
-        return result;
-    }
+        bool exactPlayerCount = true) =>
+        ShooterSmokeScenarioBase.ValidateProjectedPresentation(
+            recorder,
+            expectedPlayerCount,
+            label,
+            requireFullSync,
+            exactPlayerCount);
 
     private static async Task<ShooterLateJoinSmokeResult> RunLateJoinProjectionSmokeAsync(
         string host,
@@ -440,12 +382,11 @@ internal static class ShooterSmokeRunner
         connection.Tick(0f);
 
         var login = await LoginGuestAsync(connection);
-        var runtime = new ShooterBattleRuntimePort();
-        var presentation = new ShooterPresentationFacade();
-        var projectedRecorder = new RecordingProjectedViewSink();
-        var projectedSink = new ShooterProjectedSnapshotViewSink(projectedRecorder);
-        var presentationSession = ShooterPresentationSessionContext.CreateFromFacade(presentation, projectedSink);
-        presentationSession.View.InterpolationEnabled = false;
+        var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
+        var runtime = presentationContext.Runtime;
+        var presentation = presentationContext.Presentation;
+        var projectedRecorder = presentationContext.Recorder;
+        var presentationSession = presentationContext.Session;
 
         var pushWait = new TaskCompletionSource<ShooterSnapshotApplyResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         launcher.GatewayConnection.SnapshotPushDispatched += (_, _, result) =>
@@ -517,12 +458,11 @@ internal static class ShooterSmokeRunner
         connection.Open(host, port);
         connection.Tick(0f);
 
-        var runtime = new ShooterBattleRuntimePort();
-        var presentation = new ShooterPresentationFacade();
-        var projectedRecorder = new RecordingProjectedViewSink();
-        var projectedSink = new ShooterProjectedSnapshotViewSink(projectedRecorder);
-        var presentationSession = ShooterPresentationSessionContext.CreateFromFacade(presentation, projectedSink);
-        presentationSession.View.InterpolationEnabled = false;
+        var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
+        var runtime = presentationContext.Runtime;
+        var presentation = presentationContext.Presentation;
+        var projectedRecorder = presentationContext.Recorder;
+        var presentationSession = presentationContext.Session;
 
         var pushWait = new TaskCompletionSource<ShooterSnapshotApplyResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         launcher.GatewayConnection.SnapshotPushDispatched += (_, _, result) =>
@@ -577,208 +517,11 @@ internal static class ShooterSmokeRunner
             projectionResult.FinalBulletCount);
     }
 
-    private static void ValidateSmokeResult(ShooterSmokeResult result)
-    {
-        if (string.IsNullOrWhiteSpace(result.RoomId))
-        {
-            throw new InvalidOperationException("Shooter smoke result returned empty room id.");
-        }
+    private static void ValidateSmokeResult(ShooterSmokeResult result) =>
+        ShooterSmokeScenarioBase.ValidateSmokeResult(result);
 
-        if (string.IsNullOrWhiteSpace(result.BattleId))
-        {
-            throw new InvalidOperationException("Shooter smoke result returned empty battle id.");
-        }
-
-        if (result.WorldId == 0)
-        {
-            throw new InvalidOperationException("Shooter smoke result returned zero world id.");
-        }
-
-        if (result.InputCount < 3)
-        {
-            throw new InvalidOperationException($"Shooter smoke submitted too few inputs. Count={result.InputCount}");
-        }
-
-        if (result.LastAcceptedFrame < result.LastRequestedFrame)
-        {
-            throw new InvalidOperationException($"Shooter smoke accepted frame regressed. Requested={result.LastRequestedFrame}, Accepted={result.LastAcceptedFrame}");
-        }
-
-        if (result.LastCurrentFrame < 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke returned invalid current frame. Current={result.LastCurrentFrame}");
-        }
-
-        if (string.IsNullOrWhiteSpace(result.LastInputStatus))
-        {
-            throw new InvalidOperationException("Shooter smoke returned empty input status.");
-        }
-
-        if (result.LastServerTicks <= 0)
-        {
-            throw new InvalidOperationException("Shooter smoke returned invalid input server ticks.");
-        }
-
-        if (result.Frame <= 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke client frame did not advance. Frame={result.Frame}");
-        }
-
-        if (result.ActorCount <= 0)
-        {
-            throw new InvalidOperationException("Shooter smoke presentation returned no active player actors.");
-        }
-
-        if (result.StateHash == 0)
-        {
-            throw new InvalidOperationException("Shooter smoke runtime returned zero state hash.");
-        }
-
-        if (result.SnapshotApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot)
-        {
-            throw new InvalidOperationException($"Shooter smoke did not apply packed snapshot push. Result={result.SnapshotApplyResult}");
-        }
-
-        if (result.SnapshotPayloadOpCode != ShooterOpCodes.Snapshot.PackedState)
-        {
-            throw new InvalidOperationException($"Shooter smoke snapshot payload opCode mismatch. Actual={result.SnapshotPayloadOpCode}");
-        }
-
-        if (result.SnapshotServerTicks <= 0 || result.SnapshotPackedServerTick <= 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke snapshot returned invalid server ticks. Wire={result.SnapshotServerTicks}, Packed={result.SnapshotPackedServerTick}");
-        }
-
-        if (result.SnapshotFrame != result.SnapshotPackedFrame)
-        {
-            throw new InvalidOperationException($"Shooter smoke snapshot wire/packed frame mismatch. Wire={result.SnapshotFrame}, Packed={result.SnapshotPackedFrame}");
-        }
-
-        if (result.Frame < result.SnapshotPackedFrame)
-        {
-            throw new InvalidOperationException($"Shooter smoke client frame regressed behind snapshot. Snapshot={result.SnapshotPackedFrame}, Client={result.Frame}");
-        }
-
-        if (result.SnapshotStateHash == 0)
-        {
-            throw new InvalidOperationException("Shooter smoke packed snapshot returned zero state hash.");
-        }
-
-        if (result.SnapshotEntityCount <= 0)
-        {
-            throw new InvalidOperationException("Shooter smoke packed snapshot returned no entities.");
-        }
-
-        if (result.StaleSnapshotResult != ShooterSnapshotApplyResult.IgnoredStaleSnapshot)
-        {
-            throw new InvalidOperationException($"Shooter smoke stale snapshot was not ignored. Result={result.StaleSnapshotResult}");
-        }
-
-        ValidateProjectionResult(
-            result.ProjectionApplyCount,
-            result.ProjectionFullSyncApplyCount,
-            result.ProjectionFinalEntityCount,
-            result.ProjectionFinalPlayerCount,
-            result.ActorCount,
-            "primary client",
-            requireFullSync: true);
-
-        if (string.IsNullOrWhiteSpace(result.LateJoinAccountId))
-        {
-            throw new InvalidOperationException("Shooter smoke late join returned empty account id.");
-        }
-
-        if (result.LateJoinEntryKind == ShooterRoomGatewayEntryKind.TeamLobby)
-        {
-            throw new InvalidOperationException("Shooter smoke late join entered team lobby instead of running battle.");
-        }
-
-        ValidateProjectionResult(
-            result.LateJoinProjectionApplyCount,
-            result.LateJoinProjectionFullSyncApplyCount,
-            result.LateJoinProjectionFinalEntityCount,
-            result.LateJoinProjectionFinalPlayerCount,
-            result.ActorCount,
-            "late join client",
-            requireFullSync: false,
-            exactPlayerCount: false);
-
-        if (result.ReconnectEntryKind != ShooterRoomGatewayEntryKind.Reconnect)
-        {
-            throw new InvalidOperationException($"Shooter smoke reconnect entry kind mismatch. Actual={result.ReconnectEntryKind}");
-        }
-
-        ValidateProjectionResult(
-            result.ReconnectProjectionApplyCount,
-            result.ReconnectProjectionFullSyncApplyCount,
-            result.ReconnectProjectionFinalEntityCount,
-            result.ReconnectProjectionFinalPlayerCount,
-            result.ActorCount,
-            "reconnect client",
-            requireFullSync: false,
-            exactPlayerCount: false);
-    }
-
-    private static void ValidateProjectionResult(
-        int applyCount,
-        int fullSyncApplyCount,
-        int finalEntityCount,
-        int finalPlayerCount,
-        int expectedPlayerCount,
-        string label,
-        bool requireFullSync,
-        bool exactPlayerCount = true)
-    {
-        if (applyCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke {label} did not apply any projection batch.");
-        }
-
-        if (requireFullSync && fullSyncApplyCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke {label} did not apply a full projection batch.");
-        }
-
-        if (finalEntityCount <= 0)
-        {
-            throw new InvalidOperationException($"Shooter smoke {label} projection returned no entities.");
-        }
-
-        if (exactPlayerCount)
-        {
-            if (finalPlayerCount != expectedPlayerCount)
-            {
-                throw new InvalidOperationException($"Shooter smoke {label} projection player count mismatch. Expected={expectedPlayerCount}, Actual={finalPlayerCount}");
-            }
-        }
-        else if (finalPlayerCount < expectedPlayerCount)
-        {
-            throw new InvalidOperationException($"Shooter smoke {label} projection player count below minimum. Minimum={expectedPlayerCount}, Actual={finalPlayerCount}");
-        }
-    }
-
-    private static async Task CleanupBattleAsync(IClusterClient clusterClient, ShooterSmokeResult result)
-    {
-        await UnsubscribeObserverAsync(clusterClient, result.AccountId, result.RoomId, result.BattleId);
-        if (!string.IsNullOrWhiteSpace(result.LateJoinAccountId))
-        {
-            await UnsubscribeObserverAsync(clusterClient, result.LateJoinAccountId, result.RoomId, result.BattleId);
-        }
-
-        var battleGrain = clusterClient.GetGrain<IBattleLogicHostGrain>(result.BattleId);
-        await battleGrain.DestroyAsync();
-    }
-
-    private static async Task UnsubscribeObserverAsync(
-        IClusterClient clusterClient,
-        string accountId,
-        string roomId,
-        string battleId)
-    {
-        var observerKey = $"{accountId}:{roomId}";
-        var observerGrain = clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
-        await observerGrain.UnsubscribeAsync(battleId);
-    }
+    private static Task CleanupBattleAsync(IClusterClient clusterClient, ShooterSmokeResult result) =>
+        ShooterSmokeScenarioBase.CleanupBattleAsync(clusterClient, result);
 
     private static void ValidateLaunch(ShooterClientNetworkLaunchResult launched)
     {

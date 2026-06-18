@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Orleans.Grains\AbilityKit.Orleans.Grains.csproj" />
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
+    <ProjectReference Include="..\AbilityKit.Orleans.Hosting\AbilityKit.Orleans.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +28,10 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

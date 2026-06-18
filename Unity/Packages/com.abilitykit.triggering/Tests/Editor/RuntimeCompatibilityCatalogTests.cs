@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using AbilityKit.Triggering.Runtime.Compatibility;
 using AbilityKit.Triggering.Validation;
 using NUnit.Framework;
 
@@ -7,48 +9,53 @@ namespace AbilityKit.Triggering.Tests
     public sealed class RuntimeCompatibilityCatalogTests
     {
         [Test]
-        public void TryGetEntry_ReturnsReplacementForRootCompatibilityEntry()
+        public void Entries_ReusesFormalRootRuntimeCompatibilityCatalog()
+        {
+            Assert.That(RuntimeCompatibilityCatalog.Entries, Is.SameAs(RootRuntimeCompatibilityCatalog.Entries));
+            Assert.That(RuntimeCompatibilityCatalog.DefaultRemovalGate, Is.EqualTo(RootRuntimeCompatibilityCatalog.DefaultRemovalGate));
+        }
+
+        [Test]
+        public void Entries_AreEmptyAfterRootPlaceholdersRemoved()
+        {
+            Assert.That(RuntimeCompatibilityCatalog.Entries, Is.Empty);
+        }
+
+        [Test]
+        public void TryGetEntry_ReturnsFalseForRemovedRootCompatibilityEntry()
         {
             var found = RuntimeCompatibilityCatalog.TryGetEntry("TriggerRunner.cs", out var entry);
 
-            Assert.That(found, Is.True);
-            Assert.That(entry.ReplacementPath, Is.EqualTo("Runtime/Runtime/TriggerRunner.cs"));
-            Assert.That(entry.Status, Is.EqualTo(ECompatibilityEntryStatus.Compatibility));
-            Assert.That(entry.IsRemovalCandidate, Is.False);
+            Assert.That(found, Is.False);
+            Assert.That(entry, Is.EqualTo(default(CompatibilityEntry)));
         }
 
         [Test]
-        public void TryGetEntry_MarksLegacyDispatcherAsRemovalCandidate()
+        public void HumanReadableCompatibilityDocument_DeclaresNoCurrentRootEntries()
         {
-            var found = RuntimeCompatibilityCatalog.TryGetEntry("TriggerDispatcherHub.cs", out var entry);
+            var path = Path.Combine("Packages", "com.abilitykit.triggering", "Runtime", "Compatibility.md");
+            Assert.That(File.Exists(path), Is.True, "Missing human-readable runtime compatibility document.");
 
-            Assert.That(found, Is.True);
-            Assert.That(entry.Status, Is.EqualTo(ECompatibilityEntryStatus.Legacy));
-            Assert.That(entry.IsRemovalCandidate, Is.True);
-            Assert.That(entry.RemovalGate, Does.Contain("Unity meta GUID"));
+            var document = File.ReadAllText(path);
+            Assert.That(document, Does.Contain("当前 Runtime 根目录已不再保留 .cs 兼容占位入口"));
         }
 
         [Test]
-        public void Entries_ContainDeprecatedRootHubNewEntry()
+        public void CompatibilityReadme_DeclaresCatalogDocumentAndTestSyncRule()
         {
-            var found = RuntimeCompatibilityCatalog.TryGetEntry("TriggerDispatcherHub_new.cs", out var entry);
+            var path = Path.Combine("Packages", "com.abilitykit.triggering", "Runtime", "Compatibility", "README.md");
+            Assert.That(File.Exists(path), Is.True, "Missing runtime compatibility README.");
 
-            Assert.That(found, Is.True);
-            Assert.That(entry.ReplacementPath, Is.Empty);
-            Assert.That(entry.Status, Is.EqualTo(ECompatibilityEntryStatus.Deprecated));
-            Assert.That(entry.IsRemovalCandidate, Is.True);
+            var document = File.ReadAllText(path);
+            Assert.That(document, Does.Contain("RootRuntimeCompatibilityCatalog.cs"));
+            Assert.That(document, Does.Contain("Runtime/Compatibility.md"));
+            Assert.That(document, Does.Contain("相关测试"));
         }
 
         [Test]
-        public void ScanRootEntries_ReturnsValidWhenActualFilesMatchCatalog()
+        public void ScanRootEntries_ReturnsValidWhenNoRootEntriesRemain()
         {
-            var fileNames = new List<string>();
-            foreach (var entry in RuntimeCompatibilityCatalog.Entries)
-            {
-                fileNames.Add(entry.EntryPath);
-            }
-
-            var result = RuntimeCompatibilityCatalog.ScanRootEntries(fileNames);
+            var result = RuntimeCompatibilityCatalog.ScanRootEntries(new List<string>());
 
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.Issues, Is.Empty);
@@ -57,39 +64,12 @@ namespace AbilityKit.Triggering.Tests
         [Test]
         public void ScanRootEntries_ReportsMissingCatalogEntry()
         {
-            var fileNames = new List<string>();
-            foreach (var entry in RuntimeCompatibilityCatalog.Entries)
-            {
-                fileNames.Add(entry.EntryPath);
-            }
-            fileNames.Add("NewRootCompatibilityEntry.cs");
-
-            var result = RuntimeCompatibilityCatalog.ScanRootEntries(fileNames);
+            var result = RuntimeCompatibilityCatalog.ScanRootEntries(new[] { "NewRootCompatibilityEntry.cs" });
 
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.Issues, Has.Some.Matches<RuntimeCompatibilityScanIssue>(issue =>
                 issue.Code == ValidationErrorCodes.RUNTIME_COMPATIBILITY_ENTRY_MISSING &&
                 issue.EntryPath == "NewRootCompatibilityEntry.cs"));
-        }
-
-        [Test]
-        public void ScanRootEntries_ReportsStaleCatalogEntry()
-        {
-            var fileNames = new List<string>();
-            foreach (var entry in RuntimeCompatibilityCatalog.Entries)
-            {
-                if (entry.EntryPath != "TriggerRunner.cs")
-                {
-                    fileNames.Add(entry.EntryPath);
-                }
-            }
-
-            var result = RuntimeCompatibilityCatalog.ScanRootEntries(fileNames);
-
-            Assert.That(result.IsValid, Is.False);
-            Assert.That(result.Issues, Has.Some.Matches<RuntimeCompatibilityScanIssue>(issue =>
-                issue.Code == ValidationErrorCodes.RUNTIME_COMPATIBILITY_ENTRY_STALE &&
-                issue.EntryPath == "TriggerRunner.cs"));
         }
 
         [Test]

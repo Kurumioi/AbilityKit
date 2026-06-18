@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Continuous;
@@ -11,6 +12,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// 封装 TriggerDispatcherRegistry，统一事件、定时和持续执行等外部驱动方式。
     /// 新的事件订阅、条件评估和执行控制主线优先使用 Runtime/TriggerRunner；此类型保留用于旧 Dispatcher API 与外部驱动适配。
     /// </summary>
+    [Obsolete("TriggerDispatcherHub is a legacy Dispatcher aggregate. Use TriggerRunner/EventBus for new event dispatch and ActionScheduler for plan action scheduling.")]
     public class TriggerDispatcherHub
     {
         private readonly TriggerDispatcherRegistry _registry;

@@ -18,18 +18,15 @@ namespace AbilityKit.Triggering.Runtime.Executable
         private readonly FunctionRegistry _functions;
         private readonly ActionRegistry _actions;
         private readonly IIdNameRegistry _idNames;
-        private readonly ScheduledExecutableFactoryRegistry _scheduledFactoryRegistry;
 
         public ConfigToExecutableConverter(
             FunctionRegistry functions,
             ActionRegistry actions,
-            IIdNameRegistry idNames = null,
-            ScheduledExecutableFactoryRegistry scheduledFactoryRegistry = null)
+            IIdNameRegistry idNames = null)
         {
             _functions = functions ?? throw new ArgumentNullException(nameof(functions));
             _actions = actions ?? throw new ArgumentNullException(nameof(actions));
             _idNames = idNames;
-            _scheduledFactoryRegistry = scheduledFactoryRegistry ?? ScheduledExecutableFactoryRegistry.Default;
         }
 
         /// <summary>
@@ -365,42 +362,44 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>
-        /// 转换调度行为（通过工厂注册表创建具体实现）
+        /// 转换调度行为。
+        /// 仅保留旧配置兼容映射；新配置请使用 Runtime.Plan.Json 与 Plan/Executables 的 Scheduled 节点。
         /// </summary>
         internal IScheduledExecutable ConvertSchedule(ExecutableConfig config)
         {
             var mode = config.Schedule.ScheduleMode ?? "external";
 
-            // 转换 Body 子行为
             ISimpleExecutable body = null;
             if (config.Children != null && config.Children.Count > 0)
             {
                 body = ConvertToSequence(config.Children);
             }
 
-            // 创建调度配置
-            var scheduleConfig = new ScheduleFactoryConfig
-            {
-                Mode = mode,
-                DurationMs = config.Schedule.DurationMs,
-                PeriodMs = config.Schedule.PeriodMs,
-                MaxExecutions = config.Schedule.MaxExecutions,
-                CanBeInterrupted = config.Schedule.CanBeInterrupted
-            };
-
-            // 使用工厂注册表创建
-            var scheduledExec = _scheduledFactoryRegistry.Create(mode, scheduleConfig, _actions, null);
+            var scheduledExec = CreateLegacyScheduledExecutable(mode, config.Schedule, body);
             if (scheduledExec == null)
                 return null;
 
-            // 设置 Inner
-            if (scheduledExec is IScheduledExecutable schedExec)
-            {
-                SetInnerIfPossible(schedExec, body);
-                SetModifiersIfPossible(schedExec, config.Schedule.Modifiers, config.TypeId);
-            }
-
+            SetModifiersIfPossible(scheduledExec, config.Schedule.Modifiers, config.TypeId);
             return scheduledExec;
+        }
+
+        private static IScheduledExecutable CreateLegacyScheduledExecutable(string mode, ScheduleConfig config, ISimpleExecutable body)
+        {
+            switch ((mode ?? "external").ToLowerInvariant())
+            {
+                case "timed":
+                case "delay":
+                    return ScheduledExecutableFactory.WrapTimed(body, config.DurationMs);
+                case "periodic":
+                case "interval":
+                    return ScheduledExecutableFactory.WrapPeriodic(body, config.PeriodMs, config.MaxExecutions);
+                case "external":
+                case "conditional":
+                case "continuous":
+                    return ScheduledExecutableFactory.WrapExternal(body);
+                default:
+                    return ScheduledExecutableFactory.WrapExternal(body);
+            }
         }
 
         private static void SetModifiersIfPossible(IScheduledExecutable exec, List<ModifierDataConfig> configs, int sourceId)
@@ -409,14 +408,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 modifierExec.Modifiers = ConvertModifiers(configs, sourceId);
                 modifierExec.SourceId = sourceId;
-            }
-        }
-
-        private static void SetInnerIfPossible(IScheduledExecutable exec, ISimpleExecutable body)
-        {
-            if (exec is IHasInner hasInner)
-            {
-                hasInner.Inner = body;
             }
         }
 

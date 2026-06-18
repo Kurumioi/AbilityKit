@@ -4,9 +4,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
-using AbilityKit.Demo.Moba.Worlds.Blueprints;
-using AbilityKit.Demo.Shooter;
-using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Orleans.Grains.Gameplay;
 using Microsoft.Extensions.Logging;
 using IWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
@@ -31,15 +29,14 @@ public sealed class ServerBattleWorldManager : IDisposable
         var baseFactory = new SimpleWorldFactory();
         _worldRegistry = new WorldTypeRegistry();
 
-        var blueprintRegistry = MobaWorldBlueprintsRegistration.CreateDefaultRegistry();
-        blueprintRegistry.Register(new ShooterBattleWorldBlueprint());
-        MobaWorldBlueprintsRegistration.RegisterAll(
-            _worldRegistry,
-            baseFactory.Create,
-            blueprintRegistry,
-            MobaBattleWorldBlueprint.Type,
-            MobaLobbyWorldBlueprint.Type,
-            ShooterGameplay.WorldType);
+        var gameplayModules = ServerGameplayModuleCatalog.Default;
+        var blueprintRegistry = new WorldBlueprintRegistry();
+        foreach (var blueprint in gameplayModules.CreateWorldBlueprints())
+        {
+            blueprintRegistry.Register(blueprint);
+        }
+
+        RegisterWorldTypes(_worldRegistry, baseFactory.Create, blueprintRegistry, gameplayModules.GetWorldTypes());
 
         _worldFactory = new RegistryWorldFactory(_worldRegistry);
         _worldManager = new WorldManager(_worldFactory);
@@ -57,7 +54,7 @@ public sealed class ServerBattleWorldManager : IDisposable
                 return existingWorld;
             }
 
-            return CreateBattleWorldCore(roomId, MobaBattleWorldBlueprint.Type);
+            return CreateBattleWorldCore(roomId, GetDefaultWorldType());
         }
     }
 
@@ -65,8 +62,19 @@ public sealed class ServerBattleWorldManager : IDisposable
     {
         lock (_lock)
         {
-            return CreateBattleWorldCore(roomId, string.IsNullOrWhiteSpace(worldType) ? MobaBattleWorldBlueprint.Type : worldType);
+            return CreateBattleWorldCore(roomId, string.IsNullOrWhiteSpace(worldType) ? GetDefaultWorldType() : worldType);
         }
+    }
+
+    private static string GetDefaultWorldType()
+    {
+        var defaultWorldType = ServerGameplayCatalog.Default.DefaultDescriptor.DefaultWorldType;
+        if (string.IsNullOrWhiteSpace(defaultWorldType))
+        {
+            throw new InvalidOperationException("Default server gameplay world type is not configured.");
+        }
+
+        return defaultWorldType;
     }
 
     private IWorld CreateBattleWorldCore(string roomId, string worldType)
@@ -93,6 +101,38 @@ public sealed class ServerBattleWorldManager : IDisposable
             world.Id);
 
         return world;
+    }
+
+    private static void RegisterWorldTypes(
+        WorldTypeRegistry registry,
+        Func<WorldCreateOptions, IWorld> baseFactory,
+        WorldBlueprintRegistry blueprintRegistry,
+        IReadOnlyList<string> worldTypes)
+    {
+        if (worldTypes.Count == 0)
+        {
+            throw new InvalidOperationException("At least one server battle world type must be registered.");
+        }
+
+        for (var i = 0; i < worldTypes.Count; i++)
+        {
+            var worldType = worldTypes[i];
+            if (string.IsNullOrWhiteSpace(worldType))
+            {
+                continue;
+            }
+
+            registry.Register(worldType, options => CreateWorldFromBlueprint(baseFactory, blueprintRegistry, options));
+        }
+    }
+
+    private static IWorld CreateWorldFromBlueprint(
+        Func<WorldCreateOptions, IWorld> baseFactory,
+        WorldBlueprintRegistry blueprintRegistry,
+        WorldCreateOptions options)
+    {
+        blueprintRegistry.Configure(options);
+        return baseFactory(options);
     }
 
     public bool TryGetBattleWorld(string roomId, out IWorld? world)

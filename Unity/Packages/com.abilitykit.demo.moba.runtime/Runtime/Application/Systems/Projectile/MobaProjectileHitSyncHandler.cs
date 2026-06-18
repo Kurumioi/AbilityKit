@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Systems.Projectile
 {
@@ -47,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                     eventBus.Publish(new EventKey<ProjectileHitEvent>(eid), in evt);
                 }
 
-                var effects = _sys.Effects;
+                var triggers = _sys.Triggers;
                 var cfgs = _sys.Configs;
                 try
                 {
@@ -65,9 +66,9 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                     var onHitTriggerId = proj.OnHitEffectId;
                     if (onHitTriggerId <= 0) continue;
 
-                    if (effects == null)
+                    if (triggers == null)
                     {
-                        throw new System.InvalidOperationException($"Projectile hit effect requires MobaEffectExecutionService. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
+                        throw new System.InvalidOperationException($"Projectile hit effect requires MobaTriggerExecutionGateway. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
                     }
 
                     if (_sys.Links == null || !_sys.Links.TryGetSource(evt.Projectile, out var sourceContext))
@@ -98,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
                         Raw = evt,
                     };
 
-                    effects.ExecuteTriggerId(onHitTriggerId, payload);
+                    triggers.ExecuteDirectTrigger(onHitTriggerId, payload, "projectile.hit");
                 }
                 catch (System.Exception ex)
                 {

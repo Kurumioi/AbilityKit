@@ -15,7 +15,7 @@ internal static class ServerGameplayDescriptors
         RequiresPlayerLoadout: true,
         DefaultWorldType: GameplayRoomTypes.Moba,
         DefaultTickRate: 30,
-        DefaultSyncTemplateId: "state-sync-authority");
+        DefaultSyncTemplateId: "frame-sync-authority");
 
     public static GameplayRoomDescriptor Shooter { get; } = new(
         ShooterGameplay.RoomType,

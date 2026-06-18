@@ -15,7 +15,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         return new ShooterRoomState(summary.MaxPlayers > 0 ? summary.MaxPlayers : ShooterGameplay.DefaultMaxPlayers);
     }
 
-    public void Join(object state, RoomSummary summary, HashSet<string> members, string accountId)
+    public void Join(object state, RoomSummary summary, IReadOnlyCollection<string> members, string accountId)
     {
         var roomState = RequireState(state);
         roomState.Join(accountId);

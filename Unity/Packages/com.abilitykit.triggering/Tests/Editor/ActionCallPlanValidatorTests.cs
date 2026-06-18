@@ -110,6 +110,28 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
+        public void Validate_RejectsRollbackPolicyAsUnsupportedMainlinePlan()
+        {
+            var actionId = new ActionId(StableStringId.Get("test:action_plan_validator:rollback_policy"));
+            var call = new ActionCallPlan(
+                actionId,
+                0,
+                default,
+                default,
+                null,
+                EActionScheduleMode.Immediate,
+                0,
+                -1,
+                true,
+                EActionExecutionPolicy.WithRollback);
+
+            var result = Validate(call);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Has.Some.Matches<ValidationIssue>(issue => issue.Code == ValidationErrorCodes.UNSUPPORTED_ACTION_EXECUTION_POLICY));
+        }
+
+        [Test]
         public void MinimalCompositeValidator_IncludesActionCallPlanValidation()
         {
             var actionId = new ActionId(StableStringId.Get("test:action_plan_validator:minimal_composite"));
@@ -456,6 +478,105 @@ namespace AbilityKit.Triggering.Tests
 
             Assert.That(database.TryGetExecutionRootByTriggerId(triggerId, out var root), Is.True);
             Assert.That(root.Kind, Is.EqualTo(ETriggerPlanExecutableKind.Action));
+        }
+
+        [Test]
+        public void TriggerPlanJsonDatabase_LoadFromJson_ConvertsMetadataExecutionRoot()
+        {
+            var triggerId = 3009;
+            var actionId = StableStringId.Get("test:action_plan_validator:json_metadata_action");
+            var json = $@"
+{{
+  ""FormatVersion"": 1,
+  ""Triggers"": [
+    {{
+      ""TriggerId"": {triggerId},
+      ""EventName"": ""test:action_plan_validator:json_metadata_event"",
+      ""ExecutionRoot"": {{
+        ""Kind"": ""Tags"",
+        ""Values"": {{
+          ""tag0"": ""damage.fire"",
+          ""tag1"": ""status.burning""
+        }},
+        ""Children"": [
+          {{ ""Kind"": ""Action"", ""Action"": {{ ""ActionId"": {actionId}, ""Arity"": 0 }} }}
+        ]
+      }}
+    }}
+  ]
+}}";
+            var database = new TriggerPlanJsonDatabase();
+
+            database.LoadFromJson(json, "json-metadata-execution-root-test");
+
+            Assert.That(database.TryGetExecutionRootByTriggerId(triggerId, out var root), Is.True);
+            var metadata = root as MetadataTriggerPlanExecutable;
+            Assert.That(metadata, Is.Not.Null);
+            Assert.That(metadata.Kind, Is.EqualTo(ETriggerPlanExecutableKind.Metadata));
+            Assert.That(metadata.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Tags));
+            Assert.That(metadata.Values["tag0"], Is.EqualTo("damage.fire"));
+            Assert.That(metadata.Values["tag1"], Is.EqualTo("status.burning"));
+            Assert.That(metadata.Child, Is.TypeOf<ActionCallTriggerPlanExecutable>());
+        }
+
+        [Test]
+        public void TriggerPlanJsonDatabase_LoadFromJson_ConvertsMetadataDurationAndContinuousAliases()
+        {
+            var durationTriggerId = 3010;
+            var continuousTriggerId = 3011;
+            var durationActionId = StableStringId.Get("test:action_plan_validator:json_duration_metadata_action");
+            var continuousActionId = StableStringId.Get("test:action_plan_validator:json_continuous_metadata_action");
+            var json = $@"
+{{
+  ""FormatVersion"": 1,
+  ""Triggers"": [
+    {{
+      ""TriggerId"": {durationTriggerId},
+      ""EventName"": ""test:action_plan_validator:json_duration_metadata_event"",
+      ""ExecutionRoot"": {{
+        ""Kind"": ""duration"",
+        ""MetadataKind"": ""duration"",
+        ""Values"": {{
+          ""durationMs"": ""1500"",
+          ""autoStart"": ""false""
+        }},
+        ""Children"": [
+          {{ ""Kind"": ""Action"", ""Action"": {{ ""ActionId"": {durationActionId}, ""Arity"": 0 }} }}
+        ]
+      }}
+    }},
+    {{
+      ""TriggerId"": {continuousTriggerId},
+      ""EventName"": ""test:action_plan_validator:json_continuous_metadata_event"",
+      ""ExecutionRoot"": {{
+        ""Kind"": ""continuous"",
+        ""MetadataKind"": ""continuous"",
+        ""Values"": {{
+          ""continuationId"": ""channel:burning""
+        }},
+        ""Children"": [
+          {{ ""Kind"": ""Action"", ""Action"": {{ ""ActionId"": {continuousActionId}, ""Arity"": 0 }} }}
+        ]
+      }}
+    }}
+  ]
+}}";
+            var database = new TriggerPlanJsonDatabase();
+
+            database.LoadFromJson(json, "json-metadata-alias-test");
+
+            Assert.That(database.TryGetExecutionRootByTriggerId(durationTriggerId, out var durationRoot), Is.True);
+            var duration = durationRoot as MetadataTriggerPlanExecutable;
+            Assert.That(duration, Is.Not.Null);
+            Assert.That(duration.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Duration));
+            Assert.That(duration.Values["durationMs"], Is.EqualTo("1500"));
+            Assert.That(duration.Values["autoStart"], Is.EqualTo("false"));
+
+            Assert.That(database.TryGetExecutionRootByTriggerId(continuousTriggerId, out var continuousRoot), Is.True);
+            var continuous = continuousRoot as MetadataTriggerPlanExecutable;
+            Assert.That(continuous, Is.Not.Null);
+            Assert.That(continuous.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Continuous));
+            Assert.That(continuous.Values["continuationId"], Is.EqualTo("channel:burning"));
         }
 
         [Test]

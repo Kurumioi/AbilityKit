@@ -1,3 +1,4 @@
+#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime;
@@ -10,6 +11,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// 触发器调度器注册中心
     /// 统一管理所有类型的调度器
     /// </summary>
+    [Obsolete("Runtime/Dispatcher registry is a legacy compatibility aggregate. Use TriggerRunner/EventBus for event dispatch and ActionScheduler for plan action scheduling.")]
     public class TriggerDispatcherRegistry
     {
         private readonly List<ITriggerDispatcher> _dispatchers = new List<ITriggerDispatcher>();

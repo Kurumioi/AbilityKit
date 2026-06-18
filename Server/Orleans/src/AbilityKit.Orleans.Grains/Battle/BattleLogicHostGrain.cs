@@ -17,6 +17,7 @@ namespace AbilityKit.Orleans.Grains.Battle;
 public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 {
     private readonly ILogger<BattleLogicHostGrain> _logger;
+    private readonly ServerGameplayModuleCatalog _gameplayModules;
     private readonly BattleRuntimeRegistry _runtimeRegistry;
     private readonly BattleHostState _battleHostState = new();
     private readonly IBattleInputBuffer<BattleInputItem> _inputBuffer = new BattleInputBuffer<BattleInputItem>();
@@ -34,15 +35,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private TimeSpan _tickInterval;
     private WorldStartAnchor? _worldStartAnchor;
     private int _inputDelayFrames;
+    private ServerBattleSyncProfile? _syncProfile;
+    private string _syncTemplateId = string.Empty;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
         ServerBattleWorldManager worldManager)
     {
         _logger = logger;
+        _gameplayModules = ServerGameplayModuleCatalog.Default;
         _runtimeRegistry = new BattleRuntimeRegistry(
-            ServerGameplayModuleCatalog.Default.CreateBattleRuntimeAdapters(worldManager),
-            ServerGameplayCatalog.Default);
+            _gameplayModules.CreateBattleRuntimeAdapters(worldManager),
+            _gameplayModules.GameplayCatalog);
         _tickDriver = new BattleTickDriver<BattleInputItem>(SubmitRuntimeInputs, TickBattleWorld);
         _snapshotPublisher = new BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush>(
             BuildStateSyncPush,
@@ -78,6 +82,31 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         _battleId = this.GetPrimaryKeyString();
+        var module = _gameplayModules.ResolveModule(initParams.RoomType);
+        _syncProfile = module.SyncProfile;
+        var requestedSyncTemplateId = initParams.SyncOptions?.SyncTemplateId;
+        if (!_syncProfile.TryResolveTemplate(requestedSyncTemplateId, out var syncTemplate))
+        {
+            _logger.LogError(
+                "[BattleLogicHost] Unsupported sync template. BattleId: {BattleId}, RoomType: {RoomType}, RequestedTemplate: {RequestedTemplate}, DefaultTemplate: {DefaultTemplate}",
+                _battleId,
+                module.RoomType,
+                requestedSyncTemplateId,
+                _syncProfile.DefaultTemplateId);
+            StopBattleRuntime();
+            return Task.CompletedTask;
+        }
+
+        var syncOptions = initParams.SyncOptions;
+        _syncTemplateId = syncTemplate.TemplateId;
+        initParams.SyncOptions = new BattleSyncStartOptions(
+            _syncTemplateId,
+            syncOptions?.SyncModel ?? 0,
+            syncOptions?.NetworkEnvironmentId,
+            syncOptions?.CarrierName,
+            syncOptions?.EnableAuthoritativeWorld ?? false,
+            syncOptions?.InterpolationEnabled ?? false,
+            syncOptions?.InputDelayFrames ?? 0);
         _worldId = initParams.WorldId;
         _tickRate = initParams.TickRate > 0 ? initParams.TickRate : 30;
         _tickInterval = TimeSpan.FromSeconds(1.0 / _tickRate);
@@ -91,14 +120,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _battleHostState.Initialize(_worldId, _battleId, _tickRate);
 
         _logger.LogInformation(
-            "[BattleLogicHost] Initializing battle - BattleId: {BattleId}, RoomType: {RoomType}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}",
+            "[BattleLogicHost] Initializing battle - BattleId: {BattleId}, RoomType: {RoomType}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}, SyncMode: {SyncMode}, SyncTemplate: {SyncTemplate}",
             _battleId,
-            initParams.RoomType ?? GameplayRoomTypes.Default,
+            module.RoomType,
             _worldId,
             _tickRate,
-            initParams.Players?.Count ?? 0);
+            initParams.Players?.Count ?? 0,
+            syncTemplate.Mode,
+            _syncTemplateId);
 
-        var adapter = _runtimeRegistry.Resolve(initParams.RoomType);
+        var adapter = _runtimeRegistry.Resolve(module.RoomType);
         _runtimeSession = adapter.CreateSession(_battleId);
         var startResult = _runtimeSession.Start(initParams);
         if (!startResult.Succeeded)
@@ -440,6 +471,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void PushSnapshot(int frame, bool isFullSnapshot)
     {
+        var syncTemplate = _syncProfile?.ResolveTemplate(_syncTemplateId);
+        if (syncTemplate?.SupportsStateSyncPush == false)
+        {
+            _logger.LogTrace(
+                "[BattleLogicHost] Skipping state-sync publish for frame-sync template. BattleId: {BattleId}, SyncTemplate: {SyncTemplate}",
+                _battleId,
+                _syncTemplateId);
+            return;
+        }
+
         _snapshotPublisher.Publish(_observerRegistry.Snapshot(), frame, isFullSnapshot);
     }
 
@@ -483,6 +524,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _worldId = 0;
         _initialized = false;
         _worldStartAnchor = null;
+        _syncProfile = null;
+        _syncTemplateId = string.Empty;
         _inputBuffer.Clear();
         _battleHostState.Reset();
     }

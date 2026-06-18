@@ -1,49 +1,69 @@
-﻿using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+﻿using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba;
-
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
-using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
-using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
+    internal enum BuffStackingApplyOutcome
+    {
+        Ignored = 0,
+        Replaced = 1,
+        StackAdded = 2,
+        DurationRefreshed = 3,
+    }
+
+    internal readonly struct BuffStackingApplyResult
+    {
+        public static readonly BuffStackingApplyResult Ignored = new BuffStackingApplyResult(false, BuffStackingApplyOutcome.Ignored, string.Empty);
+
+        public BuffStackingApplyResult(bool applied, BuffStackingApplyOutcome outcome, string rejectCode)
+        {
+            Applied = applied;
+            Outcome = outcome;
+            RejectCode = rejectCode;
+        }
+
+        public bool Applied { get; }
+        public BuffStackingApplyOutcome Outcome { get; }
+        public string RejectCode { get; }
+        public bool IsReplace => Outcome == BuffStackingApplyOutcome.Replaced;
+        public bool ShouldResetInterval => Applied;
+
+        public static BuffStackingApplyResult AppliedResult(BuffStackingApplyOutcome outcome)
+        {
+            return new BuffStackingApplyResult(true, outcome, string.Empty);
+        }
+    }
+
+    internal delegate BuffStackingApplyResult BuffStackingRule(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds);
+
     /// <summary>
     /// Buff 叠层策略执行器：只修改堆叠数、剩余时间和来源，不处理事件、上下文和持续行为。
     /// </summary>
     internal sealed class BuffStackingPolicyApplier
     {
-        /// <summary>
-        /// 对已存在运行时应用配置中的叠层/刷新策略，返回 false 表示本次申请被策略忽略。
-        /// </summary>
-        public bool ApplyToExisting(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        private readonly Dictionary<BuffStackingPolicy, BuffStackingRule> _rules = new Dictionary<BuffStackingPolicy, BuffStackingRule>
         {
-            if (existing == null) return false;
-            if (buff == null) return false;
+            [BuffStackingPolicy.IgnoreIfExists] = Ignore,
+            [BuffStackingPolicy.Replace] = Replace,
+            [BuffStackingPolicy.AddStack] = AddStackRule,
+            [BuffStackingPolicy.RefreshDuration] = RefreshDuration,
+            [BuffStackingPolicy.None] = Ignore,
+        };
 
-            switch (buff.StackingPolicy)
+        /// <summary>
+        /// 对已存在运行时应用配置中的叠层/刷新策略，返回结构化结果供生命周期层判断后续绑定和通知。
+        /// </summary>
+        public BuffStackingApplyResult ApplyToExisting(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        {
+            if (existing == null) return BuffStackingApplyResult.Ignored;
+            if (buff == null) return BuffStackingApplyResult.Ignored;
+
+            if (!_rules.TryGetValue(buff.StackingPolicy, out var rule) || rule == null)
             {
-                case BuffStackingPolicy.IgnoreIfExists:
-                    return false;
-                case BuffStackingPolicy.Replace:
-                    existing.SourceId = sourceActorId;
-                    existing.StackCount = 0;
-                    existing.Remaining = durationSeconds;
-                    AddStack(existing, buff.MaxStacks);
-                    return true;
-                case BuffStackingPolicy.AddStack:
-                    AddStack(existing, buff.MaxStacks);
-                    RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
-                    existing.SourceId = sourceActorId;
-                    return true;
-                case BuffStackingPolicy.RefreshDuration:
-                    RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
-                    existing.SourceId = sourceActorId;
-                    return true;
-                case BuffStackingPolicy.None:
-                default:
-                    return false;
+                return BuffStackingApplyResult.Ignored;
             }
+
+            return rule(existing, buff, sourceActorId, durationSeconds);
         }
 
         /// <summary>
@@ -75,6 +95,35 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             {
                 rt.Continuous.IntervalRemainingSeconds = intervalRemainingSeconds;
             }
+        }
+
+        private static BuffStackingApplyResult Ignore(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        {
+            return BuffStackingApplyResult.Ignored;
+        }
+
+        private static BuffStackingApplyResult Replace(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        {
+            existing.SourceId = sourceActorId;
+            existing.StackCount = 0;
+            existing.Remaining = durationSeconds;
+            AddStack(existing, buff.MaxStacks);
+            return BuffStackingApplyResult.AppliedResult(BuffStackingApplyOutcome.Replaced);
+        }
+
+        private static BuffStackingApplyResult AddStackRule(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        {
+            AddStack(existing, buff.MaxStacks);
+            RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
+            existing.SourceId = sourceActorId;
+            return BuffStackingApplyResult.AppliedResult(BuffStackingApplyOutcome.StackAdded);
+        }
+
+        private static BuffStackingApplyResult RefreshDuration(BuffRuntime existing, BuffMO buff, int sourceActorId, float durationSeconds)
+        {
+            RefreshRemaining(existing, buff.RefreshPolicy, durationSeconds);
+            existing.SourceId = sourceActorId;
+            return BuffStackingApplyResult.AppliedResult(BuffStackingApplyOutcome.DurationRefreshed);
         }
 
         private static void RefreshRemaining(BuffRuntime rt, BuffRefreshPolicy policy, float durationSeconds)

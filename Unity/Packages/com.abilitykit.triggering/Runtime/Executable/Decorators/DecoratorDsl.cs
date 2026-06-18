@@ -234,6 +234,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// <summary>
         /// DOT: 持续伤害
         /// </summary>
+        [Obsolete("DOT belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables and TriggerPlanExecutableDsl.Scheduled/Periodic instead.")]
         public static IScheduledExecutable DOT(
             ISimpleExecutable damageEffect,
             float durationMs,
@@ -249,6 +250,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// <summary>
         /// HOT: 持续治疗
         /// </summary>
+        [Obsolete("HOT belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables and TriggerPlanExecutableDsl.Scheduled/Periodic instead.")]
         public static IScheduledExecutable HOT(
             ISimpleExecutable healEffect,
             float durationMs,
@@ -264,6 +266,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// <summary>
         /// Buff: 属性增益
         /// </summary>
+        [Obsolete("Buff belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables and TriggerPlanExecutableDsl.Scheduled/Periodic instead.")]
         public static IScheduledExecutable Buff(
             ISimpleExecutable applyEffect,
             float durationMs,
@@ -280,6 +283,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         /// <summary>
         /// Aura: 被动光环 (无限时间)
         /// </summary>
+        [Obsolete("Aura belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables and TriggerPlanExecutableDsl.Scheduled/Periodic instead.")]
         public static IScheduledExecutable Aura(
             ISimpleExecutable effect,
             ModifierData[] modifiers,
@@ -309,6 +313,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加持续时间修饰器</summary>
+        [Obsolete("WithDuration belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or TriggerPlanExecutableDsl.Scheduled instead.")]
         public static IDurationDecorator WithDuration(this ISimpleExecutable inner, float durationMs, bool autoStart = true)
         {
             var deco = DecoratorRegistry.CreateDuration(durationMs);
@@ -318,6 +323,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加持续时间修饰器 (链式)</summary>
+        [Obsolete("WithDuration belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or TriggerPlanExecutableDsl.Scheduled instead.")]
         public static T WithDuration<T>(this T inner, float durationMs, bool autoStart = true) where T : ISimpleExecutable
         {
             var deco = DecoratorRegistry.CreateDuration(durationMs);
@@ -327,6 +333,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加标签修饰器</summary>
+        [Obsolete("WithTags belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables, formal TriggerPlan predicates, or domain-specific plan metadata instead.")]
         public static ITagDecorator WithTags(this ISimpleExecutable inner, params string[] tagNames)
         {
             var tagDeco = DecoratorRegistry.CreateTag(tagNames);
@@ -335,6 +342,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加标签修饰器 (链式)</summary>
+        [Obsolete("WithTags belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables, formal TriggerPlan predicates, or domain-specific plan metadata instead.")]
         public static T WithTags<T>(this T inner, params string[] tagNames) where T : ISimpleExecutable
         {
             var tagDeco = DecoratorRegistry.CreateTag(tagNames);
@@ -343,6 +351,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加标签修饰器 (使用 TagQuery)</summary>
+        [Obsolete("WithTags belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables, formal TriggerPlan predicates, or domain-specific plan metadata instead.")]
         public static ITagDecorator WithTags(this ISimpleExecutable inner, TagQuery required, TagQuery ignore = default)
         {
             var tagDeco = DecoratorRegistry.CreateTag();
@@ -353,6 +362,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加修改器修饰器</summary>
+        [Obsolete("WithModifiers belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or domain-specific formal modifiers instead.")]
         public static IModifierDecorator WithModifiers(this ISimpleExecutable inner, params ModifierData[] modifiers)
         {
             var modDeco = DecoratorRegistry.CreateModifier(modifiers);
@@ -361,6 +371,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加修改器修饰器 (链式)</summary>
+        [Obsolete("WithModifiers belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or domain-specific formal modifiers instead.")]
         public static T WithModifiers<T>(this T inner, params ModifierData[] modifiers) where T : ISimpleExecutable
         {
             var modDeco = DecoratorRegistry.CreateModifier(modifiers);
@@ -369,6 +380,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加修改器修饰器（带自定义应用器）</summary>
+        [Obsolete("WithModifiers belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or domain-specific formal modifiers instead.")]
         public static IModifierDecorator WithModifiers(this ISimpleExecutable inner, IModifierApplier applier, params ModifierData[] modifiers)
         {
             var modDeco = DecoratorRegistry.CreateModifier(applier, modifiers);
@@ -377,6 +389,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加修改器修饰器（带自定义应用器，链式）</summary>
+        [Obsolete("WithModifiers belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or domain-specific formal modifiers instead.")]
         public static T WithModifiers<T>(this T inner, IModifierApplier applier, params ModifierData[] modifiers) where T : ISimpleExecutable
         {
             var modDeco = DecoratorRegistry.CreateModifier(applier, modifiers);
@@ -385,6 +398,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加层数修饰器</summary>
+        [Obsolete("WithStack belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal stack-aware node instead.")]
         public static IStackDecorator WithStack(this ISimpleExecutable inner, int initialStack = 1, float stackMultiplier = 1f)
         {
             var stackDeco = DecoratorRegistry.CreateStack(initialStack, stackMultiplier);
@@ -393,6 +407,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加层数修饰器 (链式)</summary>
+        [Obsolete("WithStack belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal stack-aware node instead.")]
         public static T WithStack<T>(this T inner, int initialStack = 1, float stackMultiplier = 1f) where T : ISimpleExecutable
         {
             var stackDeco = DecoratorRegistry.CreateStack(initialStack, stackMultiplier);
@@ -401,6 +416,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加层级修饰器</summary>
+        [Obsolete("WithHierarchy belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal hierarchy-aware node instead.")]
         public static IHierarchyDecorator WithHierarchy(this ISimpleExecutable inner, int? parentId = null)
         {
             var hierDeco = DecoratorRegistry.CreateHierarchy(parentId);
@@ -409,6 +425,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加层级修饰器 (链式)</summary>
+        [Obsolete("WithHierarchy belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal hierarchy-aware node instead.")]
         public static T WithHierarchy<T>(this T inner, int? parentId = null) where T : ISimpleExecutable
         {
             var hierDeco = DecoratorRegistry.CreateHierarchy(parentId);
@@ -417,6 +434,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加持续行为修饰器</summary>
+        [Obsolete("WithContinuous belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or TriggerPlanExecutableDsl.Continuous/External instead.")]
         public static IContinuousDecorator WithContinuous(this ISimpleExecutable inner, string continuationId = null)
         {
             var deco = DecoratorRegistry.CreateContinuous(continuationId);
@@ -425,6 +443,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加持续行为修饰器 (链式)</summary>
+        [Obsolete("WithContinuous belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or TriggerPlanExecutableDsl.Continuous/External instead.")]
         public static T WithContinuous<T>(this T inner, string continuationId = null) where T : ISimpleExecutable
         {
             var deco = DecoratorRegistry.CreateContinuous(continuationId);
@@ -433,6 +452,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加能力修饰器</summary>
+        [Obsolete("WithCapability belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal capability node instead.")]
         public static ICapabilityDecorator WithCapability(this ISimpleExecutable inner, CapabilityId capabilityId = default)
         {
             var deco = DecoratorRegistry.CreateCapability(capabilityId);
@@ -441,6 +461,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加能力修饰器 (链式)</summary>
+        [Obsolete("WithCapability belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal capability node instead.")]
         public static T WithCapability<T>(this T inner, CapabilityId capabilityId = default) where T : ISimpleExecutable
         {
             var deco = DecoratorRegistry.CreateCapability(capabilityId);
@@ -449,6 +470,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加能力修饰器 (使用能力ID字符串)</summary>
+        [Obsolete("WithCapability belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal capability node instead.")]
         public static ICapabilityDecorator WithCapability(this ISimpleExecutable inner, string capabilityNamespace, string capabilityName)
         {
             var deco = DecoratorRegistry.CreateCapability(new CapabilityId(capabilityNamespace, capabilityName));
@@ -457,6 +479,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
 
         /// <summary>添加能力修饰器 (使用能力ID字符串，链式)</summary>
+        [Obsolete("WithCapability belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or a formal capability node instead.")]
         public static T WithCapability<T>(this T inner, string capabilityNamespace, string capabilityName) where T : ISimpleExecutable
         {
             var deco = DecoratorRegistry.CreateCapability(new CapabilityId(capabilityNamespace, capabilityName));

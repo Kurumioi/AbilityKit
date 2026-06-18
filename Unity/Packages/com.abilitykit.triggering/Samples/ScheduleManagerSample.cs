@@ -1,17 +1,18 @@
+using AbilityKit.Triggering.Runtime.RuleScheduler;
 using UnityEngine;
-using AbilityKit.Triggering.Samples.Scheduler;
 
 namespace AbilityKit.Samples
 {
     /// <summary>
-    /// 调度器示例 - 使用新的 ECA 架构
+    /// 规则调度示例 - 使用正式 RuleScheduler 架构。
     ///
     /// 本示例演示：
-    /// 1. 创建触发原子注册中心（非单例，支持 DI）
-    /// 2. 创建调度器注册中心（非单例，支持 DI）
-    /// 3. 注册 ECA 触发原子
-    /// 4. 创建并启动调度器
-    /// 5. 每帧更新调度器
+    /// 1. 创建 RuleSchedulerRegistry（非单例，支持 DI）
+    /// 2. 创建规则级时间计划
+    /// 3. 注册委托式规则效果
+    /// 4. 每帧更新规则调度器
+    ///
+    /// 旧 Runtime/Scheduler/SchedulerRegistry 仅保留兼容用途，新样例不再接入。
     /// </summary>
     public class ScheduleManagerSample : MonoBehaviour
     {
@@ -22,137 +23,73 @@ namespace AbilityKit.Samples
         [Tooltip("最大执行次数")]
         [SerializeField] private int _maxExecutions = 5;
 
-        // 调度器注册中心（非单例，由调用方管理）
-        private SchedulerRegistry _schedulerRegistry;
+        private RuleSchedulerRegistry _schedulerRegistry;
+        private RuleScheduleHandle _handle;
         private int _executionCount;
-
-        // 简单的行为存储（实际项目中可使用 ActionRegistry）
-        private System.Action<object> _periodicAction;
 
         private void Start()
         {
-            Debug.Log("========== ScheduleManager ECA 架构示例开始 ==========");
+            Debug.Log("========== RuleScheduler 示例开始 ==========");
             Debug.Log($"配置: Interval={_interval}s, MaxExecutions={_maxExecutions}");
 
             InitializeSchedulerSystem();
-            RegisterAction();
-            RegisterTriggerAtoms();
-            CreateAndStartScheduler();
+            CreateAndStartSchedule();
         }
 
         private void Update()
         {
-            // 每帧更新所有活跃调度器
-            if (_schedulerRegistry != null)
-            {
-                foreach (var scheduler in _schedulerRegistry.GetActiveSchedulers())
-                {
-                    scheduler.Update(Time.deltaTime * 1000f, null);
-                }
-            }
+            _schedulerRegistry?.Update(Time.deltaTime * 1000f);
         }
 
         private void OnDestroy()
         {
-            Debug.Log("========== ScheduleManager ECA 架构示例结束 ==========");
+            if (_schedulerRegistry != null && _handle.IsValid)
+            {
+                _schedulerRegistry.Cancel(_handle);
+            }
+
+            Debug.Log("========== RuleScheduler 示例结束 ==========");
             Debug.Log($"最终执行次数: {_executionCount}");
         }
 
         /// <summary>
-        /// 初始化调度系统（非单例，支持 DI）
+        /// 初始化规则调度系统（非单例，支持 DI）。
         /// </summary>
         private void InitializeSchedulerSystem()
         {
-            Debug.Log("[1] 初始化调度系统");
-
-            // 创建触发原子注册中心（可注入）
-            var triggerAtomRegistry = new TriggerAtomRegistry();
-
-            // 创建调度器注册中心（可注入）
-            _schedulerRegistry = new SchedulerRegistry(triggerAtomRegistry);
-
-            Debug.Log("    - TriggerAtomRegistry 创建完成");
-            Debug.Log("    - SchedulerRegistry 创建完成");
+            Debug.Log("[1] 初始化规则调度系统");
+            _schedulerRegistry = new RuleSchedulerRegistry();
+            Debug.Log("    - RuleSchedulerRegistry 创建完成");
             Debug.Log("");
         }
 
         /// <summary>
-        /// 注册行为（示例：周期性日志）
+        /// 创建并启动规则调度。
         /// </summary>
-        private void RegisterAction()
+        private void CreateAndStartSchedule()
         {
-            Debug.Log("[2] 注册行为 (Action)");
+            Debug.Log("[2] 创建并启动规则调度");
 
-            // 注册周期性日志行为
-            _periodicAction = (ctx) =>
-            {
-                _executionCount++;
-                Debug.Log($"    ★ [执行 #{_executionCount}]");
-            };
+            var plan = RuleSchedulePlan.Every(
+                intervalMs: _interval * 1000f,
+                maxOccurrences: _maxExecutions,
+                groupId: "sample:rule-scheduler",
+                subjectId: "sample:periodic-log",
+                label: "Unity periodic log sample");
 
-            Debug.Log("    - action:log_periodic 回调注册完成");
-            Debug.Log("");
-        }
+            _handle = _schedulerRegistry.Schedule(
+                in plan,
+                new DelegateRuleScheduleEffect(
+                    ctx =>
+                    {
+                        _executionCount++;
+                        Debug.Log($"    ★ [执行 #{_executionCount}] Occurrence={ctx.OccurrenceIndex}");
+                    },
+                    onCompleted: ctx => Debug.Log("    - 调度完成回调!"),
+                    onInterrupted: (ctx, reason) => Debug.Log($"    - 调度中断回调: {reason}")));
 
-        /// <summary>
-        /// 注册触发原子
-        /// </summary>
-        private void RegisterTriggerAtoms()
-        {
-            Debug.Log("[3] 注册触发原子 (ECA)");
-
-            var registry = _schedulerRegistry.TriggerAtoms;
-
-            // 创建无条件触发原子（主动调度用，无事件，无条件）
-            // ECA: Event=空, Condition=空, Action=内部回调
-            var unconditionalAtom = TriggerAtom.CreateActionOnly(
-                TriggerAtomId.Get("atom:periodic_log"),
-                priority: 0
-            );
-            registry.Register(unconditionalAtom);
-
-            Debug.Log("    - atom:periodic_log 注册完成 (无事件，无条件)");
-            Debug.Log("");
-        }
-
-        /// <summary>
-        /// 创建并启动调度器
-        /// </summary>
-        private void CreateAndStartScheduler()
-        {
-            Debug.Log("[4] 创建并启动调度器");
-
-            var schedulerId = SchedulerId.Get("scheduler:periodic_test");
-            var atomId = TriggerAtomId.Get("atom:periodic_log");
-            var config = ScheduleConfig.Periodic(_interval * 1000f, _maxExecutions);
-
-            // 创建调度器（主动调度模式）
-            var scheduler = _schedulerRegistry.CreateScheduler(
-                id: schedulerId,
-                context: null,
-                triggerAtomId: atomId,
-                config: config,
-                actionCallback: _periodicAction, // 直接传入回调
-                onComplete: (ctx, triggerCtx) =>
-                {
-                    Debug.Log("    - 调度完成回调!");
-                },
-                onInterrupt: (ctx, triggerCtx) =>
-                {
-                    Debug.Log("    - 调度中断回调!");
-                }
-            );
-
-            if (scheduler != null)
-            {
-                // 启动调度器
-                scheduler.Start();
-
-                Debug.Log($"    - 调度器已启动: {schedulerId}");
-                Debug.Log($"    - 触发原子: {atomId}");
-                Debug.Log($"    - 调度配置: interval={_interval * 1000f}ms, maxExecutions={_maxExecutions}");
-            }
-
+            Debug.Log($"    - 调度已启动: {_handle}");
+            Debug.Log($"    - 调度计划: interval={_interval * 1000f}ms, maxOccurrences={_maxExecutions}");
             Debug.Log("");
         }
     }

@@ -8,6 +8,8 @@ namespace AbilityKit.Orleans.Contracts.FrameSync;
 /// </summary>
 public interface IBattleFrameSyncGrain : IGrainWithStringKey
 {
+    Task InitializeAsync(FrameSyncStartOptions options);
+
     Task SubscribeAsync(IFrameSyncObserver observer);
 
     Task UnsubscribeAsync(IFrameSyncObserver observer);

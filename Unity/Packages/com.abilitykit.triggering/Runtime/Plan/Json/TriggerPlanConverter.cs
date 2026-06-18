@@ -343,7 +343,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 [ETriggerPlanExecutableKind.Until] = new UntilExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Invert] = new InvertExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Succeed] = new SucceedExecutionNodeConverter(),
-                [ETriggerPlanExecutableKind.Fail] = new FailExecutionNodeConverter()
+                [ETriggerPlanExecutableKind.Fail] = new FailExecutionNodeConverter(),
+                [ETriggerPlanExecutableKind.Metadata] = new MetadataExecutionNodeConverter()
             };
         }
 
@@ -398,6 +399,18 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 case "always_fail":
                 case "alwaysfail":
                     return nameof(ETriggerPlanExecutableKind.Fail);
+                case "metadata":
+                case "decorator":
+                case "tags":
+                case "tag":
+                case "modifiers":
+                case "modifier":
+                case "stack":
+                case "hierarchy":
+                case "capability":
+                case "duration":
+                case "continuous":
+                    return nameof(ETriggerPlanExecutableKind.Metadata);
                 default:
                     return kind;
             }
@@ -795,6 +808,53 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 TriggerPlanJsonDatabase.ExecutionNodeDto dto)
             {
                 return new FailTriggerPlanExecutable(Branch(Children(context, dto)), dto.Reason, Condition(context, dto), dto.Weight);
+            }
+        }
+
+        private sealed class MetadataExecutionNodeConverter : ExecutionNodeConverterBase
+        {
+            public override ITriggerPlanExecutable Convert(
+                TriggerPlanConverter context,
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto)
+            {
+                var metadataKind = ParseMetadataKind(dto);
+                return new MetadataTriggerPlanExecutable(
+                    Branch(Children(context, dto)),
+                    metadataKind,
+                    dto.Values,
+                    Condition(context, dto),
+                    dto.Weight);
+            }
+
+            private static ETriggerPlanMetadataKind ParseMetadataKind(TriggerPlanJsonDatabase.ExecutionNodeDto dto)
+            {
+                var value = !string.IsNullOrWhiteSpace(dto.MetadataKind) ? dto.MetadataKind : dto.Kind;
+                if (string.IsNullOrWhiteSpace(value))
+                    return ETriggerPlanMetadataKind.Generic;
+
+                switch (value.Trim().ToLowerInvariant())
+                {
+                    case "tag":
+                    case "tags":
+                        return ETriggerPlanMetadataKind.Tags;
+                    case "modifier":
+                    case "modifiers":
+                        return ETriggerPlanMetadataKind.Modifiers;
+                    case "stack":
+                        return ETriggerPlanMetadataKind.Stack;
+                    case "hierarchy":
+                        return ETriggerPlanMetadataKind.Hierarchy;
+                    case "capability":
+                        return ETriggerPlanMetadataKind.Capability;
+                    case "duration":
+                        return ETriggerPlanMetadataKind.Duration;
+                    case "continuous":
+                        return ETriggerPlanMetadataKind.Continuous;
+                }
+
+                return Enum.TryParse<ETriggerPlanMetadataKind>(value, true, out var kind)
+                    ? kind
+                    : ETriggerPlanMetadataKind.Generic;
             }
         }
     }

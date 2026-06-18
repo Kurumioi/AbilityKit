@@ -218,6 +218,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public int MaxIterations = 1;
             public float Weight = 1f;
             public string Reason;
+            public string MetadataKind;
+            public Dictionary<string, string> Values;
             public string SourceKind;
             public string SourceId;
             public string SourcePath;

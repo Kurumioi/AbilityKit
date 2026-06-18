@@ -433,7 +433,7 @@ public static class GatewayHttpApi
             RequiresPlayerLoadout: true,
             DefaultWorldType: GameplayRoomTypes.Moba,
             DefaultTickRate: 30,
-            DefaultSyncTemplateId: "state-sync-authority"),
+            DefaultSyncTemplateId: "frame-sync-authority"),
         new GameplayHttpDescriptor(
             "shooter",
             "Shooter State Sync",

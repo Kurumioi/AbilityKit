@@ -66,11 +66,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        public void StartTriggers(IReadOnlyList<int> triggerIds, long ownerKey)
-        {
-            ApplyTriggers(triggerIds, ownerKey);
-        }
-
         public void ApplyTriggers(IReadOnlyList<int> triggerIds, long ownerKey)
         {
             if (ownerKey == 0) return;

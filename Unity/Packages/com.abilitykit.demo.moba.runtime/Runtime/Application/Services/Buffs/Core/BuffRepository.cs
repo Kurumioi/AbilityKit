@@ -75,7 +75,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
 
         public static void MarkDirty(List<BuffRuntime> list)
         {
-            s_index.RebuildIfNeeded(list);
+            if (list == null) return;
+            s_index.MarkDirty();
         }
 
         /// <summary>
@@ -107,12 +108,21 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
         private sealed class BuffRuntimeIndex
         {
             private int _version;
-            private int _cachedVersion;
+            private int _cachedVersion = -1;
             private int[] _indices = System.Array.Empty<int>();
+
+            public void MarkDirty()
+            {
+                unchecked
+                {
+                    _version++;
+                }
+            }
 
             public void RebuildIfNeeded(List<BuffRuntime> list)
             {
-                if (_cachedVersion == _version) return;
+                if (list == null) return;
+                if (_cachedVersion == _version && _indices.Length == list.Count) return;
                 _indices = new int[list.Count];
                 for (var i = 0; i < list.Count; i++) _indices[i] = i;
                 _cachedVersion = _version;
@@ -120,9 +130,13 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
 
             public int TryGetIndex(List<BuffRuntime> list, in BuffRuntimeKey key)
             {
-                for (var i = 0; i < list.Count; i++)
+                if (list == null) return -1;
+                RebuildIfNeeded(list);
+                for (var i = 0; i < _indices.Length; i++)
                 {
-                    if (key.Matches(list[i])) return i;
+                    var index = _indices[i];
+                    if (index < 0 || index >= list.Count) continue;
+                    if (key.Matches(list[index])) return index;
                 }
 
                 return -1;

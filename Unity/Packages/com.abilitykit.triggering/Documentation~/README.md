@@ -34,9 +34,10 @@
 - `Runtime/Legacy`
 - `Runtime/Experimental`
 - `Runtime/Scheduler`
-- `Runtime/Schedule` 中带业务样例或旧工厂语义的类型
+- `Runtime/Dispatcher` 中旧 `TriggerDispatcherHub` / `EventBusDispatcher` / `TimedDispatcher` 聚合入口
+- `Documentation~/LegacySchedule` 中旧业务调度工厂示例
 
-新功能需要迁移到 `TriggerRunner + PlannedTrigger + ActionRegistry`，调度需求按语义选择 `ActionScheduler` 或 `RuleScheduler`。
+新功能需要迁移到 `TriggerRunner + PlannedTrigger + ActionRegistry`，调度需求按语义选择 `ActionScheduler` 或 `RuleScheduler`；旧 Executable 示例见 `Documentation~/LegacyExecutable`，旧 Schedule 业务示例见 `Documentation~/LegacySchedule`。
 
 ## 编辑器生成
 
@@ -58,5 +59,6 @@ Unity 菜单：`AbilityKit/Triggering/Codegen/Generate Ids`
 
 - `Document/README.md`：正式主线说明与最小接入示例。
 - `Document/FormalApiBoundary.md`：正式 API、兼容 API、迁移方向。
+- `Document/LegacyMigrationPolicy.md`：legacy、compatibility、experimental 入口的迁移、保留和下线策略。
 - `Document/调度系统设计文档.md`：历史调度设计背景。
 - `Document/Triggering-Commercial-Remediation-Checklist.md`：商业化整改清单。

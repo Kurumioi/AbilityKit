@@ -217,11 +217,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
 
             // 通过执行器执行
-            var executed = Executor.TryExecute(ctx, out var result);
-            if (result.IsFailed && Plan.Execution.Policy == Config.EActionExecutionPolicy.WithRollback)
+            if (Plan.Execution.Policy == Config.EActionExecutionPolicy.WithRollback)
             {
-                return new ActionExecutionStep(false, ExecutionResult.Failed($"Action[{Plan.Id.Value}] 执行失败且请求回滚，但 ActionCallPlan 未携带回滚委托或补偿计划。原始错误：{result.FailureReason}"));
+                return new ActionExecutionStep(false, ExecutionResult.Failed($"Action[{Plan.Id.Value}] 请求 WithRollback，但 ActionCallPlan 当前没有正式的补偿 Action 或回滚计划结构。"));
             }
+
+            var executed = Executor.TryExecute(ctx, out var result);
 
             if (executed)
             {

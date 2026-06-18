@@ -49,18 +49,20 @@ Runtime 目录大致按职责拆分：
 - `Scheduler/`
   - 旧版通用调度注册体系，仅作为兼容层保留
   - 新 Trigger Action 调度不再扩展此目录；需要通用业务调度时优先接入 `Schedule/`
+  - `SchedulerMigration` 只提供旧 `SchedulerConfig` 到正式 `RuleSchedulePlan` / 推荐运行时的迁移映射，不执行旧调度器，也不把旧注册表接回主线
 
 - `Dispatcher/`
   - 外部驱动方式适配层：事件、定时、持续 tick 等 Dispatcher API
   - 新的事件订阅、条件评估、执行控制主线优先使用 `Runtime/TriggerRunner`
 
 - `Plan/Executables/`
-  - TriggerPlan 行为树主线节点：Sequence、Selector、If、Repeat、ActionCall 等正式执行结构
-  - 与 `Executable/` 的旧 DSL/示例体系分离，后者仅作为兼容和迁移参考
+  - TriggerPlan 行为树主线节点：Sequence、Selector、If、Repeat、ActionCall、Scheduled、Metadata 等正式执行结构
+  - 新行为组合、计划级可执行节点、调度包装与非执行元数据包装统一从 `TriggerPlanExecutableDsl` 创建
+  - 与 `Executable/` / `Legacy/Executable/` 的旧 DSL、旧配置转换体系分离，后者仅作为兼容和迁移参考
 
 - 根目录兼容占位文件
-  - `ActionScheduler.cs`、`TriggerRunner.cs`、`PlannedTrigger.cs` 等根目录空文件仅用于保留旧路径和 `.meta` GUID
-  - 删除条件：确认包内外不再依赖对应根目录占位文件及其 `.meta` GUID 后，随兼容清理批次移除
+  - `ActionScheduler.cs`、`TriggerRunner.cs`、`PlannedTrigger.cs` 等根目录空占位文件已随兼容清理删除，正式实现均位于对应子目录
+  - 后续不再新增 Runtime 根目录 `.cs` 兼容占位入口；如确需保留旧路径，必须同步机器清单、说明文档和测试
 
 - `Example/`
   - 纯 C# 示例（无 Unity 场景依赖），用于快速理解 API 组合方式
@@ -227,6 +229,18 @@ sequenceDiagram
   - 先 `IPayloadDoubleAccessor<TArgs>`
   - 再 `IPayloadIntAccessor<TArgs>` 并转换为 double
 
+### 5.2 计划级可执行节点（Plan/Executables）
+当行为需要组合、分支、重复、反转、固定成功/失败、包装调度语义或携带非执行元数据时，推荐使用 `TriggerPlanExecutableDsl` 创建正式执行树节点：
+- 组合：`Sequence` / `Selector` / `Parallel` / `RandomSelector`
+- 控制：`If` / `Repeat` / `Until` / `Not`
+- 结果：`Success` / `NoOp` / `Failure` / `AlwaysFail`
+- 调度包装：`Scheduled` / `Timed` / `Periodic` / `Continuous` / `External`
+- 元数据包装：`Metadata` / `Tags` / `Modifiers` / `Stack` / `Hierarchy` / `Capability` / `Duration` / `ContinuousMetadata`
+
+`MetadataTriggerPlanExecutable` 只承接标签、修饰器、堆叠、层级、能力描述、持续时间描述和持续通道描述等非执行配置语义，并将执行委托给子节点；真正改变执行时序、数值或宿主状态的领域能力应继续通过正式 Action、Predicate、ActionScheduler 或后续独立节点实现。
+
+旧 `Runtime/Executable` 与 `Runtime/Legacy/Executable` 只保留兼容和旧配置转换用途；新功能不得再通过旧 `ExecutableDsl`、`DecoratorExtensions.With*`、`ScheduledExecutableBuilderExtensions` 或调度工厂注册表扩展。旧配置中的 schedule 会被兼容转换为固定旧包装类型，但新的导出链路应直接生成 `Plan/Executables` 节点。
+
 ---
 
 ## 6. 数值来源与表达式：NumericValueRef 与 RPN Numeric
@@ -272,6 +286,7 @@ sequenceDiagram
 - `Predicate.Kind = none/expr`
 - `expr` 里 nodes 对应 `BoolExprNode`
 - `Actions` 支持 arity=0/1/2 + `NumericValueRef`
+- `ExecutionRoot.Kind = Metadata/Tags/Modifiers/Stack/Hierarchy/Capability/Duration/Continuous` 可转换为 `MetadataTriggerPlanExecutable`，并通过 `Values` 携带字符串键值元数据
 
 说明（重构后）：
 - `NumericValueRefDto`（double）替代旧的 int DTO

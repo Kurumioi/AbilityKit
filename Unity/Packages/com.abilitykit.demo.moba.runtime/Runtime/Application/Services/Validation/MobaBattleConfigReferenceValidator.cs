@@ -146,6 +146,21 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".intervalMs", "buff interval is negative.", buff.Id.ToString());
                 }
 
+                if (buff.IntervalMs <= 0 && buff.OnIntervalEffects != null && buff.OnIntervalEffects.Count > 0)
+                {
+                    report.Warning(Source, path + ".intervalMs", "buff has interval effects but no positive interval configured.", buff.Id.ToString());
+                }
+
+                if (buff.IntervalMs > 0 && (buff.OnIntervalEffects == null || buff.OnIntervalEffects.Count == 0))
+                {
+                    report.Warning(Source, path + ".onIntervalEffects", "buff interval is configured but no interval effects are defined.", buff.Id.ToString());
+                }
+
+                if (buff.StackingPolicy == BuffStackingPolicy.IgnoreIfExists && buff.MaxStacks > 1)
+                {
+                    report.Warning(Source, path + ".stackingPolicy", "ignore-if-exists buff should not rely on multi-stack semantics.", buff.Id.ToString());
+                }
+
                 ValidateTriggerRefs(triggers, buff.OnAddEffects, report, path + ".onAddEffects", buff.Id);
                 ValidateTriggerRefs(triggers, buff.OnRemoveEffects, report, path + ".onRemoveEffects", buff.Id);
                 ValidateTriggerRefs(triggers, buff.OnIntervalEffects, report, path + ".onIntervalEffects", buff.Id);

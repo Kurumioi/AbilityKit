@@ -442,6 +442,21 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return string.IsNullOrEmpty(code) ? "buff.lifecycle.rejected" : code;
         }
 
+        private static string SanitizeMetricSuffix(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "unknown";
+
+            var chars = value.ToCharArray();
+            for (int i = 0; i < chars.Length; i++)
+            {
+                var c = chars[i];
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '-') continue;
+                chars[i] = '_';
+            }
+
+            return new string(chars);
+        }
+
         private void ReportRejected(string key, Func<string> messageFactory, int targetActorId, int buffId, int sourceActorId)
         {
             var diagnostics = _diagnostics;
@@ -449,6 +464,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             {
                 diagnostics.Warning(key, messageFactory);
                 diagnostics.Counter("moba.buff.command.rejected");
+                diagnostics.Counter("moba.buff.command.rejected." + SanitizeMetricSuffix(key));
+                if (buffId > 0) diagnostics.Counter("moba.buff.command.rejected.buff." + buffId);
+                if (sourceActorId > 0) diagnostics.Counter("moba.buff.command.rejected.source." + sourceActorId);
                 return;
             }
 

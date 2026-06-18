@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
     [WorldSystem(order: MobaSystemOrder.OngoingTriggerPlansReconcile, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaOngoingTriggerPlansReconcileSystem : WorldSystemBase
     {
-        private MobaTriggerPlanSubscriptionService _plans;
+        private MobaTriggerExecutionGateway _triggers;
         private global::Entitas.IGroup<global::ActorEntity> _group;
 
         private readonly Dictionary<long, int> _hashByOwnerKey = new Dictionary<long, int>();
@@ -25,13 +25,13 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
 
         protected override void OnInit()
         {
-            Services.TryResolve(out _plans);
+            Services.TryResolve(out _triggers);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.OngoingTriggerPlans));
         }
 
         protected override void OnExecute()
         {
-            if (_plans == null) return;
+            if (_triggers == null) return;
 
             _desiredKeys.Clear();
 
@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
 
                         if (triggerIds == null || triggerIds.Length == 0)
                         {
-                            _plans.Stop(ownerKey);
+                            _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.empty");
                             _hashByOwnerKey.Remove(ownerKey);
                             continue;
                         }
@@ -68,20 +68,20 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
                         var hash = ComputeHash(triggerIds);
                         if (!_hashByOwnerKey.TryGetValue(ownerKey, out var oldHash) || oldHash != hash)
                         {
-                            _plans.ApplyTriggers(triggerIds, ownerKey);
+                            _triggers.ApplyOwnerBoundTriggers(triggerIds, ownerKey, "ongoing.reconcile.apply");
                             _hashByOwnerKey[ownerKey] = hash;
                         }
                     }
                 }
             }
 
-            _plans.CopyActiveOwnerKeys(_tmpKeys);
+            _triggers.CopyActiveOwnerKeys(_tmpKeys);
             for (int i = 0; i < _tmpKeys.Count; i++)
             {
                 var ownerKey = _tmpKeys[i];
                 if (_desiredKeys.Contains(ownerKey)) continue;
 
-                _plans.Stop(ownerKey);
+                _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.stale");
                 _hashByOwnerKey.Remove(ownerKey);
             }
         }

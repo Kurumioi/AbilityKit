@@ -1,27 +1,17 @@
-﻿using System;
-using System.IO;
-using System.Text.Json;
-using AbilityKit.Orleans.Grains.Battle;
+﻿using AbilityKit.Orleans.Grains.Battle;
+using AbilityKit.Orleans.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Orleans.Configuration;
-using Orleans.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddAbilityKitServerOptions(builder.Configuration);
+builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Orleans.Host");
 
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>()));
 
-builder.UseOrleans(silo =>
-{
-    silo.UseLocalhostClustering();
-    silo.Configure<ClusterOptions>(options =>
-    { 
-        options.ClusterId = "abilitykit-dev";
-        options.ServiceId = "abilitykit-orleans";
-    });
-});
+builder.UseAbilityKitLocalOrleansSilo();
 
 var host = builder.Build();
 await host.RunAsync();

@@ -67,6 +67,9 @@ namespace AbilityKit.Triggering.Validation
                 case FailTriggerPlanExecutable fail:
                     ValidateNode(fail.Child, $"{path}.child", ref result, requireNode: false);
                     break;
+                case MetadataTriggerPlanExecutable metadata:
+                    ValidateNode(metadata.Child, $"{path}.child", ref result, requireNode: true);
+                    break;
             }
         }
 

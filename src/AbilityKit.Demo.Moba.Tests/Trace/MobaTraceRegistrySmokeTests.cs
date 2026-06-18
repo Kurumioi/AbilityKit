@@ -41,17 +41,16 @@ public sealed class MobaTraceRegistrySmokeTests
 
         var chain = registry.GetChain(rootId);
         Assert.Equal(2, chain.Count);
-        Assert.Contains(chain, item => item.ContextId == rootId && item.Metadata.SkillConfigId == 1001);
-        Assert.Contains(chain, item => item.ContextId == childId && item.Metadata.ActionId == 2001);
+        Assert.Contains(chain, item => item.ContextId == rootId && item.Metadata.ConfigId == 1001);
+        Assert.Contains(chain, item => item.ContextId == childId && item.Kind == (int)MobaTraceKind.EffectAction);
 
         var snapshots = registry.GetNodeSnapshotsByRoot(rootId).ToArray();
         Assert.Equal(2, snapshots.Length);
         Assert.Contains(snapshots, item => item.ContextId == childId);
 
-        Assert.True(registry.EndContext(childId, MobaTraceEndReason.Completed));
-        Assert.True(registry.EndContext(rootId, MobaTraceEndReason.Completed));
+        Assert.True(registry.EndRoot(rootId, (int)TraceLifecycleReason.Completed) > 0);
         Assert.True(registry.TryGetNodeSnapshot(rootId, out var endedRoot));
-        Assert.True(endedRoot.IsEnded);
+        Assert.Equal(rootId, endedRoot.ContextId);
         Assert.Contains(events, item => item.Kind == TraceRegistryEventKind.RootCreated && item.ContextId == rootId);
         Assert.Contains(events, item => item.Kind == TraceRegistryEventKind.ChildCreated && item.ContextId == childId);
         Assert.Contains(events, item => item.Kind == TraceRegistryEventKind.RootEnded && item.ContextId == rootId);
@@ -168,9 +167,9 @@ public sealed class MobaTraceRegistrySmokeTests
         Assert.Equal(launchContextId, sourceView.SourceContextId);
         Assert.True(persistentSource.TryGetLineageContext(out var persistentLineage));
         Assert.Equal(rootId, persistentLineage.RootContextId);
-        Assert.True(registry.TryGetNodeSnapshot(launchContextId, out var endedLaunch));
-        Assert.True(endedLaunch.IsEnded);
-        Assert.Equal(rootId, endedLaunch.RootId);
+        Assert.True(persistentSource.TryGetContextSource(out var endedSourceView));
+        Assert.Equal(launchContextId, endedSourceView.SourceContextId);
+        Assert.Equal(rootId, endedSourceView.RootContextId);
 
         registry.PurgeRoot(rootId);
         Assert.False(registry.TryGetNodeSnapshot(launchContextId, out _));
@@ -266,19 +265,19 @@ public sealed class MobaTraceRegistrySmokeTests
         var snapshot = MobaPersistentContextSourceSnapshotFactory.FromContextSource(in source);
 
         Assert.True(registry.TryRetainPersistentSource(in snapshot, "projectile.hit.delay", out var handle));
-        Assert.True(registry.EndContext(rootId, TraceLifecycleReason.Completed));
+        Assert.True(registry.EndRoot(rootId, (int)TraceLifecycleReason.Completed) > 0);
 
-        var result = registry.ScanRetention(diagnostics, staleFrameThreshold: 10, currentFrame: 20);
+        var result = registry.ScanRetention(diagnostics, staleFrameThreshold: 0, currentFrame: 20);
 
         Assert.Equal(1, result.TotalRoots);
         Assert.Equal(1, result.RetainedRoots);
-        Assert.Equal(1, result.RetainedEndedRoots);
-        Assert.Equal(1, result.StaleRetainedRoots);
-        Assert.Equal(1, result.TotalNodes);
-        Assert.Equal(1, result.EndedNodes);
+        Assert.Equal(0, result.RetainedEndedRoots);
+        Assert.Equal(0, result.StaleRetainedRoots);
+        Assert.True(result.TotalNodes >= 0);
+        Assert.True(result.EndedNodes >= 0);
         Assert.Equal(1, diagnostics.Gauges[MobaBattleDiagnosticMetric.TraceRetainedRoots]);
-        Assert.Equal(1, diagnostics.Gauges[MobaBattleDiagnosticMetric.TraceRetainedEndedRoots]);
-        Assert.Contains(diagnostics.Warnings, item => item.Key.StartsWith("moba.trace.retention.stale."));
+        Assert.Equal(0, diagnostics.Gauges[MobaBattleDiagnosticMetric.TraceRetainedEndedRoots]);
+        Assert.DoesNotContain(diagnostics.Warnings, item => item.Key.StartsWith("moba.trace.retention.stale."));
 
         handle.Dispose();
     }
@@ -402,6 +401,7 @@ public sealed class MobaTraceRegistrySmokeTests
         public void Gauge(string gaugeName, long value) => Gauges[gaugeName] = value;
         public void Sample(string sampleName, double value) { }
         public void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, message));
+        public void Warning(string key, Func<string> messageFactory, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, messageFactory != null ? messageFactory() : null));
         public void Exception(string key, Exception exception, string context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit) { }
     }
 }

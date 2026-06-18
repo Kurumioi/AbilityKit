@@ -1,22 +1,29 @@
 using AbilityKit.Orleans.Gateway.HttpApi;
-using Orleans.Configuration;
-using Orleans.Hosting;
+using AbilityKit.Orleans.Hosting;
 using GatewayAbstractions = AbilityKit.Orleans.Gateway.Abstractions;
 using GatewayHandlers = AbilityKit.Orleans.Gateway.Handlers;
 using GatewayCore = AbilityKit.Orleans.Gateway.Core;
 using GatewayNetworking = AbilityKit.Orleans.Gateway.Networking;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddAbilityKitServerOptions(builder.Configuration);
+builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Orleans.Gateway");
 
 // Gateway 配置
-builder.Services.Configure<GatewayCore.GatewayOptions>(options =>
-{
-    options.RequestTimeoutMs = 30000;
-    options.MaxFrameLength = 1024 * 1024;
-});
+builder.Services.AddOptions<GatewayCore.GatewayOptions>()
+    .Bind(builder.Configuration.GetSection("TcpGateway"))
+    .Validate(options => options.RequestTimeoutMs > 0, "Gateway request timeout must be greater than zero.")
+    .Validate(options => options.MaxFrameLength > 0, "Gateway max frame length must be greater than zero.")
+    .ValidateOnStart();
 
 // TCP 传输层配置
-builder.Services.Configure<GatewayNetworking.TcpTransportOptions>(builder.Configuration.GetSection("TcpGateway"));
+builder.Services.AddOptions<GatewayNetworking.TcpTransportOptions>()
+    .Bind(builder.Configuration.GetSection("TcpGateway"))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "TCP gateway host is required.")
+    .Validate(options => options.Port is > 0 and <= 65535, "TCP gateway port must be between 1 and 65535.")
+    .Validate(options => options.MaxFrameLength > 0, "TCP gateway max frame length must be greater than zero.")
+    .Validate(options => options.RequestTimeoutMs > 0, "TCP gateway request timeout must be greater than zero.")
+    .ValidateOnStart();
 
 // 注册核心组件
 builder.Services.AddSingleton<GatewayCore.GatewaySessionRegistry>();
@@ -63,15 +70,7 @@ builder.Services.AddSingleton<GatewayCore.GatewayPushTargetGrain>();
 builder.Services.AddSingleton<AbilityKit.Orleans.Contracts.Battle.IGatewayPushTargetGrain>(sp => sp.GetRequiredService<GatewayCore.GatewayPushTargetGrain>());
 
 // Orleans 客户端
-builder.Host.UseOrleansClient(client =>
-{
-    client.UseLocalhostClustering();
-    client.Configure<ClusterOptions>(options =>
-    {
-        options.ClusterId = "abilitykit-dev";
-        options.ServiceId = "abilitykit-orleans";
-    });
-});
+builder.Host.UseAbilityKitLocalOrleansClient(builder.Configuration);
 
 var app = builder.Build();
 

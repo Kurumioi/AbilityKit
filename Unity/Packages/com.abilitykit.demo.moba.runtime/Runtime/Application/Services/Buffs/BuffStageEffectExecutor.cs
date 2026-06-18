@@ -3,11 +3,11 @@ using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Trace;
 
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
+using AbilityKit.Demo.Moba.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs {
     /// <summary>
@@ -15,11 +15,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
     /// </summary>
     internal sealed class BuffStageEffectExecutor
     {
-        private readonly MobaEffectExecutionService _effects;
+        private readonly MobaTriggerExecutionGateway _triggers;
 
-        public BuffStageEffectExecutor(MobaEffectExecutionService effects)
+        public BuffStageEffectExecutor(MobaTriggerExecutionGateway triggers)
         {
-            _effects = effects;
+            _triggers = triggers;
         }
 
         /// <summary>
@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         /// </summary>
         public void Execute(IReadOnlyList<int> triggerIds, int buffId, int sourceActorId, int targetActorId, long sourceContextId, string stage, BuffRuntime runtime, TraceLifecycleReason removeReason = TraceLifecycleReason.None, float durationSeconds = 0f)
         {
-            if (_effects == null) return;
+            if (_triggers == null) return;
             if (triggerIds == null || triggerIds.Count == 0) return;
 
             var persistentSource = CapturePersistentSource(buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime);
@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0) continue;
 
-                _effects.ExecuteTriggerId(triggerId, CreatePayload(triggerId, buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime, in persistentSource, removeReason, durationSeconds));
+                _triggers.ExecuteDirectTrigger(triggerId, CreatePayload(triggerId, buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime, in persistentSource, removeReason, durationSeconds), "buff.stage." + stage);
             }
         }
 

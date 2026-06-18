@@ -6,20 +6,20 @@
 
 ## P0 落地项
 
-### 1. 主线入口冻结
+### 1. 主线入口冻结（已落地）
 - 保持 `TriggerPlan`、`PlannedTrigger`、`ExecCtx`、`ActionRegistry`、`FunctionRegistry`、`TriggerRunner`、`RuleScheduler`、`Validation` 为正式入口。
 - 新增功能不得再扩散到 `Runtime/Legacy`、`Runtime/Scheduler`、`Runtime/Experimental`。
-- `Runtime` 根目录兼容文件只保留迁移期引用，不再作为新代码落点。
+- `Runtime` 根目录 `.cs` 兼容占位文件已清理完成，后续不再作为新代码落点或旧路径保留区。
 
-### 2. 调度体系收口
+### 2. 调度体系收口（已落地第一轮）
 - 新动作延迟/周期执行统一走 `ActionScheduler`。
 - 规则级持续执行统一走 `RuleScheduler`。
 - 旧 `Scheduler` 和 `SchedulerRegistry` 仅保留迁移兼容。
-- 所有文档、示例、测试统一指向主线调度方案。
+- 包内文档、示例、测试已指向主线调度方案；外部调用方后续按迁移策略继续收口。
 
-### 3. Formal API 边界固化
-- 将 [`Document/FormalApiBoundary.md`](Document/FormalApiBoundary.md) 作为正式边界说明。
-- 为每个 legacy 目录补充替代方案与删除条件。
+### 3. Formal API 边界固化（已落地）
+- 将 [`Document/FormalApiBoundary.md`](FormalApiBoundary.md) 作为正式边界说明。
+- 通过 [`Document/LegacyMigrationPolicy.md`](LegacyMigrationPolicy.md) 统一 legacy 目录的替代方案、删除条件和延后决策。
 - 对含义模糊的同名旧入口，补充“正式类型优先”的说明。
 
 ### 4. 验收基线建立
@@ -42,17 +42,16 @@
 - 补充兼容场景：legacy 数据与正式路径并存时的行为一致性。
 - 补充确定性场景：随机数、时间、执行顺序、回放结果。
 
-### 7. 文档与接入体验
-- 把设计文档拆成“快速上手、正式 API、迁移指南、常见问题”四块。
-- 增加调度选择表，明确 `ActionScheduler` 与 `RuleScheduler` 的使用边界。
-- 增加“不要把业务词汇写进 Runtime 核心层”的规范说明。
-- 增加 sample 到生产接入的映射说明。
+### 7. 文档与接入体验（已完成主线入口与迁移边界整理）
+- `Documentation~/README.md` 已提供快速接入、正式 API、Legacy / Experimental 边界和验证建议。
+- `Document/FormalApiBoundary.md` 已提供正式 API、兼容 API 和调度选择表。
+- `Document/LegacyMigrationPolicy.md` 已提供 legacy 迁移指南、删除条件和延后决策。
+- 仍可在后续产品化阶段补充常见问题、性能约束和 sample 到生产接入模板。
 
 ## 推荐推进顺序
-1. 冻结主线入口与调度边界。
-2. 固化 Formal API 边界与验收基线。
-3. 补编辑器工具和测试矩阵。
-4. 最后做文档重组与样板完善。
+1. 主线入口、调度边界、Formal API 边界和 legacy 迁移策略已完成第一轮固化。
+2. 后续优先补编辑器工具、性能/确定性验收基线和更完整测试矩阵。
+3. 最后做 FAQ、样板工程、生产接入模板和 major 兼容清理批次。
 
 ## 交付标准
 - 新功能默认只进入正式主线目录。

@@ -276,51 +276,25 @@ namespace AbilityKit.Triggering.Runtime.Executable
     }
 
     // ========================================================================
-    // 示例：如何创建自定义调度行为工厂
+    // 示例：正式调度执行节点
     // ========================================================================
 
     /// <summary>
-    /// 示例：自定义调度行为工厂
+    /// 示例：新代码统一通过 Plan/Executables 创建调度执行节点，
+    /// 不再通过 Runtime/Executable 工厂注册表扩展调度入口。
     /// </summary>
-    [ScheduledExecutableFactory("conditional", priority: 10)]
-    public class ConditionalScheduledFactory : IScheduledExecutableFactory
+    public static class FormalScheduledExecutableExamples
     {
-        public string Name => "conditional";
-        public int Priority => 10;
-
-        public IScheduledExecutable Create(ScheduleFactoryConfig config, ActionRegistry actions, object context)
+        public static ScheduledTriggerPlanExecutable CreatePeriodicNode(ActionId actionId)
         {
-            // 返回条件调度行为
-            return new ConditionalScheduledExecutable
-            {
-                DurationMs = config.DurationMs
-            };
+            var action = TriggerPlanExecutableDsl.Action(actionId.Immediate());
+            return TriggerPlanExecutableDsl.Periodic(action, 1000f, maxExecutions: 5);
         }
-    }
 
-    /// <summary>
-    /// 条件满足时执行的行为
-    /// </summary>
-    public sealed class ConditionalScheduledExecutable : IScheduledExecutable, IHasInner
-    {
-        public string Name => "Conditional";
-        public ExecutableMetadata Metadata => new(2000, "Conditional", isScheduled: true);
-        public Config.EScheduleMode ScheduleMode => Config.EScheduleMode.Conditional;
-        public bool IsPeriodic => false;
-        public float PeriodMs => 0;
-        public float DurationMs { get; set; } = -1;
-
-        public ICondition Condition { get; set; }
-        public ISimpleExecutable Inner { get; set; }
-        public bool CanBeInterrupted { get; set; } = true;
-
-        public ExecutionResult Execute(object ctx)
+        public static ScheduledTriggerPlanExecutable CreateExternalNode(ActionId actionId)
         {
-            if (Condition?.Evaluate(ctx).Passed == true)
-            {
-                Inner?.Execute(ctx);
-            }
-            return ExecutionResult.Success();
+            var action = TriggerPlanExecutableDsl.Action(actionId.Immediate());
+            return TriggerPlanExecutableDsl.External(action);
         }
     }
 }

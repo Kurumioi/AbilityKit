@@ -11,6 +11,7 @@ using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Trajectory;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Eventing;
@@ -26,7 +27,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         private MobaProjectileLinkService _links;
         private MobaActorRegistry _registry;
         private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
-        private MobaEffectExecutionService _effects;
+        private MobaTriggerExecutionGateway _triggers;
         private ActorIdAllocator _actorIds;
         private MobaEntityManager _entities;
         private MobaActorSpawnSnapshotService _spawnSnapshots;
@@ -51,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         internal MobaProjectileLinkService Links => _links;
         internal MobaActorRegistry Registry => _registry;
         internal AbilityKit.Triggering.Eventing.IEventBus EventBus => _eventBus;
-        internal MobaEffectExecutionService Effects => _effects;
+        internal MobaTriggerExecutionGateway Triggers => _triggers;
         internal ActorIdAllocator ActorIds => _actorIds;
         internal MobaEntityManager Entities => _entities;
         internal MobaActorSpawnSnapshotService SpawnSnapshots => _spawnSnapshots;
@@ -72,7 +73,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             Services.TryResolve(out _links);
             Services.TryResolve(out _registry);
             Services.TryResolve(out _eventBus);
-            Services.TryResolve(out _effects);
+            Services.TryResolve(out _triggers);
             Services.TryResolve(out _actorIds);
             Services.TryResolve(out _entities);
             Services.TryResolve(out _spawnSnapshots);

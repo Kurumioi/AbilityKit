@@ -14,26 +14,28 @@
 - [`Runtime/Registry`](../Unity/Packages/com.abilitykit.triggering/Runtime/Registry)：Predicate 与 Action 委托注册表。
 - [`Runtime/Variables/Numeric`](../Unity/Packages/com.abilitykit.triggering/Runtime/Variables/Numeric)：数值变量域与表达式求值。
 
-正式化推进应优先保证这些主线目录的 API、注释、异常处理与运行语义稳定。
+正式化推进应优先保证这些主线目录的 API、注释、异常处理与运行语义稳定；legacy、compatibility、experimental 入口的迁移、保留和下线规则统一以 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md) 为准。
 
 ## 2. 明确冗余与非主线实现
 
-### 2.1 根目录兼容文件过多
+### 2.1 根目录兼容文件已清理
 
-[`Runtime`](../Unity/Packages/com.abilitykit.triggering/Runtime) 根目录仍保留多个兼容入口文件，全部以 `Deprecated root-level compatibility file` 或类似兼容说明标记。
+[`Runtime`](../Unity/Packages/com.abilitykit.triggering/Runtime) 根目录不再保留 `.cs` 兼容占位入口，正式实现均位于对应子目录；[`Runtime/Compatibility`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility) 机器清单当前为空，用于防止占位入口回流。
 
-问题：
+已解决的问题：
 
-1. 根目录同时存在稳定目录与兼容文件，容易误导新代码继续引用旧入口。
-2. [`TriggerDispatcherHub_new.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggerDispatcherHub_new.cs) 命名带 `_new`，即使已废弃也会造成目录观感不正式。
-3. 这些兼容文件仍参与编译，未来删除或迁移需要明确版本策略。
+1. 根目录不再与稳定目录并列提供兼容 `.cs` 占位文件，减少新代码误引用旧入口的风险。
+2. 无类型空占位入口已删除，已废弃路径不再被误认为可用 API。
+3. 兼容清单、文档和测试改为防回流约束，新根目录 `.cs` 文件会被扫描测试识别为缺失登记。
 
-建议：
+结果：
 
-- 已完成：[`Runtime/Compatibility.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility.md) 已建立根目录兼容入口清单、替代路径和删除条件。
-- 短期：保留兼容文件，不在根目录兼容入口中新增功能。
-- 中期：如需进一步收口，可建立 `Runtime/Compatibility` 目录承载兼容入口。
-- 长期：在一次 major 版本中移除根目录兼容文件。
+- 已完成：[`Runtime/Compatibility.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility.md) 已改为根目录兼容入口清理记录，保留已删除入口和正式替代路径。
+- 已完成：[`Runtime/Compatibility/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility/README.md) 已明确机器清单当前为空，并作为防止 Runtime 根目录 `.cs` 占位入口回流的边界。
+- 已完成：[`RootRuntimeCompatibilityCatalog.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility/RootRuntimeCompatibilityCatalog.cs) 当前无登记项；[`RuntimeCompatibilityCatalogTests.cs`](../Unity/Packages/com.abilitykit.triggering/Tests/Editor/RuntimeCompatibilityCatalogTests.cs) 校验空清单、人类文档和未知根目录 `.cs` 文件告警。
+- 已完成：根目录无类型空占位 `ActionContext.cs`、`ActionExecutor.cs`、`ActionInstance.cs`、`ActionScheduler.cs`、`ContextAdapter.cs`、`EventBusDispatcher.cs`、`ExecCtxAdapter.cs`、`ITriggerDispatcher.cs`、`NumericValueRefContextExtensions.cs`、`PlannedTrigger.cs`、`TimedDispatcher.cs`、`TriggerDispatcherHub.cs`、`TriggerExecutor.cs`、`TriggerRunner.cs` 已删除，并从工程文件中移除。
+- 已完成：legacy / compatibility / experimental 的统一入口分级、迁移优先级和删除条件已沉淀到 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)。
+- 后续：不在 Runtime 根目录新增 `.cs` 兼容占位入口；如确需兼容旧路径，必须同步机器清单、文档和相关测试。
 
 ### 2.2 `Legacy/TriggerScheduler` 是非主线兼容路径
 
@@ -57,7 +59,7 @@
 重叠点：
 
 - `Runtime/Executable` 有 `IExecutable`、组合节点、修饰器、调度包装器与注册表。
-- `Runtime/Legacy/Executable` 有旧 `ExecutableDsl`、旧配置转换器、旧调度工厂注册表与模块入口。
+- `Runtime/Legacy/Executable` 有旧 `ExecutableDsl`、旧配置转换器与模块入口；旧调度工厂注册表已删除。
 - `Plan/Executables` 有 `ITriggerPlanExecutable`、Sequence/Selector/Parallel/Repeat/Until 等计划执行节点。
 - 二者都表达“可组合执行逻辑”，但数据结构、返回结果、调度接入方式并未统一。
 
@@ -74,7 +76,9 @@
 - 已完成：[`TriggerPlanExecutableDsl.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables/TriggerPlanExecutableDsl.cs) 已补齐常量参数 Action、命名参数 Action、组合节点 guard/weight 构造、RandomSelector、Success/NoOp、AlwaysSuccess/Failure/AlwaysFail/Not 与条件表达式桥接入口，承接旧 DSL 常见构造方式、组合节点守卫和反转装饰器最小入口。
 - 已完成：[`ExecutableRegistry.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable/ExecutableRegistry.cs) 已将旧内建 Executable/Condition 改为显式注册，默认构造路径不再运行时扫描程序集；Attribute 扫描仅保留为兼容扩展的按需入口。
 - 短期：继续标记为非主线能力，并在设计文档中明确推荐主线是 `Plan/Executables`。
-- 中期：把 `Runtime/Executable` 中剩余 Decorator、ScheduledExecutable 等成熟概念逐个迁移到 `Plan/Executables`，并继续观察外部扩展是否仍依赖旧 Registry Attribute 扫描。
+- 已完成：`Runtime/Executable` 中 `DOT` / `HOT` / `Buff` / `Aura` 等调度包装，以及 `DecoratorExtensions.WithDuration` / `WithTags` / `WithModifiers` / `WithStack` / `WithHierarchy` / `WithContinuous` / `WithCapability` 等链式 Decorator 入口已先降级为兼容桥接。
+- 已完成：[`MetadataTriggerPlanExecutable.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables/MetadataTriggerPlanExecutable.cs) 与 `TriggerPlanExecutableDsl.Metadata/Tags/Modifiers/Stack/Hierarchy/Capability/Duration/ContinuousMetadata` 已为旧 Decorator 常用标签、修饰器、堆叠、层级、能力、持续时间和持续通道描述提供主线元数据节点；JSON `ExecutionRoot` 也支持 `Metadata` 及其常用别名。
+- 中期：如产品需要更强执行语义，再将具体 Decorator 行为以正式节点或领域扩展迁入 `Plan/Executables`，并继续观察外部扩展是否仍依赖旧 Registry Attribute 扫描。
 - 长期：若保留 `Runtime/Executable` / `Legacy/Executable`，应只作为兼容/实验入口，避免与主线混淆。
 
 ### 2.4 `Scheduler`、`Schedule`、`ActionScheduler` 三套调度概念并存
@@ -90,10 +94,13 @@
 - [`Runtime/TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md) 已描述三者边界。
 - [`Runtime/Legacy/Schedule/DefaultScheduleManager.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Schedule/DefaultScheduleManager.cs) 的过时提示已指向真实存在的 `SimpleScheduleManager` / `GroupedScheduleManager`。
 - [`Runtime/Scheduler/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler/README.md) 已增加目录级兼容说明。
+- [`Runtime/Scheduler/SchedulerMigration.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler/SchedulerMigration.cs) 已提供旧 `SchedulerConfig` 到正式 `RuleSchedulePlan` 的迁移映射，并按语义推荐 `Runtime.ActionScheduler` / `Runtime.RuleScheduler` / `Runtime.Schedule`。
+- [`Samples`](../Unity/Packages/com.abilitykit.triggering/Samples) 中直接演示旧 `SchedulerRegistry` 的调度样例已迁到 `RuleSchedulerRegistry`；旧 `SchedulerConfig` 只作为兼容数据字段出现，并通过 `SchedulerMigration` 转换后执行。
 
 剩余建议：
 
-- 中期：将 `Scheduler` 的实际调用方迁移、合并或废弃。
+- 已完成：旧调度入口的迁移优先级和删除条件已纳入 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)。
+- 中期：通过 `SchedulerMigration` 将外部旧 `Scheduler` 实际调用方迁移到 `RuleScheduler`、`Schedule` 或 `ActionScheduler`，再决定合并或废弃。
 - 长期：统一调度命名，建议仅保留：
   - `ActionScheduler`：计划 Action 调度。
   - `Schedule`：通用句柄式调度。
@@ -122,26 +129,23 @@
 ### 3.1 已完成的 P0/P1 风险项
 
 - [`Runtime/Legacy/TriggerScheduler/TriggerExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/TriggerScheduler/TriggerExecutor.cs)：条件计划显式失败，不再伪装成功。
-- [`Runtime/ActionScheduler/ActionDelegateAdapter.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionDelegateAdapter.cs)：已从有效主线代码面移除，正式调度路径由 `PlannedTrigger.CreateActionDelegate` 复用立即执行解析。
+- `Runtime/ActionScheduler/ActionDelegateAdapter.cs`：空占位文件已随首批兼容清理删除，正式调度路径由 `PlannedTrigger.CreateActionDelegate` 复用立即执行解析。
 - [`Runtime/Variables/Numeric/NumericValueRefContextExtensions.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Variables/Numeric/NumericValueRefContextExtensions.cs)：表达式型 `NumericValueRef` 已集成表达式编译器和正式求值路径。
 - [`Runtime/Context/ExecCtxAdapter.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Context/ExecCtxAdapter.cs)：实体查找器占位实现已从自动适配中移除，目标查找交由正式谓词/Attribute 扩展或 targeting 包处理。
 - [`Runtime/Plan/TriggerPlan.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/TriggerPlan.cs)：`arity > 2` 的具名参数 Action 不再静默截断，转换阶段显式失败。
 
-### 3.2 仍待处理的结构收敛项
+### 3.2 已收敛第一轮、剩余延后决策项
 
-- [`Runtime/ActionScheduler/ActionExecutor.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionExecutor.cs)：执行器层延迟重试已具备跨帧等待语义，`retryDelayMs > 0` 不再直接失败；Queued 策略已公开真实运行状态供实例策略判断。
-- [`Runtime/Plan/TriggerPlan.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/TriggerPlan.cs)：计划级 retry 次数与延迟参数已进入 `ActionCallPlan`，`WithRetry` 会设置 `ExecutionPolicy=WithRetry` 并保留调度/重试参数。
-- [`Runtime/Plan/Json`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Json)：JSON Action DTO 已支持 `ExecutionPolicy`、`RetryMaxRetries`、`RetryDelayMs`，缺省重试次数保持 3，显式 `RetryMaxRetries=0` 表示不重试。
-- [`Runtime/ActionScheduler/ActionScheduler.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionScheduler.cs)：已维护调度累计时间 `ElapsedMs`，注册 Action 时可写入真实创建时间。
-- [`Runtime/ActionScheduler/ActionInstance.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler/ActionInstance.cs)：Queued 策略已改为读取 `QueuedActionExecutor.IsQueued`，不再用优先级误判是否已入队；`CreatedAtMs` 已由调度器传入，不再固定为 `0`；等待队列/同步/延迟重试等未实际执行帧不会提前终结实例；Timeline 与 Rollback 若要从显式不支持升级为完整能力，需要独立设计。
-- [`Runtime/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable)：旧调度和剩余装饰器仍需逐项评估迁移到 `Plan/Executables`；`ExecutableRegistry` 默认运行时扫描已改为内建显式注册 + 兼容扩展按需扫描；Action、组合节点 guard/weight 构造、RandomSelector、结果别名、比较条件别名与 `Not` 反转装饰入口已先收敛到主线 DSL。
-- [`Runtime/Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable)：旧 DSL、旧配置转换器和旧调度工厂注册表仅保留兼容用途。
-- 根目录兼容文件：兼容清单与删除条件已记录，后续只剩实际迁移或 major 版本删除。
+- [`Runtime/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable)：旧 Decorator 链式入口已降级为兼容桥接，常用元数据、持续时间与持续通道描述语义已通过 `MetadataTriggerPlanExecutable` 迁入 `Plan/Executables`；剩余只在产品需要实际状态变更时评估更强执行语义是否独立迁入主线节点。
+- [`Runtime/Legacy/Executable`](../Unity/Packages/com.abilitykit.triggering/Runtime/Legacy/Executable)：旧 DSL 与旧配置转换器仅保留兼容用途，不再新增调度工厂或新执行扩展入口；替代路径和删除条件已统一记录到 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)。
+- 根目录兼容文件：Runtime 根目录 `.cs` 空占位入口已清理完成，兼容机器清单当前为空；人类可读清理记录、目录 README 和测试已改为防止占位入口回流的约束。
+- [`Runtime/ActionScheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/ActionScheduler)：retry、跨帧延迟重试、运行时计时、Timeline 显式拒绝与 Rollback 前置拒绝已完成；剩余只有在产品需要完整 Timeline/Rollback 时再作为独立能力设计。
+- [`Runtime/Scheduler`](../Unity/Packages/com.abilitykit.triggering/Runtime/Scheduler)：旧配置到正式调度语义的 `SchedulerMigration` 已完成，包内 Samples 直接旧入口已迁到 `RuleSchedulerRegistry`，迁移/删除策略已纳入 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)；剩余只剩外部调用方迁移、目录合并或 major 废弃。
 
 ### 3.3 文档、示例与目录观感问题
 
-- [`Runtime/Experimental/Todo/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Experimental/Todo/README.md) 和 [`Runtime/Experimental/Todo/Executable/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Experimental/Todo/Executable/README.md) 已中文化；后续重点是保持迁移状态同步。
-- [`Runtime/TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md) 已补充 `ActionScheduler`、`Schedule`、`Scheduler`、`Dispatcher` 和 `Plan/Executables` 边界；后续随代码收敛继续维护。
+- [`Runtime/Experimental/Todo/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Experimental/Todo/README.md) 和 [`Runtime/Experimental/Todo/Executable/README.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Experimental/Todo/Executable/README.md) 已中文化并同步第一轮迁移状态；后续重点是随外部调用方迁移继续维护。
+- [`Runtime/TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md) 已补充 `ActionScheduler`、`Schedule`、`Scheduler`、`Dispatcher` 和 `Plan/Executables` 边界；[`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md) 已补齐统一 legacy 迁移与弃用策略。
 - [`ExecutableExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Documentation~/LegacyExecutable/ExecutableExamples.cs) 和 [`RefactoredExamples.cs`](../Unity/Packages/com.abilitykit.triggering/Documentation~/LegacyExecutable/RefactoredExamples.cs) 已迁出 Runtime 默认编译路径，保留为 LegacyExecutable 文档参考。
 
 ## 4. 目录规划建议
@@ -163,7 +167,7 @@ Runtime/
   Schedule/                  # 通用句柄式调度
   Legacy/                    # 旧执行体系与旧调度兼容入口
   Experimental/Todo/         # 非主线能力迁移区
-  Compatibility/             # 未来承载根目录兼容入口
+  Compatibility/             # 根目录兼容入口空清单与防回流规则
 ```
 
 ### 4.2 建议降级或迁移目录
@@ -172,19 +176,20 @@ Runtime/
 - `Runtime/Scheduler`：已补充 legacy 说明，后续合并进 `Schedule` 或废弃。
 - `Runtime/Executable`：保持非主线行为系统，成熟节点逐步迁入 `Plan/Executables`。
 - `Runtime/Legacy/Executable`：保持旧 DSL/转换器兼容入口，不新增主线能力。
-- 根目录兼容文件：建议建立 `Compatibility` 迁移计划。
+- 根目录兼容文件：Runtime 根目录 `.cs` 空占位入口已清理完成，`Compatibility` 目录保留空机器清单和防回流规则。
 
 ## 5. 推荐下一轮低风险整理
 
 按收益与风险排序，建议下一轮执行：
 
-1. 继续评估 `Runtime/Executable` 中剩余 Decorator、ScheduledExecutable 迁入 `Plan/Executables` 的最小切入点；Registry 默认扫描已先完成显式注册收敛，`Not` 反转装饰入口已先完成主线 DSL 收敛。
-2. 如需进一步收口根目录兼容入口，迁入 `Runtime/Compatibility` 目录或在 major 版本删除。
-3. 计划级 retry 参数已完成，后续按产品需求评估 Timeline、Rollback 等完整能力。
+1. 外部旧 `Runtime/Scheduler` 调用方迁移：包内 Samples 已清理，下一轮只处理包外或项目侧真实调用方。
+2. 产品化文档补齐：发布说明、升级风险、FAQ、性能/确定性约束和 sample 到生产接入模板。
+3. 如产品需要更强领域执行语义，再继续评估 `Runtime/Executable` 中具体 Decorator 行为迁入 `Plan/Executables`；当前常用元数据、持续时间与持续通道描述语义已完成主线承接。
+4. Timeline、Rollback 已显式拒绝，后续按产品需求评估是否升级为完整独立能力。
 
 ## 6. 推荐中期重构路线
 
-1. 调度收敛：明确 `ActionScheduler` 与 `Schedule` 的边界，废弃或合并 `Scheduler`。
-2. 行为树收敛：将 `Runtime/Executable` 的成熟概念迁移到 `Plan/Executables`，避免双体系长期并行；`Legacy/Executable` 保持旧 DSL/转换器兼容。
-3. 兼容入口收敛：根目录兼容文件统一中文注释，增加删除版本条件，后续迁入 `Compatibility` 或删除。
-4. 文档同步：持续更新 [`TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md)，让新使用者只看到一条推荐主线。
+1. 调度收敛：通过 `SchedulerMigration` 继续迁移外部旧 `Scheduler` 调用方，最终废弃或合并 `Scheduler`。
+2. 行为树收敛：将 `Runtime/Executable` 的剩余成熟执行语义按产品需求迁移到 `Plan/Executables`，避免双体系长期并行；`Legacy/Executable` 保持旧 DSL/转换器兼容。
+3. 兼容入口收敛：保持 [`Runtime/Compatibility`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility) 空机器清单、[`Runtime/Compatibility.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility.md) 清理记录和相关测试同步，防止 Runtime 根目录 `.cs` 占位入口回流。
+4. 文档同步：持续更新 [`TriggeringDesign.md`](../Unity/Packages/com.abilitykit.triggering/Runtime/TriggeringDesign.md)、[`Document/FormalApiBoundary.md`](../Unity/Packages/com.abilitykit.triggering/Document/FormalApiBoundary.md) 与 [`Document/LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)，让新使用者只看到一条推荐主线。

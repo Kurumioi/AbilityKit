@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
+using System.Linq;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Variables.Numeric;
@@ -156,5 +157,61 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public static ScheduledTriggerPlanExecutable External(ITriggerPlanExecutable child, ITriggerPlanCondition condition = null, float weight = 1f)
             => Scheduled(child, EScheduleMode.External, 0f, -1, true, condition, weight);
+
+        public static MetadataTriggerPlanExecutable Metadata(
+            ITriggerPlanExecutable child,
+            ETriggerPlanMetadataKind metadataKind,
+            IReadOnlyDictionary<string, string> values = null,
+            ITriggerPlanCondition condition = null,
+            float weight = 1f)
+            => new MetadataTriggerPlanExecutable(child, metadataKind, values, condition, weight);
+
+        public static MetadataTriggerPlanExecutable Tags(ITriggerPlanExecutable child, params string[] tags)
+            => Metadata(child, ETriggerPlanMetadataKind.Tags, ToValues("tag", tags));
+
+        public static MetadataTriggerPlanExecutable Stack(ITriggerPlanExecutable child, int initialStack = 1, float stackMultiplier = 1f)
+            => Metadata(child, ETriggerPlanMetadataKind.Stack, new Dictionary<string, string>
+            {
+                ["initialStack"] = Math.Max(1, initialStack).ToString(),
+                ["stackMultiplier"] = stackMultiplier.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            });
+
+        public static MetadataTriggerPlanExecutable Hierarchy(ITriggerPlanExecutable child, int? parentId = null)
+            => Metadata(child, ETriggerPlanMetadataKind.Hierarchy, parentId.HasValue
+                ? new Dictionary<string, string> { ["parentId"] = parentId.Value.ToString() }
+                : null);
+
+        public static MetadataTriggerPlanExecutable Capability(ITriggerPlanExecutable child, string capabilityNamespace, string capabilityName)
+            => Metadata(child, ETriggerPlanMetadataKind.Capability, new Dictionary<string, string>
+            {
+                ["namespace"] = capabilityNamespace ?? string.Empty,
+                ["name"] = capabilityName ?? string.Empty,
+            });
+
+        public static MetadataTriggerPlanExecutable Duration(ITriggerPlanExecutable child, float durationMs, bool autoStart = true)
+            => Metadata(child, ETriggerPlanMetadataKind.Duration, new Dictionary<string, string>
+            {
+                ["durationMs"] = Math.Max(0f, durationMs).ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["autoStart"] = autoStart ? "true" : "false",
+            });
+
+        public static MetadataTriggerPlanExecutable ContinuousMetadata(ITriggerPlanExecutable child, string continuationId = null)
+            => Metadata(child, ETriggerPlanMetadataKind.Continuous, string.IsNullOrEmpty(continuationId)
+                ? null
+                : new Dictionary<string, string> { ["continuationId"] = continuationId });
+
+        public static MetadataTriggerPlanExecutable Modifiers(ITriggerPlanExecutable child, params string[] modifierIds)
+            => Metadata(child, ETriggerPlanMetadataKind.Modifiers, ToValues("modifier", modifierIds));
+
+        private static Dictionary<string, string> ToValues(string prefix, string[] values)
+        {
+            if (values == null || values.Length == 0)
+                return null;
+
+            return values
+                .Where(value => !string.IsNullOrEmpty(value))
+                .Select((value, index) => new { Key = prefix + index, Value = value })
+                .ToDictionary(item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase);
+        }
     }
 }

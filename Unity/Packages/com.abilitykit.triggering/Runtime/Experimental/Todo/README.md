@@ -16,11 +16,12 @@
 
 ## 当前待办任务
 
-1. 调度体系收敛：明确 `ActionScheduler` / `Schedule` / `Scheduler` 边界，`Scheduler` 先标记为 legacy/compatibility，再评估合并或废弃。
-2. Executable 双体系收敛：`Legacy/Executable` 保留兼容入口，成熟节点逐步迁入 `Plan/Executables`，示例从默认 Runtime 编译面迁出或进一步降级。
-3. Dispatcher 边界收敛：事件计划触发优先 `TriggerRunner`，旧 Dispatcher 保留给持续行为和旧 API 适配。
-4. 根目录兼容入口收敛：统一中文注释、删除条件和未来 `Compatibility` 清单策略。
-5. ActionScheduler 深水区能力决策：执行器层延迟重试和计划级 retry 参数已落地；Timeline、Rollback 如需完整支持，应作为独立功能实现。
+1. 调度体系收敛：`ActionScheduler` / `Schedule` / `Scheduler` 的边界已完成第一轮文档化，旧 `SchedulerConfig` 到正式 `RuleSchedulePlan` / 推荐运行时的迁移映射已落地，包内 Samples 旧调度入口已迁到 `RuleSchedulerRegistry`；后续只剩外部调用方迁移、目录合并或 major 废弃。
+2. Executable 双体系收敛：`Legacy/Executable` 已完成主线降级、`Plan/Executables` 已承接常见节点与 Decorator 元数据语义；后续仅在产品需要时补更强领域语义。
+3. Dispatcher 边界收敛：`TriggerRunner` 主线定位、`Dispatcher` 兼容边界和目录说明已同步；后续只剩调用方继续收口。
+4. 根目录兼容入口收敛：Runtime 根目录 `.cs` 空占位入口已清理完毕，`Compatibility` 机器清单当前为空并用于防止占位入口回流。
+5. Legacy 迁移策略：`Document/LegacyMigrationPolicy.md` 已统一 legacy、compatibility、experimental 入口分级、迁移优先级和删除条件；后续随外部调用方迁移继续维护。
+6. ActionScheduler 深水区能力决策：retry、延迟重试、Timeline 显式拒绝与 Rollback 前置拒绝均已落地；若后续需要完整 Timeline/Rollback，应作为独立功能实现。
 
 ## 迁移规则
 
@@ -34,7 +35,7 @@
 
 - `TriggerScheduler`：未来可能抽象出的触发器执行策略层。当前主线尚未使用，但其中的调度/策略概念有保留价值。
 - `Executable`：独立的类行为树可执行系统。当前主线使用 `Plan/Executables`，应等主线执行语义稳定后再按节点语义逐步迁移。
-- `Scheduler`：旧版通用回调式调度体系。当前不作为 Trigger Action 调度入口，后续应合并到 `Schedule` 或长期保留为兼容层。
+- `Scheduler`：旧版通用回调式调度体系。当前不作为 Trigger Action 调度入口，`SchedulerMigration` 已提供到 `RuleScheduler` / 正式运行时的迁移映射，后续应合并到 `Schedule` 或长期保留为兼容层。
 
 ## 主线迁移进度
 
@@ -75,6 +76,9 @@
 - 旧配置转换器不再把 `PayloadCompare`、`HasTarget` 构造成运行期条件，而是在转换阶段显式失败；正式条件应走 `TriggerPlan` 谓词/注册条件扩展，目标查找应由 targeting 包提供。
 - 旧配置转换器继续收紧非法配置降级：条件推断、组合条件、比较符、数值引用和 switch 选择器表达式不再回落到 `true`、`Equal`、`Const(0)` 或 `0`。
 - `ActionDelegateFactory` 绑定后的 Action 委托在运行期发现注册表签名缺失时会显式失败，不再静默跳过并伪装执行成功。
-- `ActionScheduler/ActionDelegateAdapter` 已从有效代码面移除为占位文件；正式调度路径由 `PlannedTrigger.CreateActionDelegate` 直接复用立即执行解析，不再尝试从 `ITriggerDispatcherContext` 反向构造不完整 `ExecCtx`。
+- `ActionScheduler/ActionDelegateAdapter` 空占位文件已随首批兼容清理删除；正式调度路径由 `PlannedTrigger.CreateActionDelegate` 直接复用立即执行解析，不再尝试从 `ITriggerDispatcherContext` 反向构造不完整 `ExecCtx`。
 - `TriggerPlanConverter` 的具名参数 Action 不再把 `arity > 2` 静默截断为 `2`；在主线正式支持更高 arity 前，非法配置会在转换阶段显式失败。
 - `Legacy/TriggerScheduler/DefaultTriggerExecutor` 遇到带条件的 `TriggerPlan` 会显式失败，不再注册 `null` 条件委托后表现为成功；该路径仍仅作为非主线兼容入口。
+- `SchedulerMigration` 已为旧 `Runtime/Scheduler` 配置提供到 `RuleSchedulePlan` 的正式迁移映射，并能按语义推荐 `Runtime.ActionScheduler` / `Runtime.RuleScheduler` / `Runtime.Schedule`，避免旧 `SchedulerRegistry` 被重新接回主线。
+- 包内调度 Samples 已从旧 `SchedulerRegistry` 调用迁移到 `RuleSchedulerRegistry`；保留的旧 `SchedulerConfig` 仅作为迁移数据字段使用。
+- `LegacyMigrationPolicy.md` 已统一记录 legacy / compatibility / experimental 入口的迁移优先级、删除条件和延后决策。

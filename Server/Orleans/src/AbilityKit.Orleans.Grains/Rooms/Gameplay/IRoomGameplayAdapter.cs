@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 
@@ -9,7 +10,7 @@ internal interface IRoomGameplayAdapter
 
     object CreateState(RoomSummary summary);
 
-    void Join(object state, RoomSummary summary, HashSet<string> members, string accountId);
+    void Join(object state, RoomSummary summary, IReadOnlyCollection<string> members, string accountId);
 
     void Leave(object state, string accountId);
 

@@ -17,6 +17,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             public readonly List<PlayerInputCommand> PendingInputs = new List<PlayerInputCommand>(16);
 
+            public bool HasWorld;
             public FrameIndex PendingFrame;
             public PlayerInputCommand[] PendingInputsArray;
         }
@@ -109,6 +110,16 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             _postStep.Remove(handler);
         }
 
+        public void RegisterSession(WorldId worldId)
+        {
+            RegisterSession(worldId, hasWorld: false);
+        }
+
+        public void UnregisterSession(WorldId worldId)
+        {
+            _sessions.Remove(worldId);
+        }
+
         public bool SubmitInput(ServerClientId clientId, WorldId worldId, PlayerInputCommand input)
         {
             if (_runtime == null) return false;
@@ -125,12 +136,23 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private void OnWorldCreated(IWorld world)
         {
             if (world == null) return;
-            _sessions[world.Id] = new WorldSession();
+            RegisterSession(world.Id, hasWorld: true);
         }
 
         private void OnWorldDestroyed(WorldId worldId)
         {
             _sessions.Remove(worldId);
+        }
+
+        private void RegisterSession(WorldId worldId, bool hasWorld)
+        {
+            if (!_sessions.TryGetValue(worldId, out var session) || session == null)
+            {
+                session = new WorldSession();
+                _sessions[worldId] = session;
+            }
+
+            session.HasWorld |= hasWorld;
         }
 
         private void OnPreTick(float deltaTime)
@@ -144,7 +166,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var worldId = kv.Key;
                 var session = kv.Value;
 
-                if (!_runtime.Worlds.TryGet(worldId, out var world) || world == null) continue;
+                IWorld world = null;
+                if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
 
                 PlayerInputCommand[] inputs;
                 if (session.PendingInputs.Count > 0)
@@ -168,23 +191,26 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                if (world.Services == null)
+                if (session.HasWorld)
                 {
-                    Log.Error($"[FrameSyncDriverModule] world.Services is null; skipping sink.Submit. worldId={worldId}");
-                }
-                else if (world.Services.TryResolve<AbilityKit.Ability.Host.IWorldInputSink>(out var sink) && sink != null)
-                {
-                    sink.Submit(nextFrame, inputs);
-                }
-                else
-                {
-                    if (world.Services is IWorldServiceContainer c)
+                    if (world.Services == null)
                     {
-                        Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed; registered={c.IsRegistered(typeof(AbilityKit.Ability.Host.IWorldInputSink))}. worldId={worldId}");
+                        Log.Error($"[FrameSyncDriverModule] world.Services is null; skipping sink.Submit. worldId={worldId}");
+                    }
+                    else if (world.Services.TryResolve<AbilityKit.Ability.Host.IWorldInputSink>(out var sink) && sink != null)
+                    {
+                        sink.Submit(nextFrame, inputs);
                     }
                     else
                     {
-                        Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed. worldId={worldId}, servicesType={world.Services.GetType().FullName}");
+                        if (world.Services is IWorldServiceContainer c)
+                        {
+                            Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed; registered={c.IsRegistered(typeof(AbilityKit.Ability.Host.IWorldInputSink))}. worldId={worldId}");
+                        }
+                        else
+                        {
+                            Log.Error($"[FrameSyncDriverModule] IWorldInputSink resolve failed. worldId={worldId}, servicesType={world.Services.GetType().FullName}");
+                        }
                     }
                 }
             }
@@ -201,13 +227,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var worldId = kv.Key;
                 var session = kv.Value;
 
-                if (!_runtime.Worlds.TryGet(worldId, out var world) || world == null) continue;
+                IWorld world = null;
+                if (session.HasWorld && (!_runtime.Worlds.TryGet(worldId, out world) || world == null)) continue;
 
                 var frame = session.PendingFrame.Value > 0 ? session.PendingFrame : currentFrame;
                 var inputs = session.PendingInputsArray ?? Array.Empty<PlayerInputCommand>();
 
                 WorldStateSnapshot? state = null;
-                if (world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
+                if (session.HasWorld && world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
                 {
                     if (provider.TryGetSnapshot(frame, out var snapshot))
                     {

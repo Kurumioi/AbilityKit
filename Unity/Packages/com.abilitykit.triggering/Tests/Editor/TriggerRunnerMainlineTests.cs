@@ -10,6 +10,7 @@ using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.RuleScheduler;
 using AbilityKit.Triggering.Runtime.Schedule;
+using AbilityKit.Triggering.Runtime.Scheduler;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;
 using AbilityKit.Triggering.Validation;
@@ -379,6 +380,35 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(driver.TryGet(second, out _), Is.False);
             Assert.That(driver.TryGet(other, out var otherSnapshot), Is.True);
             Assert.That(otherSnapshot.State, Is.Not.EqualTo(ERuleScheduleState.Cancelled));
+        }
+
+        [Test]
+        public void SchedulerMigration_MapsLegacyConfigToRuleSchedulerPlanAndRecommendedRuntime()
+        {
+            var periodic = SchedulerConfig.Periodic(25f, maxExecutions: 3);
+            periodic.DelayMs = 5f;
+            var continuous = SchedulerConfig.Continuous(10f);
+
+            var periodicPlan = SchedulerMigration.ToRuleSchedulePlan(
+                in periodic,
+                groupId: "legacy:scheduler",
+                subjectId: "buff:1",
+                label: "legacy periodic",
+                replaceExisting: true);
+            var continuousPlan = SchedulerMigration.ToRuleSchedulePlan(in continuous);
+
+            Assert.That(periodicPlan.Mode, Is.EqualTo(ERuleScheduleMode.Every));
+            Assert.That(periodicPlan.DelayMs, Is.EqualTo(5f));
+            Assert.That(periodicPlan.IntervalMs, Is.EqualTo(25f));
+            Assert.That(periodicPlan.MaxOccurrences, Is.EqualTo(3));
+            Assert.That(periodicPlan.GroupId, Is.EqualTo("legacy:scheduler"));
+            Assert.That(periodicPlan.SubjectId, Is.EqualTo("buff:1"));
+            Assert.That(periodicPlan.Label, Is.EqualTo("legacy periodic"));
+            Assert.That(periodicPlan.ReplaceExisting, Is.True);
+            Assert.That(continuousPlan.Mode, Is.EqualTo(ERuleScheduleMode.WhileActive));
+            Assert.That(continuousPlan.MaxOccurrences, Is.EqualTo(-1));
+            Assert.That(SchedulerMigration.GetRecommendedRuntime(in periodic), Is.EqualTo(SchedulerMigration.RuleSchedulingRuntime));
+            Assert.That(SchedulerMigration.GetRecommendedRuntime(in periodic, isTriggerPlanAction: true), Is.EqualTo(SchedulerMigration.TriggerPlanActionSchedulingRuntime));
         }
 
         [Test]

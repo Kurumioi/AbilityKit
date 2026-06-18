@@ -78,7 +78,13 @@ var runner = new TriggerRunner<BattleContext>(
 runner.RegisterPlan(damageEventKey, in plan);
 ```
 
-## 六、稳定性约束
+## 六、正式文档索引
+
+- [`FormalApiBoundary.md`](FormalApiBoundary.md)：正式 API、兼容 API、迁移方向和调度选择表。
+- [`LegacyMigrationPolicy.md`](LegacyMigrationPolicy.md)：legacy、compatibility、experimental 入口分级、迁移优先级、删除条件和延后决策。
+- [`Triggering-Commercial-Remediation-Checklist.md`](Triggering-Commercial-Remediation-Checklist.md)：商业化整改状态、剩余产品化项和后续执行顺序。
+
+## 七、稳定性约束
 
 - 数据化计划进入运行前应执行验证，至少覆盖引用、动作参数、调度语义和 UGC 限制。
 - `ExecPolicy.RequireDeterministic` 下，计划不得依赖随机数、系统时间、网络请求等非确定性能力。

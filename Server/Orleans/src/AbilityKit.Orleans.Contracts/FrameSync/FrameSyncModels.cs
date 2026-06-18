@@ -4,6 +4,14 @@ using Orleans.Serialization;
 namespace AbilityKit.Orleans.Contracts.FrameSync;
 
 [GenerateSerializer]
+public sealed record FrameSyncStartOptions(
+    [property: Id(0)] ulong RoomId,
+    [property: Id(1)] ulong WorldId,
+    [property: Id(2)] int TickRate,
+    [property: Id(3)] string? BattleId,
+    [property: Id(4)] string? SyncTemplateId);
+
+[GenerateSerializer]
 public sealed record FrameInputItem(
     [property: Id(0)] uint PlayerId,
     [property: Id(1)] int OpCode,

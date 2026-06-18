@@ -18,6 +18,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
     private ulong _roomId;
     private ulong _worldId;
+    private string? _battleId;
+    private string? _syncTemplateId;
     private int _frame;
 
     private DateTime _tickWindowStartUtc;
@@ -31,7 +33,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
     private const int MaxCatchUpFramesPerTimer = 5;
 
-    private const int TickRate = 30;
+    private const int DefaultTickRate = 30;
 
     public BattleFrameSyncGrain(ILogger<BattleFrameSyncGrain> logger)
     {
@@ -55,7 +57,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _tickDeltaSumMs = 0;
         _tickDeltaLastMs = 0;
 
-        _tickInterval = TimeSpan.FromSeconds(1.0 / TickRate);
+        _tickInterval = TimeSpan.FromSeconds(1.0 / DefaultTickRate);
         _nextTickDueUtc = now + _tickInterval;
 
         _timer = RegisterTimer(_ => OnTickAsync(), state: null, dueTime: _tickInterval, period: _tickInterval);
@@ -67,6 +69,29 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         _timer?.Dispose();
         _timer = null;
         _inputsByFrame.Clear();
+        return Task.CompletedTask;
+    }
+
+    public Task InitializeAsync(FrameSyncStartOptions options)
+    {
+        if (options is null) throw new ArgumentNullException(nameof(options));
+
+        _roomId = options.RoomId != 0 ? options.RoomId : _roomId;
+        _worldId = options.WorldId;
+        _battleId = options.BattleId;
+        _syncTemplateId = options.SyncTemplateId;
+
+        var tickRate = options.TickRate > 0 ? options.TickRate : DefaultTickRate;
+        _tickInterval = TimeSpan.FromSeconds(1.0 / tickRate);
+        _nextTickDueUtc = DateTime.UtcNow + _tickInterval;
+
+        _logger.LogInformation(
+            "[BattleFrameSyncGrain] Initialized. RoomId={RoomId} WorldId={WorldId} BattleId={BattleId} TickRate={TickRate} SyncTemplate={SyncTemplate}",
+            _roomId,
+            _worldId,
+            _battleId,
+            tickRate,
+            _syncTemplateId);
         return Task.CompletedTask;
     }
 
@@ -160,8 +185,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             var seconds = (now - _tickWindowStartUtc).TotalSeconds;
             var hz = seconds > 0 ? _tickCountInWindow / seconds : 0;
             var avgDelta = _tickCountInWindow > 0 ? _tickDeltaSumMs / _tickCountInWindow : 0;
-            _logger.LogInformation("[BattleFrameSyncGrain] Tick stats. RoomId={RoomId} Frame={Frame} Obs={ObserverCount} Hz={Hz:F1} AvgDeltaMs={AvgDeltaMs:F2} LastDeltaMs={LastDeltaMs:F2}",
-                _roomId, _frame, _observers.Count, hz, avgDelta, _tickDeltaLastMs);
+            _logger.LogInformation("[BattleFrameSyncGrain] Tick stats. RoomId={RoomId} WorldId={WorldId} BattleId={BattleId} Frame={Frame} Obs={ObserverCount} Hz={Hz:F1} AvgDeltaMs={AvgDeltaMs:F2} LastDeltaMs={LastDeltaMs:F2}",
+                _roomId, _worldId, _battleId, _frame, _observers.Count, hz, avgDelta, _tickDeltaLastMs);
 
             _tickWindowStartUtc = now;
             _tickCountInWindow = 0;

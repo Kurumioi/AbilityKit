@@ -31,7 +31,7 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
         return roomState;
     }
 
-    public void Join(object state, RoomSummary summary, HashSet<string> members, string accountId)
+    public void Join(object state, RoomSummary summary, IReadOnlyCollection<string> members, string accountId)
     {
         var roomState = RequireMobaState(state);
         roomState.TryJoin(new PlayerId(accountId), GuessTeamId(members.Count));

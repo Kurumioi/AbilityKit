@@ -58,6 +58,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// 整合 ScheduledDispatcher + TimeDriver + Continuous 功能
     /// 支持：一次性延迟、周期性执行、持续行为
     /// </summary>
+    [Obsolete("TimedDispatcher is part of the legacy Dispatcher compatibility layer. Use ActionScheduler or RuleScheduler for new scheduling code.")]
     public class TimedDispatcher : TriggerDispatcherBase
     {
         private readonly List<TimedInstance> _instances = new List<TimedInstance>();

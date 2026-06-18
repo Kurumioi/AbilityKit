@@ -195,6 +195,7 @@ namespace AbilityKit.Triggering.Validation
         public const string INVALID_ACTION_ARGUMENT = "INVALID_ACTION_ARGUMENT";
         public const string INVALID_ACTION_SCHEDULE = "INVALID_ACTION_SCHEDULE";
         public const string UNSUPPORTED_ACTION_SCHEDULE = "UNSUPPORTED_ACTION_SCHEDULE";
+        public const string UNSUPPORTED_ACTION_EXECUTION_POLICY = "UNSUPPORTED_ACTION_EXECUTION_POLICY";
         public const string INVALID_ACTION_RETRY = "INVALID_ACTION_RETRY";
         public const string INVALID_RULE_SCHEDULE = "INVALID_RULE_SCHEDULE";
         public const string AMBIGUOUS_RULE_SCHEDULE = "AMBIGUOUS_RULE_SCHEDULE";

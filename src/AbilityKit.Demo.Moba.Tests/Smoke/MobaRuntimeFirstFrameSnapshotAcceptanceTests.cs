@@ -7,6 +7,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Protocol.Moba.StateSync;
 using Xunit;
 
@@ -238,6 +239,10 @@ public sealed class MobaRuntimeFirstFrameSnapshotAcceptanceTests
         {
             return MobaGameStartResult.Success;
         }
+
+        public void Dispose()
+        {
+        }
     }
 
     private sealed class PublishingGameStartPort : IMobaGameStartPort
@@ -280,6 +285,10 @@ public sealed class MobaRuntimeFirstFrameSnapshotAcceptanceTests
 
             _actorSpawnSnapshots.PublishSpawnPayload(MobaActorSpawnSnapshotCodec.Serialize(spawnEntries));
             return MobaGameStartResult.Success;
+        }
+
+        public void Dispose()
+        {
         }
     }
 
@@ -330,6 +339,10 @@ public sealed class MobaRuntimeFirstFrameSnapshotAcceptanceTests
         {
             snapshot = default;
             return false;
+        }
+
+        public void Dispose()
+        {
         }
     }
 

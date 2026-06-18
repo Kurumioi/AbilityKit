@@ -14,5 +14,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
         Succeed = 9,
         Fail = 10,
         Scheduled = 11,
+        Metadata = 12,
     }
 }

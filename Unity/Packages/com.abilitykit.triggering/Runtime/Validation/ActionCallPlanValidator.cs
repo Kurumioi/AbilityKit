@@ -167,6 +167,14 @@ namespace AbilityKit.Triggering.Validation
                     $"{path}.retryDelayMs");
             }
 
+            if (execution.Policy == EActionExecutionPolicy.WithRollback)
+            {
+                result.AddError(
+                    ValidationErrorCodes.UNSUPPORTED_ACTION_EXECUTION_POLICY,
+                    "WithRollback 当前没有正式的补偿 Action 或回滚计划结构，不能作为主线 ActionCallPlan 使用",
+                    $"{path}.executionPolicy");
+            }
+
             if (execution.Policy != EActionExecutionPolicy.WithRetry &&
                 (execution.RetryMaxRetries != 3 || execution.RetryDelayMs != 0f))
             {

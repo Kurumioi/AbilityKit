@@ -20,6 +20,7 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Server\Room\MobaRoomOrchestrator.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Server\BattleHost\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Client\FrameSync\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Struct\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\CreateWorld\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\StartSources\*.cs" />
@@ -29,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
     <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
   </ItemGroup>

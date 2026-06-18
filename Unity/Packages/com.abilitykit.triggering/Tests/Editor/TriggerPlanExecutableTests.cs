@@ -111,6 +111,56 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(result.Errors, Has.Some.Matches<ValidationIssue>(issue => issue.Code == ValidationErrorCodes.INVALID_EXECUTION_NODE && issue.Path.EndsWith("child")));
         }
 
+        [Test]
+        public void MetadataExecutable_DelegatesExecutionAndPreservesValues()
+        {
+            var child = new CountingExecutable();
+            var root = TriggerPlanExecutableDsl.Tags(child, "damage.fire", "status.burning");
+
+            var result = root.Execute<object>(null, default);
+
+            Assert.That(result.IsSuccess, Is.True);
+            Assert.That(child.Count, Is.EqualTo(1));
+            Assert.That(root.Kind, Is.EqualTo(ETriggerPlanExecutableKind.Metadata));
+            Assert.That(root.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Tags));
+            Assert.That(root.Values["tag0"], Is.EqualTo("damage.fire"));
+            Assert.That(root.Values["tag1"], Is.EqualTo("status.burning"));
+        }
+
+        [Test]
+        public void DecoratorMetadataDsl_DescribesDurationAndContinuousWithoutLegacyExecutableDependency()
+        {
+            var durationChild = new CountingExecutable();
+            var duration = TriggerPlanExecutableDsl.Duration(durationChild, 1500f, autoStart: false);
+            var continuousChild = new CountingExecutable();
+            var continuous = TriggerPlanExecutableDsl.ContinuousMetadata(continuousChild, "channel:burning");
+
+            var durationResult = duration.Execute<object>(null, default);
+            var continuousResult = continuous.Execute<object>(null, default);
+
+            Assert.That(durationResult.IsSuccess, Is.True);
+            Assert.That(continuousResult.IsSuccess, Is.True);
+            Assert.That(durationChild.Count, Is.EqualTo(1));
+            Assert.That(continuousChild.Count, Is.EqualTo(1));
+            Assert.That(duration.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Duration));
+            Assert.That(duration.Values["durationMs"], Is.EqualTo("1500"));
+            Assert.That(duration.Values["autoStart"], Is.EqualTo("false"));
+            Assert.That(continuous.MetadataKind, Is.EqualTo(ETriggerPlanMetadataKind.Continuous));
+            Assert.That(continuous.Values["continuationId"], Is.EqualTo("channel:burning"));
+        }
+
+        [Test]
+        public void Validator_RejectsMetadataWithoutChild()
+        {
+            var root = TriggerPlanExecutableDsl.Tags(null, "damage.fire");
+            var validator = new TriggerPlanExecutableValidator();
+
+            var result = validator.Validate(root);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Has.Some.Matches<ValidationIssue>(issue => issue.Code == ValidationErrorCodes.INVALID_EXECUTION_NODE && issue.Path.EndsWith("child")));
+        }
+
         private sealed class CountingExecutable : ITriggerPlanExecutable
         {
             public int Count { get; private set; }

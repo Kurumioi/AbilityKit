@@ -1,35 +1,25 @@
 ﻿extern alias Gateway;
 
 using AbilityKit.Orleans.Grains.Battle;
+using AbilityKit.Orleans.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans;
-using Orleans.Configuration;
-using Orleans.Hosting;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
 var options = ShooterSmokeProgramOptions.Parse(args);
-const string tcpGatewayHost = "127.0.0.1";
+var tcpGatewayHost = ShooterSmokeScenarioBase.DefaultTcpGatewayHost;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Services.AddAbilityKitServerOptions(builder.Configuration);
+builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Orleans.ShooterSmoke");
 
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>()));
 builder.Services.AddShooterSmokeGateway(options.TcpGatewayPort);
 
-builder.UseOrleans(silo =>
-{
-    silo.UseLocalhostClustering(siloPort: 12111, gatewayPort: 31001);
-    silo.Configure<ClusterOptions>(options =>
-    {
-        options.ClusterId = "abilitykit-shooter-smoke";
-        options.ServiceId = "abilitykit-orleans-shooter-smoke";
-    });
-});
+builder.UseAbilityKitLocalOrleansSilo();
 
 using var host = builder.Build();
 await host.StartAsync();
@@ -37,7 +27,7 @@ await host.StartAsync();
 using var transportCts = new CancellationTokenSource();
 var transportServer = host.Services.GetRequiredService<GatewayNetworking.TcpTransportServer>();
 var transportTask = transportServer.StartAsync(transportCts.Token);
-await ShooterSmokeRunner.WaitForTcpAsync(tcpGatewayHost, options.TcpGatewayPort, TimeSpan.FromSeconds(5));
+await ShooterSmokeScenarioBase.WaitForTcpAsync(tcpGatewayHost, options.TcpGatewayPort, TimeSpan.FromSeconds(5));
 
 try
 {

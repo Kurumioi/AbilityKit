@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 using Orleans;
@@ -11,14 +12,12 @@ namespace AbilityKit.Orleans.Grains.Rooms;
 public sealed class RoomGrain : Grain, IRoomGrain
 {
     private static readonly RoomGameplayRegistry GameplayRegistry = new();
-    private const string OfflineTimeoutTagKey = "offlineTimeoutSeconds";
 
     private RoomSummary? _summary;
     private string? _directoryKey;
     private IRoomGameplayAdapter? _gameplay;
     private object? _gameplayState;
-    private readonly HashSet<string> _members = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, RoomMemberState> _memberStates = new(StringComparer.Ordinal);
+    private readonly RoomMemberTracker _members = new();
     private bool _closed;
     private string? _battleId;
     private ulong _worldId;
@@ -45,13 +44,13 @@ public sealed class RoomGrain : Grain, IRoomGrain
         var gameplayState = RequireGameplayState();
         return Task.FromResult(new RoomSnapshot(
             summary with { PlayerCount = _members.Count },
-            _members.ToList(),
+            _members.MembersSnapshot(),
             gameplay.BuildPlayerSnapshots(gameplayState),
             gameplay.CanStart(gameplayState),
             _battleId,
             _worldStartAnchor,
             _worldId,
-            CloneMemberStates()));
+            _members.CloneMemberStates()));
     }
 
     public Task<RoomRuntimeState> GetRuntimeStateAsync()
@@ -64,8 +63,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
             _worldId,
             _closed,
             !string.IsNullOrEmpty(_battleId),
-            _members.ToList(),
-            CloneMemberStates(),
+            _members.MembersSnapshot(),
+            _members.CloneMemberStates(),
             DateTime.UtcNow.Ticks,
             summary.Tags == null ? null : new Dictionary<string, string>(summary.Tags)));
     }
@@ -94,8 +93,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
                 }
 
                 _members.Add(request.AccountId);
-                TouchMember(request.AccountId, isOnline: true, isBot: request.IsBot);
-                gameplay.Join(gameplayState, summary, _members, request.AccountId);
+                _members.Touch(request.AccountId, isOnline: true, isBot: request.IsBot);
+                gameplay.Join(gameplayState, summary, _members.MembersSnapshot(), request.AccountId);
                 await JoinRunningBattleAsync(gameplay, gameplayState, summary, request);
                 await NotifyRoomChangedAsync();
             }
@@ -107,7 +106,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         EnsureOpen();
         if (alreadyMember)
         {
-            TouchMember(request.AccountId, isOnline: true, isBot: request.IsBot);
+            _members.Touch(request.AccountId, isOnline: true, isBot: request.IsBot);
             return new JoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.Reconnect, DateTime.UtcNow.Ticks);
         }
 
@@ -117,8 +116,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
 
         _members.Add(request.AccountId);
-        TouchMember(request.AccountId, isOnline: true, isBot: request.IsBot);
-        gameplay.Join(gameplayState, summary, _members, request.AccountId);
+        _members.Touch(request.AccountId, isOnline: true, isBot: request.IsBot);
+        gameplay.Join(gameplayState, summary, _members.MembersSnapshot(), request.AccountId);
         await NotifyRoomChangedAsync();
         return new JoinRoomResponse(await GetSnapshotAsync(), RoomJoinKind.TeamLobby, DateTime.UtcNow.Ticks);
     }
@@ -131,7 +130,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return RestoreRoomResponse.Failed(RoomRestoreStatus.NotMember, RoomRestoreErrorCode.AccountNotInRoom, "Account is not in room.");
         }
 
-        TouchMember(accountId, isOnline: true);
+        _members.Touch(accountId, isOnline: true);
         await NotifyRoomChangedAsync();
 
         var snapshot = await GetSnapshotAsync();
@@ -148,7 +147,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         RequireSummary();
         EnsureMember(accountId);
 
-        MarkOffline(accountId);
+        _members.MarkOffline(accountId);
         await NotifyRoomChangedAsync();
     }
 
@@ -164,7 +163,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return;
         }
 
-        MarkOffline(accountId);
+        _members.MarkOffline(accountId);
         gameplay.Leave(gameplayState, accountId);
         await ClearAccountRoomMappingAsync(accountId, RequireSummary().RoomId);
         await NotifyRoomChangedAsync();
@@ -185,7 +184,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         EnsureOpen();
         EnsureMember(request.AccountId);
 
-        TouchMember(request.AccountId, isOnline: true);
+        _members.Touch(request.AccountId, isOnline: true);
         gameplay.SetReady(gameplayState, request);
         return Task.CompletedTask;
     }
@@ -199,7 +198,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         EnsureOpen();
         EnsureMember(request.AccountId);
 
-        TouchMember(request.AccountId, isOnline: true);
+        _members.Touch(request.AccountId, isOnline: true);
         gameplay.SubmitCommand(gameplayState, request);
         return Task.CompletedTask;
     }
@@ -224,9 +223,25 @@ public sealed class RoomGrain : Grain, IRoomGrain
         initParams.SyncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
         _worldId = initParams.WorldId;
 
-        var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
-        await battleGrain.InitializeBattleAsync(initParams);
-        _worldStartAnchor = await battleGrain.GetWorldStartAnchorAsync();
+        var startRoute = RoomFrameSyncRoute.ResolveStartRoute(summary, _battleId, initParams);
+        if (startRoute.FrameSyncOptions is { } frameSyncOptions)
+        {
+            var frameSyncGrain = GrainFactory.GetGrain<IBattleFrameSyncGrain>(frameSyncOptions.RoomId.ToString());
+            await frameSyncGrain.InitializeAsync(frameSyncOptions);
+        }
+
+        if (startRoute.RequiresBattleRuntime)
+        {
+            var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
+            await battleGrain.InitializeBattleAsync(initParams);
+            _worldStartAnchor = await battleGrain.GetWorldStartAnchorAsync();
+        }
+        else
+        {
+            _worldStartAnchor = CreateWorldStartAnchor(initParams.TickRate);
+            initParams.WorldStartAnchor = _worldStartAnchor;
+        }
+
         _closed = true;
         await NotifyRoomChangedAsync();
 
@@ -244,10 +259,9 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return;
         }
 
-        var removedMembers = _members.ToList();
+        var removedMembers = _members.MembersSnapshot();
         _closed = true;
         _members.Clear();
-        _memberStates.Clear();
         _gameplayState = gameplay.CreateState(summary);
 
         await ClearAccountRoomMappingsAsync(removedMembers, summary.RoomId);
@@ -304,6 +318,16 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
     }
 
+    private static WorldStartAnchor CreateWorldStartAnchor(int tickRate)
+    {
+        var resolvedTickRate = tickRate > 0 ? tickRate : 30;
+        return new WorldStartAnchor(
+            DateTime.UtcNow.Ticks,
+            TimeSpan.TicksPerSecond,
+            0,
+            1.0 / resolvedTickRate);
+    }
+
     private static void EnsureOwner(string accountId, RoomSummary summary)
     {
         EnsureAccountId(accountId);
@@ -342,8 +366,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
         var joinResult = await battleGrain.JoinPlayerAsync(new BattlePlayerJoinRequest(_worldId, player, request.IsBot));
         if (!joinResult.Accepted)
         {
-            _members.Remove(request.AccountId);
-            _memberStates.Remove(request.AccountId);
+            _members.RemoveMemberAndState(request.AccountId);
             gameplay.Leave(gameplayState, request.AccountId);
             throw new InvalidOperationException($"Battle late join rejected. Status={joinResult.Status}, Message={joinResult.Message}");
         }
@@ -375,87 +398,27 @@ public sealed class RoomGrain : Grain, IRoomGrain
         await directory.RemoveRoomAsync(summary.RoomId);
     }
 
-    private void TouchMember(string accountId, bool isOnline, bool? isBot = null)
-    {
-        var now = DateTime.UtcNow.Ticks;
-        _memberStates.TryGetValue(accountId, out var previousState);
-        _memberStates[accountId] = new RoomMemberState(
-            isOnline,
-            now,
-            isOnline ? 0L : now,
-            isBot ?? previousState?.IsBot ?? false);
-    }
-
-    private void MarkOffline(string accountId)
-    {
-        var now = DateTime.UtcNow.Ticks;
-        _memberStates.TryGetValue(accountId, out var previousState);
-        _memberStates[accountId] = new RoomMemberState(false, now, now, previousState?.IsBot ?? false);
-    }
-
-    private Dictionary<string, RoomMemberState>? CloneMemberStates()
-    {
-        if (_memberStates.Count == 0)
-        {
-            return null;
-        }
-
-        return new Dictionary<string, RoomMemberState>(_memberStates, StringComparer.Ordinal);
-    }
-
     private async Task CleanupExpiredOfflineMembersAsync(RoomSummary summary)
     {
-        var offlineTimeoutSeconds = ReadIntTag(summary, OfflineTimeoutTagKey, 0);
-        if (offlineTimeoutSeconds <= 0 || _memberStates.Count == 0)
+        if (!_members.HasMemberStates)
         {
             return;
         }
 
-        var expired = CollectExpiredOfflineMembers(summary, DateTime.UtcNow.Ticks);
+        var expired = _members.CollectExpiredOfflineMembers(summary, DateTime.UtcNow.Ticks);
         if (expired.Count == 0)
         {
             return;
         }
 
-        foreach (var accountId in expired)
-        {
-            _memberStates.Remove(accountId);
-            _members.Remove(accountId);
-        }
+        _members.RemoveMembersAndStates(expired);
 
         await ClearAccountRoomMappingsAsync(expired, summary.RoomId);
     }
 
     internal IReadOnlyList<string> CollectExpiredOfflineMembersForTests(RoomSummary summary, long nowTicks)
     {
-        return CollectExpiredOfflineMembers(summary, nowTicks);
-    }
-
-    private List<string> CollectExpiredOfflineMembers(RoomSummary summary, long nowTicks)
-    {
-        var offlineTimeoutSeconds = ReadIntTag(summary, OfflineTimeoutTagKey, 0);
-        if (offlineTimeoutSeconds <= 0 || _memberStates.Count == 0)
-        {
-            return new List<string>();
-        }
-
-        var timeoutTicks = TimeSpan.FromSeconds(offlineTimeoutSeconds).Ticks;
-        var expired = new List<string>();
-
-        foreach (var kv in _memberStates)
-        {
-            if (kv.Value.IsOnline || kv.Value.OfflineSinceTicks <= 0)
-            {
-                continue;
-            }
-
-            if (nowTicks - kv.Value.OfflineSinceTicks >= timeoutTicks)
-            {
-                expired.Add(kv.Key);
-            }
-        }
-
-        return expired;
+        return _members.CollectExpiredOfflineMembers(summary, nowTicks);
     }
 
     private Task ClearAccountRoomMappingsAsync(IReadOnlyCollection<string> accountIds, string roomId)
@@ -480,13 +443,4 @@ public sealed class RoomGrain : Grain, IRoomGrain
         return mapping.ClearAccountRoomAsync(accountId, roomId);
     }
 
-    private static int ReadIntTag(RoomSummary summary, string key, int fallback)
-    {
-        if (summary.Tags != null && summary.Tags.TryGetValue(key, out var value) && int.TryParse(value, out var parsed))
-        {
-            return parsed;
-        }
-
-        return fallback;
-    }
 }

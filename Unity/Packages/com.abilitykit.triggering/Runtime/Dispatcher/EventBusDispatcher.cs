@@ -10,6 +10,7 @@ namespace AbilityKit.Triggering.Runtime.Dispatcher
     /// 事件总线触发器调度器
     /// 通过 EventBus 的 Publish/Subscribe 机制触发触发器
     /// </summary>
+    [Obsolete("EventBusDispatcher is part of the legacy Dispatcher compatibility layer. Use TriggerRunner with EventBus-backed registration for new code.")]
     public class EventBusDispatcher : TriggerDispatcherBase
     {
         private readonly IEventBus _eventBus;

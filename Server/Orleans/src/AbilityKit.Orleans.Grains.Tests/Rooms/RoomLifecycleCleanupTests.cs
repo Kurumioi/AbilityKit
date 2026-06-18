@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Rooms;
@@ -32,7 +33,7 @@ public sealed class RoomLifecycleCleanupTests
     [Fact]
     public void CollectExpiredOfflineMembersForTests_WhenTimeoutElapsed_ReturnsOnlyExpiredOfflineMembers()
     {
-        var room = new RoomGrain();
+        var tracker = new RoomMemberTracker();
         var summary = new RoomSummary(
             Region: "local",
             ServerId: "server-a",
@@ -45,26 +46,13 @@ public sealed class RoomLifecycleCleanupTests
             OwnerAccountId: "account-a",
             CreatedAtUnixMs: 0,
             Tags: new Dictionary<string, string> { ["offlineTimeoutSeconds"] = "5" });
-        SetMemberStates(room, new Dictionary<string, RoomMemberState>
-        {
-            ["expired"] = new RoomMemberState(false, TimeSpan.FromSeconds(1).Ticks, TimeSpan.FromSeconds(1).Ticks),
-            ["recent"] = new RoomMemberState(false, TimeSpan.FromSeconds(8).Ticks, TimeSpan.FromSeconds(8).Ticks),
-            ["online"] = new RoomMemberState(true, TimeSpan.FromSeconds(1).Ticks, 0)
-        });
 
-        var expired = room.CollectExpiredOfflineMembersForTests(summary, TimeSpan.FromSeconds(10).Ticks);
+        tracker.SetMemberStateForTests("expired", new RoomMemberState(false, TimeSpan.FromSeconds(1).Ticks, TimeSpan.FromSeconds(1).Ticks));
+        tracker.SetMemberStateForTests("recent", new RoomMemberState(false, TimeSpan.FromSeconds(8).Ticks, TimeSpan.FromSeconds(8).Ticks));
+        tracker.SetMemberStateForTests("online", new RoomMemberState(true, TimeSpan.FromSeconds(1).Ticks, 0));
+
+        var expired = tracker.CollectExpiredOfflineMembers(summary, TimeSpan.FromSeconds(10).Ticks);
 
         Assert.Equal(new[] { "expired" }, expired);
-    }
-
-    private static void SetMemberStates(RoomGrain room, Dictionary<string, RoomMemberState> states)
-    {
-        var field = typeof(RoomGrain).GetField("_memberStates", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        Assert.NotNull(field);
-        var target = Assert.IsType<Dictionary<string, RoomMemberState>>(field!.GetValue(room));
-        foreach (var state in states)
-        {
-            target[state.Key] = state.Value;
-        }
     }
 }
