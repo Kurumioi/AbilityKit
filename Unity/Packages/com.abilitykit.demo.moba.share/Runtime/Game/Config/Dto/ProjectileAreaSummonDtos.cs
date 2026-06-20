@@ -34,6 +34,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int TickIntervalMs;
 
         public int OnHitEffectId;
+        public int[] OnSpawnTriggerIds;
+        public int[] OnHitTriggerIds;
+        public int[] OnTickTriggerIds;
+        public int[] OnExitTriggerIds;
         public int OnSpawnVfxId;
         public int OnHitVfxId;
         public int OnExpireVfxId;

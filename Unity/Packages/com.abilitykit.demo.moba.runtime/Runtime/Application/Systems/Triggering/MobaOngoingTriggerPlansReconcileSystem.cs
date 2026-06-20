@@ -1,22 +1,16 @@
-using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Logging;
-using AbilityKit.Demo.Moba.Services.Triggering;
-using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Systems.Triggering
 {
     [WorldSystem(order: MobaSystemOrder.OngoingTriggerPlansReconcile, Phase = WorldSystemPhase.Execute)]
     public sealed class MobaOngoingTriggerPlansReconcileSystem : WorldSystemBase
     {
-        private MobaTriggerExecutionGateway _triggers;
+        private MobaTriggerPlanReconcileService _reconcileService;
         private global::Entitas.IGroup<global::ActorEntity> _group;
-
-        private readonly Dictionary<long, int> _hashByOwnerKey = new Dictionary<long, int>();
-        private readonly HashSet<long> _desiredKeys = new HashSet<long>();
-        private readonly List<long> _tmpKeys = new List<long>(64);
 
         public MobaOngoingTriggerPlansReconcileSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -25,16 +19,15 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
 
         protected override void OnInit()
         {
-            Services.TryResolve(out _triggers);
+            Services.TryResolve(out _reconcileService);
             _group = Contexts.Actor().GetGroup(ActorMatcher.AllOf(ActorComponentsLookup.ActorId, ActorComponentsLookup.OngoingTriggerPlans));
         }
 
         protected override void OnExecute()
         {
-            if (_triggers == null) return;
+            if (_reconcileService == null) return;
 
-            _desiredKeys.Clear();
-
+            var activePlans = new List<OngoingTriggerPlanEntry>(16);
             var entities = _group.GetEntities();
             if (entities != null && entities.Length > 0)
             {
@@ -43,57 +36,17 @@ namespace AbilityKit.Demo.Moba.Systems.Triggering
                     var e = entities[i];
                     if (e == null || !e.hasOngoingTriggerPlans) continue;
 
-                    var comp = e.ongoingTriggerPlans;
-                    var list = comp.Active;
+                    var list = e.ongoingTriggerPlans.Active;
                     if (list == null || list.Count == 0) continue;
 
                     for (int j = 0; j < list.Count; j++)
                     {
-                        var entry = list[j];
-                        if (entry == null) continue;
-
-                        var ownerKey = entry.OwnerKey;
-                        if (ownerKey == 0) continue;
-
-                        var triggerIds = entry.TriggerIds;
-                        _desiredKeys.Add(ownerKey);
-
-                        if (triggerIds == null || triggerIds.Length == 0)
-                        {
-                            _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.empty");
-                            _hashByOwnerKey.Remove(ownerKey);
-                            continue;
-                        }
-
-                        var hash = ComputeHash(triggerIds);
-                        if (!_hashByOwnerKey.TryGetValue(ownerKey, out var oldHash) || oldHash != hash)
-                        {
-                            _triggers.ApplyOwnerBoundTriggers(triggerIds, ownerKey, "ongoing.reconcile.apply");
-                            _hashByOwnerKey[ownerKey] = hash;
-                        }
+                        activePlans.Add(list[j]);
                     }
                 }
             }
 
-            _triggers.CopyActiveOwnerKeys(_tmpKeys);
-            for (int i = 0; i < _tmpKeys.Count; i++)
-            {
-                var ownerKey = _tmpKeys[i];
-                if (_desiredKeys.Contains(ownerKey)) continue;
-
-                _triggers.StopOwnerBoundTriggers(ownerKey, "ongoing.reconcile.stale");
-                _hashByOwnerKey.Remove(ownerKey);
-            }
-        }
-
-        private static int ComputeHash(int[] ids)
-        {
-            unchecked
-            {
-                var h = 17;
-                for (int i = 0; i < ids.Length; i++) h = h * 31 + ids[i];
-                return h;
-            }
+            _reconcileService.Reconcile(activePlans);
         }
     }
 }

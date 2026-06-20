@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 
-namespace AbilityKit.Demo.Moba.Systems.Projectile
+namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
     internal interface IProjectileSyncHandler
     {

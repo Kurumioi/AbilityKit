@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var radius = args.RadiusOverride > 0f ? args.RadiusOverride : aoe.Radius;
             var lifetimeFrames = ResolveLifetimeFrames(args, aoe.DelayMs, ctx.Context);
             var collisionLayerMask = args.CollisionLayerMaskOverride != 0 ? args.CollisionLayerMaskOverride : aoe.CollisionLayerMask;
-            var stayIntervalFrames = Math.Max(0, args.StayIntervalFrames);
+            var stayIntervalFrames = ResolveStayIntervalFrames(args, aoe.IntervalMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
 
             ctx.Context.TryResolve<MobaAreaRuntimeService>(out var areaRuntime);
@@ -108,6 +108,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var frameTime = ResolveFrameTime(services);
             var seconds = durationMs / 1000f;
+            var now = frameTime.Frame.Value;
+            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+        }
+
+        private static int ResolveStayIntervalFrames(SpawnAreaArgs args, int configIntervalMs, IWorldResolver services)
+        {
+            if (args.StayIntervalFrames > 0) return args.StayIntervalFrames;
+            if (configIntervalMs <= 0) return 0;
+
+            var frameTime = ResolveFrameTime(services);
+            var seconds = configIntervalMs / 1000f;
             var now = frameTime.Frame.Value;
             return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
         }

@@ -1,3 +1,5 @@
+namespace AbilityKit.Orleans.Gateway.HttpApi;
+
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Battle;
@@ -5,20 +7,30 @@ using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Handlers;
 using Orleans;
 
-namespace AbilityKit.Orleans.Gateway.HttpApi;
-
 public static class GatewayHttpApi
 {
     public static void MapGatewayHttpApi(this WebApplication app)
     {
-        app.MapPost("/api/guest/login", async (IClusterClient client) =>
+        app.MapGatewaySessionEndpoints();
+        app.MapGatewaySandboxEndpoints();
+        app.MapGatewayRoomEndpoints();
+    }
+
+    private static void MapGatewaySessionEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/session")
+            .WithTags("Session");
+
+        group.MapPost("/guest/login", async (IClusterClient client) =>
         {
             var session = client.GetGrain<ISessionGrain>("global");
             var resp = await session.CreateGuestAsync();
             return Results.Ok(resp);
-        });
+        })
+        .WithName("Gateway.CreateGuestSession")
+        .Produces(StatusCodes.Status200OK);
 
-        app.MapPost("/api/accounts/login", async (AccountLoginHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/accounts/login", async (AccountLoginHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.AccountId))
             {
@@ -38,9 +50,14 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.LoginAccount")
+        .Accepts<AccountLoginHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/session/validate", async (SessionTokenHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/validate", async (SessionTokenHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -50,9 +67,13 @@ public static class GatewayHttpApi
             var session = client.GetGrain<ISessionGrain>("global");
             var resp = await session.ValidateAsync(new ValidateSessionRequest(wire.SessionToken));
             return Results.Ok(resp);
-        });
+        })
+        .WithName("Gateway.ValidateSession")
+        .Accepts<SessionTokenHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
 
-        app.MapPost("/api/session/renew", async (RenewSessionHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/renew", async (RenewSessionHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -65,9 +86,13 @@ public static class GatewayHttpApi
                 wire.ExtendSeconds,
                 wire.RotateToken));
             return Results.Ok(resp);
-        });
+        })
+        .WithName("Gateway.RenewSession")
+        .Accepts<RenewSessionHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
 
-        app.MapPost("/api/session/logout", async (SessionTokenHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/logout", async (SessionTokenHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -83,11 +108,23 @@ public static class GatewayHttpApi
             var session = client.GetGrain<ISessionGrain>("global");
             var resp = await session.LogoutAsync(new LogoutRequest(wire.SessionToken));
             return Results.Ok(resp);
-        });
- 
-        app.MapGet("/api/gameplays", () => Results.Ok(Gameplays));
+        })
+        .WithName("Gateway.LogoutSession")
+        .Accepts<SessionTokenHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest);
+    }
 
-        app.MapPost("/api/shooter-sandbox/start", async (StartShooterSandboxHttpRequest wire, IClusterClient client) =>
+    private static void MapGatewaySandboxEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api")
+            .WithTags("Gameplay", "Sandbox");
+
+        group.MapGet("/gameplays", () => Results.Ok(Gameplays))
+        .WithName("Gateway.ListGameplays")
+        .Produces(StatusCodes.Status200OK);
+
+        group.MapPost("/shooter-sandbox/start", async (StartShooterSandboxHttpRequest wire, IClusterClient client) =>
         {
             var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(wire?.SandboxId) ? "default" : wire.SandboxId);
             var resp = await sandbox.StartAsync(new StartShooterSandboxRequest(
@@ -99,23 +136,37 @@ public static class GatewayHttpApi
                 wire?.Title,
                 wire?.Tags == null ? null : new Dictionary<string, string>(wire.Tags)));
             return Results.Ok(resp);
-        });
+        })
+        .WithName("Gateway.StartShooterSandbox")
+        .Accepts<StartShooterSandboxHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK);
 
-        app.MapGet("/api/shooter-sandbox/{sandboxId?}", async (string? sandboxId, IClusterClient client) =>
+        group.MapGet("/shooter-sandbox/{sandboxId?}", async (string? sandboxId, IClusterClient client) =>
         {
             var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(sandboxId) ? "default" : sandboxId);
             var resp = await sandbox.GetStateAsync();
             return Results.Ok(resp);
-        });
+        })
+        .WithName("Gateway.GetShooterSandboxState")
+        .Produces(StatusCodes.Status200OK);
 
-        app.MapPost("/api/shooter-sandbox/stop", async (ShooterSandboxControlHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/shooter-sandbox/stop", async (ShooterSandboxControlHttpRequest wire, IClusterClient client) =>
         {
             var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(wire?.SandboxId) ? "default" : wire.SandboxId);
             await sandbox.StopAsync();
             return Results.Ok(new { Success = true });
-        });
- 
-        app.MapPost("/api/rooms/create", async (CreateRoomHttpRequest wire, IClusterClient client) =>
+        })
+        .WithName("Gateway.StopShooterSandbox")
+        .Accepts<ShooterSandboxControlHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK);
+    }
+
+    private static void MapGatewayRoomEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/rooms")
+            .WithTags("Rooms");
+
+        group.MapPost("/create", async (CreateRoomHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -148,7 +199,7 @@ public static class GatewayHttpApi
                     wire.IsPublic,
                     wire.MaxPlayers,
                     wire.Tags == null ? null : new Dictionary<string, string>(wire.Tags));
- 
+
                 var resp = await directory.CreateRoomAsync(req);
                 if (!string.IsNullOrWhiteSpace(resp.RoomId))
                 {
@@ -162,9 +213,14 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.CreateRoom")
+        .Accepts<CreateRoomHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/list", async (ListRoomsHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/list", async (ListRoomsHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.Region) || string.IsNullOrWhiteSpace(wire.ServerId))
             {
@@ -194,9 +250,14 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.ListRooms")
+        .Accepts<ListRoomsHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/join", async (JoinRoomHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/join", async (JoinRoomHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
             {
@@ -223,9 +284,14 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.JoinRoom")
+        .Accepts<JoinRoomHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/snapshot", async (RoomSnapshotHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/snapshot", async (RoomSnapshotHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
             {
@@ -248,9 +314,52 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.GetRoomSnapshot")
+        .Accepts<RoomSnapshotHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/restore-current", async (SessionTokenHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/restore-current", async (SessionTokenHttpRequest wire, IClusterClient client) =>
+        {
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
+            {
+                return Results.BadRequest("SessionToken is required");
+            }
+
+            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return Results.BadRequest("Invalid session");
+            }
+
+            var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+            var roomId = await mapping.TryGetAccountRoomAsync(accountId);
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                return Results.NotFound(new { Success = false, Reason = "NoCurrentRoom" });
+            }
+
+            try
+            {
+                var room = client.GetGrain<IRoomGrain>(roomId);
+                var snapshot = await room.GetSnapshotAsync();
+                return Results.Ok(snapshot);
+            }
+            catch (Exception exception)
+            {
+                return RoomHttpErrorMapper.ToResult(exception);
+            }
+        })
+        .WithName("Gateway.RestoreCurrentRoom")
+        .Accepts<SessionTokenHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/leave", async (RoomLeaveHttpRequest wire, IClusterClient client) =>
         {
             if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -265,20 +374,57 @@ public static class GatewayHttpApi
 
             try
             {
-                var resp = await RestoreCurrentRoomAsync(client, accountId);
-                return Results.Ok(resp);
+                var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+                var roomId = await mapping.TryGetAccountRoomAsync(accountId);
+                if (!string.IsNullOrWhiteSpace(roomId))
+                {
+                    var room = client.GetGrain<IRoomGrain>(roomId);
+                    await room.LeaveAsync(accountId);
+                    await mapping.ClearAccountRoomAsync(accountId, roomId);
+                }
+
+                return Results.Ok(new { Success = true });
             }
             catch (Exception exception)
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.LeaveRoom")
+        .Accepts<RoomLeaveHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/leave", async (RoomLeaveHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/runtime-state", async (RoomRuntimeStateHttpRequest wire, IClusterClient client) =>
         {
-            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            if (wire is null || string.IsNullOrWhiteSpace(wire.RoomId))
             {
-                return Results.BadRequest("SessionToken and RoomId are required");
+                return Results.BadRequest("RoomId is required");
+            }
+
+            try
+            {
+                var room = client.GetGrain<IRoomGrain>(wire.RoomId);
+                var state = await room.GetRuntimeStateAsync();
+                return Results.Ok(state);
+            }
+            catch (Exception exception)
+            {
+                return RoomHttpErrorMapper.ToResult(exception);
+            }
+        })
+        .WithName("Gateway.GetRoomRuntimeState")
+        .Accepts<RoomRuntimeStateHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/ready", async (RoomReadyHttpRequest wire, IClusterClient client) =>
+        {
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
+            {
+                return Results.BadRequest("SessionToken is required");
             }
 
             var accountId = await ValidateAccountAsync(client, wire.SessionToken);
@@ -290,55 +436,7 @@ public static class GatewayHttpApi
             try
             {
                 var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-                await room.LeaveAsync(accountId);
-                return Results.Ok(new RoomLeaveHttpResponse(true, wire.RoomId, accountId));
-            }
-            catch (Exception exception)
-            {
-                return RoomHttpErrorMapper.ToResult(exception);
-            }
-        });
-
-        app.MapPost("/api/rooms/runtime-state", async (RoomRuntimeStateHttpRequest wire, IClusterClient client) =>
-        {
-            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
-            {
-                return Results.BadRequest("SessionToken and RoomId are required");
-            }
-
-            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
-            if (string.IsNullOrWhiteSpace(accountId))
-            {
-                return Results.BadRequest("Invalid session");
-            }
-
-            var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-            var runtimeState = await room.GetRuntimeStateAsync();
-            if (!string.Equals(runtimeState.RoomId, wire.RoomId, StringComparison.Ordinal))
-            {
-                return Results.BadRequest("Room mismatch");
-            }
-
-            return Results.Ok(runtimeState);
-        });
-
-        app.MapPost("/api/rooms/ready", async (RoomReadyHttpRequest wire, IClusterClient client) =>
-        {
-            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
-            {
-                return Results.BadRequest("SessionToken and RoomId are required");
-            }
-
-            var accountId = await ValidateAccountAsync(client, wire.SessionToken);
-            if (string.IsNullOrWhiteSpace(accountId))
-            {
-                return Results.BadRequest("Invalid session");
-            }
-
-            try
-            {
-                var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-                await room.SetReadyAsync(new RoomReadyRequest(accountId, wire.Ready));
+                await room.SetReadyAsync(accountId, wire.Ready);
                 var snapshot = await room.GetSnapshotAsync();
                 return Results.Ok(snapshot);
             }
@@ -346,13 +444,18 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.SetRoomReady")
+        .Accepts<RoomReadyHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/pick-hero", async (RoomPickHeroHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/pick-hero", async (RoomPickHeroHttpRequest wire, IClusterClient client) =>
         {
-            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
-                return Results.BadRequest("SessionToken and RoomId are required");
+                return Results.BadRequest("SessionToken is required");
             }
 
             var accountId = await ValidateAccountAsync(client, wire.SessionToken);
@@ -364,15 +467,7 @@ public static class GatewayHttpApi
             try
             {
                 var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-                await room.SubmitGameplayCommandAsync(RoomGatewayWireMapper.ToGameplayCommand(
-                    accountId,
-                    wire.HeroId,
-                    wire.TeamId,
-                    wire.SpawnPointId,
-                    wire.Level,
-                    wire.AttributeTemplateId,
-                    wire.BasicAttackSkillId,
-                    wire.SkillIds));
+                await room.PickHeroAsync(accountId, wire.HeroId);
                 var snapshot = await room.GetSnapshotAsync();
                 return Results.Ok(snapshot);
             }
@@ -380,13 +475,18 @@ public static class GatewayHttpApi
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.PickRoomHero")
+        .Accepts<RoomPickHeroHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
 
-        app.MapPost("/api/rooms/start-battle", async (StartRoomBattleHttpRequest wire, IClusterClient client) =>
+        group.MapPost("/start-battle", async (StartRoomBattleHttpRequest wire, IClusterClient client) =>
         {
-            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken) || string.IsNullOrWhiteSpace(wire.RoomId))
+            if (wire is null || string.IsNullOrWhiteSpace(wire.SessionToken))
             {
-                return Results.BadRequest("SessionToken and RoomId are required");
+                return Results.BadRequest("SessionToken is required");
             }
 
             var accountId = await ValidateAccountAsync(client, wire.SessionToken);
@@ -398,239 +498,30 @@ public static class GatewayHttpApi
             try
             {
                 var room = client.GetGrain<IRoomGrain>(wire.RoomId);
-                var syncOptions = CreateSyncOptions(
-                    wire.SyncTemplateId,
-                    wire.SyncModel,
-                    wire.NetworkEnvironmentId,
-                    wire.CarrierName,
-                    wire.EnableAuthoritativeWorld,
-                    wire.InterpolationEnabled,
-                    wire.InputDelayFrames);
-                var resp = await room.StartBattleAsync(new StartRoomBattleRequest(
-                    accountId,
-                    wire.GameplayId,
-                    wire.RuleSetId,
-                    wire.ConfigVersion,
-                    wire.ProtocolVersion,
-                    wire.WorldType,
-                    wire.ClientId,
-                    syncOptions));
-                return Results.Ok(resp);
+                var result = await room.StartBattleAsync(accountId, wire.BattleId);
+                return Results.Ok(result);
             }
             catch (Exception exception)
             {
                 return RoomHttpErrorMapper.ToResult(exception);
             }
-        });
+        })
+        .WithName("Gateway.StartRoomBattle")
+        .Accepts<StartRoomBattleHttpRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
     }
 
-    private static readonly IReadOnlyList<GameplayHttpDescriptor> Gameplays = new[]
-    {
-        new GameplayHttpDescriptor(
-            GameplayRoomTypes.Moba,
-            "MOBA Battle",
-            10,
-            RequiresPlayerLoadout: true,
-            DefaultWorldType: GameplayRoomTypes.Moba,
-            DefaultTickRate: 30,
-            DefaultSyncTemplateId: "frame-sync-authority"),
-        new GameplayHttpDescriptor(
-            "shooter",
-            "Shooter State Sync",
-            16,
-            RequiresPlayerLoadout: false,
-            DefaultWorldType: "shooter-runtime",
-            DefaultTickRate: 30,
-            DefaultSyncTemplateId: "pure-state-authority")
-    };
-
-    private static async Task<string?> ValidateAccountAsync(IClusterClient client, string sessionToken)
+    private static Task<string?> ValidateAccountAsync(IClusterClient client, string sessionToken)
     {
         var session = client.GetGrain<ISessionGrain>("global");
-        var v = await session.ValidateAsync(new ValidateSessionRequest(sessionToken));
-        return v.IsValid && !string.IsNullOrWhiteSpace(v.AccountId) ? v.AccountId : null;
+        return session.ValidateAsync(new ValidateSessionRequest(sessionToken)).ContinueWith(task => task.Result.IsValid ? task.Result.AccountId : null);
     }
 
-    private static async Task<RestoreRoomResponse> RestoreCurrentRoomAsync(IClusterClient client, string accountId)
+    private static Task MarkCurrentRoomOfflineAsync(IClusterClient client, string accountId)
     {
         var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
-        var roomId = await mapping.TryGetAccountRoomAsync(accountId);
-        if (string.IsNullOrWhiteSpace(roomId))
-        {
-            return RestoreRoomResponse.Failed(
-                RoomRestoreStatus.NoActiveRoom,
-                RoomRestoreErrorCode.NoAccountRoomMapping,
-                "No active room for account.");
-        }
-
-        var room = client.GetGrain<IRoomGrain>(roomId);
-        var restore = await room.RestoreAsync(accountId);
-        if (restore.HasActiveRoom)
-        {
-            await mapping.BindAccountRoomAsync(accountId, roomId);
-        }
-        else
-        {
-            await mapping.ClearAccountRoomAsync(accountId, roomId);
-        }
-
-        return restore;
+        return mapping.ClearAccountRoomAsync(accountId, string.Empty);
     }
-
-    private static async Task MarkCurrentRoomOfflineAsync(IClusterClient client, string accountId)
-    {
-        var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
-        var roomId = await mapping.TryGetAccountRoomAsync(accountId);
-        if (string.IsNullOrWhiteSpace(roomId))
-        {
-            return;
-        }
-
-        try
-        {
-            var room = client.GetGrain<IRoomGrain>(roomId);
-            await room.MarkOfflineAsync(accountId);
-        }
-        catch
-        {
-            await mapping.ClearAccountRoomAsync(accountId, roomId);
-        }
-    }
- 
-    private static BattleSyncStartOptions? CreateSyncOptions(
-        string? syncTemplateId,
-        int? syncModel,
-        string? networkEnvironmentId,
-        string? carrierName,
-        bool? enableAuthoritativeWorld,
-        bool? interpolationEnabled,
-        int? inputDelayFrames)
-    {
-        if (string.IsNullOrWhiteSpace(syncTemplateId)
-            && syncModel is null
-            && string.IsNullOrWhiteSpace(networkEnvironmentId)
-            && string.IsNullOrWhiteSpace(carrierName)
-            && enableAuthoritativeWorld is null
-            && interpolationEnabled is null
-            && inputDelayFrames is null)
-        {
-            return null;
-        }
-
-        return new BattleSyncStartOptions(
-            syncTemplateId,
-            syncModel ?? 0,
-            networkEnvironmentId,
-            carrierName,
-            enableAuthoritativeWorld ?? true,
-            interpolationEnabled ?? false,
-            inputDelayFrames ?? 0);
-    }
-
-    public sealed record AccountLoginHttpRequest(
-        string AccountId,
-        int ExpireSeconds,
-        bool KickExisting);
-
-    public sealed record SessionTokenHttpRequest(
-        string SessionToken);
-
-    public sealed record RenewSessionHttpRequest(
-        string SessionToken,
-        int ExtendSeconds,
-        bool RotateToken);
-
-    public sealed record GameplayHttpDescriptor(
-        string RoomType,
-        string DisplayName,
-        int DefaultMaxPlayers,
-        bool RequiresPlayerLoadout,
-        string? DefaultWorldType,
-        int DefaultTickRate,
-        string? DefaultSyncTemplateId);
-
-    public sealed record StartShooterSandboxHttpRequest(
-        string? SandboxId,
-        string? Region,
-        string? ServerId,
-        int? BotCount,
-        int? MaxPlayers,
-        int? TickRate,
-        string? Title,
-        IReadOnlyDictionary<string, string>? Tags);
-
-    public sealed record ShooterSandboxControlHttpRequest(
-        string? SandboxId);
-
-    public sealed record CreateRoomHttpRequest(
-        string SessionToken,
-        string Region,
-        string ServerId,
-        string RoomType,
-        string? Title,
-        bool IsPublic,
-        int MaxPlayers,
-        IReadOnlyDictionary<string, string>? Tags);
-
-    public sealed record ListRoomsHttpRequest(
-        string SessionToken,
-        string Region,
-        string ServerId,
-        int Offset,
-        int Limit,
-        string? RoomType);
-
-    public sealed record JoinRoomHttpRequest(
-        string SessionToken,
-        string RoomId);
-
-    public sealed record RoomSnapshotHttpRequest(
-        string SessionToken,
-        string RoomId);
-
-    public sealed record RoomLeaveHttpRequest(
-        string SessionToken,
-        string RoomId);
-
-    public sealed record RoomLeaveHttpResponse(
-        bool Success,
-        string RoomId,
-        string AccountId);
-
-    public sealed record RoomRuntimeStateHttpRequest(
-        string SessionToken,
-        string RoomId);
-
-    public sealed record RoomReadyHttpRequest(
-        string SessionToken,
-        string RoomId,
-        bool Ready);
-
-    public sealed record RoomPickHeroHttpRequest(
-        string SessionToken,
-        string RoomId,
-        int HeroId,
-        int TeamId,
-        int SpawnPointId,
-        int Level,
-        int AttributeTemplateId,
-        int BasicAttackSkillId,
-        IReadOnlyList<int>? SkillIds);
-
-    public sealed record StartRoomBattleHttpRequest(
-        string SessionToken,
-        string RoomId,
-        int GameplayId,
-        int RuleSetId,
-        int ConfigVersion,
-        int ProtocolVersion,
-        string? WorldType,
-        string? ClientId,
-        string? SyncTemplateId,
-        int? SyncModel,
-        string? NetworkEnvironmentId,
-        string? CarrierName,
-        bool? EnableAuthoritativeWorld,
-        bool? InterpolationEnabled,
-        int? InputDelayFrames);
 }

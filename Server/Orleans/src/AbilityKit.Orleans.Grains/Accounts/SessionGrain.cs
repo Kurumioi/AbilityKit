@@ -1,64 +1,66 @@
-using System;
-using System.Collections.Generic;
 using AbilityKit.Orleans.Contracts.Accounts;
+using AbilityKit.Orleans.Grains.Persistence;
 using Orleans;
 
 namespace AbilityKit.Orleans.Grains.Accounts;
 
 public sealed class SessionGrain : Grain, ISessionGrain
 {
-    private sealed record SessionInfo(string AccountId, long IssuedAtUnixMs, long ExpireAtUnixMs);
-
     private const int SlidingExpirationSeconds = 30 * 60;
     private const int MaxAbsoluteTtlSeconds = 24 * 60 * 60;
 
-    private readonly Dictionary<string, SessionInfo> _sessions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _accountToToken = new(StringComparer.Ordinal);
+    private readonly ISessionStateStore _sessionStateStore;
 
-    public Task<GuestLoginResponse> CreateGuestAsync()
+    public SessionGrain(ISessionStateStore sessionStateStore)
     {
-        CleanupExpired();
+        _sessionStateStore = sessionStateStore ?? throw new ArgumentNullException(nameof(sessionStateStore));
+    }
+
+    public async Task<GuestLoginResponse> CreateGuestAsync()
+    {
+        await CleanupExpiredAsync();
 
         var accountId = Guid.NewGuid().ToString("N");
         var sessionToken = Guid.NewGuid().ToString("N");
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var expireAt = DateTimeOffset.UtcNow.AddHours(24).ToUnixTimeMilliseconds();
 
-        _sessions[sessionToken] = new SessionInfo(accountId, now, expireAt);
-        _accountToToken[accountId] = sessionToken;
-        return Task.FromResult(new GuestLoginResponse(accountId, sessionToken, expireAt));
+        await _sessionStateStore.UpsertAsync(new SessionStateRecord(sessionToken, accountId, now, expireAt));
+        return new GuestLoginResponse(accountId, sessionToken, expireAt);
     }
 
-    public Task<ValidateSessionResponse> ValidateAsync(ValidateSessionRequest request)
+    public async Task<ValidateSessionResponse> ValidateAsync(ValidateSessionRequest request)
     {
-        CleanupExpired();
+        await CleanupExpiredAsync();
 
         if (request is null || string.IsNullOrWhiteSpace(request.SessionToken))
         {
-            return Task.FromResult(new ValidateSessionResponse(false, null, null));
+            return new ValidateSessionResponse(false, null, null);
         }
 
-        if (_sessions.TryGetValue(request.SessionToken, out var info))
+        var info = await _sessionStateStore.GetByTokenAsync(request.SessionToken);
+        if (info is null)
         {
-            var updated = ApplySlidingExpirationIfNeeded(request.SessionToken, info);
-            return Task.FromResult(new ValidateSessionResponse(true, updated.AccountId, updated.ExpireAtUnixMs));
+            return new ValidateSessionResponse(false, null, null);
         }
 
-        return Task.FromResult(new ValidateSessionResponse(false, null, null));
+        var updated = await ApplySlidingExpirationIfNeededAsync(info);
+        return new ValidateSessionResponse(true, updated.AccountId, updated.ExpireAtUnixMs);
     }
 
-    public Task<RenewSessionResponse> RenewAsync(RenewSessionRequest request)
+    public async Task<RenewSessionResponse> RenewAsync(RenewSessionRequest request)
     {
-        CleanupExpired();
+        await CleanupExpiredAsync();
 
         if (request is null || string.IsNullOrWhiteSpace(request.SessionToken))
         {
-            return Task.FromResult(new RenewSessionResponse(false, null, null));
+            return new RenewSessionResponse(false, null, null);
         }
 
-        if (!_sessions.TryGetValue(request.SessionToken, out var info))
+        var info = await _sessionStateStore.GetByTokenAsync(request.SessionToken);
+        if (info is null)
         {
-            return Task.FromResult(new RenewSessionResponse(false, null, null));
+            return new RenewSessionResponse(false, null, null);
         }
 
         var extendSeconds = request.ExtendSeconds;
@@ -73,42 +75,37 @@ public sealed class SessionGrain : Grain, ISessionGrain
         if (request.RotateToken)
         {
             var newToken = Guid.NewGuid().ToString("N");
-            _sessions.Remove(request.SessionToken);
-            _sessions[newToken] = info with { ExpireAtUnixMs = newExpireAt };
-            _accountToToken[info.AccountId] = newToken;
-            return Task.FromResult(new RenewSessionResponse(true, newExpireAt, newToken));
+            await _sessionStateStore.RemoveByTokenAsync(request.SessionToken);
+            await _sessionStateStore.UpsertAsync(info with { SessionToken = newToken, ExpireAtUnixMs = newExpireAt });
+            return new RenewSessionResponse(true, newExpireAt, newToken);
         }
 
-        _sessions[request.SessionToken] = info with { ExpireAtUnixMs = newExpireAt };
-        return Task.FromResult(new RenewSessionResponse(true, newExpireAt, request.SessionToken));
+        await _sessionStateStore.UpsertAsync(info with { ExpireAtUnixMs = newExpireAt });
+        return new RenewSessionResponse(true, newExpireAt, request.SessionToken);
     }
 
-    public Task<LogoutResponse> LogoutAsync(LogoutRequest request)
+    public async Task<LogoutResponse> LogoutAsync(LogoutRequest request)
     {
-        CleanupExpired();
+        await CleanupExpiredAsync();
 
         if (request is null || string.IsNullOrWhiteSpace(request.SessionToken))
         {
-            return Task.FromResult(new LogoutResponse(false));
+            return new LogoutResponse(false);
         }
 
-        string? accountId = null;
-        if (_sessions.TryGetValue(request.SessionToken, out var info))
+        var existing = await _sessionStateStore.GetByTokenAsync(request.SessionToken);
+        if (existing is null)
         {
-            accountId = info.AccountId;
+            return new LogoutResponse(false);
         }
 
-        var removed = _sessions.Remove(request.SessionToken);
-        if (removed && accountId != null && _accountToToken.TryGetValue(accountId, out var token) && string.Equals(token, request.SessionToken, StringComparison.Ordinal))
-        {
-            _accountToToken.Remove(accountId);
-        }
-        return Task.FromResult(new LogoutResponse(removed));
+        await _sessionStateStore.RemoveByTokenAsync(request.SessionToken);
+        return new LogoutResponse(true);
     }
 
-    public Task<CreateSessionForAccountResponse> CreateSessionForAccountAsync(CreateSessionForAccountRequest request)
+    public async Task<CreateSessionForAccountResponse> CreateSessionForAccountAsync(CreateSessionForAccountRequest request)
     {
-        CleanupExpired();
+        await CleanupExpiredAsync();
 
         if (request is null || string.IsNullOrWhiteSpace(request.AccountId))
         {
@@ -120,22 +117,17 @@ public sealed class SessionGrain : Grain, ISessionGrain
         if (expireSeconds > 30 * 24 * 3600) expireSeconds = 30 * 24 * 3600;
 
         string? kickedToken = null;
-        if (_accountToToken.TryGetValue(request.AccountId, out var existingToken))
+        var existingInfo = await _sessionStateStore.GetByAccountIdAsync(request.AccountId);
+        if (existingInfo is not null)
         {
             if (request.KickExisting)
             {
-                kickedToken = existingToken;
-                _sessions.Remove(existingToken);
-                _accountToToken.Remove(request.AccountId);
+                kickedToken = existingInfo.SessionToken;
+                await _sessionStateStore.RemoveByTokenAsync(existingInfo.SessionToken);
             }
             else
             {
-                if (_sessions.TryGetValue(existingToken, out var existingInfo))
-                {
-                    return Task.FromResult(new CreateSessionForAccountResponse(existingToken, existingInfo.ExpireAtUnixMs, null));
-                }
-
-                _accountToToken.Remove(request.AccountId);
+                return new CreateSessionForAccountResponse(existingInfo.SessionToken, existingInfo.ExpireAtUnixMs, null);
             }
         }
 
@@ -143,44 +135,18 @@ public sealed class SessionGrain : Grain, ISessionGrain
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var expireAt = DateTimeOffset.UtcNow.AddSeconds(expireSeconds).ToUnixTimeMilliseconds();
 
-        _sessions[sessionToken] = new SessionInfo(request.AccountId, now, expireAt);
-        _accountToToken[request.AccountId] = sessionToken;
+        await _sessionStateStore.UpsertAsync(new SessionStateRecord(sessionToken, request.AccountId, now, expireAt));
 
-        return Task.FromResult(new CreateSessionForAccountResponse(sessionToken, expireAt, kickedToken));
+        return new CreateSessionForAccountResponse(sessionToken, expireAt, kickedToken);
     }
 
-    private void CleanupExpired()
+    private Task CleanupExpiredAsync()
     {
-        if (_sessions.Count == 0) return;
-
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        List<string>? toRemove = null;
-
-        foreach (var kv in _sessions)
-        {
-            if (kv.Value.ExpireAtUnixMs <= now)
-            {
-                toRemove ??= new List<string>();
-                toRemove.Add(kv.Key);
-            }
-        }
-
-        if (toRemove == null) return;
-        foreach (var token in toRemove)
-        {
-            if (_sessions.TryGetValue(token, out var info))
-            {
-                if (_accountToToken.TryGetValue(info.AccountId, out var mapped) && string.Equals(mapped, token, StringComparison.Ordinal))
-                {
-                    _accountToToken.Remove(info.AccountId);
-                }
-            }
-
-            _sessions.Remove(token);
-        }
+        return _sessionStateStore.CleanupExpiredAsync(now);
     }
 
-    private SessionInfo ApplySlidingExpirationIfNeeded(string sessionToken, SessionInfo info)
+    private async Task<SessionStateRecord> ApplySlidingExpirationIfNeededAsync(SessionStateRecord info)
     {
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var absoluteMaxExpireAt = info.IssuedAtUnixMs + (long)MaxAbsoluteTtlSeconds * 1000;
@@ -193,7 +159,7 @@ public sealed class SessionGrain : Grain, ISessionGrain
         }
 
         var updated = info with { ExpireAtUnixMs = newExpireAt };
-        _sessions[sessionToken] = updated;
+        await _sessionStateStore.UpsertAsync(updated);
         return updated;
     }
 }

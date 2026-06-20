@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Systems;
@@ -17,9 +18,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
     [WorldService(typeof(MobaTriggerPlanSubscriptionService))]
     public sealed class MobaTriggerPlanSubscriptionService : IWorldInitializable, IWorldDeinitializable
     {
+        private static readonly MethodInfo s_registerTypedAsMethod = typeof(MobaTriggerPlanSubscriptionService)
+            .GetMethod(nameof(RegisterTypedAs), BindingFlags.Instance | BindingFlags.NonPublic);
+
         [WorldInject] private TriggerPlanJsonDatabase _db = null;
         [WorldInject] private TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner = null;
         [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry = null;
+        [WorldInject(required: false)] private MobaOwnerBoundTriggerGateService _ownerBoundGates = null;
 
         private readonly Dictionary<int, TriggerPlanJsonDatabase.Record> _byTriggerId = new Dictionary<int, TriggerPlanJsonDatabase.Record>();
         private readonly Dictionary<int, Type> _argsTypeByTriggerId = new Dictionary<int, Type>();
@@ -87,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0 || regs.ContainsKey(triggerId)) continue;
-                if (!TryRegister(triggerId, out var registration)) continue;
+                if (!TryRegister(ownerKey, triggerId, out var registration)) continue;
 
                 regs[triggerId] = registration;
             }
@@ -126,7 +131,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        private bool TryRegister(int triggerId, out IDisposable registration)
+        private bool TryRegister(long ownerKey, int triggerId, out IDisposable registration)
         {
             registration = null;
             if (!_byTriggerId.TryGetValue(triggerId, out var record))
@@ -149,7 +154,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             try
             {
-                registration = RegisterTyped(record);
+                registration = RegisterTyped(ownerKey, record);
                 return registration != null;
             }
             catch (Exception ex)
@@ -159,20 +164,48 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        private IDisposable RegisterTyped(in TriggerPlanJsonDatabase.Record record)
+        private IDisposable RegisterTyped(long ownerKey, in TriggerPlanJsonDatabase.Record record)
         {
             if (!_argsTypeByTriggerId.TryGetValue(record.TriggerId, out var argsType) || argsType == null)
             {
                 throw new InvalidOperationException($"Owner-bound trigger missing typed event args mapping. triggerId={record.TriggerId} eventName={record.EventName}");
             }
 
-            var registration = _runner.RegisterPlan(record.EventId, argsType, in record.Plan);
-            if (registration == null)
+            if (s_registerTypedAsMethod == null)
             {
-                throw new InvalidOperationException($"Owner-bound trigger typed registration returned null. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
+                throw new MissingMethodException(nameof(MobaTriggerPlanSubscriptionService), nameof(RegisterTypedAs));
             }
 
-            return registration;
+            try
+            {
+                var method = s_registerTypedAsMethod.MakeGenericMethod(argsType);
+                var registration = (IDisposable)method.Invoke(this, new object[] { ownerKey, record.EventId, record.Plan });
+                if (registration == null)
+                {
+                    throw new InvalidOperationException($"Owner-bound trigger typed registration returned null. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
+                }
+
+                return registration;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
+        private IDisposable RegisterTypedAs<TArgs>(long ownerKey, int eventId, TriggerPlan<object> plan)
+            where TArgs : class
+        {
+            var typedPlan = plan.AsArgs<TArgs>();
+            var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan);
+            ITrigger<TArgs, IWorldResolver> trigger = inner;
+
+            if (_ownerBoundGates != null && _ownerBoundGates.HasGate(ownerKey, typedPlan.TriggerId))
+            {
+                trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates);
+            }
+
+            return _runner.Register(new EventKey<TArgs>(eventId), trigger, typedPlan.Phase, typedPlan.Priority);
         }
 
         public void Stop(long ownerKey)
@@ -245,6 +278,39 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         {
             var keys = new List<long>(_regsByOwnerKey.Keys);
             for (int i = 0; i < keys.Count; i++) Stop(keys[i]);
+        }
+
+        private sealed class GatedOwnerBoundTrigger<TArgs> : ITrigger<TArgs, IWorldResolver>, ITriggerWithId
+            where TArgs : class
+        {
+            private readonly long _ownerKey;
+            private readonly ITrigger<TArgs, IWorldResolver> _inner;
+            private readonly MobaOwnerBoundTriggerGateService _gates;
+            private readonly int _triggerId;
+
+            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates)
+            {
+                _ownerKey = ownerKey;
+                _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+                _gates = gates;
+                _triggerId = inner is ITriggerWithId withId ? withId.TriggerId : 0;
+            }
+
+            public ITriggerCue Cue => _inner.Cue;
+            public int TriggerId => _triggerId;
+
+            public bool Evaluate(in TArgs args, in ExecCtx<IWorldResolver> ctx)
+            {
+                if (_gates != null && !_gates.CanExecute(_ownerKey, _triggerId)) return false;
+                return _inner.Evaluate(in args, in ctx);
+            }
+
+            public void Execute(in TArgs args, in ExecCtx<IWorldResolver> ctx)
+            {
+                if (_gates != null && !_gates.CanExecute(_ownerKey, _triggerId)) return;
+                _inner.Execute(in args, in ctx);
+                _gates?.Complete(_ownerKey, _triggerId);
+            }
         }
 
         public void Dispose()

@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
         AreaEnter = 41,
         AreaExit = 42,
         AreaExpire = 43,
+        AreaStay = 44,
 
         // 召唤物相关
         SummonSpawn = 50,

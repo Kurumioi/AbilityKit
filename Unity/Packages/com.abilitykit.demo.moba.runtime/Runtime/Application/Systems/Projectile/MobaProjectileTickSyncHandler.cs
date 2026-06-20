@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 
-namespace AbilityKit.Demo.Moba.Systems.Projectile
+namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
     internal sealed class MobaProjectileTickSyncHandler : IProjectileSyncHandler
     {
@@ -15,27 +15,29 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
         public void HandleTicks(List<ProjectileTickEvent> ticks)
         {
-            if (ticks == null || ticks.Count == 0) return;
-            if (_sys.Links == null || _sys.Registry == null) return;
+            var count = ticks.Count;
+            if (count <= 0) return;
 
-            for (int i = 0; i < ticks.Count; i++)
+            for (var i = 0; i < count; i++)
             {
                 var evt = ticks[i];
+                _sys.StageTriggers?.ExecuteProjectileTick(evt);
                 if (!_sys.Links.TryGetActorId(evt.Projectile, out var actorId) || actorId <= 0) continue;
-                if (!_sys.Registry.TryGet(actorId, out var e) || e == null) continue;
-                if (!e.hasTransform) continue;
-
-                // Movement is driven by MotionSystem for bullets; do not override it.
-                if (e.hasMotion) continue;
-
-                var t = e.transform.Value;
-                var nt = new Transform3(evt.Position, t.Rotation, t.Scale);
-                e.ReplaceTransform(nt);
             }
+
+            ticks.Clear();
         }
 
-        public void HandleSpawns(List<ProjectileSpawnEvent> spawns) { }
-        public void HandleExits(List<ProjectileExitEvent> exits) { }
-        public void HandleHits(List<ProjectileHitEvent> hits) { }
+        public void HandleSpawns(List<ProjectileSpawnEvent> spawns)
+        {
+        }
+
+        public void HandleExits(List<ProjectileExitEvent> exits)
+        {
+        }
+
+        public void HandleHits(List<ProjectileHitEvent> hits)
+        {
+        }
     }
 }

@@ -83,7 +83,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
         EnsureAccountId(request.AccountId);
 
         var alreadyMember = _members.Contains(request.AccountId);
-        if (_closed && !string.IsNullOrEmpty(_battleId))
+        var lifecycle = GetLifecycleSnapshot();
+        if (lifecycle.State == RoomLifecycleState.InBattle)
         {
             if (!alreadyMember)
             {
@@ -303,10 +304,15 @@ public sealed class RoomGrain : Grain, IRoomGrain
 
     private void EnsureOpen()
     {
-        if (_closed)
+        if (!GetLifecycleSnapshot().IsOpenForLobbyActions)
         {
             throw new InvalidOperationException("Room is closed.");
         }
+    }
+
+    private RoomLifecycleSnapshot GetLifecycleSnapshot()
+    {
+        return RoomLifecyclePolicy.Evaluate(_closed, _battleId, _members.Count);
     }
 
     private void EnsureMember(string accountId)

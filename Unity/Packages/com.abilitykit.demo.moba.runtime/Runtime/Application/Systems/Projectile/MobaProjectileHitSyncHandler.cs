@@ -1,15 +1,9 @@
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Combat.Projectile;
-using AbilityKit.Effect;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Core.Eventing;
-using AbilityKit.Triggering.Eventing;
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.Triggering;
 
-namespace AbilityKit.Demo.Moba.Systems.Projectile
+namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
     internal sealed class MobaProjectileHitSyncHandler : IProjectileSyncHandler
     {
@@ -22,95 +16,37 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
 
         public void HandleHits(List<ProjectileHitEvent> hits)
         {
-            if (hits == null || hits.Count == 0) return;
+            var count = hits.Count;
+            if (count <= 0) return;
 
-            HashSet<(int Frame, int ProjectileId, int HitActorId)> hitActorOnce = null;
-            if (hits.Count > 1)
+            for (var i = 0; i < count; i++)
             {
-                hitActorOnce = new HashSet<(int, int, int)>();
-            }
-            for (int i = 0; i < hits.Count; i++)
-            {
-                var evt = hits[i];
-                var hitActorId = _sys.ResolveActorIdByCollider(evt.HitCollider);
-
-                if (hitActorOnce != null && hitActorId > 0 && !hitActorOnce.Add((evt.Frame, evt.Projectile.Value, hitActorId)))
+                var hit = hits[i];
+                if (hit.Projectile.Value <= 0)
                 {
+                    Log.Warning("[MobaProjectileHitSyncHandler] Projectile id is invalid when processing hit event.");
                     continue;
                 }
 
-                var eventBus = _sys.EventBus;
-                if (eventBus != null)
-                {
-                    var eventId = ProjectileTriggering.Events.Hit;
-                    var eid = AbilityKit.Demo.Moba.Services.TriggeringIdUtil.GetEventEid(eventId);
+                var hitActorId = _sys.ResolveActorIdByCollider(hit.HitCollider);
+                if (hitActorId <= 0) continue;
 
-                    eventBus.Publish(new EventKey<ProjectileHitEvent>(eid), in evt);
-                }
-
-                var triggers = _sys.Triggers;
-                var cfgs = _sys.Configs;
-                try
-                {
-                    if (cfgs == null)
-                    {
-                        throw new System.InvalidOperationException($"Projectile hit requires MobaConfigDatabase. templateId={evt.TemplateId} projectileId={evt.Projectile.Value}");
-                    }
-
-                    var proj = cfgs.GetProjectile(evt.TemplateId);
-                    if (proj == null)
-                    {
-                        throw new System.InvalidOperationException($"Projectile hit requires a valid projectile config. templateId={evt.TemplateId} projectileId={evt.Projectile.Value}");
-                    }
-
-                    var onHitTriggerId = proj.OnHitEffectId;
-                    if (onHitTriggerId <= 0) continue;
-
-                    if (triggers == null)
-                    {
-                        throw new System.InvalidOperationException($"Projectile hit effect requires MobaTriggerExecutionGateway. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
-                    }
-
-                    if (_sys.Links == null || !_sys.Links.TryGetSource(evt.Projectile, out var sourceContext))
-                    {
-                        throw new System.InvalidOperationException($"Projectile hit effect requires a bound source context. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
-                    }
-
-                    if (!sourceContext.IsValid || sourceContext.SourceActorId <= 0)
-                    {
-                        throw new System.InvalidOperationException($"Projectile hit effect source context is invalid. templateId={evt.TemplateId} projectileId={evt.Projectile.Value} triggerId={onHitTriggerId}");
-                    }
-
-                    var payload = new ProjectileHitArgs
-                    {
-                        TriggerId = onHitTriggerId,
-                        SourceActorId = sourceContext.SourceActorId,
-                        TargetActorId = hitActorId,
-                        SourceContextId = sourceContext.SourceContextId,
-                        SourceConfigId = evt.TemplateId,
-                        SourceContext = sourceContext,
-                        Frame = evt.Frame,
-                        CasterActorId = evt.OwnerId,
-                        ProjectileTemplateId = evt.TemplateId,
-                        ProjectileId = evt.Projectile,
-                        Point = evt.Point,
-                        Normal = evt.Normal,
-                        HitCollider = evt.HitCollider,
-                        Raw = evt,
-                    };
-
-                    triggers.ExecuteDirectTrigger(onHitTriggerId, payload, "projectile.hit");
-                }
-                catch (System.Exception ex)
-                {
-                    Log.Exception(ex, "[MobaProjectileHitSyncHandler] Execute projectile OnHitEffectId failed");
-                    throw;
-                }
+                _sys.StageTriggers?.ExecuteProjectileHit(hit, hitActorId);
             }
+
+            hits.Clear();
         }
 
-        public void HandleSpawns(List<ProjectileSpawnEvent> spawns) { }
-        public void HandleTicks(List<ProjectileTickEvent> ticks) { }
-        public void HandleExits(List<ProjectileExitEvent> exits) { }
+        public void HandleSpawns(List<ProjectileSpawnEvent> spawns)
+        {
+        }
+
+        public void HandleTicks(List<ProjectileTickEvent> ticks)
+        {
+        }
+
+        public void HandleExits(List<ProjectileExitEvent> exits)
+        {
+        }
     }
 }

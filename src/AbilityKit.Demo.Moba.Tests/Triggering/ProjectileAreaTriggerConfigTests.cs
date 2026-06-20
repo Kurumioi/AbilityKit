@@ -1,0 +1,75 @@
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
+using Xunit;
+
+namespace AbilityKit.Demo.Moba.Tests.Triggering;
+
+public sealed class ProjectileAreaTriggerConfigTests
+{
+    [Fact]
+    public void Aoe_trigger_fields_are_loaded_into_runtime_model()
+    {
+        var configs = CreateConfigDatabase(
+            new AoeDTO
+            {
+                Id = 9001,
+                Name = "test_area",
+                Radius = 3.5f,
+                DelayMs = 1200,
+                CollisionLayerMask = 7,
+                MaxTargets = 4,
+                OnDelayTriggerIds = new[] { 101, 102 },
+                OnEnterTriggerIds = new[] { 201 },
+                OnExitTriggerIds = new[] { 301 },
+                OnIntervalTriggerIds = new[] { 401, 402 },
+                IntervalMs = 500,
+            },
+            null);
+
+        Assert.True(configs.TryGetAoe(9001, out var area));
+        Assert.Equal(new[] { 101, 102 }, area.OnDelayTriggerIds);
+        Assert.Equal(new[] { 201 }, area.OnEnterTriggerIds);
+        Assert.Equal(new[] { 301 }, area.OnExitTriggerIds);
+        Assert.Equal(new[] { 401, 402 }, area.OnIntervalTriggerIds);
+        Assert.Equal(500, area.IntervalMs);
+    }
+
+    [Fact]
+    public void Projectile_stage_trigger_fields_are_loaded_into_runtime_model()
+    {
+        var configs = CreateConfigDatabase(
+            null,
+            new ProjectileDTO
+            {
+                Id = 3001,
+                Name = "test_projectile",
+                Speed = 12f,
+                LifetimeMs = 1500,
+                MaxDistance = 20f,
+                OnHitEffectId = 1001,
+                OnSpawnTriggerIds = new[] { 1101 },
+                OnHitTriggerIds = new[] { 1201, 1202 },
+                OnTickTriggerIds = new[] { 1301 },
+                OnExitTriggerIds = new[] { 1401 },
+            });
+
+        Assert.True(configs.TryGetProjectile(3001, out var projectile));
+        Assert.Equal(1001, projectile.OnHitEffectId);
+        Assert.Equal(new[] { 1101 }, projectile.OnSpawnTriggerIds);
+        Assert.Equal(new[] { 1201, 1202 }, projectile.OnHitTriggerIds);
+        Assert.Equal(new[] { 1301 }, projectile.OnTickTriggerIds);
+        Assert.Equal(new[] { 1401 }, projectile.OnExitTriggerIds);
+    }
+
+    private static MobaConfigDatabase CreateConfigDatabase(AoeDTO? area, ProjectileDTO? projectile)
+    {
+        var dtoArraysByType = new Dictionary<Type, Array>();
+        if (area != null) dtoArraysByType[typeof(AoeDTO)] = new[] { area };
+        if (projectile != null) dtoArraysByType[typeof(ProjectileDTO)] = new[] { projectile };
+
+        var configs = new MobaConfigDatabase();
+        var result = configs.ReloadFromDtoArrays(dtoArraysByType, strict: false);
+        Assert.True(result.Succeeded, result.Error);
+        return configs;
+    }
+}

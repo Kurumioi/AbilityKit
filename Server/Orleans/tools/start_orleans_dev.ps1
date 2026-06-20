@@ -17,6 +17,7 @@ $src = Join-Path $root 'src'
 
 $hostProj = Join-Path $src 'AbilityKit.Orleans.Host\AbilityKit.Orleans.Host.csproj'
 $gatewayProj = Join-Path $src 'AbilityKit.Orleans.Gateway\AbilityKit.Orleans.Gateway.csproj'
+$healthUri = "http://localhost:$GatewayPort/health"
 
 if (!(Test-Path $hostProj)) { throw "Host csproj not found: $hostProj" }
 if (!(Test-Path $gatewayProj)) { throw "Gateway csproj not found: $gatewayProj" }
@@ -42,42 +43,32 @@ if (-not $NoBuild) {
     dotnet build $gatewayProj -c $Configuration @commonArgs
 }
 
-$noBuildArg = if ($NoBuild) { '--no-build' } else { '' }
 $runBuildArgs = $commonArgs -join ' '
 
 Write-Host 'Starting Orleans Silo Host...' -ForegroundColor Cyan
-$hostArgs = @(
-    '-NoExit',
-    '-NoProfile',
-    '-Command',
-    "dotnet run --project `"$hostProj`" -c $Configuration $noBuildArg $runBuildArgs"
-)
+$hostCommand = "dotnet run --project `"$hostProj`" -c $Configuration $(if ($NoBuild) { '--no-build' } else { '' }) $runBuildArgs"
+$hostArgs = @('-NoExit', '-NoProfile', '-Command', $hostCommand)
 $hostWindow = Start-Process powershell -ArgumentList $hostArgs -PassThru -WindowStyle Normal
 Write-Host "  Host window PID: $($hostWindow.Id)" -ForegroundColor Gray
 
 Start-Sleep -Seconds 5
 
 Write-Host 'Starting Orleans Gateway...' -ForegroundColor Cyan
-$gatewayArgs = @(
-    '-NoExit',
-    '-NoProfile',
-    '-Command',
-    "dotnet run --project `"$gatewayProj`" -c $Configuration $noBuildArg $runBuildArgs"
-)
+$gatewayCommand = "dotnet run --project `"$gatewayProj`" -c $Configuration $(if ($NoBuild) { '--no-build' } else { '' }) $runBuildArgs"
+$gatewayArgs = @('-NoExit', '-NoProfile', '-Command', $gatewayCommand)
 $gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -PassThru -WindowStyle Normal
 Write-Host "  Gateway window PID: $($gatewayWindow.Id)" -ForegroundColor Gray
 
-$gatewayHealth = "http://localhost:$GatewayPort/health"
-if (Wait-AbilityKitHttpEndpoint -Uri $gatewayHealth -TimeoutSeconds 20) {
-    Write-Host "Gateway Health: OK ($gatewayHealth)" -ForegroundColor Green
+if (Wait-AbilityKitHttpEndpoint -Uri $healthUri -TimeoutSeconds 20) {
+    Write-Host "Gateway Health: OK ($healthUri)" -ForegroundColor Green
 }
 else {
-    Write-Host "Gateway Health: not ready yet ($gatewayHealth)" -ForegroundColor Yellow
+    Write-Host "Gateway Health: not ready yet ($healthUri)" -ForegroundColor Yellow
 }
 
 Write-Host ''
 Write-Host 'Gateway:' -ForegroundColor Green
-Write-Host "  HTTP: $gatewayHealth"
+Write-Host "  HTTP: $healthUri"
 Write-Host "  TCP:  127.0.0.1:$TcpPort"
 Write-Host ''
 Write-Host 'Close the spawned PowerShell windows to stop services, or run this script again to restart cleanly.' -ForegroundColor Gray

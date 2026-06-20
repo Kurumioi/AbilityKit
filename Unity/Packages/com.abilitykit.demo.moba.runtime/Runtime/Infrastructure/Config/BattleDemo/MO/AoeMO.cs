@@ -21,6 +21,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int MaxTargets { get; }
 
         public int[] OnDelayTriggerIds { get; }
+        public int[] OnEnterTriggerIds { get; }
+        public int[] OnExitTriggerIds { get; }
+        public int[] OnIntervalTriggerIds { get; }
+        public int IntervalMs { get; }
 
         public AoeMO(AoeDTO dto)
         {
@@ -41,6 +45,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             MaxTargets = dto.MaxTargets;
 
             OnDelayTriggerIds = dto.OnDelayTriggerIds ?? Array.Empty<int>();
+            OnEnterTriggerIds = dto.OnEnterTriggerIds ?? Array.Empty<int>();
+            OnExitTriggerIds = dto.OnExitTriggerIds ?? Array.Empty<int>();
+            OnIntervalTriggerIds = dto.OnIntervalTriggerIds ?? Array.Empty<int>();
+            IntervalMs = dto.IntervalMs;
         }
     }
 }

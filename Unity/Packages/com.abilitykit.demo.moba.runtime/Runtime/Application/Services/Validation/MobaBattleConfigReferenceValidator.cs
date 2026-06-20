@@ -31,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Services
             ValidatePassiveSkills(config, triggers, report);
             ValidateBuffs(config, triggers, report);
             ValidateCharacters(config, report);
-            ValidateProjectiles(config, report);
+            ValidateProjectiles(config, triggers, report);
             ValidateProjectileLaunchers(config, report);
             ValidateSummons(config, report);
             ValidateAreas(config, triggers, report);
@@ -212,12 +212,18 @@ namespace AbilityKit.Demo.Moba.Services
             report.Warning(Source, path, "skill parameter modifier target is not one of the built-in projectile/summon parameter ids.", businessId.ToString());
         }
 
-        private static void ValidateProjectiles(MobaConfigDatabase config, MobaRuntimeValidationReport report)
+        private static void ValidateProjectiles(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report)
         {
             foreach (var projectile in All<ProjectileMO>(config))
             {
                 if (projectile == null) continue;
                 var path = $"projectile.{projectile.Id}";
+
+                if (projectile.OnHitEffectId > 0) RequiredTriggerRef(triggers, projectile.OnHitEffectId, report, path + ".onHitEffectId", projectile.Id);
+                ValidateTriggerRefs(triggers, projectile.OnSpawnTriggerIds, report, path + ".onSpawnTriggerIds", projectile.Id);
+                ValidateTriggerRefs(triggers, projectile.OnHitTriggerIds, report, path + ".onHitTriggerIds", projectile.Id);
+                ValidateTriggerRefs(triggers, projectile.OnTickTriggerIds, report, path + ".onTickTriggerIds", projectile.Id);
+                ValidateTriggerRefs(triggers, projectile.OnExitTriggerIds, report, path + ".onExitTriggerIds", projectile.Id);
 
                 if (projectile.Speed < 0f)
                 {
@@ -313,6 +319,9 @@ namespace AbilityKit.Demo.Moba.Services
 
                 OptionalRef(Ref<ModelMO>(config.TryGetModel), area.ModelId, report, path + ".modelId", "model", area.Id);
                 ValidateTriggerRefs(triggers, area.OnDelayTriggerIds, report, path + ".onDelayTriggerIds", area.Id);
+                ValidateTriggerRefs(triggers, area.OnEnterTriggerIds, report, path + ".onEnterTriggerIds", area.Id);
+                ValidateTriggerRefs(triggers, area.OnExitTriggerIds, report, path + ".onExitTriggerIds", area.Id);
+                ValidateTriggerRefs(triggers, area.OnIntervalTriggerIds, report, path + ".onIntervalTriggerIds", area.Id);
 
                 if (area.Radius < 0f)
                 {
@@ -327,6 +336,11 @@ namespace AbilityKit.Demo.Moba.Services
                 if (area.MaxTargets < 0)
                 {
                     report.Warning(Source, path + ".maxTargets", "area max targets is negative.", area.Id.ToString());
+                }
+
+                if (area.IntervalMs < 0)
+                {
+                    report.Warning(Source, path + ".intervalMs", "area interval is negative.", area.Id.ToString());
                 }
             }
         }

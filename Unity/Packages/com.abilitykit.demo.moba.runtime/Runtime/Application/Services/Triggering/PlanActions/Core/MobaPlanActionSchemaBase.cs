@@ -131,7 +131,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return arg.Ref.ConstValue;
             }
 
-            return ActionSchemaRegistry.ResolveNumericRef(arg.Ref, ctx);
+            return NumericValueRefResolver.Resolve(arg.Ref, default(object), ctx);
         }
 
         protected static bool TryReadCurrentPayloadNumber(ExecCtx<IWorldResolver> ctx, in TriggerActionParseContext parseContext, int fieldId, out double value)

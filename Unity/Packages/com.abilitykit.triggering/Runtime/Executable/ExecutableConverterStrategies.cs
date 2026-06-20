@@ -281,7 +281,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             if (config.Switch != null)
             {
                 if (!string.IsNullOrEmpty(config.Switch.ValueSelector))
-                    switchExec.ValueSelector = ctx => converter.EvaluateValueSelector(config.Switch.ValueSelector, ctx);
+                    switchExec.ValueSelector = ctx => System.Convert.ToInt32(converter.EvaluateValueSelector(config.Switch.ValueSelector, ctx));
                 if (config.Switch.Cases != null)
                 {
                     foreach (var caseConfig in config.Switch.Cases)
@@ -368,7 +368,17 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         public override ISimpleExecutable Convert(ExecutableConfig config, ConfigToExecutableConverter converter)
         {
-            return converter.ConvertSchedule(config);
+            var inner = config.Children != null && config.Children.Count > 0
+                ? converter.ConvertToSequence(config.Children)
+                : new SequenceExecutable();
+
+            if (config.Schedule.ScheduleMode?.Equals("periodic", StringComparison.OrdinalIgnoreCase) == true)
+                return ScheduledExecutableFactory.WrapPeriodic(inner, config.Schedule.PeriodMs, config.Schedule.MaxExecutions);
+
+            if (config.Schedule.ScheduleMode?.Equals("external", StringComparison.OrdinalIgnoreCase) == true)
+                return ScheduledExecutableFactory.WrapExternal(inner);
+
+            return ScheduledExecutableFactory.WrapTimed(inner, config.Schedule.DurationMs);
         }
     }
 

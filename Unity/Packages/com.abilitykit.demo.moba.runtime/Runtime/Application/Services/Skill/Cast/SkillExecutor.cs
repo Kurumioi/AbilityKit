@@ -194,7 +194,7 @@ namespace AbilityKit.Demo.Moba.Services
                 case SkillInputPhase.Cancel:
                     return HandleCancelInput(actorId, evt.Slot);
                 default:
-                    return MobaSkillInputHandleResult.Failed("skill.input.unsupportedPhase", "Unsupported skill input phase.");
+                    return SkillResultFactory.InputFailed("skill.input.unsupportedPhase", "Unsupported skill input phase.");
             }
         }
 
@@ -341,35 +341,13 @@ namespace AbilityKit.Demo.Moba.Services
                 ctx,
                 out var failReason,
                 policy: policy);
-            var failure = BuildCastFailure(runner, failReason);
+            var failure = SkillResultFactory.UnknownCastFailure(failReason);
             if (!success)
             {
                 prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
             }
 
             return MobaSkillCastResult.From(success, failReason, in ctx.RuntimeHandle, in failure);
-        }
-
-        private static MobaSkillCastFailure BuildCastFailure(SkillPipelineRunner runner, string failReason)
-        {
-            if (runner != null)
-            {
-                var startReject = runner.LastStartReject;
-                if (startReject.HasValue)
-                {
-                    return new MobaSkillCastFailure("StartReject", null, startReject.Code, startReject.Message ?? failReason);
-                }
-
-                var pipelineFailure = runner.LastPipelineFailure;
-                if (pipelineFailure.HasValue)
-                {
-                    return new MobaSkillCastFailure("Pipeline", pipelineFailure.Stage, pipelineFailure.Code, pipelineFailure.Message ?? failReason);
-                }
-            }
-
-            return string.IsNullOrEmpty(failReason)
-                ? MobaSkillCastFailure.None
-                : new MobaSkillCastFailure("Unknown", null, "skill.cast.failed", failReason);
         }
 
         public bool TryGetRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
@@ -491,4 +469,10 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
 }
+
+
+
+
+
+
 

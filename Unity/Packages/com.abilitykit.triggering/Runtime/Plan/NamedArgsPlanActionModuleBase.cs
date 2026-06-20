@@ -199,7 +199,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return triggerArgsAwareSchema.ParseArgs(namedArgs, ctx, triggerArgs);
             }
 
-            return ActionSchemaRegistry.ParseArgs<TActionArgs, TCtx>(ActionId, namedArgs, ctx);
+            return (TActionArgs)ActionSchemaRegistry.ParseArgs<TActionArgs, TCtx>(ActionId, namedArgs, ctx);
         }
     }
 }

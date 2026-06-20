@@ -11,14 +11,15 @@ using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Trajectory;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
+using AbilityKit.Demo.Moba.Systems;
 
-namespace AbilityKit.Demo.Moba.Systems.Projectile
+namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
     [WorldSystem(order: MobaSystemOrder.ProjectileSync, Phase = WorldSystemPhase.PostExecute)]
     public sealed class MobaProjectileSyncSystem : WorldSystemBase
@@ -28,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         private MobaActorRegistry _registry;
         private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private MobaTriggerExecutionGateway _triggers;
+        private IMobaStageTriggerService _stageTriggers;
         private ActorIdAllocator _actorIds;
         private MobaEntityManager _entities;
         private MobaActorSpawnSnapshotService _spawnSnapshots;
@@ -53,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         internal MobaActorRegistry Registry => _registry;
         internal AbilityKit.Triggering.Eventing.IEventBus EventBus => _eventBus;
         internal MobaTriggerExecutionGateway Triggers => _triggers;
+        internal IMobaStageTriggerService StageTriggers => _stageTriggers;
         internal ActorIdAllocator ActorIds => _actorIds;
         internal MobaEntityManager Entities => _entities;
         internal MobaActorSpawnSnapshotService SpawnSnapshots => _spawnSnapshots;
@@ -74,6 +77,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             Services.TryResolve(out _registry);
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _triggers);
+            Services.TryResolve(out _stageTriggers);
             Services.TryResolve(out _actorIds);
             Services.TryResolve(out _entities);
             Services.TryResolve(out _spawnSnapshots);
@@ -84,7 +88,7 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _authority);
             Services.TryResolve(out _time);
-  
+
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);
             _exitHandler = new MobaProjectileExitSyncHandler(this);
@@ -195,4 +199,3 @@ namespace AbilityKit.Demo.Moba.Systems.Projectile
         }
     }
 }
-

@@ -1,586 +1,240 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
-    // ========================================================================
-    // 修饰器默认实现 — 最小化占位，业务包可替换
-    //
-    //  所有实现均标记 [DecoratorImpl]，可通过 DecoratorRegistry 自动发现
-    //  如果业务包注册了相同接口的实现，优先使用业务包的
-    // ========================================================================
-
-    // ========================================================================
-    // 标签系统默认实现
-    // 注意: 不同项目的 Tag 系统 (如 GameplayTag, FGameplayTag, 自定义 Tag) 差异很大
-    // 这些只是核心包提供的最基础实现，业务项目应替换为自己的实现
-    // ========================================================================
-
-    internal sealed class DefaultGameplayTagImpl : IGameplayTag
+    internal abstract class DefaultDecoratorBase : IDecorator
     {
-        public string FullName { get; }
-        public IGameplayTag Parent { get; }
-
-        public DefaultGameplayTagImpl(string fullName)
-        {
-            FullName = fullName;
-            var lastDot = fullName.LastIndexOf('.');
-            if (lastDot > 0)
-                Parent = new DefaultGameplayTagImpl(fullName.Substring(0, lastDot));
-        }
-
-        public bool Matches(IGameplayTag other, ETagQueryMode mode = ETagQueryMode.IncludeParent)
-        {
-            if (other == null) return false;
-            if (ReferenceEquals(this, other)) return true;
-            if (FullName == other.FullName) return true;
-            if (mode == ETagQueryMode.IncludeParent && Parent != null)
-                return Parent.Matches(other, mode);
-            return false;
-        }
+        public abstract string Name { get; }
+        public abstract ExecutableMetadata Metadata { get; }
+        public abstract Type DecoratorType { get; }
+        public virtual bool IsReady => true;
+        public ISimpleExecutable Inner { get; set; }
+        public virtual bool OnBeforeExecute(object ctx) => true;
+        public virtual void OnAfterExecute(object ctx, ref ExecutionResult result) { }
+        public virtual ExecutionResult Execute(object ctx) => Inner?.Execute(ctx) ?? ExecutionResult.Success();
     }
-
-    internal sealed class DefaultTagContainerImpl : ITagContainer
-    {
-        private readonly HashSet<DefaultGameplayTagImpl> _tags = new();
-
-        public int Count => _tags.Count;
-        public event Action<TagEventData> OnTagChanged;
-
-        public bool Has(IGameplayTag tag, ETagQueryMode mode = ETagQueryMode.IncludeParent)
-        {
-            if (tag == null) return false;
-            foreach (var t in _tags)
-                if (t.Matches(tag, mode)) return true;
-            return false;
-        }
-
-        public bool HasAny(IEnumerable<IGameplayTag> tags)
-        {
-            foreach (var tag in tags)
-                if (Has(tag)) return true;
-            return false;
-        }
-
-        public bool HasAll(IEnumerable<IGameplayTag> tags)
-        {
-            foreach (var tag in tags)
-                if (!Has(tag)) return false;
-            return true;
-        }
-
-        public void Add(IGameplayTag tag)
-        {
-            if (tag is DefaultGameplayTagImpl dt && _tags.Add(dt))
-                OnTagChanged?.Invoke(new TagEventData(tag, ETagEvent.Added));
-        }
-
-        public void Remove(IGameplayTag tag)
-        {
-            if (tag is DefaultGameplayTagImpl dt && _tags.Remove(dt))
-                OnTagChanged?.Invoke(new TagEventData(tag, ETagEvent.Removed));
-        }
-
-        public IEnumerable<IGameplayTag> GetAll() => _tags;
-    }
-
-    // ========================================================================
-    // 持续时间修饰器默认实现
-    // ========================================================================
 
     [DecoratorImpl(typeof(IDurationDecorator))]
-    internal sealed class DefaultDurationDecorator : IDurationDecorator
+    internal sealed class DefaultDurationDecorator : DefaultDecoratorBase, IDurationDecorator
     {
-        private float _elapsedMs;
-        private float _remainingMs;
+        public DefaultDurationDecorator() { }
 
-        public string Name => $"Duration({Inner?.Name ?? "null"}, {_remainingMs:F0}ms)";
-        public ExecutableMetadata Metadata => new(3000, "Duration");
-        public Type DecoratorType => typeof(IDurationDecorator);
-        public bool IsReady => !IsExpired;
+        public DefaultDurationDecorator(float durationMs)
+        {
+            DurationMs = durationMs;
+        }
 
+        public override string Name => $"Duration({Inner?.Name ?? "null"})";
+        public override ExecutableMetadata Metadata => new(3000, "Duration");
+        public override Type DecoratorType => typeof(IDurationDecorator);
         public float DurationMs { get; set; } = -1;
-        public float RemainingMs => Math.Max(0, _remainingMs - _elapsedMs);
-        public bool IsExpired => _remainingMs >= 0 && _elapsedMs >= _remainingMs;
+        public float RemainingMs => DurationMs;
+        public bool IsExpired => false;
         public bool CanBeInterrupted { get; set; } = true;
         public bool AutoStart { get; set; } = true;
-        public ISimpleExecutable Inner { get; set; }
         public event Action<object> OnExpired;
-        internal event Action<object, float> OnTickInternal;
-
-        public DefaultDurationDecorator() { }
-        public DefaultDurationDecorator(float durationMs) { DurationMs = durationMs; _remainingMs = durationMs; }
-
-        public bool OnBeforeExecute(object ctx)
-        {
-            if (!AutoStart && _remainingMs < 0) return !IsExpired;
-            if (_remainingMs < 0) _remainingMs = DurationMs;
-            return !IsExpired;
-        }
-
-        public void OnAfterExecute(object ctx, ref ExecutionResult result)
-        {
-            OnTickInternal?.Invoke(ctx, 0);
-        }
-
-        public bool Update(object ctx, float deltaTimeMs)
-        {
-            if (!AutoStart && _remainingMs < 0) _remainingMs = DurationMs;
-            _elapsedMs += deltaTimeMs;
-            OnTickInternal?.Invoke(ctx, deltaTimeMs);
-            if (IsExpired) { OnExpired?.Invoke(ctx); return true; }
-            return false;
-        }
-
+        public bool Update(object ctx, float deltaTimeMs) => false;
         public void Refresh(float additionalMs)
         {
-            if (CanBeInterrupted || _remainingMs < 0)
+            DurationMs += additionalMs;
+        }
+    }
+
+    [DecoratorImpl(typeof(ITagDecorator))]
+    internal sealed class DefaultTagDecorator : DefaultDecoratorBase, ITagDecorator
+    {
+        private readonly List<string> _tagNames = new();
+
+        public DefaultTagDecorator() { }
+
+        public DefaultTagDecorator(params string[] tagNames)
+        {
+            if (tagNames == null) return;
+            foreach (var tagName in tagNames)
             {
-                if (_remainingMs < 0) _remainingMs = 0;
-                _remainingMs = Math.Min(_remainingMs + additionalMs, DurationMs >= 0 ? DurationMs : float.MaxValue);
-                _elapsedMs = 0;
+                AddTag(tagName);
             }
         }
 
-        public ExecutionResult Execute(object ctx)
+        public override string Name => $"Tag({Inner?.Name ?? "null"})";
+        public override ExecutableMetadata Metadata => new(3001, "Tag");
+        public override Type DecoratorType => typeof(ITagDecorator);
+        public ITagContainer Tags { get; set; }
+        public string RequiredTags { get; set; } = string.Empty;
+        public string IgnoreTags { get; set; } = string.Empty;
+        public event Action<object> OnTagChanged;
+        public void AddTag(string tagName)
         {
-            if (!OnBeforeExecute(ctx)) return ExecutionResult.Skipped("Duration expired or not started");
-            var result = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnAfterExecute(ctx, ref result);
-            return result;
+            if (string.IsNullOrWhiteSpace(tagName) || _tagNames.Contains(tagName)) return;
+            _tagNames.Add(tagName);
+            OnTagChanged?.Invoke(tagName);
+        }
+
+        public void RemoveTag(string tagName)
+        {
+            if (!_tagNames.Remove(tagName)) return;
+            OnTagChanged?.Invoke(tagName);
         }
     }
-
-    // ========================================================================
-    // 标签修饰器默认实现
-    // 注意: DefaultGameplayTagImpl 只是最基础的字符串 Tag 实现
-    // 业务项目应实现自己的 IGameplayTag / ITagContainer 并替换此默认实现
-    // ========================================================================
-
-    [DecoratorImpl(typeof(ITagDecorator))]
-    internal sealed class DefaultTagDecorator : ITagDecorator
-    {
-        private ITagContainer _container = new DefaultTagContainerImpl();
-
-        public string Name => $"Tag({Inner?.Name ?? "null"}, {_container?.Count ?? 0})";
-        public ExecutableMetadata Metadata => new(3001, "Tag");
-        public Type DecoratorType => typeof(ITagDecorator);
-        public bool IsReady => !RequiredTags.Matches(_container) ? false : !IgnoreTags.Matches(_container);
-
-        public ITagContainer Tags { get => _container; set => _container = value ?? new DefaultTagContainerImpl(); }
-        public TagQuery RequiredTags { get; set; }
-        public TagQuery IgnoreTags { get; set; }
-        public ISimpleExecutable Inner { get; set; }
-        public event Action<TagEventData> OnTagChanged;
-
-        public DefaultTagDecorator() { }
-        public DefaultTagDecorator(params string[] tagNames)
-        {
-            foreach (var name in tagNames) AddTag(name);
-        }
-
-        public void AddTag(string tagName) => _container.Add(new DefaultGameplayTagImpl(tagName));
-        public void RemoveTag(string tagName) => _container.Remove(new DefaultGameplayTagImpl(tagName));
-
-        public bool OnBeforeExecute(object ctx) => IsReady;
-
-        public void OnAfterExecute(object ctx, ref ExecutionResult result)
-        {
-            _container.OnTagChanged += data => OnTagChanged?.Invoke(data);
-        }
-
-        public ExecutionResult Execute(object ctx)
-        {
-            if (!OnBeforeExecute(ctx)) return ExecutionResult.Skipped("Tag condition not met");
-            var result = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnAfterExecute(ctx, ref result);
-            return result;
-        }
-    }
-
-    // ========================================================================
-    // 修改器修饰器默认实现
-    // 集成 modifiers 包的完整能力：ModifierCalculator、ModifierStacking、等级缩放等
-    // ========================================================================
 
     [DecoratorImpl(typeof(IModifierDecorator))]
-    internal sealed class DefaultModifierDecorator : IModifierDecorator
+    internal sealed class DefaultModifierDecorator : DefaultDecoratorBase, IModifierDecorator
     {
         private readonly List<ModifierData> _modifiers = new();
-        private readonly ModifierCalculator _calculator = new();
-
-        public string Name => $"Modifier({Inner?.Name ?? "null"}, {_modifiers.Count})";
-        public ExecutableMetadata Metadata => new(3002, "Modifier");
-        public Type DecoratorType => typeof(IModifierDecorator);
-        public bool IsReady => true;
-
-        public int SourceId { get; set; }
-        public ISimpleExecutable Inner { get; set; }
-        public float Level { get; set; } = 1f;
-        public IModifierApplier Applier { get; set; }
-
-        public event Action<ModifierData> OnModifierApplied;
-        public event Action<ModifierData> OnModifierRemoved;
 
         public DefaultModifierDecorator() { }
 
         public DefaultModifierDecorator(params ModifierData[] modifiers)
         {
-            _modifiers.AddRange(modifiers);
+            AddRange(modifiers);
         }
 
         public DefaultModifierDecorator(IModifierApplier applier, params ModifierData[] modifiers)
         {
             Applier = applier;
-            _modifiers.AddRange(modifiers);
+            AddRange(modifiers);
         }
 
+        public override string Name => $"Modifier({Inner?.Name ?? "null"}, {_modifiers.Count})";
+        public override ExecutableMetadata Metadata => new(3002, "Modifier");
+        public override Type DecoratorType => typeof(IModifierDecorator);
+        public int SourceId { get; set; }
+        public event Action<ModifierData> OnModifierApplied;
+        public event Action<ModifierData> OnModifierRemoved;
+        public IModifierApplier Applier { get; set; }
+        public float Level { get; set; } = 1f;
         public IReadOnlyList<ModifierData> GetModifiers() => _modifiers;
-
         public void AddModifier(ModifierData modifier)
         {
-            if (modifier.SourceId == 0)
-                modifier.SourceId = SourceId;
             _modifiers.Add(modifier);
+            OnModifierApplied?.Invoke(modifier);
         }
 
         public bool RemoveModifier(ModifierData modifier)
         {
-            if (_modifiers.Remove(modifier))
-            {
-                OnModifierRemoved?.Invoke(modifier);
-                return true;
-            }
-            return false;
+            var removed = _modifiers.Remove(modifier);
+            if (removed) OnModifierRemoved?.Invoke(modifier);
+            return removed;
         }
 
         public void ClearModifiers()
         {
-            foreach (var mod in _modifiers)
-                OnModifierRemoved?.Invoke(mod);
             _modifiers.Clear();
         }
 
-        /// <summary>
-        /// 计算修改器对基础值的影响
-        /// 使用 ModifierCalculator 进行计算
-        /// </summary>
-        public ModifierResult Calculate(float baseValue, IModifierContext context = null)
+        public ModifierResult Calculate(float baseValue, IModifierContext context = null) => default;
+        public ModifierApplyResult ApplyTo(object target, int? sourceId = null) => default;
+
+        private void AddRange(ModifierData[] modifiers)
         {
-            if (_modifiers.Count == 0)
-                return ModifierResult.Empty(baseValue);
-
-            var level = context?.Level ?? Level;
-            return _calculator.Calculate(_modifiers.ToArray(), baseValue, level);
-        }
-
-        /// <summary>
-        /// 计算修改器对基础值的影响（使用内置的简单上下文）
-        /// </summary>
-        public ModifierResult Calculate(float baseValue, float level)
-        {
-            return _calculator.Calculate(_modifiers.ToArray(), baseValue, level);
-        }
-
-        /// <summary>
-        /// 尝试获取指定的修改器应用器
-        /// 优先级：1. 自身 Applier  2. ModifierApplierRegistry 默认  3. 内置默认应用器
-        /// </summary>
-        private IModifierApplier ResolveApplier()
-        {
-            if (Applier != null)
-                return Applier;
-
-            var registryApplier = ModifierApplierRegistry.Default._defaultApplier;
-            if (registryApplier != null)
-                return registryApplier;
-
-            return DefaultModifierApplier.Instance;
-        }
-
-        /// <summary>
-        /// 直接应用修改器到目标
-        /// </summary>
-        public ModifierApplyResult ApplyTo(object target, int? sourceId = null)
-        {
-            if (_modifiers.Count == 0)
-                return ModifierApplyResult.Succeeded();
-
-            var applier = ResolveApplier();
-            if (applier == null)
-                return ModifierApplyResult.Failed("No modifier applier available");
-
-            var actualSourceId = sourceId ?? SourceId;
-            var result = applier.ApplyModifiers(target, _modifiers.ToArray(), actualSourceId);
-
-            if (result.Success)
+            if (modifiers == null) return;
+            foreach (var modifier in modifiers)
             {
-                foreach (var mod in _modifiers)
-                    OnModifierApplied?.Invoke(mod);
+                AddModifier(modifier);
             }
-
-            return result;
-        }
-
-        public bool OnBeforeExecute(object ctx) => true;
-
-        public void OnAfterExecute(object ctx, ref ExecutionResult result)
-        {
-            if (_modifiers.Count == 0) return;
-
-            var applier = ResolveApplier();
-            if (applier == null) return;
-
-            if (ctx == null) return;
-
-            var applyResult = applier.ApplyModifiers(ctx, _modifiers.ToArray(), SourceId);
-            if (applyResult.Success)
-            {
-                foreach (var mod in _modifiers)
-                    OnModifierApplied?.Invoke(mod);
-            }
-        }
-
-        public ExecutionResult Execute(object ctx)
-        {
-            if (!OnBeforeExecute(ctx)) return ExecutionResult.Skipped("Modifier condition not met");
-            var result = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnAfterExecute(ctx, ref result);
-            return result;
         }
     }
-
-    // ========================================================================
-    // 内置默认修改器应用器
-    // 当没有注册外部应用器时使用此实现
-    // ========================================================================
-
-    /// <summary>
-    /// 内置默认修改器应用器
-    /// 提供最基础的修改器应用逻辑，业务项目应注册自己的实现
-    /// </summary>
-    [ModifierApplier(int.MinValue)]
-    public sealed class DefaultModifierApplier : IModifierApplier
-    {
-        public static DefaultModifierApplier Instance { get; } = new();
-
-        private DefaultModifierApplier() { }
-
-        public ModifierApplyResult ApplyModifiers(object target, ReadOnlySpan<ModifierData> modifiers, int sourceId)
-        {
-            // 基础实现不做任何实际操作，只是返回成功
-            // 业务项目需要注册自己的 IModifierApplier 实现来真正应用修改器
-            if (modifiers.Length == 0)
-                return ModifierApplyResult.Succeeded();
-
-            float totalMagnitude = 0f;
-            foreach (var mod in modifiers)
-            {
-                totalMagnitude += mod.GetMagnitude();
-            }
-
-            return ModifierApplyResult.Succeeded(totalMagnitude);
-        }
-    }
-
-    // ========================================================================
-    // 层数修饰器默认实现
-    // ========================================================================
 
     [DecoratorImpl(typeof(IStackDecorator))]
-    internal sealed class DefaultStackDecorator : IStackDecorator
+    internal sealed class DefaultStackDecorator : DefaultDecoratorBase, IStackDecorator
     {
-        private int _stack = 1;
-
-        public string Name => $"Stack({Inner?.Name ?? "null"}, x{Stack})";
-        public ExecutableMetadata Metadata => new(3003, "Stack");
-        public Type DecoratorType => typeof(IStackDecorator);
-        public bool IsReady => true;
-
-        public int Stack { get => _stack; set { if (value != _stack) { var old = _stack; _stack = Math.Max(1, value); OnStackChanged?.Invoke(old, _stack); } } }
-        public float BaseValue { get; set; } = 1f;
-        public float StackMultiplier { get; set; } = 1f;
-        public int MaxStack { get; set; } = 0;
-        public ISimpleExecutable Inner { get; set; }
-        public event Action<int, int> OnStackChanged;
-
         public DefaultStackDecorator() { }
-        public DefaultStackDecorator(int initialStack, float stackMultiplier) { _stack = Math.Max(1, initialStack); StackMultiplier = stackMultiplier; }
 
-        public float CalculateEffectiveValue(float baseValue) => baseValue * BaseValue * (1f + (Stack - 1) * StackMultiplier);
-        public void IncrementStack(int amount = 1) { var newStack = _stack + amount; if (MaxStack > 0) newStack = Math.Min(newStack, MaxStack); Stack = newStack; }
-        public void DecrementStack(int amount = 1) => Stack = Math.Max(1, _stack - amount);
-        public void ResetStack() => Stack = 1;
-
-        public bool OnBeforeExecute(object ctx) => true;
-        public void OnAfterExecute(object ctx, ref ExecutionResult result) { }
-
-        public ExecutionResult Execute(object ctx)
+        public DefaultStackDecorator(int initialStack, float stackMultiplier)
         {
-            if (!OnBeforeExecute(ctx)) return ExecutionResult.Skipped("Stack condition not met");
-            var result = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnAfterExecute(ctx, ref result);
-            return result;
+            Stack = initialStack;
+            StackMultiplier = stackMultiplier;
+        }
+
+        public override string Name => $"Stack({Inner?.Name ?? "null"}, {Stack})";
+        public override ExecutableMetadata Metadata => new(3003, "Stack");
+        public override Type DecoratorType => typeof(IStackDecorator);
+        public int Stack { get; set; } = 1;
+        public float BaseValue { get; set; }
+        public float StackMultiplier { get; set; } = 1f;
+        public int MaxStack { get; set; } = int.MaxValue;
+        public event Action<int, int> OnStackChanged;
+        public float CalculateEffectiveValue(float baseValue) => baseValue * (1f + Math.Max(0, Stack - 1) * StackMultiplier);
+        public void IncrementStack(int amount = 1) => SetStack(Stack + amount);
+        public void DecrementStack(int amount = 1) => SetStack(Stack - amount);
+        public void ResetStack() => SetStack(0);
+
+        private void SetStack(int value)
+        {
+            var old = Stack;
+            Stack = Math.Max(0, Math.Min(MaxStack, value));
+            if (old != Stack) OnStackChanged?.Invoke(old, Stack);
         }
     }
 
-    // ========================================================================
-    // 层级修饰器默认实现
-    // ========================================================================
-
     [DecoratorImpl(typeof(IHierarchyDecorator))]
-    internal sealed class DefaultHierarchyDecorator : IHierarchyDecorator
+    internal sealed class DefaultHierarchyDecorator : DefaultDecoratorBase, IHierarchyDecorator
     {
         private readonly List<int> _children = new();
 
-        public string Name => $"Hierarchy({Inner?.Name ?? "null"})";
-        public ExecutableMetadata Metadata => new(3004, "Hierarchy");
-        public Type DecoratorType => typeof(IHierarchyDecorator);
-        public bool IsReady => true;
+        public DefaultHierarchyDecorator() { }
 
+        public DefaultHierarchyDecorator(int? parentId)
+        {
+            ParentId = parentId;
+        }
+
+        public override string Name => $"Hierarchy({Inner?.Name ?? "null"})";
+        public override ExecutableMetadata Metadata => new(3004, "Hierarchy");
+        public override Type DecoratorType => typeof(IHierarchyDecorator);
         public int? ParentId { get; set; }
         public bool CascadeOnExpire { get; set; } = true;
         public bool CascadeOnInterrupt { get; set; } = true;
-        public ISimpleExecutable Inner { get; set; }
         public event Action<int, bool> OnHierarchyChanged;
-        public event Action OnParentExpired;
-        public event Action<string> OnParentInterrupted;
-
-        public DefaultHierarchyDecorator() { }
-        public DefaultHierarchyDecorator(int? parentId) => ParentId = parentId;
-
-        public void AddChild(int childId) { if (!_children.Contains(childId)) { _children.Add(childId); OnHierarchyChanged?.Invoke(childId, true); } }
-        public void RemoveChild(int childId) { if (_children.Remove(childId)) OnHierarchyChanged?.Invoke(childId, false); }
-        public IReadOnlyList<int> GetChildren() => _children;
-
-        public void NotifyParentExpired() { if (CascadeOnExpire) OnParentExpired?.Invoke(); }
-        public void NotifyParentInterrupted(string reason) { if (CascadeOnInterrupt) OnParentInterrupted?.Invoke(reason); }
-
-        public bool OnBeforeExecute(object ctx) => true;
-        public void OnAfterExecute(object ctx, ref ExecutionResult result) { }
-
-        public ExecutionResult Execute(object ctx)
+        public void AddChild(int childId)
         {
-            if (!OnBeforeExecute(ctx)) return ExecutionResult.Skipped("Hierarchy condition not met");
-            var result = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnAfterExecute(ctx, ref result);
-            return result;
+            if (_children.Contains(childId)) return;
+            _children.Add(childId);
+            OnHierarchyChanged?.Invoke(childId, true);
         }
+
+        public void RemoveChild(int childId)
+        {
+            if (!_children.Remove(childId)) return;
+            OnHierarchyChanged?.Invoke(childId, false);
+        }
+
+        public IReadOnlyList<int> GetChildren() => _children;
     }
 
-    // ========================================================================
-    // 持续行为修饰器默认实现
-    // ========================================================================
-
     [DecoratorImpl(typeof(IContinuousDecorator))]
-    internal sealed class DefaultContinuousDecorator : IContinuousDecorator
+    internal sealed class DefaultContinuousDecorator : DefaultDecoratorBase, IContinuousDecorator
     {
-        private readonly List<string> _conflictingIds = new();
-
-        public string Name => $"Continuous({Inner?.Name ?? "null"}, {_continuationId})";
-        public ExecutableMetadata Metadata => new(4000, "Continuous", isScheduled: true);
-        public Type DecoratorType => typeof(IContinuousDecorator);
-        public bool IsReady => true;
-
-        public string ContinuationId => _continuationId;
-        public ISimpleExecutable Inner { get; set; }
-        public ICapabilityApplier CapabilityApplier { get; set; }
-        public event Action<object, string> OnTerminated;
-
-        private string _continuationId;
-        private bool _isTerminated;
-        private string _terminationReason;
-
         public DefaultContinuousDecorator() { }
 
         public DefaultContinuousDecorator(string continuationId)
         {
-            _continuationId = continuationId ?? string.Empty;
+            ContinuationId = continuationId ?? string.Empty;
         }
 
-        public bool IsTerminated => _isTerminated;
-        public string TerminationReason => _terminationReason;
-
-        public bool CanCoexistWith(IContinuousDecorator other)
-        {
-            if (other == null) return true;
-            return !_conflictingIds.Contains(other.ContinuationId);
-        }
-
-        public void AddConflictingId(string id)
-        {
-            if (!string.IsNullOrEmpty(id) && !_conflictingIds.Contains(id))
-                _conflictingIds.Add(id);
-        }
-
-        public void OnApplied(object ctx)
-        {
-            if (_isTerminated) return;
-        }
-
-        public void OnTick(object ctx, float deltaTimeMs)
-        {
-            if (_isTerminated) return;
-        }
-
-        public void OnRemoved(object ctx)
-        {
-            if (_isTerminated) return;
-            _isTerminated = true;
-            _terminationReason = "ManualRemoval";
-            OnTerminated?.Invoke(ctx, _terminationReason);
-        }
-
+        public override string Name => $"Continuous({Inner?.Name ?? "null"})";
+        public override ExecutableMetadata Metadata => new(3005, "Continuous");
+        public override Type DecoratorType => typeof(IContinuousDecorator);
+        public string ContinuationId { get; private set; } = string.Empty;
+        public bool IsTerminated { get; private set; }
+        public string TerminationReason { get; private set; }
+        public void OnApplied(object ctx) { }
+        public void OnTick(object ctx, float deltaTimeMs) { }
+        public void OnRemoved(object ctx) { }
+        public bool CanCoexistWith(IContinuousDecorator other) => other == null || other.ContinuationId != ContinuationId;
         public void RequestTermination(string reason)
         {
-            if (_isTerminated) return;
-            _isTerminated = true;
-            _terminationReason = reason ?? "Requested";
-            OnTerminated?.Invoke(null, _terminationReason);
-        }
-
-        public bool OnBeforeExecute(object ctx) => !_isTerminated;
-
-        public void OnAfterExecute(object ctx, ref ExecutionResult result)
-        {
-        }
-
-        public ExecutionResult Execute(object ctx)
-        {
-            if (!OnBeforeExecute(ctx))
-                return ExecutionResult.Skipped("Continuous decorator already terminated");
-
-            OnApplied(ctx);
-            return Inner?.Execute(ctx) ?? ExecutionResult.Success();
+            IsTerminated = true;
+            TerminationReason = reason;
         }
     }
 
-    // ========================================================================
-    // 能力修饰器默认实现
-    // ========================================================================
-
     [DecoratorImpl(typeof(ICapabilityDecorator))]
-    internal sealed class DefaultCapabilityDecorator : ICapabilityDecorator
+    internal sealed class DefaultCapabilityDecorator : DefaultDecoratorBase, ICapabilityDecorator
     {
-        private readonly List<CapabilityId> _replacedCapabilities = new();
-        private bool _isTerminated;
-
-        public string Name => $"Capability({Inner?.Name ?? "null"}, {CapabilityId})";
-        public ExecutableMetadata Metadata => new(4001, "Capability");
-        public Type DecoratorType => typeof(ICapabilityDecorator);
-        public bool IsReady => true;
-        public bool IsTerminated => _isTerminated;
-
-        public CapabilityId CapabilityId { get; set; }
-        public ISimpleExecutable Inner { get; set; }
-        public ICapabilityApplier CapabilityApplier { get; set; }
-        public IReadOnlyList<CapabilityId> ReplacedCapabilities => _replacedCapabilities;
-        public event Action<object> OnAppliedEvent;
-        public event Action<object> OnRemovedEvent;
-        public event Action<object, string> OnTerminatedEvent;
-
         public DefaultCapabilityDecorator() { }
 
         public DefaultCapabilityDecorator(CapabilityId capabilityId)
@@ -588,73 +242,33 @@ namespace AbilityKit.Triggering.Runtime.Executable
             CapabilityId = capabilityId;
         }
 
-        public void AddReplacedCapability(CapabilityId capabilityId)
-        {
-            if (!capabilityId.IsValid || _replacedCapabilities.Contains(capabilityId))
-                return;
-            _replacedCapabilities.Add(capabilityId);
-        }
-
-        public bool CanCoexistWith(ICapabilityDecorator other)
-        {
-            if (other == null) return true;
-            if (!CapabilityId.IsValid || !other.CapabilityId.IsValid) return true;
-
-            if (_replacedCapabilities.Contains(other.CapabilityId))
-                return false;
-            if (other.ReplacedCapabilities.Contains(CapabilityId))
-                return false;
-
-            return true;
-        }
-
+        public override string Name => $"Capability({CapabilityId})";
+        public override ExecutableMetadata Metadata => new(3006, "Capability");
+        public override Type DecoratorType => typeof(ICapabilityDecorator);
+        public CapabilityId CapabilityId { get; private set; }
+        public ICapabilityApplier CapabilityApplier { get; set; }
+        public bool IsActive { get; private set; }
+        public bool IsTerminated { get; private set; }
+        public string TerminationReason { get; private set; }
         public void OnApplied(object ctx)
         {
-            var container = CapabilityApplier?.GetOrCreateContainer(ctx);
-            if (container != null)
-            {
-                container.AddCapability(this, ctx);
-            }
-            Inner?.Execute(ctx);
-            OnAppliedEvent?.Invoke(ctx);
+            IsActive = true;
+            CapabilityApplier?.Apply(this, ctx);
         }
 
-        public void OnTick(object ctx, float deltaTimeMs)
-        {
-        }
-
+        public void OnTick(object ctx, float deltaTimeMs) { }
         public void OnRemoved(object ctx)
         {
-            _isTerminated = true;
-            var container = CapabilityApplier?.GetOrCreateContainer(ctx);
-            if (container != null)
-            {
-                container.RemoveCapability(CapabilityId, ctx);
-            }
-            OnRemovedEvent?.Invoke(ctx);
+            IsActive = false;
+            CapabilityApplier?.Remove(this, ctx);
         }
 
-        public void RequestTermination(string reason)
+        public bool CanCoexistWith(ICapabilityDecorator other) => other == null || other.CapabilityId != CapabilityId;
+        public void RequestDeactivate(string reason)
         {
-            if (_isTerminated) return;
-            _isTerminated = true;
-            OnTerminatedEvent?.Invoke(null, reason);
-        }
-
-        public bool OnBeforeExecute(object ctx) => true;
-
-        public void OnAfterExecute(object ctx, ref ExecutionResult result)
-        {
-            OnApplied(ctx);
-        }
-
-        public ExecutionResult Execute(object ctx)
-        {
-            if (!OnBeforeExecute(ctx))
-                return ExecutionResult.Skipped("Capability condition not met");
-            var innerResult = Inner?.Execute(ctx) ?? ExecutionResult.Success();
-            OnApplied(ctx);
-            return innerResult;
+            IsActive = false;
+            IsTerminated = true;
+            TerminationReason = reason;
         }
     }
 }

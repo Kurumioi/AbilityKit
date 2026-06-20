@@ -3,7 +3,7 @@ using Xunit;
 
 namespace AbilityKit.Orleans.Gateway.Tests;
 
-public sealed class RoomOperationErrorClassifierTests
+public sealed class RoomOperationErrorClassifierTests : GatewayTestBase
 {
     [Theory]
     [InlineData("Room is full", RoomGatewayErrorCodes.RoomFull, 409, GatewayStatusCode.Conflict)]
@@ -19,10 +19,7 @@ public sealed class RoomOperationErrorClassifierTests
     {
         var error = RoomOperationErrorClassifier.ToError(new InvalidOperationException(message));
 
-        Assert.Equal(expectedCode, error.Code);
-        Assert.Equal(message, error.Message);
-        Assert.Equal(expectedHttpStatusCode, error.HttpStatusCode);
-        Assert.Equal(expectedGatewayStatusCode, error.GatewayStatusCode);
+        AssertErrorMapping(error, expectedCode, message, expectedHttpStatusCode, expectedGatewayStatusCode);
     }
 
     [Fact]
@@ -30,9 +27,12 @@ public sealed class RoomOperationErrorClassifierTests
     {
         var error = RoomOperationErrorClassifier.ToError(new ArgumentException("payload is invalid"));
 
-        Assert.Equal(RoomGatewayErrorCodes.BadRequest, error.Code);
-        Assert.Equal(400, error.HttpStatusCode);
-        Assert.Equal(GatewayStatusCode.BadRequest, error.GatewayStatusCode);
+        AssertErrorMapping(
+            error,
+            RoomGatewayErrorCodes.BadRequest,
+            "payload is invalid",
+            400,
+            GatewayStatusCode.BadRequest);
     }
 
     [Fact]
@@ -40,9 +40,11 @@ public sealed class RoomOperationErrorClassifierTests
     {
         var error = RoomOperationErrorClassifier.ToError(new Exception("boom"));
 
-        Assert.Equal(RoomGatewayErrorCodes.InternalError, error.Code);
-        Assert.Equal("Room operation failed.", error.Message);
-        Assert.Equal(500, error.HttpStatusCode);
-        Assert.Equal(GatewayStatusCode.InternalError, error.GatewayStatusCode);
+        AssertErrorMapping(
+            error,
+            RoomGatewayErrorCodes.InternalError,
+            "Room operation failed.",
+            500,
+            GatewayStatusCode.InternalError);
     }
 }

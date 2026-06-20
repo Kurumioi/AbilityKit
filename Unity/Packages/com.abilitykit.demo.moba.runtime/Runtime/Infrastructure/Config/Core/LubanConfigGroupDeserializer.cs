@@ -388,6 +388,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,
                 TickIntervalMs = obj["TickIntervalMs"]?.Value<int>() ?? 0,
                 OnHitEffectId = obj["OnHitEffectId"]?.Value<int>() ?? 0,
+                OnSpawnTriggerIds = obj["OnSpawnTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnHitTriggerIds = obj["OnHitTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnTickTriggerIds = obj["OnTickTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnExitTriggerIds = obj["OnExitTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 OnSpawnVfxId = obj["OnSpawnVfxId"]?.Value<int>() ?? 0,
                 OnHitVfxId = obj["OnHitVfxId"]?.Value<int>() ?? 0,
                 OnExpireVfxId = obj["OnExpireVfxId"]?.Value<int>() ?? 0,
@@ -400,7 +404,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static AoeDTO DeserializeAoe(JObject obj)
         {
-            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds
+            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds, OnEnterTriggerIds, OnExitTriggerIds, OnIntervalTriggerIds, IntervalMs
             var dto = new AoeDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -415,7 +419,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 DelayMs = obj["DelayMs"]?.Value<int>() ?? 0,
                 CollisionLayerMask = obj["CollisionLayerMask"]?.Value<int>() ?? 0,
                 MaxTargets = obj["MaxTargets"]?.Value<int>() ?? 0,
-                OnDelayTriggerIds = obj["OnDelayTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
+                OnDelayTriggerIds = obj["OnDelayTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnEnterTriggerIds = obj["OnEnterTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnExitTriggerIds = obj["OnExitTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OnIntervalTriggerIds = obj["OnIntervalTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0
             };
             return dto;
         }

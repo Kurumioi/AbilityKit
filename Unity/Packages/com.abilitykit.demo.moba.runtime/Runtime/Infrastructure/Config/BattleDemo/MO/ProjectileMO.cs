@@ -21,6 +21,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int TickIntervalMs { get; }
 
         public int OnHitEffectId { get; }
+        public int[] OnSpawnTriggerIds { get; }
+        public int[] OnHitTriggerIds { get; }
+        public int[] OnTickTriggerIds { get; }
+        public int[] OnExitTriggerIds { get; }
         public int OnSpawnVfxId { get; }
         public int OnHitVfxId { get; }
         public int OnExpireVfxId { get; }
@@ -47,6 +51,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             TickIntervalMs = dto.TickIntervalMs;
 
             OnHitEffectId = dto.OnHitEffectId;
+            OnSpawnTriggerIds = dto.OnSpawnTriggerIds ?? Array.Empty<int>();
+            OnHitTriggerIds = dto.OnHitTriggerIds ?? Array.Empty<int>();
+            OnTickTriggerIds = dto.OnTickTriggerIds ?? Array.Empty<int>();
+            OnExitTriggerIds = dto.OnExitTriggerIds ?? Array.Empty<int>();
             OnSpawnVfxId = dto.OnSpawnVfxId;
             OnHitVfxId = dto.OnHitVfxId;
             OnExpireVfxId = dto.OnExpireVfxId;

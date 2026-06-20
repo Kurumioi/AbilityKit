@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
 using Xunit;
 
@@ -11,7 +12,7 @@ public sealed class RoomLifecycleCleanupTests
     [Fact]
     public async Task ClearAccountRoomAsync_WhenRoomMatches_RemovesAccountMapping()
     {
-        var mapping = new RoomIdMappingGrain();
+        var mapping = new RoomIdMappingGrain(new InMemoryRoomStateStore());
         await mapping.BindAccountRoomAsync("account-a", "room-a");
 
         await mapping.ClearAccountRoomAsync("account-a", "room-a");
@@ -22,7 +23,7 @@ public sealed class RoomLifecycleCleanupTests
     [Fact]
     public async Task ClearAccountRoomAsync_WhenRoomDoesNotMatch_KeepsCurrentMapping()
     {
-        var mapping = new RoomIdMappingGrain();
+        var mapping = new RoomIdMappingGrain(new InMemoryRoomStateStore());
         await mapping.BindAccountRoomAsync("account-a", "room-new");
 
         await mapping.ClearAccountRoomAsync("account-a", "room-old");

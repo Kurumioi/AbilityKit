@@ -119,6 +119,24 @@ public sealed class ServerGameplayModuleCatalogTests
     }
 
     [Fact]
+    public void ServerGameplayManifest_WhenBuiltFromDefaultCatalog_ExposesPlayableCapabilities()
+    {
+        var manifest = ServerGameplayManifest.FromCatalog(ServerGameplayModuleCatalog.Default);
+
+        var moba = manifest.Resolve(GameplayRoomTypes.Moba);
+        var shooter = manifest.Resolve(ShooterGameplay.RoomType);
+
+        Assert.Equal(GameplayRoomTypes.Moba, moba.RoomType);
+        Assert.True(moba.RequiresPlayerLoadout);
+        Assert.True(moba.SupportsFrameSync);
+        Assert.Contains("state-sync-authority", moba.SupportedSyncTemplateIds);
+        Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
+        Assert.False(shooter.RequiresPlayerLoadout);
+        Assert.True(shooter.SupportsStateSyncPush);
+        Assert.Contains("predict-rollback-authority", shooter.SupportedSyncTemplateIds);
+    }
+
+    [Fact]
     public void ServerBattleWorldManager_WhenCreatingWorlds_UsesGameplayModuleWorldBlueprints()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);

@@ -4,7 +4,11 @@
 param(
     [switch]$NoCleanup,
     [switch]$NoBuild,
-    [string]$Configuration = 'Debug'
+    [string]$Configuration = 'Debug',
+    [int]$GatewayPort = 5001,
+    [int]$SiloPort = 11111,
+    [int]$SiloGatewayPort = 30000,
+    [int]$TcpPort = 4000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,7 +18,12 @@ if (-not (Test-Path $startScript)) {
     throw "Start script was not found: $startScript"
 }
 
-$startParams = @{}
+$startParams = @{
+    GatewayPort = $GatewayPort
+    SiloPort = $SiloPort
+    SiloGatewayPort = $SiloGatewayPort
+    TcpPort = $TcpPort
+}
 
 if ($NoCleanup) {
     $startParams.NoCleanup = $true

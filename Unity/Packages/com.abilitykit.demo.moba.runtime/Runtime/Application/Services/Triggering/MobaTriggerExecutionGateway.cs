@@ -3,8 +3,10 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Triggering;
 
-namespace AbilityKit.Demo.Moba.Services.Triggering
+namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 {
     public readonly struct MobaTriggerExecutionStats
     {
@@ -185,9 +187,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             if (_diagnostics == null) services.TryResolve(out _diagnostics);
         }
 
-        /// <summary>
-        /// 直接执行 triggerId：用于 Buff 阶段效果、投射物命中、区域进入/离开等即时触发场景。
-        /// </summary>
         public void ExecuteDirectTrigger(int triggerId, object payload, string source = null)
         {
             if (triggerId <= 0)
@@ -211,9 +210,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             _diagnostics?.Counter("moba.trigger.direct.executed");
         }
 
-        /// <summary>
-        /// 应用 owner-bound 触发器订阅：用于 Buff/持续状态把触发计划绑定到生命周期 ownerKey 上。
-        /// </summary>
         public void ApplyOwnerBoundTriggers(IReadOnlyList<int> triggerIds, long ownerKey, string source = null)
         {
             if (ownerKey == 0)

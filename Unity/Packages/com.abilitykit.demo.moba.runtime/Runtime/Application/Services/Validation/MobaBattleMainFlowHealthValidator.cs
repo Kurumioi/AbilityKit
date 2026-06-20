@@ -88,6 +88,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var ready = true;
             ready &= Require<SkillExecutor>(in context, report, "execute.skill.executor", "SkillExecutor is required to execute command driven skill casts.");
+            ready &= Require<SkillCastPreparationService>(in context, report, "execute.skill.preparation", "SkillCastPreparationService is required to formalize skill cast validation and runtime preparation.");
+            ready &= Require<SkillCastPolicyResolver>(in context, report, "execute.skill.policy_resolver", "SkillCastPolicyResolver is required to resolve formal skill cast policy.");
             ready &= Require<MobaEffectExecutionService>(in context, report, "execute.effect.service", "MobaEffectExecutionService is required to execute configured skill effects and trigger plans.");
             ready &= Require<MobaEffectInvokerService>(in context, report, "execute.effect.invoker", "MobaEffectInvokerService is required as the formal bridge from skill phases and buff stages into effect execution.");
             return ready;

@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Trace;
 using AbilityKit.Ability.World.Services;
@@ -17,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
     /// 被动技能生命周期服务：集中维护被动技能的运行时 listener、source context 和常驻触发器计划。
     /// </summary>
     [WorldService(typeof(MobaPassiveSkillLifecycleService))]
-    public sealed class MobaPassiveSkillLifecycleService : IService
+    public sealed class MobaPassiveSkillLifecycleService : IService, IMobaOwnerBoundTriggerGate
     {
         private static readonly ObjectPool<HashSet<long>> s_ownerKeySetPool = Pools.GetPool(
             createFunc: () => new HashSet<long>(),
@@ -43,16 +45,20 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         private readonly MobaConfigDatabase _configs;
         private readonly MobaTraceRegistry _trace;
         private readonly ITriggerActionRunner _actionRunner;
+        private readonly IFrameTime _frameTime;
         private readonly Dictionary<int, HashSet<long>> _ownerKeysByActor = new Dictionary<int, HashSet<long>>();
+        private readonly Dictionary<long, PassiveOwnerBinding> _passiveByOwnerKey = new Dictionary<long, PassiveOwnerBinding>();
 
         public MobaPassiveSkillLifecycleService(
             MobaConfigDatabase configs,
             MobaTraceRegistry trace = null,
-            ITriggerActionRunner actionRunner = null)
+            ITriggerActionRunner actionRunner = null,
+            IFrameTime frameTime = null)
         {
             _configs = configs ?? throw new ArgumentNullException(nameof(configs));
             _trace = trace;
             _actionRunner = actionRunner;
+            _frameTime = frameTime;
         }
 
         /// <summary>
@@ -88,14 +94,58 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         /// </summary>
         public void ReleaseAllCachedOwnerKeys()
         {
-            if (_ownerKeysByActor.Count == 0) return;
-
-            foreach (var kv in _ownerKeysByActor)
+            if (_ownerKeysByActor.Count > 0)
             {
-                if (kv.Value != null) s_ownerKeySetPool.Release(kv.Value);
+                foreach (var kv in _ownerKeysByActor)
+                {
+                    if (kv.Value != null) s_ownerKeySetPool.Release(kv.Value);
+                }
+
+                _ownerKeysByActor.Clear();
             }
 
-            _ownerKeysByActor.Clear();
+            _passiveByOwnerKey.Clear();
+        }
+
+        public bool IsPassiveOwnerKey(long ownerKey)
+        {
+            return ownerKey != 0 && _passiveByOwnerKey.ContainsKey(ownerKey);
+        }
+
+        public bool IsMatch(long ownerKey, int triggerId)
+        {
+            return TryGetPassiveBinding(ownerKey, triggerId, out _);
+        }
+
+        public bool CanExecute(long ownerKey, int triggerId)
+        {
+            if (!TryGetPassiveBinding(ownerKey, triggerId, out var binding)) return true;
+
+            var cooldownMs = binding.PassiveSkill.CooldownMs;
+            if (cooldownMs <= 0) return true;
+
+            var now = GetCurrentTimeMs();
+            return binding.Runtime.CooldownEndTimeMs <= 0L || now >= binding.Runtime.CooldownEndTimeMs;
+        }
+
+        public void Complete(long ownerKey, int triggerId)
+        {
+            if (!TryGetPassiveBinding(ownerKey, triggerId, out var binding)) return;
+
+            var cooldownMs = binding.PassiveSkill.CooldownMs;
+            if (cooldownMs <= 0) return;
+
+            binding.Runtime.CooldownEndTimeMs = GetCurrentTimeMs() + cooldownMs;
+        }
+
+        public bool CanExecuteOwnerBoundTrigger(long ownerKey, int triggerId)
+        {
+            return CanExecute(ownerKey, triggerId);
+        }
+
+        public void CompleteOwnerBoundTrigger(long ownerKey, int triggerId)
+        {
+            Complete(ownerKey, triggerId);
         }
 
         public void Dispose()
@@ -306,6 +356,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
                 RemoveStaleOngoingTriggerPlans(entity, actorId, desiredOwnerKeys);
                 UpsertDesiredOngoingTriggerPlans(entity, ownerKeyByPassiveSkillId);
+                SyncPassiveOwnerBindings(entity, ownerKeyByPassiveSkillId);
                 StorePreviousOwnerKeys(actorId, desiredOwnerKeys);
             }
             finally
@@ -334,6 +385,41 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             {
                 s_ownerKeyListPool.Release(removed);
             }
+        }
+
+        private void SyncPassiveOwnerBindings(global::ActorEntity entity, Dictionary<int, long> ownerKeyByPassiveSkillId)
+        {
+            if (entity == null || !entity.hasSkillLoadout || ownerKeyByPassiveSkillId == null) return;
+            var passiveSkills = entity.skillLoadout.PassiveSkills;
+            if (passiveSkills == null || passiveSkills.Length == 0) return;
+
+            foreach (var kv in ownerKeyByPassiveSkillId)
+            {
+                var passiveSkillId = kv.Key;
+                var ownerKey = kv.Value;
+                if (passiveSkillId <= 0 || ownerKey == 0) continue;
+                if (!_configs.TryGetPassiveSkill(passiveSkillId, out var passiveSkill) || passiveSkill == null) continue;
+                if (!TryGetPassiveRuntime(passiveSkills, passiveSkillId, out var runtime) || runtime == null) continue;
+
+                _passiveByOwnerKey[ownerKey] = new PassiveOwnerBinding(passiveSkillId, runtime, passiveSkill);
+            }
+        }
+
+        private static bool TryGetPassiveRuntime(PassiveSkillRuntime[] passiveSkills, int passiveSkillId, out PassiveSkillRuntime runtime)
+        {
+            runtime = null;
+            if (passiveSkills == null || passiveSkillId <= 0) return false;
+
+            for (int i = 0; i < passiveSkills.Length; i++)
+            {
+                var candidate = passiveSkills[i];
+                if (candidate == null || candidate.PassiveSkillId != passiveSkillId) continue;
+
+                runtime = candidate;
+                return true;
+            }
+
+            return false;
         }
 
         private void UpsertDesiredOngoingTriggerPlans(global::ActorEntity entity, Dictionary<int, long> ownerKeyByPassiveSkillId)
@@ -433,7 +519,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             else entity.AddOngoingTriggerPlans(newList, revision);
         }
 
-        private static void RemoveOngoingTriggerPlanByOwnerKey(global::ActorEntity entity, long ownerKey)
+        private void RemoveOngoingTriggerPlanByOwnerKey(global::ActorEntity entity, long ownerKey)
         {
             if (ownerKey == 0) return;
 
@@ -449,7 +535,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             }
         }
 
-        private static void RemoveOngoingTriggerPlansByOwnerKeys(global::ActorEntity entity, IEnumerable<long> ownerKeys)
+        private void RemoveOngoingTriggerPlansByOwnerKeys(global::ActorEntity entity, IEnumerable<long> ownerKeys)
         {
             if (entity == null) return;
             if (ownerKeys == null) return;
@@ -486,6 +572,11 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 }
 
                 if (!removedAny) return;
+
+                foreach (var ownerKey in toRemove)
+                {
+                    _passiveByOwnerKey.Remove(ownerKey);
+                }
 
                 var revision = entity.ongoingTriggerPlans.Revision + 1;
                 if (newList.Count == 0) entity.RemoveOngoingTriggerPlans();
@@ -530,8 +621,52 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             if (actorId <= 0) return;
             if (!_ownerKeysByActor.TryGetValue(actorId, out var set)) return;
 
+            foreach (var ownerKey in set)
+            {
+                _passiveByOwnerKey.Remove(ownerKey);
+            }
+
             _ownerKeysByActor.Remove(actorId);
             s_ownerKeySetPool.Release(set);
+        }
+
+        private long GetCurrentTimeMs()
+        {
+            return MobaSkillRuntimeAccess.GetCurrentTimeMs(_frameTime);
+        }
+
+        private bool TryGetPassiveBinding(long ownerKey, int triggerId, out PassiveOwnerBinding binding)
+        {
+            binding = null;
+            if (ownerKey == 0 || triggerId <= 0) return false;
+            if (!_passiveByOwnerKey.TryGetValue(ownerKey, out binding) || binding == null) return false;
+            if (binding.PassiveSkill == null || binding.Runtime == null) return false;
+            return ContainsTriggerId(binding.PassiveSkill.TriggerIds, triggerId);
+        }
+
+        private static bool ContainsTriggerId(IReadOnlyList<int> triggerIds, int triggerId)
+        {
+            if (triggerIds == null || triggerIds.Count == 0) return false;
+            for (int i = 0; i < triggerIds.Count; i++)
+            {
+                if (triggerIds[i] == triggerId) return true;
+            }
+
+            return false;
+        }
+
+        private sealed class PassiveOwnerBinding
+        {
+            public readonly int PassiveSkillId;
+            public readonly PassiveSkillRuntime Runtime;
+            public readonly PassiveSkillMO PassiveSkill;
+
+            public PassiveOwnerBinding(int passiveSkillId, PassiveSkillRuntime runtime, PassiveSkillMO passiveSkill)
+            {
+                PassiveSkillId = passiveSkillId;
+                Runtime = runtime;
+                PassiveSkill = passiveSkill;
+            }
         }
     }
 }

@@ -182,8 +182,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
  
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
-            services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerExecutionGateway triggerGateway);
-            if (triggerGateway == null) triggerGateway = new AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerExecutionGateway(effects, triggerSubscriptions);
+            services.TryResolve(out AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway triggerGateway);
+            if (triggerGateway == null) triggerGateway = new AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway(effects, triggerSubscriptions);
  
             var repo = new BuffRepository();
             var ctx = new BuffContextRegistry(trace, actionRunner, frameTime);

@@ -7,14 +7,7 @@ using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Triggering.Runtime.Executable
 {
-    // ========================================================================
-    // 行为构建器基类
-    // ========================================================================
-
-    /// <summary>
-    /// 行为构建器
-    /// </summary>
-    [Obsolete("Runtime/Executable builders are legacy compatibility only. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
+    [Obsolete("Runtime/Executable builders are removed compatibility surface. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
     public class ExecutableBuilder<T> where T : ISimpleExecutable, new()
     {
         protected readonly T _executable = new();
@@ -23,102 +16,31 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public ISimpleExecutable ToExecutable() => _executable;
     }
 
-    // ========================================================================
-    // Sequence 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Sequence 构建器
-    /// </summary>
-    [Obsolete("SequenceBuilder belongs to legacy Runtime/Executable DSL. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
+    [Obsolete("SequenceBuilder is removed compatibility surface. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
     public sealed class SequenceBuilder : ExecutableBuilder<SequenceExecutable>
     {
         public SequenceBuilder Add(ISimpleExecutable child) { _executable.Add(child); return this; }
         public SequenceBuilder AddRange(params ISimpleExecutable[] children) { _executable.AddRange(children); return this; }
-
-        public SequenceBuilder AddAction(ActionId actionId)
-        {
-            _executable.Add(new ActionCallExecutable { ActionId = actionId, Arity = 0 });
-            return this;
-        }
-
-        public SequenceBuilder AddAction(ActionId actionId, double arg0)
-        {
-            _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arity = 1 });
-            return this;
-        }
-
-        public SequenceBuilder AddAction(ActionId actionId, double arg0, double arg1)
-        {
-            _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arg1 = NumericValueRef.Const(arg1), Arity = 2 });
-            return this;
-        }
-
-        public SequenceBuilder AddAction(ActionId actionId, NumericValueRef arg0)
-        {
-            _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arity = 1 });
-            return this;
-        }
-
-        public SequenceBuilder AddAction(ActionId actionId, NumericValueRef arg0, NumericValueRef arg1)
-        {
-            _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arg1 = arg1, Arity = 2 });
-            return this;
-        }
-
-        public SequenceBuilder If(ICondition condition, ISimpleExecutable body)
-        {
-            _executable.Add(new IfExecutable { Condition = condition, Body = body });
-            return this;
-        }
-
-        public SequenceBuilder IfElse(ICondition condition, ISimpleExecutable thenBody, ISimpleExecutable elseBody)
-        {
-            _executable.Add(new IfElseExecutable().If(condition, thenBody).Else(elseBody));
-            return this;
-        }
-
-        public SequenceBuilder Delay(float delayMs)
-        {
-            _executable.Add(new DelayExecutable { DelayMs = delayMs });
-            return this;
-        }
-
-        public SequenceBuilder Log(string message)
-        {
-            _executable.Add(new DebugLogExecutable { Message = message });
-            return this;
-        }
-
-        public SequenceBuilder Event(string eventName)
-        {
-            _executable.Add(new EventSendExecutable { EventName = eventName });
-            return this;
-        }
+        public SequenceBuilder AddAction(ActionId actionId) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arity = 0 }); return this; }
+        public SequenceBuilder AddAction(ActionId actionId, double arg0) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arity = 1 }); return this; }
+        public SequenceBuilder AddAction(ActionId actionId, double arg0, double arg1) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arg1 = NumericValueRef.Const(arg1), Arity = 2 }); return this; }
+        public SequenceBuilder AddAction(ActionId actionId, NumericValueRef arg0) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arity = 1 }); return this; }
+        public SequenceBuilder AddAction(ActionId actionId, NumericValueRef arg0, NumericValueRef arg1) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arg1 = arg1, Arity = 2 }); return this; }
+        public SequenceBuilder If(ICondition condition, ISimpleExecutable body) { _executable.Add(new IfExecutable { Condition = condition, Body = body }); return this; }
+        public SequenceBuilder IfElse(ICondition condition, ISimpleExecutable thenBody, ISimpleExecutable elseBody) { _executable.Add(new IfElseExecutable().If(condition, thenBody).Else(elseBody)); return this; }
+        public SequenceBuilder Delay(float delayMs) { _executable.Add(new DelayExecutable { DelayMs = delayMs }); return this; }
+        public SequenceBuilder Log(string message) { _executable.Add(new DebugLogExecutable { Message = message }); return this; }
+        public SequenceBuilder Event(string eventName) { _executable.Add(new EventSendExecutable { EventName = eventName }); return this; }
     }
 
-    // ========================================================================
-    // Selector 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Selector 构建器
-    /// </summary>
-    [Obsolete("SelectorBuilder belongs to legacy Runtime/Executable DSL. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
+    [Obsolete("SelectorBuilder is removed compatibility surface. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
     public sealed class SelectorBuilder : ExecutableBuilder<SelectorExecutable>
     {
         public SelectorBuilder Add(ISimpleExecutable child) { _executable.Add(child); return this; }
         public SelectorBuilder AddAction(ActionId actionId) { _executable.Add(new ActionCallExecutable { ActionId = actionId, Arity = 0 }); return this; }
     }
 
-    // ========================================================================
-    // Parallel 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Parallel 构建器
-    /// </summary>
-    [Obsolete("ParallelBuilder belongs to legacy Runtime/Executable DSL. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
+    [Obsolete("ParallelBuilder is removed compatibility surface. Use TriggerPlanBuilder and Runtime.Plan executables instead.")]
     public sealed class ParallelBuilder : ExecutableBuilder<ParallelExecutable>
     {
         public ParallelBuilder Add(ISimpleExecutable child) { _executable.Add(child); return this; }
@@ -126,84 +48,25 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public ParallelBuilder SetTimeout(float timeoutMs) { _executable.TimeoutMs = timeoutMs; return this; }
     }
 
-    // ========================================================================
-    // IfElse 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// If-Else 构建器
-    /// </summary>
-    [Obsolete("IfElseBuilder belongs to legacy Runtime/Executable DSL. Use TriggerPlan predicates and Runtime.Plan executables instead.")]
+    [Obsolete("IfElseBuilder is removed compatibility surface. Use TriggerPlan predicates and Runtime.Plan executables instead.")]
     public sealed class IfElseBuilder : ExecutableBuilder<IfElseExecutable>
     {
-        public IfElseBuilder If(ICondition condition, ISimpleExecutable body)
-        {
-            _executable.If(condition, body);
-            return this;
-        }
-
-        public IfElseBuilder ElseIf(ICondition condition, ISimpleExecutable body)
-        {
-            _executable.ElseIf(condition, body);
-            return this;
-        }
-
-        public IfElseBuilder Else(ISimpleExecutable body)
-        {
-            _executable.Else(body);
-            return this;
-        }
+        public IfElseBuilder If(ICondition condition, ISimpleExecutable body) { _executable.If(condition, body); return this; }
+        public IfElseBuilder ElseIf(ICondition condition, ISimpleExecutable body) { _executable.ElseIf(condition, body); return this; }
+        public IfElseBuilder Else(ISimpleExecutable body) { _executable.Else(body); return this; }
     }
 
-    // ========================================================================
-    // Switch 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Switch 构建器
-    /// </summary>
-    [Obsolete("SwitchBuilder belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or registered action logic instead.")]
+    [Obsolete("SwitchBuilder is removed compatibility surface. Use Runtime.Plan executables or registered action logic instead.")]
     public sealed class SwitchBuilder : ExecutableBuilder<SwitchExecutable>
     {
-        public SwitchBuilder Selector(Func<object, int> selector)
-        {
-            _executable.ValueSelector = selector;
-            return this;
-        }
-
-        public SwitchBuilder Case(int value, ISimpleExecutable body)
-        {
-            _executable.Case(value, body);
-            return this;
-        }
-
-        public SwitchBuilder Case(int value, ActionId actionId)
-        {
-            _executable.Case(value, new ActionCallExecutable { ActionId = actionId, Arity = 0 });
-            return this;
-        }
-
-        public SwitchBuilder Case(int value, ActionId actionId, double arg0)
-        {
-            _executable.Case(value, new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arity = 1 });
-            return this;
-        }
-
-        public SwitchBuilder Default(ISimpleExecutable body)
-        {
-            _executable.Default(body);
-            return this;
-        }
+        public SwitchBuilder Selector(Func<object, int> selector) { _executable.ValueSelector = selector; return this; }
+        public SwitchBuilder Case(int value, ISimpleExecutable body) { _executable.Case(value, body); return this; }
+        public SwitchBuilder Case(int value, ActionId actionId) { _executable.Case(value, new ActionCallExecutable { ActionId = actionId, Arity = 0 }); return this; }
+        public SwitchBuilder Case(int value, ActionId actionId, double arg0) { _executable.Case(value, new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arity = 1 }); return this; }
+        public SwitchBuilder Default(ISimpleExecutable body) { _executable.Default(body); return this; }
     }
 
-    // ========================================================================
-    // RandomSelector 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// RandomSelector 构建器
-    /// </summary>
-    [Obsolete("RandomSelectorBuilder belongs to legacy Runtime/Executable DSL. Use Runtime.Plan executables or registered action logic instead.")]
+    [Obsolete("RandomSelectorBuilder is removed compatibility surface. Use Runtime.Plan executables or registered action logic instead.")]
     public sealed class RandomSelectorBuilder : ExecutableBuilder<RandomSelectorExecutable>
     {
         public RandomSelectorBuilder Add(ISimpleExecutable child, float weight = 1f)
@@ -219,169 +82,62 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 
-    // ========================================================================
-    // Repeat 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Repeat 构建器
-    /// </summary>
-    [Obsolete("RepeatBuilder belongs to legacy Runtime/Executable DSL. Use ActionScheduler or Runtime.Plan executables instead.")]
+    [Obsolete("RepeatBuilder is removed compatibility surface. Use ActionScheduler or Runtime.Plan executables instead.")]
     public sealed class RepeatBuilder : ExecutableBuilder<RepeatExecutable>
     {
-        public RepeatBuilder SetChild(ISimpleExecutable child) { _executable.Child = child; return this; }
-        public RepeatBuilder SetCount(int count) { _executable.Count = count; return this; }
-        public RepeatBuilder StopOnFailure(bool value) { _executable.StopOnFailure = value; return this; }
+        public RepeatBuilder Count(int count) { _executable.Count = count; return this; }
+        public RepeatBuilder Body(ISimpleExecutable body) { _executable.Child = body; return this; }
     }
 
-    // ========================================================================
-    // Until 构建器
-    // ========================================================================
-
-    /// <summary>
-    /// Until 构建器
-    /// </summary>
-    [Obsolete("UntilBuilder belongs to legacy Runtime/Executable DSL. Use ActionScheduler or Runtime.Plan executables instead.")]
+    [Obsolete("UntilBuilder is removed compatibility surface. Use ActionScheduler or Runtime.Plan executables instead.")]
     public sealed class UntilBuilder : ExecutableBuilder<UntilExecutable>
     {
-        public UntilBuilder SetChild(ISimpleExecutable child) { _executable.Child = child; return this; }
-        public UntilBuilder UntilSuccess() { _executable.UntilSuccess = true; return this; }
-        public UntilBuilder UntilFailure() { _executable.UntilSuccess = false; return this; }
-        public UntilBuilder SetMaxIterations(int max) { _executable.MaxIterations = max; return this; }
+        public UntilBuilder Condition(ICondition condition) { return this; }
+        public UntilBuilder Body(ISimpleExecutable body) { _executable.Child = body; return this; }
     }
 
-    // ========================================================================
-    // 条件构建器扩展
-    // ========================================================================
-
-    /// <summary>
-    /// 条件构建器扩展。
-    /// 旧 Executable DSL 兼容入口；正式触发器条件应通过 TriggerPlan 谓词/条件注册扩展表达。
-    /// </summary>
-    [Obsolete("ConditionBuilderExtensions belongs to legacy Runtime/Executable DSL. Use TriggerPlan predicates or registered condition extensions on the formal runtime path.")]
+    [Obsolete("ConditionBuilderExtensions is removed compatibility surface. Use TriggerPlan predicates or registered condition extensions on the formal runtime path.")]
     public static class ConditionBuilderExtensions
     {
-        public static ICondition Const(bool value)
-            => new ConstCondition { Value = value };
-
-        public static ICondition And(this ICondition left, ICondition right)
-            => new AndCondition { Left = left, Right = right };
-
-        public static ICondition Or(this ICondition left, ICondition right)
-            => new OrCondition { Left = left, Right = right };
-
-        public static ICondition Not(this ICondition inner)
-            => new NotCondition { Inner = inner };
-
-        public static ICondition Compare(ECompareOp op, NumericValueRef left, NumericValueRef right)
-            => new NumericCompareCondition { Op = op, Left = left, Right = right };
-
-        [Obsolete("PayloadCompare belongs to legacy Runtime/Executable DSL. Use TriggerPlan payload predicates on the formal runtime path.")]
+        [Obsolete("PayloadCompare is removed compatibility surface. Use TriggerPlan payload predicates on the formal runtime path.")]
         public static ICondition PayloadCompare(int fieldId, ECompareOp op, NumericValueRef compareValue)
-            => new PayloadCompareCondition { FieldId = fieldId, Op = op, CompareValue = compareValue };
+        {
+            throw new NotSupportedException("Legacy Runtime/Executable condition builders are removed. Use TriggerPlan predicates on the formal runtime path.");
+        }
 
-        [Obsolete("PayloadCompare belongs to legacy Runtime/Executable DSL. Use TriggerPlan payload predicates on the formal runtime path.")]
+        [Obsolete("PayloadCompare is removed compatibility surface. Use TriggerPlan payload predicates on the formal runtime path.")]
         public static ICondition PayloadCompare(int fieldId, ECompareOp op, double compareValue)
-            => PayloadCompare(fieldId, op, NumericValueRef.Const(compareValue));
+        {
+            throw new NotSupportedException("Legacy Runtime/Executable condition builders are removed. Use TriggerPlan predicates on the formal runtime path.");
+        }
 
-        [Obsolete("HasTarget belongs to targeting package predicates, not the triggering package legacy DSL.")]
+        [Obsolete("HasTarget is removed compatibility surface. Use targeting package predicates instead.")]
         public static ICondition HasTarget(bool negate = false)
-            => new HasTargetCondition { Negate = negate };
-
-        public static ICondition AllOf(params ICondition[] conditions)
-            => new MultiCondition { Combinator = EConditionCombinator.And, Conditions = new List<ICondition>(conditions) };
-
-        public static ICondition AnyOf(params ICondition[] conditions)
-            => new MultiCondition { Combinator = EConditionCombinator.Or, Conditions = new List<ICondition>(conditions) };
-
-        public static ICondition Gt(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.GreaterThan, left, right);
-
-        public static ICondition Ge(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.GreaterThanOrEqual, left, right);
-
-        public static ICondition Lt(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.LessThan, left, right);
-
-        public static ICondition Le(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.LessThanOrEqual, left, right);
-
-        public static ICondition Eq(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.Equal, left, right);
-
-        public static ICondition Ne(NumericValueRef left, NumericValueRef right)
-            => Compare(ECompareOp.NotEqual, left, right);
+        {
+            throw new NotSupportedException("Legacy Runtime/Executable target conditions are removed. Use targeting package predicates instead.");
+        }
     }
 
-    // ========================================================================
-    // 调度构建器扩展
-    // ========================================================================
-
-    /// <summary>
-    /// 调度构建器扩展
-    /// </summary>
-    [Obsolete("ScheduledExecutableBuilderExtensions belongs to legacy Runtime/Executable DSL. Use ActionScheduler formal scheduling instead.")]
+    [Obsolete("ScheduledExecutableBuilderExtensions is removed compatibility surface. Use ActionScheduler formal scheduling instead.")]
     public static class ScheduledExecutableBuilderExtensions
     {
-        public static IScheduledExecutable Timed(this ISimpleExecutable inner, float durationMs)
-            => ScheduledExecutableFactory.WrapTimed(inner, durationMs);
-
-        public static IScheduledExecutable Periodic(this ISimpleExecutable inner, float periodMs, int maxExecutions = -1)
-            => ScheduledExecutableFactory.WrapPeriodic(inner, periodMs, maxExecutions);
-
-        public static IScheduledExecutable External(this ISimpleExecutable inner)
-            => ScheduledExecutableFactory.WrapExternal(inner);
+        [Obsolete("Schedule is removed compatibility surface. Use ActionScheduler formal scheduling instead.")]
+        public static ISimpleExecutable Schedule(this ISimpleExecutable executable, int delayMs)
+        {
+            throw new NotSupportedException("Legacy Runtime/Executable scheduling is removed. Use ActionScheduler formal scheduling instead.");
+        }
     }
 
-    // ========================================================================
-    // DSL 静态入口
-    // ========================================================================
-
-    /// <summary>
-    /// 行为 DSL 静态入口。
-    /// 兼容旧的 Runtime/Executable 构建方式，新代码请优先使用 Runtime.Plan.TriggerPlanExecutableDsl。
-    /// </summary>
-    [Obsolete("Runtime/Executable is legacy compatibility only. Use AbilityKit.Triggering.Runtime.Plan.TriggerPlanExecutableDsl instead.")]
+    [Obsolete("Runtime/Executable is removed compatibility surface. Use AbilityKit.Triggering.Runtime.Plan.TriggerPlanExecutableDsl instead.")]
     public static class ExecutableDsl
     {
-        public static SequenceBuilder Sequence() => new();
-        public static SelectorBuilder Selector() => new();
-        public static ParallelBuilder Parallel() => new();
-        public static IfElseBuilder IfElse() => new();
-        public static SwitchBuilder Switch() => new();
-        public static RandomSelectorBuilder RandomSelector() => new();
-        public static RepeatBuilder Repeat() => new();
-        public static UntilBuilder Until() => new();
-
-        public static ISimpleExecutable If(ICondition condition, ISimpleExecutable body)
-            => new IfExecutable { Condition = condition, Body = body };
-
-        public static ActionCallExecutable Action(ActionId actionId)
-            => new ActionCallExecutable { ActionId = actionId, Arity = 0 };
-
-        public static ActionCallExecutable Action(ActionId actionId, double arg0)
-            => new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arity = 1 };
-
-        public static ActionCallExecutable Action(ActionId actionId, double arg0, double arg1)
-            => new ActionCallExecutable { ActionId = actionId, Arg0 = NumericValueRef.Const(arg0), Arg1 = NumericValueRef.Const(arg1), Arity = 2 };
-
-        public static ActionCallExecutable Action(ActionId actionId, NumericValueRef arg0)
-            => new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arity = 1 };
-
-        public static ActionCallExecutable Action(ActionId actionId, NumericValueRef arg0, NumericValueRef arg1)
-            => new ActionCallExecutable { ActionId = actionId, Arg0 = arg0, Arg1 = arg1, Arity = 2 };
-
-        public static DelayExecutable Delay(float delayMs)
-            => new DelayExecutable { DelayMs = delayMs };
-
-        public static DebugLogExecutable Log(string message)
-            => new DebugLogExecutable { Message = message };
-
-        public static EventSendExecutable Event(string eventName)
-            => new EventSendExecutable { EventName = eventName };
-
-        public static NoOpExecutable NoOp() => NoOpExecutable.Instance;
-        public static SuccessExecutable Success() => SuccessExecutable.Instance;
-        public static FailExecutable Fail(string reason = null) => new FailExecutable { Reason = reason };
+        public static SequenceBuilder Sequence() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static SelectorBuilder Selector() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static ParallelBuilder Parallel() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static IfElseBuilder IfElse() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static SwitchBuilder Switch() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static RandomSelectorBuilder RandomSelector() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static RepeatBuilder Repeat() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
+        public static UntilBuilder Until() => throw new NotSupportedException("Runtime/Executable is removed. Use Runtime.Plan.TriggerPlanExecutableDsl.");
     }
 }

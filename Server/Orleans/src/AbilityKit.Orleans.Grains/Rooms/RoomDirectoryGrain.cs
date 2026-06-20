@@ -1,14 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Persistence;
 using Orleans;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
 public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 {
-    private readonly Dictionary<string, RoomSummary> _rooms = new(StringComparer.Ordinal);
+    private readonly IRoomStateStore _roomStateStore;
+
+    public RoomDirectoryGrain(IRoomStateStore roomStateStore)
+    {
+        _roomStateStore = roomStateStore ?? throw new ArgumentNullException(nameof(roomStateStore));
+    }
 
     public async Task<CreateRoomResponse> CreateRoomAsync(CreateRoomRequest request)
     {
@@ -44,12 +47,12 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         var room = GrainFactory.GetGrain<IRoomGrain>(roomId);
         await room.InitializeAsync(summary, directoryKey);
 
-        _rooms[roomId] = summary;
+        await _roomStateStore.UpsertRoomAsync(directoryKey, summary);
 
         return new CreateRoomResponse(roomId);
     }
 
-    public Task<ListRoomsResponse> ListRoomsAsync(ListRoomsRequest request)
+    public async Task<ListRoomsResponse> ListRoomsAsync(ListRoomsRequest request)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
 
@@ -63,7 +66,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         var offset = Math.Max(0, request.Offset);
         var limit = request.Limit <= 0 ? 20 : Math.Min(request.Limit, 200);
 
-        IEnumerable<RoomSummary> query = _rooms.Values;
+        IEnumerable<RoomSummary> query = await _roomStateStore.ListRoomsAsync(directoryKey);
         if (!string.IsNullOrWhiteSpace(request.RoomType))
         {
             query = query.Where(r => string.Equals(r.RoomType, request.RoomType, StringComparison.Ordinal));
@@ -77,7 +80,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
             .ToList();
 
         var nextOffset = offset + rooms.Count;
-        return Task.FromResult(new ListRoomsResponse(rooms, nextOffset));
+        return new ListRoomsResponse(rooms, nextOffset);
     }
 
     public Task NotifyRoomChangedAsync(string roomId, int playerCount)
@@ -87,12 +90,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
             return Task.CompletedTask;
         }
 
-        if (_rooms.TryGetValue(roomId, out var summary))
-        {
-            _rooms[roomId] = summary with { PlayerCount = Math.Max(0, playerCount) };
-        }
-
-        return Task.CompletedTask;
+        return _roomStateStore.UpdateRoomPlayerCountAsync(this.GetPrimaryKeyString(), roomId, playerCount);
     }
 
     public Task RemoveRoomAsync(string roomId)
@@ -102,8 +100,7 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
             return Task.CompletedTask;
         }
 
-        _rooms.Remove(roomId);
-        return Task.CompletedTask;
+        return _roomStateStore.RemoveRoomAsync(this.GetPrimaryKeyString(), roomId);
     }
 
     public static string BuildDirectoryKey(string region, string serverId) => $"{region}:{serverId}";

@@ -9,6 +9,13 @@ using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
+using AbilityKit.Core.Logging;
+using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 
@@ -19,13 +26,15 @@ namespace AbilityKit.Demo.Moba.Systems.Area
     {
         private IProjectileService _projectiles;
         private MobaActorRegistry _registry;
-        private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        private IEventBus _eventBus;
         private MobaAreaRuntimeService _areaRuntime;
         private IMobaTemporaryEntityLifecycleService _lifecycle;
+        private IMobaStageTriggerService _stageTriggers;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaEnterEvent> _enters = new List<AreaEnterEvent>(64);
         private readonly List<AreaExitEvent> _exits = new List<AreaExitEvent>(64);
+        private readonly List<AreaStayEvent> _stays = new List<AreaStayEvent>(64);
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
 
         public MobaAreaSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services) : base(contexts, services)
@@ -39,6 +48,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _areaRuntime);
             Services.TryResolve(out _lifecycle);
+            Services.TryResolve(out _stageTriggers);
         }
 
         protected override void OnExecute()
@@ -61,7 +71,6 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
-
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
@@ -73,9 +82,19 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             {
                 var evt = _exits[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
-
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.exit", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExit, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
+            }
+
+            _stays.Clear();
+            _projectiles.DrainAreaStayEvents(_stays);
+            if (_stays.Count > 0) _lifecycle?.RecordTickEvents(MobaTemporaryEntityKind.Area, _stays.Count);
+            for (int i = 0; i < _stays.Count; i++)
+            {
+                var evt = _stays[i];
+                var hitActorId = ResolveActorIdByCollider(evt.Collider);
+                var info = RequireAreaInfo(evt.Area);
+                PublishAreaEvent("area.tick", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaStay, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _expires.Clear();
@@ -84,10 +103,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             for (int i = 0; i < _expires.Count; i++)
             {
                 var evt = _expires[i];
-
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
-
                 _areaRuntime.Unregister(evt.Area);
             }
         }
@@ -125,6 +142,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 object boxed = payload;
                 _eventBus.Publish(objectKey, in boxed);
             }
+
+            _stageTriggers?.ExecuteAreaStage(eventId, areaId, templateId, raw, in info, ownerActorId, targetActorId, frame, in center, radius, collider, collisionLayerMask, maxTargets);
         }
 
         private MobaAreaRuntimeInfo RequireAreaInfo(AreaId areaId)
@@ -166,4 +185,3 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         }
     }
 }
-

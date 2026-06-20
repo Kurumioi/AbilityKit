@@ -19,12 +19,13 @@
 6. P1-4：调度体系收敛本轮已推进。旧业务化 `ScheduleEffectFactory` 已迁到 [`Documentation~/LegacySchedule`](../Unity/Packages/com.abilitykit.triggering/Documentation~/LegacySchedule)，不再进入运行时编译面；`Runtime/Scheduler` 与通用 `Runtime/Schedule` 继续按兼容边界保留。
 7. P1-5：`Plan/Executables` 与 `Executable` 双体系收敛本轮已推进。空壳 `ScheduledExecutableFactory.cs` 已删除，真实兼容调度工厂保留在 [`ScheduledExecutables.cs`](../Unity/Packages/com.abilitykit.triggering/Runtime/Executable/ScheduledExecutables.cs)；旧 DSL、旧配置转换和真实兼容执行器保留给反序列化与外部兼容。
 8. P1-6：Dispatcher 兼容层收口本轮已推进。`TriggerDispatcherHub`、`TriggerDispatcherRegistry`、`EventBusDispatcher` 与 `TimedDispatcher` 已显式标记为旧 Dispatcher 兼容入口；`ITriggerDispatcherContext` 与委托类型继续保留给 `ActionScheduler` / `PlannedTrigger` 主线桥接。
+9. P2-10：产品化验收材料第一轮已落地到 [`ProductAcceptanceGuide.md`](../Unity/Packages/com.abilitykit.triggering/Document/ProductAcceptanceGuide.md)，覆盖性能/确定性验收基线、测试矩阵、诊断链路、FAQ、升级说明模板和样板工程边界。
 
 ### 仍待正式推进
 
-1. P2-8：Legacy 迁移与弃用策略已沉淀到 [`LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)，统一记录入口分级、迁移优先级、删除条件和延后决策；后续随外部调用方迁移、发布说明和运行时统计维护。
+1. P2-8：Legacy 迁移与弃用策略已沉淀到 [`LegacyMigrationPolicy.md`](../Unity/Packages/com.abilitykit.triggering/Document/LegacyMigrationPolicy.md)，统一记录入口分级、迁移优先级、删除条件和延后决策；后续随外部调用方迁移和运行时统计维护。
 2. P2-9：ActionScheduler 深水区能力决策：retry、延迟重试、Timeline 显式拒绝与 Rollback 前置拒绝已落地；若后续需要完整 Timeline 或 Rollback，需要作为独立功能实现。
-3. P2-10：产品化验收材料：商业化清单中仍保留编辑器工具、性能/确定性基线、更完整测试矩阵、FAQ、升级说明、样板工程和诊断统计等交付项。
+3. P2-10 后续代码能力：编辑器工具、运行时 trace/debug record 导出、指标聚合和真实样板工程仍需独立推进；文档验收材料已落地。
 4. P2-7：根目录兼容文件收敛已完成；后续只维护 [`Runtime/Compatibility`](../Unity/Packages/com.abilitykit.triggering/Runtime/Compatibility) 空机器清单、清理记录和未知根目录 `.cs` 文件告警。
 
 ### 当前过时内容盘点
@@ -174,6 +175,6 @@
 2. 旧调度后续：`ScheduleEffectFactory` 业务样例已迁到 Documentation，下一步只处理外部调用方迁移与旧 `Scheduler` major 合并/删除决策。
 3. Dispatcher 后续：旧聚合入口已降权，下一步按调用方区分“事件计划触发迁主线”和“外部 tick 生命周期长期兼容”。
 4. Executable 后续：空壳旧工厂已删除；只在产品需要更强领域执行语义时继续把旧 Decorator/行为语义迁入 [`Plan/Executables`](../Unity/Packages/com.abilitykit.triggering/Runtime/Plan/Executables)，不要为了清理而删除仍有旧配置价值的转换器。
-5. 产品化验收：补性能/确定性基线、测试矩阵、FAQ、升级说明、样板工程和 legacy 命中诊断统计。
+5. 产品化验收：性能/确定性基线、测试矩阵、FAQ、升级说明模板、诊断链路和样板工程边界已沉淀到 [`ProductAcceptanceGuide.md`](../Unity/Packages/com.abilitykit.triggering/Document/ProductAcceptanceGuide.md)；后续推进编辑器工具、运行时统计和真实样板工程。
 6. Major 清理批次：只有当包内外调用方、旧 JSON、示例、测试和 Unity `.meta` 引用都清空后，再删除旧 Scheduler、Dispatcher 或 Executable 入口。
 7. 根目录兼容入口：已完成清理；后续仅维护空机器清单、清理记录和测试防回流约束。

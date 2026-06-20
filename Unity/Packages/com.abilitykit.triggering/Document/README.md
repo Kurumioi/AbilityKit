@@ -82,7 +82,9 @@ runner.RegisterPlan(damageEventKey, in plan);
 
 - [`FormalApiBoundary.md`](FormalApiBoundary.md)：正式 API、兼容 API、迁移方向和调度选择表。
 - [`LegacyMigrationPolicy.md`](LegacyMigrationPolicy.md)：legacy、compatibility、experimental 入口分级、迁移优先级、删除条件和延后决策。
+- [`ProductAcceptanceGuide.md`](ProductAcceptanceGuide.md)：产品化验收基线、测试矩阵、诊断链路、FAQ、升级说明模板和样板工程边界。
 - [`Triggering-Commercial-Remediation-Checklist.md`](Triggering-Commercial-Remediation-Checklist.md)：商业化整改状态、剩余产品化项和后续执行顺序。
+- [`Samples/FormalTriggeringMainlineExample.cs`](../Samples/FormalTriggeringMainlineExample.cs)：只使用正式入口的可复制接入样板。
 
 ## 七、稳定性约束
 

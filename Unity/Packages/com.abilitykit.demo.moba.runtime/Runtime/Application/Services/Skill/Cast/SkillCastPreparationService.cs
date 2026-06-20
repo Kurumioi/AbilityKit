@@ -38,12 +38,12 @@ namespace AbilityKit.Demo.Moba.Services
             var actorId = input.ActorId;
             var skillId = input.SkillId;
             var slot = input.Slot;
-            if (actorId <= 0) return SkillCastPreparationResult.Failed("skill.cast.invalidCaster", $"Invalid caster actor id: {actorId}.");
-            if (skillId <= 0) return SkillCastPreparationResult.Failed("skill.cast.invalidSkill", $"Invalid skill id: {skillId}.");
+            if (actorId <= 0) return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.InvalidCaster, $"Invalid caster actor id: {actorId}.");
+            if (skillId <= 0) return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.InvalidSkill, $"Invalid skill id: {skillId}.");
 
             if (!_units.TryResolve(new EcsEntityId(actorId), out var caster) || caster == null)
             {
-                return SkillCastPreparationResult.Failed("skill.cast.casterMissing", "Caster not found.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.CasterMissing, "Caster not found.");
             }
 
             ResolveCasterTransform(actorId, out var casterPos, out var casterForward);
@@ -58,14 +58,14 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (!_units.TryResolve(new EcsEntityId(finalTargetActorId), out targetUnit) || targetUnit == null)
                 {
-                    return SkillCastPreparationResult.Failed("skill.cast.targetMissing", $"Target not found. targetActorId={finalTargetActorId}.");
+                    return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, $"Target not found. targetActorId={finalTargetActorId}.");
                 }
             }
 
             if (!_library.TryGet(skillId, out var preConfig, out var prePhases, out var castConfig, out var castPhases))
             {
                 Log.Warning($"[SkillExecutor] Cast failed: pipeline missing. actor={actorId}, skillId={skillId}, slot={slot}, target={finalTargetActorId}");
-                return SkillCastPreparationResult.Failed("skill.cast.pipelineMissing", "Skill pipeline not found.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.PipelineMissing, "Skill pipeline not found.");
             }
 
             var request = new SkillCastRequest(
@@ -91,7 +91,7 @@ namespace AbilityKit.Demo.Moba.Services
             var trace = _services.Resolve<MobaTraceRegistry>();
             if (trace == null)
             {
-                return SkillCastPreparationResult.Failed("skill.cast.traceRegistryMissing", "MobaTraceRegistry is required for formal skill cast tracing.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TraceRegistryMissing, "MobaTraceRegistry is required for formal skill cast tracing.");
             }
 
             context.SourceContextId = trace.CreateRootContext(
@@ -103,13 +103,13 @@ namespace AbilityKit.Demo.Moba.Services
                 finalTargetActorId > 0 ? TraceEndpoint.Actor(finalTargetActorId) : default);
             if (context.SourceContextId == 0)
             {
-                return SkillCastPreparationResult.Failed("skill.cast.traceRootCreateFailed", "Skill cast trace root creation failed.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TraceRootCreateFailed, "Skill cast trace root creation failed.");
             }
 
             var runtimes = _services.Resolve<MobaSkillCastRuntimeService>();
             if (runtimes == null)
             {
-                return SkillCastPreparationResult.Failed("skill.cast.runtimeServiceMissing", "MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeServiceMissing, "MobaSkillCastRuntimeService is required for formal skill cast runtime tracking.");
             }
 
             var createRequest = MobaSkillCastRuntimeCreateRequestBuilder.Create()
@@ -120,7 +120,7 @@ namespace AbilityKit.Demo.Moba.Services
             context.RuntimeId = runtime.RuntimeId;
             if (!context.RuntimeHandle.IsValid)
             {
-                return SkillCastPreparationResult.Failed("skill.cast.runtimeHandleInvalid", "Skill cast runtime creation returned an invalid handle.");
+                return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.RuntimeHandleInvalid, "Skill cast runtime creation returned an invalid handle.");
             }
 
             return SkillCastPreparationResult.Ready(in request, context, runtimes, preConfig, prePhases, castConfig, castPhases);
