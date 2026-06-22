@@ -1,7 +1,7 @@
 namespace AbilityKit.Demo.Moba.Services.Snapshot
 {
     /// <summary>
-    /// MOBA battle snapshot type identifiers.
+    /// MOBA 战斗快照类型标识。
     /// </summary>
     public static class GameSnapshotTypes
     {

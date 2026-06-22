@@ -185,7 +185,7 @@ namespace AbilityKit.Demo.Moba.Services
             CasterUnit = request.CasterUnit;
             TargetUnit = request.TargetUnit;
 
-            // Mirror core facts for generic pipeline/effect adapters that still read IAbilityPipelineContext.
+            // 为仍读取 IAbilityPipelineContext 的通用管线/效果适配器同步核心事实。
             Vec3 aimPos = AimPos;
             Vec3 aimDir = AimDir;
             var runtimeHandle = RuntimeHandle;

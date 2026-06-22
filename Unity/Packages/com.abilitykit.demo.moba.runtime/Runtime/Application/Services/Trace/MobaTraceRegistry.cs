@@ -109,7 +109,6 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 RootId = rootId,
                 ParentId = 0,
-                Kind = kind,
                 TraceKind = (MobaTraceKind)kind,
                 ConfigId = configId,
                 SourceActorId = sourceActorId,
@@ -119,8 +118,7 @@ namespace AbilityKit.Demo.Moba.Services
                 OriginSourceId = originId,
                 OriginSource = originDisplay,
                 OriginTargetId = targetId,
-                OriginTarget = targetDisplay,
-                Message = originDisplay
+                OriginTarget = targetDisplay
             };
         }
 
@@ -132,6 +130,10 @@ namespace AbilityKit.Demo.Moba.Services
         protected override string GetOriginTargetDisplay(MobaTraceMetadata metadata) => metadata.OriginTarget;
     }
 
+    /// <summary>
+    /// 运行时类型名称常量。
+    /// 用于 trace、诊断和上下文分类中的统一字符串标识。
+    /// </summary>
     public static class MobaRuntimeKindNames
     {
         public const string Actor = "actor";

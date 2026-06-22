@@ -1,7 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Canonical lineage context propagated by trigger providers before it is converted into effect execution input or trace snapshots.
+    /// 触发提供者传播的统一链路上下文。
+    /// 在转换为效果执行输入或溯源快照之前，会先通过该结构承载链路信息。
     /// </summary>
     public readonly struct MobaTriggerLineageContext
     {
@@ -21,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             SourceContextId = sourceContextId;
             RootContextId = rootContextId;
-            OwnerKey = ownerContextId;
+            OwnerContextId = ownerContextId;
             SourceConfigId = sourceConfigId;
         }
 
@@ -30,22 +31,18 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         /// <summary>
-        /// Source trace context for downstream trigger/effect execution. It usually becomes the parent context of the next execution node.
+        /// 下游触发/效果执行使用的来源溯源节点。通常会作为下一个执行节点的父节点。
         /// </summary>
         public long SourceContextId { get; }
         /// <summary>
-        /// Known root trace context for this lineage. When zero, SourceContextId is used as the effective root by converters.
+        /// 该链路已知的根溯源节点。为 0 时，转换器会将 SourceContextId 作为有效根节点。
         /// </summary>
         public long RootContextId { get; }
-        /// <summary>
-        /// Compatibility name for ownership context identity. Prefer <see cref="OwnerContextId"/> in new code.
-        /// </summary>
-        public long OwnerKey { get; }
-
-        /// <summary>
-        /// Preferred ownership context identity name.
-        /// </summary>
-        public long OwnerContextId => OwnerKey;
+        /// <summary>该链路传递的所有权上下文标识。</summary>
+        public long OwnerContextId { get; }
+ 
+        /// <summary>所有权上下文标识的兼容别名。</summary>
+        public long OwnerKey => OwnerContextId;
         public int SourceConfigId { get; }
 
         public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;

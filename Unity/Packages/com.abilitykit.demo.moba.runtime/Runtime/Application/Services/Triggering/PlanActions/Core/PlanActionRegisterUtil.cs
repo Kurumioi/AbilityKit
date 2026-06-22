@@ -6,13 +6,13 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Plan Action 注册工具类
-    /// 保留数值转换功能，ID生成已移至 TriggeringConstants
+    /// 计划动作注册工具类。
+    /// 保留数值转换功能，ID 生成已移至 TriggeringConstants。
     /// </summary>
     internal static class PlanActionRegisterUtil
     {
         /// <summary>
-        /// 获取Action ID（已委托给TriggeringConstants）
+        /// 获取动作 ID（已委托给 TriggeringConstants）。
         /// </summary>
         public static ActionId GetActionId(string actionName)
         {
@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         /// <summary>
-        /// 尝试将double转换为int ID
+        /// 尝试将 double 转换为 int ID。
         /// </summary>
         public static bool TryToIntId(double raw, out int id, string logScope)
         {
@@ -43,7 +43,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         /// <summary>
-        /// 尝试将double转换为float
+        /// 尝试将 double 转换为 float。
         /// </summary>
         public static bool TryToFloat(double raw, out float value)
         {
@@ -53,7 +53,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
 
         /// <summary>
-        /// 将double四舍五入为int
+        /// 将 double 四舍五入为 int。
         /// </summary>
         public static int ToIntRound(double raw)
         {

@@ -6,8 +6,8 @@ using AbilityKit.Trace;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// 溯源感知的 Action 包装器
-    /// 用于在 Action 执行时自动创建子节点
+    /// 溯源感知的动作包装器。
+    /// 用于在动作执行时自动创建子节点。
     /// </summary>
     public sealed class TracingActionWrapper
     {

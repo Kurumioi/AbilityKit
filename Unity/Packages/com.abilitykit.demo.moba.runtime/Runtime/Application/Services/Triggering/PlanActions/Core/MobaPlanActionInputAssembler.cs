@@ -5,8 +5,8 @@ using AbilityKit.Triggering.Runtime;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Centralized assembler for action execution input. It keeps execution-context, trace-scope,
-    /// actor, aim, target, and origin prerequisites out of individual plan action modules.
+    /// 动作执行输入的集中组装器。
+    /// 用于把执行上下文、trace scope、参与者、瞄准、目标和来源等前置数据从各个计划动作模块中剥离出来。
     /// </summary>
     internal static class MobaPlanActionInputAssembler
     {

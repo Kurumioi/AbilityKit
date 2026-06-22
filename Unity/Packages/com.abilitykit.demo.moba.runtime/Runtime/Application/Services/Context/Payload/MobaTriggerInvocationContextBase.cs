@@ -12,8 +12,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Recommended base class for formal trigger execution payloads.
-    /// New trigger timings should inherit this type so origin, lineage, and trace capabilities stay consistent across active skill, passive, buff, projectile, area, summon, and damage pipeline payloads.
+    /// 正式触发执行 payload 的推荐基类。
+    /// 新的触发时机应继承该类型，以便在主动技能、被动、Buff、投射物、区域、召唤和伤害管线中保持统一的来源、链路与溯源能力。
     /// </summary>
     public abstract class MobaTriggerInvocationContextBase : IMobaTriggerExecutionPayload
     {

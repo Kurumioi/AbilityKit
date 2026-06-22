@@ -10,7 +10,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 {
     /// <summary>
-    /// 收敛 ongoing trigger plan 的 owner 绑定与失效清理逻辑，避免调度系统直接编排 gateway 细节。
+    /// 收敛持续触发计划的所有者绑定与失效清理逻辑，避免调度系统直接编排网关细节。
     /// </summary>
     [WorldService(typeof(MobaTriggerPlanReconcileService))]
     public sealed class MobaTriggerPlanReconcileService : IService, IDisposable

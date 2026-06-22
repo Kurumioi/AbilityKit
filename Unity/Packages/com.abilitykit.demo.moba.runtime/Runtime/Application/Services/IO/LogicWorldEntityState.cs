@@ -1,4 +1,4 @@
 namespace AbilityKit.Demo.Moba.Services
 {
-    // LogicWorldEntityState is defined with IMobaBattleOutputPort.
+    // LogicWorldEntityState 与 IMobaBattleOutputPort 一起定义。
 }

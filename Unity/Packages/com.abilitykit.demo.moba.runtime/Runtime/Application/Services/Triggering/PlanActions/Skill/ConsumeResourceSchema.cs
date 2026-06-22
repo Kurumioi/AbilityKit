@@ -11,8 +11,8 @@ using AbilityKit.Demo.Moba.Systems;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Schema for the consume_resource plan action.
-    /// Parses configured resource type and amount from named action args.
+    /// consume_resource 计划动作的结构描述。
+    /// 从具名动作参数中解析配置的资源类型和消耗数量。
     /// </summary>
     public sealed class ConsumeResourceSchema : MobaPlanActionSchemaBase<ConsumeResourceArgs>
     {

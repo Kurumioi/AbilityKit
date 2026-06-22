@@ -12,7 +12,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// MOBA-scoped continuous behavior manager for buffs, skill pipelines, movement, and other runtime processes.
+    /// MOBA 作用域内的持续行为管理器，用于管理 Buff、技能管线、移动和其他运行时过程。
     /// </summary>
     [WorldService(typeof(IContinuousManager), WorldLifetime.Scoped)]
     [WorldService(typeof(MobaContinuousManager), WorldLifetime.Scoped)]

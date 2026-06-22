@@ -6,7 +6,7 @@ using AbilityKit.Demo.Moba.Components;
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
 {
     /// <summary>
-    /// Buff 持续触发计划绑定器：只负责按 Buff 实例 ownerKey 维护 Actor 上的 ongoing trigger plan 条目。
+    /// Buff 持续触发计划绑定器：只负责按 Buff 实例所有者键维护 Actor 上的持续触发计划条目。
     /// </summary>
     internal sealed class BuffTriggerPlanCoordinator
     {

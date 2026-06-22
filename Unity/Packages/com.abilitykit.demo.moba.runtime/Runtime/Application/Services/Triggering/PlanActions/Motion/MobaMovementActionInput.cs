@@ -3,8 +3,8 @@ using AbilityKit.Core.Mathematics;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Movement-specific action input. This composes the core action input and keeps movement
-    /// direction/actor-position derivation out of the common action input.
+    /// 移动专用的动作输入。
+    /// 该类型组合核心动作输入，并把移动方向、角色位置推导逻辑从通用动作输入中剥离出来。
     /// </summary>
     internal readonly struct MobaMovementActionInput
     {

@@ -14,14 +14,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public IPlanActionModule[] Modules { get; }
         public MobaPlanActionDescriptor[] Descriptors { get; }
 
-        // Parameterless constructor for DI container (auto-discovery internally)
+        // 供 DI 容器使用的无参构造函数，内部会自动发现模块。
         public PlanActionModuleRegistry()
         {
             Descriptors = CreateDescriptors();
             Modules = ExtractModules(Descriptors);
         }
 
-        // Explicit constructor for manual creation with specific modules
+        // 供手动创建时显式传入指定模块的构造函数。
         public PlanActionModuleRegistry(IPlanActionModule[] modules)
         {
             Modules = modules ?? Array.Empty<IPlanActionModule>();

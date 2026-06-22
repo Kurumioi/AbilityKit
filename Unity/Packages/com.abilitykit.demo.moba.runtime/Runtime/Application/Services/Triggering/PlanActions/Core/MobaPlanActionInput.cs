@@ -32,8 +32,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     }
 
     /// <summary>
-    /// Core action execution facts shared by plan actions. Keep domain-specific action data in
-    /// action args or specialized inputs such as MobaMovementActionInput instead of expanding this type.
+    /// 计划动作共享的核心执行事实。
+    /// 领域专属的动作数据应保留在动作参数对象或诸如 MobaMovementActionInput 之类的专用输入中，不要继续扩展该类型。
     /// </summary>
     internal readonly struct MobaPlanActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput
     {

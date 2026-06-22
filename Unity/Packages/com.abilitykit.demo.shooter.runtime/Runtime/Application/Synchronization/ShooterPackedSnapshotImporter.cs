@@ -286,9 +286,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            var initializer = context.EntityFactory.BuildEntity<ShooterSveltoGameplayTargetDescriptor>(entityId, ShooterSveltoGroups.GameplayTargets);
-            initializer.Init(enemy.Transform);
-            initializer.Init(enemy.Health);
+            ShooterSveltoEntityLayout.BuildGameplayTarget(context, entityId, in enemy.Transform, in enemy.Health);
             context.SubmitEntities();
         }
 

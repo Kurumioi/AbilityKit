@@ -1,8 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Logic-world spawn data used by runtime services.
-    /// External hosts must map their own launch data into this runtime model before world bootstrap.
+    /// 运行时服务使用的逻辑世界生成数据。
+    /// 外部宿主必须在世界启动前把自身启动数据映射到该运行时模型。
     /// </summary>
     public readonly struct LogicWorldSpawnData
     {

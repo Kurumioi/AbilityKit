@@ -139,8 +139,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoPlayerDescriptor>((uint)player.PlayerId, ShooterSveltoGroups.Players);
-            initializer.Init(player);
+            ShooterSveltoEntityLayout.BuildPlayer(_context, in player);
             _playerIds.Add(player.PlayerId);
             SubmitStructuralChanges();
         }
@@ -217,8 +216,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoProjectileDescriptor>((uint)projectile.BulletId, ShooterSveltoGroups.Projectiles);
-            initializer.Init(projectile);
+            ShooterSveltoEntityLayout.BuildProjectile(_context, in projectile);
             _projectileIds.Add(projectile.BulletId);
             SubmitStructuralChanges();
         }

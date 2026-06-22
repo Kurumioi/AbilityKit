@@ -2,9 +2,13 @@ using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// MOBA 溯源元数据。
+    /// 仅保留业务查询与诊断需要的强类型字段，不再重复维护节点整数类型的独立真值。
+    /// </summary>
     public sealed class MobaTraceMetadata : TraceMetadata
     {
-        public int Kind { get; set; }
+        /// <summary>MOBA 溯源种类的强类型视图。</summary>
         public MobaTraceKind TraceKind { get; set; }
         public int ConfigId { get; set; }
         public long RootId { get; set; }
@@ -17,8 +21,9 @@ namespace AbilityKit.Demo.Moba.Services
         public long OriginTargetId { get; set; }
         public string OriginSource { get; set; }
         public string OriginTarget { get; set; }
-        public string Message { get; set; }
-
+        public int Kind => (int)TraceKind;
+ 
+        /// <summary>生成用于调试与日志输出的简要展示字符串。</summary>
         public string ToDisplayString()
         {
             return $"{TraceKind}(root={RootId}, config={ConfigId}, source={SourceActorId}, target={TargetActorId}, origin={OriginSource}, targetOrigin={OriginTarget})";

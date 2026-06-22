@@ -7,7 +7,7 @@ using AbilityKit.Modifiers;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Scope-aware modifier container/resolver for skill and PlanAction parameters.
+    /// 面向作用域的修饰器容器与解析器，用于技能和计划动作参数。
     /// </summary>
     [WorldService(typeof(MobaSkillParamModifierService))]
     public sealed class MobaSkillParamModifierService : IService

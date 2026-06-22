@@ -162,20 +162,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var dy = -y;
             Normalize(ref dx, ref dy);
 
-            var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoGameplayTargetDescriptor>(targetId, ShooterSveltoGroups.GameplayTargets);
-            initializer.Init(new ShooterSveltoTransformComponent
+            var transform = new ShooterSveltoTransformComponent
             {
                 X = x,
                 Y = y,
                 DirectionX = dx,
                 DirectionY = dy
-            });
-            initializer.Init(new ShooterSveltoHealthComponent
+            };
+            var health = new ShooterSveltoHealthComponent
             {
                 Current = wave.EnemyHp,
                 Max = wave.EnemyHp,
                 Alive = 1
-            });
+            };
+            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, targetId, in transform, in health);
 
             _context.SubmitEntities();
         }

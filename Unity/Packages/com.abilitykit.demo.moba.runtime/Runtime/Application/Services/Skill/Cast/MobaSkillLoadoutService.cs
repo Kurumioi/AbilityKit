@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (actorId <= 0) return false;
             if (slot <= 0) return false;
 
-            // Prefer ECS component data if available.
+            // 可用时优先读取 ECS 组件数据。
             if (_actors != null && _actors.TryGetActorEntity(actorId, out var entity) && entity != null && entity.hasSkillLoadout)
             {
                 var skills = entity.skillLoadout.ActiveSkills;

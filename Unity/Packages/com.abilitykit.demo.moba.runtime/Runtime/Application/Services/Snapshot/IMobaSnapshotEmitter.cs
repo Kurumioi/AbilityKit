@@ -174,7 +174,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Provides an explicit batch snapshot collection path for routers that aggregate multiple emitters.
+    /// 为聚合多个输出器的路由器提供显式批量快照收集路径。
     /// </summary>
     public interface IMobaSnapshotBatchProvider
     {

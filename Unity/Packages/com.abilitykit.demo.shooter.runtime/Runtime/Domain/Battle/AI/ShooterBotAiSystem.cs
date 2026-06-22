@@ -3,7 +3,10 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Protocol.Shooter;
+using AbilityKit.World.Svelto;
 using Newtonsoft.Json;
+using Svelto.DataStructures;
+using Svelto.ECS;
 using UnityHFSM;
 using UnityHFSM.Extension;
 
@@ -53,12 +56,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            _targetIndex.Rebuild(_entities, _state.CurrentFrame);
+            _targetIndex.Rebuild(_entities.SveltoContext, _state.CurrentFrame);
 
             foreach (var kv in _controllers)
             {
                 var controller = kv.Value;
-                if (!_entities.TryGetPlayer(controller.PlayerId, out var player) || !player.Alive)
+                if (!_targetIndex.TryGetLivePlayer(controller.PlayerId, out _))
                 {
                     _state.InputBuffer.RemoveLatestCommand(controller.PlayerId);
                     continue;
@@ -120,7 +123,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _blackboard.HasTarget = false;
             _blackboard.InAttackRange = false;
 
-            if (!_entities.TryGetPlayer(PlayerId, out var self))
+            if (!_targetIndex.TryGetLivePlayer(PlayerId, out var self))
             {
                 return;
             }
@@ -152,7 +155,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly SpatialSearchRing _searchRing = new(MaxSearchRadius);
         private int _lastRebuildFrame = -1;
 
-        public void Rebuild(IShooterEntityManager entities, int frame)
+        public void Rebuild(ISveltoWorldContext context, int frame)
         {
             if (_lastRebuildFrame == frame)
             {
@@ -163,14 +166,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _cells.Clear();
             _records.Clear();
 
-            foreach (var playerId in entities.PlayerIds)
+            var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
+            for (var i = 0; i < count; i++)
             {
-                if (!entities.TryGetPlayer(playerId, out var player) || !player.Alive)
+                if (!players[i].Alive)
                 {
                     continue;
                 }
 
-                var record = new ShooterSpatialTargetRecord(player.PlayerId, player.X, player.Y);
+                var player = players[i];
+                var record = new ShooterSpatialTargetRecord(in player);
                 _records[player.PlayerId] = record;
                 var cellKey = ComputeCellKey(player.X, player.Y);
                 if (!_cells.TryGetValue(cellKey, out var cell))
@@ -181,6 +187,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 cell.Add(player.PlayerId);
             }
+        }
+
+        public bool TryGetLivePlayer(int playerId, out ShooterSveltoPlayerComponent player)
+        {
+            player = default;
+            if (!_records.TryGetValue(playerId, out var record) || !record.Player.Alive)
+            {
+                return false;
+            }
+
+            player = record.Player;
+            return true;
+        }
+
+        public bool TryGetLivePlayerByPosition(float selfX, float selfY, out ShooterSveltoPlayerComponent player)
+        {
+            player = default;
+            return TryFindNearestTarget(selfX, selfY, selfPlayerId: 0, out var targetPlayerId, out _, out _, out _)
+                && TryGetLivePlayer(targetPlayerId, out player);
         }
 
         public bool TryFindNearestTarget(float selfX, float selfY, int selfPlayerId, out int targetPlayerId, out float targetX, out float targetY, out float targetDistanceSq)
@@ -415,16 +440,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private readonly struct ShooterSpatialTargetRecord
         {
-            public ShooterSpatialTargetRecord(int playerId, float x, float y)
+            public ShooterSpatialTargetRecord(in ShooterSveltoPlayerComponent player)
             {
-                PlayerId = playerId;
-                X = x;
-                Y = y;
+                Player = player;
             }
 
-            public int PlayerId { get; }
-            public float X { get; }
-            public float Y { get; }
+            public ShooterSveltoPlayerComponent Player { get; }
+            public int PlayerId => Player.PlayerId;
+            public float X => Player.X;
+            public float Y => Player.Y;
         }
     }
 

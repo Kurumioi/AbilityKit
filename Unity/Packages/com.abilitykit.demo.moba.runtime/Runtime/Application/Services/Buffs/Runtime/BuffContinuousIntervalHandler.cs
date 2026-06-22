@@ -32,7 +32,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         }
 
         /// <summary>
-        /// 处理单次 Buff tick。执行上下文优先来自 continuous，缺失字段回退到绑定的 BuffRuntime。
+        /// 处理单次 Buff 间隔推进。执行上下文优先来自持续行为，缺失字段回退到绑定的 BuffRuntime。
         /// </summary>
         public void OnInterval(IContinuous continuous, IMobaContinuousPeriodicConfig periodicConfig, in MobaCombatExecutionContext executionContext)
         {

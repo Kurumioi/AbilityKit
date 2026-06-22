@@ -35,32 +35,32 @@ namespace AbilityKit.Demo.Moba.Services
         AimDir,
         FailReason,
 
-        // Buff
+        // Buff 运行时
         BuffId,
         BuffStackCount,
 
-        // Projectile
+        // 投射物运行时
         ProjectileId,
         LaunchPosition,
         LaunchDirection,
         ProjectileSpeed,
         HitTriggerPlanId,
 
-        // Area
+        // 区域运行时
         AreaId,
         AreaCenter,
         AreaRadius,
         AreaEnterTriggerPlanId,
         AreaLeaveTriggerPlanId,
 
-        // Hit
+        // 命中信息
         HitPosition,
         HitNormal,
 
-        // Timeline
+        // 时间轴运行时
         TimelineNextEventIndex,
 
-        // Passive skill
+        // 被动技能运行时
         PassiveSkillId,
         PassiveCooldownEndTimeMs,
     }

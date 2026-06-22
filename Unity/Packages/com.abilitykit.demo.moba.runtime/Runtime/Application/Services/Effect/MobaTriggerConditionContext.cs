@@ -133,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services
             MobaSkillCastRuntimeService skillRuntimes,
             int frame)
         {
-            var payload = executionContext.Payload;
+            var payload = executionContext.HasOriginalPayload ? executionContext.Payload : null;
             payload.TryResolveStageSnapshot(out var stageSnapshot);
             return new MobaTriggerConditionContext(
                 payload,

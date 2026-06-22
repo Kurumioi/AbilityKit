@@ -3,7 +3,7 @@ using AbilityKit.Triggering.Runtime.Plan;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Runtime descriptor for a registered MOBA plan action module.
+    /// 已注册 MOBA 计划动作模块的运行时描述信息。
     /// </summary>
     public readonly struct MobaPlanActionDescriptor
     {

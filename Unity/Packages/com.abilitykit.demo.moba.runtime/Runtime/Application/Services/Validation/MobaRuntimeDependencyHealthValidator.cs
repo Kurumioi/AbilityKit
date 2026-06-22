@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static void Register(MobaRuntimeValidationReport report)
         {
-            // placeholder retained for compile stability
+            // 为保持编译稳定性而保留的占位实现。
         }
     }
 

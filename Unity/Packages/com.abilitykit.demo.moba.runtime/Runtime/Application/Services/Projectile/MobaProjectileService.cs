@@ -178,12 +178,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
                 if (hitEntity == null) return true;
 
-                // Never hit self.
+                // 不命中自身。
                 if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return false;
 
                 var targetTeam = hitEntity.hasTeam ? hitEntity.team.Value : Team.None;
 
-                // Default policy: block friendly fire (same team); allow hitting Neutral/None.
+                // 默认策略：阻止同队友伤；允许命中中立或未分队目标。
                 if (ownerTeam != Team.None && targetTeam != Team.None && ownerTeam == targetTeam)
                 {
                     return false;

@@ -1,7 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Canonical source data for building combat execution context without re-entering payload provider resolution.
+    /// 用于构建战斗执行上下文的统一来源数据。
+    /// 避免在构建过程中再次回到 payload 提供者解析链路。
     /// </summary>
     public interface IMobaCombatContextSource
     {
@@ -9,7 +10,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Canonical source data for building combat execution context without re-entering payload provider resolution.
+    /// 用于构建战斗执行上下文的统一来源数据。
+    /// 避免在构建过程中再次回到 payload 提供者解析链路。
     /// </summary>
     public readonly struct MobaCombatContextSource
     {
@@ -45,33 +47,33 @@ namespace AbilityKit.Demo.Moba.Services
             HasLiveRuntime = hasLiveRuntime;
         }
 
-        /// <summary>Normalized context kind for the source payload.</summary>
+        /// <summary>归一化后的来源执行类型。</summary>
         public EffectContextKind ContextKind { get; }
-        /// <summary>Trace kind associated with the source payload.</summary>
+        /// <summary>与来源数据关联的溯源种类。</summary>
         public MobaTraceKind TraceKind { get; }
-        /// <summary>Source actor that produced the payload.</summary>
+        /// <summary>产生该来源数据的源角色。</summary>
         public int SourceActorId { get; }
-        /// <summary>Target actor referenced by the payload.</summary>
+        /// <summary>来源数据所指向的目标角色。</summary>
         public int TargetActorId { get; }
-        /// <summary>Source context node used as the attachment point for downstream execution.</summary>
+        /// <summary>用于继续向下游执行的来源上下文节点。</summary>
         public long SourceContextId { get; }
-        /// <summary>Known root context for the source chain.</summary>
+        /// <summary>来源链路中已知的根上下文。</summary>
         public long RootContextId { get; }
-        /// <summary>Ownership context identity propagated through the source chain.</summary>
+        /// <summary>来源链路中传递的所有权上下文标识。</summary>
         public long OwnerContextId { get; }
-        /// <summary>Config identifier for the source payload.</summary>
+        /// <summary>来源数据对应的配置 ID。</summary>
         public int ConfigId { get; }
-        /// <summary>Trigger identifier when the source is derived from a trigger execution.</summary>
+        /// <summary>当来源来自触发执行时，对应的触发器 ID。</summary>
         public int TriggerId { get; }
-        /// <summary>Frame index for runtime correlation.</summary>
+        /// <summary>用于运行时关联的帧号。</summary>
         public int Frame { get; }
-        /// <summary>Optional skill runtime handle associated with the source.</summary>
+        /// <summary>与来源关联的技能运行时句柄。</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
-        /// <summary>Runtime kind string used for live runtime diagnostics.</summary>
+        /// <summary>用于运行时诊断的运行时类型字符串。</summary>
         public string RuntimeKind { get; }
-        /// <summary>Runtime config id used for live runtime diagnostics.</summary>
+        /// <summary>用于运行时诊断的运行时配置 ID。</summary>
         public int RuntimeConfigId { get; }
-        /// <summary>Whether the source came from a live runtime instance.</summary>
+        /// <summary>来源是否来自真实运行时实例。</summary>
         public bool HasLiveRuntime { get; }
 
         public bool IsValid => ContextKind != EffectContextKind.Unknown

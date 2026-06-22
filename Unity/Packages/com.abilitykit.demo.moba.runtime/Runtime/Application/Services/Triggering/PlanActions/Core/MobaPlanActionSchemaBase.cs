@@ -9,8 +9,8 @@ using AbilityKit.Triggering.Variables.Numeric;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Demo MOBA strongly typed action schema base.
-    /// New schemas only need to provide their config action name and argument parsing rules.
+    /// Demo MOBA 强类型动作结构描述基类。
+    /// 新结构描述只需要提供配置中的动作名称以及参数解析规则。
     /// </summary>
     public abstract class MobaPlanActionSchemaBase<TActionArgs> : ITriggerActionParseContextAwareSchema<TActionArgs, IWorldResolver>
     {

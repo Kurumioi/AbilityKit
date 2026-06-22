@@ -4,7 +4,7 @@ using AbilityKit.Core.Continuous;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Shared state-machine base for MOBA continuous runtime implementations.
+    /// MOBA 持续运行时实现共享的状态机基类。
     /// </summary>
     public abstract class MobaContinuousRuntimeBase : IContinuous
     {

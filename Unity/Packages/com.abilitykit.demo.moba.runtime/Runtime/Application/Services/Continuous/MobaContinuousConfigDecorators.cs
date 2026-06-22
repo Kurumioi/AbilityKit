@@ -5,7 +5,7 @@ using AbilityKit.Modifiers;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// MOBA continuous config decoration for gameplay tag projection.
+    /// 用于投影玩法标签的 MOBA 持续运行配置装饰接口。
     /// </summary>
     public interface IMobaContinuousTagConfig
     {
@@ -13,7 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// MOBA continuous config decoration for runtime state modifier projection.
+    /// 用于投影运行时状态修饰器的 MOBA 持续运行配置装饰接口。
     /// </summary>
     public interface IMobaContinuousModifierConfig
     {
@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// MOBA continuous config decoration for periodic behavior projection.
+    /// 用于投影周期行为的 MOBA 持续运行配置装饰接口。
     /// </summary>
     public interface IMobaContinuousPeriodicConfig
     {
@@ -45,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// MOBA-side state modifier declaration held by a continuous config.
+    /// 持续运行配置中携带的 MOBA 侧状态修饰器声明。
     /// </summary>
     public interface IMobaContinuousModifierSpec
     {
@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Runtime projection metadata used when binding continuous config decorations.
+    /// 绑定持续运行配置装饰时使用的运行时投影元数据。
     /// </summary>
     public interface IMobaContinuousProjectionConfig
     {

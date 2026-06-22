@@ -6,7 +6,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Attribution-only gameplay origin model. It records the immediate source event and the effective lineage boundaries derived from it.
+    /// 仅用于归因的玩法来源模型。
+    /// 记录即时来源事件及其派生出的有效链路边界。
     /// </summary>
     public readonly struct MobaGameplayOrigin
     {
@@ -32,28 +33,31 @@ namespace AbilityKit.Demo.Moba.Services
             SkillRuntimeHandle = skillRuntimeHandle;
         }
 
-        /// <summary>Actor that produced the origin event.</summary>
+        /// <summary>产生来源事件的角色。</summary>
         public int SourceActorId { get; }
-        /// <summary>Actor targeted by the origin event.</summary>
+        /// <summary>来源事件指向的目标角色。</summary>
         public int TargetActorId { get; }
-        /// <summary>Immediate trace kind of the event that produced this origin.</summary>
+        /// <summary>产生该来源的即时溯源种类。</summary>
         public MobaTraceKind ImmediateKind { get; }
-        /// <summary>Configuration identifier for the immediate origin event.</summary>
+        /// <summary>即时来源事件对应的配置 ID。</summary>
         public int ImmediateConfigId { get; }
-        /// <summary>Immediate trace context node for the event itself.</summary>
+        /// <summary>事件本身对应的即时溯源节点。</summary>
         public long ImmediateContextId { get; }
-        /// <summary>Parent context used when the immediate context attaches into a larger chain.</summary>
+        /// <summary>即时节点挂接到更大链路时使用的父上下文。</summary>
         public long ParentContextId { get; }
-        /// <summary>Effective root context for the chain carried by this origin.</summary>
+        /// <summary>本来源携带的有效根上下文。</summary>
         public long RootContextId { get; }
-        /// <summary>Ownership context identity propagated across the origin chain.</summary>
+        /// <summary>在来源链路中传递的所有权上下文标识。</summary>
         public long OwnerContextId { get; }
-        /// <summary>Skill runtime handle related to the origin, when available.</summary>
+        /// <summary>与来源关联的技能运行时句柄（如有）。</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
 
         public bool IsValid => SourceActorId > 0 || TargetActorId > 0 || ParentContextId != 0 || ImmediateContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || SkillRuntimeHandle.IsValid;
+        /// <summary>是否具备可继续创建下游执行节点的来源信息。</summary>
         public bool HasExecutionSource => SourceActorId > 0 && EffectiveParentContextId != 0;
+        /// <summary>优先返回父上下文，缺失时回退到即时节点。</summary>
         public long EffectiveParentContextId => ParentContextId != 0 ? ParentContextId : ImmediateContextId;
+        /// <summary>优先返回根上下文，缺失时回退到有效父上下文。</summary>
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : EffectiveParentContextId;
 
         public MobaTriggerLineageContext ToLineageContext(EffectContextKind contextKind)

@@ -6,7 +6,7 @@ using AbilityKit.GameplayTags;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Base config for MOBA continuous runtimes that can carry tags and modifiers.
+    /// 可携带标签与修饰器的 MOBA 持续运行时基础配置。
     /// </summary>
     public abstract class MobaContinuousConfigBase : IContinuousConfig,
         IDurationConfig,

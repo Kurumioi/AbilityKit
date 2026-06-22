@@ -8,11 +8,15 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// 效果执行期使用的管线上下文。
+    /// 负责承接能力管线需要的基础数据，并保留与触发/效果兼容的数据键。
+    /// </summary>
     public sealed class MobaEffectPipelineContext : AAbilityPipelineContext
     {
         public IWorldResolver WorldServices { get; private set; }
         public AbilityKit.Triggering.Eventing.IEventBus EventBus { get; private set; }
-
+ 
         public void Initialize(
             object abilityInstance,
             int sourceActorId,
@@ -27,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Services
             WorldServices = worldServices;
             EventBus = eventBus;
 
-            // 使用强类型键枚举
+            // 使用强类型键枚举写入参与者信息
             this.SetParticipants(sourceActorId, targetActorId);
             this.SetContextKind(contextKind);
             this.SetSourceContextId(sourceContextId);
@@ -37,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void FillSkillCompatibleKeys(int sourceActorId, int targetActorId)
         {
-            // keep skill-compatible keys for triggers/effects that still read skill args
+            // 保留技能兼容键，供仍然读取技能参数的触发/效果链路使用
             this.SetSkillInfo(0, 0, 0);
             this.SetParticipants(sourceActorId, targetActorId);
             Vec3 zero = Vec3.Zero;

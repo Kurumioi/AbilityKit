@@ -372,7 +372,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return RejectStart(in request, triggerContext, "skill.start.frameResolveFailed", message, out failReason);
             }
 
-            // If PreCast is missing, go straight to Cast.
+            // 如果没有 PreCast，直接进入 Cast。
             if (preCastConfig == null || preCastPhases == null || preCastPhases.Count == 0)
             {
                 var ok = StartCast(ref entry);
@@ -430,7 +430,7 @@ namespace AbilityKit.Demo.Moba.Services
                 _logger.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "PreCast", "Completed");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
                 RunCleanups(in entry, "precast.complete.immediate");
-                // Immediately chain to Cast.
+                // 立即衔接到 Cast。
                 return StartCast(ref entry);
             }
 
@@ -767,7 +767,7 @@ namespace AbilityKit.Demo.Moba.Services
                         _logger.LogSkillStage(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, "PreCast", "Completed_ChainingToCast");
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
                         RunCleanups(entry.Context, "precast.complete");
-                        // Chain to Cast.
+                        // 衔接到 Cast。
                         if (StartCast(ref entry) && entry.Run != null && entry.Run.State == EAbilityPipelineState.Executing)
                         {
                             _running[i] = entry;

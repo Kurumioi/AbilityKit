@@ -3,7 +3,7 @@ using AbilityKit.Modifiers;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Runtime keys for modifier-driven MOBA skill/action parameters.
+    /// 由修饰器驱动的 MOBA 技能/动作参数运行时键。
     /// </summary>
     public static class MobaSkillParamModifierKeys
     {

@@ -11,8 +11,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Compatibility adapter for generated hosts that still resolve spawn services.
-    /// Formal MOBA startup must provide WorldInitData before bootstrap and start through StartGameStage.
+    /// 兼容仍会解析出生服务的生成宿主适配器。
+    /// 正式 MOBA 启动流程必须在 bootstrap 前提供 WorldInitData，并通过 StartGameStage 启动。
     /// </summary>
     [WorldService(typeof(MobaSpawnService))]
     [WorldService(typeof(ILogicWorldSpawnService))]

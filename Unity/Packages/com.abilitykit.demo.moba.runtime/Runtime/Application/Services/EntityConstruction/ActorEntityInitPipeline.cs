@@ -9,7 +9,7 @@ using MO = AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
     /// <summary>
-    /// Actor 初始化编排服务：负责把读表结果和进入战斗 loadout 分发给属�?技能初始化器�?
+    /// Actor 初始化编排服务：负责把读表结果和进入战斗 loadout 分发给属性、技能初始化器。
     /// </summary>
     [WorldService(typeof(ActorEntityInitPipeline), WorldLifetime.Scoped)]
     public sealed class ActorEntityInitPipeline : IService

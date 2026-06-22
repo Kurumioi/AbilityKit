@@ -1,7 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Trace-facing context snapshot for trigger-origin propagation. New code should use OwnerContextId terminology for ownership identity.
+    /// 面向 trace 的触发来源上下文快照。
+    /// 新代码在表示所有权标识时应使用 OwnerContextId 这一术语。
     /// </summary>
     public readonly struct MobaTriggerTraceContext
     {
@@ -21,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             SourceContextId = sourceContextId;
             RootContextId = rootContextId;
-            OwnerKey = ownerContextId;
+            OwnerContextId = ownerContextId;
             SourceConfigId = sourceConfigId;
         }
 
@@ -29,14 +30,14 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTraceKind TraceKind { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
-        /// <summary>Trace context that represents the source/parent node for downstream trigger or effect execution.</summary>
+        /// <summary>代表下游触发或效果执行来源/父节点的 trace 上下文。</summary>
         public long SourceContextId { get; }
-        /// <summary>Known root trace context for the propagated chain. When zero, SourceContextId is the effective root.</summary>
+        /// <summary>传播链路中已知的根 trace 上下文；为 0 时，SourceContextId 作为有效根节点。</summary>
         public long RootContextId { get; }
-        /// <summary>Compatibility name for ownership context identity. Prefer OwnerContextId in new code.</summary>
-        public long OwnerKey { get; }
-        /// <summary>Preferred ownership context identity name.</summary>
-        public long OwnerContextId => OwnerKey;
+        /// <summary>通过该 trace 上下文传播的所有权上下文标识。</summary>
+        public long OwnerContextId { get; }
+        /// <summary>所有权上下文标识的兼容别名。</summary>
+        public long OwnerKey => OwnerContextId;
         public int SourceConfigId { get; }
 
         public MobaTriggerLineageContext ToLineageContext()

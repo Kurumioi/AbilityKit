@@ -41,11 +41,11 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Resolved context source view for query, snapshot, retention, diagnostics, and debug usage.
-    /// This is intentionally broad, but it should not replace MobaCombatExecutionContext as the canonical execution-time model.
+    /// 已解析的上下文来源视图，用于查询、快照、保留、诊断和调试场景。
+    /// 该模型有意覆盖较宽的来源信息，但不应替代 MobaCombatExecutionContext 作为执行期的正式模型。
     /// </summary>
     /// <remarks>
-    /// SourceContextId is the source/attachment node supplied by the provider. ParentContextId is the parent node to use when creating a downstream execution node. RootContextId is the known root of the trace chain. OwnerContextId identifies the ownership context and should be preferred over legacy OwnerKey terminology in new typed context models.
+    /// SourceContextId 是提供者给出的来源/挂接节点；ParentContextId 是创建下游执行节点时使用的父节点；RootContextId 是已知的溯源链根节点；OwnerContextId 标识所有权上下文，新强类型上下文模型应优先使用该术语，而不是旧的 OwnerKey。
     /// </remarks>
     public readonly struct MobaContextSourceView
     {
@@ -87,42 +87,45 @@ namespace AbilityKit.Demo.Moba.Services
             SkillRuntimeHandle = skillRuntimeHandle;
         }
 
-        /// <summary>How the source view was resolved.</summary>
+        /// <summary>该来源视图的解析方式。</summary>
         public MobaContextSourceResolveKind ResolveKind { get; }
-        /// <summary>Lifecycle boundary represented by this source view.</summary>
+        /// <summary>该来源视图代表的生命周期边界。</summary>
         public MobaContextSourceBoundary Boundary { get; }
-        /// <summary>Normalized context kind, if the provider can determine one.</summary>
+        /// <summary>提供者能够判断时得到的归一化上下文类型。</summary>
         public EffectContextKind ContextKind { get; }
-        /// <summary>Trace kind associated with the source view.</summary>
+        /// <summary>与来源视图关联的溯源种类。</summary>
         public MobaTraceKind TraceKind { get; }
-        /// <summary>Actor that produced the source context.</summary>
+        /// <summary>产生来源上下文的角色。</summary>
         public int SourceActorId { get; }
-        /// <summary>Actor targeted by the source context.</summary>
+        /// <summary>来源上下文指向的目标角色。</summary>
         public int TargetActorId { get; }
-        /// <summary>Provider source/attachment node. For lineage and snapshots it usually becomes the downstream parent context.</summary>
+        /// <summary>提供者给出的来源/挂接节点；对链路和快照而言，通常会成为下游父上下文。</summary>
         public long SourceContextId { get; }
-        /// <summary>Parent node to use when creating a downstream execution node.</summary>
+        /// <summary>创建下游执行节点时使用的父节点。</summary>
         public long ParentContextId { get; }
-        /// <summary>Known root node of the trace chain.</summary>
+        /// <summary>溯源链中已知的根节点。</summary>
         public long RootContextId { get; }
-        /// <summary>Ownership context identity propagated by typed context models.</summary>
+        /// <summary>由强类型上下文模型传递的所有权上下文标识。</summary>
         public long OwnerContextId { get; }
-        /// <summary>Configuration id represented by the source.</summary>
+        /// <summary>该来源代表的配置 ID。</summary>
         public int ConfigId { get; }
-        /// <summary>Trigger id represented by the source, when available.</summary>
+        /// <summary>该来源代表的触发器 ID；没有触发器时为 0。</summary>
         public int TriggerId { get; }
-        /// <summary>Frame index represented by the source, when available.</summary>
+        /// <summary>该来源代表的帧号；不可用时为 0。</summary>
         public int Frame { get; }
-        /// <summary>Runtime kind string for live-runtime diagnostics.</summary>
+        /// <summary>用于实时运行时诊断的运行时类型字符串，不应作为业务来源分类的主依据。</summary>
         public string RuntimeKind { get; }
-        /// <summary>Runtime config id for live-runtime diagnostics.</summary>
+        /// <summary>用于实时运行时诊断的运行时配置 ID；正式业务判断应优先使用 ConfigId。</summary>
         public int RuntimeConfigId { get; }
-        /// <summary>Whether this view is backed by a live runtime instance.</summary>
+        /// <summary>该视图是否来自实时运行时实例；这是诊断/生命周期信息，不是快照真值。</summary>
         public bool HasLiveRuntime { get; }
-        /// <summary>Skill runtime handle associated with the source, when available.</summary>
+        /// <summary>与来源关联的技能运行时句柄；不可用时为空句柄。</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
         public bool IsValid => ContextKind != EffectContextKind.Unknown || SourceActorId != 0 || TargetActorId != 0 || SourceContextId != 0 || ParentContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || ConfigId != 0 || TriggerId != 0 || Frame != 0 || RuntimeConfigId != 0 || SkillRuntimeHandle.IsValid;
         public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;
+        public bool IsFormalSource => Boundary == MobaContextSourceBoundary.Execution || Boundary == MobaContextSourceBoundary.Snapshot;
+        public bool IsDiagnosticSource => ResolveKind == MobaContextSourceResolveKind.RuntimeDebug || Boundary == MobaContextSourceBoundary.LiveRuntime || HasLiveRuntime;
+        public bool HasRuntimeDiagnostics => HasLiveRuntime || RuntimeConfigId != 0 || !string.IsNullOrEmpty(RuntimeKind);
 
         public static MobaContextSourceView FromOrigin(in MobaGameplayOrigin origin, MobaContextSourceResolveKind resolveKind = MobaContextSourceResolveKind.Origin, MobaContextSourceBoundary boundary = MobaContextSourceBoundary.Snapshot, bool hasLiveRuntime = false, string runtimeKind = null, int runtimeConfigId = 0)
         {

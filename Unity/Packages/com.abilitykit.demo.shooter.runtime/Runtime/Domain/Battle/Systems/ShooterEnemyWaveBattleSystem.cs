@@ -181,20 +181,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var directionY = -y;
             Normalize(ref directionX, ref directionY);
 
-            var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoGameplayTargetDescriptor>(enemyId, ShooterSveltoGroups.GameplayTargets);
-            initializer.Init(new ShooterSveltoTransformComponent
+            var transform = new ShooterSveltoTransformComponent
             {
                 X = x,
                 Y = y,
                 DirectionX = directionX,
                 DirectionY = directionY
-            });
-            initializer.Init(new ShooterSveltoHealthComponent
+            };
+            var health = new ShooterSveltoHealthComponent
             {
                 Current = enemyHp,
                 Max = enemyHp,
                 Alive = 1
-            });
+            };
+            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, enemyId, in transform, in health);
             _context.SubmitEntities();
         }
 
@@ -205,7 +205,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            _targetIndex.Rebuild(_entities, _state.CurrentFrame);
+            _targetIndex.Rebuild(_context, _state.CurrentFrame);
             var (transforms, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
             for (var i = 0; i < count; i++)
             {
@@ -214,7 +214,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                if (!TryFindNearestAlivePlayer(in transforms[i], out var player))
+                if (!_targetIndex.TryGetLivePlayerByPosition(transforms[i].X, transforms[i].Y, out var player))
                 {
                     continue;
                 }
@@ -228,17 +228,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _entities.SetPlayer(in player);
                 _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, -(int)ids[i], player.PlayerId, 0, transforms[i].X, transforms[i].Y, 1));
             }
-        }
-
-        private bool TryFindNearestAlivePlayer(in ShooterSveltoTransformComponent enemy, out ShooterSveltoPlayerComponent nearestPlayer)
-        {
-            nearestPlayer = default;
-            if (!_targetIndex.TryFindNearestTarget(enemy.X, enemy.Y, selfPlayerId: 0, out var targetPlayerId, out _, out _, out _))
-            {
-                return false;
-            }
-
-            return _entities.TryGetPlayer(targetPlayerId, out nearestPlayer) && nearestPlayer.Alive;
         }
 
         private int CountAliveEnemies()

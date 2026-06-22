@@ -1,8 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Boundary helpers for context-source models. These helpers make call sites state whether they are consuming
-    /// an execution-time model, a diagnostic/query view, or a persistence-safe snapshot.
+    /// 上下文来源模型的边界辅助方法。
+    /// 这些方法用于让调用点明确自己消费的是执行期模型、诊断/查询视图，还是可持久化的安全快照。
     /// </summary>
     public static class MobaContextSourceBoundaryGuards
     {
@@ -23,7 +23,17 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static bool CanCreateDownstreamExecution(this in MobaContextSourceView source)
         {
-            return source.HasExecutionSource && source.ParentContextId != 0;
+            return source.IsFormalSource && source.HasExecutionSource && source.ParentContextId != 0;
+        }
+
+        public static bool CanUseForBusinessQuery(this in MobaContextSourceView source)
+        {
+            return source.IsFormalSource && source.IsValid;
+        }
+
+        public static bool CanUseForDiagnostics(this in MobaContextSourceView source)
+        {
+            return source.IsValid && (source.IsDiagnosticSource || source.HasRuntimeDiagnostics);
         }
 
         public static MobaPersistentContextSourceSnapshot ToPersistentSnapshot(this in MobaContextSourceView source)

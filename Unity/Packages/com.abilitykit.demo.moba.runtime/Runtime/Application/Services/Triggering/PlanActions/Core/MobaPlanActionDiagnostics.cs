@@ -4,7 +4,7 @@ using AbilityKit.Demo.Moba.Services;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Shared diagnostics helpers for plan action modules.
+    /// 计划动作模块共享的诊断辅助方法。
     /// </summary>
     public static class MobaPlanActionDiagnostics
     {

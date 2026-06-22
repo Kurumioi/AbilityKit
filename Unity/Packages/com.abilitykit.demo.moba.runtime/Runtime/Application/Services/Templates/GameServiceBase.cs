@@ -7,7 +7,7 @@ using AbilityKit.Core.Logging;
 namespace AbilityKit.Demo.Moba.Services.Templates
 {
     /// <summary>
-    /// Base class for logic-world services that need consistent logging and disposal hooks.
+    /// 需要统一日志与释放钩子的逻辑世界服务基类。
     /// </summary>
     public abstract class LogicWorldServiceBase<TService> : IService
         where TService : class
@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Templates
     }
 
     /// <summary>
-    /// Base class for services that need the world service resolver after the container is built.
+    /// 容器构建完成后需要访问世界服务解析器的服务基类。
     /// </summary>
     public abstract class LogicWorldInitializableServiceBase<TService> : LogicWorldServiceBase<TService>, IWorldInitializable
         where TService : class
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Templates
     }
 
     /// <summary>
-    /// Base class for services that need both world initialization and world deinitialization hooks.
+    /// 同时需要世界初始化与反初始化钩子的服务基类。
     /// </summary>
     public abstract class LogicWorldLifecycleServiceBase<TService> : LogicWorldInitializableServiceBase<TService>, IWorldDeinitializable
         where TService : class
@@ -99,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Services.Templates
     }
 
     /// <summary>
-    /// Base class for logic-world services that publish triggering events.
+    /// 会发布触发事件的逻辑世界服务基类。
     /// </summary>
     public abstract class LogicWorldEventServiceBase<TService> : LogicWorldInitializableServiceBase<TService>
         where TService : class

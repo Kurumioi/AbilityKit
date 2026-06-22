@@ -4,7 +4,7 @@ using AbilityKit.Demo.Moba.Components;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// consume_resource Action 的强类型参数，用于技能释放时消耗资源。
+    /// consume_resource 动作的强类型参数，用于技能释放时消耗资源。
     /// </summary>
     public readonly struct ConsumeResourceArgs
     {
@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float Amount;
 
         /// <summary>
-        /// 消耗失败时的提示信息 Key。
+        /// 消耗失败时的提示信息键。
         /// </summary>
         public readonly string FailMessageKey;
 

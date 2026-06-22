@@ -6,8 +6,8 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Canonical execution-time context for MOBA combat/effect/action/condition execution.
-    /// Business execution code should normalize trigger payloads into this model before reading origin, lineage, snapshot, skill runtime, or frame data.
+    /// MOBA 战斗执行期的统一上下文。
+    /// 业务执行代码应先把触发 payload 归一化到该模型，再读取溯源、链路、快照、技能运行时和帧信息。
     /// </summary>
     public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider
     {
@@ -27,42 +27,61 @@ namespace AbilityKit.Demo.Moba.Services
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
         }
 
-        /// <summary>Original trigger payload before normalization into lineage/origin/snapshot data.</summary>
+        /// <summary>
+        /// 归一化到链路、来源和快照之前的原始触发 payload。
+        /// 优先使用本上下文的强类型访问器，业务代码仅应在桥接或解析边界读取原始 payload。
+        /// </summary>
         public object Payload { get; }
-        /// <summary>Lineage input that determines how the execution attaches to the current trace chain.</summary>
+        public string PayloadTypeName => Payload != null ? Payload.GetType().Name : null;
+        public bool HasOriginalPayload => Payload != null;
+        /// <summary>决定当前执行如何挂接到溯源链路的链路输入。</summary>
         public MobaEffectLineageInput LineageInput { get; }
-        /// <summary>Origin attribution for the immediate gameplay event that led to this execution.</summary>
+        /// <summary>导致本次执行的即时玩法事件来源。</summary>
         public MobaGameplayOrigin Origin { get; }
-        /// <summary>Execution snapshot capturing the normalized runtime state at the moment of execution.</summary>
+        /// <summary>记录执行瞬间已归一化的运行态快照。</summary>
         public MobaTriggerExecutionSnapshot ExecutionSnapshot { get; }
-        /// <summary>Skill runtime handle associated with the execution, if any.</summary>
+        /// <summary>与本次执行关联的技能运行时句柄（如有）。</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
-        /// <summary>Frame index used for trace/debug correlation.</summary>
+        /// <summary>用于溯源与调试关联的帧号。</summary>
         public int Frame { get; }
-
-        /// <summary>Effective execution kind resolved from lineage input first, then snapshot.</summary>
+ 
+        /// <summary>先从链路输入、再从快照推导出的执行类型。</summary>
         public EffectContextKind ContextKind => LineageInput.ContextKind != EffectContextKind.Unknown ? LineageInput.ContextKind : ExecutionSnapshot.Kind;
-        /// <summary>Origin trace kind carried from the lineage layer.</summary>
+        /// <summary>从链路层继承的溯源种类。</summary>
         public MobaTraceKind OriginKind => LineageInput.OriginKind;
-        /// <summary>Effective source actor resolved from lineage, origin, then snapshot.</summary>
+        /// <summary>先从链路、再从来源、最后从快照推导出的源角色。</summary>
         public int SourceActorId => LineageInput.SourceActorId != 0 ? LineageInput.SourceActorId : Origin.SourceActorId != 0 ? Origin.SourceActorId : ExecutionSnapshot.SourceActorId;
-        /// <summary>Effective target actor resolved from lineage, origin, then snapshot.</summary>
+        /// <summary>先从链路、再从来源、最后从快照推导出的目标角色。</summary>
         public int TargetActorId => LineageInput.TargetActorId != 0 ? LineageInput.TargetActorId : Origin.TargetActorId != 0 ? Origin.TargetActorId : ExecutionSnapshot.TargetActorId;
-        /// <summary>Parent context for the current execution. Falls back to origin or snapshot source context when lineage is missing.</summary>
+        /// <summary>当前执行的父上下文；链路缺失时回退到来源或快照节点。</summary>
         public long ParentContextId => LineageInput.ParentContextId != 0 ? LineageInput.ParentContextId : Origin.EffectiveParentContextId != 0 ? Origin.EffectiveParentContextId : ExecutionSnapshot.SourceContextId;
-        /// <summary>Effective root context for the current execution chain.</summary>
+        /// <summary>当前执行链路的有效根上下文。</summary>
         public long RootContextId => LineageInput.EffectiveRootContextId != 0 ? LineageInput.EffectiveRootContextId : Origin.EffectiveRootContextId != 0 ? Origin.EffectiveRootContextId : ExecutionSnapshot.EffectiveRootContextId;
-        /// <summary>Ownership context identity propagated through lineage/origin/snapshot.</summary>
+        /// <summary>在链路、来源、快照之间传递的所有权上下文标识。</summary>
         public long OwnerContextId => LineageInput.OwnerContextId != 0 ? LineageInput.OwnerContextId : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
         public bool IsValid => LineageInput.SourceActorId != 0 || LineageInput.TargetActorId != 0 || Origin.IsValid || ExecutionSnapshot.IsValid || SkillRuntimeHandle.IsValid || Payload != null;
+        /// <summary>是否具备可继续向下游创建执行节点的来源信息。</summary>
         public bool HasExecutionSource => SourceActorId > 0 && ParentContextId != 0;
 
         public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
         {
             context = this;
             return IsValid;
+        }
+
+        /// <summary>尝试以指定强类型读取原始 payload。</summary>
+        public bool TryGetOriginalPayload<TPayload>(out TPayload payload)
+        {
+            if (Payload is TPayload typed)
+            {
+                payload = typed;
+                return true;
+            }
+
+            payload = default;
+            return false;
         }
 
         public bool TryGetSourceActorId(out int actorId)

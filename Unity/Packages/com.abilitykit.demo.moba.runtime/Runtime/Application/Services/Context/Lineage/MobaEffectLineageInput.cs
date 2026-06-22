@@ -3,7 +3,8 @@ using System;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Canonical lineage input for effect execution. It describes how a new effect execution attaches to an existing trace/context chain.
+    /// 效果执行的正式链路输入。
+    /// 用于描述一次新的效果执行如何挂接到既有的溯源/上下文链路上。
     /// </summary>
     public readonly struct MobaEffectLineageInput
     {
@@ -23,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             ParentContextId = parentContextId;
             RootContextId = rootContextId;
-            OwnerKey = ownerContextId;
+            OwnerContextId = ownerContextId;
             OriginConfigId = originConfigId;
         }
 
@@ -32,21 +33,17 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId { get; }
         public int TargetActorId { get; }
         /// <summary>
-        /// Parent trace context that the effect execution should attach to. Zero means the execution may create a new root.
+        /// 效果执行应挂接到的父溯源节点。为 0 时，表示执行可能创建新的根节点。
         /// </summary>
         public long ParentContextId { get; }
         /// <summary>
-        /// Known root trace context for this lineage. When zero, ParentContextId is used as the effective root.
+        /// 该链路已知的根溯源节点。为 0 时，ParentContextId 作为有效根节点使用。
         /// </summary>
         public long RootContextId { get; }
-        /// <summary>
-        /// Compatibility name for ownership context identity. Prefer <see cref="OwnerContextId"/> in new code.
-        /// </summary>
-        public long OwnerKey { get; }
-        /// <summary>
-        /// Preferred ownership context identity name.
-        /// </summary>
-        public long OwnerContextId => OwnerKey;
+        /// <summary>该链路传递的所有权上下文标识。</summary>
+        public long OwnerContextId { get; }
+        /// <summary>所有权上下文标识的兼容别名。</summary>
+        public long OwnerKey => OwnerContextId;
         public int OriginConfigId { get; }
 
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : ParentContextId;

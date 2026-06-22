@@ -4,7 +4,7 @@ using AbilityKit.GameplayTags;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Central semantic tag catalog used by MOBA runtime rules and config validation.
+    /// MOBA 运行时规则与配置校验共用的集中语义标签目录。
     /// </summary>
     public static class MobaGameplayTagCatalog
     {

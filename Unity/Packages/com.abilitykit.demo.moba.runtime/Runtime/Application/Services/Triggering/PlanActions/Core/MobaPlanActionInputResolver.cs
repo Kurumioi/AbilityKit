@@ -4,8 +4,8 @@ using AbilityKit.Triggering.Runtime;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Resolves only core action execution facts. New action-specific requirements should be
-    /// modeled by args, payload providers, or specialized action input resolvers.
+    /// 只解析动作执行所需的核心事实。
+    /// 新增的动作专属需求应通过参数对象、负载提供者或专用动作输入解析器建模。
     /// </summary>
     internal static class MobaPlanActionInputResolver
     {

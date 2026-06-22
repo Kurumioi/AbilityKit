@@ -3,9 +3,8 @@ using System;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Marks a strongly typed plan action module for discovery.
-    /// New MOBA trigger actions should inherit MobaPlanActionModuleBase<TActionArgs, TModule>
-    /// and pair with a MobaPlanActionSchemaBase<TActionArgs> schema.
+    /// 标记一个可被发现的强类型计划动作模块。
+    /// 新增 MOBA 触发动作应继承对应的强类型动作模块基类，并配套对应的动作结构描述。
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
     public sealed class PlanActionModuleAttribute : Attribute
@@ -18,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
     }
     /// <summary>
-    /// Central ordering table for discovered MOBA plan action modules.
+    /// 已发现 MOBA 计划动作模块的集中排序表。
     /// </summary>
     public static class MobaPlanActionModuleOrders
     {

@@ -11,8 +11,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     }
 
     /// <summary>
-    /// Demo MOBA strongly typed action module base.
-    /// The schema is the single source for ActionId so modules do not duplicate action constants.
+    /// Demo MOBA 强类型动作模块基类。
+    /// 动作结构描述是 ActionId 的唯一来源，避免各个模块重复声明动作常量。
     /// </summary>
     public abstract class MobaPlanActionModuleBase<TActionArgs, TModule> : NamedArgsPlanActionModuleBase<TActionArgs, IWorldResolver, TModule>, IMobaPlanActionMetadata
         where TModule : MobaPlanActionModuleBase<TActionArgs, TModule>

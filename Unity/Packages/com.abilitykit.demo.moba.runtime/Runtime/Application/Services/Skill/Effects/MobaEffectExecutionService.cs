@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaTriggerPlanExecutor _planExecutor;
  
         /// <summary>
-        /// 溯源注册表。正式效果执行必须创建 effect trace scope，避免 action origin、子对象来源和诊断链路缺少运行时节点。
+        /// 溯源注册表。正式效果执行必须创建效果溯源作用域，避免动作来源、子对象来源和诊断链路缺少运行时节点。
         /// </summary>
         [WorldInject]
         public MobaTraceRegistry Trace { get; private set; }
@@ -272,7 +272,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var frame = executionContext.Frame != 0 ? executionContext.Frame : CurrentBudgetFrame;
             var snapshot = executionContext.ExecutionSnapshot.WithFrame(frame);
-            var payload = executionContext.Payload;
+            var payload = executionContext.HasOriginalPayload ? executionContext.Payload : null;
             var lineageInput = executionContext.LineageInput;
             if (_payloadResolvers != null && _payloadResolvers.TryCreateContext(payload, in lineageInput, in snapshot, _skillRuntimes, frame, out var context))
             {
@@ -496,7 +496,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         /// <summary>
         /// 通过强类型触发请求直接执行触发计划。
-        /// 用于 Projectile hit、Area enter/exit、Buff interval 等场景。
+        /// 用于投射物命中、区域进入/离开、Buff 间隔触发等场景。
         /// </summary>
         public void ExecuteTrigger<TPayload>(in MobaTriggerExecutionRequest<TPayload> request)
         {

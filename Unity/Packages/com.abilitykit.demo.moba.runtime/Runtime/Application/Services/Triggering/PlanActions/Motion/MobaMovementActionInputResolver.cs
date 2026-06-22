@@ -4,7 +4,7 @@ using AbilityKit.Triggering.Runtime;
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
-    /// Builds the movement action input by composing core action facts with movement services.
+    /// 通过组合核心动作事实与移动服务来构建移动动作输入。
     /// </summary>
     internal static class MobaMovementActionInputResolver
     {
