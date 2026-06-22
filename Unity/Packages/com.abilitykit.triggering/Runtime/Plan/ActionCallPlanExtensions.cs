@@ -6,12 +6,12 @@ using AbilityKit.Triggering.Variables.Numeric;
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     /// <summary>
-    /// ActionCallPlan 鐨勬墿灞曟柟娉?
+    /// ActionCallPlan 的扩展方法
     /// </summary>
     public static class ActionCallPlanExtensions
     {
         /// <summary>
-        /// 鍒涘缓鏃犲弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建无参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan Call(ActionId id)
         {
@@ -19,7 +19,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︿竴涓弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建带一个参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan Call(this ActionId id, NumericValueRef arg0)
         {
@@ -27,7 +27,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︿袱涓弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建带两个参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan Call(this ActionId id, NumericValueRef arg0, NumericValueRef arg1)
         {
@@ -35,7 +35,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︽湁鍏峰悕鍙傛暟鐨勫姩浣滆皟鐢紙榛樿 Immediate锛?
+        /// 创建带有具名参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan CallArgs(this ActionId id, Dictionary<string, ActionArgValue> args)
         {
@@ -43,7 +43,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︽湁涓や釜鍏峰悕鍙傛暟鐨勫姩浣滆皟鐢紙榛樿 Immediate锛?
+        /// 创建带有两个具名参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan CallArgs(this ActionId id, string name0, double value0, string name1, double value1)
         {
@@ -55,7 +55,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︽湁涓変釜鍏峰悕鍙傛暟鐨勫姩浣滆皟鐢紙榛樿 Immediate锛?
+        /// 创建带有三个具名参数的动作调用（默认 Immediate）
         /// </summary>
         public static ActionCallPlan CallArgs(this ActionId id, string name0, double value0, string name1, double value1, string name2, double value2)
         {
@@ -68,7 +68,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹀叿鍚嶅弬鏁扮殑鍔ㄤ綔璋冪敤锛堟墿灞曟柟娉曠増鏈級
+        /// 创建带具名参数的动作调用（扩展方法版本）
         /// </summary>
         public static ActionCallPlan WithArgs(this ActionId id, Dictionary<string, ActionArgValue> args)
         {
@@ -76,7 +76,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︿袱涓叿鍚嶅弬鏁扮殑鍔ㄤ綔璋冪敤锛堟墿灞曟柟娉曠増鏈級
+        /// 创建带两个具名参数的动作调用（扩展方法版本）
         /// </summary>
         public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1)
         {
@@ -88,7 +88,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︿笁涓叿鍚嶅弬鏁扮殑鍔ㄤ綔璋冪敤锛堟墿灞曟柟娉曠増鏈級
+        /// 创建带三个具名参数的动作调用（扩展方法版本）
         /// </summary>
         public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1, string name2, double value2)
         {
@@ -100,10 +100,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             });
         }
 
-        // ========== 璋冨害妯″紡宸ュ巶鏂规硶 ==========
+        // ========== 调度模式工厂方法 ==========
 
         /// <summary>
-        /// 鍒涘缓绔嬪嵆鎵ц鐨勫姩浣?
+        /// 创建立即执行的动作
         /// </summary>
         public static ActionCallPlan Immediate(this ActionId id)
         {
@@ -115,10 +115,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓寤惰繜鎵ц鐨勫姩浣?
+        /// 创建延迟执行的动作
         /// </summary>
-        /// <param name="delayMs">寤惰繜鏃堕棿锛堟绉掞級</param>
-        /// <param name="maxExecutions">鏈€澶ф墽琛屾鏁帮紝-1=鏃犻檺</param>
+        /// <param name="delayMs">延迟时间（毫秒）</param>
+        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
         public static ActionCallPlan Delayed(this ActionId id, float delayMs, int maxExecutions = 1)
         {
             var plan = new ActionCallPlan(id);
@@ -129,11 +129,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓鍛ㄦ湡鎵ц鐨勫姩浣?
+        /// 创建周期执行的动作
         /// </summary>
-        /// <param name="intervalMs">鍛ㄦ湡闂撮殧锛堟绉掞級</param>
-        /// <param name="maxExecutions">鏈€澶ф墽琛屾鏁帮紝-1=鏃犻檺</param>
-        /// <param name="canBeInterrupted">鏄惁鍙腑鏂?/param>
+        /// <param name="intervalMs">周期间隔（毫秒）</param>
+        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
+        /// <param name="canBeInterrupted">是否可中断</param>
         public static ActionCallPlan Periodic(this ActionId id, float intervalMs, int maxExecutions = -1, bool canBeInterrupted = true)
         {
             var plan = new ActionCallPlan(id);
@@ -144,9 +144,9 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓鎸佺画璋冨害鎵ц鐨勫姩浣滐紙鎸夐棿闅旀墽琛岋紝鐩村埌澶栭儴涓柇鎴栬揪鍒版墽琛屾鏁帮級
+        /// 创建持续调度执行的动作（按间隔执行，直到外部中断或达到执行次数）
         /// </summary>
-        /// <param name="canBeInterrupted">鏄惁鍙腑鏂?/param>
+        /// <param name="canBeInterrupted">是否可中断</param>
         public static ActionCallPlan Continuous(this ActionId id, bool canBeInterrupted = true)
         {
             var plan = new ActionCallPlan(id);
@@ -157,7 +157,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︽墽琛岀瓥鐣ョ殑鍔ㄤ綔
+        /// 创建带执行策略的动作
         /// </summary>
         public static ActionCallPlan WithExecutionPolicy(this ActionCallPlan plan, Config.EActionExecutionPolicy policy)
         {
@@ -168,7 +168,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹂噸璇曠瓥鐣ョ殑鍔ㄤ綔銆?
+        /// 创建带重试策略的动作。
         /// </summary>
         public static ActionCallPlan WithRetry(this ActionCallPlan plan, int maxRetries = 3, float retryDelayMs = 0f)
         {
@@ -179,7 +179,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹁皟搴﹀弬鏁扮殑鍔ㄤ綔
+        /// 创建带调度参数的动作
         /// </summary>
         public static ActionCallPlan WithSchedule(this ActionCallPlan plan, Config.EActionScheduleMode mode, float param = 0, int maxExecutions = -1, bool canBeInterrupted = true)
         {

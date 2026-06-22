@@ -27,20 +27,33 @@ namespace AbilityKit.Demo.Moba.Services
             Frame = frame != 0 ? frame : executionSnapshot.Frame;
         }
 
+        /// <summary>Original trigger payload before normalization into lineage/origin/snapshot data.</summary>
         public object Payload { get; }
+        /// <summary>Lineage input that determines how the execution attaches to the current trace chain.</summary>
         public MobaEffectLineageInput LineageInput { get; }
+        /// <summary>Origin attribution for the immediate gameplay event that led to this execution.</summary>
         public MobaGameplayOrigin Origin { get; }
+        /// <summary>Execution snapshot capturing the normalized runtime state at the moment of execution.</summary>
         public MobaTriggerExecutionSnapshot ExecutionSnapshot { get; }
+        /// <summary>Skill runtime handle associated with the execution, if any.</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+        /// <summary>Frame index used for trace/debug correlation.</summary>
         public int Frame { get; }
 
+        /// <summary>Effective execution kind resolved from lineage input first, then snapshot.</summary>
         public EffectContextKind ContextKind => LineageInput.ContextKind != EffectContextKind.Unknown ? LineageInput.ContextKind : ExecutionSnapshot.Kind;
+        /// <summary>Origin trace kind carried from the lineage layer.</summary>
         public MobaTraceKind OriginKind => LineageInput.OriginKind;
+        /// <summary>Effective source actor resolved from lineage, origin, then snapshot.</summary>
         public int SourceActorId => LineageInput.SourceActorId != 0 ? LineageInput.SourceActorId : Origin.SourceActorId != 0 ? Origin.SourceActorId : ExecutionSnapshot.SourceActorId;
+        /// <summary>Effective target actor resolved from lineage, origin, then snapshot.</summary>
         public int TargetActorId => LineageInput.TargetActorId != 0 ? LineageInput.TargetActorId : Origin.TargetActorId != 0 ? Origin.TargetActorId : ExecutionSnapshot.TargetActorId;
+        /// <summary>Parent context for the current execution. Falls back to origin or snapshot source context when lineage is missing.</summary>
         public long ParentContextId => LineageInput.ParentContextId != 0 ? LineageInput.ParentContextId : Origin.EffectiveParentContextId != 0 ? Origin.EffectiveParentContextId : ExecutionSnapshot.SourceContextId;
+        /// <summary>Effective root context for the current execution chain.</summary>
         public long RootContextId => LineageInput.EffectiveRootContextId != 0 ? LineageInput.EffectiveRootContextId : Origin.EffectiveRootContextId != 0 ? Origin.EffectiveRootContextId : ExecutionSnapshot.EffectiveRootContextId;
-        public long OwnerContextId => LineageInput.OwnerKey != 0 ? LineageInput.OwnerKey : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
+        /// <summary>Ownership context identity propagated through lineage/origin/snapshot.</summary>
+        public long OwnerContextId => LineageInput.OwnerContextId != 0 ? LineageInput.OwnerContextId : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
         public bool IsValid => LineageInput.SourceActorId != 0 || LineageInput.TargetActorId != 0 || Origin.IsValid || ExecutionSnapshot.IsValid || SkillRuntimeHandle.IsValid || Payload != null;
@@ -66,11 +79,21 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
-            var handle = SkillRuntimeHandle;
-            origin = Origin.IsValid
-                ? Origin
-                : MobaGameplayOrigin.FromLegacy(SourceActorId, TargetActorId, OriginKind, ConfigId, ParentContextId, in handle);
-            return origin.IsValid;
+            if (Origin.IsValid)
+            {
+                origin = Origin;
+                return true;
+            }
+
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                var handle = SkillRuntimeHandle;
+                origin = MobaGameplayOrigin.FromLineageContext(in lineageContext, in handle);
+                return origin.IsValid;
+            }
+
+            origin = default;
+            return false;
         }
 
         public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)

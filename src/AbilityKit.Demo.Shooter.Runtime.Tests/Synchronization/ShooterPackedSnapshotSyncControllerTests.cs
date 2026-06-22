@@ -11,7 +11,7 @@ public sealed class ShooterPackedSnapshotSyncControllerTests
     [Fact]
     public void PackedSnapshotSyncControllerOverwritesLocalRuntimeAndViewModel()
     {
-        var source = new ShooterBattleRuntimePort();
+        var source = new ShooterBattleRuntimePort(ShooterEntityLimitOptions.Default, ShooterEnemyWaveOptions.EnabledOption);
         var sourceStart = new ShooterStartGamePayload(
             "source",
             30,

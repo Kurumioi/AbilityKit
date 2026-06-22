@@ -384,8 +384,10 @@ namespace AbilityKit.Demo.Moba.Services
             CreateRequired<MobaRuntimeDiagnosticsDependencyValidator>("runtime.dependencies.diagnostics"),
             CreateRequired<MobaBattleMainFlowHealthValidator>("battle.main_flow"),
             CreateRequired<MobaBattleRuntimeReadinessValidator>("runtime.readiness"),
+            CreateRequired<MobaRuntimeHealthSummaryValidator>(MobaRuntimeHealthSummaryValidator.SourceName),
             CreateRequired<MobaTemporaryEntityLifecycleReadinessValidator>("temp_entity.lifecycle.readiness"),
             CreateRequired<MobaBattleConfigReferenceValidator>("battle.config.references"),
+            CreateRequired<MobaTriggerPlanIntegrityValidator>(MobaTriggerPlanIntegrityValidator.SourceName),
             CreateRequired<MobaGameplayTriggerRuntimeValidator>("gameplay.trigger.runtime"),
             CreateRequired<MobaContextIntegrityRuntimeValidator>(MobaContextIntegrityRuntimeValidator.SourceName),
         };

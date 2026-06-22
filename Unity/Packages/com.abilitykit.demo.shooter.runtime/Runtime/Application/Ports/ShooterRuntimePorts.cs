@@ -6,6 +6,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         bool IsStarted { get; }
 
+        ShooterBattleMatchState MatchState { get; }
+
+        ShooterMatchResultSnapshot MatchResult { get; }
+
         ShooterStartGamePayload StartSpec { get; }
 
         bool StartGame(in ShooterStartGamePayload spec);

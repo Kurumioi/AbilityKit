@@ -1,5 +1,3 @@
-using System.ComponentModel;
-
 namespace AbilityKit.Demo.Moba.Services
 {
     public interface IMobaOriginContextProvider
@@ -7,6 +5,9 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetOrigin(out MobaGameplayOrigin origin);
     }
 
+    /// <summary>
+    /// Attribution-only gameplay origin model. It records the immediate source event and the effective lineage boundaries derived from it.
+    /// </summary>
     public readonly struct MobaGameplayOrigin
     {
         public MobaGameplayOrigin(
@@ -31,14 +32,23 @@ namespace AbilityKit.Demo.Moba.Services
             SkillRuntimeHandle = skillRuntimeHandle;
         }
 
+        /// <summary>Actor that produced the origin event.</summary>
         public int SourceActorId { get; }
+        /// <summary>Actor targeted by the origin event.</summary>
         public int TargetActorId { get; }
+        /// <summary>Immediate trace kind of the event that produced this origin.</summary>
         public MobaTraceKind ImmediateKind { get; }
+        /// <summary>Configuration identifier for the immediate origin event.</summary>
         public int ImmediateConfigId { get; }
+        /// <summary>Immediate trace context node for the event itself.</summary>
         public long ImmediateContextId { get; }
+        /// <summary>Parent context used when the immediate context attaches into a larger chain.</summary>
         public long ParentContextId { get; }
+        /// <summary>Effective root context for the chain carried by this origin.</summary>
         public long RootContextId { get; }
+        /// <summary>Ownership context identity propagated across the origin chain.</summary>
         public long OwnerContextId { get; }
+        /// <summary>Skill runtime handle related to the origin, when available.</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
 
         public bool IsValid => SourceActorId > 0 || TargetActorId > 0 || ParentContextId != 0 || ImmediateContextId != 0 || RootContextId != 0 || OwnerContextId != 0 || SkillRuntimeHandle.IsValid;
@@ -103,23 +113,5 @@ namespace AbilityKit.Demo.Moba.Services
             return FromLineageContext(in lineageContext, in skillRuntimeHandle);
         }
 
-        /// <summary>
-        /// Compatibility bridge for payloads that still carry only actor/config/context primitives.
-        /// Prefer <see cref="FromLineageContext"/>, <see cref="FromTraceContext"/>, or propagating an existing origin in new runtime code.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public static MobaGameplayOrigin FromLegacy(
-            int sourceActorId,
-            int targetActorId,
-            MobaTraceKind kind,
-            int configId,
-            long contextId,
-            in MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
-        {
-            return MobaGameplayOriginBuilder.Create()
-                .FromLegacy(sourceActorId, targetActorId, kind, configId, contextId)
-                .WithSkillRuntime(in skillRuntimeHandle)
-                .Build();
-        }
     }
 }

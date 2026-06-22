@@ -49,4 +49,10 @@ $runArgs += @('--', '--server', '--tcp-port', $TcpPort)
 
 Write-Host "Starting Shooter state-sync server on 127.0.0.1:$TcpPort" -ForegroundColor Green
 Write-Host "Unity endpoint: 127.0.0.1:$TcpPort" -ForegroundColor White
-& dotnet @runArgs
+Push-Location (Split-Path -Parent $project)
+try {
+    & dotnet @runArgs
+}
+finally {
+    Pop-Location
+}

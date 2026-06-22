@@ -313,8 +313,9 @@ namespace AbilityKit.Demo.Moba.Services
             _services.TryResolve<AbilityKit.Triggering.Registry.ActionRegistry>(out var actions);
             _services.TryResolve<AbilityKit.Triggering.Payload.IPayloadAccessorRegistry>(out var payloads);
             _services.TryResolve<AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanJsonDatabase>(out var planDb);
+            _services.TryResolve<MobaEffectExecutionService>(out var effects);
 
-            _rulePlanExecutor = new MobaTriggerPlanExecutor(_services, planDb, eventBus, functions, actions, payloads);
+            _rulePlanExecutor = new MobaTriggerPlanExecutor(_services, planDb, eventBus, functions, actions, payloads, effects);
             return _rulePlanExecutor;
         }
 

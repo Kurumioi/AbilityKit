@@ -19,6 +19,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         void Clear();
 
+        void BeginStructuralChanges();
+
+        void EndStructuralChanges();
+
+        void SubmitStructuralChanges();
+
         bool HasPlayer(int playerId);
 
         bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player);

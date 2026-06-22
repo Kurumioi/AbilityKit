@@ -60,12 +60,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var controller = kv.Value;
                 if (!_entities.TryGetPlayer(controller.PlayerId, out var player) || !player.Alive)
                 {
-                    _state.LatestCommands.Remove(controller.PlayerId);
+                    _state.InputBuffer.RemoveLatestCommand(controller.PlayerId);
                     continue;
                 }
 
                 controller.Tick(deltaTime);
-                _state.LatestCommands[controller.PlayerId] = controller.Command;
+                var command = controller.Command;
+                _state.InputBuffer.SubmitCommand(_state.CurrentFrame, in command);
             }
         }
     }

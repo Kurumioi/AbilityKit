@@ -40,7 +40,12 @@ namespace AbilityKit.Demo.Moba.Triggering
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.PresentationPlay;
-            origin = MobaGameplayOrigin.FromLegacy(SourceActorId, TargetActorId, traceKind, TemplateId, SourceContextId);
+            origin = MobaGameplayOriginBuilder.Create()
+                .WithActors(SourceActorId, TargetActorId)
+                .WithImmediate(traceKind, TemplateId, SourceContextId)
+                .WithRootContext(RootContextId)
+                .WithOwnerContext(OwnerContextId)
+                .Build();
             return origin.IsValid;
         }
 

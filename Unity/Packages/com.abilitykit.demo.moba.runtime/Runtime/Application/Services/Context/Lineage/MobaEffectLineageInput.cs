@@ -2,6 +2,9 @@ using System;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// Canonical lineage input for effect execution. It describes how a new effect execution attaches to an existing trace/context chain.
+    /// </summary>
     public readonly struct MobaEffectLineageInput
     {
         public MobaEffectLineageInput(
@@ -11,7 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId,
             long parentContextId,
             long rootContextId,
-            long ownerKey,
+            long ownerContextId,
             int originConfigId)
         {
             ContextKind = contextKind;
@@ -20,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             ParentContextId = parentContextId;
             RootContextId = rootContextId;
-            OwnerKey = ownerKey;
+            OwnerKey = ownerContextId;
             OriginConfigId = originConfigId;
         }
 
@@ -28,9 +31,22 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTraceKind OriginKind { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
+        /// <summary>
+        /// Parent trace context that the effect execution should attach to. Zero means the execution may create a new root.
+        /// </summary>
         public long ParentContextId { get; }
+        /// <summary>
+        /// Known root trace context for this lineage. When zero, ParentContextId is used as the effective root.
+        /// </summary>
         public long RootContextId { get; }
+        /// <summary>
+        /// Compatibility name for ownership context identity. Prefer <see cref="OwnerContextId"/> in new code.
+        /// </summary>
         public long OwnerKey { get; }
+        /// <summary>
+        /// Preferred ownership context identity name.
+        /// </summary>
+        public long OwnerContextId => OwnerKey;
         public int OriginConfigId { get; }
 
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : ParentContextId;
@@ -40,7 +56,7 @@ namespace AbilityKit.Demo.Moba.Services
                                || TargetActorId != 0
                                || ParentContextId != 0
                                || RootContextId != 0
-                               || OwnerKey != 0
+                               || OwnerContextId != 0
                                || OriginConfigId != 0;
 
         public MobaEffectTraceInput ToTraceInput()
@@ -52,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetActorId,
                 ParentContextId,
                 RootContextId,
-                OwnerKey,
+                OwnerContextId,
                 OriginConfigId);
         }
 

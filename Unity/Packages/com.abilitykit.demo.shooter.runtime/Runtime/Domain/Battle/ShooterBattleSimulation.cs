@@ -22,8 +22,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly IShooterBattleRules _rules;
-        private readonly List<int> _playerIdBuffer = new List<int>(8);
-        private readonly List<int> _projectileIdBuffer = new List<int>(32);
+        private readonly List<int> _projectileRemovalBuffer = new List<int>(32);
         private readonly ISveltoWorldContext _context;
 
         public ShooterBattleSimulation(ShooterBattleState state)
@@ -41,101 +40,105 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void Tick(float deltaTime)
         {
-            TickPlayers(deltaTime);
-            TickBullets(deltaTime);
+            if (_state.MatchState != ShooterBattleMatchState.Running)
+            {
+                return;
+            }
+
+            _entities.BeginStructuralChanges();
+            try
+            {
+                TickPlayers(deltaTime);
+            }
+            finally
+            {
+                _entities.EndStructuralChanges();
+            }
+
+            _entities.BeginStructuralChanges();
+            try
+            {
+                TickBullets(deltaTime);
+            }
+            finally
+            {
+                _entities.EndStructuralChanges();
+            }
         }
 
         private void TickPlayers(float deltaTime)
         {
-            CopyIds(_entities.PlayerIds, _playerIdBuffer);
-            for (int i = 0; i < _playerIdBuffer.Count; i++)
+            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            for (int i = 0; i < count; i++)
             {
-                if (!_entities.TryGetPlayer(_playerIdBuffer[i], out var player) || !player.Alive)
+                if (!players[i].Alive)
                 {
                     continue;
                 }
 
-                _state.LatestCommands.TryGetValue(player.PlayerId, out var command);
+                _state.InputBuffer.TryGetLatestCommand(players[i].PlayerId, out var command);
                 var moveLength = ShooterBattleMath.Normalize(ref command.MoveX, ref command.MoveY);
                 if (moveLength > 0f)
                 {
-                    player.X += command.MoveX * _rules.PlayerSpeed * deltaTime;
-                    player.Y += command.MoveY * _rules.PlayerSpeed * deltaTime;
+                    players[i].X += command.MoveX * _rules.PlayerSpeed * deltaTime;
+                    players[i].Y += command.MoveY * _rules.PlayerSpeed * deltaTime;
                 }
 
                 var aimLength = ShooterBattleMath.Normalize(ref command.AimX, ref command.AimY);
                 if (aimLength > 0f)
                 {
-                    player.AimX = command.AimX;
-                    player.AimY = command.AimY;
+                    players[i].AimX = command.AimX;
+                    players[i].AimY = command.AimY;
                 }
 
                 if (command.Fire)
                 {
-                    SpawnBullet(in player);
-                    command.Fire = false;
-                    _state.LatestCommands[player.PlayerId] = command;
+                    SpawnBullet(in players[i]);
+                    _state.InputBuffer.TryConsumeLatestFire(_state.CurrentFrame, players[i].PlayerId, out _);
                 }
-
-                _entities.SetPlayer(in player);
             }
         }
 
         private void TickBullets(float deltaTime)
         {
-            CopyIds(_entities.ProjectileIds, _projectileIdBuffer);
-            for (int i = _projectileIdBuffer.Count - 1; i >= 0; i--)
+            _projectileRemovalBuffer.Clear();
+            var (bullets, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            for (int i = count - 1; i >= 0; i--)
             {
-                var bulletId = _projectileIdBuffer[i];
-                if (!_entities.TryGetProjectile(bulletId, out var bullet))
+                bullets[i].X += bullets[i].VelocityX * deltaTime;
+                bullets[i].Y += bullets[i].VelocityY * deltaTime;
+                bullets[i].RemainingFrames--;
+
+                if (TryHitPlayer(in bullets[i], out var target))
                 {
+                    IncrementPlayerScore(bullets[i].OwnerPlayerId);
+                    _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullets[i].OwnerPlayerId, target.PlayerId, bullets[i].BulletId, target.X, target.Y, _rules.HitDamage));
+                    _projectileRemovalBuffer.Add(bullets[i].BulletId);
                     continue;
                 }
 
-                bullet.X += bullet.VelocityX * deltaTime;
-                bullet.Y += bullet.VelocityY * deltaTime;
-                bullet.RemainingFrames--;
-
-                if (TryHitPlayer(in bullet, out var target))
+                if (TryHitEnemy(in bullets[i], out var enemyId, out var enemyX, out var enemyY, out var defeated))
                 {
-                    target.Hp = Math.Max(0, target.Hp - _rules.HitDamage);
-                    if (target.Hp == 0)
+                    if (defeated)
                     {
-                        target.Alive = false;
+                        _state.DefeatedEnemies++;
+                        IncrementPlayerScore(bullets[i].OwnerPlayerId);
                     }
 
-                    _entities.SetPlayer(in target);
-                    if (_entities.TryGetPlayer(bullet.OwnerPlayerId, out var owner))
-                    {
-                        owner.Score++;
-                        _entities.SetPlayer(in owner);
-                    }
-
-                    _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullet.OwnerPlayerId, target.PlayerId, bullet.BulletId, target.X, target.Y, _rules.HitDamage));
-                    _entities.RemoveProjectile(bullet.BulletId);
+                    _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullets[i].OwnerPlayerId, -(int)enemyId, bullets[i].BulletId, enemyX, enemyY, _rules.HitDamage));
+                    _projectileRemovalBuffer.Add(bullets[i].BulletId);
                     continue;
                 }
 
-                if (TryHitEnemy(in bullet, out var enemyId, out var enemyX, out var enemyY, out var defeated))
+                if (bullets[i].RemainingFrames <= 0)
                 {
-                    if (defeated && _entities.TryGetPlayer(bullet.OwnerPlayerId, out var owner))
-                    {
-                        owner.Score++;
-                        _entities.SetPlayer(in owner);
-                    }
-
-                    _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullet.OwnerPlayerId, -(int)enemyId, bullet.BulletId, enemyX, enemyY, _rules.HitDamage));
-                    _entities.RemoveProjectile(bullet.BulletId);
-                    continue;
+                    _projectileRemovalBuffer.Add(bullets[i].BulletId);
                 }
+            }
 
-                if (bullet.RemainingFrames <= 0)
-                {
-                    _entities.RemoveProjectile(bullet.BulletId);
-                    continue;
-                }
-
-                _entities.SetProjectile(in bullet);
+            for (int i = 0; i < _projectileRemovalBuffer.Count; i++)
+            {
+                _entities.RemoveProjectile(_projectileRemovalBuffer[i]);
             }
         }
 
@@ -158,25 +161,46 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private bool TryHitPlayer(in ShooterSveltoProjectileComponent bullet, out ShooterSveltoPlayerComponent target)
         {
-            CopyIds(_entities.PlayerIds, _playerIdBuffer);
-            for (int i = 0; i < _playerIdBuffer.Count; i++)
+            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            for (int i = 0; i < count; i++)
             {
-                if (!_entities.TryGetPlayer(_playerIdBuffer[i], out var player) || !player.Alive || player.PlayerId == bullet.OwnerPlayerId)
+                if (!players[i].Alive || players[i].PlayerId == bullet.OwnerPlayerId)
                 {
                     continue;
                 }
 
-                var dx = player.X - bullet.X;
-                var dy = player.Y - bullet.Y;
-                if (dx * dx + dy * dy <= _rules.HitRadius * _rules.HitRadius)
+                var dx = players[i].X - bullet.X;
+                var dy = players[i].Y - bullet.Y;
+                if (dx * dx + dy * dy > _rules.HitRadius * _rules.HitRadius)
                 {
-                    target = player;
-                    return true;
+                    continue;
                 }
+
+                players[i].Hp = Math.Max(0, players[i].Hp - _rules.HitDamage);
+                if (players[i].Hp == 0)
+                {
+                    players[i].Alive = false;
+                }
+
+                target = players[i];
+                return true;
             }
 
             target = default;
             return false;
+        }
+
+        private void IncrementPlayerScore(int playerId)
+        {
+            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            for (int i = 0; i < count; i++)
+            {
+                if (players[i].PlayerId == playerId)
+                {
+                    players[i].Score++;
+                    return;
+                }
+            }
         }
 
         private bool TryHitEnemy(in ShooterSveltoProjectileComponent bullet, out uint enemyId, out float enemyX, out float enemyY, out bool defeated)
@@ -216,13 +240,5 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return false;
         }
 
-        private static void CopyIds(IReadOnlyCollection<int> source, List<int> destination)
-        {
-            destination.Clear();
-            foreach (var id in source)
-            {
-                destination.Add(id);
-            }
-        }
     }
 }

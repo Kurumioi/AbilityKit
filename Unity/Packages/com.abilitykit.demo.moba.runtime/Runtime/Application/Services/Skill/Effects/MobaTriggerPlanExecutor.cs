@@ -14,11 +14,10 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly IWorldResolver _services;
         private readonly TriggerPlanJsonDatabase _planDb;
-        private readonly IEventBus _eventBus;
-        private readonly FunctionRegistry _functions;
-        private readonly ActionRegistry _actions;
-        private readonly IPayloadAccessorRegistry _payloads;
-        private readonly MobaEffectExecutionService _currentEffects;
+        private readonly MobaTriggerPlanRuntimeDependencies _dependencies;
+        private readonly MobaTriggerPlanEffectResolver _effects;
+        private readonly MobaTriggerPlanExecutionContextFactory _contextFactory;
+        private readonly MobaTriggerPlanExecutionRunner _runner;
 
         public MobaTriggerPlanExecutor(
             IWorldResolver services,
@@ -31,11 +30,10 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _services = services;
             _planDb = planDb;
-            _eventBus = eventBus;
-            _functions = functions;
-            _actions = actions;
-            _payloads = payloads;
-            _currentEffects = currentEffects;
+            _dependencies = new MobaTriggerPlanRuntimeDependencies(services, eventBus, functions, actions, payloads);
+            _effects = new MobaTriggerPlanEffectResolver(services, currentEffects);
+            _contextFactory = new MobaTriggerPlanExecutionContextFactory(_dependencies, _effects);
+            _runner = new MobaTriggerPlanExecutionRunner();
         }
 
         public bool TryGetPlan(int triggerId, out TriggerPlan<object> plan)
@@ -51,6 +49,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool ExecuteRulePlan(int triggerId, object args)
         {
+            if (_effects.ShouldRouteRulePlanThroughFormalEffectSession(out var currentEffects))
+            {
+                return currentEffects.ExecuteRulePlan(triggerId, args);
+            }
+
             return ExecuteInternal(triggerId, args, predicateMissIsSuccess: false);
         }
 
@@ -62,67 +65,17 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (_eventBus == null || _functions == null || _actions == null || _payloads == null)
-            {
-                MobaRuntimeGuard.ThrowRequired(
-                    _services,
-                    nameof(MobaTriggerPlanExecutor),
-                    "trigger.plan.execute",
-                    "Trigger plan runtime dependencies",
-                    MobaBattleExceptionDomain.Triggering,
-                    detail: $"triggerId={triggerId}, hasEventBus={_eventBus != null}, hasFunctions={_functions != null}, hasActions={_actions != null}, hasPayloads={_payloads != null}");
-            }
-
-            if (_services == null)
-            {
-                MobaRuntimeGuard.ThrowRequired(
-                    null,
-                    nameof(MobaTriggerPlanExecutor),
-                    "trigger.plan.execute",
-                    nameof(IWorldResolver),
-                    MobaBattleExceptionDomain.Triggering,
-                    detail: $"triggerId={triggerId}");
-            }
-
+            _dependencies.ValidateForExecution(nameof(MobaTriggerPlanExecutor), triggerId);
+ 
             var ctrl = new ExecutionControl();
             ctrl.Reset();
-
-            var context = _currentEffects != null ? new CurrentEffectWorldResolver(_services, _currentEffects) : _services;
-            var execCtx = new ExecCtx<IWorldResolver>(
-                context: context,
-                eventBus: _eventBus,
-                functions: _functions,
-                actions: _actions,
-                blackboards: null,
-                payloads: _payloads,
-                idNames: null,
-                numericDomains: null,
-                numericFunctions: null,
-                policy: default,
-                control: ctrl);
-
+ 
+            var execCtx = _contextFactory.Create(ctrl);
             var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
-
-            bool ExecuteOnce()
-            {
-                var planned = new PlannedTrigger<object, IWorldResolver>(plan);
-                var ok = planned.Evaluate(args, execCtx);
-                if (ctrl.StopPropagation || ctrl.Cancel) return ok;
-                if (!ok) return predicateMissIsSuccess;
-
-                if (hasExecutionRoot && executionRoot != null)
-                {
-                    var result = executionRoot.Execute(args, in execCtx);
-                    return result.IsSuccess && result.ExecutedCount > 0;
-                }
-
-                planned.Execute(args, execCtx);
-                return true;
-            }
 
             try
             {
-                return ExecuteOnce();
+                return _runner.Execute(plan, executionRoot, hasExecutionRoot, args, in execCtx, ctrl, predicateMissIsSuccess);
             }
             catch (Exception ex)
             {
@@ -137,50 +90,5 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private sealed class CurrentEffectWorldResolver : IWorldResolver
-        {
-            private readonly IWorldResolver _inner;
-            private readonly MobaEffectExecutionService _effects;
-
-            public CurrentEffectWorldResolver(IWorldResolver inner, MobaEffectExecutionService effects)
-            {
-                _inner = inner;
-                _effects = effects;
-            }
-
-            public object Resolve(Type serviceType)
-            {
-                if (serviceType == typeof(MobaEffectExecutionService)) return _effects;
-                return _inner.Resolve(serviceType);
-            }
-
-            public T Resolve<T>()
-            {
-                if (typeof(T) == typeof(MobaEffectExecutionService)) return (T)(object)_effects;
-                return _inner.Resolve<T>();
-            }
-
-            public bool TryResolve(Type serviceType, out object instance)
-            {
-                if (serviceType == typeof(MobaEffectExecutionService))
-                {
-                    instance = _effects;
-                    return instance != null;
-                }
-
-                return _inner.TryResolve(serviceType, out instance);
-            }
-
-            public bool TryResolve<T>(out T instance)
-            {
-                if (typeof(T) == typeof(MobaEffectExecutionService))
-                {
-                    instance = _effects != null ? (T)(object)_effects : default;
-                    return _effects != null;
-                }
-
-                return _inner.TryResolve(out instance);
-            }
-        }
     }
 }

@@ -1,5 +1,8 @@
 namespace AbilityKit.Demo.Moba.Services
 {
+    /// <summary>
+    /// Serializable/snapshot-friendly trace input for effect execution. New code should use OwnerContextId terminology for ownership identity.
+    /// </summary>
     public readonly struct MobaEffectTraceInput
     {
         public MobaEffectTraceInput(
@@ -9,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId,
             long parentContextId,
             long rootContextId,
-            long ownerKey,
+            long ownerContextId,
             int originConfigId)
         {
             ContextKind = contextKind;
@@ -18,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
             TargetActorId = targetActorId;
             ParentContextId = parentContextId;
             RootContextId = rootContextId;
-            OwnerKey = ownerKey;
+            OwnerKey = ownerContextId;
             OriginConfigId = originConfigId;
         }
 
@@ -26,9 +29,14 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTraceKind OriginKind { get; }
         public int SourceActorId { get; }
         public int TargetActorId { get; }
+        /// <summary>Parent trace context that the effect execution should attach to. Zero means this effect may create a new trace root.</summary>
         public long ParentContextId { get; }
+        /// <summary>Known trace root for the execution chain. When zero, ParentContextId is treated as the effective root.</summary>
         public long RootContextId { get; }
+        /// <summary>Compatibility name for ownership context identity. Prefer OwnerContextId in new code.</summary>
         public long OwnerKey { get; }
+        /// <summary>Preferred ownership context identity name.</summary>
+        public long OwnerContextId => OwnerKey;
         public int OriginConfigId { get; }
 
         public long EffectiveRootContextId => RootContextId != 0 ? RootContextId : ParentContextId;
@@ -42,7 +50,7 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetActorId,
                 ParentContextId,
                 RootContextId,
-                OwnerKey,
+                OwnerContextId,
                 OriginConfigId);
         }
 

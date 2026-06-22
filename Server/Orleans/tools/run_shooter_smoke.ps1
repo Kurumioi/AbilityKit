@@ -47,4 +47,10 @@ if ($NoBuild) {
 
 $runArgs += $commonArgs
 $runArgs += @('--', '--tcp-port', $TcpPort)
-& dotnet @runArgs
+Push-Location (Split-Path -Parent $project)
+try {
+    & dotnet @runArgs
+}
+finally {
+    Pop-Location
+}

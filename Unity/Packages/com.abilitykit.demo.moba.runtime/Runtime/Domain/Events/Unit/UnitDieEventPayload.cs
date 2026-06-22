@@ -64,7 +64,10 @@ namespace AbilityKit.Demo.Moba.Events.Unit
                 return true;
             }
 
-            origin = MobaGameplayOrigin.FromLegacy(KillerActorId, ActorId, MobaTraceKind.UnitDeath, ReasonParam, 0);
+            origin = MobaGameplayOriginBuilder.Create()
+                .WithActors(KillerActorId, ActorId)
+                .WithImmediate(MobaTraceKind.UnitDeath, ReasonParam, 0)
+                .Build();
             return origin.IsValid;
         }
 

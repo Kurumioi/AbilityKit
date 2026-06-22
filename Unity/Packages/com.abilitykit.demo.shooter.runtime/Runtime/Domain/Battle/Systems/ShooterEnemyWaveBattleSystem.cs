@@ -7,6 +7,13 @@ using Svelto.ECS;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
+    internal enum ShooterEnemyWavePhase
+    {
+        Spawn = 0,
+        Attack = 1
+    }
+
+    [AllowMultiple]
     internal sealed class ShooterEnemyWaveBattleSystem : IShooterBattleSystem
     {
         private const float Pi = 3.14159265358979323846f;
@@ -14,32 +21,64 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly ISveltoWorldContext _context;
-        private readonly int[] _waveSpawned = new int[3];
+        private readonly ShooterEnemyWaveOptions _options;
+        private readonly ShooterSveltoGameplayWaveConfig[] _waves;
+        private readonly int[] _waveSpawned;
         private readonly ShooterSpatialTargetIndex _targetIndex = new();
+        private readonly ShooterEnemyWavePhase _phase;
         private int _nextEnemyId = FirstEnemyEntityId;
+        private int _lastSynchronizedFrame = -1;
 
         public ShooterEnemyWaveBattleSystem(IShooterBattleServiceResolver services)
+            : this(services, ShooterEnemyWavePhase.Spawn)
+        {
+        }
+
+        public ShooterEnemyWaveBattleSystem(IShooterBattleServiceResolver services, ShooterEnemyWavePhase phase)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
 
             _state = services.Resolve<ShooterBattleState>();
             _entities = services.Resolve<IShooterEntityManager>();
             _context = services.Resolve<ISveltoWorldContext>();
+            _options = services.TryResolve<ShooterEnemyWaveOptions>(out var options) && options != null
+                ? options
+                : ShooterEnemyWaveOptions.Disabled;
+            _waves = _options.Waves;
+            _waveSpawned = new int[_waves.Length];
+            _phase = phase;
         }
 
-        public int Order => ShooterBattleSystemOrder.EnemyWave;
+        public int Order => _phase == ShooterEnemyWavePhase.Spawn ? ShooterBattleSystemOrder.EnemyWaveSpawn : ShooterBattleSystemOrder.EnemyWaveAttack;
 
-        public string name => nameof(ShooterEnemyWaveBattleSystem);
+        public string name => _phase == ShooterEnemyWavePhase.Spawn
+            ? nameof(ShooterEnemyWaveBattleSystem) + ".Spawn"
+            : nameof(ShooterEnemyWaveBattleSystem) + ".Attack";
 
         public void Step(in float deltaTime)
         {
-            if (_state.CurrentFrame <= 1)
+            if (!_options.Enabled)
             {
-                ResetWaveState();
+                return;
             }
 
-            TickWaveSpawns();
-            TickEnemyAttacks();
+            if (_phase == ShooterEnemyWavePhase.Spawn)
+            {
+                if (_state.CurrentFrame <= 1)
+                {
+                    ResetWaveState();
+                }
+                else
+                {
+                    SynchronizeImportedWaveState();
+                }
+
+                TickWaveSpawns();
+            }
+            else
+            {
+                TickEnemyAttacks();
+            }
         }
 
         private void ResetWaveState()
@@ -52,33 +91,84 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             Array.Clear(_waveSpawned, 0, _waveSpawned.Length);
             _nextEnemyId = FirstEnemyEntityId;
+            _lastSynchronizedFrame = _state.CurrentFrame;
+        }
+
+        private void SynchronizeImportedWaveState()
+        {
+            if (_lastSynchronizedFrame == _state.CurrentFrame)
+            {
+                return;
+            }
+
+            _nextEnemyId = Math.Max(_nextEnemyId, SynchronizeNextEnemyIdFromExistingTargets());
+            _lastSynchronizedFrame = _state.CurrentFrame;
+        }
+
+        private int SynchronizeNextEnemyIdFromExistingTargets()
+        {
+            var (_, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var nextEnemyId = FirstEnemyEntityId;
+            var importedSpawnCount = 0;
+            for (var i = 0; i < count; i++)
+            {
+                var entityId = checked((int)ids[i]);
+                nextEnemyId = Math.Max(nextEnemyId, entityId + 1);
+                if (entityId >= FirstEnemyEntityId)
+                {
+                    importedSpawnCount = Math.Max(importedSpawnCount, entityId - FirstEnemyEntityId + 1);
+                }
+            }
+
+            SynchronizeSpawnedWaveCounters(importedSpawnCount);
+            return nextEnemyId;
         }
 
         private void TickWaveSpawns()
         {
+            if (_waves.Length == 0)
+            {
+                return;
+            }
+
             var activeEnemies = CountAliveEnemies();
-            TickWave(index: 0, waveId: 1, startFrame: 1, spawnFrameInterval: 2, enemyCount: 24, enemyHp: 2, spawnRadius: 7f, ref activeEnemies);
-            TickWave(index: 1, waveId: 2, startFrame: 30, spawnFrameInterval: 2, enemyCount: 24, enemyHp: 2, spawnRadius: 9f, ref activeEnemies);
-            TickWave(index: 2, waveId: 3, startFrame: 60, spawnFrameInterval: 3, enemyCount: 24, enemyHp: 3, spawnRadius: 11f, ref activeEnemies);
+            for (var i = 0; i < _waves.Length; i++)
+            {
+                TickWave(i, in _waves[i], ref activeEnemies);
+            }
         }
 
-        private void TickWave(int index, int waveId, int startFrame, int spawnFrameInterval, int enemyCount, int enemyHp, float spawnRadius, ref int activeEnemies)
+        private void TickWave(int index, in ShooterSveltoGameplayWaveConfig wave, ref int activeEnemies)
         {
-            const int maxActiveEnemies = 36;
-            if (_state.CurrentFrame < startFrame || _waveSpawned[index] >= enemyCount || activeEnemies >= maxActiveEnemies)
+            if (_state.CurrentFrame < wave.StartFrame || _waveSpawned[index] >= wave.EnemyCount || activeEnemies >= _options.MaxActiveEnemies)
             {
                 return;
             }
 
-            var framesSinceStart = _state.CurrentFrame - startFrame;
-            if (framesSinceStart % spawnFrameInterval != 0)
+            var framesSinceStart = _state.CurrentFrame - wave.StartFrame;
+            if (framesSinceStart % wave.SpawnFrameInterval != 0)
             {
                 return;
             }
 
-            SpawnEnemy(waveId, _waveSpawned[index], enemyHp, spawnRadius);
+            SpawnEnemy(wave.WaveId, _waveSpawned[index], wave.EnemyHp, wave.SpawnRadius);
             _waveSpawned[index]++;
             activeEnemies++;
+        }
+
+        private void SynchronizeSpawnedWaveCounters(int importedSpawnCount)
+        {
+            var remaining = Math.Max(0, importedSpawnCount);
+            for (var i = 0; i < _waves.Length; i++)
+            {
+                var spawnedInWave = Math.Min(remaining, _waves[i].EnemyCount);
+                _waveSpawned[i] = Math.Max(_waveSpawned[i], spawnedInWave);
+                remaining -= spawnedInWave;
+                if (remaining <= 0)
+                {
+                    break;
+                }
+            }
         }
 
         private void SpawnEnemy(int waveId, int spawnIndex, int enemyHp, float spawnRadius)

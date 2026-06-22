@@ -62,7 +62,16 @@ namespace AbilityKit.Demo.Moba
 
             var sourceActorId = OriginSource is int source ? source : AttackerActorId;
             var targetActorId = OriginTarget is int target ? target : TargetActorId;
-            origin = Services.MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, OriginKind, OriginConfigId, OriginContextId);
+            var lineageContext = new Services.MobaTriggerLineageContext(
+                Services.EffectContextKind.Trigger,
+                OriginKind != Services.MobaTraceKind.None ? OriginKind : Services.MobaTraceKind.DamageAttack,
+                sourceActorId,
+                targetActorId,
+                OriginContextId,
+                OriginContextId,
+                OriginContextId,
+                OriginConfigId);
+            origin = Services.MobaGameplayOrigin.FromLineageContext(in lineageContext);
             return origin.IsValid;
         }
 
@@ -243,7 +252,16 @@ namespace AbilityKit.Demo.Moba
 
             var sourceActorId = OriginSource is int source ? source : AttackerActorId;
             var targetActorId = OriginTarget is int target ? target : TargetActorId;
-            origin = Services.MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, OriginKind, OriginConfigId, OriginContextId);
+            var lineageContext = new Services.MobaTriggerLineageContext(
+                Services.EffectContextKind.Trigger,
+                OriginKind != Services.MobaTraceKind.None ? OriginKind : Services.MobaTraceKind.DamageApply,
+                sourceActorId,
+                targetActorId,
+                OriginContextId,
+                OriginContextId,
+                OriginContextId,
+                OriginConfigId != 0 ? OriginConfigId : ReasonParam);
+            origin = Services.MobaGameplayOrigin.FromLineageContext(in lineageContext);
             return origin.IsValid;
         }
 

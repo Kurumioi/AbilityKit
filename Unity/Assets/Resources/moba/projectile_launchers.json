@@ -1,0 +1,20 @@
+[
+  {
+    "Id": 1,
+    "Name": "普攻发射器",
+    "EmitterType": 1,
+    "DurationMs": 0,
+    "IntervalMs": 0,
+    "CountPerShot": 1,
+    "FanAngleDeg": 0
+  },
+  {
+    "Id": 2,
+    "Name": "技能发射器-扇形",
+    "EmitterType": 1,
+    "DurationMs": 1000,
+    "IntervalMs": 500,
+    "CountPerShot": 5,
+    "FanAngleDeg": 90
+  }
+]

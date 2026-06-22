@@ -28,7 +28,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (lineageInput.TargetActorId != 0) _targetActorId = lineageInput.TargetActorId;
             if (lineageInput.ParentContextId != 0) _sourceContextId = lineageInput.ParentContextId;
             if (lineageInput.EffectiveRootContextId != 0) _rootContextId = lineageInput.EffectiveRootContextId;
-            if (lineageInput.OwnerKey != 0) _ownerContextId = lineageInput.OwnerKey;
+            if (lineageInput.OwnerContextId != 0) _ownerContextId = lineageInput.OwnerContextId;
             if (lineageInput.OriginConfigId != 0) _configId = lineageInput.OriginConfigId;
             return this;
         }

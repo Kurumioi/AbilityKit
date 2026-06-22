@@ -160,7 +160,7 @@ namespace AbilityKit.Demo.Moba.Triggering
                 originKind = (int)lineage.OriginKind;
                 sourceContextId = lineage.SourceContextId;
                 rootContextId = lineage.RootContextId;
-                ownerContextId = lineage.OwnerKey;
+                ownerContextId = lineage.OwnerContextId;
                 sourceConfigId = lineage.SourceConfigId;
                 return;
             }

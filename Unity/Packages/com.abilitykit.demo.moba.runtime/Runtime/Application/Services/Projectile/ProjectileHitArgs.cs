@@ -92,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 lineageContext.TargetActorId,
                 lineageContext.SourceContextId,
                 lineageContext.RootContextId,
-                lineageContext.OwnerKey,
+                lineageContext.OwnerContextId,
                 TriggerId,
                 ProjectileTemplateId != 0 ? ProjectileTemplateId : SourceConfigId,
                 Frame,

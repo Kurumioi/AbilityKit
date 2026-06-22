@@ -32,7 +32,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             OriginConfigId = originConfigId;
             OriginContextId = originContextId;
             SkillRuntimeHandle = skillRuntimeHandle;
-            Origin = MobaGameplayOrigin.FromLegacy(originSourceActorId, originTargetActorId, originKind, originConfigId, parentContextId != 0 ? parentContextId : originContextId, in skillRuntimeHandle);
+            Origin = new MobaGameplayOrigin(
+                originSourceActorId,
+                originTargetActorId,
+                originKind,
+                originConfigId,
+                parentContextId != 0 ? parentContextId : originContextId,
+                parentContextId != 0 ? parentContextId : originContextId,
+                parentContextId != 0 ? parentContextId : originContextId,
+                parentContextId != 0 ? parentContextId : originContextId,
+                skillRuntimeHandle);
         }
 
         public BuffOriginContext(in MobaGameplayOrigin origin)
@@ -66,7 +75,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         {
             origin = Origin.IsValid
                 ? Origin
-                : MobaGameplayOrigin.FromLegacy(OriginSourceActorId, OriginTargetActorId, OriginKind, OriginConfigId, ParentContextId != 0 ? ParentContextId : OriginContextId, in SkillRuntimeHandle);
+                : new MobaGameplayOrigin(
+                    OriginSourceActorId,
+                    OriginTargetActorId,
+                    OriginKind,
+                    OriginConfigId,
+                    ParentContextId != 0 ? ParentContextId : OriginContextId,
+                    ParentContextId != 0 ? ParentContextId : OriginContextId,
+                    ParentContextId != 0 ? ParentContextId : OriginContextId,
+                    ParentContextId != 0 ? ParentContextId : OriginContextId,
+                    SkillRuntimeHandle);
             return origin.IsValid;
         }
 

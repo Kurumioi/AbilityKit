@@ -38,9 +38,9 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaTriggerPlanExecutor _planExecutor;
  
         /// <summary>
-        /// 溯源注册表（可选，用于链路追踪）。未注册时只保留核心 lineage，不创建 trace tree。
+        /// 溯源注册表。正式效果执行必须创建 effect trace scope，避免 action origin、子对象来源和诊断链路缺少运行时节点。
         /// </summary>
-        [WorldInject(required: false)]
+        [WorldInject]
         public MobaTraceRegistry Trace { get; private set; }
 
         /// <summary>
@@ -84,11 +84,20 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 创建可选效果执行 trace 节点。存在父上下文时挂为子节点，否则创建根节点。
+        /// 创建正式效果执行 trace 节点。存在父上下文时挂为子节点，否则创建根节点。
         /// </summary>
         private EffectExecutionTraceScope BeginEffectTraceScope(int effectConfigId, int triggerId, in MobaEffectLineageInput lineageInput)
         {
-            if (Trace == null) return null;
+            if (Trace == null)
+            {
+                MobaRuntimeGuard.ThrowRequired(
+                    _services,
+                    nameof(MobaEffectExecutionService),
+                    "effect.trace.begin",
+                    nameof(MobaTraceRegistry),
+                    MobaBattleExceptionDomain.Service,
+                    detail: $"effectConfigId={effectConfigId}, triggerId={triggerId}, sourceActorId={lineageInput.SourceActorId}, parentContextId={lineageInput.ParentContextId}");
+            }
 
             var configId = effectConfigId > 0 ? effectConfigId : triggerId;
             var parentContextId = lineageInput.ParentContextId;
@@ -125,7 +134,11 @@ namespace AbilityKit.Demo.Moba.Services
                 scope.IsRoot = true;
             }
 
-            if (scope.EffectContextId == 0) return null;
+            if (scope.EffectContextId == 0)
+            {
+                throw new InvalidOperationException($"[MobaEffectExecutionService] Failed to create formal effect trace scope. effectConfigId={effectConfigId}, triggerId={triggerId}, sourceActorId={lineageInput.SourceActorId}, targetActorId={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}");
+            }
+
             _traceScopes.Push(scope);
             return scope;
         }
@@ -492,21 +505,39 @@ namespace AbilityKit.Demo.Moba.Services
                 throw new ArgumentOutOfRangeException(nameof(request.TriggerId), request.TriggerId, "Trigger id must be positive.");
             }
 
-            var executionContext = CreateCombatExecutionContext(request.Payload, request.TriggerId, request.TriggerId);
-            var lineageInput = executionContext.LineageInput;
+            ExecuteTriggerPlan(request.TriggerId, request.Payload, predicateMissIsSuccess: true);
+        }
 
-            if (!TryGetPlanByTriggerId(request.TriggerId, out var plan))
+        public bool ExecuteRulePlan(int triggerId, object payload)
+        {
+            if (triggerId <= 0)
             {
-                throw new InvalidOperationException($"Missing trigger plan for direct trigger execution. triggerId={request.TriggerId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+                throw new ArgumentOutOfRangeException(nameof(triggerId), triggerId, "Trigger id must be positive.");
             }
 
-            if (!TryEnterExecutionBudget(request.TriggerId, in executionContext, out var budgetToken, out var conditionContext)) return;
+            return ExecuteTriggerPlan(triggerId, payload, predicateMissIsSuccess: false);
+        }
 
-            using (var session = BeginExecutionSession(request.TriggerId, request.TriggerId, in executionContext, in lineageInput, in plan, in budgetToken))
+        private bool ExecuteTriggerPlan(int triggerId, object payload, bool predicateMissIsSuccess)
+        {
+            var executionContext = CreateCombatExecutionContext(payload, triggerId, triggerId);
+            var lineageInput = executionContext.LineageInput;
+
+            if (!TryGetPlanByTriggerId(triggerId, out var plan))
             {
-                var conditionsPassed = EvaluateTriggerConditions(request.TriggerId, in conditionContext);
-                var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(request.TriggerId, request.Payload);
+                throw new InvalidOperationException($"Missing trigger plan for trigger execution. triggerId={triggerId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+            }
+
+            if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return false;
+
+            using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
+            {
+                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
+                var planExecuted = conditionsPassed && (predicateMissIsSuccess
+                    ? TryExecutePlanByTriggerId(triggerId, payload)
+                    : PlanExecutor.ExecuteRulePlan(triggerId, payload));
                 session.Complete(planExecuted);
+                return planExecuted;
             }
         }
 

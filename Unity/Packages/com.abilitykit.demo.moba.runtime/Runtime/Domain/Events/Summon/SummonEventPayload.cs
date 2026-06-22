@@ -46,7 +46,10 @@ namespace AbilityKit.Demo.Moba.Events.Summon
                 return true;
             }
 
-            origin = MobaGameplayOrigin.FromLegacy(OwnerActorId, SummonActorId, MobaTraceKind.SummonSpawn, SummonId, 0);
+            origin = MobaGameplayOriginBuilder.Create()
+                .WithActors(OwnerActorId, SummonActorId)
+                .WithImmediate(MobaTraceKind.SummonSpawn, SummonId, 0)
+                .Build();
             return origin.IsValid;
         }
 

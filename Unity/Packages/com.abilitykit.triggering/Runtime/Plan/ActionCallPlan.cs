@@ -55,7 +55,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
     }
 
     /// <summary>
-    /// Action 璋冪敤璁″垝锛堝弬鏁板寲鍔ㄤ綔鎻忚堪锛?
+    /// Action 调用计划（参数化动作描述）
     /// </summary>
     public readonly struct ActionCallPlan
     {
@@ -65,56 +65,56 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly NumericValueRef Arg1;
 
         /// <summary>
-        /// 鍏峰悕鍙傛暟瀛楀吀锛坘ey=鍙傛暟鍚嶏紝value=鍙傛暟鍊煎紩鐢級
-        /// 涓?null 鏃惰〃绀哄悜鍚庡吋瀹圭殑浣嶇疆鍙傛暟妯″紡锛堜娇鐢?Arg0/Arg1锛?
+        /// 具名参数字典（key=参数名，value=参数值引用）
+        /// 为 null 时表示向后兼容的位置参数模式（使用 Arg0/Arg1）
         /// </summary>
         public readonly Dictionary<string, ActionArgValue> Args;
 
         /// <summary>
-        /// 璋冨害妯″紡锛圓ction 鑷韩濡備綍杩愯锛?
-        /// Immediate: 绔嬪嵆鎵ц涓€娆?
-        /// Delayed: 寤惰繜鎵ц锛堢瓑寰?ScheduleParam 姣锛?
-        /// Periodic: 鍛ㄦ湡鎵ц锛堟瘡 ScheduleParam 姣锛?
-        /// Continuous: 鎸佺画璋冨害鎵ц锛堟寜 ScheduleParam 闂撮殧锛岀洿鍒板閮ㄤ腑鏂垨杈惧埌鎵ц娆℃暟锛?
-        /// Timeline: 鏃堕棿绾挎墽琛岋紙鎸夋椂闂磋酱搴忓垪锛?
+        /// 调度模式（Action 自身如何运行）
+        /// Immediate: 立即执行一次
+        /// Delayed: 延迟执行（等待 ScheduleParam 毫秒）
+        /// Periodic: 周期执行（每 ScheduleParam 毫秒）
+        /// Continuous: 持续调度执行（按 ScheduleParam 间隔，直到外部中断或达到执行次数）
+        /// Timeline: 时间线执行（按时间轴序列）
         /// </summary>
         public readonly Config.EActionScheduleMode ScheduleMode;
 
         /// <summary>
-        /// 璋冨害鍙傛暟
-        /// Delayed: 寤惰繜鏃堕棿锛堟绉掞級
-        /// Periodic: 鍛ㄦ湡闂撮殧锛堟绉掞級
-        /// Timeline: 鏃堕棿绾挎€绘椂闀匡紙姣锛?
+        /// 调度参数
+        /// Delayed: 延迟时间（毫秒）
+        /// Periodic: 周期间隔（毫秒）
+        /// Timeline: 时间线总时长（毫秒）
         /// </summary>
         public readonly float ScheduleParam;
 
         /// <summary>
-        /// 鏈€澶ф墽琛屾鏁帮紙-1=鏃犻檺锛屼粎瀵?Periodic/Delayed 鏈夋晥锛?
+        /// 最大执行次数（-1=无限，仅对 Periodic/Delayed 有效）
         /// </summary>
         public readonly int MaxExecutions;
 
         /// <summary>
-        /// 鏄惁鍙涓柇锛堟寔缁涓烘湁鏁堬級
+        /// 是否可被中断（持续行为有效）
         /// </summary>
         public readonly bool CanBeInterrupted;
 
         /// <summary>
-        /// 鎵ц绛栫暐锛堝崟娆℃墽琛岀殑绾︽潫锛?
+        /// 执行策略（单次执行的约束）
         /// </summary>
         public readonly Config.EActionExecutionPolicy ExecutionPolicy;
 
         /// <summary>
-        /// WithRetry 绛栫暐鐨勬渶澶ч噸璇曟鏁般€?
+        /// WithRetry 策略的最大重试次数。
         /// </summary>
         public readonly int RetryMaxRetries;
 
         /// <summary>
-        /// WithRetry 绛栫暐鐨勫崟娆￠噸璇曞欢杩燂紙姣锛夈€? 琛ㄧず鍚屽抚绔嬪嵆閲嶈瘯銆?
+        /// WithRetry 策略的单次重试延迟（毫秒）。0 表示同帧立即重试。
         /// </summary>
         public readonly float RetryDelayMs;
 
         /// <summary>
-        /// 鍒涘缓鏃犲弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建无参数的动作调用（默认 Immediate）
         /// </summary>
         public ActionCallPlan(ActionId id)
         {
@@ -133,7 +133,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹀弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建带参数的动作调用（默认 Immediate）
         /// </summary>
         public ActionCallPlan(ActionId id, NumericValueRef arg0, NumericValueRef arg1 = default, NumericValueRef arg2 = default)
         {
@@ -176,7 +176,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹀父閲忓弬鏁扮殑鍔ㄤ綔璋冪敤锛堥粯璁?Immediate锛?
+        /// 创建带常量参数的动作调用（默认 Immediate）
         /// </summary>
         public ActionCallPlan(ActionId id, params double[] constArgs)
         {
@@ -220,7 +220,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯︽湁鍏峰悕鍙傛暟鐨?ActionCallPlan锛堥粯璁?Immediate锛?
+        /// 创建带有具名参数的 ActionCallPlan（默认 Immediate）
         /// </summary>
         public static ActionCallPlan WithArgs(ActionId id, Dictionary<string, ActionArgValue> args)
         {
@@ -244,7 +244,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鏄惁浣跨敤浜嗗叿鍚嶅弬鏁版ā寮?
+        /// 是否使用了具名参数模式
         /// </summary>
         public bool HasNamedArgs => Arguments.HasNamedArgs;
 
@@ -255,7 +255,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public ActionExecutionPlan Execution => new ActionExecutionPlan(ExecutionPolicy, RetryMaxRetries, RetryDelayMs);
 
         /// <summary>
-        /// 瀹屾暣鏋勯€犲嚱鏁帮紙鐢ㄤ簬鎵╁睍鏂规硶鍒涘缓淇敼鍚庣殑鍓湰锛?
+        /// 完整构造函数（用于扩展方法创建修改后的副本）
         /// </summary>
         public ActionCallPlan(
             ActionId id,

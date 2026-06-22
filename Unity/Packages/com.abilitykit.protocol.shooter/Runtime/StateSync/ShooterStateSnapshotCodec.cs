@@ -55,7 +55,9 @@ namespace AbilityKit.Protocol.Shooter
     public enum ShooterEventType
     {
         Hit = 1,
-        Fire = 2
+        Fire = 2,
+        MatchVictory = 3,
+        MatchDefeat = 4
     }
 
     [MemoryPackable]

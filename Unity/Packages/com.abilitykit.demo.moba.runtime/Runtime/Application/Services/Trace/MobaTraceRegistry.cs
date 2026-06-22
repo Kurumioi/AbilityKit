@@ -8,49 +8,23 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaTraceRegistry))]
     public sealed class MobaTraceRegistry : TraceTreeRegistry<MobaTraceMetadata>, IService
     {
+        private readonly IMobaTraceEndpointResolver _endpoints;
+        private readonly IMobaTraceWriter _writer;
+        private readonly IMobaTraceLifecycle _lifecycle;
+        private readonly IMobaTraceQuery _query;
+
         public MobaTraceRegistry()
             : base(new DictionaryTraceMetadataStore<MobaTraceMetadata>())
         {
+            _endpoints = new MobaTraceEndpointResolver();
+            _writer = new MobaTraceWriter(this);
+            _lifecycle = new MobaTraceLifecycle(this);
+            _query = new MobaTraceQuery(this);
         }
 
         public TraceEndpoint ResolveEndpoint(MobaTraceKind kind, int configId)
         {
-            switch (kind)
-            {
-                case MobaTraceKind.SkillPhase:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Skill, configId);
-                case MobaTraceKind.EffectExecution:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Effect, configId);
-                case MobaTraceKind.EffectAction:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Action, configId);
-                case MobaTraceKind.BuffApply:
-                case MobaTraceKind.BuffTick:
-                case MobaTraceKind.BuffRemove:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Buff, configId);
-                case MobaTraceKind.ProjectileLaunch:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Projectile, configId);
-                case MobaTraceKind.ProjectileHit:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.ProjectileHit, configId);
-                case MobaTraceKind.AreaSpawn:
-                case MobaTraceKind.AreaExpire:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Area, configId);
-                case MobaTraceKind.AreaEnter:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.AreaEnter, configId);
-                case MobaTraceKind.SummonSpawn:
-                case MobaTraceKind.SummonDeath:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Summon, configId);
-                case MobaTraceKind.PresentationPlay:
-                case MobaTraceKind.PresentationStop:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Presentation, configId);
-                case MobaTraceKind.DamageAttack:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.DamageAttack, configId);
-                case MobaTraceKind.DamageCalc:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.DamageCalc, configId);
-                case MobaTraceKind.DamageApply:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.DamageResult, configId);
-                default:
-                    return TraceEndpoint.Config(MobaRuntimeKindNames.Action, configId);
-            }
+            return _endpoints.ResolveEndpoint(kind, configId);
         }
 
         public long CreateRootContext(
@@ -61,7 +35,7 @@ namespace AbilityKit.Demo.Moba.Services
             object originSource = null,
             object originTarget = null)
         {
-            return CreateRoot((int)kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+            return _writer.CreateRootContext(kind, configId, sourceActorId, targetActorId, originSource, originTarget);
         }
 
         public long CreateChildContext(
@@ -73,17 +47,17 @@ namespace AbilityKit.Demo.Moba.Services
             object originSource = null,
             object originTarget = null)
         {
-            return CreateChild(parentContextId, (int)kind, sourceActorId, targetActorId, originSource, originTarget, configId);
+            return _writer.CreateChildContext(parentContextId, kind, configId, sourceActorId, targetActorId, originSource, originTarget);
         }
 
         public bool EndContext(long contextId, TraceLifecycleReason reason)
         {
-            return End(contextId, (int)reason);
+            return _lifecycle.EndContext(contextId, reason);
         }
 
         public bool EndContext(long contextId, int reason = 0)
         {
-            return End(contextId, reason);
+            return _lifecycle.EndContext(contextId, reason);
         }
 
         public TraceRootScope CreateEffectRoot(
@@ -93,14 +67,7 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId,
             EffectContextKind contextKind)
         {
-            var configId = effectConfigId > 0 ? effectConfigId : triggerPlanId;
-            return this.CreateRootScope(
-                (int)MobaTraceKind.EffectExecution,
-                sourceActorId,
-                targetActorId,
-                TraceEndpoint.Config(MobaRuntimeKindNames.Effect, configId),
-                TraceEndpoint.Actor(targetActorId),
-                configId);
+            return _writer.CreateEffectRoot(effectConfigId, triggerPlanId, sourceActorId, targetActorId, contextKind);
         }
 
         public TraceTreeScope CreateActionChild(
@@ -109,30 +76,17 @@ namespace AbilityKit.Demo.Moba.Services
             int sourceActorId,
             int targetActorId)
         {
-            return this.CreateChildScope(
-                parentRootId,
-                (int)MobaTraceKind.EffectAction,
-                sourceActorId,
-                targetActorId,
-                TraceEndpoint.Config(MobaRuntimeKindNames.Action, actionId),
-                TraceEndpoint.Actor(targetActorId),
-                actionId);
+            return _writer.CreateActionChild(parentRootId, actionId, sourceActorId, targetActorId);
         }
 
         public List<TraceSnapshot<MobaTraceMetadata>> GetChain(long rootId)
         {
-            var list = new List<TraceSnapshot<MobaTraceMetadata>>();
-            foreach (var snapshot in GetNodesByRoot(rootId))
-            {
-                list.Add(snapshot);
-            }
-
-            return list;
+            return _query.GetChain(rootId);
         }
 
         public bool ValidateChain(long rootId)
         {
-            return Contains(rootId);
+            return _query.ValidateChain(rootId);
         }
 
         public override string GetKindName(int kind)

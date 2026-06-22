@@ -16,6 +16,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterEntityLimitOptions _limits;
         private readonly HashSet<int> _playerIds = new HashSet<int>();
         private readonly HashSet<int> _projectileIds = new HashSet<int>();
+        private int _structuralChangeDepth;
+        private bool _hasPendingStructuralChanges;
 
         public ShooterEntityManager(ISveltoWorldContext context)
             : this(context, ShooterEntityLimitOptions.Default)
@@ -60,8 +62,41 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             if (removed)
             {
-                _context.SubmitEntities();
+                SubmitStructuralChanges();
             }
+        }
+
+        public void BeginStructuralChanges()
+        {
+            _structuralChangeDepth++;
+        }
+
+        public void EndStructuralChanges()
+        {
+            if (_structuralChangeDepth <= 0)
+            {
+                _structuralChangeDepth = 0;
+                SubmitStructuralChanges();
+                return;
+            }
+
+            _structuralChangeDepth--;
+            if (_structuralChangeDepth == 0 && _hasPendingStructuralChanges)
+            {
+                SubmitStructuralChanges();
+            }
+        }
+
+        public void SubmitStructuralChanges()
+        {
+            if (_structuralChangeDepth > 0)
+            {
+                _hasPendingStructuralChanges = true;
+                return;
+            }
+
+            _hasPendingStructuralChanges = false;
+            _context.SubmitEntities();
         }
 
         public bool HasPlayer(int playerId)
@@ -107,7 +142,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoPlayerDescriptor>((uint)player.PlayerId, ShooterSveltoGroups.Players);
             initializer.Init(player);
             _playerIds.Add(player.PlayerId);
-            _context.SubmitEntities();
+            SubmitStructuralChanges();
         }
 
         public void SetPlayer(in ShooterSveltoPlayerComponent player)
@@ -139,7 +174,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoPlayerDescriptor>((uint)playerId, ShooterSveltoGroups.Players);
-            _context.SubmitEntities();
+            SubmitStructuralChanges();
         }
 
         public bool HasProjectile(int bulletId)
@@ -185,7 +220,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var initializer = _context.EntityFactory.BuildEntity<ShooterSveltoProjectileDescriptor>((uint)projectile.BulletId, ShooterSveltoGroups.Projectiles);
             initializer.Init(projectile);
             _projectileIds.Add(projectile.BulletId);
-            _context.SubmitEntities();
+            SubmitStructuralChanges();
         }
 
         public void SetProjectile(in ShooterSveltoProjectileComponent projectile)
@@ -217,7 +252,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoProjectileDescriptor>((uint)bulletId, ShooterSveltoGroups.Projectiles);
-            _context.SubmitEntities();
+            SubmitStructuralChanges();
         }
 
         private bool IsEntityBudgetFull()

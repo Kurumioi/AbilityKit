@@ -1,0 +1,14 @@
+[
+  {
+    "Id": 2001,
+    "Name": "被动技能-狂暴",
+    "CooldownMs": 0,
+    "TriggerIds": [3001]
+  },
+  {
+    "Id": 2002,
+    "Name": "被动技能-护盾",
+    "CooldownMs": 10000,
+    "TriggerIds": [3002]
+  }
+]

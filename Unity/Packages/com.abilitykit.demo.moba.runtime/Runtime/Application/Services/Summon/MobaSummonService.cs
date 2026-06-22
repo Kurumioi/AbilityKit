@@ -514,7 +514,16 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
                 ? sourceOrigin.WithActors(casterActorId, summonActorId)
-                : MobaGameplayOrigin.FromLegacy(casterActorId, summonActorId, MobaTraceKind.SummonSpawn, summonId, 0);
+                : new MobaGameplayOrigin(
+                    casterActorId,
+                    summonActorId,
+                    MobaTraceKind.SummonSpawn,
+                    summonId,
+                    0,
+                    0,
+                    0,
+                    0,
+                    default);
 
             var parentContextId = origin.EffectiveParentContextId;
             var spawnContextId = 0L;

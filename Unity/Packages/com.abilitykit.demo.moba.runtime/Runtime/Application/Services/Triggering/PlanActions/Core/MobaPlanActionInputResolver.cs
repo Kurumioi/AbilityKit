@@ -1,5 +1,4 @@
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Mathematics;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -36,44 +35,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public static MobaEffectActionInput ResolveEffect(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);
-            return new MobaEffectActionInput(in core);
+            return MobaPlanActionInputAssembler.AssembleEffect(in core);
         }
-
+ 
         public static MobaProjectileActionInput ResolveProjectile(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);
-            var effect = new MobaEffectActionInput(in core);
-            return new MobaProjectileActionInput(in effect, in core);
+            return MobaPlanActionInputAssembler.AssembleProjectile(in core);
         }
-
+ 
         public static MobaSummonActionInput ResolveSummon(object triggerArgs, ExecCtx<IWorldResolver> ctx)
         {
             var core = Resolve(triggerArgs, ctx);
-            var effect = new MobaEffectActionInput(in core);
-            ctx.Context.TryResolve<MobaActorLookupService>(out var actors);
-            return new MobaSummonActionInput(in effect, in core, actors);
+            return MobaPlanActionInputAssembler.AssembleSummon(in core, ctx);
         }
 
         private static MobaPlanActionInput Create(object triggerArgs, ExecCtx<IWorldResolver> ctx, in MobaCombatExecutionContext executionContext)
         {
-            MobaPlanActionExecutionContextResolver.TryResolveTraceScope(ctx, out var traceScope);
-
-            var casterActorId = executionContext.SourceActorId;
-            var targetActorId = executionContext.TargetActorId;
-            var aimPosition = Vec3.Zero;
-            var aimDirection = Vec3.Zero;
-            var hasAimPosition = false;
-            var hasAimDirection = false;
-
-            return new MobaPlanActionInput(
-                executionContext,
-                traceScope,
-                casterActorId,
-                targetActorId,
-                aimPosition,
-                aimDirection,
-                hasAimPosition,
-                hasAimDirection);
+            return MobaPlanActionInputAssembler.Assemble(triggerArgs, ctx, in executionContext);
         }
     }
 }

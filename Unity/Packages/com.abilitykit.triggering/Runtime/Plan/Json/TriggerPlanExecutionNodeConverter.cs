@@ -13,8 +13,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     internal sealed class TriggerPlanExecutionNodeConverter
     {
         private readonly TriggerPlanConverter _context;
+        private readonly TriggerPlanExecutionNodeReferenceResolver _referenceResolver = new TriggerPlanExecutionNodeReferenceResolver();
         private static readonly Dictionary<ETriggerPlanExecutableKind, ExecutionNodeConverterBase> _executionNodeConverters = BuildExecutionNodeConverters();
-        private HashSet<string> _executionNodeResolving;
 
         public TriggerPlanExecutionNodeConverter(TriggerPlanConverter context)
         {
@@ -28,34 +28,25 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return null;
             }
 
-            var previousExecutionNodeResolving = _executionNodeResolving;
-            _executionNodeResolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            try
+            var explicitRoot = ConvertExecutionNode(dto.ExecutionRoot, databaseDto);
+            if (explicitRoot != null)
             {
-                var explicitRoot = ConvertExecutionNode(dto.ExecutionRoot, databaseDto);
-                if (explicitRoot != null)
-                {
-                    return explicitRoot;
-                }
-
-                var actions = _context.ConvertActions(dto.Actions);
-                if (actions.Length == 0)
-                {
-                    return null;
-                }
-
-                var children = new ITriggerPlanExecutable[actions.Length];
-                for (int i = 0; i < actions.Length; i++)
-                {
-                    children[i] = new ActionCallTriggerPlanExecutable(actions[i]);
-                }
-
-                return new SequenceTriggerPlanExecutable(children);
+                return explicitRoot;
             }
-            finally
+
+            var actions = _context.ConvertActions(dto.Actions);
+            if (actions.Length == 0)
             {
-                _executionNodeResolving = previousExecutionNodeResolving;
+                return null;
             }
+
+            var children = new ITriggerPlanExecutable[actions.Length];
+            for (int i = 0; i < actions.Length; i++)
+            {
+                children[i] = new ActionCallTriggerPlanExecutable(actions[i]);
+            }
+
+            return new SequenceTriggerPlanExecutable(children);
         }
 
         private ITriggerPlanExecutable ConvertExecutionNode(TriggerPlanJsonDatabase.ExecutionNodeDto dto, TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
@@ -66,7 +57,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             var resolvingKeys = new List<string>();
-            dto = ResolveExecutionNodeReference(dto, databaseDto, resolvingKeys);
+            dto = _referenceResolver.Resolve(dto, databaseDto, resolvingKeys);
             try
             {
                 if (!Enum.TryParse<ETriggerPlanExecutableKind>(NormalizeKind(dto.Kind), true, out var kind))
@@ -83,7 +74,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
             finally
             {
-                EndResolveExecutionNodeReference(resolvingKeys);
+                _referenceResolver.EndResolve(resolvingKeys);
             }
         }
 
@@ -111,143 +102,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             return children.Length == 1 ? children[0] : new SequenceTriggerPlanExecutable(children);
-        }
-
-        private static Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> BuildExecutionNodeCatalog(Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> catalog)
-        {
-            if (catalog == null || catalog.Count == 0)
-            {
-                return null;
-            }
-
-            return new Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto>(catalog, StringComparer.OrdinalIgnoreCase);
-        }
-
-        private TriggerPlanJsonDatabase.ExecutionNodeDto ResolveExecutionNodeReference(
-            TriggerPlanJsonDatabase.ExecutionNodeDto dto,
-            TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto,
-            List<string> resolvingKeys)
-        {
-            var behaviorCatalog = BuildExecutionNodeCatalog(databaseDto?.Behaviors);
-            var nodeCatalog = BuildExecutionNodeCatalog(databaseDto?.Nodes);
-
-            while (dto != null && TryGetExecutionNodeReference(dto, out var id, out var kind))
-            {
-                var key = kind + ":" + id;
-                if (_executionNodeResolving == null)
-                {
-                    _executionNodeResolving = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                }
-
-                if (!_executionNodeResolving.Add(key))
-                {
-                    throw new InvalidOperationException($"Cyclic execution node reference detected: {key}");
-                }
-
-                resolvingKeys?.Add(key);
-                dto = ResolveExecutionNodeReferenceTarget(id, kind, behaviorCatalog, nodeCatalog);
-            }
-
-            return dto;
-        }
-
-        private static TriggerPlanJsonDatabase.ExecutionNodeDto ResolveExecutionNodeReferenceTarget(
-            string id,
-            string kind,
-            Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> behaviorCatalog,
-            Dictionary<string, TriggerPlanJsonDatabase.ExecutionNodeDto> nodeCatalog)
-        {
-            if (string.Equals(kind, "behavior", StringComparison.OrdinalIgnoreCase))
-            {
-                if (behaviorCatalog != null && behaviorCatalog.TryGetValue(id, out var behavior) && behavior != null)
-                {
-                    return behavior;
-                }
-
-                throw new InvalidOperationException($"Behavior reference not found: {id}");
-            }
-
-            if (string.Equals(kind, "node", StringComparison.OrdinalIgnoreCase))
-            {
-                if (nodeCatalog != null && nodeCatalog.TryGetValue(id, out var node) && node != null)
-                {
-                    return node;
-                }
-
-                throw new InvalidOperationException($"Node reference not found: {id}");
-            }
-
-            if (behaviorCatalog != null && behaviorCatalog.TryGetValue(id, out var behaviorRef) && behaviorRef != null)
-            {
-                return behaviorRef;
-            }
-
-            if (nodeCatalog != null && nodeCatalog.TryGetValue(id, out var nodeRef) && nodeRef != null)
-            {
-                return nodeRef;
-            }
-
-            throw new InvalidOperationException($"Execution node reference not found: {id}");
-        }
-
-        private static bool TryGetExecutionNodeReference(TriggerPlanJsonDatabase.ExecutionNodeDto dto, out string id, out string kind)
-        {
-            id = null;
-            kind = null;
-            if (dto == null)
-            {
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(dto.BehaviorRef))
-            {
-                id = dto.BehaviorRef;
-                kind = "behavior";
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(dto.BehaviorId))
-            {
-                id = dto.BehaviorId;
-                kind = "behavior";
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(dto.NodeRef))
-            {
-                id = dto.NodeRef;
-                kind = "node";
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(dto.NodeId))
-            {
-                id = dto.NodeId;
-                kind = "node";
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(dto.Ref))
-            {
-                id = dto.Ref;
-                kind = "any";
-                return true;
-            }
-
-            return false;
-        }
-
-        private void EndResolveExecutionNodeReference(List<string> resolvingKeys)
-        {
-            if (resolvingKeys == null || _executionNodeResolving == null)
-            {
-                return;
-            }
-
-            for (int i = resolvingKeys.Count - 1; i >= 0; i--)
-            {
-                _executionNodeResolving.Remove(resolvingKeys[i]);
-            }
         }
 
         private static Dictionary<ETriggerPlanExecutableKind, ExecutionNodeConverterBase> BuildExecutionNodeConverters()

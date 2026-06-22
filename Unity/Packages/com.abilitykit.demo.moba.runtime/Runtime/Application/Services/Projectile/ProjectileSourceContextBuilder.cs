@@ -123,10 +123,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             if (!_origin.IsValid)
             {
-                _origin = MobaGameplayOriginBuilder.Create()
-                    .FromLegacy(_sourceActorId, _initialTargetActorId, MobaTraceKind.ProjectileLaunch, _projectileConfigId, _sourceContextId)
-                    .WithSkillRuntime(in _skillRuntimeHandle)
-                    .Build();
+                _origin = new MobaGameplayOrigin(
+                    _sourceActorId,
+                    _initialTargetActorId,
+                    MobaTraceKind.ProjectileLaunch,
+                    _projectileConfigId,
+                    _sourceContextId,
+                    _sourceContextId,
+                    _rootContextId != 0 ? _rootContextId : _sourceContextId,
+                    _ownerContextId != 0 ? _ownerContextId : _sourceContextId,
+                    _skillRuntimeHandle);
             }
 
             if (!_skillRuntimeHandle.IsValid && _origin.SkillRuntimeHandle.IsValid)

@@ -40,7 +40,15 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
-            origin = MobaGameplayOrigin.FromLegacy(OwnerActorId, TargetActorId, traceKind, TemplateId, SourceContextId);
+            origin = new MobaGameplayOrigin(
+                OwnerActorId,
+                TargetActorId,
+                traceKind,
+                TemplateId,
+                SourceContextId,
+                SourceContextId,
+                SourceContextId,
+                SourceContextId);
             return origin.IsValid;
         }
 

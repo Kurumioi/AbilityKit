@@ -59,7 +59,10 @@ namespace AbilityKit.Demo.Moba.Events.Unit
 
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
-            origin = MobaGameplayOrigin.FromLegacy(ActorId, ActorId, TraceKind, TemplateId, 0);
+            origin = MobaGameplayOriginBuilder.Create()
+                .WithActors(ActorId, ActorId)
+                .WithImmediate(TraceKind, TemplateId, 0)
+                .Build();
             return origin.IsValid;
         }
 

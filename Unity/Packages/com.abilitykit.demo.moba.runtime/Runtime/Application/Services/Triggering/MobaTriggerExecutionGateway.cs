@@ -199,10 +199,13 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             _diagnostics?.Counter("moba.trigger.direct.requested");
             if (_effects == null)
             {
-                RecordWarning("moba.trigger.direct.missingEffects", $"[MobaTriggerExecutionGateway] direct trigger ignored because effect execution service is missing. triggerId={request.TriggerId} source={request.Source} payloadType={request.PayloadTypeName}");
                 Stats = Stats.WithDirectMissingService();
                 _diagnostics?.Counter("moba.trigger.direct.missingEffects");
-                return;
+                MobaRuntimeGuard.ThrowRequired(
+                    nameof(MobaTriggerExecutionGateway),
+                    "trigger.direct.execute",
+                    nameof(MobaEffectExecutionService),
+                    $"triggerId={request.TriggerId} source={request.Source} payloadType={request.PayloadTypeName}");
             }
 
             _effects.ExecuteTrigger(in request);
@@ -224,10 +227,13 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             _diagnostics?.Sample("moba.trigger.owner.apply.count", triggerCount);
             if (_subscriptions == null)
             {
-                RecordWarning("moba.trigger.owner.apply.missingSubscriptions", $"[MobaTriggerExecutionGateway] owner-bound triggers ignored because subscription service is missing. ownerKey={ownerKey} triggerCount={triggerCount} source={source}");
                 Stats = Stats.WithOwnerMissingService();
                 _diagnostics?.Counter("moba.trigger.owner.apply.missingSubscriptions");
-                return;
+                MobaRuntimeGuard.ThrowRequired(
+                    nameof(MobaTriggerExecutionGateway),
+                    "trigger.owner.apply",
+                    nameof(MobaTriggerPlanSubscriptionService),
+                    $"ownerKey={ownerKey} triggerCount={triggerCount} source={source}");
             }
 
             _subscriptions.ApplyTriggers(triggerIds, ownerKey);
@@ -247,10 +253,13 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             _diagnostics?.Counter("moba.trigger.owner.stop.requested");
             if (_subscriptions == null)
             {
-                RecordWarning("moba.trigger.owner.stop.missingSubscriptions", $"[MobaTriggerExecutionGateway] owner-bound stop ignored because subscription service is missing. ownerKey={ownerKey} source={source}");
                 Stats = Stats.WithOwnerMissingService();
                 _diagnostics?.Counter("moba.trigger.owner.stop.missingSubscriptions");
-                return;
+                MobaRuntimeGuard.ThrowRequired(
+                    nameof(MobaTriggerExecutionGateway),
+                    "trigger.owner.stop",
+                    nameof(MobaTriggerPlanSubscriptionService),
+                    $"ownerKey={ownerKey} source={source}");
             }
 
             _subscriptions.Stop(ownerKey);

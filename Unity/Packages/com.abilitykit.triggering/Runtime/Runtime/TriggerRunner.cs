@@ -23,14 +23,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly ITriggerObserver<TCtx> _observer;
         private readonly ITriggerLifecycle<TCtx> _lifecycle;
 
-        private readonly FunctionRegistry _functions;
-        private readonly ActionRegistry _actions;
-        private readonly IBlackboardResolver _blackboards;
-        private readonly IPayloadAccessorRegistry _payloads;
-        private readonly IIdNameRegistry _idNames;
-        private readonly INumericVarDomainRegistry _numericDomains;
-        private readonly INumericRpnFunctionRegistry _numericFunctions;
-        private readonly ExecPolicy _policy;
+        private readonly TriggerRunnerRuntimeServices<TCtx> _runtimeServices;
         private readonly EInterruptPolicy _interruptPolicy;
         private readonly ActionSchedulerManager _actionSchedulerManager;
 
@@ -55,17 +48,21 @@ namespace AbilityKit.Triggering.Runtime
             ActionSchedulerManager actionSchedulerManager = null)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
-            _functions = functions ?? throw new ArgumentNullException(nameof(functions));
-            _actions = actions ?? throw new ArgumentNullException(nameof(actions));
+            if (functions == null) throw new ArgumentNullException(nameof(functions));
+            if (actions == null) throw new ArgumentNullException(nameof(actions));
             _contextSource = contextSource;
             _observer = observer ?? NullTriggerObserver<TCtx>.Instance;
             _lifecycle = lifecycle ?? NullTriggerLifecycle<TCtx>.Instance;
-            _blackboards = blackboards;
-            _payloads = payloads;
-            _idNames = idNames;
-            _numericDomains = numericDomains;
-            _numericFunctions = numericFunctions;
-            _policy = policy;
+            _runtimeServices = new TriggerRunnerRuntimeServices<TCtx>(
+                _eventBus,
+                functions,
+                actions,
+                blackboards,
+                payloads,
+                idNames,
+                numericDomains,
+                numericFunctions,
+                policy);
             _interruptPolicy = interruptPolicy;
             _actionSchedulerManager = actionSchedulerManager ?? new ActionSchedulerManager();
         }
@@ -77,29 +74,29 @@ namespace AbilityKit.Triggering.Runtime
             var list = GetOrCreateTriggerList<TArgs>();
             if (!list.TryGetValue(key, out var triggers))
             {
-                triggers = new List<Entry<TArgs>>(4);
+                triggers = new List<TriggerRunnerEntry<TArgs, TCtx>>(4);
                 list.Add(key, triggers);
                 EnsureSubscribed(key, list);
             }
 
-            var entry = new Entry<TArgs>(phase, priority, _registrationOrder++, trigger);
-            InsertSorted(triggers, entry);
+            var entry = new TriggerRunnerEntry<TArgs, TCtx>(phase, priority, _registrationOrder++, trigger);
+            TriggerRunnerEntryList.InsertSorted(triggers, entry);
             _lifecycle.OnRegistered(key, trigger, phase, priority, entry.Order);
             var subscription = GetSubscription<TArgs>(key);
-            return new Registration<TArgs>(triggers, entry, this, key, subscription);
+            return new TriggerRunnerRegistration<TArgs, TCtx>(triggers, entry, key, subscription, _lifecycle, TryUnsubscribe);
         }
 
-        private Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> GetOrCreateTriggerList<TArgs>()
+        private Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> GetOrCreateTriggerList<TArgs>()
         {
             var type = typeof(TArgs);
-            if (_triggerListsByArgsType.TryGetValue(type, out var obj)) return (Dictionary<EventKey<TArgs>, List<Entry<TArgs>>>)obj;
+            if (_triggerListsByArgsType.TryGetValue(type, out var obj)) return (Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>>)obj;
 
-            var dict = new Dictionary<EventKey<TArgs>, List<Entry<TArgs>>>();
+            var dict = new Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>>();
             _triggerListsByArgsType.Add(type, dict);
             return dict;
         }
 
-        private void EnsureSubscribed<TArgs>(EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
+        private void EnsureSubscribed<TArgs>(EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> list)
         {
             var type = typeof(TArgs);
             var dispatcher = new Dispatcher<TArgs>(this, key, list);
@@ -142,7 +139,7 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
-        private void Dispatch<TArgs>(EventKey<TArgs> key, in TArgs args, ExecutionControl control, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
+        private void Dispatch<TArgs>(EventKey<TArgs> key, in TArgs args, ExecutionControl control, Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> list)
         {
             if (!list.TryGetValue(key, out var triggers) || triggers.Count == 0) return;
 
@@ -206,19 +203,7 @@ namespace AbilityKit.Triggering.Runtime
         private ExecCtx<TCtx> CreateExecCtx(ExecutionControl control)
         {
             var ctx = _contextSource != null ? _contextSource.GetContext() : default;
-            return new ExecCtx<TCtx>(
-                ctx,
-                _eventBus,
-                _functions,
-                _actions,
-                _blackboards,
-                _payloads,
-                _idNames,
-                _numericDomains,
-                _numericFunctions,
-                _policy,
-                control,
-                _actionSchedulerManager);
+            return _runtimeServices.CreateExecCtx(ctx, control, _actionSchedulerManager);
         }
 
         /// <summary>
@@ -227,7 +212,7 @@ namespace AbilityKit.Triggering.Runtime
         private bool TryHandlePriorityBlock<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -260,7 +245,7 @@ namespace AbilityKit.Triggering.Runtime
         private DispatchEvaluationResult EvaluateEntry<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -294,7 +279,7 @@ namespace AbilityKit.Triggering.Runtime
         private void NotifyEvaluationException<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx,
             Exception ex)
@@ -322,7 +307,7 @@ namespace AbilityKit.Triggering.Runtime
         private void NotifyConditionPassed<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -347,7 +332,7 @@ namespace AbilityKit.Triggering.Runtime
         private void NotifyConditionFailed<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -375,7 +360,7 @@ namespace AbilityKit.Triggering.Runtime
         private bool HandleConditionRejected<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -404,7 +389,7 @@ namespace AbilityKit.Triggering.Runtime
         private bool ExecuteEntry<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx,
             out bool wasInterrupted)
@@ -445,7 +430,7 @@ namespace AbilityKit.Triggering.Runtime
             return true;
         }
 
-        private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in Entry<TArgs> entry, in ExecCtx<TCtx> execCtx)
+        private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in TriggerRunnerEntry<TArgs, TCtx> entry, in ExecCtx<TCtx> execCtx)
         {
             try
             {
@@ -462,7 +447,7 @@ namespace AbilityKit.Triggering.Runtime
         private bool TryHandleHardStop<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx)
         {
@@ -489,7 +474,7 @@ namespace AbilityKit.Triggering.Runtime
         private void NotifyShortCircuit<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             ExecutionControl control,
             in ExecCtx<TCtx> execCtx,
             ShortCircuitReason reason,
@@ -527,7 +512,7 @@ namespace AbilityKit.Triggering.Runtime
         private void NotifyActionFailed<TArgs>(
             EventKey<TArgs> key,
             in TArgs args,
-            in Entry<TArgs> entry,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
             in ExecCtx<TCtx> execCtx,
             string actionName,
             int actionIndex,
@@ -583,56 +568,13 @@ namespace AbilityKit.Triggering.Runtime
             return TriggerRunnerCueDispatcher.MapReason(reason);
         }
 
-        private static void InsertSorted<TArgs>(List<Entry<TArgs>> list, Entry<TArgs> entry)
-        {
-            for (int i = 0; i < list.Count; i++)
-            {
-                var other = list[i];
-                if (entry.Phase < other.Phase)
-                {
-                    list.Insert(i, entry);
-                    return;
-                }
-
-                if (entry.Phase == other.Phase && entry.Priority < other.Priority)
-                {
-                    list.Insert(i, entry);
-                    return;
-                }
-
-                if (entry.Phase == other.Phase && entry.Priority == other.Priority && entry.Order < other.Order)
-                {
-                    list.Insert(i, entry);
-                    return;
-                }
-            }
-
-            list.Add(entry);
-        }
-
-        private readonly struct Entry<TArgs>
-        {
-            public readonly int Phase;
-            public readonly int Priority;
-            public readonly long Order;
-            public readonly ITrigger<TArgs, TCtx> Trigger;
-
-            public Entry(int phase, int priority, long order, ITrigger<TArgs, TCtx> trigger)
-            {
-                Phase = phase;
-                Priority = priority;
-                Order = order;
-                Trigger = trigger;
-            }
-        }
-
         private sealed class Dispatcher<TArgs>
         {
             private readonly TriggerRunner<TCtx> _runner;
             private readonly EventKey<TArgs> _key;
-            private readonly Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> _list;
+            private readonly Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> _list;
 
-            public Dispatcher(TriggerRunner<TCtx> runner, EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<Entry<TArgs>>> list)
+            public Dispatcher(TriggerRunner<TCtx> runner, EventKey<TArgs> key, Dictionary<EventKey<TArgs>, List<TriggerRunnerEntry<TArgs, TCtx>>> list)
             {
                 _runner = runner;
                 _key = key;
@@ -645,62 +587,5 @@ namespace AbilityKit.Triggering.Runtime
             }
         }
 
-            private sealed class Registration<TArgs> : IDisposable
-            {
-                private List<Entry<TArgs>> _list;
-                private Entry<TArgs> _entry;
-                private readonly TriggerRunner<TCtx> _runner;
-                private readonly EventKey<TArgs> _key;
-                private readonly IDisposable _subscription;
-                private bool _disposed;
-
-                public Registration(List<Entry<TArgs>> list, Entry<TArgs> entry, TriggerRunner<TCtx> runner, EventKey<TArgs> key, IDisposable subscription)
-                {
-                    _list = list;
-                    _entry = entry;
-                    _runner = runner;
-                    _key = key;
-                    _subscription = subscription;
-                }
-
-                public void Dispose()
-                {
-                    if (_list == null || _disposed) return;
-                    _disposed = true;
-
-                    // 从列表中移除条目
-                    int removeIndex = -1;
-                    for (int i = 0; i < _list.Count; i++)
-                    {
-                        if (!ReferenceEquals(_list[i].Trigger, _entry.Trigger)) continue;
-                        if (_list[i].Phase != _entry.Phase) continue;
-                        if (_list[i].Priority != _entry.Priority) continue;
-                        if (_list[i].Order != _entry.Order) continue;
-                        removeIndex = i;
-                        break;
-                    }
-
-                    if (removeIndex >= 0)
-                    {
-                        _list.RemoveAt(removeIndex);
-                    }
-
-                    var entry = _entry;
-                    var key = _key;
-                    var runner = _runner;
-                    var subscription = _subscription;
-                    var listWasEmpty = _list.Count == 0;
-                    _list = null;
-                    _entry = default;
-
-                    runner._lifecycle.OnUnregistered(key, entry.Trigger);
-
-                    // 检查列表是否为空，如果为空则取消事件订阅
-                    if (listWasEmpty && subscription != null)
-                    {
-                        runner.TryUnsubscribe(key, subscription);
-                    }
-                }
-            }
     }
 }

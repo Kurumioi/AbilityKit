@@ -8,6 +8,9 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetCombatContextSource(out MobaCombatContextSource source);
     }
 
+    /// <summary>
+    /// Canonical source data for building combat execution context without re-entering payload provider resolution.
+    /// </summary>
     public readonly struct MobaCombatContextSource
     {
         public MobaCombatContextSource(
@@ -42,19 +45,33 @@ namespace AbilityKit.Demo.Moba.Services
             HasLiveRuntime = hasLiveRuntime;
         }
 
+        /// <summary>Normalized context kind for the source payload.</summary>
         public EffectContextKind ContextKind { get; }
+        /// <summary>Trace kind associated with the source payload.</summary>
         public MobaTraceKind TraceKind { get; }
+        /// <summary>Source actor that produced the payload.</summary>
         public int SourceActorId { get; }
+        /// <summary>Target actor referenced by the payload.</summary>
         public int TargetActorId { get; }
+        /// <summary>Source context node used as the attachment point for downstream execution.</summary>
         public long SourceContextId { get; }
+        /// <summary>Known root context for the source chain.</summary>
         public long RootContextId { get; }
+        /// <summary>Ownership context identity propagated through the source chain.</summary>
         public long OwnerContextId { get; }
+        /// <summary>Config identifier for the source payload.</summary>
         public int ConfigId { get; }
+        /// <summary>Trigger identifier when the source is derived from a trigger execution.</summary>
         public int TriggerId { get; }
+        /// <summary>Frame index for runtime correlation.</summary>
         public int Frame { get; }
+        /// <summary>Optional skill runtime handle associated with the source.</summary>
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+        /// <summary>Runtime kind string used for live runtime diagnostics.</summary>
         public string RuntimeKind { get; }
+        /// <summary>Runtime config id used for live runtime diagnostics.</summary>
         public int RuntimeConfigId { get; }
+        /// <summary>Whether the source came from a live runtime instance.</summary>
         public bool HasLiveRuntime { get; }
 
         public bool IsValid => ContextKind != EffectContextKind.Unknown
@@ -148,6 +165,15 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return false;
             }
+ 
+            context = FromSource(payload, in source);
+            return context.HasExecutionSource;
+        }
+
+        public static bool TryFromSource(object payload, in MobaCombatContextSource source, out MobaCombatExecutionContext context)
+        {
+            context = default;
+            if (!source.HasExecutionSource) return false;
 
             context = FromSource(payload, in source);
             return context.HasExecutionSource;

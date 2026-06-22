@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.World.Svelto;
 using Svelto.ECS;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -15,9 +16,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public const int PlayerBotAi = 100;
 
+        public const int EnemyWaveSpawn = 150;
+
         public const int Simulation = 200;
 
-        public const int EnemyWave = 300;
+        public const int EnemyWaveAttack = 300;
+
+        public const int MatchState = 400;
     }
 
     internal sealed class ShooterBattleSveltoStepEngine : IStepGroupEngine<float>
@@ -118,6 +123,62 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public void Step(in float deltaTime)
         {
             _simulation.Tick(deltaTime);
+        }
+    }
+
+    internal sealed class ShooterMatchStateBattleSystem : IShooterBattleSystem
+    {
+        private readonly ShooterBattleState _state;
+        private readonly ISveltoWorldContext _context;
+
+        public ShooterMatchStateBattleSystem(IShooterBattleServiceResolver services)
+        {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
+            _state = services.Resolve<ShooterBattleState>();
+            _context = services.Resolve<ISveltoWorldContext>();
+        }
+
+        public int Order => ShooterBattleSystemOrder.MatchState;
+
+        public string name => nameof(ShooterMatchStateBattleSystem);
+
+        public void Step(in float deltaTime)
+        {
+            if (_state.MatchState != ShooterBattleMatchState.Running)
+            {
+                return;
+            }
+
+            if (_state.VictoryTargetDefeats > 0 && _state.DefeatedEnemies >= _state.VictoryTargetDefeats)
+            {
+                _state.TryCompleteMatch(ShooterBattleMatchState.Victory);
+                return;
+            }
+
+            if (AreAllPlayersDefeated())
+            {
+                _state.TryCompleteMatch(ShooterBattleMatchState.Defeat);
+            }
+        }
+
+        private bool AreAllPlayersDefeated()
+        {
+            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            if (count == 0)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                if (players[i].Alive)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

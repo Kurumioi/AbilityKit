@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId => LineageInput.TargetActorId != 0 ? LineageInput.TargetActorId : Origin.TargetActorId != 0 ? Origin.TargetActorId : ExecutionSnapshot.TargetActorId;
         public long ParentContextId => LineageInput.ParentContextId != 0 ? LineageInput.ParentContextId : Origin.EffectiveParentContextId != 0 ? Origin.EffectiveParentContextId : ExecutionSnapshot.SourceContextId;
         public long RootContextId => LineageInput.EffectiveRootContextId != 0 ? LineageInput.EffectiveRootContextId : Origin.EffectiveRootContextId != 0 ? Origin.EffectiveRootContextId : ExecutionSnapshot.EffectiveRootContextId;
-        public long OwnerContextId => LineageInput.OwnerKey != 0 ? LineageInput.OwnerKey : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
+        public long OwnerContextId => LineageInput.OwnerContextId != 0 ? LineageInput.OwnerContextId : Origin.OwnerContextId != 0 ? Origin.OwnerContextId : ExecutionSnapshot.OwnerContextId;
         public int TriggerId => ExecutionSnapshot.TriggerId;
         public int ConfigId => ExecutionSnapshot.ConfigId;
         public int StackCount => StageSnapshot.StackCount;

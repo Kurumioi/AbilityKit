@@ -1,5 +1,3 @@
-using System.ComponentModel;
-
 namespace AbilityKit.Demo.Moba.Services
 {
     public sealed class MobaGameplayOriginBuilder
@@ -63,24 +61,7 @@ namespace AbilityKit.Demo.Moba.Services
             _immediateContextId = lineageContext.SourceContextId;
             _parentContextId = lineageContext.SourceContextId;
             _rootContextId = lineageContext.RootContextId;
-            _ownerContextId = lineageContext.OwnerKey;
-            return this;
-        }
-
-        /// <summary>
-        /// Compatibility bridge for legacy primitive payloads. Prefer <see cref="FromOrigin"/> or <see cref="FromLineageContext"/> in new code.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public MobaGameplayOriginBuilder FromLegacy(int sourceActorId, int targetActorId, MobaTraceKind kind, int configId, long contextId)
-        {
-            _sourceActorId = sourceActorId;
-            _targetActorId = targetActorId;
-            _immediateKind = kind;
-            _immediateConfigId = configId;
-            _immediateContextId = contextId;
-            _parentContextId = contextId;
-            _rootContextId = contextId;
-            _ownerContextId = contextId;
+            _ownerContextId = lineageContext.OwnerContextId;
             return this;
         }
 

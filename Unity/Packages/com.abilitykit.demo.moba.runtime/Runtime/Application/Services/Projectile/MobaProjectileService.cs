@@ -529,7 +529,16 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         {
             var origin = sourceContext.TryGetOrigin(out var sourceOrigin)
                 ? sourceOrigin.WithActors(sourceActorId, targetActorId)
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId, 0);
+                : new MobaGameplayOrigin(
+                    sourceActorId,
+                    targetActorId,
+                    MobaTraceKind.ProjectileLaunch,
+                    projectileConfigId,
+                    0,
+                    0,
+                    0,
+                    0,
+                    default);
 
             var parentContextId = origin.EffectiveParentContextId;
             var launchContextId = 0L;

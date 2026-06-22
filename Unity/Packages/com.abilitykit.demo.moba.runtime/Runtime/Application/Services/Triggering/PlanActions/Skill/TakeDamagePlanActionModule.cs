@@ -83,7 +83,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 attackerActorId = dr.TargetActorId;
                 targetActorId = dr.AttackerActorId;
                 baseValue = dr.Value;
-                if (!dr.TryGetOrigin(out origin)) origin = MobaGameplayOrigin.FromLegacy(dr.AttackerActorId, dr.TargetActorId, dr.OriginKind, dr.OriginConfigId, dr.OriginContextId);
+                ResolveFormalOrigin(dr, dr.AttackerActorId, dr.TargetActorId, dr.OriginKind, dr.OriginConfigId, dr.OriginContextId, out origin);
                 return attackerActorId > 0 && targetActorId > 0;
             }
 
@@ -92,7 +92,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 attackerActorId = ac.Attack.TargetActorId;
                 targetActorId = ac.Attack.AttackerActorId;
                 baseValue = ac.HpDamage.Value;
-                if (!ac.TryGetOrigin(out origin)) origin = MobaGameplayOrigin.FromLegacy(ac.Attack.AttackerActorId, ac.Attack.TargetActorId, ac.Attack.OriginKind, ac.Attack.OriginConfigId, ac.Attack.OriginContextId);
+                ResolveFormalOrigin(ac, ac.Attack.AttackerActorId, ac.Attack.TargetActorId, ac.Attack.OriginKind, ac.Attack.OriginConfigId, ac.Attack.OriginContextId, out origin);
                 return attackerActorId > 0 && targetActorId > 0;
             }
 
@@ -101,11 +101,38 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 attackerActorId = ai.TargetActorId;
                 targetActorId = ai.AttackerActorId;
                 baseValue = ai.BaseDamage.Value;
-                if (!ai.TryGetOrigin(out origin)) origin = MobaGameplayOrigin.FromLegacy(ai.AttackerActorId, ai.TargetActorId, ai.OriginKind, ai.OriginConfigId, ai.OriginContextId);
+                ResolveFormalOrigin(ai, ai.AttackerActorId, ai.TargetActorId, ai.OriginKind, ai.OriginConfigId, ai.OriginContextId, out origin);
                 return attackerActorId > 0 && targetActorId > 0;
             }
 
             return false;
+        }
+
+        private static bool ResolveFormalOrigin(
+            IMobaOriginContextProvider originProvider,
+            int sourceActorId,
+            int targetActorId,
+            MobaTraceKind originKind,
+            int originConfigId,
+            long originContextId,
+            out MobaGameplayOrigin origin)
+        {
+            if (originProvider != null && originProvider.TryGetOrigin(out origin) && origin.IsValid)
+            {
+                return true;
+            }
+
+            var lineageContext = new MobaTriggerLineageContext(
+                EffectContextKind.Trigger,
+                originKind != MobaTraceKind.None ? originKind : MobaTraceKind.DamageAttack,
+                sourceActorId,
+                targetActorId,
+                originContextId,
+                originContextId,
+                originContextId,
+                originConfigId);
+            origin = MobaGameplayOrigin.FromLineageContext(in lineageContext);
+            return origin.IsValid;
         }
     }
 }

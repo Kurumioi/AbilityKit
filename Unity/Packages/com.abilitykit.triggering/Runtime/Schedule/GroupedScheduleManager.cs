@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;
@@ -21,28 +20,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
     /// </summary>
     public sealed class GroupedScheduleManager : IGroupedScheduleManager
     {
-        // ===== 存储 =====
-
-        private readonly List<ScheduleItemData> _items = new();
-        private readonly List<IScheduleEffect> _effects = new();
-        private readonly List<IScheduleEffectCallbacks> _callbacks = new();
-        private readonly List<LinkedListNode<int>> _itemNodes = new();
-
-        // ===== 分组索引（LinkedList 优化） =====
-
-        private readonly Dictionary<int, LinkedList<int>> _itemsByGroup = new();
-        private readonly HashSet<int> _activeGroups = new();
-
-        // ===== 调度策略 =====
-
+        private readonly GroupedScheduleStore _store = new GroupedScheduleStore();
+        private readonly GroupedScheduleIndex _groupIndex = new GroupedScheduleIndex();
         private readonly IScheduleStrategy _strategy;
 
-        // ===== 统计 =====
-
         public int ActiveCount { get; private set; }
-        public int TotalCount => _items.Count;
-
-        // ===== 构造函数 =====
+        public int TotalCount => _store.Count;
 
         /// <summary>
         /// 创建调度管理器
@@ -53,53 +36,14 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             _strategy = strategy ?? new DefaultScheduleStrategy();
         }
 
-        // ===== IScheduleManager 实现 =====
-
         #region 注册
 
         public ScheduleHandle Register(ScheduleRegisterRequest request, IScheduleEffect effect)
         {
-            if (effect == null)
-                throw new ArgumentNullException(nameof(effect));
-
-            int index = _items.Count;
-
-            // 创建调度项
-            var item = new ScheduleItemData
-            {
-                Handle = new ScheduleHandle(index + 1, index),
-                BusinessId = request.BusinessId,
-                TriggerId = request.TriggerId,
-                State = EScheduleItemState.Registered,
-                Mode = request.Mode,
-                IntervalMs = request.IntervalMs,
-                DelayMs = request.DelayMs,
-                MaxExecutions = request.MaxExecutions,
-                Speed = request.Speed,
-                ElapsedMs = 0,
-                LastExecuteMs = 0,
-                ExecutionCount = 0,
-                CanBeInterrupted = request.CanBeInterrupted,
-                InterruptReason = null
-            };
-
-            _items.Add(item);
-            _effects.Add(effect);
-            _callbacks.Add(effect as IScheduleEffectCallbacks);
-
-            // 添加到分组（LinkedList 优化）
-            int groupId = request.TriggerId;
-            if (!_itemsByGroup.TryGetValue(groupId, out var linkedList))
-            {
-                linkedList = new LinkedList<int>();
-                _itemsByGroup[groupId] = linkedList;
-            }
-            var node = linkedList.AddLast(index);
-            _itemNodes.Add(node);
-
+            var handle = _store.Register(request, effect);
+            _groupIndex.AddItem(request.TriggerId, handle.Index);
             ActiveCount++;
-
-            return item.Handle;
+            return handle;
         }
 
         public ScheduleHandle RegisterPeriodic(float intervalMs, int maxExecutions, int businessId, IScheduleEffect effect)
@@ -136,23 +80,18 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public bool TryGetItem(ScheduleHandle handle, out ScheduleItemData item)
         {
-            if (handle.IsValid && handle.Index >= 0 && handle.Index < _items.Count)
-            {
-                item = _items[handle.Index];
-                return true;
-            }
-            item = default;
-            return false;
+            return _store.TryGetItem(handle, out item);
         }
 
         public List<ScheduleItemData> FindByBusinessId(int businessId)
         {
             var result = new List<ScheduleItemData>();
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                if (_items[i].BusinessId == businessId && !_items[i].IsTerminated)
+                var item = _store[i];
+                if (item.BusinessId == businessId && !item.IsTerminated)
                 {
-                    result.Add(_items[i]);
+                    result.Add(item);
                 }
             }
             return result;
@@ -161,11 +100,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         public List<ScheduleHandle> FindHandlesByBusinessId(int businessId)
         {
             var result = new List<ScheduleHandle>();
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                if (_items[i].BusinessId == businessId && !_items[i].IsTerminated)
+                var item = _store[i];
+                if (item.BusinessId == businessId && !item.IsTerminated)
                 {
-                    result.Add(_items[i].Handle);
+                    result.Add(item.Handle);
                 }
             }
             return result;
@@ -177,10 +117,10 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public bool Modify(ScheduleHandle handle, in ScheduleModifyRequest request)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
@@ -192,45 +132,45 @@ namespace AbilityKit.Triggering.Runtime.Schedule
                 item.DelayMs = request.DelayMs;
                 item.ElapsedMs = 0;
             }
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
 
             return true;
         }
 
         public bool SetSpeed(ScheduleHandle handle, float speed)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
             item.Speed = speed;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
             return true;
         }
 
         public bool SetInterval(ScheduleHandle handle, float intervalMs)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
             item.IntervalMs = intervalMs;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
             return true;
         }
 
         public bool AddExecutions(ScheduleHandle handle, int count)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
@@ -238,7 +178,7 @@ namespace AbilityKit.Triggering.Runtime.Schedule
                 return true;
 
             item.MaxExecutions += count;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
             return true;
         }
 
@@ -248,51 +188,46 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public bool Pause(ScheduleHandle handle)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
             item.State = EScheduleItemState.Paused;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
             return true;
         }
 
         public bool Resume(ScheduleHandle handle)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated || item.State != EScheduleItemState.Paused)
                 return false;
 
-            item.State = item.ElapsedMs >= item.DelayMs
-                ? EScheduleItemState.Running
-                : EScheduleItemState.WaitingDelay;
-            _items[handle.Index] = item;
+            item.State = GetResumedState(item);
+            _store[handle.Index] = item;
             return true;
         }
 
         public bool Interrupt(ScheduleHandle handle, string reason = null)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated || !item.CanBeInterrupted)
                 return false;
 
             item.State = EScheduleItemState.Interrupted;
             item.InterruptReason = reason;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
 
-            // 调用回调
-            var callback = _callbacks[handle.Index];
-            var context = CreateContext(item);
-            callback?.OnInterrupted(context, reason ?? "Unknown");
+            NotifyInterrupted(handle.Index, item, reason);
 
             ActiveCount--;
             return true;
@@ -300,15 +235,15 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public bool Cancel(ScheduleHandle handle)
         {
-            if (!handle.IsValid || handle.Index < 0 || handle.Index >= _items.Count)
+            if (!_store.IsValidHandle(handle))
                 return false;
 
-            var item = _items[handle.Index];
+            var item = _store[handle.Index];
             if (item.IsTerminated)
                 return false;
 
             item.State = EScheduleItemState.Terminated;
-            _items[handle.Index] = item;
+            _store[handle.Index] = item;
 
             ActiveCount--;
             return true;
@@ -316,28 +251,26 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void PauseAll()
         {
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                var item = _items[i];
+                var item = _store[i];
                 if (!item.IsTerminated && item.State != EScheduleItemState.Paused)
                 {
                     item.State = EScheduleItemState.Paused;
-                    _items[i] = item;
+                    _store[i] = item;
                 }
             }
         }
 
         public void ResumeAll()
         {
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                var item = _items[i];
+                var item = _store[i];
                 if (!item.IsTerminated && item.State == EScheduleItemState.Paused)
                 {
-                    item.State = item.ElapsedMs >= item.DelayMs
-                        ? EScheduleItemState.Running
-                        : EScheduleItemState.WaitingDelay;
-                    _items[i] = item;
+                    item.State = GetResumedState(item);
+                    _store[i] = item;
                 }
             }
         }
@@ -345,19 +278,16 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         public int InterruptAll(string reason = null)
         {
             int count = 0;
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                var item = _items[i];
+                var item = _store[i];
                 if (!item.IsTerminated && item.CanBeInterrupted)
                 {
                     item.State = EScheduleItemState.Interrupted;
                     item.InterruptReason = reason;
-                    _items[i] = item;
+                    _store[i] = item;
 
-                    var callback = _callbacks[i];
-                    var context = CreateContext(item);
-                    callback?.OnInterrupted(context, reason ?? "Unknown");
-
+                    NotifyInterrupted(i, item, reason);
                     count++;
                 }
             }
@@ -373,42 +303,32 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         {
             var indicesToRemove = new List<int>();
 
-            for (int i = 0; i < _items.Count; i++)
+            for (int i = 0; i < _store.Count; i++)
             {
-                var item = _items[i];
+                var item = _store[i];
 
-                // 跳过已终止的
                 if (item.IsTerminated)
                 {
                     indicesToRemove.Add(i);
                     continue;
                 }
 
-                // 使用策略更新
-                var executor = new EffectExecutor(_effects[i]);
+                var executor = new EffectExecutor(_store.GetEffect(i));
                 bool shouldRemove = _strategy.OnUpdate(ref item, deltaTimeMs, executor);
-                _items[i] = item;
+                _store[i] = item;
 
                 if (shouldRemove)
                 {
                     item.State = item.State == EScheduleItemState.Interrupted
                         ? EScheduleItemState.Interrupted
                         : EScheduleItemState.Completed;
-                    _items[i] = item;
+                    _store[i] = item;
 
-                    // 调用完成回调
-                    var callback = _callbacks[i];
-                    if (callback != null)
-                    {
-                        var context = CreateContext(item);
-                        callback.OnCompleted(context);
-                    }
-
+                    NotifyCompleted(i, item);
                     indicesToRemove.Add(i);
                 }
             }
 
-            // 清理终止的调度项
             CleanupItems(indicesToRemove);
         }
 
@@ -418,38 +338,23 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void Clear()
         {
-            _items.Clear();
-            _effects.Clear();
-            _callbacks.Clear();
-            _itemsByGroup.Clear();
-            _activeGroups.Clear();
+            _store.Clear();
+            _groupIndex.Clear();
             ActiveCount = 0;
         }
 
         #endregion
 
-        // ===== IGroupedScheduleManager 实现 =====
-
         #region 分组属性
 
         public IReadOnlyList<int> GetActiveGroupIds()
         {
-            return new List<int>(_activeGroups);
+            return _groupIndex.GetActiveGroupIds();
         }
 
         public int GetItemCountByGroup(int groupId)
         {
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
-            {
-                int count = 0;
-                foreach (var index in linkedList)
-                {
-                    if (index < _items.Count && !_items[index].IsTerminated)
-                        count++;
-                }
-                return count;
-            }
-            return 0;
+            return _groupIndex.CountItems(groupId, index => _store.IsValidIndex(index) && !_store[index].IsTerminated);
         }
 
         #endregion
@@ -490,13 +395,13 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         public List<ScheduleItemData> FindByGroupId(int groupId)
         {
             var result = new List<ScheduleItemData>();
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in linkedList)
+                foreach (var index in indices)
                 {
-                    if (index < _items.Count && !_items[index].IsTerminated)
+                    if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
                     {
-                        result.Add(_items[index]);
+                        result.Add(_store[index]);
                     }
                 }
             }
@@ -506,13 +411,13 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         public List<ScheduleHandle> FindHandlesByGroupId(int groupId)
         {
             var result = new List<ScheduleHandle>();
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in linkedList)
+                foreach (var index in indices)
                 {
-                    if (index < _items.Count && !_items[index].IsTerminated)
+                    if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
                     {
-                        result.Add(_items[index].Handle);
+                        result.Add(_store[index].Handle);
                     }
                 }
             }
@@ -525,16 +430,16 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void PauseGroup(int groupId)
         {
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                var indices = new List<int>(linkedList);
                 foreach (var index in indices)
                 {
-                    if (index < 0 || index >= _items.Count) continue;
-                    var item = _items[index];
+                    if (!_store.IsValidIndex(index)) continue;
+                    var item = _store[index];
                     if (!item.IsTerminated && item.State != EScheduleItemState.Paused)
                     {
-                        _items[index] = UpdateItemState(item, EScheduleItemState.Paused);
+                        item.State = EScheduleItemState.Paused;
+                        _store[index] = item;
                     }
                 }
             }
@@ -542,19 +447,16 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void ResumeGroup(int groupId)
         {
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                var indices = new List<int>(linkedList);
                 foreach (var index in indices)
                 {
-                    if (index < 0 || index >= _items.Count) continue;
-                    var item = _items[index];
+                    if (!_store.IsValidIndex(index)) continue;
+                    var item = _store[index];
                     if (!item.IsTerminated && item.State == EScheduleItemState.Paused)
                     {
-                        var newState = item.ElapsedMs >= item.DelayMs
-                            ? EScheduleItemState.Running
-                            : EScheduleItemState.WaitingDelay;
-                        _items[index] = UpdateItemState(item, newState);
+                        item.State = GetResumedState(item);
+                        _store[index] = item;
                     }
                 }
             }
@@ -563,25 +465,19 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         public int InterruptGroup(int groupId, string reason = null)
         {
             int count = 0;
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                var indices = new List<int>(linkedList);
                 foreach (var index in indices)
                 {
-                    if (index < 0 || index >= _items.Count) continue;
-                    var item = _items[index];
+                    if (!_store.IsValidIndex(index)) continue;
+                    var item = _store[index];
                     if (!item.IsTerminated && item.CanBeInterrupted)
                     {
                         item.State = EScheduleItemState.Interrupted;
                         item.InterruptReason = reason;
-                        _items[index] = item;
+                        _store[index] = item;
 
-                        var callback = _callbacks[index];
-                        if (callback != null)
-                        {
-                            var context = CreateContext(item);
-                            callback.OnInterrupted(context, reason ?? "Unknown");
-                        }
+                        NotifyInterrupted(index, item, reason);
                         count++;
                     }
                 }
@@ -592,23 +488,8 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public int RemoveGroup(int groupId)
         {
-            int count = 0;
-            if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
-            {
-                var indices = new List<int>(linkedList);
-                foreach (var index in indices)
-                {
-                    if (index < 0 || index >= _items.Count) continue;
-                    var item = _items[index];
-                    if (!item.IsTerminated)
-                    {
-                        _items[index] = UpdateItemState(item, EScheduleItemState.Terminated);
-                        count++;
-                    }
-                }
-                _itemsByGroup.Remove(groupId);
-                _activeGroups.Remove(groupId);
-            }
+            var count = _groupIndex.TryGetIndicesSnapshot(groupId, out var indices) ? indices.Count : 0;
+            _groupIndex.RemoveGroup(groupId);
             ActiveCount -= count;
             return count;
         }
@@ -619,154 +500,76 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void OnGroupActivated(int groupId)
         {
-            _activeGroups.Add(groupId);
+            _groupIndex.ActivateGroup(groupId);
         }
 
         public void OnGroupDeactivated(int groupId)
         {
-            // 默认：只更新活跃分组集合，不自动清理调度项
-            // 如果需要自动清理，可以在子类中重写此方法
+            _groupIndex.DeactivateGroup(groupId);
         }
 
         #endregion
-
-        // ===== 私有辅助方法 =====
 
         private void CleanupItems(List<int> indices)
         {
             if (indices.Count == 0)
                 return;
 
-            // 标记要清理的项
             var indicesToCleanup = new HashSet<int>(indices);
-            var groupsToRemove = new List<int>();
+            _groupIndex.RemoveIndices(indicesToCleanup);
 
-            // 遍历所有分组，移除对应的节点
-            foreach (var kvp in _itemsByGroup)
-            {
-                int groupId = kvp.Key;
-                var linkedList = kvp.Value;
-                var node = linkedList.First;
+            var indexMapping = BuildCompactedIndexMapping(indicesToCleanup);
+            _store.RebuildWithout(indicesToCleanup);
+            _groupIndex.RebuildIndices(indexMapping);
+            ActiveCount -= indices.Count;
+        }
 
-                while (node != null)
-                {
-                    int itemIndex = node.Value;
-                    if (indicesToCleanup.Contains(itemIndex))
-                    {
-                        var nextNode = node.Next;
-                        linkedList.Remove(node);
-                        node = nextNode;
-                    }
-                    else
-                    {
-                        node = node.Next;
-                    }
-                }
-
-                // 如果分组空了，标记待删除
-                if (linkedList.Count == 0)
-                {
-                    groupsToRemove.Add(groupId);
-                }
-            }
-
-            // 移除空分组
-            foreach (var groupId in groupsToRemove)
-            {
-                _itemsByGroup.Remove(groupId);
-                _activeGroups.Remove(groupId);
-            }
-
-            // 从后往前重建列表（保留未删除的项）
-            int writeIndex = _items.Count - 1;
-            var indexMapping = new int[_items.Count]; // 旧索引 -> 新索引
+        private int[] BuildCompactedIndexMapping(HashSet<int> indicesToCleanup)
+        {
+            var indexMapping = new int[_store.Count];
             for (int i = 0; i < indexMapping.Length; i++)
             {
-                indexMapping[i] = -1; // 初始化为 -1
+                indexMapping[i] = -1;
             }
 
-            // 从后往前遍历，收集需要保留的项
-            for (int i = _items.Count - 1; i >= 0; i--)
+            var writeIndex = 0;
+            for (int i = 0; i < _store.Count; i++)
             {
                 if (!indicesToCleanup.Contains(i))
                 {
                     indexMapping[i] = writeIndex;
-                    writeIndex--;
+                    writeIndex++;
                 }
             }
 
-            // 重建列表
-            RebuildItems(indicesToCleanup, indexMapping);
-
-            ActiveCount -= indices.Count;
+            return indexMapping;
         }
 
-        private void RebuildItems(HashSet<int> indicesToRemove, int[] indexMapping)
+        private void NotifyCompleted(int index, ScheduleItemData item)
         {
-            int newCount = _items.Count - indicesToRemove.Count;
-            var newItems = new List<ScheduleItemData>(newCount);
-            var newEffects = new List<IScheduleEffect>(newCount);
-            var newCallbacks = new List<IScheduleEffectCallbacks>(newCount);
-
-            for (int i = 0; i < _items.Count; i++)
+            var callback = _store.GetCallback(index);
+            if (callback != null)
             {
-                if (!indicesToRemove.Contains(i))
-                {
-                    int newIndex = newItems.Count;
-                    var item = _items[i];
-                    item.Handle = new ScheduleHandle(item.Handle.HandleId, newIndex);
-                    newItems.Add(item);
-                    newEffects.Add(_effects[i]);
-                    newCallbacks.Add(_callbacks[i]);
-                }
+                var context = ScheduleContext.Create(item, 0, 0);
+                callback.OnCompleted(context);
             }
-
-            _items.Clear();
-            _effects.Clear();
-            _callbacks.Clear();
-            _items.AddRange(newItems);
-            _effects.AddRange(newEffects);
-            _callbacks.AddRange(newCallbacks);
-
-            // 重建分组索引
-            RebuildGroupIndices(indexMapping);
         }
 
-        private void RebuildGroupIndices(int[] indexMapping)
+        private void NotifyInterrupted(int index, ScheduleItemData item, string reason)
         {
-            foreach (var linkedList in _itemsByGroup.Values)
+            var callback = _store.GetCallback(index);
+            if (callback != null)
             {
-                var node = linkedList.First;
-                while (node != null)
-                {
-                    int oldIndex = node.Value;
-                    int newIndex = indexMapping[oldIndex];
-                    node.Value = newIndex;
-                    node = node.Next;
-                }
+                var context = ScheduleContext.Create(item, 0, 0);
+                callback.OnInterrupted(context, reason ?? "Unknown");
             }
         }
 
-        private static ScheduleContext CreateContext(ScheduleItemData item)
+        private static EScheduleItemState GetResumedState(ScheduleItemData item)
         {
-            return new ScheduleContext(
-                instanceId: item.Handle.Index,
-                businessId: item.BusinessId,
-                deltaTimeMs: 0,
-                elapsedMs: item.ElapsedMs,
-                scaledDeltaMs: 0,
-                intervalMs: item.IntervalMs,
-                executionCount: item.ExecutionCount,
-                maxExecutions: item.MaxExecutions,
-                speed: item.Speed,
-                interruptReason: item.InterruptReason
-            );
-        }
-
-        private static ScheduleItemData UpdateItemState(ScheduleItemData item, EScheduleItemState newState)
-        {
-            item.State = newState;
-            return item;
+            return item.ElapsedMs >= item.DelayMs
+                ? EScheduleItemState.Running
+                : EScheduleItemState.WaitingDelay;
         }
     }
 }

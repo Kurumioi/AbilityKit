@@ -7,7 +7,7 @@ using AbilityKit.Triggering.Variables.Numeric;
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     /// <summary>
-    /// 瑙﹀彂鍣ㄨ鍒掞紙涓嶅彲鍙樻暟鎹粨鏋勶級
+    /// 触发器计划（不可变数据结构）
     /// </summary>
     public readonly struct TriggerPlan<TArgs>
     {
@@ -15,13 +15,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly int Priority;
 
         /// <summary>
-        /// 瑙﹀彂鍣?ID
+        /// 触发器 ID
         /// </summary>
         public readonly int TriggerId;
 
         /// <summary>
-        /// 浼樺厛绾ф墦鏂槇鍊笺€侲xecute 鎴愬姛鍚庤嚜鍔ㄨ皟鐢?StopBelowPriority銆?
-        /// 0 = 涓嶈嚜鍔ㄦ墦鏂紱>0 = 浠ユ鍊间负闃堝€兼墦鏂洿浣庝紭鍏堢骇鐨勮Е鍙戝櫒銆?
+        /// 优先级打断阈值。Execute 成功后自动调用 StopBelowPriority。
+        /// 0 = 不自动打断；>0 = 以此值为阈值打断更低优先级的触发器。
         /// </summary>
         public readonly int InterruptPriority;
 
@@ -38,21 +38,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly ActionCallPlan[] Actions;
 
         /// <summary>
-        /// 琛ㄧ幇灞?Cue锛圴FX / SFX / UI 鍙嶉锛?
+        /// 表现层 Cue（VFX / SFX / UI 反馈）
         /// </summary>
         public readonly ITriggerCue Cue;
 
         /// <summary>
-        /// 璋冨害閰嶇疆锛堟寔缁涓虹浉鍏筹級
+        /// 调度配置（持续行为相关）
         /// </summary>
         public readonly ScheduleModePlan Schedule;
 
         public readonly TriggerExecutionControlPlan ExecutionControl;
 
-        // ========== 鏍稿績鏋勯€犲櫒锛堜繚鐣?3 涓級==========
+        // ========== 核心构造器（保留 3 个）==========
 
         /// <summary>
-        /// 鏃犳潯浠惰Е鍙戝櫒鏋勯€犲櫒
+        /// 无条件触发器构造器
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -82,7 +82,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍑芥暟鏉′欢瑙﹀彂鍣ㄦ瀯閫犲櫒
+        /// 函数条件触发器构造器
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -114,7 +114,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 琛ㄨ揪寮忔潯浠惰Е鍙戝櫒鏋勯€犲櫒
+        /// 表达式条件触发器构造器
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -144,10 +144,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionControl = executionControl;
         }
 
-        // ========== 渚挎嵎宸ュ巶鏂规硶==========
+        // ========== 便捷工厂方法==========
 
         /// <summary>
-        /// 鍒涘缓鏃犳潯浠惰Е鍙戝櫒
+        /// 创建无条件触发器
         /// </summary>
         public static TriggerPlan<TArgs> Create(
             int phase = 0,
@@ -159,7 +159,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹀嚱鏁版潯浠剁殑瑙﹀彂鍣紙鏃犲弬鏁帮級
+        /// 创建带函数条件的触发器（无参数）
         /// </summary>
         public static TriggerPlan<TArgs> When(
             int phase,
@@ -172,7 +172,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹀嚱鏁版潯浠剁殑瑙﹀彂鍣紙甯﹀弬鏁帮級
+        /// 创建带函数条件的触发器（带参数）
         /// </summary>
         public static TriggerPlan<TArgs> When(
             int phase,
@@ -186,7 +186,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓甯﹁〃杈惧紡鏉′欢鐨勮Е鍙戝櫒
+        /// 创建带表达式条件的触发器
         /// </summary>
         public static TriggerPlan<TArgs> WhenExpr(
             int phase,
@@ -199,7 +199,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 娣诲姞鍔ㄤ綔锛岃繑鍥炴柊鐨?TriggerPlan
+        /// 添加动作，返回新的 TriggerPlan
         /// </summary>
         public TriggerPlan<TArgs> AddActions(params ActionCallPlan[] actions)
         {

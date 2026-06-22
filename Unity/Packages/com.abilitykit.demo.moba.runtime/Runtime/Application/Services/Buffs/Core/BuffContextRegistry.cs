@@ -147,7 +147,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             var hasOrigin = origin.TryGetOrigin(out var sourceOrigin);
             return hasOrigin
                 ? sourceOrigin.WithActors(sourceActorId, targetActorId)
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, MobaTraceKind.BuffApply, buffId, 0, in origin.SkillRuntimeHandle);
+                : new MobaGameplayOrigin(
+                    sourceActorId,
+                    targetActorId,
+                    MobaTraceKind.BuffApply,
+                    buffId,
+                    origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
+                    origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
+                    origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
+                    origin.ParentContextId != 0 ? origin.ParentContextId : origin.OriginContextId,
+                    origin.SkillRuntimeHandle);
         }
 
         private static void ClearSourceSnapshot(BuffRuntime rt)

@@ -173,7 +173,16 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             var handle = Runtime != null ? Runtime.SkillRuntimeHandle : default;
             var origin = Runtime != null && Runtime.Origin.IsValid
                 ? Runtime.Origin
-                : MobaGameplayOrigin.FromLegacy(SourceActorId, TargetActorId, MobaTraceKind.BuffApply, BuffId, SourceContextId, in handle);
+                : new MobaGameplayOrigin(
+                    SourceActorId,
+                    TargetActorId,
+                    MobaTraceKind.BuffApply,
+                    BuffId,
+                    SourceContextId,
+                    SourceContextId,
+                    SourceContextId,
+                    SourceContextId,
+                    handle);
             var lineageContext = origin.ToLineageContext(EffectContextKind.Buff);
             source = MobaContextSourceView.FromLineage(
                 in lineageContext,

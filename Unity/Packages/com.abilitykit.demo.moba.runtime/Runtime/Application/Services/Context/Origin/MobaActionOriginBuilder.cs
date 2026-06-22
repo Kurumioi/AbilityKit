@@ -10,9 +10,12 @@ namespace AbilityKit.Demo.Moba.Services
             MobaTraceKind fallbackKind,
             int fallbackConfigId)
         {
-            var origin = executionContext.TryGetOrigin(out var contextOrigin)
-                ? contextOrigin
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, targetActorId, fallbackKind, fallbackConfigId, 0);
+            var origin = ResolveOrigin(
+                in executionContext,
+                sourceActorId,
+                targetActorId,
+                fallbackKind,
+                fallbackConfigId);
 
             return BuildFromOrigin(in origin, in executionContext, in traceScope, sourceActorId, targetActorId);
         }
@@ -45,6 +48,31 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return origin;
+        }
+
+        private static MobaGameplayOrigin ResolveOrigin(
+            in MobaCombatExecutionContext executionContext,
+            int sourceActorId,
+            int targetActorId,
+            MobaTraceKind fallbackKind,
+            int fallbackConfigId)
+        {
+            if (executionContext.TryGetOrigin(out var contextOrigin) && contextOrigin.IsValid)
+            {
+                return contextOrigin;
+            }
+
+            if (executionContext.TryGetLineageContext(out var lineageContext))
+            {
+                return MobaGameplayOrigin.FromLineageContext(in lineageContext, executionContext.SkillRuntimeHandle)
+                    .WithActors(sourceActorId, targetActorId);
+            }
+
+            return MobaGameplayOriginBuilder.Create()
+                .WithActors(sourceActorId, targetActorId)
+                .WithImmediate(fallbackKind, fallbackConfigId, 0)
+                .WithSkillRuntimeIfMissing(executionContext.SkillRuntimeHandle)
+                .Build();
         }
     }
 }

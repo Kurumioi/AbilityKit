@@ -153,6 +153,77 @@ public sealed class ShooterWorldModuleTests
     }
 
     [Fact]
+    public void RuntimeExposesVictoryMatchResultAndEventWhenObjectiveCompletes()
+    {
+        var container = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var state = container.Resolve<ShooterBattleState>();
+        var start = new ShooterStartGamePayload(
+            "victory-result",
+            30,
+            1,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.Equal(ShooterBattleMatchState.Running, runtime.MatchState);
+
+        state.VictoryTargetDefeats = 1;
+        state.DefeatedEnemies = 1;
+
+        Assert.False(runtime.Tick(1f / 30f));
+        Assert.Equal(ShooterBattleMatchState.Victory, runtime.MatchState);
+        Assert.False(runtime.IsStarted);
+
+        var result = runtime.MatchResult;
+        Assert.True(result.IsFinal);
+        Assert.True(result.IsVictory);
+        Assert.Equal(ShooterBattleMatchState.Victory, result.MatchState);
+        Assert.Equal(runtime.CurrentFrame, result.CompletedFrame);
+        Assert.Equal(1, result.DefeatedEnemies);
+        Assert.Equal(1, result.VictoryTargetDefeats);
+
+        var snapshot = runtime.GetSnapshot();
+        var matchEvent = Assert.Single(snapshot.Events);
+        Assert.Equal((int)ShooterEventType.MatchVictory, matchEvent.EventType);
+        Assert.Equal(1, matchEvent.Value);
+    }
+
+    [Fact]
+    public void RuntimeExposesDefeatMatchResultAndEventWhenAllPlayersAreDefeated()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "defeat-result",
+            30,
+            1,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        player.Hp = 0;
+        player.Alive = false;
+        runtime.SetPlayer(in player);
+
+        Assert.False(runtime.Tick(1f / 30f));
+        Assert.Equal(ShooterBattleMatchState.Defeat, runtime.MatchState);
+        Assert.False(runtime.IsStarted);
+
+        var result = runtime.MatchResult;
+        Assert.True(result.IsFinal);
+        Assert.False(result.IsVictory);
+        Assert.Equal(ShooterBattleMatchState.Defeat, result.MatchState);
+        Assert.Equal(runtime.CurrentFrame, result.CompletedFrame);
+
+        var snapshot = runtime.GetSnapshot();
+        var matchEvent = Assert.Single(snapshot.Events);
+        Assert.Equal((int)ShooterEventType.MatchDefeat, matchEvent.EventType);
+        Assert.Equal(0, matchEvent.Value);
+    }
+
+    [Fact]
     public void ShooterAutoModuleUsesShooterStartupDomainOnly()
     {
         var container = new WorldContainerBuilder()
@@ -167,6 +238,7 @@ public sealed class ShooterWorldModuleTests
     public void RuntimeWritesSveltoEntitiesIncrementally()
     {
         var container = new WorldContainerBuilder()
+            .RegisterInstance(ShooterEnemyWaveOptions.EnabledOption)
             .AddModule(new ShooterWorldModule())
             .Build();
 
@@ -224,6 +296,7 @@ public sealed class ShooterWorldModuleTests
     public void RuntimeSpawnsWaveEnemiesAndEnemiesAttackPlayers()
     {
         var container = new WorldContainerBuilder()
+            .RegisterInstance(ShooterEnemyWaveOptions.EnabledOption)
             .AddModule(new ShooterWorldModule())
             .Build();
 

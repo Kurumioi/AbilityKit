@@ -30,7 +30,16 @@ namespace AbilityKit.Demo.Moba.Services
             SkillRuntimeHandle = skillRuntimeHandle;
             Origin = origin.IsValid
                 ? origin
-                : MobaGameplayOrigin.FromLegacy(sourceActorId, summonActorId, MobaTraceKind.SummonSpawn, summonConfigId, sourceContextId, in skillRuntimeHandle);
+                : new MobaGameplayOrigin(
+                    sourceActorId,
+                    summonActorId,
+                    MobaTraceKind.SummonSpawn,
+                    summonConfigId,
+                    sourceContextId,
+                    sourceContextId,
+                    sourceContextId,
+                    sourceContextId,
+                    skillRuntimeHandle);
         }
 
         public bool IsValid => SourceActorId > 0 && SourceContextId != 0;
@@ -39,7 +48,16 @@ namespace AbilityKit.Demo.Moba.Services
         {
             origin = Origin.IsValid
                 ? Origin
-                : MobaGameplayOrigin.FromLegacy(SourceActorId, SummonActorId, MobaTraceKind.SummonSpawn, SummonConfigId, SourceContextId, in SkillRuntimeHandle);
+                : new MobaGameplayOrigin(
+                    SourceActorId,
+                    SummonActorId,
+                    MobaTraceKind.SummonSpawn,
+                    SummonConfigId,
+                    SourceContextId,
+                    SourceContextId,
+                    SourceContextId,
+                    SourceContextId,
+                    SkillRuntimeHandle);
             return origin.IsValid;
         }
 
@@ -221,10 +239,16 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (!_origin.IsValid)
             {
-                _origin = MobaGameplayOriginBuilder.Create()
-                    .FromLegacy(_sourceActorId, _summonActorId, MobaTraceKind.SummonSpawn, _summonConfigId, _sourceContextId)
-                    .WithSkillRuntime(in _skillRuntimeHandle)
-                    .Build();
+                _origin = new MobaGameplayOrigin(
+                    _sourceActorId,
+                    _summonActorId,
+                    MobaTraceKind.SummonSpawn,
+                    _summonConfigId,
+                    _sourceContextId,
+                    _sourceContextId,
+                    _rootContextId != 0 ? _rootContextId : _sourceContextId,
+                    _ownerContextId != 0 ? _ownerContextId : _sourceContextId,
+                    _skillRuntimeHandle);
             }
 
             if (!_skillRuntimeHandle.IsValid && _origin.SkillRuntimeHandle.IsValid)

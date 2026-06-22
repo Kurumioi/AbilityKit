@@ -3,29 +3,29 @@
 namespace AbilityKit.Triggering.Runtime.Plan
 {
     /// <summary>
-    /// 璋冨害妯″紡杩愯鏃舵暟鎹?
+    /// 调度模式运行时数据
     /// </summary>
     public readonly struct ScheduleModePlan
     {
         public static ScheduleModePlan None => default;
 
         /// <summary>
-        /// 璋冨害妯″紡
+        /// 调度模式
         /// </summary>
         public readonly EScheduleMode Mode;
 
         /// <summary>
-        /// 璋冨害闂撮殧锛堟绉掞級锛? 琛ㄧず姣忔 Update 閮藉彲椹卞姩
+        /// 调度间隔（毫秒），0 表示每次 Update 都可驱动
         /// </summary>
         public readonly float IntervalMs;
 
         /// <summary>
-        /// 鏈€澶ф墽琛屾鏁帮紝-1=鏃犻檺
+        /// 最大执行次数，-1=无限
         /// </summary>
         public readonly int MaxExecutions;
 
         /// <summary>
-        /// 鏄惁鍙腑鏂?
+        /// 是否可中断
         /// </summary>
         public readonly bool CanBeInterrupted;
 
@@ -38,7 +38,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 鍒涘缓澶栭儴鐢熷懡鍛ㄦ湡鎺у埗鐨勬寔缁皟搴﹁鍒掋€?
+        /// 创建外部生命周期控制的持续调度计划。
         /// </summary>
         public static ScheduleModePlan Continuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
             => new ScheduleModePlan(EScheduleMode.Continuous, intervalMs, maxExecutions, canBeInterrupted);
