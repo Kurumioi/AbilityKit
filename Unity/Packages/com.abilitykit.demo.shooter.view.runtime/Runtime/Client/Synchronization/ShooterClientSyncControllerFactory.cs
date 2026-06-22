@@ -109,6 +109,8 @@ namespace AbilityKit.Demo.Shooter.View
                 [NetworkSyncProfiles.Unspecified] = CreatePredictRollbackController,
                 [NetworkSyncProfiles.PredictRollback] = CreatePredictRollbackController,
                 [NetworkSyncProfiles.AuthoritativeInterpolation] = CreateAuthoritativeInterpolationController,
+                [NetworkSyncProfiles.BatchStateSync] = CreateAuthoritativeInterpolationController,
+                [NetworkSyncProfiles.MassBattleLodSync] = CreateAuthoritativeInterpolationController,
                 [NetworkSyncProfiles.HybridHeroPrediction] = CreateHybridHeroPredictionController
             };
             return builders;
@@ -134,7 +136,8 @@ namespace AbilityKit.Demo.Shooter.View
                 context.TickRate,
                 context.Decoder,
                 context.Gateway,
-                context.InterpolationConfig ?? InterpolationConfig.Default);
+                context.InterpolationConfig ?? InterpolationConfig.Default,
+                context.SyncModel);
         }
 
         private static IShooterClientSyncController CreateHybridHeroPredictionController(

@@ -86,7 +86,7 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
-        public void PackageExternalSources_DoNotCallLegacyRuntimeEntries()
+        public void PackageExternalSources_DoNotCallHistoricalTriggeringEntries()
         {
             var packagesRoot = FindPackagesRoot();
             var forbidden = new[]
@@ -119,7 +119,7 @@ namespace AbilityKit.Triggering.Tests
                 }
             }
 
-            Assert.That(violations, Is.Empty, "Package-external code must use TriggerRunner, TriggerPlan, ActionScheduler/RuleScheduler, and generic ExecCtx numeric resolution instead of legacy compatibility entries.");
+            Assert.That(violations, Is.Empty, "Package-external code must use TriggerRunner, TriggerPlan, ActionScheduler/RuleScheduler, and generic ExecCtx numeric resolution instead of historical compatibility entries.");
         }
 
         private static string FindPackagesRoot()

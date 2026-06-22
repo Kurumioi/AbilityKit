@@ -71,7 +71,101 @@ namespace AbilityKit.Demo.Shooter.View
     {
         RuntimeSnapshot,
         PresentationInterpolation,
-        RuntimeSnapshotWithRemoteInterpolation
+        RuntimeSnapshotWithRemoteInterpolation,
+        BatchedPresentation,
+        MassBattleLodPresentation
+    }
+
+    public enum ShooterSyncTemplateStatus
+    {
+        Implemented,
+        Experimental,
+        Reserved
+    }
+
+    public readonly struct ShooterSyncTemplateSendPolicy
+    {
+        public ShooterSyncTemplateSendPolicy(
+            int snapshotIntervalFrames,
+            int batchWindowFrames,
+            int keyFrameIntervalFrames,
+            int maxEntityCount,
+            int activeEntityBudget,
+            float aoiRadius,
+            int nearLodIntervalFrames,
+            int midLodIntervalFrames,
+            int farLodIntervalFrames,
+            int interpolationDelayFrames)
+        {
+            SnapshotIntervalFrames = snapshotIntervalFrames < 1 ? 1 : snapshotIntervalFrames;
+            BatchWindowFrames = batchWindowFrames < 1 ? 1 : batchWindowFrames;
+            KeyFrameIntervalFrames = keyFrameIntervalFrames < 1 ? SnapshotIntervalFrames : keyFrameIntervalFrames;
+            MaxEntityCount = maxEntityCount < 1 ? 1 : maxEntityCount;
+            ActiveEntityBudget = activeEntityBudget < 1 ? 1 : activeEntityBudget;
+            AoiRadius = aoiRadius < 0f ? 0f : aoiRadius;
+            NearLodIntervalFrames = nearLodIntervalFrames < 1 ? 1 : nearLodIntervalFrames;
+            MidLodIntervalFrames = midLodIntervalFrames < 1 ? NearLodIntervalFrames : midLodIntervalFrames;
+            FarLodIntervalFrames = farLodIntervalFrames < 1 ? MidLodIntervalFrames : farLodIntervalFrames;
+            InterpolationDelayFrames = interpolationDelayFrames < 0 ? 0 : interpolationDelayFrames;
+        }
+
+        public int SnapshotIntervalFrames { get; }
+        public int BatchWindowFrames { get; }
+        public int KeyFrameIntervalFrames { get; }
+        public int MaxEntityCount { get; }
+        public int ActiveEntityBudget { get; }
+        public float AoiRadius { get; }
+        public int NearLodIntervalFrames { get; }
+        public int MidLodIntervalFrames { get; }
+        public int FarLodIntervalFrames { get; }
+        public int InterpolationDelayFrames { get; }
+
+        public ShooterPureStateSyncSettings ToPureStateSettings()
+        {
+            return new ShooterPureStateSyncSettings(
+                MaxEntityCount,
+                ActiveEntityBudget,
+                KeyFrameIntervalFrames,
+                SnapshotIntervalFrames,
+                FarLodIntervalFrames,
+                InterpolationDelayFrames);
+        }
+
+        public static ShooterSyncTemplateSendPolicy Realtime { get; } = new ShooterSyncTemplateSendPolicy(
+            snapshotIntervalFrames: 1,
+            batchWindowFrames: 1,
+            keyFrameIntervalFrames: 60,
+            maxEntityCount: 10000,
+            activeEntityBudget: 512,
+            aoiRadius: 0f,
+            nearLodIntervalFrames: 1,
+            midLodIntervalFrames: 2,
+            farLodIntervalFrames: 15,
+            interpolationDelayFrames: 3);
+
+        public static ShooterSyncTemplateSendPolicy LowFrequencyBatch { get; } = new ShooterSyncTemplateSendPolicy(
+            snapshotIntervalFrames: 60,
+            batchWindowFrames: 60,
+            keyFrameIntervalFrames: 300,
+            maxEntityCount: 10000,
+            activeEntityBudget: 1024,
+            aoiRadius: 0f,
+            nearLodIntervalFrames: 15,
+            midLodIntervalFrames: 30,
+            farLodIntervalFrames: 60,
+            interpolationDelayFrames: 60);
+
+        public static ShooterSyncTemplateSendPolicy MassBattleLod { get; } = new ShooterSyncTemplateSendPolicy(
+            snapshotIntervalFrames: 90,
+            batchWindowFrames: 90,
+            keyFrameIntervalFrames: 450,
+            maxEntityCount: 20000,
+            activeEntityBudget: 2048,
+            aoiRadius: 48f,
+            nearLodIntervalFrames: 10,
+            midLodIntervalFrames: 30,
+            farLodIntervalFrames: 90,
+            interpolationDelayFrames: 90);
     }
 
     public readonly struct ShooterSyncAcceptanceCriterion
@@ -110,6 +204,9 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterSyncTemplateConvergenceKind ConvergenceKind => Template.ConvergenceKind;
         public bool RequiresAuthoritativeWorld => Template.EnableAuthoritativeWorld;
         public bool ExposesInterpolationDiagnostics => Template.ExpectsInterpolationDiagnostics;
+        public ShooterSyncTemplateStatus Status => Template.Status;
+        public bool IsRunnable => Template.IsRunnable;
+        public ShooterSyncTemplateSendPolicy SendPolicy => Template.SendPolicy;
     }
 
     public readonly struct ShooterSyncModeMatrix
@@ -151,6 +248,37 @@ namespace AbilityKit.Demo.Shooter.View
             bool expectsInterpolationDiagnostics,
             ShooterSyncTemplateConvergenceKind convergenceKind,
             InterpolationConfig interpolationConfig)
+            : this(
+                id,
+                displayName,
+                description,
+                syncModel,
+                networkEnvironmentId,
+                expectedCarrierName,
+                recommendedPlayerCount,
+                enableAuthoritativeWorld,
+                expectsInterpolationDiagnostics,
+                convergenceKind,
+                interpolationConfig,
+                ShooterSyncTemplateSendPolicy.Realtime,
+                ShooterSyncTemplateStatus.Implemented)
+        {
+        }
+
+        public ShooterSyncTemplate(
+            string id,
+            string displayName,
+            string description,
+            NetworkSyncModel syncModel,
+            string networkEnvironmentId,
+            string expectedCarrierName,
+            int recommendedPlayerCount,
+            bool enableAuthoritativeWorld,
+            bool expectsInterpolationDiagnostics,
+            ShooterSyncTemplateConvergenceKind convergenceKind,
+            InterpolationConfig interpolationConfig,
+            ShooterSyncTemplateSendPolicy sendPolicy,
+            ShooterSyncTemplateStatus status)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("Id is required.", nameof(id));
             if (string.IsNullOrWhiteSpace(displayName)) throw new ArgumentException("Display name is required.", nameof(displayName));
@@ -169,6 +297,8 @@ namespace AbilityKit.Demo.Shooter.View
             ExpectsInterpolationDiagnostics = expectsInterpolationDiagnostics;
             ConvergenceKind = convergenceKind;
             InterpolationConfig = interpolationConfig;
+            SendPolicy = sendPolicy;
+            Status = status;
         }
 
         public string Id { get; }
@@ -182,6 +312,9 @@ namespace AbilityKit.Demo.Shooter.View
         public bool ExpectsInterpolationDiagnostics { get; }
         public ShooterSyncTemplateConvergenceKind ConvergenceKind { get; }
         public InterpolationConfig InterpolationConfig { get; }
+        public ShooterSyncTemplateSendPolicy SendPolicy { get; }
+        public ShooterSyncTemplateStatus Status { get; }
+        public bool IsRunnable => Status != ShooterSyncTemplateStatus.Reserved;
     }
 
     /// <summary>
@@ -195,7 +328,10 @@ namespace AbilityKit.Demo.Shooter.View
         {
             new ShooterAcceptanceSyncOption(NetworkSyncModel.PredictRollback, "Predict + Rollback", implemented: true),
             new ShooterAcceptanceSyncOption(NetworkSyncModel.AuthoritativeInterpolation, "Authoritative Interpolation", implemented: true),
-            new ShooterAcceptanceSyncOption(NetworkSyncModel.HybridHeroPrediction, "Hybrid (Predict + Interpolation)", implemented: true)
+            new ShooterAcceptanceSyncOption(NetworkSyncModel.BatchStateSync, "Batch State Sync", implemented: true),
+            new ShooterAcceptanceSyncOption(NetworkSyncModel.MassBattleLodSync, "Mass Battle LOD Sync", implemented: true),
+            new ShooterAcceptanceSyncOption(NetworkSyncModel.HybridHeroPrediction, "Hybrid (Predict + Interpolation)", implemented: true),
+            new ShooterAcceptanceSyncOption(NetworkSyncModel.FastReconnect, "Fast Reconnect", implemented: false)
         };
 
         /// <summary>模拟网络环境，从理想基线到压力场景排序。</summary>
@@ -236,6 +372,34 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateConvergenceKind.PresentationInterpolation,
                 InterpolationConfig.Default),
             new ShooterSyncTemplate(
+                "batch-state-low-frequency",
+                "Batch State Sync / Low Frequency Playback",
+                "服务端以低频批量快照合并实体状态，客户端延迟播放批次数据，适合数千单位的低实时性场景。",
+                NetworkSyncModel.BatchStateSync,
+                "mobile4g",
+                ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+                recommendedPlayerCount: 8,
+                enableAuthoritativeWorld: false,
+                expectsInterpolationDiagnostics: true,
+                ShooterSyncTemplateConvergenceKind.BatchedPresentation,
+                InterpolationConfig.Default,
+                ShooterSyncTemplateSendPolicy.LowFrequencyBatch,
+                ShooterSyncTemplateStatus.Experimental),
+            new ShooterSyncTemplate(
+                "mass-battle-lod-aoi",
+                "Mass Battle LOD / AOI Budget Playback",
+                "面向上万单位的距离 AOI、优先级预算与 LOD 频率同步模板，复用纯状态低频导出参数。",
+                NetworkSyncModel.MassBattleLodSync,
+                "limitedbw",
+                ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+                recommendedPlayerCount: 16,
+                enableAuthoritativeWorld: false,
+                expectsInterpolationDiagnostics: true,
+                ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation,
+                InterpolationConfig.Default,
+                ShooterSyncTemplateSendPolicy.MassBattleLod,
+                ShooterSyncTemplateStatus.Experimental),
+            new ShooterSyncTemplate(
                 "hybrid-hero-prediction",
                 "Hybrid Hero Prediction / Remote Interpolation",
                 "本地英雄预测回滚，远端对象权威插值，验证混合同步方案的双路径行为。",
@@ -246,7 +410,21 @@ namespace AbilityKit.Demo.Shooter.View
                 enableAuthoritativeWorld: true,
                 expectsInterpolationDiagnostics: true,
                 ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation,
-                InterpolationConfig.Default)
+                InterpolationConfig.Default),
+            new ShooterSyncTemplate(
+                "fast-reconnect-resume",
+                "Fast Reconnect / Resume Snapshot",
+                "预留给断线重连恢复流程的模板；当前目录展示状态，但不进入可运行矩阵。",
+                NetworkSyncModel.FastReconnect,
+                "crossregion",
+                ShooterDemoHarnessCarrier.DefaultCarrierName,
+                recommendedPlayerCount: 2,
+                enableAuthoritativeWorld: true,
+                expectsInterpolationDiagnostics: false,
+                ShooterSyncTemplateConvergenceKind.RuntimeSnapshot,
+                InterpolationConfig.Default,
+                ShooterSyncTemplateSendPolicy.LowFrequencyBatch,
+                ShooterSyncTemplateStatus.Reserved)
         };
 
         public static ShooterSyncModeMatrix SyncModeMatrix { get; } = BuildSyncModeMatrix();
@@ -311,6 +489,20 @@ namespace AbilityKit.Demo.Shooter.View
                         new ShooterSyncAcceptanceCriterion("remote-buffer", "权威远端样本必须进入延迟播放缓冲并拒绝过期样本。"),
                         new ShooterSyncAcceptanceCriterion("presentation-convergence", "表现层帧号、实体投影与插值诊断必须持续更新。"),
                         new ShooterSyncAcceptanceCriterion("server-authority", "客户端本地输入只作为占位预测，最终状态以服务器快照为准。")
+                    };
+                case ShooterSyncTemplateConvergenceKind.BatchedPresentation:
+                    return new[]
+                    {
+                        new ShooterSyncAcceptanceCriterion("batch-window", "服务端发送策略必须声明批量窗口、快照间隔与关键帧间隔。"),
+                        new ShooterSyncAcceptanceCriterion("delayed-playback", "客户端必须以模板延迟帧数播放低频批量状态。"),
+                        new ShooterSyncAcceptanceCriterion("pure-state-settings", "模板必须能转换为纯状态同步导出参数。")
+                    };
+                case ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation:
+                    return new[]
+                    {
+                        new ShooterSyncAcceptanceCriterion("aoi-budget", "同步策略必须声明 AOI 半径、活跃实体预算与最大实体数。"),
+                        new ShooterSyncAcceptanceCriterion("lod-frequency", "近/中/远 LOD 频率必须从模板中可读取并用于低频纯状态导出。"),
+                        new ShooterSyncAcceptanceCriterion("delayed-lod-playback", "客户端必须以延迟播放方式消费大规模 LOD 批次。")
                     };
                 case ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation:
                     return new[]
@@ -748,6 +940,12 @@ namespace AbilityKit.Demo.Shooter.View
 
         public static ShooterAcceptanceSession Create(in ShooterSyncTemplate template)
         {
+            if (!template.IsRunnable)
+            {
+                throw new NotSupportedException(
+                    $"Shooter sync template '{template.DisplayName}' ({template.Id}) is {template.Status} and cannot be run.");
+            }
+
             var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId);
             return Create(
                 template.SyncModel,
@@ -796,6 +994,11 @@ namespace AbilityKit.Demo.Shooter.View
             var results = new List<DemoHarnessRunResult>();
             foreach (var row in ShooterAcceptanceCatalog.SyncModeMatrix.Rows)
             {
+                if (!row.IsRunnable)
+                {
+                    continue;
+                }
+
                 foreach (var network in ShooterAcceptanceCatalog.NetworkEnvironments)
                 {
                     using var session = Create(

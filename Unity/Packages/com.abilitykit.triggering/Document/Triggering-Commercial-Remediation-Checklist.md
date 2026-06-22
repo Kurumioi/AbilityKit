@@ -6,11 +6,11 @@
 
 ## 当前结论
 - 已明确 `TriggerPlan`、`PlannedTrigger`、`RuleScheduler`、`ActionRegistry`、`TriggerPlanJsonDatabase` 为正式主线。
-- `Runtime/Legacy`、`Runtime/Scheduler`、`Runtime/Executable`、`Runtime/Experimental` 仅保留历史记录或显式失败语义。
+- `Runtime/Legacy`、`Runtime/Scheduler`、`Runtime/Executable`、`Runtime/Experimental` 仅保留历史记录、只读说明或显式失败语义。
 - 根目录 `.cs` 兼容占位文件已清理完成，`Runtime/Compatibility` 仅保留正式边界清单。
 - 旧迁移和兼容材料如无继续使用价值，应继续删除或改为只读历史说明。
 
 ## 建议顺序
-1. 继续缩小 `Runtime/Legacy/Executable` 的历史表面积。
-2. 清理样例、README、设计文档中的旧术语。
-3. 复核验证/诊断扫描是否还有旧入口回流。
+1. 继续清理文档、样例、README 中的旧术语。
+2. 复核验证/诊断扫描是否还有旧入口回流。
+3. 最后执行全仓搜索并复核构建结果。

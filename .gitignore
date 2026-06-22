@@ -5,6 +5,7 @@
 **/Temp
 **/.nuget
 **/.log
+**/node_modules
 
 .vs/
 

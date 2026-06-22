@@ -80,6 +80,7 @@ runner.RegisterPlan(damageEventKey, in plan);
 
 ## 六、正式文档索引
 
+- [`StageClosureGuide.md`](StageClosureGuide.md)：阶段性可用包结论、推荐接入路径、对象池接入建议和后续测试流程。
 - [`FormalApiBoundary.md`](FormalApiBoundary.md)：正式 API、兼容 API、迁移方向和调度选择表。
 - [`LegacyMigrationPolicy.md`](LegacyMigrationPolicy.md)：legacy、compatibility、experimental 入口分级、迁移优先级、删除条件和延后决策。
 - [`ProductAcceptanceGuide.md`](ProductAcceptanceGuide.md)：产品化验收基线、测试矩阵、诊断链路、FAQ、升级说明模板和样板工程边界。

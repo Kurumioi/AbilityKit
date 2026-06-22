@@ -6,7 +6,9 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
+using Svelto.ECS.Internal;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
@@ -68,7 +70,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private void TickPlayers(float deltaTime)
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             for (int i = 0; i < count; i++)
             {
                 if (!players[i].Alive)
@@ -102,27 +105,32 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private void TickBullets(float deltaTime)
         {
             _projectileRemovalBuffer.Clear();
-            var (bullets, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out NativeEntityIDs enemyIds, out var enemyCount);
             for (int i = count - 1; i >= 0; i--)
             {
                 bullets[i].X += bullets[i].VelocityX * deltaTime;
                 bullets[i].Y += bullets[i].VelocityY * deltaTime;
                 bullets[i].RemainingFrames--;
 
-                if (TryHitPlayer(in bullets[i], out var target))
+                if (TryHitPlayer(in bullets[i], players, playerCount, out var target))
                 {
-                    IncrementPlayerScore(bullets[i].OwnerPlayerId);
+                    IncrementPlayerScore(bullets[i].OwnerPlayerId, players, playerCount);
                     _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullets[i].OwnerPlayerId, target.PlayerId, bullets[i].BulletId, target.X, target.Y, _rules.HitDamage));
                     _projectileRemovalBuffer.Add(bullets[i].BulletId);
                     continue;
                 }
 
-                if (TryHitEnemy(in bullets[i], out var enemyId, out var enemyX, out var enemyY, out var defeated))
+                if (TryHitEnemy(in bullets[i], enemyTransforms, enemyHealths, enemyIds, enemyCount, out var enemyId, out var enemyX, out var enemyY, out var defeated))
                 {
                     if (defeated)
                     {
                         _state.DefeatedEnemies++;
-                        IncrementPlayerScore(bullets[i].OwnerPlayerId);
+                        IncrementPlayerScore(bullets[i].OwnerPlayerId, players, playerCount);
                     }
 
                     _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Hit, bullets[i].OwnerPlayerId, -(int)enemyId, bullets[i].BulletId, enemyX, enemyY, _rules.HitDamage));
@@ -159,9 +167,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _state.Events.Add(new ShooterEventSnapshot(ShooterEventType.Fire, player.PlayerId, 0, bullet.BulletId, bullet.X, bullet.Y, 0));
         }
 
-        private bool TryHitPlayer(in ShooterSveltoProjectileComponent bullet, out ShooterSveltoPlayerComponent target)
+        private bool TryHitPlayer(in ShooterSveltoProjectileComponent bullet, NB<ShooterSveltoPlayerComponent> players, int count, out ShooterSveltoPlayerComponent target)
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
             for (int i = 0; i < count; i++)
             {
                 if (!players[i].Alive || players[i].PlayerId == bullet.OwnerPlayerId)
@@ -190,9 +197,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return false;
         }
 
-        private void IncrementPlayerScore(int playerId)
+        private static void IncrementPlayerScore(int playerId, NB<ShooterSveltoPlayerComponent> players, int count)
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
             for (int i = 0; i < count; i++)
             {
                 if (players[i].PlayerId == playerId)
@@ -203,9 +209,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private bool TryHitEnemy(in ShooterSveltoProjectileComponent bullet, out uint enemyId, out float enemyX, out float enemyY, out bool defeated)
+        private bool TryHitEnemy(
+            in ShooterSveltoProjectileComponent bullet,
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoHealthComponent> healths,
+            NativeEntityIDs ids,
+            int count,
+            out uint enemyId,
+            out float enemyX,
+            out float enemyY,
+            out bool defeated)
         {
-            var (transforms, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
             for (int i = 0; i < count; i++)
             {
                 if (healths[i].Alive == 0)

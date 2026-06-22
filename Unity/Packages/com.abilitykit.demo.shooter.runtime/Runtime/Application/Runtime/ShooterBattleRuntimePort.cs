@@ -105,6 +105,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             _state.Reset(in spec);
             _state.VictoryTargetDefeats = _enemyWaveOptions.VictoryTargetDefeats;
+            _state.SetTimeLimitFrames(_enemyWaveOptions.DurationFrames);
             _botAiSystem.ClearBotAi();
 
             var players = spec.Players ?? Array.Empty<ShooterStartPlayer>();

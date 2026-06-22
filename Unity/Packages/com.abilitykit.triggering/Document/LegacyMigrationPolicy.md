@@ -5,7 +5,7 @@
 ## 规则
 
 - 新功能只进入正式主线，不再新增旧调度、旧派发或迁移壳。
-- 旧的 `Runtime/Dispatcher`、`Runtime/Scheduler`、`Runtime/Executable` 与 `Runtime/Legacy` 相关记录不再作为产品化入口保留。
+- 旧的 `Runtime/Dispatcher`、`Runtime/Scheduler`、`Runtime/Executable` 与 `Runtime/Legacy` 仅允许以只读历史记录存在。
 - 文档、样例与测试只描述正式能力与边界，不再保留历史兼容说明。
 
 ## 约定

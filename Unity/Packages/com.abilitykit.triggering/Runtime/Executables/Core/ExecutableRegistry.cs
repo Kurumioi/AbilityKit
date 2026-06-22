@@ -208,7 +208,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
             RegisterCondition<OrCondition>(TypeIdRegistry.Condition.Or, "Or");
             RegisterCondition<NumericCompareCondition>(TypeIdRegistry.Condition.NumericCompare, "NumericCompare");
             RegisterCondition<PayloadCompareCondition>(TypeIdRegistry.Condition.PayloadCompare, "PayloadCompare");
-            RegisterCondition<HasTargetCondition>(TypeIdRegistry.Condition.HasTarget, "HasTarget");
             RegisterCondition<ConstCondition>(TypeIdRegistry.Condition.Const, "Const");
         }
     }

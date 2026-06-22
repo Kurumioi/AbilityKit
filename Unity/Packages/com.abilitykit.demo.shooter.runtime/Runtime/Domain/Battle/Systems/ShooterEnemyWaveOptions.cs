@@ -30,6 +30,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public ShooterSveltoGameplayBattleFlowConfig BattleFlow { get; }
 
+        public int DurationFrames => Enabled ? BattleFlow.DurationFrames : 0;
+
         public int VictoryTargetDefeats => BattleFlow.VictoryTargetDefeats;
 
         public int MaxActiveEnemies => BattleFlow.MaxActiveEnemies;

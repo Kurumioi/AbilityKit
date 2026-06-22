@@ -4,7 +4,6 @@ using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;
 using Svelto.ECS.Internal;
-
 namespace AbilityKit.Demo.Shooter.Runtime
 {
     public sealed class ShooterPackedSnapshotExporter
@@ -14,6 +13,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterBattleRules _rules;
         private readonly IShooterStateHashProvider _stateHashProvider;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
 
         public ShooterPackedSnapshotExporter(
             ShooterBattleState state,
@@ -63,13 +63,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportPlayerLifecycleChunk()
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Player);
             }
 
-            var order = CreateSortedPlayerOrder(players, count);
+            var order = _orderBuffer.CreateSortedPlayerOrder(players, count);
             var entityIds = new int[count];
             var flags = new byte[count];
             var ownerIds = new int[count];
@@ -103,13 +104,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportProjectileLifecycleChunk()
         {
-            var (bullets, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Projectile);
             }
 
-            var order = CreateSortedProjectileOrder(bullets, count);
+            var order = _orderBuffer.CreateSortedProjectileOrder(bullets, count);
             var entityIds = new int[count];
             var flags = new byte[count];
             var ownerIds = new int[count];
@@ -138,13 +140,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportEnemyLifecycleChunk()
         {
-            var (_, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> _, out NB<ShooterSveltoHealthComponent> healths, out NativeEntityIDs ids, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Enemy);
             }
 
-            var order = CreateSortedEnemyOrder(ids, count);
+            var order = _orderBuffer.CreateSortedEnemyOrder(ids, count);
             var entityIds = new int[count];
             var flags = new byte[count];
             for (int i = 0; i < count; i++)
@@ -175,13 +178,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportPlayerTransformChunk()
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Transform, ShooterPackedEntityKinds.Player);
             }
 
-            var order = CreateSortedPlayerOrder(players, count);
+            var order = _orderBuffer.CreateSortedPlayerOrder(players, count);
             var entityIds = new int[count];
             var posX = new float[count];
             var posY = new float[count];
@@ -227,13 +231,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportProjectileTransformChunk()
         {
-            var (bullets, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Transform, ShooterPackedEntityKinds.Projectile);
             }
 
-            var order = CreateSortedProjectileOrder(bullets, count);
+            var order = _orderBuffer.CreateSortedProjectileOrder(bullets, count);
             var entityIds = new int[count];
             var posX = new float[count];
             var posY = new float[count];
@@ -273,13 +278,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportEnemyTransformChunk()
         {
-            var (transforms, _, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> transforms, out NB<ShooterSveltoHealthComponent> _, out NativeEntityIDs ids, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Transform, ShooterPackedEntityKinds.Enemy);
             }
 
-            var order = CreateSortedEnemyOrder(ids, count);
+            var order = _orderBuffer.CreateSortedEnemyOrder(ids, count);
             var entityIds = new int[count];
             var posX = new float[count];
             var posY = new float[count];
@@ -312,13 +318,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportPlayerHealthChunk()
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Health, ShooterPackedEntityKinds.Player);
             }
 
-            var order = CreateSortedPlayerOrder(players, count);
+            var order = _orderBuffer.CreateSortedPlayerOrder(players, count);
             var entityIds = new int[count];
             var hp = new int[count];
             for (int i = 0; i < count; i++)
@@ -345,13 +352,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportEnemyHealthChunk()
         {
-            var (_, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> _, out NB<ShooterSveltoHealthComponent> healths, out NativeEntityIDs ids, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Health, ShooterPackedEntityKinds.Enemy);
             }
 
-            var order = CreateSortedEnemyOrder(ids, count);
+            var order = _orderBuffer.CreateSortedEnemyOrder(ids, count);
             var entityIds = new int[count];
             var hp = new int[count];
             for (int i = 0; i < count; i++)
@@ -378,13 +386,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportPlayerScoreChunk()
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.Score, ShooterPackedEntityKinds.Player);
             }
 
-            var order = CreateSortedPlayerOrder(players, count);
+            var order = _orderBuffer.CreateSortedPlayerOrder(players, count);
             var entityIds = new int[count];
             var scores = new int[count];
             for (int i = 0; i < count; i++)
@@ -411,13 +420,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterPackedComponentChunk ExportProjectileLifetimeChunk()
         {
-            var (bullets, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
             if (count == 0)
             {
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.ProjectileLifetime, ShooterPackedEntityKinds.Projectile);
             }
 
-            var order = CreateSortedProjectileOrder(bullets, count);
+            var order = _orderBuffer.CreateSortedProjectileOrder(bullets, count);
             var entityIds = new int[count];
             var remainingFrames = new int[count];
             for (int i = 0; i < count; i++)
@@ -444,39 +454,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private int CountEnemies()
         {
-            return _context.EntitiesDB.Count<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
-        }
-
-        private static int[] CreateSortedPlayerOrder(NB<ShooterSveltoPlayerComponent> players, int count)
-        {
-            var order = CreateIndexOrder(count);
-            Array.Sort(order, (left, right) => players[left].PlayerId.CompareTo(players[right].PlayerId));
-            return order;
-        }
-
-        private static int[] CreateSortedProjectileOrder(NB<ShooterSveltoProjectileComponent> bullets, int count)
-        {
-            var order = CreateIndexOrder(count);
-            Array.Sort(order, (left, right) => bullets[left].BulletId.CompareTo(bullets[right].BulletId));
-            return order;
-        }
-
-        private static int[] CreateSortedEnemyOrder(NativeEntityIDs ids, int count)
-        {
-            var order = CreateIndexOrder(count);
-            Array.Sort(order, (left, right) => ids[left].CompareTo(ids[right]));
-            return order;
-        }
-
-        private static int[] CreateIndexOrder(int count)
-        {
-            var order = new int[count];
-            for (int i = 0; i < count; i++)
-            {
-                order[i] = i;
-            }
-
-            return order;
+            return _context.EntitiesDB.Count<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
         }
 
         private static uint CreateSnapshotFlags(bool isFullSnapshot, bool authorityOverride)

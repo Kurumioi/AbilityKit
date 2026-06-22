@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterSnapshotReadPort _snapshotReadPort;
         private readonly IShooterStateHashProvider _stateHashProvider;
         private readonly ISveltoWorldContext? _context;
+        private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -174,19 +175,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return candidates;
         }
 
-        private static ShooterPureStateCandidate[] BuildCandidates(
+        private ShooterPureStateCandidate[] BuildCandidates(
             ISveltoWorldContext context,
             bool isFullBaseline,
             bool isLowFrequencyFrame,
             ShooterPureStateInterestScope? interestScope)
         {
-            var (players, _, playerCount) = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
-            var (bullets, _, bulletCount) = context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
+            var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
+            var projectileCollection = context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var bulletCount);
             var candidates = new ShooterPureStateCandidate[playerCount + bulletCount];
             var index = 0;
 
-            var playerOrder = CreateSortedPlayerOrder(players, playerCount);
-            for (var i = 0; i < playerOrder.Length; i++)
+            var playerOrder = _orderBuffer.CreateSortedPlayerOrder(players, playerCount);
+            for (var i = 0; i < playerCount; i++)
             {
                 var player = players[playerOrder[i]];
                 var flags = CreatePlayerFlags(in player);
@@ -219,8 +222,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
             }
 
-            var projectileOrder = CreateSortedProjectileOrder(bullets, bulletCount);
-            for (var i = 0; i < projectileOrder.Length; i++)
+            var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(bullets, bulletCount);
+            for (var i = 0; i < bulletCount; i++)
             {
                 var bullet = bullets[projectileOrder[i]];
                 var flags = (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
@@ -392,31 +395,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             return IsInsideScope(bullet.X, bullet.Y, scope) ? 180 : 1;
-        }
-
-        private static int[] CreateSortedPlayerOrder(NB<ShooterSveltoPlayerComponent> players, int count)
-        {
-            var order = CreateIndexOrder(count);
-            Array.Sort(order, (left, right) => players[left].PlayerId.CompareTo(players[right].PlayerId));
-            return order;
-        }
-
-        private static int[] CreateSortedProjectileOrder(NB<ShooterSveltoProjectileComponent> bullets, int count)
-        {
-            var order = CreateIndexOrder(count);
-            Array.Sort(order, (left, right) => bullets[left].BulletId.CompareTo(bullets[right].BulletId));
-            return order;
-        }
-
-        private static int[] CreateIndexOrder(int count)
-        {
-            var order = new int[count];
-            for (var i = 0; i < count; i++)
-            {
-                order[i] = i;
-            }
-
-            return order;
         }
 
         private static int CreateDeltaKind(bool isFullBaseline)

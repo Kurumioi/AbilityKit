@@ -1,4 +1,3 @@
-#pragma warning disable CS0618
 using System;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Context;
@@ -222,24 +221,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 
-    [Obsolete("Target lookup belongs to the targeting package. Use a formal predicate extension instead.")]
-    [ConditionTypeId(TypeIdRegistry.Condition.HasTarget, "HasTarget")]
-    public sealed class HasTargetCondition : IConfigurableCondition
-    {
-        public string Name => "HasTarget";
-        public bool Negate { get; set; }
-
-        public void Configure(ConditionConfig config, ConfigToExecutableConverter converter)
-        {
-            Negate = config.Negate;
-        }
-
-        public ConditionResult Evaluate(ActionContext ctx)
-        {
-            return ConditionResult.Fail("HasTarget requires a targeting predicate binding");
-        }
-    }
-
     [ConditionTypeId(TypeIdRegistry.Condition.Multi, "Multi")]
     public sealed class MultiCondition : IConfigurableCondition
     {
@@ -382,4 +363,3 @@ namespace AbilityKit.Triggering.Runtime.Executable
         void RequestInterrupt(string reason);
     }
 }
-#pragma warning restore CS0618

@@ -589,6 +589,48 @@ public sealed class ShooterSnapshotViewProjectionTests
         Assert.Equal(6, sink.LastFrame);
     }
 
+    [Fact]
+    public void DotsSnapshotViewBinderProjectsBatchAndExposesBatchSyncDiagnostics()
+    {
+        var presentation = new ShooterPresentationFacade();
+        var sink = new RecordingSnapshotViewSink();
+        using var binder = new ShooterDotsSnapshotViewBinder(presentation, sink);
+        var batch = CreateBatch(frame: 7, sequence: 7ul, x: 3f, hp: 80, score: 5);
+
+        binder.Sync(in batch);
+
+        Assert.Equal(1, sink.ApplyCount);
+        Assert.Equal(7, sink.LastFrame);
+        Assert.Equal(1, binder.AppliedBatchCount);
+        Assert.Equal(1, binder.AppliedEntityChangeCount);
+        Assert.Equal(3, binder.AppliedComponentChangeCount);
+        Assert.Equal(1, binder.LastApplyResult.AddedEntities);
+        Assert.Equal(3, binder.LastApplyResult.ComponentUpdates);
+        Assert.Equal(1, binder.Store.PlayerCount);
+        Assert.True(binder.Store.TryGetHealth(new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1), out var health));
+        Assert.Equal(80, health.Hp);
+    }
+
+    [Fact]
+    public void DotsSnapshotViewBinderCanBypassInterpolationForImmediateProjectedSync()
+    {
+        var presentation = new ShooterPresentationFacade();
+        var sink = new RecordingSnapshotViewSink();
+        using var binder = new ShooterDotsSnapshotViewBinder(presentation, sink)
+        {
+            InterpolationEnabled = false
+        };
+        var batch = CreateBatch(frame: 8, sequence: 8ul, x: 4f, hp: 70, score: null);
+
+        presentation.Snapshots.Publish(in batch);
+
+        Assert.Equal(1, sink.ApplyCount);
+        Assert.Equal(8, sink.LastFrame);
+        Assert.Equal(1, binder.AppliedBatchCount);
+        Assert.Equal(1, binder.Store.PlayerCount);
+        Assert.Equal(8, binder.LastApplyResult.Frame);
+    }
+ 
     private static ShooterSnapshotViewBatch CreateBatch(int frame, ulong sequence)
     {
         return CreateBatch(frame, sequence, frame, hp: null, score: null);

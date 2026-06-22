@@ -8,7 +8,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             bool isFinal,
             bool isVictory,
             int defeatedEnemies,
-            int victoryTargetDefeats)
+            int victoryTargetDefeats,
+            int timeLimitFrames,
+            int remainingTimeFrames)
         {
             MatchState = matchState;
             CompletedFrame = completedFrame;
@@ -16,6 +18,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             IsVictory = isVictory;
             DefeatedEnemies = defeatedEnemies;
             VictoryTargetDefeats = victoryTargetDefeats;
+            TimeLimitFrames = timeLimitFrames < 0 ? 0 : timeLimitFrames;
+            RemainingTimeFrames = remainingTimeFrames < 0 ? 0 : remainingTimeFrames;
         }
 
         public ShooterBattleMatchState MatchState { get; }
@@ -30,7 +34,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public int VictoryTargetDefeats { get; }
 
+        public int TimeLimitFrames { get; }
+
+        public int RemainingTimeFrames { get; }
+
+        public bool IsTimeLimited => TimeLimitFrames > 0;
+
+        public bool IsTimeExpired => IsTimeLimited && RemainingTimeFrames == 0;
+
         public static ShooterMatchResultSnapshot NotCompleted(int currentFrame, int defeatedEnemies, int victoryTargetDefeats)
+        {
+            return NotCompleted(currentFrame, defeatedEnemies, victoryTargetDefeats, timeLimitFrames: 0, remainingTimeFrames: 0);
+        }
+
+        public static ShooterMatchResultSnapshot NotCompleted(
+            int currentFrame,
+            int defeatedEnemies,
+            int victoryTargetDefeats,
+            int timeLimitFrames,
+            int remainingTimeFrames)
         {
             return new ShooterMatchResultSnapshot(
                 ShooterBattleMatchState.Running,
@@ -38,7 +60,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 isFinal: false,
                 isVictory: false,
                 defeatedEnemies,
-                victoryTargetDefeats);
+                victoryTargetDefeats,
+                timeLimitFrames,
+                remainingTimeFrames);
         }
     }
 }

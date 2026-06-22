@@ -5,7 +5,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
 {
     /// <summary>
     /// PlannedTrigger 的 Action 委托绑定解析器。
-    /// 负责按 ActionCallPlan 顺序解析具名参数委托与兼容位置参数委托，避免 PlannedTrigger 继续承载注册表查找细节。
+    /// 负责按 ActionCallPlan 顺序解析具名参数委托与位置参数委托，避免 PlannedTrigger 继续承载注册表查找细节。
     /// </summary>
     internal static class PlannedTriggerActionBindingResolver<TArgs, TCtx>
         where TArgs : class
@@ -44,7 +44,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return;
             }
 
-            ResolveLegacyAction(call, in arguments, index, in ctx, actions0, actions1, actions2, useNamedArgs);
+            ResolvePositionalAction(call, in arguments, index, in ctx, actions0, actions1, actions2, useNamedArgs);
         }
 
         private static bool TryResolveNamedAction(
@@ -94,7 +94,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private static void ResolveLegacyAction(
+        private static void ResolvePositionalAction(
             ActionCallPlan call,
             in ActionArgumentsPlan arguments,
             int index,
@@ -112,7 +112,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
 
-                    EnsureDeterministic(in ctx, call.Id, a0Det, "action");
+                    EnsureDeterministic(in ctx, call.Id, a0Det, "positional action");
                     actions0[index] = a0;
                     useNamedArgs[index] = false;
                     break;
@@ -123,7 +123,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
 
-                    EnsureDeterministic(in ctx, call.Id, a1Det, "action");
+                    EnsureDeterministic(in ctx, call.Id, a1Det, "positional action");
                     actions1[index] = a1;
                     useNamedArgs[index] = false;
                     break;
@@ -134,7 +134,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
 
-                    EnsureDeterministic(in ctx, call.Id, a2Det, "action");
+                    EnsureDeterministic(in ctx, call.Id, a2Det, "positional action");
                     actions2[index] = a2;
                     useNamedArgs[index] = false;
                     break;

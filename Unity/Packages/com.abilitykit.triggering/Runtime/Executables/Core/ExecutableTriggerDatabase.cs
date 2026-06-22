@@ -91,7 +91,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             Functions = functions ?? throw new ArgumentNullException(nameof(functions));
             Actions = actions ?? throw new ArgumentNullException(nameof(actions));
             IdNames = idNames;
-            _converter = new ConfigToExecutableConverter();
+            _converter = new ConfigToExecutableConverter(actions: actions);
         }
 
         /// <summary>

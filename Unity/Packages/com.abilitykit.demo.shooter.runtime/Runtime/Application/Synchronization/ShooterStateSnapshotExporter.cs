@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -10,6 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
 
         public ShooterStateSnapshotExporter(ShooterBattleState state, IShooterEntityManager entities)
         {
@@ -20,37 +22,34 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public ShooterStateSnapshotPayload Export()
         {
-            var (playerComponents, _, playerCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
-            var playerOrder = CreateIndexOrder(playerCount);
-            Array.Sort(playerOrder, (left, right) => playerComponents[left].PlayerId.CompareTo(playerComponents[right].PlayerId));
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> playerComponents, out _, out var playerCount);
+            var playerOrder = _orderBuffer.CreateSortedPlayerOrder(playerComponents, playerCount);
             var players = new ShooterPlayerSnapshot[playerCount];
-            for (int i = 0; i < playerOrder.Length; i++)
+            for (int i = 0; i < playerCount; i++)
             {
                 var player = playerComponents[playerOrder[i]];
                 players[i] = new ShooterPlayerSnapshot(player.PlayerId, player.X, player.Y, player.AimX, player.AimY, player.Hp, player.Score, player.Alive);
             }
 
-            var (projectileComponents, _, projectileCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
-            var projectileOrder = CreateIndexOrder(projectileCount);
-            Array.Sort(projectileOrder, (left, right) => projectileComponents[left].BulletId.CompareTo(projectileComponents[right].BulletId));
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> projectileComponents, out _, out var projectileCount);
+            var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(projectileComponents, projectileCount);
             var bullets = new ShooterBulletSnapshot[projectileCount];
-            for (int i = 0; i < projectileOrder.Length; i++)
+            for (int i = 0; i < projectileCount; i++)
             {
                 var bullet = projectileComponents[projectileOrder[i]];
                 bullets[i] = new ShooterBulletSnapshot(bullet.BulletId, bullet.OwnerPlayerId, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.RemainingFrames);
             }
 
-            return new ShooterStateSnapshotPayload(_state.CurrentFrame, players, bullets, _state.Events.ToArray());
-        }
-        private static int[] CreateIndexOrder(int count)
-        {
-            var order = new int[count];
-            for (var i = 0; i < count; i++)
-            {
-                order[i] = i;
-            }
-
-            return order;
+            return new ShooterStateSnapshotPayload(
+                _state.CurrentFrame,
+                players,
+                bullets,
+                _state.Events.ToArray(),
+                (int)_state.MatchState,
+                _state.TimeLimitFrames,
+                _state.RemainingTimeFrames);
         }
     }
 }

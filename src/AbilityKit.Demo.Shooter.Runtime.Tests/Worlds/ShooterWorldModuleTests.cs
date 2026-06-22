@@ -224,6 +224,59 @@ public sealed class ShooterWorldModuleTests
     }
 
     [Fact]
+    public void RuntimeExposesTimedMatchResultAndEventWhenCountdownEnds()
+    {
+        var timedFlow = new ShooterSveltoGameplayBattleFlowConfig(
+            durationFrames: 3,
+            victoryTargetDefeats: 99,
+            maxActiveEnemies: 1,
+            Array.Empty<ShooterSveltoGameplayWaveConfig>());
+        var runtime = new ShooterBattleRuntimePort(
+            ShooterEntityLimitOptions.Default,
+            new ShooterEnemyWaveOptions(enabled: true, timedFlow));
+        var start = new ShooterStartGamePayload(
+            "timed-result",
+            30,
+            1,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.Equal(ShooterBattleMatchState.Running, runtime.MatchState);
+        Assert.Equal(3, runtime.MatchResult.TimeLimitFrames);
+        Assert.Equal(3, runtime.MatchResult.RemainingTimeFrames);
+
+        Assert.True(runtime.Tick(1f / 30f));
+        Assert.Equal(2, runtime.MatchResult.RemainingTimeFrames);
+        var runningSnapshot = runtime.GetSnapshot();
+        Assert.Equal((int)ShooterBattleMatchState.Running, runningSnapshot.MatchState);
+        Assert.Equal(3, runningSnapshot.TimeLimitFrames);
+        Assert.Equal(2, runningSnapshot.RemainingTimeFrames);
+
+        Assert.True(runtime.Tick(1f / 30f));
+        Assert.False(runtime.Tick(1f / 30f));
+        Assert.Equal(ShooterBattleMatchState.Ended, runtime.MatchState);
+        Assert.False(runtime.IsStarted);
+
+        var result = runtime.MatchResult;
+        Assert.True(result.IsFinal);
+        Assert.False(result.IsVictory);
+        Assert.True(result.IsTimeLimited);
+        Assert.True(result.IsTimeExpired);
+        Assert.Equal(ShooterBattleMatchState.Ended, result.MatchState);
+        Assert.Equal(runtime.CurrentFrame, result.CompletedFrame);
+        Assert.Equal(3, result.TimeLimitFrames);
+        Assert.Equal(0, result.RemainingTimeFrames);
+
+        var snapshot = runtime.GetSnapshot();
+        Assert.Equal((int)ShooterBattleMatchState.Ended, snapshot.MatchState);
+        Assert.Equal(3, snapshot.TimeLimitFrames);
+        Assert.Equal(0, snapshot.RemainingTimeFrames);
+        var matchEvent = Assert.Single(snapshot.Events);
+        Assert.Equal((int)ShooterEventType.MatchEnded, matchEvent.EventType);
+        Assert.Equal(0, matchEvent.Value);
+    }
+
+    [Fact]
     public void ShooterAutoModuleUsesShooterStartupDomainOnly()
     {
         var container = new WorldContainerBuilder()

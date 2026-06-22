@@ -6,8 +6,8 @@ using Xunit;
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
 /// <summary>
-/// Golden-baseline tests that lock down the expected four-state distribution of the
-/// Shooter acceptance matrix. When a sync mode is added, a network environment is added,
+/// Golden-baseline tests that lock down the expected Shooter acceptance matrix distribution.
+/// When a sync mode is added, a network environment is added,
 /// or an existing combination changes status (e.g. a mode that was Unsupported becomes
 /// Degraded), these tests will fail, forcing the developer to consciously update the
 /// baseline rather than silently accepting a regression.
@@ -21,13 +21,15 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // === Golden baseline ===
-        // Catalog: 3 implemented modes × 6 network environments = 18 scenarios.
+        // Catalog: 5 runnable modes × 6 network environments = 30 scenarios.
         // PredictRollback: 6 Completed (ShooterDemoHarnessCarrier supports it).
         // AuthoritativeInterpolation: 6 Completed (ShooterInterpolationDemoHarnessCarrier supports it).
+        // BatchStateSync: 6 Completed through the low-frequency interpolation-compatible carrier.
+        // MassBattleLodSync: 6 Completed through the LOD/batch interpolation-compatible carrier.
         // HybridHeroPrediction: 6 Completed (ShooterHybridDemoHarnessCarrier requires the dedicated Hybrid controller).
 
-        Assert.Equal(18, batch.ScenarioCount);
-        Assert.Equal(18, batch.CompletedCount);
+        Assert.Equal(30, batch.ScenarioCount);
+        Assert.Equal(30, batch.CompletedCount);
         Assert.Equal(0, batch.DegradedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
@@ -40,8 +42,9 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // PredictRollback × 6 Completed + AuthoritativeInterpolation × 6 Completed
-        // + HybridHeroPrediction × 6 Completed = 3 summary rows.
-        Assert.Equal(3, batch.Summary.Rows.Count);
+        // + BatchStateSync × 6 Completed + MassBattleLodSync × 6 Completed
+        // + HybridHeroPrediction × 6 Completed = 5 summary rows.
+        Assert.Equal(5, batch.Summary.Rows.Count);
 
         // PredictRollback: 6 Completed.
         Assert.Equal(6, batch.Summary.CountFor(
@@ -53,6 +56,18 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         Assert.Equal(6, batch.Summary.CountFor(
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.AuthoritativeInterpolation,
+            DemoHarnessRunStatus.Completed));
+
+        // BatchStateSync: 6 Completed.
+        Assert.Equal(6, batch.Summary.CountFor(
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.BatchStateSync,
+            DemoHarnessRunStatus.Completed));
+
+        // MassBattleLodSync: 6 Completed.
+        Assert.Equal(6, batch.Summary.CountFor(
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.MassBattleLodSync,
             DemoHarnessRunStatus.Completed));
 
         // HybridHeroPrediction: 6 Completed.
@@ -77,11 +92,30 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
     }
 
     [Fact]
+    public void MatrixScenarioCountFollowsRunnableTemplateCatalogAndNetworks()
+    {
+        var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
+        var runnableTemplateCount = 0;
+        foreach (var template in ShooterAcceptanceCatalog.SyncTemplates)
+        {
+            if (template.IsRunnable)
+            {
+                runnableTemplateCount++;
+            }
+        }
+
+        var expectedScenarioCount = runnableTemplateCount * ShooterAcceptanceCatalog.NetworkEnvironments.Count;
+
+        Assert.Equal(expectedScenarioCount, batch.ScenarioCount);
+        Assert.DoesNotContain(batch.Results, result => result.Scenario.SyncModel == NetworkSyncModel.FastReconnect);
+    }
+
+    [Fact]
     public void PerResultMetricsArePopulatedForEveryCompletedScenario()
     {
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 3, deltaSeconds: 1f / 30f);
 
-        // All scenarios complete now that AuthoritativeInterpolation has its own carrier.
+        // All runnable catalog scenarios complete through their smoke-test carriers.
         foreach (var result in batch.Results)
         {
             Assert.True(result.Completed);

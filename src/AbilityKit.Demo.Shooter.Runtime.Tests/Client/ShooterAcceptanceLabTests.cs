@@ -72,21 +72,38 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
             template => template.Id == "predict-rollback-authority"
                 && template.ExpectedCarrierName == ShooterDemoHarnessCarrier.DefaultCarrierName
-                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshot);
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshot
+                && template.Status == ShooterSyncTemplateStatus.Implemented);
         Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
             template => template.Id == "authoritative-interpolation-presentation"
                 && template.ExpectedCarrierName == ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName
-                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.PresentationInterpolation);
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.PresentationInterpolation
+                && template.Status == ShooterSyncTemplateStatus.Implemented);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "batch-state-low-frequency"
+                && template.ExpectedCarrierName == ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.BatchedPresentation
+                && template.Status == ShooterSyncTemplateStatus.Experimental);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "mass-battle-lod-aoi"
+                && template.ExpectedCarrierName == ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation
+                && template.Status == ShooterSyncTemplateStatus.Experimental);
         Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
             template => template.Id == "hybrid-hero-prediction"
                 && template.ExpectedCarrierName == ShooterHybridDemoHarnessCarrier.DefaultCarrierName
-                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation);
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation
+                && template.Status == ShooterSyncTemplateStatus.Implemented);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "fast-reconnect-resume"
+                && template.Status == ShooterSyncTemplateStatus.Reserved
+                && !template.IsRunnable);
     }
 
     [Fact]
     public void SyncTemplateCreatesSessionWithAssociatedConfiguration()
     {
-        foreach (var template in ShooterAcceptanceCatalog.SyncTemplates)
+        foreach (var template in ShooterAcceptanceCatalog.SyncTemplates.Where(t => t.IsRunnable))
         {
             using (var session = ShooterAcceptanceLab.Create(in template))
             {
@@ -98,6 +115,58 @@ public sealed class ShooterAcceptanceLabTests
                 Assert.Equal(template.ExpectsInterpolationDiagnostics, session.Controller is IInterpolationDiagnosticsProvider);
             }
         }
+    }
+
+    [Fact]
+    public void SyncTemplateSendPoliciesExposeBatchAndLodSettingsForSmokeValidation()
+    {
+        var batch = ShooterAcceptanceCatalog.GetSyncTemplate("batch-state-low-frequency");
+        var mass = ShooterAcceptanceCatalog.GetSyncTemplate("mass-battle-lod-aoi");
+
+        Assert.Equal(NetworkSyncModel.BatchStateSync, batch.SyncModel);
+        Assert.Equal(ShooterSyncTemplateConvergenceKind.BatchedPresentation, batch.ConvergenceKind);
+        Assert.Equal(ShooterSyncTemplateStatus.Experimental, batch.Status);
+        Assert.True(batch.IsRunnable);
+        Assert.Equal(60, batch.SendPolicy.SnapshotIntervalFrames);
+        Assert.Equal(60, batch.SendPolicy.BatchWindowFrames);
+        Assert.Equal(300, batch.SendPolicy.KeyFrameIntervalFrames);
+        Assert.Equal(10000, batch.SendPolicy.MaxEntityCount);
+        Assert.Equal(1024, batch.SendPolicy.ActiveEntityBudget);
+        Assert.Equal(60, batch.SendPolicy.InterpolationDelayFrames);
+
+        var batchPureState = batch.SendPolicy.ToPureStateSettings();
+        Assert.Equal(batch.SendPolicy.MaxEntityCount, batchPureState.MaxEntityCount);
+        Assert.Equal(batch.SendPolicy.ActiveEntityBudget, batchPureState.ActiveSyncBudget);
+        Assert.Equal(batch.SendPolicy.KeyFrameIntervalFrames, batchPureState.BaselineIntervalFrames);
+        Assert.Equal(batch.SendPolicy.SnapshotIntervalFrames, batchPureState.DeltaIntervalFrames);
+        Assert.Equal(batch.SendPolicy.FarLodIntervalFrames, batchPureState.LowFrequencyIntervalFrames);
+        Assert.Equal(batch.SendPolicy.InterpolationDelayFrames, batchPureState.InterpolationDelayFrames);
+
+        Assert.Equal(NetworkSyncModel.MassBattleLodSync, mass.SyncModel);
+        Assert.Equal(ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation, mass.ConvergenceKind);
+        Assert.Equal(ShooterSyncTemplateStatus.Experimental, mass.Status);
+        Assert.True(mass.IsRunnable);
+        Assert.Equal(90, mass.SendPolicy.SnapshotIntervalFrames);
+        Assert.Equal(90, mass.SendPolicy.BatchWindowFrames);
+        Assert.Equal(450, mass.SendPolicy.KeyFrameIntervalFrames);
+        Assert.Equal(20000, mass.SendPolicy.MaxEntityCount);
+        Assert.Equal(2048, mass.SendPolicy.ActiveEntityBudget);
+        Assert.Equal(48f, mass.SendPolicy.AoiRadius);
+        Assert.Equal(10, mass.SendPolicy.NearLodIntervalFrames);
+        Assert.Equal(30, mass.SendPolicy.MidLodIntervalFrames);
+        Assert.Equal(90, mass.SendPolicy.FarLodIntervalFrames);
+        Assert.Equal(90, mass.SendPolicy.InterpolationDelayFrames);
+    }
+
+    [Fact]
+    public void ReservedSyncTemplateIsCatalogVisibleButRejectedByRunnableSessionCreation()
+    {
+        var reserved = ShooterAcceptanceCatalog.GetSyncTemplate("fast-reconnect-resume");
+
+        Assert.Equal(NetworkSyncModel.FastReconnect, reserved.SyncModel);
+        Assert.Equal(ShooterSyncTemplateStatus.Reserved, reserved.Status);
+        Assert.False(reserved.IsRunnable);
+        Assert.Throws<System.NotSupportedException>(() => ShooterAcceptanceLab.Create(in reserved));
     }
 
     [Fact]
@@ -255,9 +324,8 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(expected, batch.ScenarioCount);
         Assert.Equal(expected, batch.Results.Count);
 
-        // PredictRollback + AuthoritativeInterpolation + HybridHeroPrediction: completed.
         var netCount = ShooterAcceptanceCatalog.NetworkEnvironments.Count;
-        Assert.Equal(netCount * 3, batch.CompletedCount);
+        Assert.Equal(netCount * 5, batch.CompletedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
         Assert.Equal(0, batch.DegradedCount);
@@ -272,6 +340,14 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(netCount, batch.Summary.CountFor(
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.AuthoritativeInterpolation,
+            DemoHarnessRunStatus.Completed));
+        Assert.Equal(netCount, batch.Summary.CountFor(
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.BatchStateSync,
+            DemoHarnessRunStatus.Completed));
+        Assert.Equal(netCount, batch.Summary.CountFor(
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            NetworkSyncModel.MassBattleLodSync,
             DemoHarnessRunStatus.Completed));
         Assert.Equal(netCount, batch.Summary.CountFor(
             ShooterHybridDemoHarnessCarrier.DefaultCarrierName,

@@ -33,6 +33,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public int VictoryTargetDefeats { get; set; } = 72;
 
+        public int TimeLimitFrames { get; private set; }
+
+        public int RemainingTimeFrames => TimeLimitFrames <= 0 ? 0 : Math.Max(0, TimeLimitFrames - CurrentFrame);
+
+        public bool IsTimeLimited => TimeLimitFrames > 0;
+
+        public bool IsTimeExpired => IsTimeLimited && CurrentFrame >= TimeLimitFrames;
+
         public bool IsStarted
         {
             get => MatchState == ShooterBattleMatchState.Running;
@@ -54,7 +62,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             StartSpec = spec;
             DefeatedEnemies = 0;
             VictoryTargetDefeats = 72;
+            TimeLimitFrames = 0;
             MatchState = ShooterBattleMatchState.NotStarted;
+        }
+
+        public void SetTimeLimitFrames(int frames)
+        {
+            TimeLimitFrames = frames < 0 ? 0 : frames;
         }
 
         public void SetMatchRunning()
@@ -70,9 +84,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return false;
             }
 
-            if (resultState != ShooterBattleMatchState.Victory && resultState != ShooterBattleMatchState.Defeat)
+            if (resultState != ShooterBattleMatchState.Victory && resultState != ShooterBattleMatchState.Defeat && resultState != ShooterBattleMatchState.Ended)
             {
-                throw new ArgumentOutOfRangeException(nameof(resultState), resultState, "Match result must be Victory or Defeat.");
+                throw new ArgumentOutOfRangeException(nameof(resultState), resultState, "Match result must be Victory, Defeat, or Ended.");
             }
 
             MatchState = resultState;
@@ -83,9 +97,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public ShooterMatchResultSnapshot GetMatchResult()
         {
-            if (MatchState != ShooterBattleMatchState.Victory && MatchState != ShooterBattleMatchState.Defeat)
+            if (MatchState != ShooterBattleMatchState.Victory && MatchState != ShooterBattleMatchState.Defeat && MatchState != ShooterBattleMatchState.Ended)
             {
-                return ShooterMatchResultSnapshot.NotCompleted(CurrentFrame, DefeatedEnemies, VictoryTargetDefeats);
+                return ShooterMatchResultSnapshot.NotCompleted(
+                    CurrentFrame,
+                    DefeatedEnemies,
+                    VictoryTargetDefeats,
+                    TimeLimitFrames,
+                    RemainingTimeFrames);
             }
 
             return new ShooterMatchResultSnapshot(
@@ -94,7 +113,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 isFinal: true,
                 isVictory: MatchState == ShooterBattleMatchState.Victory,
                 DefeatedEnemies,
-                VictoryTargetDefeats);
+                VictoryTargetDefeats,
+                TimeLimitFrames,
+                RemainingTimeFrames);
         }
 
         public int AllocateBulletId()
@@ -112,13 +133,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private ShooterEventSnapshot CreateMatchResultEvent(ShooterBattleMatchState resultState)
         {
             return new ShooterEventSnapshot(
-                resultState == ShooterBattleMatchState.Victory ? ShooterEventType.MatchVictory : ShooterEventType.MatchDefeat,
+                CreateMatchResultEventType(resultState),
                 sourcePlayerId: 0,
                 targetPlayerId: 0,
                 bulletId: 0,
                 x: 0f,
                 y: 0f,
-                value: resultState == ShooterBattleMatchState.Victory ? DefeatedEnemies : 0);
+                value: resultState == ShooterBattleMatchState.Victory ? DefeatedEnemies : RemainingTimeFrames);
+        }
+
+        private static ShooterEventType CreateMatchResultEventType(ShooterBattleMatchState resultState)
+        {
+            return resultState switch
+            {
+                ShooterBattleMatchState.Victory => ShooterEventType.MatchVictory,
+                ShooterBattleMatchState.Defeat => ShooterEventType.MatchDefeat,
+                ShooterBattleMatchState.Ended => ShooterEventType.MatchEnded,
+                _ => throw new ArgumentOutOfRangeException(nameof(resultState), resultState, "Unsupported match result state.")
+            };
         }
     }
 }

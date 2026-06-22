@@ -1,6 +1,5 @@
 namespace AbilityKit.Orleans.Gateway.HttpApi;
 
-using System.Collections.Generic;
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
@@ -13,53 +12,111 @@ public static class GatewayRoomEndpoints
         var group = app.MapGroup("/api/rooms")
             .WithTags("Rooms");
 
-        group.MapPost("/create", (CreateRoomRequest request, IClusterClient client) =>
+        group.MapPost("/create", (WebCreateRoomRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var directory = client.GetGrain<IRoomDirectoryGrain>($"{request.Region}:{request.ServerId}");
-                var response = await directory.CreateRoomAsync(request);
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                var directory = client.GetGrain<IRoomDirectoryGrain>(CreateDirectoryKey(request.Region, request.ServerId));
+                var response = await directory.CreateRoomAsync(new CreateRoomRequest(
+                    accountId,
+                    NormalizeRegion(request.Region),
+                    NormalizeServerId(request.ServerId),
+                    string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType,
+                    request.Title ?? string.Empty,
+                    request.IsPublic,
+                    request.MaxPlayers,
+                    request.Tags));
+
+                if (request.AutoJoin)
+                {
+                    var room = client.GetGrain<IRoomGrain>(response.RoomId);
+                    await room.JoinMemberAsync(new JoinRoomMemberRequest(accountId));
+                    await BindCurrentRoomAsync(client, accountId, response.RoomId);
+                }
+
                 return Results.Ok(response);
             }))
         .WithName("Gateway.CreateRoom")
-        .Accepts<CreateRoomRequest>("application/json")
+        .Accepts<WebCreateRoomRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/list", (ListRoomsRequest request, IClusterClient client) =>
+        group.MapPost("/list", (WebListRoomsRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var directory = client.GetGrain<IRoomDirectoryGrain>($"{request.Region}:{request.ServerId}");
-                var response = await directory.ListRoomsAsync(request);
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                var directory = client.GetGrain<IRoomDirectoryGrain>(CreateDirectoryKey(request.Region, request.ServerId));
+                var response = await directory.ListRoomsAsync(new ListRoomsRequest(
+                    accountId,
+                    NormalizeRegion(request.Region),
+                    NormalizeServerId(request.ServerId),
+                    request.Offset,
+                    request.Limit,
+                    request.RoomType));
                 return Results.Ok(response);
             }))
         .WithName("Gateway.ListRooms")
-        .Accepts<ListRoomsRequest>("application/json")
+        .Accepts<WebListRoomsRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/join", (JoinRoomRequest request, IClusterClient client) =>
+        group.MapPost("/join", (WebRoomRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
                 var room = client.GetGrain<IRoomGrain>(request.RoomId);
-                var response = await room.JoinAsync(request.AccountId);
+                var response = await room.JoinMemberAsync(new JoinRoomMemberRequest(accountId));
+                await BindCurrentRoomAsync(client, accountId, request.RoomId);
                 return Results.Ok(response);
             }))
         .WithName("Gateway.JoinRoom")
-        .Accepts<JoinRoomRequest>("application/json")
+        .Accepts<WebRoomRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/snapshot", (string roomId, IClusterClient client) =>
+        group.MapPost("/snapshot", (WebRoomRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var room = client.GetGrain<IRoomGrain>(roomId);
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
                 var snapshot = await room.GetSnapshotAsync();
                 return Results.Ok(snapshot);
             }))
         .WithName("Gateway.GetRoomSnapshot")
+        .Accepts<WebRoomRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
@@ -67,19 +124,14 @@ public static class GatewayRoomEndpoints
         group.MapPost("/restore-current", (SessionTokenRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var session = client.GetGrain<ISessionGrain>("global");
-                var validation = await session.ValidateAsync(new ValidateSessionRequest(request.SessionToken));
-                if (!validation.IsValid || string.IsNullOrWhiteSpace(validation.AccountId))
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
                 {
-                    return GatewayEndpointHelpers.ToRoomHttpError(
-                        RoomGatewayErrorCodes.BadRequest,
-                        "Invalid session",
-                        StatusCodes.Status400BadRequest,
-                        GatewayStatusCode.BadRequest);
+                    return InvalidSession();
                 }
 
                 var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
-                var roomId = await mapping.TryGetAccountRoomAsync(validation.AccountId);
+                var roomId = await mapping.TryGetAccountRoomAsync(accountId);
                 if (string.IsNullOrWhiteSpace(roomId))
                 {
                     return GatewayEndpointHelpers.ToRoomHttpError(
@@ -90,8 +142,8 @@ public static class GatewayRoomEndpoints
                 }
 
                 var room = client.GetGrain<IRoomGrain>(roomId);
-                var snapshot = await room.GetSnapshotAsync();
-                return Results.Ok(snapshot);
+                var restore = await room.RestoreAsync(accountId);
+                return Results.Ok(restore);
             }))
         .WithName("Gateway.RestoreCurrentRoom")
         .Produces(StatusCodes.Status200OK)
@@ -99,15 +151,103 @@ public static class GatewayRoomEndpoints
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/leave", (LeaveRoomRequest request, IClusterClient client) =>
+        group.MapPost("/leave", (WebRoomRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
                 var room = client.GetGrain<IRoomGrain>(request.RoomId);
-                await room.LeaveAsync(request.AccountId);
+                await room.LeaveAsync(accountId);
+                var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+                await mapping.ClearAccountRoomAsync(accountId, request.RoomId);
                 return Results.Ok(new { Success = true });
             }))
         .WithName("Gateway.LeaveRoom")
-        .Accepts<LeaveRoomRequest>("application/json")
+        .Accepts<WebRoomRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/mark-offline", (WebRoomRequest request, IClusterClient client) =>
+            GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+            {
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                await room.MarkOfflineAsync(accountId);
+                var state = await room.GetRuntimeStateAsync();
+                return Results.Ok(state);
+            }))
+        .WithName("Gateway.MarkRoomMemberOffline")
+        .Accepts<WebRoomRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/close", (WebRoomRequest request, IClusterClient client) =>
+            GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+            {
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                await room.CloseAsync(accountId);
+                var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+                await mapping.ClearAccountRoomAsync(accountId, request.RoomId);
+                return Results.Ok(new { Success = true });
+            }))
+        .WithName("Gateway.CloseRoom")
+        .Accepts<WebRoomRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/runtime-state", (WebRoomRequest request, IClusterClient client) =>
+            GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+            {
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                var state = await room.GetRuntimeStateAsync();
+                return Results.Ok(state);
+            }))
+        .WithName("Gateway.GetRoomRuntimeState")
+        .Accepts<WebRoomRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
@@ -119,52 +259,160 @@ public static class GatewayRoomEndpoints
                 var state = await room.GetRuntimeStateAsync();
                 return Results.Ok(state);
             }))
-        .WithName("Gateway.GetRoomRuntimeState")
+        .WithName("Gateway.GetRoomRuntimeStateByRoute")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/ready", (RoomReadyRequest request, IClusterClient client) =>
+        group.MapPost("/ready", (WebRoomReadyRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var room = client.GetGrain<IRoomGrain>(request.AccountId);
-                await room.SetReadyAsync(request);
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                await room.SetReadyAsync(new RoomReadyRequest(accountId, request.Ready));
                 var snapshot = await room.GetSnapshotAsync();
                 return Results.Ok(snapshot);
             }))
         .WithName("Gateway.SetRoomReady")
-        .Accepts<RoomReadyRequest>("application/json")
+        .Accepts<WebRoomReadyRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/pick-hero", (RoomPickHeroRequest request, IClusterClient client) =>
+        group.MapPost("/pick-hero", (WebRoomPickHeroRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var room = client.GetGrain<IRoomGrain>(request.AccountId);
-                await room.SetReadyAsync(new RoomReadyRequest(request.AccountId, true));
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                await room.SubmitGameplayCommandAsync(RoomGameplayCommandRequest.CreateMobaLoadout(
+                    accountId,
+                    request.HeroId,
+                    request.TeamId,
+                    request.SpawnPointId,
+                    request.Level,
+                    request.AttributeTemplateId,
+                    request.BasicAttackSkillId,
+                    request.SkillIds));
+                await room.SetReadyAsync(new RoomReadyRequest(accountId, true));
                 var snapshot = await room.GetSnapshotAsync();
                 return Results.Ok(snapshot);
             }))
         .WithName("Gateway.PickRoomHero")
-        .Accepts<RoomPickHeroRequest>("application/json")
+        .Accepts<WebRoomPickHeroRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
-        group.MapPost("/start-battle", (StartRoomBattleRequest request, IClusterClient client) =>
+        group.MapPost("/start-battle", (WebStartRoomBattleRequest request, IClusterClient client) =>
             GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
             {
-                var room = client.GetGrain<IRoomGrain>(request.AccountId);
-                var response = await room.StartBattleAsync(request);
+                var accountId = await ValidateAccountAsync(client, request.SessionToken);
+                if (string.IsNullOrWhiteSpace(accountId))
+                {
+                    return InvalidSession();
+                }
+
+                if (string.IsNullOrWhiteSpace(request.RoomId))
+                {
+                    return BadRequest("RoomId is required.");
+                }
+
+                var room = client.GetGrain<IRoomGrain>(request.RoomId);
+                var response = await room.StartBattleAsync(new StartRoomBattleRequest(
+                    accountId,
+                    request.GameplayId,
+                    request.RuleSetId,
+                    request.ConfigVersion,
+                    request.ProtocolVersion,
+                    request.WorldType,
+                    request.ClientId,
+                    new BattleSyncStartOptions(
+                        request.SyncTemplateId,
+                        request.SyncModel ?? 0,
+                        request.NetworkEnvironmentId,
+                        request.CarrierName,
+                        request.EnableAuthoritativeWorld,
+                        request.InterpolationEnabled,
+                        request.InputDelayFrames)));
                 return Results.Ok(response);
             }))
         .WithName("Gateway.StartRoomBattle")
-        .Accepts<StartRoomBattleRequest>("application/json")
+        .Accepts<WebStartRoomBattleRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError);
 
         return group;
+    }
+
+    private static async Task<string?> ValidateAccountAsync(IClusterClient client, string? sessionToken)
+    {
+        if (string.IsNullOrWhiteSpace(sessionToken))
+        {
+            return null;
+        }
+
+        var session = client.GetGrain<ISessionGrain>("global");
+        var result = await session.ValidateAsync(new ValidateSessionRequest(sessionToken));
+        return result.IsValid ? result.AccountId : null;
+    }
+
+    private static Task BindCurrentRoomAsync(IClusterClient client, string accountId, string roomId)
+    {
+        var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+        return mapping.BindAccountRoomAsync(accountId, roomId);
+    }
+
+    private static string CreateDirectoryKey(string? region, string? serverId)
+    {
+        return $"{NormalizeRegion(region)}:{NormalizeServerId(serverId)}";
+    }
+
+    private static string NormalizeRegion(string? region)
+    {
+        return string.IsNullOrWhiteSpace(region) ? "dev" : region;
+    }
+
+    private static string NormalizeServerId(string? serverId)
+    {
+        return string.IsNullOrWhiteSpace(serverId) ? "default" : serverId;
+    }
+
+    private static IResult InvalidSession()
+    {
+        return GatewayEndpointHelpers.ToRoomHttpError(
+            RoomGatewayErrorCodes.BadRequest,
+            "Invalid session",
+            StatusCodes.Status400BadRequest,
+            GatewayStatusCode.BadRequest);
+    }
+
+    private static IResult BadRequest(string message)
+    {
+        return GatewayEndpointHelpers.ToRoomHttpError(
+            RoomGatewayErrorCodes.BadRequest,
+            message,
+            StatusCodes.Status400BadRequest,
+            GatewayStatusCode.BadRequest);
     }
 }

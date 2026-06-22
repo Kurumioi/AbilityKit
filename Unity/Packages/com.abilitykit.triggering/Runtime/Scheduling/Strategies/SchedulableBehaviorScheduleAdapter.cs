@@ -1,4 +1,5 @@
 using AbilityKit.Triggering.Runtime.Behavior;
+using AbilityKit.Triggering.Runtime.Pooling;
 
 namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
 {
@@ -63,6 +64,7 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
         private readonly ISchedulableBehavior _behavior;
         private readonly IBehaviorContext _context;
         private readonly IScheduleEffectCallbacks _callbacks;
+        private readonly TriggeringRuntimePools _pools;
         private readonly bool _beginOnFirstExecute;
 
         private bool _hasBegun;
@@ -80,12 +82,14 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
             ISchedulableBehavior behavior,
             IBehaviorContext context,
             IScheduleEffectCallbacks callbacks = null,
-            bool beginOnFirstExecute = true)
+            bool beginOnFirstExecute = true,
+            TriggeringRuntimePools pools = null)
         {
             _behavior = behavior ?? throw new System.ArgumentNullException(nameof(behavior));
             _context = context ?? throw new System.ArgumentNullException(nameof(context));
             _callbacks = callbacks;
             _beginOnFirstExecute = beginOnFirstExecute;
+            _pools = pools;
         }
 
         /// <summary>
@@ -152,10 +156,16 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
             }
 
             // 创建适配后的上下文
-            var adapterCtx = new ScheduleToBehaviorContextAdapter(ctx, _context);
-
-            // 更新行为
-            _behavior.Update(ctx.ScaledDeltaMs, adapterCtx);
+            var adapterCtx = RentAdapter(in ctx);
+            try
+            {
+                // 更新行为
+                _behavior.Update(ctx.ScaledDeltaMs, adapterCtx);
+            }
+            finally
+            {
+                ReleaseAdapter(adapterCtx);
+            }
 
             // 检查是否完成
             if (_behavior.State == EBehaviorState.Completed)
@@ -184,15 +194,34 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
             // 条件评估
             if (_behavior is ITriggerBehavior triggerBehavior)
             {
-                var adapterCtx = new ScheduleToBehaviorContextAdapter(ctx, _context);
-                if (!triggerBehavior.Evaluate(adapterCtx))
-                    return false;
+                var adapterCtx = RentAdapter(in ctx);
+                try
+                {
+                    if (!triggerBehavior.Evaluate(adapterCtx))
+                        return false;
+                }
+                finally
+                {
+                    ReleaseAdapter(adapterCtx);
+                }
             }
 
             // 状态检查
             var state = _behavior.State;
             return state == EBehaviorState.Running 
                 || state == EBehaviorState.Idle;
+        }
+
+        private ScheduleToBehaviorContextAdapter RentAdapter(in ScheduleContext ctx)
+        {
+            return _pools != null
+                ? _pools.RentScheduleToBehaviorContextAdapter(in ctx, _context)
+                : new ScheduleToBehaviorContextAdapter(ctx, _context);
+        }
+
+        private void ReleaseAdapter(ScheduleToBehaviorContextAdapter adapter)
+        {
+            _pools?.ReleaseScheduleToBehaviorContextAdapter(adapter);
         }
 
         /// <summary>

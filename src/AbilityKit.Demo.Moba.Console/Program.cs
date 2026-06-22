@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
-using AbilityKit.Demo.Moba.Console.Battle.Game;
+using AbilityKit.Demo.Moba.Testing;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Console.Services;
@@ -13,7 +13,6 @@ namespace AbilityKit.Demo.Moba.Console
     internal sealed class Program
     {
         private static readonly ManualResetEvent _running = new(true);
-        private static ConsoleGameEntry? _gameEntry;
         private static ConsoleBattleBootstrapper? _bootstrapper;
         private static ReplayController? _replayController;
         private static RecordConfig _recordConfig = new();
@@ -44,21 +43,11 @@ namespace AbilityKit.Demo.Moba.Console
 
             try
             {
-                // Initialize new architecture
-                ConsoleGameEntry.Initialize();
-                _gameEntry = ConsoleGameEntry.Instance;
-
-                // Create bootstrapper for battle
+                // Console 入口现在只保留 CLI shell 与平台适配；战斗核心流程由 moba.view/runtime 方向的共享源码承担。
                 _bootstrapper = new ConsoleBattleBootstrapper(null, null, null, _recordConfig);
                 _bootstrapper.Initialize();
                 _bootstrapper.Start();
                 _bootstrapper.SetupBattle();
-
-                // Set the battle context
-                _gameEntry.CurrentBattleContext = _bootstrapper.Context;
-
-                // Start game flow
-                _gameEntry.Flow.EnterBattle(_bootstrapper);
 
                 // Run based on mode
                 switch (_recordConfig.Mode)
@@ -88,7 +77,6 @@ namespace AbilityKit.Demo.Moba.Console
                 _running.Reset();
                 _bootstrapper?.Stop();
                 _replayController?.Dispose();
-                _gameEntry?.Dispose();
                 Log.System("Goodbye!");
             }
         }
@@ -106,68 +94,25 @@ namespace AbilityKit.Demo.Moba.Console
             Log.System("   SKILL CAST TEST MODE");
             Log.System("========================================");
 
-            var testRunner = new AutoTestRunner(_bootstrapper);
+            using var testRunner = new AutoTestRunner(_bootstrapper);
             testRunner.EnableDebugLogging();
+            testRunner.OnTestCompleted += OnTestCompleted;
 
-            // 创建技能测试场景
+            // 创建技能测试场景，并交给共享 BattleTestScriptRunner 路径执行。
             var skillScenario = new SkillCastScenario { SkillSlot = 1, Repeats = 5 };
 
             Log.System("");
             Log.System($"[SKILL-TEST] Testing skill slot {skillScenario.SkillSlot}, {skillScenario.Repeats} times");
+            Log.System("[SKILL-TEST] Starting shared runner skill script...");
             Log.System("");
 
-            // 手动设置测试步骤
-            var autoInput = testRunner.AutoInput;
-            autoInput.ClearSteps();
+            testRunner.RunScenario(skillScenario);
+            testRunner.WaitForCompletion();
 
-            // 等待游戏开始
-            _bootstrapper.TransitionTo("InMatch");
-
-            for (int i = 0; i < skillScenario.Repeats; i++)
-            {
-                autoInput.RegisterStep(InputStep.Skill(skillScenario.SkillSlot, 1));  // 释放技能
-                autoInput.RegisterStep(InputStep.Wait(35));                         // 等待冷却（约1秒）
-            }
-            autoInput.RegisterStep(InputStep.Idle(10));
-
-            // 启动自动输入
-            _bootstrapper.SetAutoTestInput(autoInput);
-            autoInput.Start();
-
-            Log.System("[SKILL-TEST] Starting skill test...");
-
-            // 运行测试循环
-            var gameThread = new Thread(() =>
-            {
-                while (_running.WaitOne(33))
-                {
-                    if (_bootstrapper == null) break;
-                    try
-                    {
-                        _bootstrapper.Tick();
-
-                        // 测试完成后自动退出
-                        if (!autoInput.IsRunning)
-                        {
-                            Log.System("");
-                            Log.System("[SKILL-TEST] Test completed!");
-                            _running.Reset();
-                            break;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"Tick error: {ex.Message}");
-                    }
-                }
-            });
-            gameThread.IsBackground = true;
-            gameThread.Start();
-
+            Log.System("");
+            Log.System("[SKILL-TEST] Test completed. Press Enter to exit...");
             System.Console.ReadLine();
             _running.Reset();
-
-            testRunner.Dispose();
         }
 
         private static void StartTestMode()
@@ -469,14 +414,10 @@ namespace AbilityKit.Demo.Moba.Console
         {
             while (_running.WaitOne(33))
             {
-                if (_gameEntry == null) continue;
+                if (_bootstrapper == null) continue;
                 try
                 {
-                    // Tick game entry (HFSM + Features)
-                    _gameEntry.Tick(0.033f);
-
-                    // Also tick bootstrapper for backward compatibility
-                    _bootstrapper?.Tick(0.033f);
+                    _bootstrapper.Tick(0.033f);
                 }
                 catch
                 {

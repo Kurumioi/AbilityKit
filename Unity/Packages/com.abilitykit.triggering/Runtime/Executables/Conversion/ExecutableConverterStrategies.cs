@@ -1,4 +1,3 @@
-#pragma warning disable CS0618 // Legacy executable conversion strategies intentionally reference compatibility-only converter/module types.
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
@@ -9,22 +8,22 @@ namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
     /// Executable 转换策略接口
-    /// 定义�?Config 转换�?Executable 的抽�?
+    /// 定义�?Config 转换�?Executable 的抽�?
     /// </summary>
     public interface IExecutableConverterStrategy
     {
         /// <summary>
-        /// 此策略处理的类型 ID�? 表示不通过 ID 处理�?
+        /// 此策略处理的类型 ID�? 表示不通过 ID 处理�?
         /// </summary>
         int TypeId { get; }
 
         /// <summary>
-        /// 此策略处理的类型名称（null 表示不通过名称处理�?
+        /// 此策略处理的类型名称（null 表示不通过名称处理�?
         /// </summary>
         string TypeName { get; }
 
         /// <summary>
-        /// 是否可以处理此配�?
+        /// 是否可以处理此配�?
         /// </summary>
         bool CanHandle(ExecutableConfig config);
 
@@ -80,7 +79,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     }
 
     /// <summary>
-    /// 复合行为转换策略基类（用�?Sequence, Selector, Parallel 等）
+    /// 复合行为转换策略基类（用�?Sequence, Selector, Parallel 等）
     /// </summary>
     public abstract class CompositeExecutableStrategyBase : ExecutableConverterStrategyBase
     {
@@ -115,7 +114,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class SequenceExecutableStrategy : CompositeExecutableStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Sequence;
+        public override int TypeId => TypeIdRegistry.Executable.Sequence;
         public override string TypeName => "sequence";
 
         protected override ISimpleExecutable CreateExecutable() => new SequenceExecutable();
@@ -132,7 +131,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class SelectorExecutableStrategy : CompositeExecutableStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Selector;
+        public override int TypeId => TypeIdRegistry.Executable.Selector;
         public override string TypeName => "selector";
 
         protected override ISimpleExecutable CreateExecutable() => new SelectorExecutable();
@@ -149,7 +148,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class ParallelExecutableStrategy : CompositeExecutableStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Parallel;
+        public override int TypeId => TypeIdRegistry.Executable.Parallel;
         public override string TypeName => "parallel";
 
         protected override ISimpleExecutable CreateExecutable() => new ParallelExecutable();
@@ -166,7 +165,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class RandomSelectorExecutableStrategy : CompositeExecutableStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.RandomSelector;
+        public override int TypeId => TypeIdRegistry.Executable.RandomSelector;
         public override string TypeName => "randomselector";
 
         protected override ISimpleExecutable CreateExecutable() => new SelectorExecutable();
@@ -182,7 +181,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class RepeatExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Repeat;
+        public override int TypeId => TypeIdRegistry.Executable.Repeat;
         public override string TypeName => "repeat";
 
         public override ISimpleExecutable Convert(ExecutableConfig config, ConfigToExecutableConverter converter)
@@ -201,7 +200,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class IfExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.If;
+        public override int TypeId => TypeIdRegistry.Executable.If;
         public override string TypeName => "if";
 
         public override ISimpleExecutable Convert(ExecutableConfig config, ConfigToExecutableConverter converter)
@@ -221,7 +220,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class IfElseExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.IfElse;
+        public override int TypeId => TypeIdRegistry.Executable.IfElse;
         public override string TypeName => "ifelse";
 
         public override bool CanHandle(ExecutableConfig config)
@@ -237,7 +236,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 foreach (var childConfig in config.Children)
                 {
-                    if (childConfig.TypeId == ExecutableModule.ExecutableTypeIds.If ||
+                    if (childConfig.TypeId == TypeIdRegistry.Executable.If ||
                         childConfig.TypeName?.Equals("if", StringComparison.OrdinalIgnoreCase) == true)
                     {
                         ICondition condition = null;
@@ -266,7 +265,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class SwitchExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Switch;
+        public override int TypeId => TypeIdRegistry.Executable.Switch;
         public override string TypeName => "switch";
 
         public override bool CanHandle(ExecutableConfig config)
@@ -303,7 +302,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class ActionCallExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.ActionCall;
+        public override int TypeId => TypeIdRegistry.Executable.ActionCall;
         public override string TypeName => "actioncall";
 
         public override bool CanHandle(ExecutableConfig config)
@@ -321,13 +320,12 @@ namespace AbilityKit.Triggering.Runtime.Executable
             var arg0 = converter.ConvertNumericValueRef(actionConfig.Arg0);
             var arg1 = converter.ConvertNumericValueRef(actionConfig.Arg1);
 
-            return new ActionCallExecutable
+            if (converter.Actions == null)
             {
-                ActionId = actionId,
-                Arity = actionConfig.Arity,
-                Arg0 = arg0,
-                Arg1 = arg1
-            };
+                throw new InvalidOperationException($"ActionCall executable conversion requires an ActionRegistry. actionId={actionId}");
+            }
+
+            return ActionDelegateFactory.Create(actionId, arg0, arg1, converter.Actions);
         }
     }
 
@@ -336,7 +334,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class DelayExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Delay;
+        public override int TypeId => TypeIdRegistry.Executable.Delay;
         public override string TypeName => "delay";
 
         public override bool CanHandle(ExecutableConfig config)
@@ -356,7 +354,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     /// </summary>
     public sealed class ScheduleExecutableStrategy : ExecutableConverterStrategyBase
     {
-        public override int TypeId => ExecutableModule.ExecutableTypeIds.Schedule;
+        public override int TypeId => TypeIdRegistry.Executable.Timed;
         public override string TypeName => "schedule";
 
         public override bool CanHandle(ExecutableConfig config)
@@ -407,5 +405,3 @@ namespace AbilityKit.Triggering.Runtime.Executable
         }
     }
 }
-#pragma warning restore CS0618
-

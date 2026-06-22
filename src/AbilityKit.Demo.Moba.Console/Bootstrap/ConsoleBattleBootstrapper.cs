@@ -165,15 +165,11 @@ namespace AbilityKit.Demo.Moba.Console
 
         public void SetAutoTestInput(AutoTestInputFeature? autoInput)
         {
+            if (ReferenceEquals(_autoTestInput, autoInput)) return;
+
+            _autoTestInput?.OnDetach(_context);
             _autoTestInput = autoInput;
-            if (autoInput != null)
-            {
-                autoInput.OnAttach(_context);
-            }
-            else
-            {
-                _autoTestInput?.OnDetach(_context);
-            }
+            _autoTestInput?.OnAttach(_context);
         }
 
         public BattleConfig.BattleStartPlan Build() => _config.BuildPlan();
@@ -394,10 +390,9 @@ namespace AbilityKit.Demo.Moba.Console
             // 由 PhaseHost -> InMatchPhase -> FeatureHost 管理 Features
             _flow.Tick((float)elapsed);
 
-            // Features 现在由 FeatureHost.Tick() 自动管理
+            // Features 现在由 FeatureHost.Tick() 自动管理；自动测试输入由共享 runner driver 显式 Apply，避免本地步骤机重复脚本语义。
             // _syncFeature.Tick(_context, (float)elapsed);
             // _inputFeature.Tick(_context, (float)elapsed);
-            // _autoTestInput?.Tick(_context, (float)elapsed);
             // _hudFeature.Tick(_context, (float)elapsed);
 
             _cuePresenter?.Tick(_syncAdapter?.LogicTimeSeconds ?? _totalTime);

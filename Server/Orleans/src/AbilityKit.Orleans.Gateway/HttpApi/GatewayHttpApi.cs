@@ -1,30 +1,23 @@
 namespace AbilityKit.Orleans.Gateway.HttpApi;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using Orleans;
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
-using AbilityKit.Orleans.Contracts.FrameSync;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 
 internal static class GatewayHttpApi
 {
-    private static readonly IReadOnlyList<string> Gameplays = new[]
-    {
-        "moba",
-        "shooter"
-    };
-
     public static void MapGatewayHttpApi(this WebApplication app)
     {
         app.MapGatewaySessionEndpoints();
+        app.MapGatewayGameplayEndpoints();
         app.MapGatewaySandboxEndpoints();
+        app.MapGatewayAdminEndpoints();
         app.MapGatewayRoomEndpoints();
     }
 
@@ -85,7 +78,7 @@ internal static class GatewayHttpApi
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest);
 
-        group.MapPost("/renew", async (RenewSessionWireRequest wire, IClusterClient client) =>
+        group.MapPost("/renew", async (RenewSessionRequest wire, IClusterClient client) =>
         {
             if (string.IsNullOrWhiteSpace(wire.SessionToken))
             {
@@ -93,14 +86,11 @@ internal static class GatewayHttpApi
             }
 
             var session = client.GetGrain<ISessionGrain>("global");
-            var resp = await session.RenewAsync(new RenewSessionRequest(
-                wire.SessionToken,
-                wire.ExtendSeconds,
-                wire.RotateToken));
+            var resp = await session.RenewAsync(wire);
             return Results.Ok(resp);
         })
         .WithName("Gateway.RenewSession")
-        .Accepts<RenewSessionWireRequest>("application/json")
+        .Accepts<RenewSessionRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest);
 
@@ -125,39 +115,128 @@ internal static class GatewayHttpApi
         .Accepts<SessionTokenRequest>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest);
+
+        app.MapPost("/api/guest/login", async (IClusterClient client) =>
+        {
+            var session = client.GetGrain<ISessionGrain>("global");
+            var resp = await session.CreateGuestAsync();
+            return Results.Ok(resp);
+        })
+        .WithName("Gateway.CreateGuestSessionCompat")
+        .Produces(StatusCodes.Status200OK);
+
+        app.MapPost("/api/accounts/login", async (AccountLoginRequest wire, IClusterClient client) =>
+        {
+            if (string.IsNullOrWhiteSpace(wire.AccountId))
+            {
+                return Results.BadRequest("AccountId is required");
+            }
+
+            var session = client.GetGrain<ISessionGrain>("global");
+            try
+            {
+                var resp = await session.CreateSessionForAccountAsync(new CreateSessionForAccountRequest(
+                    wire.AccountId,
+                    wire.ExpireSeconds,
+                    wire.KickExisting));
+                return Results.Ok(resp);
+            }
+            catch (Exception exception)
+            {
+                return RoomHttpErrorMapper.ToResult(exception);
+            }
+        })
+        .WithName("Gateway.LoginAccountCompat")
+        .Accepts<AccountLoginRequest>("application/json")
+        .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status500InternalServerError);
+    }
+
+    private static void MapGatewayGameplayEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api")
+            .WithTags("Gameplay");
+
+        group.MapGet("/gameplays", ListGameplays)
+            .WithName("Gateway.ListGameplays")
+            .Produces(StatusCodes.Status200OK);
+    }
+
+    private static void MapGatewayAdminEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/admin")
+            .WithTags("Admin");
+
+        group.MapPost("/dashboard", BuildAdminDashboardAsync)
+            .WithName("Gateway.AdminDashboard")
+            .Accepts<AdminDashboardHttpRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapGet("/server/status", (IWebHostEnvironment environment) =>
+            Results.Ok(GatewayAdminOperations.GetStatus(environment)))
+            .WithName("Gateway.AdminServerStatus")
+            .Produces<AdminServerStatusHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapPost("/server/maintenance", async (AdminServerOperationHttpRequest request, IClusterClient client, IWebHostEnvironment environment) =>
+            await ExecuteAdminServerOperationAsync(request, client, environment, GatewayAdminOperations.SetMaintenanceMode))
+            .WithName("Gateway.AdminSetMaintenanceMode")
+            .Accepts<AdminServerOperationHttpRequest>("application/json")
+            .Produces<AdminServerOperationHttpResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/server/drain", async (AdminServerOperationHttpRequest request, IClusterClient client, IWebHostEnvironment environment) =>
+            await ExecuteAdminServerOperationAsync(request, client, environment, GatewayAdminOperations.SetDrainMode))
+            .WithName("Gateway.AdminSetDrainMode")
+            .Accepts<AdminServerOperationHttpRequest>("application/json")
+            .Produces<AdminServerOperationHttpResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapPost("/server/restart-request", async (AdminServerOperationHttpRequest request, IClusterClient client, IWebHostEnvironment environment) =>
+            await ExecuteAdminServerOperationAsync(request, client, environment, GatewayAdminOperations.RequestRestart))
+            .WithName("Gateway.AdminRequestServerRestart")
+            .Accepts<AdminServerOperationHttpRequest>("application/json")
+            .Produces<AdminServerOperationHttpResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
     }
 
     private static void MapGatewaySandboxEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api")
-            .WithTags("Gameplay", "Sandbox");
+            .WithTags("Sandbox");
 
-        group.MapGet("/gameplays", () => Results.Ok(Gameplays))
-            .WithName("Gateway.ListGameplays")
-            .Produces(StatusCodes.Status200OK);
-
-        group.MapPost("/shooter-sandbox/start", async (StartShooterSandboxRequest wire, IClusterClient client) =>
+        group.MapPost("/shooter-sandbox/start", async (ShooterSandboxHttpStartRequest wire, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(wire.ServerId) ? "default" : wire.ServerId);
-            var resp = await sandbox.StartAsync(wire);
+            var sandboxId = ResolveSandboxId(wire.SandboxId, wire.ServerId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(sandboxId);
+            var resp = await sandbox.StartAsync(new StartShooterSandboxRequest(
+                wire.Region,
+                wire.ServerId,
+                wire.BotCount,
+                wire.MaxPlayers,
+                wire.TickRate,
+                wire.Title,
+                wire.Tags));
             return Results.Ok(resp);
         })
         .WithName("Gateway.StartShooterSandbox")
-        .Accepts<StartShooterSandboxRequest>("application/json")
+        .Accepts<ShooterSandboxHttpStartRequest>("application/json")
         .Produces(StatusCodes.Status200OK);
 
-        group.MapGet("/shooter-sandbox/{serverId?}", async (string? serverId, IClusterClient client) =>
+        group.MapGet("/shooter-sandbox/{sandboxId?}", async (string? sandboxId, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? "default" : serverId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(ResolveSandboxId(sandboxId, null));
             var resp = await sandbox.GetStateAsync();
             return Results.Ok(resp);
         })
         .WithName("Gateway.GetShooterSandboxState")
         .Produces(StatusCodes.Status200OK);
 
-        group.MapPost("/shooter-sandbox/stop", async (string? serverId, IClusterClient client) =>
+        group.MapPost("/shooter-sandbox/stop", async (ShooterSandboxHttpRequest wire, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? "default" : serverId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(ResolveSandboxId(wire.SandboxId, wire.ServerId));
             await sandbox.StopAsync();
             return Results.Ok(new { Success = true });
         })
@@ -165,8 +244,13 @@ internal static class GatewayHttpApi
         .Produces(StatusCodes.Status200OK);
     }
 
-    private static async Task<string?> ValidateAccountAsync(IClusterClient client, string sessionToken)
+    private static async Task<string?> ValidateAccountAsync(IClusterClient client, string? sessionToken)
     {
+        if (string.IsNullOrWhiteSpace(sessionToken))
+        {
+            return null;
+        }
+
         var session = client.GetGrain<ISessionGrain>("global");
         var result = await session.ValidateAsync(new ValidateSessionRequest(sessionToken));
         return result.IsValid ? result.AccountId : null;
@@ -183,5 +267,87 @@ internal static class GatewayHttpApi
 
         var room = client.GetGrain<IRoomGrain>(roomId);
         await room.MarkOfflineAsync(accountId);
+    }
+
+    private static IResult ListGameplays()
+    {
+        return Results.Ok(GatewayGameplayCatalog.All);
+    }
+
+    private static async Task<IResult> BuildAdminDashboardAsync(AdminDashboardHttpRequest request, IClusterClient client, IWebHostEnvironment environment)
+    {
+        var region = string.IsNullOrWhiteSpace(request.Region) ? "cn" : request.Region;
+        var serverId = string.IsNullOrWhiteSpace(request.ServerId) ? "dev" : request.ServerId;
+        var roomType = string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType;
+        var limit = request.Limit <= 0 ? 20 : Math.Min(request.Limit, 100);
+        var accountId = await ValidateAccountAsync(client, request.SessionToken);
+
+        var directory = client.GetGrain<IRoomDirectoryGrain>($"{region}:{serverId}");
+        var rooms = await directory.ListRoomsAsync(new ListRoomsRequest(
+            accountId ?? "admin-dashboard",
+            region,
+            serverId,
+            0,
+            limit,
+            roomType));
+
+        string? currentRoomId = null;
+        RestoreRoomResponse? currentRoom = null;
+        RoomRuntimeState? runtimeState = null;
+        if (!string.IsNullOrWhiteSpace(accountId))
+        {
+            var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+            currentRoomId = await mapping.TryGetAccountRoomAsync(accountId);
+            if (!string.IsNullOrWhiteSpace(currentRoomId))
+            {
+                var room = client.GetGrain<IRoomGrain>(currentRoomId);
+                currentRoom = await room.RestoreAsync(accountId);
+                runtimeState = await room.GetRuntimeStateAsync();
+            }
+        }
+
+        var sandbox = client.GetGrain<IShooterSandboxGrain>(ResolveSandboxId(request.SandboxId, serverId));
+        var sandboxState = await sandbox.GetStateAsync();
+
+        return Results.Ok(new AdminDashboardHttpResponse(
+            GatewayGameplayCatalog.All,
+            rooms.Rooms,
+            accountId,
+            currentRoomId,
+            currentRoom,
+            runtimeState,
+            sandboxState,
+            DateTime.UtcNow.Ticks,
+            GatewayAdminOperations.GetStatus(environment)));
+    }
+
+    private static async Task<IResult> ExecuteAdminServerOperationAsync(
+        AdminServerOperationHttpRequest request,
+        IClusterClient client,
+        IWebHostEnvironment environment,
+        Func<AdminServerOperationHttpRequest, string, IWebHostEnvironment, AdminServerOperationHttpResponse> operation)
+    {
+        var accountId = await ValidateAccountAsync(client, request.SessionToken);
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            return Results.BadRequest("A valid admin session token is required.");
+        }
+
+        return Results.Ok(operation(request, accountId, environment));
+    }
+
+    private static string ResolveSandboxId(string? sandboxId, string? serverId)
+    {
+        if (!string.IsNullOrWhiteSpace(sandboxId))
+        {
+            return sandboxId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(serverId))
+        {
+            return serverId;
+        }
+
+        return "default";
     }
 }

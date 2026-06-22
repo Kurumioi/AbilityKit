@@ -127,49 +127,6 @@ namespace AbilityKit.Triggering.Example
             }
         }
 
-        // ========== 向后兼容：非泛型 Cue 实现 ==========
-
-        /// <summary>
-        /// 非泛型 Cue 实现（向后兼容）
-        /// 通过 context.Args 强制转换获取参数
-        /// </summary>
-        public sealed class LegacyDamageTriggerCue : ITriggerCue
-        {
-            public void OnConditionPassed(in TriggerCueContext context)
-            {
-                Debug.Log($"[LegacyCue] 条件通过 (Target={context.EventId})");
-            }
-
-            public void OnConditionFailed(in TriggerCueContext context)
-            {
-                Debug.Log($"[LegacyCue] 条件失败 (TriggerId={context.TriggerId})");
-            }
-
-            public void OnBeforeAction(in TriggerCueContext context, int actionIndex)
-            {
-                Debug.Log($"[LegacyCue] 执行 Action {actionIndex}");
-            }
-
-            public void OnExecuted(in TriggerCueContext context)
-            {
-                // ❌ 需要强制转换，无编译期类型安全
-                if (context.Args is DamageEvent dmg)
-                {
-                    Debug.Log($"[LegacyCue] 播放伤害特效 Damage={dmg.Damage}");
-                }
-            }
-
-            public void OnInterrupted(in TriggerCueContext context)
-            {
-                Debug.Log($"[LegacyCue] 被打断");
-            }
-
-            public void OnSkipped(in TriggerCueContext context)
-            {
-                Debug.Log($"[LegacyCue] 被跳过");
-            }
-        }
-
         // ========== Cue 配置数据 ==========
 
         public readonly struct DamageVfxConfig
@@ -242,39 +199,5 @@ namespace AbilityKit.Triggering.Example
             Debug.Log("=== 示例结束 ===");
         }
 
-        // ========== 使用便捷构造器（向后兼容）==========
-
-        public static void RunWithConstructor()
-        {
-            var bus = new EventBus();
-            var runner = new TriggerRunner<DefaultTCtx>(
-                bus,
-                new FunctionRegistry(),
-                new ActionRegistry());
-
-            var damageEventId = Eventing.StableStringId.Get("event:damage2");
-            var eventKey = new EventKey<DamageEvent>(damageEventId);
-
-            // 使用向后兼容的非泛型 Cue
-            var damageCue = new LegacyDamageTriggerCue();
-
-            // 使用便捷构造器
-            var plan = new TriggerPlan<DamageEvent>(
-                phase: 0,
-                priority: 5,
-                triggerId: 1002,
-                predicateId: default,
-                predicateArgs: null,
-                actions: Array.Empty<ActionCallPlan>(),
-                interruptPriority: 0,
-                cue: damageCue);
-
-            runner.Register(eventKey, plan);
-
-            Debug.Log("=== 示例：使用向后兼容构造器 ===");
-            bus.Publish(eventKey, new DamageEvent(99, 200, false));
-            bus.Flush();
-            Debug.Log("=== 示例结束 ===");
-        }
     }
 }

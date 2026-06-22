@@ -166,7 +166,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _cells.Clear();
             _records.Clear();
 
-            var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             for (var i = 0; i < count; i++)
             {

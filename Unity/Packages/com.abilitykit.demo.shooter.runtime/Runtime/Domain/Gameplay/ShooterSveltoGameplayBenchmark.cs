@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
@@ -61,6 +62,33 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int initialEntityBudgetHeadroom,
             bool initialEntitiesWithinBudget,
             long totalActiveSyncBudgetFrames)
+            : this(
+                maxEntityCount,
+                activeSyncBudget,
+                requestedInitialEntityCount,
+                clampedInitialEntityCount,
+                initialEntityBudgetHeadroom,
+                initialEntitiesWithinBudget,
+                totalActiveSyncBudgetFrames,
+                0L,
+                0L,
+                0L,
+                0L)
+        {
+        }
+
+        public ShooterSveltoGameplayEntityBudgetDiagnostics(
+            int maxEntityCount,
+            int activeSyncBudget,
+            int requestedInitialEntityCount,
+            int clampedInitialEntityCount,
+            int initialEntityBudgetHeadroom,
+            bool initialEntitiesWithinBudget,
+            long totalActiveSyncBudgetFrames,
+            long elapsedTicks,
+            long allocatedBytes,
+            long averageFrameTicks,
+            long averageFrameAllocatedBytes)
         {
             MaxEntityCount = maxEntityCount;
             ActiveSyncBudget = activeSyncBudget;
@@ -69,6 +97,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
             InitialEntityBudgetHeadroom = initialEntityBudgetHeadroom;
             InitialEntitiesWithinBudget = initialEntitiesWithinBudget;
             TotalActiveSyncBudgetFrames = totalActiveSyncBudgetFrames;
+            ElapsedTicks = elapsedTicks;
+            AllocatedBytes = allocatedBytes;
+            AverageFrameTicks = averageFrameTicks;
+            AverageFrameAllocatedBytes = averageFrameAllocatedBytes;
         }
 
         public int MaxEntityCount { get; }
@@ -78,6 +110,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int InitialEntityBudgetHeadroom { get; }
         public bool InitialEntitiesWithinBudget { get; }
         public long TotalActiveSyncBudgetFrames { get; }
+        public long ElapsedTicks { get; }
+        public long AllocatedBytes { get; }
+        public long AverageFrameTicks { get; }
+        public long AverageFrameAllocatedBytes { get; }
     }
 
     public readonly struct ShooterSveltoGameplayBenchmarkResult
@@ -174,6 +210,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterSveltoGameplayScenarioResult first = default;
             ShooterSveltoGameplayScenarioResult last = default;
             var deterministic = true;
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            var stopwatch = Stopwatch.StartNew();
             for (var i = 0; i < profile.Iterations; i++)
             {
                 var result = runner.Run(profile.Scenario);
@@ -189,9 +227,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 last = result;
             }
 
+            stopwatch.Stop();
+            var allocatedBytes = Math.Max(0L, GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
             var initialEntityCount = profile.Scenario.ShooterCount + profile.Scenario.TargetCount;
             var totalFrames = (long)profile.Iterations * profile.Scenario.TickCount;
-            var entityBudget = CreateEntityBudgetDiagnostics(in profile, initialEntityCount, totalFrames);
+            var entityBudget = CreateEntityBudgetDiagnostics(in profile, initialEntityCount, totalFrames, stopwatch.ElapsedTicks, allocatedBytes);
             return new ShooterSveltoGameplayBenchmarkResult(
                 profile.Id,
                 profile.Scenario.Id,
@@ -209,10 +249,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private static ShooterSveltoGameplayEntityBudgetDiagnostics CreateEntityBudgetDiagnostics(
             in ShooterSveltoGameplayBenchmarkProfile profile,
             int requestedInitialEntityCount,
-            long totalFrames)
+            long totalFrames,
+            long elapsedTicks,
+            long allocatedBytes)
         {
             var limits = new ShooterEntityLimitOptions(profile.EntityBudget.MaxEntityCount);
             var clampedInitialEntityCount = limits.ClampRequestedCount(requestedInitialEntityCount);
+            var safeTotalFrames = Math.Max(1L, totalFrames);
             return new ShooterSveltoGameplayEntityBudgetDiagnostics(
                 limits.MaxEntityCount,
                 profile.EntityBudget.ActiveSyncBudget,
@@ -220,7 +263,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 clampedInitialEntityCount,
                 limits.MaxEntityCount - clampedInitialEntityCount,
                 requestedInitialEntityCount <= limits.MaxEntityCount,
-                totalFrames * profile.EntityBudget.ActiveSyncBudget);
+                totalFrames * profile.EntityBudget.ActiveSyncBudget,
+                elapsedTicks,
+                allocatedBytes,
+                elapsedTicks / safeTotalFrames,
+                allocatedBytes / safeTotalFrames);
         }
 
         private static bool HasSameDeterministicOutcome(

@@ -4,13 +4,26 @@ using System;
 
 namespace AbilityKit.Demo.Shooter.View
 {
-    internal sealed class ShooterDotsSnapshotViewBinder : IShooterViewBinder, IDisposable
+    public sealed class ShooterDotsSnapshotViewBinder : IShooterViewBinder, IDisposable
     {
         private readonly ShooterPresentationFacade _presentation;
         private readonly IShooterSnapshotViewSink _sink;
+        private readonly ShooterSnapshotViewProjection _projection = new ShooterSnapshotViewProjection();
         private bool _disposed;
-
+ 
         public bool InterpolationEnabled { get; set; } = true;
+
+        public bool HasBufferedSnapshots => _presentation.Snapshots.BufferedSnapshotCount > 0;
+
+        public ShooterViewEntityStore Store => _projection.Store;
+
+        public ShooterViewProjectionApplyResult LastApplyResult => _projection.LastApplyResult;
+
+        public int AppliedBatchCount { get; private set; }
+
+        public int AppliedEntityChangeCount { get; private set; }
+
+        public int AppliedComponentChangeCount { get; private set; }
 
         public ShooterDotsSnapshotViewBinder(ShooterPresentationFacade presentation, IShooterSnapshotViewSink? sink)
         {
@@ -21,6 +34,10 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void Sync(in ShooterSnapshotViewBatch batch)
         {
+            _projection.Apply(in batch);
+            AppliedBatchCount++;
+            AppliedEntityChangeCount += batch.EntityChangeCount + batch.RemovedEntityCount;
+            AppliedComponentChangeCount += batch.ComponentChangeCount;
             _sink.ApplySnapshot(in batch);
         }
 
@@ -48,6 +65,10 @@ namespace AbilityKit.Demo.Shooter.View
         public void Clear()
         {
             _presentation.Snapshots.Reset();
+            _projection.Clear();
+            AppliedBatchCount = 0;
+            AppliedEntityChangeCount = 0;
+            AppliedComponentChangeCount = 0;
             _sink.Clear();
         }
 

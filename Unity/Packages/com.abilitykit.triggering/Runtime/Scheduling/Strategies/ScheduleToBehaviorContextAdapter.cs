@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Behavior;
 
@@ -11,14 +10,19 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
     /// </summary>
     public sealed class ScheduleToBehaviorContextAdapter : IBehaviorContext
     {
-        private readonly ScheduleContext _scheduleContext;
-        private readonly IBehaviorContext _innerContext;
-        private readonly ScheduleBlackboard _blackboard;
+        private ScheduleContext _scheduleContext;
+        private IBehaviorContext _innerContext;
+        private readonly ScheduleBlackboard _blackboard = new();
+        private object _args;
 
-        public object Args { get; }
-        public IBlackboardResolver Blackboards { get; }
+        public object Args => _args;
+        public IBlackboardResolver Blackboards => _blackboard;
         public IActionRegistry Actions => _innerContext?.Actions;
         public IValueResolver Values => _innerContext?.Values;
+
+        internal ScheduleToBehaviorContextAdapter()
+        {
+        }
 
         /// <summary>
         /// 创建一个新的适配器
@@ -31,13 +35,26 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
             IBehaviorContext innerContext = null,
             object args = null)
         {
+            Initialize(in scheduleContext, innerContext, args);
+        }
+
+        internal void Initialize(
+            in ScheduleContext scheduleContext,
+            IBehaviorContext innerContext = null,
+            object args = null)
+        {
             _scheduleContext = scheduleContext;
             _innerContext = innerContext;
-            _blackboard = new ScheduleBlackboard(scheduleContext);
-            
-            // 如果没有提供 Args，使用 InstanceId
-            Args = args ?? scheduleContext.InstanceId;
-            Blackboards = _blackboard;
+            _blackboard.Clear();
+            _args = args ?? scheduleContext.InstanceId;
+        }
+
+        internal void ResetForPool()
+        {
+            _scheduleContext = default;
+            _innerContext = null;
+            _blackboard.Clear();
+            _args = null;
         }
 
         /// <summary>
@@ -74,9 +91,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
     {
         private readonly Dictionary<(int boardId, string key), object> _storage = new();
 
+        public ScheduleBlackboard()
+        {
+        }
+
         public ScheduleBlackboard(in ScheduleContext context)
         {
-            // 可以在此存储初始上下文信息
         }
 
         public bool TryGetValue<T>(int boardId, string key, out T value)
@@ -102,6 +122,11 @@ namespace AbilityKit.Triggering.Runtime.Schedule.Behavior
             {
                 _storage[kvp] = value;
             }
+        }
+
+        internal void Clear()
+        {
+            _storage.Clear();
         }
     }
 }

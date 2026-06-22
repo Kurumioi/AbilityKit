@@ -26,7 +26,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (actionDelegateFactory == null) throw new ArgumentNullException(nameof(actionDelegateFactory));
 
             var actionDelegate = actionDelegateFactory(planIndex);
-            var executor = CreateExecutor(in call, actionDelegate, control);
+            var executor = actionScheduler.CreateExecutor(in call, actionDelegate, out var ownsExecutor);
 
             actionScheduler.RegisterOrReplace(
                 planIndex: planIndex,
@@ -34,23 +34,14 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 actionDelegate: actionDelegate,
                 conditionDelegate: conditionDelegate,
                 boundArgs: args,
-                executor: executor
+                executor: executor,
+                ownsExecutor: ownsExecutor
             );
         }
 
         private static IActionExecutor CreateExecutor(in ActionCallPlan plan, Action<object, ITriggerDispatcherContext> action, ExecutionControl control)
         {
-            var baseExecutor = new DefaultActionExecutor(action);
-
-            var execution = plan.Execution;
-            return execution.Policy switch
-            {
-                Config.EActionExecutionPolicy.Queued => new QueuedActionExecutor(baseExecutor),
-                Config.EActionExecutionPolicy.Parallel => baseExecutor,
-                Config.EActionExecutionPolicy.WithRetry => new RetryActionExecutor(baseExecutor, execution.RetryMaxRetries, execution.RetryDelayMs),
-                Config.EActionExecutionPolicy.Conditional => baseExecutor,
-                _ => baseExecutor
-            };
+            throw new NotSupportedException("This overload is replaced by ActionScheduler.CreateExecutor.");
         }
     }
 }

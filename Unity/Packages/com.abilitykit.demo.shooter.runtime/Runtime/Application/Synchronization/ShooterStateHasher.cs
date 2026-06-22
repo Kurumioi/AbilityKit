@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -9,6 +10,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
 
         public ShooterStateHasher(ShooterBattleState state, IShooterEntityManager entities)
         {
@@ -24,10 +26,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var hash = 2166136261u;
                 hash = Hash(hash, _state.CurrentFrame);
 
-                var (players, _, playerCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
-                var playerOrder = CreateIndexOrder(playerCount);
-                Array.Sort(playerOrder, (left, right) => players[left].PlayerId.CompareTo(players[right].PlayerId));
-                for (int i = 0; i < playerOrder.Length; i++)
+                var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+                playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
+                var playerOrder = _orderBuffer.CreateSortedPlayerOrder(players, playerCount);
+                for (int i = 0; i < playerCount; i++)
                 {
                     var player = players[playerOrder[i]];
                     hash = Hash(hash, player.PlayerId);
@@ -40,10 +42,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     hash = Hash(hash, player.Alive ? 1 : 0);
                 }
 
-                var (bullets, _, bulletCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>(ShooterSveltoGroups.Projectiles);
-                var bulletOrder = CreateIndexOrder(bulletCount);
-                Array.Sort(bulletOrder, (left, right) => bullets[left].BulletId.CompareTo(bullets[right].BulletId));
-                for (int i = 0; i < bulletOrder.Length; i++)
+                var bulletCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
+                bulletCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var bulletCount);
+                var bulletOrder = _orderBuffer.CreateSortedProjectileOrder(bullets, bulletCount);
+                for (int i = 0; i < bulletCount; i++)
                 {
                     var bullet = bullets[bulletOrder[i]];
                     hash = Hash(hash, bullet.BulletId);
@@ -57,17 +59,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 return hash;
             }
-        }
-
-        private static int[] CreateIndexOrder(int count)
-        {
-            var order = new int[count];
-            for (var i = 0; i < count; i++)
-            {
-                order[i] = i;
-            }
-
-            return order;
         }
 
         private static uint Hash(uint hash, int value)

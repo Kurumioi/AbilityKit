@@ -37,7 +37,7 @@ namespace AbilityKit.Triggering.Editor.Diagnostics
                    "- Product acceptance report menu: AbilityKit/Triggering/Diagnostics/Write Product Acceptance Report.\n\n" +
                    "## Samples\n\n" +
                    "- Formal sample: Samples/FormalTriggeringMainlineExample.cs.\n" +
-                   "- Legacy examples remain compatibility-only and must not be used as new integration templates.\n\n" +
+                   "- Historical executable examples are documentation-only and must not be used as runtime integration templates.\n\n" +
                    "## Regression Coverage\n\n" +
                    "- Mainline runner: TriggerRunnerMainlineTests.\n" +
                    "- Action plan validation: ActionCallPlanValidatorTests.\n" +

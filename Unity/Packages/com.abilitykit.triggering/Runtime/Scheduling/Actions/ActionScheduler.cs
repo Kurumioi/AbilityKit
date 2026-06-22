@@ -4,6 +4,7 @@ using AbilityKit.Triggering.Runtime.Executable;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Dispatcher;
+using AbilityKit.Triggering.Runtime.Pooling;
 
 namespace AbilityKit.Triggering.Runtime.ActionScheduler
 {
@@ -18,6 +19,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         private readonly Dictionary<int, ActionInstance> _instancesById = new();
         private readonly Dictionary<int, ActionInstance> _instancesByPlanIndex = new();
         private readonly Dictionary<int, int> _planIndexByInstanceId = new();
+        private readonly TriggeringRuntimePools _pools;
         private int _nextInstanceId;
         private bool _isActive = true;
         private float _elapsedMs;
@@ -30,34 +32,59 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         /// <summary>
         /// 创建指定触发器的 Action 调度器。
         /// </summary>
-        public ActionScheduler(int triggerId)
+        public ActionScheduler(int triggerId, TriggeringRuntimePools pools = null)
         {
             TriggerId = triggerId;
+            _pools = pools;
         }
 
         public int TriggerId { get; }
 
+        internal TriggeringRuntimePools Pools => _pools;
+
         /// <summary>
         /// 注册单个 Action 实例；通常由触发器激活时调用。
         /// </summary>
-        public ActionInstance Register(ActionCallPlan plan, Action<object, ITriggerDispatcherContext> actionDelegate, TriggerPredicate<object> conditionDelegate, object boundArgs, IActionExecutor executor)
+        public ActionInstance Register(
+            ActionCallPlan plan,
+            Action<object, ITriggerDispatcherContext> actionDelegate,
+            TriggerPredicate<object> conditionDelegate,
+            object boundArgs,
+            IActionExecutor executor,
+            bool ownsExecutor = false)
         {
             if (!_isActive) throw new InvalidOperationException("ActionScheduler 已停用，无法注册新的 Action。");
             if (executor == null && actionDelegate == null) throw new ArgumentNullException(nameof(actionDelegate));
 
-            var instance = new ActionInstance(
-                instanceId: _nextInstanceId++,
-                triggerId: TriggerId,
-                plan: plan,
-                executor: executor ?? new DefaultActionExecutor(actionDelegate),
-                globalContext: boundArgs,
-                createdAtMs: _elapsedMs
-            )
+            var effectiveExecutor = executor;
+            var effectiveOwnsExecutor = ownsExecutor;
+            if (effectiveExecutor == null)
             {
-                ActionDelegate = actionDelegate,
-                ConditionDelegate = conditionDelegate,
-                BoundArgs = boundArgs
-            };
+                effectiveExecutor = CreateDefaultExecutor(actionDelegate, out effectiveOwnsExecutor);
+            }
+
+            var instanceId = _nextInstanceId++;
+            var instance = _pools != null
+                ? _pools.RentActionInstance(instanceId, TriggerId, in plan, effectiveExecutor, boundArgs, _elapsedMs, effectiveOwnsExecutor)
+                : new ActionInstance(
+                    instanceId: instanceId,
+                    triggerId: TriggerId,
+                    plan: plan,
+                    executor: effectiveExecutor,
+                    globalContext: boundArgs,
+                    createdAtMs: _elapsedMs)
+                {
+                    ActionDelegate = actionDelegate,
+                    ConditionDelegate = conditionDelegate,
+                    BoundArgs = boundArgs
+                };
+
+            if (_pools != null)
+            {
+                instance.ActionDelegate = actionDelegate;
+                instance.ConditionDelegate = conditionDelegate;
+                instance.BoundArgs = boundArgs;
+            }
 
             _actions.Add(instance);
             _instancesById[instance.InstanceId] = instance;
@@ -69,7 +96,14 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         /// <summary>
         /// 按计划索引注册或替换 Action，确保同一触发器的同一计划槽位只保留一个活跃实例。
         /// </summary>
-        public ActionInstance RegisterOrReplace(int planIndex, ActionCallPlan plan, Action<object, ITriggerDispatcherContext> actionDelegate, TriggerPredicate<object> conditionDelegate, object boundArgs, IActionExecutor executor)
+        public ActionInstance RegisterOrReplace(
+            int planIndex,
+            ActionCallPlan plan,
+            Action<object, ITriggerDispatcherContext> actionDelegate,
+            TriggerPredicate<object> conditionDelegate,
+            object boundArgs,
+            IActionExecutor executor,
+            bool ownsExecutor = false)
         {
             if (planIndex < 0) throw new ArgumentOutOfRangeException(nameof(planIndex));
 
@@ -79,7 +113,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 RemoveInstance(existing);
             }
 
-            var instance = Register(plan, actionDelegate, conditionDelegate, boundArgs, executor);
+            var instance = Register(plan, actionDelegate, conditionDelegate, boundArgs, executor, ownsExecutor);
             _instancesByPlanIndex[planIndex] = instance;
             _planIndexByInstanceId[instance.InstanceId] = planIndex;
             return instance;
@@ -97,8 +131,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
             for (int i = 0; i < plans.Length; i++)
             {
-                var executor = new DefaultActionExecutor(actionDelegates[i]);
-                RegisterOrReplace(i, plans[i], actionDelegates[i], conditionDelegates?[i], boundArgs, executor);
+                var executor = CreateExecutor(in plans[i], actionDelegates[i], out var ownsExecutor);
+                RegisterOrReplace(i, plans[i], actionDelegates[i], conditionDelegates?[i], boundArgs, executor, ownsExecutor);
             }
         }
 
@@ -140,6 +174,52 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
         }
 
+        internal IActionExecutor CreateExecutor(in ActionCallPlan plan, Action<object, ITriggerDispatcherContext> action, out bool ownsExecutor)
+        {
+            var baseExecutor = CreateDefaultExecutor(action, out ownsExecutor);
+            var execution = plan.Execution;
+
+            switch (execution.Policy)
+            {
+                case EActionExecutionPolicy.Queued:
+                    if (_pools != null && baseExecutor is ActionExecutorBase pooledQueuedInner)
+                    {
+                        ownsExecutor = true;
+                        return _pools.RentQueuedActionExecutor(pooledQueuedInner);
+                    }
+
+                    ownsExecutor = false;
+                    return new QueuedActionExecutor((ActionExecutorBase)baseExecutor);
+
+                case EActionExecutionPolicy.WithRetry:
+                    if (_pools != null && baseExecutor is ActionExecutorBase pooledRetryInner)
+                    {
+                        ownsExecutor = true;
+                        return _pools.RentRetryActionExecutor(pooledRetryInner, execution.RetryMaxRetries, execution.RetryDelayMs);
+                    }
+
+                    ownsExecutor = false;
+                    return new RetryActionExecutor((ActionExecutorBase)baseExecutor, execution.RetryMaxRetries, execution.RetryDelayMs);
+
+                case EActionExecutionPolicy.Parallel:
+                case EActionExecutionPolicy.Conditional:
+                default:
+                    return baseExecutor;
+            }
+        }
+
+        private DefaultActionExecutor CreateDefaultExecutor(Action<object, ITriggerDispatcherContext> action, out bool ownsExecutor)
+        {
+            if (_pools != null)
+            {
+                ownsExecutor = true;
+                return _pools.RentDefaultActionExecutor(action);
+            }
+
+            ownsExecutor = false;
+            return new DefaultActionExecutor(action);
+        }
+
         private void MarkActionFailed(ActionInstance action, Exception ex)
         {
             action.State = EActionInstanceState.Failed;
@@ -157,6 +237,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             }
 
             RemoveInstanceIndexes(action);
+            ReleaseInstance(action);
         }
 
         private void RemoveInstanceAt(int index, ActionInstance action)
@@ -167,6 +248,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             {
                 ActiveCount--;
             }
+
+            ReleaseInstance(action);
         }
 
         private void RemoveInstanceIndexes(ActionInstance action)
@@ -180,6 +263,14 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 }
 
                 _planIndexByInstanceId.Remove(action.InstanceId);
+            }
+        }
+
+        private void ReleaseInstance(ActionInstance action)
+        {
+            if (_pools != null)
+            {
+                _pools.ReleaseActionInstance(action);
             }
         }
 
@@ -247,6 +338,11 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         public void Dispose()
         {
             _isActive = false;
+            for (int i = _actions.Count - 1; i >= 0; i--)
+            {
+                ReleaseInstance(_actions[i]);
+            }
+
             _actions.Clear();
             _instancesById.Clear();
             _instancesByPlanIndex.Clear();
@@ -260,15 +356,29 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
     /// </summary>
     internal sealed class DefaultActionExecutor : ActionExecutorBase
     {
-        private readonly Action<object, ITriggerDispatcherContext> _action;
+        private Action<object, ITriggerDispatcherContext> _action;
+
+        internal DefaultActionExecutor()
+        {
+        }
 
         public DefaultActionExecutor(Action<object, ITriggerDispatcherContext> action)
+        {
+            Initialize(action);
+        }
+
+        internal void Initialize(Action<object, ITriggerDispatcherContext> action)
         {
             _action = action ?? throw new ArgumentNullException(nameof(action));
         }
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
+            if (_action == null)
+            {
+                return ExecutionResult.Failed("Default action executor is not initialized.");
+            }
+
             try
             {
                 _action(ctx.Instance.BoundArgs, ctx.DispatcherContext);
@@ -279,8 +389,10 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 return ExecutionResult.Failed($"Action execution error: {ex.Message}");
             }
         }
+
+        internal override void ResetForPool()
+        {
+            _action = null;
+        }
     }
 }
-
-
-

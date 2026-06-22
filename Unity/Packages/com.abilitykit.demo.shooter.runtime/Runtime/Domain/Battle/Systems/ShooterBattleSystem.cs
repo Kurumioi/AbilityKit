@@ -159,6 +159,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (AreAllPlayersDefeated())
             {
                 _state.TryCompleteMatch(ShooterBattleMatchState.Defeat);
+                return;
+            }
+
+            if (_state.IsTimeExpired)
+            {
+                _state.TryCompleteMatch(ShooterBattleMatchState.Ended);
             }
         }
 

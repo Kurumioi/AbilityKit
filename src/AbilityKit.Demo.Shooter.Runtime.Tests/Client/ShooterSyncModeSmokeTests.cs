@@ -34,6 +34,20 @@ public sealed class ShooterSyncModeSmokeTests
         };
         yield return new object[]
         {
+            NetworkSyncModel.BatchStateSync,
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            typeof(ShooterClientAuthoritativeInterpolationSyncController),
+            true
+        };
+        yield return new object[]
+        {
+            NetworkSyncModel.MassBattleLodSync,
+            ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+            typeof(ShooterClientAuthoritativeInterpolationSyncController),
+            true
+        };
+        yield return new object[]
+        {
             NetworkSyncModel.HybridHeroPrediction,
             ShooterHybridDemoHarnessCarrier.DefaultCarrierName,
             typeof(ShooterClientHybridHeroPredictionSyncController),
@@ -381,6 +395,70 @@ public sealed class ShooterSyncModeSmokeTests
     }
 
     [Fact]
+    public void RunnableCatalogTemplatesRunTemplateDrivenSmokeToHealthyState()
+    {
+        foreach (var template in ShooterAcceptanceCatalog.SyncTemplates)
+        {
+            if (!template.IsRunnable)
+            {
+                continue;
+            }
+
+            using var session = ShooterAcceptanceLab.Create(in template);
+            var result = session.Run(SmokeStepCount, SmokeDeltaSeconds, seed: 6401);
+
+            Assert.Equal(template.SyncModel, session.SyncModel);
+            Assert.Equal(template.DisplayName, session.NetworkName);
+            Assert.Equal(template.ExpectedCarrierName, session.Carrier.CarrierName);
+            Assert.Equal(template.RecommendedPlayerCount, session.Runtime.GetSnapshot().Players.Length);
+            Assert.Equal(DemoHarnessRunStatus.Completed, result.Status);
+            Assert.True(result.Completed);
+            Assert.Equal(template.SyncModel, result.Scenario.SyncModel);
+            Assert.Equal(template.ExpectedCarrierName, result.Scenario.CarrierName);
+            Assert.Equal(SmokeStepCount, result.Metrics.StepsRun);
+            Assert.Equal(SmokeStepCount, result.Metrics.TotalTicks);
+            Assert.Equal(0, result.Metrics.HealthErrorCount);
+            Assert.Equal(0, result.Metrics.HealthWarningCount);
+            Assert.False(session.Controller.NeedsFullSnapshotResync);
+            Assert.Equal(template.ExpectsInterpolationDiagnostics, session.Controller is IInterpolationDiagnosticsProvider);
+        }
+    }
+
+    [Fact]
+    public void BatchAndMassBattleTemplatesRunDelayedPlaybackSmokeWithExpectedSendPolicy()
+    {
+        var templateIds = new[]
+        {
+            "batch-state-low-frequency",
+            "mass-battle-lod-aoi"
+        };
+
+        foreach (var templateId in templateIds)
+        {
+            var template = ShooterAcceptanceCatalog.GetSyncTemplate(templateId);
+            using var session = ShooterAcceptanceLab.Create(in template);
+            var result = session.Run(SmokeStepCount, SmokeDeltaSeconds, seed: 7401);
+
+            Assert.Equal(DemoHarnessRunStatus.Completed, result.Status);
+            Assert.True(result.Completed);
+            Assert.True(template.SendPolicy.BatchWindowFrames > 1);
+            Assert.True(template.SendPolicy.SnapshotIntervalFrames > 1);
+            Assert.True(template.SendPolicy.InterpolationDelayFrames > 0);
+            Assert.True(template.SendPolicy.ActiveEntityBudget <= template.SendPolicy.MaxEntityCount);
+            Assert.IsType<ShooterClientAuthoritativeInterpolationSyncController>(session.Controller);
+            Assert.Equal(ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName, session.Carrier.CarrierName);
+
+            var diagnosticsProvider = Assert.IsAssignableFrom<IInterpolationDiagnosticsProvider>(session.Controller);
+            session.Controller.Tick(SmokeDeltaSeconds);
+            var diagnostics = diagnosticsProvider.GetInterpolationDiagnostics();
+            Assert.True(diagnostics.BufferedRemoteSnapshotCount >= 0);
+            Assert.True(diagnostics.EstimatedServerTicks >= 0);
+            Assert.True(diagnostics.RemotePlaybackTicks >= 0);
+            Assert.False(diagnostics.IsRemotePlaybackStarved);
+        }
+    }
+
+    [Fact]
     public void AuthoritativeInterpolationRunsStateSyncSnapshotPushSmoke()
     {
         const int playerCount = 4;
@@ -462,7 +540,7 @@ public sealed class ShooterSyncModeSmokeTests
             }
         }
 
-        Assert.Equal(3, seen.Count);
+        Assert.Equal(5, seen.Count);
     }
 
     private static void AssertInterpolationSmoke(

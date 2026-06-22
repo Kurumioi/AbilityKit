@@ -56,8 +56,11 @@ public sealed class ShooterClientSyncControllerFactoryTests
         Assert.Equal(NetworkSyncModel.HybridHeroPrediction, controller.SyncModel);
     }
 
-    [Fact]
-    public void DefaultRegistryCreatesAuthoritativeInterpolationController()
+    [Theory]
+    [InlineData(NetworkSyncModel.AuthoritativeInterpolation)]
+    [InlineData(NetworkSyncModel.BatchStateSync)]
+    [InlineData(NetworkSyncModel.MassBattleLodSync)]
+    public void DefaultRegistryCreatesAuthoritativeInterpolationBasedControllers(NetworkSyncModel syncModel)
     {
         var config = new InterpolationConfig(
             ticksPerSecond: 1000L,
@@ -66,7 +69,7 @@ public sealed class ShooterClientSyncControllerFactoryTests
             catchUpRate: 0d);
 
         var controller = ShooterClientSyncControllerFactory.Create(
-            NetworkSyncModel.AuthoritativeInterpolation,
+            syncModel,
             new ShooterBattleRuntimePort(),
             new ShooterPresentationFacade(),
             tickRate: 30,
@@ -75,7 +78,7 @@ public sealed class ShooterClientSyncControllerFactoryTests
             interpolationConfig: config);
 
         Assert.IsType<ShooterClientAuthoritativeInterpolationSyncController>(controller);
-        Assert.Equal(NetworkSyncModel.AuthoritativeInterpolation, controller.SyncModel);
+        Assert.Equal(syncModel, controller.SyncModel);
     }
 
     [Fact]

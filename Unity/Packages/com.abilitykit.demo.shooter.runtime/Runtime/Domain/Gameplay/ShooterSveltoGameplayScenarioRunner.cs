@@ -1,10 +1,13 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
+using Svelto.ECS.Internal;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
@@ -27,6 +30,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private int _defeatedTargets;
         private int _enemyHits;
         private int[] _waveSpawned = Array.Empty<int>();
+        private readonly Dictionary<uint, int> _targetIndexByEntityId = new();
+        private readonly Dictionary<uint, int> _shooterIndexByEntityId = new();
+        private readonly List<uint> _projectileRemovalBuffer = new(1024);
+        private readonly List<PendingEnemySpawn> _enemySpawnBuffer = new(64);
 
         public ShooterSveltoGameplayScenarioRunner(ISveltoWorldContext context)
         {
@@ -132,6 +139,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             var activeEnemies = CountAliveEnemies();
             var waves = config.BattleFlow.Waves;
+            _enemySpawnBuffer.Clear();
             for (var i = 0; i < waves.Length; i++)
             {
                 var wave = waves[i];
@@ -146,13 +154,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                SpawnEnemy(in config, in wave, _waveSpawned[i]);
+                QueueEnemySpawn(in wave, _waveSpawned[i]);
                 _waveSpawned[i]++;
                 activeEnemies++;
             }
+
+            FlushEnemySpawns();
         }
 
-        private void SpawnEnemy(in ShooterSveltoGameplayScenarioConfig config, in ShooterSveltoGameplayWaveConfig wave, int spawnIndex)
+        private void QueueEnemySpawn(in ShooterSveltoGameplayWaveConfig wave, int spawnIndex)
         {
             var targetId = _nextTargetId++;
             var angle = (wave.WaveId * 97 + spawnIndex * 37) * Pi / 180f;
@@ -162,31 +172,55 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var dy = -y;
             Normalize(ref dx, ref dy);
 
-            var transform = new ShooterSveltoTransformComponent
+            _enemySpawnBuffer.Add(new PendingEnemySpawn(
+                targetId,
+                new ShooterSveltoTransformComponent
+                {
+                    X = x,
+                    Y = y,
+                    DirectionX = dx,
+                    DirectionY = dy
+                },
+                new ShooterSveltoHealthComponent
+                {
+                    Current = wave.EnemyHp,
+                    Max = wave.EnemyHp,
+                    Alive = 1
+                }));
+        }
+
+        private void FlushEnemySpawns()
+        {
+            if (_enemySpawnBuffer.Count == 0)
             {
-                X = x,
-                Y = y,
-                DirectionX = dx,
-                DirectionY = dy
-            };
-            var health = new ShooterSveltoHealthComponent
+                return;
+            }
+
+            for (var i = 0; i < _enemySpawnBuffer.Count; i++)
             {
-                Current = wave.EnemyHp,
-                Max = wave.EnemyHp,
-                Alive = 1
-            };
-            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, targetId, in transform, in health);
+                var spawn = _enemySpawnBuffer[i];
+                var transform = spawn.Transform;
+                var health = spawn.Health;
+                ShooterSveltoEntityLayout.BuildGameplayTarget(_context, spawn.EntityId, in transform, in health);
+            }
 
             _context.SubmitEntities();
         }
 
         private void TickShooters(in ShooterSveltoGameplayScenarioConfig config)
         {
-            var (transforms, weapons, cooldowns, targets, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoWeaponComponent, ShooterSveltoCooldownComponent, ShooterSveltoTargetComponent>(ShooterSveltoGroups.GameplayShooters);
-            for (var i = 0; i < count; i++)
+            var shooterCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoWeaponComponent, ShooterSveltoCooldownComponent, ShooterSveltoTargetComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayShooters);
+            shooterCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> transforms, out NB<ShooterSveltoWeaponComponent> weapons, out NB<ShooterSveltoCooldownComponent> cooldowns, out NB<ShooterSveltoTargetComponent> targets, out _, out var count);
+            var healthCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayShooters);
+            healthCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> healths, out _, out var healthCount);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out NativeEntityIDs enemyIds, out var enemyCount);
+            RebuildIndex(_targetIndexByEntityId, enemyIds, enemyCount);
+            var spawned = false;
+            var shooterCount = Math.Min(count, healthCount);
+            for (var i = 0; i < shooterCount; i++)
             {
-                ref var health = ref _context.EntitiesDB.QueryEntity<ShooterSveltoHealthComponent>(ids[i], ShooterSveltoGroups.GameplayShooters);
-                if (health.Alive == 0)
+                if (healths[i].Alive == 0)
                 {
                     continue;
                 }
@@ -201,14 +235,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ref var transform = ref transforms[i];
                 ref var weapon = ref weapons[i];
                 ref var target = ref targets[i];
-                var targetId = AcquireLiveEnemyTarget(target.TargetEntityId);
-                if (targetId == 0)
+                var targetId = AcquireLiveEnemyTarget(target.TargetEntityId, enemyHealths, enemyIds, enemyCount, _targetIndexByEntityId);
+                if (targetId == 0 || !TryGetTransform(targetId, enemyTransforms, _targetIndexByEntityId, out var targetTransform))
                 {
                     cooldown.RemainingFrames = 1;
                     continue;
                 }
 
-                ref var targetTransform = ref _context.EntitiesDB.QueryEntity<ShooterSveltoTransformComponent>(targetId, ShooterSveltoGroups.GameplayTargets);
                 var dx = targetTransform.X - transform.X;
                 var dy = targetTransform.Y - transform.Y;
                 Normalize(ref dx, ref dy);
@@ -216,8 +249,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 transform.DirectionY = dy;
                 target.TargetEntityId = targetId;
 
-                FireBurst(in transform, in weapon, targetId, ShooterSveltoGroups.GameplayTargets, config.TargetCount);
+                spawned |= FireBurst(in transform, in weapon, targetId, ShooterSveltoGroups.GameplayTargets, config.TargetCount);
                 cooldown.RemainingFrames = weapon.CooldownFrames;
+            }
+
+            if (spawned)
+            {
+                _context.SubmitEntities();
             }
         }
 
@@ -239,7 +277,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 SpreadRadians = 0f
             };
 
-            var (enemyTransforms, enemyHealths, enemyIds, enemyCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out NativeEntityIDs enemyIds, out var enemyCount);
+            var shooterCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayShooters);
+            shooterCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> shooterTransforms, out NB<ShooterSveltoHealthComponent> shooterHealths, out NativeEntityIDs shooterIds, out var shooterCount);
+            RebuildIndex(_shooterIndexByEntityId, shooterIds, shooterCount);
+            var spawned = false;
             for (var i = 0; i < enemyCount; i++)
             {
                 if (enemyHealths[i].Alive == 0)
@@ -248,36 +291,33 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
 
                 var shooterId = (uint)((enemyIds[i] % (uint)config.ShooterCount) + 1u);
-                if (!_context.EntitiesDB.Exists<ShooterSveltoHealthComponent>(shooterId, ShooterSveltoGroups.GameplayShooters))
+                if (!TryGetLiveTarget(shooterId, shooterTransforms, shooterHealths, _shooterIndexByEntityId, out var shooterTransform))
                 {
                     continue;
                 }
 
-                ref var shooterHealth = ref _context.EntitiesDB.QueryEntity<ShooterSveltoHealthComponent>(shooterId, ShooterSveltoGroups.GameplayShooters);
-                if (shooterHealth.Alive == 0)
-                {
-                    continue;
-                }
-
-                ref var shooterTransform = ref _context.EntitiesDB.QueryEntity<ShooterSveltoTransformComponent>(shooterId, ShooterSveltoGroups.GameplayShooters);
                 var enemyTransform = enemyTransforms[i];
                 var dx = shooterTransform.X - enemyTransform.X;
                 var dy = shooterTransform.Y - enemyTransform.Y;
                 Normalize(ref dx, ref dy);
                 enemyTransform.DirectionX = dx;
                 enemyTransform.DirectionY = dy;
-                FireBurst(in enemyTransform, in enemyWeapon, shooterId, ShooterSveltoGroups.GameplayShooters, config.ShooterCount);
+                spawned |= FireBurst(in enemyTransform, in enemyWeapon, shooterId, ShooterSveltoGroups.GameplayShooters, config.ShooterCount);
+            }
+
+            if (spawned)
+            {
+                _context.SubmitEntities();
             }
         }
 
-        private uint AcquireLiveEnemyTarget(uint currentTargetId)
+        private static uint AcquireLiveEnemyTarget(uint currentTargetId, NB<ShooterSveltoHealthComponent> healths, NativeEntityIDs ids, int count, Dictionary<uint, int> indexByEntityId)
         {
-            if (currentTargetId != 0 && IsAlive(currentTargetId, ShooterSveltoGroups.GameplayTargets))
+            if (currentTargetId != 0 && IsAlive(currentTargetId, healths, indexByEntityId))
             {
                 return currentTargetId;
             }
 
-            var (_, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
             for (var i = 0; i < count; i++)
             {
                 if (healths[i].Alive != 0)
@@ -292,7 +332,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private int CountAliveEnemies()
         {
             var alive = 0;
-            var (healths, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var healthCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            healthCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> healths, out _, out var count);
             for (var i = 0; i < count; i++)
             {
                 if (healths[i].Alive != 0)
@@ -304,18 +345,50 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return alive;
         }
 
-        private bool IsAlive(uint entityId, ExclusiveGroupStruct group)
+        private static bool IsAlive(uint entityId, NB<ShooterSveltoHealthComponent> healths, Dictionary<uint, int> indexByEntityId)
         {
-            if (!_context.EntitiesDB.Exists<ShooterSveltoHealthComponent>(entityId, group))
-            {
-                return false;
-            }
-
-            ref var health = ref _context.EntitiesDB.QueryEntity<ShooterSveltoHealthComponent>(entityId, group);
-            return health.Alive != 0;
+            return indexByEntityId.TryGetValue(entityId, out var index) && healths[index].Alive != 0;
         }
 
-        private void FireBurst(
+        private static bool TryGetTransform(uint entityId, NB<ShooterSveltoTransformComponent> transforms, Dictionary<uint, int> indexByEntityId, out ShooterSveltoTransformComponent transform)
+        {
+            if (indexByEntityId.TryGetValue(entityId, out var index))
+            {
+                transform = transforms[index];
+                return true;
+            }
+
+            transform = default;
+            return false;
+        }
+
+        private static bool TryGetLiveTarget(
+            uint entityId,
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoHealthComponent> healths,
+            Dictionary<uint, int> indexByEntityId,
+            out ShooterSveltoTransformComponent transform)
+        {
+            if (indexByEntityId.TryGetValue(entityId, out var index) && healths[index].Alive != 0)
+            {
+                transform = transforms[index];
+                return true;
+            }
+
+            transform = default;
+            return false;
+        }
+
+        private static void RebuildIndex(Dictionary<uint, int> indexByEntityId, NativeEntityIDs ids, int count)
+        {
+            indexByEntityId.Clear();
+            for (var i = 0; i < count; i++)
+            {
+                indexByEntityId[ids[i]] = i;
+            }
+        }
+
+        private bool FireBurst(
             in ShooterSveltoTransformComponent shooter,
             in ShooterSveltoWeaponComponent weapon,
             uint targetEntityId,
@@ -362,12 +435,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _projectilesSpawned++;
             }
 
-            _context.SubmitEntities();
+            return weapon.ProjectilesPerShot > 0;
         }
 
         private void TickProjectiles(float deltaTime)
         {
-            var (transforms, projectiles, damageComponents, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoProjectileComponent, ShooterSveltoProjectileDamageComponent>(ShooterSveltoGroups.GameplayProjectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoProjectileComponent, ShooterSveltoProjectileDamageComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayProjectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> transforms, out NB<ShooterSveltoProjectileComponent> projectiles, out NB<ShooterSveltoProjectileDamageComponent> damageComponents, out NativeEntityIDs ids, out var count);
+            var targetCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            targetCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> targetTransforms, out NB<ShooterSveltoHealthComponent> targetHealths, out NativeEntityIDs targetIds, out var targetCount);
+            var shooterCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayShooters);
+            shooterCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> shooterTransforms, out NB<ShooterSveltoHealthComponent> shooterHealths, out NativeEntityIDs shooterIds, out var shooterCount);
+            RebuildIndex(_targetIndexByEntityId, targetIds, targetCount);
+            RebuildIndex(_shooterIndexByEntityId, shooterIds, shooterCount);
+            _projectileRemovalBuffer.Clear();
             for (var i = count - 1; i >= 0; i--)
             {
                 ref var transform = ref transforms[i];
@@ -379,54 +460,50 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 projectile.Y = transform.Y;
                 projectile.RemainingFrames--;
 
-                var targetGroup = damage.OwnerEntityId == 0u ? ShooterSveltoGroups.GameplayTargets : ShooterSveltoGroups.GameplayShooters;
-                if (TryApplyHit(in transform, in damage, targetGroup))
+                var hit = damage.OwnerEntityId == 0u
+                    ? TryApplyHit(in transform, in damage, ShooterSveltoGroups.GameplayTargets, targetTransforms, targetHealths, _targetIndexByEntityId)
+                    : TryApplyHit(in transform, in damage, ShooterSveltoGroups.GameplayShooters, shooterTransforms, shooterHealths, _shooterIndexByEntityId);
+                if (hit)
                 {
-                    _context.EntityFunctions.RemoveEntity<ShooterSveltoGameplayProjectileDescriptor>(ids[i], ShooterSveltoGroups.GameplayProjectiles);
+                    _projectileRemovalBuffer.Add(ids[i]);
                     _hits++;
                     continue;
                 }
 
                 if (projectile.RemainingFrames <= 0)
                 {
-                    _context.EntityFunctions.RemoveEntity<ShooterSveltoGameplayProjectileDescriptor>(ids[i], ShooterSveltoGroups.GameplayProjectiles);
+                    _projectileRemovalBuffer.Add(ids[i]);
                     _projectilesExpired++;
                 }
             }
 
-            _context.SubmitEntities();
+            FlushProjectileRemovals();
         }
 
-        private bool TryApplyHit(in ShooterSveltoTransformComponent projectile, in ShooterSveltoProjectileDamageComponent damage, ExclusiveGroupStruct targetGroup)
+        private bool TryApplyHit(
+            in ShooterSveltoTransformComponent projectile,
+            in ShooterSveltoProjectileDamageComponent damage,
+            ExclusiveGroupStruct targetGroup,
+            NB<ShooterSveltoTransformComponent> targetTransforms,
+            NB<ShooterSveltoHealthComponent> targetHealths,
+            Dictionary<uint, int> targetIndexByEntityId)
         {
-            if (damage.TargetEntityId == 0)
+            if (damage.TargetEntityId == 0 || !targetIndexByEntityId.TryGetValue(damage.TargetEntityId, out var targetIndex) || targetHealths[targetIndex].Alive == 0)
             {
                 return false;
             }
 
-            if (!_context.EntitiesDB.Exists<ShooterSveltoHealthComponent>(damage.TargetEntityId, targetGroup))
-            {
-                return false;
-            }
-
-            ref var targetHealth = ref _context.EntitiesDB.QueryEntity<ShooterSveltoHealthComponent>(damage.TargetEntityId, targetGroup);
-            if (targetHealth.Alive == 0)
-            {
-                return false;
-            }
-
-            ref var targetTransform = ref _context.EntitiesDB.QueryEntity<ShooterSveltoTransformComponent>(damage.TargetEntityId, targetGroup);
-            var dx = targetTransform.X - projectile.X;
-            var dy = targetTransform.Y - projectile.Y;
+            var dx = targetTransforms[targetIndex].X - projectile.X;
+            var dy = targetTransforms[targetIndex].Y - projectile.Y;
             if (dx * dx + dy * dy > 0.64f)
             {
                 return false;
             }
 
-            targetHealth.Current = Math.Max(0, targetHealth.Current - damage.Damage);
-            if (targetHealth.Current == 0)
+            targetHealths[targetIndex].Current = Math.Max(0, targetHealths[targetIndex].Current - damage.Damage);
+            if (targetHealths[targetIndex].Current == 0)
             {
-                targetHealth.Alive = 0;
+                targetHealths[targetIndex].Alive = 0;
                 if (targetGroup == ShooterSveltoGroups.GameplayTargets)
                 {
                     _defeatedTargets++;
@@ -441,10 +518,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return true;
         }
 
+        private void FlushProjectileRemovals()
+        {
+            if (_projectileRemovalBuffer.Count == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < _projectileRemovalBuffer.Count; i++)
+            {
+                _context.EntityFunctions.RemoveEntity<ShooterSveltoGameplayProjectileDescriptor>(_projectileRemovalBuffer[i], ShooterSveltoGroups.GameplayProjectiles);
+            }
+
+            _context.SubmitEntities();
+        }
+
         private ShooterSveltoGameplayScenarioResult BuildResult(in ShooterSveltoGameplayScenarioConfig config)
         {
             var remainingHp = 0;
-            var (healths, targetCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var healthCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            healthCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> healths, out _, out var targetCount);
             for (var i = 0; i < targetCount; i++)
             {
                 remainingHp += healths[i].Current;
@@ -469,7 +562,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private uint ComputeStateHash()
         {
             var hash = 2166136261u;
-            var (targetTransforms, targetHealths, targetCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets);
+            var targetCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            targetCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> targetTransforms, out NB<ShooterSveltoHealthComponent> targetHealths, out _, out var targetCount);
             for (var i = 0; i < targetCount; i++)
             {
                 Mix(ref hash, Quantize(targetTransforms[i].X));
@@ -478,14 +572,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Mix(ref hash, targetHealths[i].Alive);
             }
 
-            var (shooterHealths, shooterCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayShooters);
+            var shooterCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayShooters);
+            shooterCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> shooterHealths, out _, out var shooterCount);
             for (var i = 0; i < shooterCount; i++)
             {
                 Mix(ref hash, shooterHealths[i].Current);
                 Mix(ref hash, shooterHealths[i].Alive);
             }
 
-            var (projectileTransforms, projectileComponents, projectileCount) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoProjectileComponent>(ShooterSveltoGroups.GameplayProjectiles);
+            var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayProjectiles);
+            projectileCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> projectileTransforms, out NB<ShooterSveltoProjectileComponent> projectileComponents, out _, out var projectileCount);
             for (var i = 0; i < projectileCount; i++)
             {
                 Mix(ref hash, Quantize(projectileTransforms[i].X));
@@ -508,6 +604,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private static int Quantize(float value)
         {
             return (int)MathF.Round(value * 1000f);
+        }
+
+        private readonly struct PendingEnemySpawn
+        {
+            public PendingEnemySpawn(uint entityId, ShooterSveltoTransformComponent transform, ShooterSveltoHealthComponent health)
+            {
+                EntityId = entityId;
+                Transform = transform;
+                Health = health;
+            }
+
+            public uint EntityId { get; }
+            public ShooterSveltoTransformComponent Transform { get; }
+            public ShooterSveltoHealthComponent Health { get; }
         }
 
         private static void Normalize(ref float x, ref float y)

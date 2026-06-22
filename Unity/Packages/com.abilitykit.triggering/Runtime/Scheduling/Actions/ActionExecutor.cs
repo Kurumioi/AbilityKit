@@ -1,7 +1,5 @@
 using System;
 using AbilityKit.Triggering.Runtime.Executable;
-using AbilityKit.Triggering.Runtime.Config;
-using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 
 namespace AbilityKit.Triggering.Runtime.ActionScheduler
@@ -37,19 +35,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
     public interface IActionExecutor
     {
         /// <summary>
-        /// 尝试执行 Action
-        /// 返回 false 表示不能执行（队列满、同步阻塞、条件不满足等）
+        /// 尝试执行 Action。
+        /// 返回 false 表示不能执行（队列满、同步阻塞、条件不满足等）。
         /// </summary>
         bool TryExecute(ActionExecutionContext ctx, out ExecutionResult result);
 
         /// <summary>
-        /// 取消/中断执行
+        /// 取消/中断执行。
         /// </summary>
         void Cancel(string reason);
     }
 
     /// <summary>
-    /// 基础执行器（默认策略：立即执行）
+    /// 基础执行器（默认策略：立即执行）。
     /// </summary>
     public abstract class ActionExecutorBase : IActionExecutor
     {
@@ -60,7 +58,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         }
 
         /// <summary>
-        /// 核心执行逻辑（子类实现）
+        /// 核心执行逻辑（子类实现）。
         /// </summary>
         protected abstract ExecutionResult ExecuteCore(ActionExecutionContext ctx);
 
@@ -68,25 +66,46 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         {
             // 默认无操作
         }
+
+        internal virtual void ResetForPool()
+        {
+        }
     }
 
     /// <summary>
-    /// 队列执行器（支持优先级和队列）
+    /// 队列执行器（支持优先级和队列）。
     /// </summary>
     public sealed class QueuedActionExecutor : ActionExecutorBase
     {
-        private readonly ActionExecutorBase _inner;
-        private readonly int _queuePriority;
+        private ActionExecutorBase _inner;
+        private int _queuePriority;
         private bool _isQueued;
+
+        public QueuedActionExecutor()
+        {
+        }
 
         public QueuedActionExecutor(ActionExecutorBase inner, int queuePriority = 0)
         {
+            Initialize(inner, queuePriority);
+        }
+
+        internal void Initialize(ActionExecutorBase inner, int queuePriority = 0)
+        {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             _queuePriority = queuePriority;
+            _isQueued = false;
         }
+
+        internal ActionExecutorBase Inner => _inner;
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
+            if (_inner == null)
+            {
+                return ExecutionResult.Failed("Queued executor is not initialized.");
+            }
+
             if (_isQueued)
             {
                 return ExecutionResult.Skipped("Action is already queued");
@@ -105,17 +124,24 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         public override void Cancel(string reason)
         {
-            _inner.Cancel(reason);
+            _inner?.Cancel(reason);
             _isQueued = false;
         }
 
         public int QueuePriority => _queuePriority;
 
         public bool IsQueued => _isQueued;
+
+        internal override void ResetForPool()
+        {
+            _isQueued = false;
+            _queuePriority = 0;
+            _inner = null;
+        }
     }
 
     /// <summary>
-    /// 同步执行器（支持信号等待）
+    /// 同步执行器（支持信号等待）。
     /// </summary>
     public sealed class SynchronizedActionExecutor : ActionExecutorBase
     {
@@ -150,31 +176,54 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
     }
 
     /// <summary>
-    /// 重试执行器（失败自动重试）
+    /// 重试执行器（失败自动重试）。
     /// </summary>
     public sealed class RetryActionExecutor : ActionExecutorBase
     {
-        private readonly ActionExecutorBase _inner;
-        private readonly int _maxRetries;
-        private readonly float _retryDelayMs;
+        private ActionExecutorBase _inner;
+        private int _maxRetries;
+        private float _retryDelayMs;
         private int _attemptCount;
         private float _nextRetryAtMs;
         private bool _hasPendingRetry;
         private bool _isCancelled;
         private ExecutionResult _lastResult;
 
+        public RetryActionExecutor()
+        {
+            _lastResult = ExecutionResult.Failed("Retry not executed");
+        }
+
         public RetryActionExecutor(ActionExecutorBase inner, int maxRetries = 3, float retryDelayMs = 0f)
+        {
+            Initialize(inner, maxRetries, retryDelayMs);
+        }
+
+        internal void Initialize(ActionExecutorBase inner, int maxRetries = 3, float retryDelayMs = 0f)
         {
             _inner = inner ?? throw new ArgumentNullException(nameof(inner));
             if (maxRetries < 0) throw new ArgumentOutOfRangeException(nameof(maxRetries));
             if (retryDelayMs < 0f) throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
+
             _maxRetries = maxRetries;
             _retryDelayMs = retryDelayMs;
+            _attemptCount = 0;
+            _nextRetryAtMs = 0f;
+            _hasPendingRetry = false;
+            _isCancelled = false;
             _lastResult = ExecutionResult.Failed("Retry not executed");
         }
 
+        internal ActionExecutorBase Inner => _inner;
+
         public override bool TryExecute(ActionExecutionContext ctx, out ExecutionResult result)
         {
+            if (_inner == null)
+            {
+                result = ExecutionResult.Failed("Retry executor is not initialized.");
+                return false;
+            }
+
             if (_isCancelled)
             {
                 result = ExecutionResult.Failed("Retry action was cancelled");
@@ -218,6 +267,11 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         protected override ExecutionResult ExecuteCore(ActionExecutionContext ctx)
         {
+            if (_inner == null)
+            {
+                return ExecutionResult.Failed("Retry executor is not initialized.");
+            }
+
             ExecutionResult lastResult = ExecutionResult.Failed("Retry not executed");
             for (int attempt = 0; attempt <= _maxRetries; attempt++)
             {
@@ -235,7 +289,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         {
             _isCancelled = true;
             _hasPendingRetry = false;
-            _inner.Cancel(reason);
+            _inner?.Cancel(reason);
+        }
+
+        internal override void ResetForPool()
+        {
+            _attemptCount = 0;
+            _nextRetryAtMs = 0f;
+            _hasPendingRetry = false;
+            _isCancelled = false;
+            _lastResult = ExecutionResult.Failed("Retry not executed");
+            _inner = null;
+            _maxRetries = 0;
+            _retryDelayMs = 0f;
         }
 
         private void ResetRetryState()

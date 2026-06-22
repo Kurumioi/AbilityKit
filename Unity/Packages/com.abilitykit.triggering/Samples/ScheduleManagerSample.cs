@@ -11,8 +11,6 @@ namespace AbilityKit.Samples
     /// 2. 创建规则级时间计划
     /// 3. 注册委托式规则效果
     /// 4. 每帧更新规则调度器
-    ///
-    /// 旧 Runtime/Scheduler/SchedulerRegistry 仅保留兼容用途，新样例不再接入。
     /// </summary>
     public class ScheduleManagerSample : MonoBehaviour
     {

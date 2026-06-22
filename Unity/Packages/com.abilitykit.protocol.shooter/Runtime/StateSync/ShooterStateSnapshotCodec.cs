@@ -57,7 +57,8 @@ namespace AbilityKit.Protocol.Shooter
         Hit = 1,
         Fire = 2,
         MatchVictory = 3,
-        MatchDefeat = 4
+        MatchDefeat = 4,
+        MatchEnded = 5
     }
 
     [MemoryPackable]
@@ -101,14 +102,32 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(1)] public ShooterPlayerSnapshot[] Players;
         [MemoryPackOrder(2)] public ShooterBulletSnapshot[] Bullets;
         [MemoryPackOrder(3)] public ShooterEventSnapshot[] Events;
+        [MemoryPackOrder(4)] public int MatchState;
+        [MemoryPackOrder(5)] public int TimeLimitFrames;
+        [MemoryPackOrder(6)] public int RemainingTimeFrames;
+
+        public ShooterStateSnapshotPayload(int frame, ShooterPlayerSnapshot[] players, ShooterBulletSnapshot[] bullets, ShooterEventSnapshot[] events)
+            : this(frame, players, bullets, events, matchState: 0, timeLimitFrames: 0, remainingTimeFrames: 0)
+        {
+        }
 
         [MemoryPackConstructor]
-        public ShooterStateSnapshotPayload(int frame, ShooterPlayerSnapshot[] players, ShooterBulletSnapshot[] bullets, ShooterEventSnapshot[] events)
+        public ShooterStateSnapshotPayload(
+            int frame,
+            ShooterPlayerSnapshot[] players,
+            ShooterBulletSnapshot[] bullets,
+            ShooterEventSnapshot[] events,
+            int matchState,
+            int timeLimitFrames,
+            int remainingTimeFrames)
         {
             Frame = frame;
             Players = players;
             Bullets = bullets;
             Events = events;
+            MatchState = matchState;
+            TimeLimitFrames = timeLimitFrames < 0 ? 0 : timeLimitFrames;
+            RemainingTimeFrames = remainingTimeFrames < 0 ? 0 : remainingTimeFrames;
         }
     }
 
@@ -131,7 +150,10 @@ namespace AbilityKit.Protocol.Shooter
                 value.Frame,
                 value.Players ?? Array.Empty<ShooterPlayerSnapshot>(),
                 value.Bullets ?? Array.Empty<ShooterBulletSnapshot>(),
-                value.Events ?? Array.Empty<ShooterEventSnapshot>());
+                value.Events ?? Array.Empty<ShooterEventSnapshot>(),
+                value.MatchState,
+                value.TimeLimitFrames,
+                value.RemainingTimeFrames);
         }
     }
 }

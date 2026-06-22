@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterGatewaySnapshotDecoder _decoder;
         private readonly RemoteInterpolationPlayback<ShooterRemoteSnapshotSample> _playback;
         private readonly ShooterRemoteSnapshotProjector _projector = new ShooterRemoteSnapshotProjector();
+        private readonly NetworkSyncModel _syncModel;
         private ShooterPlayerCommand _lastPredictedCommand;
         private ShooterStateSyncPredictionState _predictionState = ShooterStateSyncPredictionState.Empty;
 
@@ -47,6 +48,18 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway,
             InterpolationConfig config)
+            : this(runtime, presentation, tickRate, decoder, gateway, config, NetworkSyncModel.AuthoritativeInterpolation)
+        {
+        }
+
+        public ShooterClientAuthoritativeInterpolationSyncController(
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationFacade presentation,
+            int tickRate,
+            ShooterGatewaySnapshotDecoder? decoder,
+            IShooterRoomGatewayClient? gateway,
+            InterpolationConfig config,
+            NetworkSyncModel syncModel)
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
@@ -54,9 +67,10 @@ namespace AbilityKit.Demo.Shooter.View
             _input = new ShooterClientInputCoordinator(_frameSync, gateway);
             _decoder = decoder ?? new ShooterGatewaySnapshotDecoder();
             _playback = new RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>(config);
+            _syncModel = syncModel;
         }
 
-        public NetworkSyncModel SyncModel => NetworkSyncModel.AuthoritativeInterpolation;
+        public NetworkSyncModel SyncModel => _syncModel;
 
         public bool IsStarted => _frameSync.IsStarted;
 

@@ -49,7 +49,6 @@ namespace AbilityKit.Triggering.Runtime.Context
             if (serviceType == typeof(IVariableRepository)) return VariableRepository;
             if (serviceType == typeof(ITimeService)) return TimeService;
             if (serviceType == typeof(IEventBus)) return EventBus;
-            if (serviceType == typeof(IEntityFinder)) return null;
             if (serviceType == typeof(ActionRegistry)) return _actions;
             return null;
         }
@@ -63,7 +62,7 @@ namespace AbilityKit.Triggering.Runtime.Context
             _payloadAccessor ??= new PayloadAccessorAdapter(_payloadRegistry);
 
         public IVariableRepository VariableRepository =>
-            _variableRepository ??= new VariableRepositoryAdapter(_numericDomains);
+            _variableRepository ??= new NumericVariableRepositoryAdapter(_numericDomains);
 
         public ITimeService TimeService =>
             _timeService ??= new TimeServiceAdapter(_policy);
@@ -125,20 +124,20 @@ namespace AbilityKit.Triggering.Runtime.Context
         }
     }
 
-    internal sealed class VariableRepositoryAdapter : IVariableRepository
+    internal sealed class NumericVariableRepositoryAdapter : IVariableRepository
     {
         private readonly INumericVarDomainRegistry _domainRegistry;
 
-        public VariableRepositoryAdapter(INumericVarDomainRegistry domainRegistry) => _domainRegistry = domainRegistry;
+        public NumericVariableRepositoryAdapter(INumericVarDomainRegistry domainRegistry) => _domainRegistry = domainRegistry;
 
         public double GetNumeric(string domainId, string key)
         {
-            throw new NotSupportedException("VariableRepositoryAdapter.GetNumeric is compatibility-only. Use the typed ExecCtx numeric domain path instead.");
+            return TryGet(domainId, key, out var value) ? value : 0d;
         }
 
         public void SetNumeric(string domainId, string key, double value)
         {
-            throw new NotSupportedException("VariableRepositoryAdapter.SetNumeric is compatibility-only. Use the typed ExecCtx numeric domain path instead.");
+            throw new NotSupportedException("ActionContext variable writes require an ExecCtx-backed numeric domain. Use ExecCtx.TrySetNumericVar for typed runtime writes.");
         }
 
         public bool Has(string domainId, string key) => _domainRegistry != null && _domainRegistry.TryGetDomain(domainId, out _);

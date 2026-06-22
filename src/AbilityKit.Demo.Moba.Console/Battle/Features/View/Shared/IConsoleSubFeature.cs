@@ -1,7 +1,6 @@
 using System;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.Flow;
-using AbilityKit.Demo.Moba.Console.Battle.Game;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Features
 {
@@ -40,10 +39,10 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
 
     /// <summary>
     /// SubFeature 基类（Console 版本）
-    /// 提供默认实现，简化 SubFeature 创建
-    /// 同时实现 IGamePhaseFeature 接口以兼容游戏阶段系统
+    /// 提供默认实现，简化 SubFeature 创建。
+    /// Console 入口已不再挂接旧 GamePhase 框架，因此这里只保留 FeatureHost/IGameModule 适配。
     /// </summary>
-    public abstract class ConsoleSubFeatureBase : SubFeatureBase, IConsoleSubFeature, IGamePhaseFeature
+    public abstract class ConsoleSubFeatureBase : SubFeatureBase, IConsoleSubFeature
     {
         protected ConsoleBattleContext? Context { get; private set; }
 
@@ -106,23 +105,5 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Features
             base.Tick(ctx, deltaTime);
         }
 
-        #region IGamePhaseFeature 实现
-
-        void IGamePhaseFeature.OnAttach(in ConsoleGamePhaseContext ctx)
-        {
-            OnAttach(ctx.BattleContext!);
-        }
-
-        void IGamePhaseFeature.OnDetach(in ConsoleGamePhaseContext ctx)
-        {
-            OnDetach(ctx.BattleContext!);
-        }
-
-        void IGamePhaseFeature.Tick(in ConsoleGamePhaseContext ctx, float deltaTime)
-        {
-            Tick(ctx.BattleContext!, deltaTime);
-        }
-
-        #endregion
     }
 }

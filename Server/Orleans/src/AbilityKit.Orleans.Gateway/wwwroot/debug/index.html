@@ -129,7 +129,9 @@
           <button class="secondary" @click="restoreCurrentRoom" :disabled="busy || !sessionToken">恢复当前</button>
           <button class="secondary" @click="loadSnapshot" :disabled="busy || !sessionToken || !roomId">快照</button>
           <button class="secondary" @click="loadRuntimeState" :disabled="busy || !sessionToken || !roomId">运行态</button>
+          <button class="secondary" @click="markOffline" :disabled="busy || !sessionToken || !roomId">标记离线</button>
           <button class="warn" @click="leaveRoom" :disabled="busy || !sessionToken || !roomId">离开</button>
+          <button class="warn" @click="closeRoom" :disabled="busy || !sessionToken || !roomId">关闭房间</button>
         </div>
         <p class="muted" v-if="snapshot && snapshot.summary">{{ snapshot.summary.title }} / {{ snapshot.summary.roomType }} / {{ snapshot.members?.length || 0 }}人</p>
       </section>
@@ -202,9 +204,13 @@
         <label>WorldType</label>
         <input v-model="battle.worldType" />
         <label>SyncTemplateId</label>
-        <input v-model="battle.syncTemplateId" />
+        <select v-model="battle.syncTemplateId" v-if="selectedGameplay && selectedGameplay.supportedSyncTemplateIds && selectedGameplay.supportedSyncTemplateIds.length > 0">
+          <option v-for="syncTemplateId in selectedGameplay.supportedSyncTemplateIds" :key="syncTemplateId" :value="syncTemplateId">{{ syncTemplateId }}</option>
+        </select>
+        <input v-else v-model="battle.syncTemplateId" />
         <div class="actions">
           <button class="success" @click="startBattle" :disabled="busy || !sessionToken || !roomId">Start Battle</button>
+          <button class="secondary" @click="startShooterRoomQuick" :disabled="busy || !sessionToken || !roomId || selectedRoomType !== 'shooter'">Shooter 快速开战</button>
         </div>
       </section>
 
@@ -252,7 +258,7 @@
           },
           region: localStorage.getItem('abilitykit.region') || 'cn',
           serverId: localStorage.getItem('abilitykit.serverId') || 'dev',
-          selectedRoomType: 'battle',
+          selectedRoomType: 'shooter',
           gameplays: [],
           rooms: [],
           roomId: localStorage.getItem('abilitykit.roomId') || '',
@@ -260,13 +266,13 @@
           runtimeState: null,
           lastResponse: '',
           create: {
-            roomType: 'battle',
-            title: 'Web Debug Room',
+            roomType: 'shooter',
+            title: 'Shooter Web Debug Room',
             isPublic: true,
-            maxPlayers: 10,
+            maxPlayers: 4,
             tagsJson: '{\n  "source": "web-debug"\n}'
           },
-          list: { roomType: '', limit: 20 },
+          list: { roomType: 'shooter', limit: 20 },
           ready: true,
           loadout: {
             heroId: 1001,
@@ -278,17 +284,17 @@
             skillIdsCsv: '10002,10003'
           },
           battle: {
-            gameplayId: 1,
-            ruleSetId: 1,
+            gameplayId: 2,
+            ruleSetId: 0,
             configVersion: 1,
             protocolVersion: 1,
-            worldType: 'battle',
-            syncTemplateId: 'state-sync-authority'
+            worldType: 'shooter_battle',
+            syncTemplateId: 'pure-state-authority'
           },
           sandbox: {
             sandboxId: 'default',
-            botCount: 4,
-            maxPlayers: 32,
+            botCount: 3,
+            maxPlayers: 4,
             tickRate: 30,
             state: null
           }
@@ -348,6 +354,7 @@
           this.create.roomType = gameplay.roomType;
           this.create.maxPlayers = gameplay.defaultMaxPlayers || this.create.maxPlayers;
           this.list.roomType = gameplay.roomType;
+          this.battle.gameplayId = Number(gameplay.gameplayId || this.battle.gameplayId || 0);
           this.battle.worldType = gameplay.defaultWorldType || gameplay.roomType;
           this.battle.syncTemplateId = gameplay.defaultSyncTemplateId || '';
         },
@@ -411,7 +418,7 @@
           });
           if (data && data.roomId) {
             this.roomId = data.roomId;
-            await this.joinRoom();
+            await this.loadSnapshot();
             await this.listRooms();
           }
         },
@@ -455,6 +462,19 @@
           const data = await this.callJson('/api/rooms/snapshot', { sessionToken: this.sessionToken, roomId: this.roomId });
           if (data) this.snapshot = data;
         },
+        async markOffline() {
+          const data = await this.callJson('/api/rooms/mark-offline', { sessionToken: this.sessionToken, roomId: this.roomId });
+          if (data) this.runtimeState = data;
+        },
+        async closeRoom() {
+          const data = await this.callJson('/api/rooms/close', { sessionToken: this.sessionToken, roomId: this.roomId });
+          if (data && data.success) {
+            this.snapshot = null;
+            this.runtimeState = null;
+            this.roomId = '';
+            await this.listRooms();
+          }
+        },
         async loadRuntimeState() {
           const data = await this.callJson('/api/rooms/runtime-state', { sessionToken: this.sessionToken, roomId: this.roomId });
           if (data) this.runtimeState = data;
@@ -486,6 +506,19 @@
             skillIds: this.parseSkillIds()
           });
           if (data) this.snapshot = data;
+        },
+        async startShooterRoomQuick() {
+          if (this.selectedRoomType === 'shooter') {
+            this.battle.gameplayId = 2;
+            this.battle.ruleSetId = 0;
+            this.battle.configVersion = 1;
+            this.battle.protocolVersion = 1;
+            this.battle.worldType = 'shooter_battle';
+            this.battle.syncTemplateId = this.battle.syncTemplateId || 'pure-state-authority';
+          }
+
+          await this.setReady();
+          await this.startBattle();
         },
         async startBattle() {
           const data = await this.callJson('/api/rooms/start-battle', {

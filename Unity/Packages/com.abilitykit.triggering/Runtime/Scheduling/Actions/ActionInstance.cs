@@ -37,61 +37,35 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
     /// </summary>
     public sealed class ActionInstance
     {
-        /// <summary>实例唯一ID</summary>
-        public int InstanceId { get; }
-
-        /// <summary>关联的触发器ID</summary>
-        public int TriggerId { get; }
-
-        /// <summary>Action 调用计划</summary>
-        public ActionCallPlan Plan { get; }
-
-        /// <summary>当前状态</summary>
+        public int InstanceId { get; private set; }
+        public int TriggerId { get; private set; }
+        public ActionCallPlan Plan { get; private set; }
         public EActionInstanceState State { get; internal set; }
-
-        /// <summary>是否活跃</summary>
         public bool IsActive => State is EActionInstanceState.Registered
                                 or EActionInstanceState.WaitingDelay
                                 or EActionInstanceState.WaitingCondition
                                 or EActionInstanceState.WaitingSignal
                                 or EActionInstanceState.WaitingQueue
                                 or EActionInstanceState.Executing;
-
-        /// <summary>已执行次数</summary>
         public int ExecutionCount { get; internal set; }
-
-        /// <summary>总消耗时间（毫秒）</summary>
         public float ElapsedMs { get; internal set; }
-
-        /// <summary>上次执行时间（从启动算起）</summary>
         public float LastExecuteMs { get; internal set; }
-
-        /// <summary>是否可以中断</summary>
-        public bool CanBeInterrupted => Plan.Schedule.CanBeInterrupted;
-
-        /// <summary>中断原因</summary>
+        public bool CanBeInterrupted => Executor != null && Plan.Schedule.CanBeInterrupted;
         public string InterruptReason { get; internal set; }
-
-        /// <summary>执行器</summary>
-        public IActionExecutor Executor { get; }
-
-        /// <summary>Action 委托（延迟解析）</summary>
+        public IActionExecutor Executor { get; private set; }
+        public bool OwnsExecutor { get; private set; }
         internal Action<object, ITriggerDispatcherContext> ActionDelegate { get; set; }
-
-        /// <summary>条件委托（可选）</summary>
         internal TriggerPredicate<object> ConditionDelegate { get; set; }
-
-        /// <summary>参数对象（延迟绑定）</summary>
         internal object BoundArgs { get; set; }
-
-        /// <summary>全局上下文（从 Trigger 传递）</summary>
-        public object GlobalContext { get; }
-
-        /// <summary>创建时间戳</summary>
-        public float CreatedAtMs { get; }
+        public object GlobalContext { get; private set; }
+        public float CreatedAtMs { get; private set; }
 
         private float _delayStartMs;
         private bool _hasDelayStart;
+
+        internal ActionInstance()
+        {
+        }
 
         internal ActionInstance(
             int instanceId,
@@ -101,25 +75,37 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             object globalContext,
             float createdAtMs = 0f)
         {
+            Initialize(instanceId, triggerId, in plan, executor, globalContext, createdAtMs, ownsExecutor: false);
+        }
+
+        internal void Initialize(
+            int instanceId,
+            int triggerId,
+            in ActionCallPlan plan,
+            IActionExecutor executor,
+            object globalContext,
+            float createdAtMs,
+            bool ownsExecutor)
+        {
             InstanceId = instanceId;
             TriggerId = triggerId;
             Plan = plan;
             Executor = executor ?? throw new ArgumentNullException(nameof(executor));
+            OwnsExecutor = ownsExecutor;
             GlobalContext = globalContext;
             State = EActionInstanceState.Registered;
             ElapsedMs = 0;
             LastExecuteMs = 0;
             ExecutionCount = 0;
+            InterruptReason = null;
             CreatedAtMs = Math.Max(0f, createdAtMs);
+            _delayStartMs = 0f;
             _hasDelayStart = false;
+            ActionDelegate = null;
+            ConditionDelegate = null;
+            BoundArgs = null;
         }
 
-        /// <summary>
-        /// 每帧更新（由 ActionScheduler 调用）
-        /// </summary>
-        /// <param name="deltaTimeMs">帧间隔（毫秒）</param>
-        /// <param name="ctx">执行上下文</param>
-        /// <returns>执行结果，如果已完成/中断则返回非 Continue</returns>
         public ExecutionResult Update(float deltaTimeMs, ActionExecutionContext ctx)
         {
             if (State is EActionInstanceState.Completed or EActionInstanceState.Interrupted or EActionInstanceState.Failed)
@@ -127,14 +113,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
             ElapsedMs += deltaTimeMs;
 
-            // 阶段1: 调度时间窗检查
             if (!CanEnterExecutionWindow())
             {
                 State = EActionInstanceState.WaitingDelay;
                 return ExecutionResult.None;
             }
 
-            // 阶段2: 条件检查（如果需要）
             if (ConditionDelegate != null && State != EActionInstanceState.Executing)
             {
                 bool conditionMet = ConditionDelegate(BoundArgs, ctx.DispatcherContext);
@@ -147,7 +131,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 State = EActionInstanceState.Executing;
             }
 
-            // 阶段3: 根据调度模式执行
             var schedule = Plan.Schedule;
             if (schedule.Mode == Config.EActionScheduleMode.Timeline)
             {
@@ -157,7 +140,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
             var execution = ExecuteInternal(ctx);
 
-            // 检查是否完成。等待队列/同步/延迟重试等未实际执行的帧不能终结实例。
             if (execution.Result.IsFailed)
             {
                 State = EActionInstanceState.Failed;
@@ -177,7 +159,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             {
                 case Config.EActionScheduleMode.Immediate:
                     return true;
-
                 case Config.EActionScheduleMode.Delayed:
                     if (!_hasDelayStart)
                     {
@@ -185,24 +166,19 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                         _hasDelayStart = true;
                     }
                     return ElapsedMs - _delayStartMs >= Math.Max(0f, schedule.Param);
-
                 case Config.EActionScheduleMode.Periodic:
                 case Config.EActionScheduleMode.Continuous:
                     if (schedule.Param <= 0f)
                     {
                         return true;
                     }
-
                     if (ExecutionCount <= 0)
                     {
                         return ElapsedMs >= schedule.Param;
                     }
-
                     return ElapsedMs - LastExecuteMs >= schedule.Param;
-
                 case Config.EActionScheduleMode.Timeline:
                     return true;
-
                 default:
                     return true;
             }
@@ -210,13 +186,11 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
 
         private ActionExecutionStep ExecuteInternal(ActionExecutionContext ctx)
         {
-            // 检查执行条件（ExecutionPolicy）
             if (!CanExecuteByPolicy(ctx))
             {
                 return new ActionExecutionStep(false, ExecutionResult.Skipped("Policy check failed"));
             }
 
-            // 通过执行器执行
             if (Plan.Execution.Policy == Config.EActionExecutionPolicy.WithRollback)
             {
                 return new ActionExecutionStep(false, ExecutionResult.Failed($"Action[{Plan.Id.Value}] 请求 WithRollback，但 ActionCallPlan 当前没有正式的补偿 Action 或回滚计划结构。"));
@@ -251,8 +225,8 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             {
                 Config.EActionExecutionPolicy.Conditional => ConditionDelegate?.Invoke(BoundArgs, ctx.DispatcherContext) ?? true,
                 Config.EActionExecutionPolicy.Queued => !IsQueued(),
-                Config.EActionExecutionPolicy.Parallel => true, // 并行总是允许
-                Config.EActionExecutionPolicy.Deferred => ElapsedMs > 0, // 至少等待一帧
+                Config.EActionExecutionPolicy.Parallel => true,
+                Config.EActionExecutionPolicy.Deferred => ElapsedMs > 0,
                 _ => true
             };
         }
@@ -269,19 +243,14 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             {
                 case Config.EActionScheduleMode.Immediate:
                     return true;
-
                 case Config.EActionScheduleMode.Delayed:
                     return ExecutionCount >= 1;
-
                 case Config.EActionScheduleMode.Periodic:
                     if (schedule.MaxExecutions > 0 && ExecutionCount >= schedule.MaxExecutions)
                         return true;
                     break;
-
                 case Config.EActionScheduleMode.Continuous:
-                    // Continuous 由外部控制终止
                     break;
-
                 case Config.EActionScheduleMode.Timeline:
                     return ExecutionCount >= 1;
             }
@@ -289,9 +258,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             return false;
         }
 
-        /// <summary>
-        /// 请求中断
-        /// </summary>
         public void RequestInterrupt(string reason)
         {
             if (!CanBeInterrupted) return;
@@ -300,9 +266,6 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             Executor.Cancel(reason);
         }
 
-        /// <summary>
-        /// 重置（用于重用）
-        /// </summary>
         public void Reset()
         {
             State = EActionInstanceState.Registered;
@@ -311,6 +274,32 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
             ExecutionCount = 0;
             InterruptReason = null;
             _hasDelayStart = false;
+        }
+
+        internal void ResetForPool()
+        {
+            if (Executor != null && IsActive && CanBeInterrupted)
+            {
+                Executor.Cancel("Pool reset");
+            }
+
+            State = EActionInstanceState.Registered;
+            ElapsedMs = 0;
+            LastExecuteMs = 0;
+            ExecutionCount = 0;
+            InterruptReason = null;
+            _delayStartMs = 0f;
+            _hasDelayStart = false;
+            InstanceId = 0;
+            TriggerId = 0;
+            Plan = default;
+            Executor = null;
+            OwnsExecutor = false;
+            GlobalContext = null;
+            CreatedAtMs = 0f;
+            ActionDelegate = null;
+            ConditionDelegate = null;
+            BoundArgs = null;
         }
     }
 }

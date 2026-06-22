@@ -10,10 +10,16 @@ namespace AbilityKit.Triggering.Tests
         {
             var packageRoot = FindPackageRoot();
             var productGuide = File.ReadAllText(Path.Combine(packageRoot, "Document", "ProductAcceptanceGuide.md"));
+            var stageClosureGuide = File.ReadAllText(Path.Combine(packageRoot, "Document", "StageClosureGuide.md"));
             var packageReadme = File.ReadAllText(Path.Combine(packageRoot, "Documentation~", "README.md"));
 
             StringAssert.Contains("Samples/FormalTriggeringMainlineExample.cs", productGuide);
             StringAssert.Contains("TriggeringDiagnosticCollector", productGuide);
+            StringAssert.Contains("dotnet build Unity\\AbilityKit.Triggering.csproj --no-restore -v:minimal", productGuide);
+            StringAssert.Contains("TriggeringRuntimePoolingHotspotScanTests", productGuide);
+            StringAssert.Contains("TriggeringRuntimePools.CreateDefault", stageClosureGuide);
+            StringAssert.Contains("dotnet build Unity\\AbilityKit.Triggering.Tests.csproj --no-restore -v:minimal", stageClosureGuide);
+            StringAssert.Contains("Document/StageClosureGuide.md", packageReadme);
             StringAssert.Contains("AbilityKit/Triggering/Diagnostics/Write Runtime Report", packageReadme);
             StringAssert.Contains("AbilityKit/Triggering/Diagnostics/Write Product Acceptance Report", packageReadme);
         }

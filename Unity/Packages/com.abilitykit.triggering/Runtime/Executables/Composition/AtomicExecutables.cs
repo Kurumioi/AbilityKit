@@ -7,7 +7,7 @@ using AbilityKit.Triggering.Runtime.Context;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
-    /// 空行�?
+    /// 空行�?
     /// </summary>
     public sealed class NoOpExecutable : IAtomicExecutable, ISimpleExecutable
     {
@@ -61,9 +61,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public NumericValueRef Arg1 { get; set; }
         public int Arity { get; set; }
 
-        [Obsolete("Use constructor injection. Only for backward compatibility and deserialization.")]
-        public ActionRegistry Actions { get; set; } = null;
-
         private readonly Action<ActionContext> _action0;
         private readonly Action<ActionContext, double> _action1;
         private readonly Action<ActionContext, double, double> _action2;
@@ -100,60 +97,30 @@ namespace AbilityKit.Triggering.Runtime.Executable
             {
                 var actionCtx = ctx ?? new ActionContext();
 
-                if (TryExecuteInjected(actionCtx))
-                    return ExecutionResult.Success();
-
-                return ExecuteLegacy(actionCtx);
-            }
-            catch (Exception ex)
-            {
-                return ExecutionResult.Failed($"ActionCall[{ActionId}]: {ex.Message}");
-            }
-        }
-
-        private bool TryExecuteInjected(ActionContext ctx)
-        {
-            switch (Arity)
-            {
-                case 0 when _action0 != null:
-                    _action0(ctx);
-                    return true;
-                case 1 when _action1 != null:
-                    _action1(ctx, Arg0.Resolve(ctx));
-                    return true;
-                case 2 when _action2 != null:
-                    _action2(ctx, Arg0.Resolve(ctx), Arg1.Resolve(ctx));
-                    return true;
-            }
-            return false;
-        }
-
-        [Obsolete("Legacy path")]
-        private ExecutionResult ExecuteLegacy(ActionContext ctx)
-        {
-            var actions = ctx.GetService<ActionRegistry>();
-            if (actions == null)
-                return ExecutionResult.Failed($"ActionCall[{ActionId}]: No ActionRegistry in context");
-
-            try
-            {
-                switch (Arity)
-                {
-                    case 0:
-                        if (actions.TryGet<Action<ActionContext>>(ActionId, out var a0, out _)) a0(ctx);
-                        break;
-                    case 1:
-                        if (actions.TryGet<Action<ActionContext, double>>(ActionId, out var a1, out _)) a1(ctx, Arg0.Resolve(ctx));
-                        break;
-                    case 2:
-                        if (actions.TryGet<Action<ActionContext, double, double>>(ActionId, out var a2, out _)) a2(ctx, Arg0.Resolve(ctx), Arg1.Resolve(ctx));
-                        break;
-                }
+                ExecuteBound(actionCtx);
                 return ExecutionResult.Success();
             }
             catch (Exception ex)
             {
                 return ExecutionResult.Failed($"ActionCall[{ActionId}]: {ex.Message}");
+            }
+        }
+
+        private void ExecuteBound(ActionContext ctx)
+        {
+            switch (Arity)
+            {
+                case 0 when _action0 != null:
+                    _action0(ctx);
+                    return;
+                case 1 when _action1 != null:
+                    _action1(ctx, Arg0.Resolve(ctx));
+                    return;
+                case 2 when _action2 != null:
+                    _action2(ctx, Arg0.Resolve(ctx), Arg1.Resolve(ctx));
+                    return;
+                default:
+                    throw new InvalidOperationException($"ActionCall[{ActionId}] is not bound. Create it through ActionDelegateFactory or a constructor with an action delegate.");
             }
         }
     }

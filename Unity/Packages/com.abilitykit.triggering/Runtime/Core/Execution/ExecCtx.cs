@@ -62,7 +62,7 @@ namespace AbilityKit.Triggering.Runtime
         }
 
         /// <summary>
-        /// ActionScheduler 管理器（可选，为 null 时使用旧模式）
+        /// ActionScheduler 管理器（可选，为 null 时表示当前执行上下文不启用 ActionScheduler）
         /// </summary>
         public readonly ActionSchedulerManager ActionSchedulerManager;
 
@@ -76,7 +76,7 @@ namespace AbilityKit.Triggering.Runtime
                 return accessor.TryGetDouble(in payload, fieldId, out value);
             }
 
-            // Fallback to legacy accessor
+            // 当未注册强类型访问器时，使用通用 Payload 访问器作为正式兼容入口。
             if (Payloads != null)
             {
                 return Payloads.TryGetDouble(in payload, fieldId, out value);
@@ -96,7 +96,7 @@ namespace AbilityKit.Triggering.Runtime
                 return accessor.TryGetInt(in payload, fieldId, out value);
             }
 
-            // Fallback to legacy accessor
+            // 当未注册强类型访问器时，使用通用 Payload 访问器作为正式兼容入口。
             if (Payloads != null)
             {
                 return Payloads.TryGetInt(in payload, fieldId, out value);

@@ -66,7 +66,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return;
             }
 
-            ExecuteLegacy(in args, in call, in ctx, index);
+            ExecutePositional(in args, in call, in ctx, index);
         }
 
         private void ExecuteNamed(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
@@ -92,7 +92,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
         }
 
-        private void ExecuteLegacy(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
+        private void ExecutePositional(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
         {
             var arguments = call.Arguments;
             switch (arguments.Arity)

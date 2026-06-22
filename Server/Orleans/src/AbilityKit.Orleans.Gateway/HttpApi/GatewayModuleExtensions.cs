@@ -19,8 +19,16 @@ public static class GatewayModuleExtensions
     public static WebApplication MapAbilityKitGatewayPipeline(this WebApplication app)
     {
         var options = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<AbilityKitGatewayOptions>>().Value;
+        app.UseDefaultFiles();
+        app.UseStaticFiles();
         app.MapAbilityKitGatewayHealthEndpoints(options);
         app.MapGatewayHttpApi();
+        app.MapGet("/admin", () => Results.Redirect("/admin/index.html"))
+            .WithName("Gateway.AdminConsole")
+            .Produces(StatusCodes.Status302Found);
+        app.MapGet("/debug", () => Results.Redirect("/debug/index.html"))
+            .WithName("Gateway.DebugConsole")
+            .Produces(StatusCodes.Status302Found);
         return app;
     }
 }

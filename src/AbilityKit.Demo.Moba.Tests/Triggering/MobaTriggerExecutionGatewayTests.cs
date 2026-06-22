@@ -33,8 +33,9 @@ public sealed class MobaTriggerExecutionGatewayTests
         var payload = new TestPayload();
 
         var request = MobaTriggerExecutionRequest<TestPayload>.Create(7001, payload, "test.direct");
-        gateway.ExecuteDirectTrigger(in request);
+        var ex = Assert.Throws<InvalidOperationException>(() => gateway.ExecuteDirectTrigger(in request));
 
+        Assert.Contains(nameof(MobaEffectExecutionService), ex.Message);
         Assert.Equal(1, gateway.Stats.DirectRequests);
         Assert.Equal(1, gateway.Stats.DirectMissingService);
         Assert.Equal(0, gateway.Stats.DirectExecuted);
@@ -43,7 +44,6 @@ public sealed class MobaTriggerExecutionGatewayTests
         Assert.Equal(nameof(TestPayload), gateway.Stats.LastPayloadType);
         Assert.Equal(1, diagnostics.CounterValue("moba.trigger.direct.requested"));
         Assert.Equal(1, diagnostics.CounterValue("moba.trigger.direct.missingEffects"));
-        Assert.Contains(diagnostics.Warnings, item => item.Key == "moba.trigger.direct.missingEffects");
     }
 
     [Fact]
@@ -52,8 +52,9 @@ public sealed class MobaTriggerExecutionGatewayTests
         var diagnostics = new TestDiagnosticsService();
         var gateway = new MobaTriggerExecutionGateway(effects: null, subscriptions: null, diagnostics);
 
-        gateway.ApplyOwnerBoundTriggers(new[] { 1, 2, 3 }, ownerKey: 9001, source: "test.owner.apply");
+        var ex = Assert.Throws<InvalidOperationException>(() => gateway.ApplyOwnerBoundTriggers(new[] { 1, 2, 3 }, ownerKey: 9001, source: "test.owner.apply"));
 
+        Assert.Contains(nameof(MobaTriggerPlanSubscriptionService), ex.Message);
         Assert.Equal(1, gateway.Stats.OwnerApplyRequests);
         Assert.Equal(1, gateway.Stats.OwnerMissingService);
         Assert.Equal(0, gateway.Stats.OwnerApplied);
@@ -72,8 +73,9 @@ public sealed class MobaTriggerExecutionGatewayTests
         var diagnostics = new TestDiagnosticsService();
         var gateway = new MobaTriggerExecutionGateway(effects: null, subscriptions: null, diagnostics);
 
-        gateway.StopOwnerBoundTriggers(ownerKey: 9002, source: "test.owner.stop");
+        var ex = Assert.Throws<InvalidOperationException>(() => gateway.StopOwnerBoundTriggers(ownerKey: 9002, source: "test.owner.stop"));
 
+        Assert.Contains(nameof(MobaTriggerPlanSubscriptionService), ex.Message);
         Assert.Equal(1, gateway.Stats.OwnerStopRequests);
         Assert.Equal(1, gateway.Stats.OwnerMissingService);
         Assert.Equal(0, gateway.Stats.OwnerStopped);

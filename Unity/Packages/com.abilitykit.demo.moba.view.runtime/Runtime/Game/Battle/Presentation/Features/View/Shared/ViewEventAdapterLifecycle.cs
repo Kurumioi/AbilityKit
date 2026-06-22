@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    internal sealed class ViewEventSourceModePolicy
+    public sealed class ViewEventSourceModePolicy
     {
         public BattleViewEventSourceMode Resolve(BattleContext ctx)
         {

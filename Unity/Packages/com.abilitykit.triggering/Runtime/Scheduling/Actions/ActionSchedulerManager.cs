@@ -140,6 +140,12 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
         private readonly Dictionary<int, ActionScheduler> _schedulersByTriggerId = new();
         private readonly List<ActionScheduler> _allSchedulers = new();
         private readonly List<ActionInstance> _allActions = new();
+        private readonly AbilityKit.Triggering.Runtime.Pooling.TriggeringRuntimePools _pools;
+
+        public ActionSchedulerManager(AbilityKit.Triggering.Runtime.Pooling.TriggeringRuntimePools pools = null)
+        {
+            _pools = pools;
+        }
 
         /// <summary>
         /// 总调度器数量
@@ -193,7 +199,7 @@ namespace AbilityKit.Triggering.Runtime.ActionScheduler
                 return scheduler;
             }
 
-            scheduler = new ActionScheduler(triggerId);
+            scheduler = new ActionScheduler(triggerId, _pools);
             _schedulersByTriggerId[triggerId] = scheduler;
             _allSchedulers.Add(scheduler);
             return scheduler;

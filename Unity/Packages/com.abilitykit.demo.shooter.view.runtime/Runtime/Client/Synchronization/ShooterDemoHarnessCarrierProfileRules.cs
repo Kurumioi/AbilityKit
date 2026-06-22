@@ -38,9 +38,10 @@ namespace AbilityKit.Demo.Shooter.View
                 return SyncDemoCapabilityResult.Unsupported("Shooter interpolation carrier supports authoritative interpolation playback only.");
             }
 
-            if (!profile.Snapshot.HasFlag(SnapshotPolicy.FixedRateStateStream))
+            if (!profile.Snapshot.HasFlag(SnapshotPolicy.FixedRateStateStream)
+                && !profile.Snapshot.HasFlag(SnapshotPolicy.BatchSnapshot))
             {
-                return SyncDemoCapabilityResult.Unsupported("Shooter interpolation carrier requires FixedRateStateStream snapshots.");
+                return SyncDemoCapabilityResult.Unsupported("Shooter interpolation carrier requires fixed-rate or batched state snapshots.");
             }
 
             return SyncDemoCapabilityResult.Supported;

@@ -30,7 +30,6 @@ namespace AbilityKit.Triggering.Runtime.Executable
             public const int Or = 2004;
             public const int NumericCompare = 2005;
             public const int PayloadCompare = 2006;
-            public const int HasTarget = 2007;
             public const int Const = 2008;
         }
     }

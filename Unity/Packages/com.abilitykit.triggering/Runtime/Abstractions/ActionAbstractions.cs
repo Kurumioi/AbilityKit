@@ -77,7 +77,4 @@ namespace AbilityKit.Triggering.Runtime.Abstractions
         void Error(string message);
     }
 
-    public interface IEntityFinder
-    {
-    }
 }

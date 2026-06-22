@@ -8,7 +8,7 @@ namespace AbilityKit.Triggering.Tests
     public sealed class RuntimeCompatibilityLegacyEntryScanTests
     {
         [Test]
-        public void PackageExternalSources_DoNotReferenceLegacyTriggeringEntrypoints()
+        public void PackageExternalSources_DoNotReferenceHistoricalTriggeringEntrypoints()
         {
             var packagesRoot = FindPackagesRoot();
             var forbidden = new[]
@@ -44,7 +44,7 @@ namespace AbilityKit.Triggering.Tests
                 }
             }
 
-            Assert.That(violations, Is.Empty, "Package-external code must not call legacy triggering entrypoints.");
+            Assert.That(violations, Is.Empty, "Package-external code must not call historical triggering entrypoints.");
         }
 
         private static string FindPackagesRoot()

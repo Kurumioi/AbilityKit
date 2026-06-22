@@ -3,6 +3,7 @@ using System.Threading;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Battle.Flow;
+using AbilityKit.Demo.Moba.Testing;
 
 namespace AbilityKit.Demo.Moba.Console.AutoTest
 {
@@ -17,6 +18,8 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
         private readonly AutoTestConfig _config;
         private readonly AutoTestInputFeature _autoInput;
         private readonly ModuleHost<ConsoleBattleContext, IGameModule<ConsoleBattleContext>> _moduleHost;
+        private BattleTestScript? _activeScript;
+        private BattleTestScriptRunResult? _lastScriptResult;
         private Thread _testThread;
         private bool _disposed;
         private Log.LogLevel _savedLogLevel;
@@ -63,12 +66,22 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
         /// <summary>
         /// 运行指定的测试场景
         /// </summary>
-        public void RunScenario(ITestScenario scenario)
+        public void RunScenario(IBattleTestScenario scenario)
         {
             if (scenario == null) return;
 
-            _autoInput.ClearSteps();
-            scenario.Apply(_autoInput);
+            RunScript(scenario.CreateScript());
+        }
+
+        /// <summary>
+        /// 运行共享平台无关测试脚本。
+        /// </summary>
+        public void RunScript(BattleTestScript script)
+        {
+            if (script == null) return;
+
+            _activeScript = script;
+            _lastScriptResult = null;
             RunAutoTest();
         }
 
@@ -133,9 +146,6 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             // 通过 Bootstrapper 设置自动输入特征（这样 Tick 才会被调用）
             _bootstrapper.SetAutoTestInput(_autoInput);
 
-            // 初始化并启动
-            _autoInput.Start();
-
             Log.Trace("[AUTO-TEST] Auto input activated");
         }
 
@@ -148,9 +158,6 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             // 通过 Bootstrapper 清除自动输入特征
             _bootstrapper.SetAutoTestInput(null);
 
-            // 清除自动输入
-            _autoInput.ClearSteps();
-
             Log.Trace("[AUTO-TEST] Original input restored");
         }
 
@@ -160,22 +167,17 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             _bootstrapper.TransitionTo("InMatch");
             Thread.Sleep(50);
 
-            // 执行自动输入测试
-            var totalSteps = _autoInput.TotalSteps;
-            var currentStep = 0;
+            // 执行共享平台无关测试脚本。步骤持续时间/逐 tick 语义由 BattleTestScriptRunner 统一维护。
+            // AutoTestInputFeature 不再注册本地步骤队列，避免 FeatureHost 旧 Tick 路径和共享 runner 双重消费脚本。
+            var script = _activeScript ?? BattleTestScenarioLibrary.CreateFullBattle();
+            var totalSteps = script.Steps.Count;
+            var driver = new ConsoleBattleTestScriptDriver(_bootstrapper, _autoInput, _config);
+            _lastScriptResult = new BattleTestScriptRunner().Run(script, driver);
+            results.ScriptResult = _lastScriptResult;
 
-            while (_autoInput.IsRunning)
+            if (!_lastScriptResult.Completed)
             {
-                _bootstrapper.Tick();
-                currentStep = _autoInput.CurrentStep;
-                Thread.Sleep(10);
-
-                // 超时保护
-                if (currentStep > totalSteps + 100)
-                {
-                    Log.Warn("[AUTO-TEST] Test timeout, stopping...");
-                    break;
-                }
+                Log.Warn($"[AUTO-TEST] Script failed: {_lastScriptResult.ErrorMessage}");
             }
 
             // 运行固定测试
@@ -183,7 +185,7 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             results.PhaseTest = TestPhaseTransition();
 
             Log.System($"========================================");
-            Log.System($"Auto test completed: {totalSteps} steps");
+            Log.System($"Auto test completed: {totalSteps} steps, {_lastScriptResult?.TickCount ?? 0} ticks");
             Log.System($"========================================");
         }
 
@@ -337,6 +339,7 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
         public DateTime StartTime { get; set; } = DateTime.Now;
         public TestResult InitTest { get; set; }
         public TestResult PhaseTest { get; set; }
+        public BattleTestScriptRunResult ScriptResult { get; set; }
         public long TotalTimeMs { get; set; }
         public bool HasUnexpectedError { get; set; }
         public string ErrorMessage { get; set; } = "";
@@ -346,13 +349,14 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             get
             {
                 int count = 0;
+                if (ScriptResult?.Completed == true) count++;
                 if (InitTest?.Passed == true) count++;
                 if (PhaseTest?.Passed == true) count++;
                 return count;
             }
         }
 
-        public int TotalCount => 2;
+        public int TotalCount => 3;
     }
 
     /// <summary>

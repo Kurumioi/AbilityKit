@@ -192,6 +192,10 @@ public sealed class ShooterSveltoGameplayScenarioRunnerTests
         Assert.Equal(result.EntityBudget.MaxEntityCount - result.InitialEntityCount, result.EntityBudget.InitialEntityBudgetHeadroom);
         Assert.True(result.EntityBudget.InitialEntitiesWithinBudget);
         Assert.Equal(result.TotalFrames * result.EntityBudget.ActiveSyncBudget, result.EntityBudget.TotalActiveSyncBudgetFrames);
+        Assert.True(result.EntityBudget.ElapsedTicks > 0);
+        Assert.True(result.EntityBudget.AllocatedBytes >= 0);
+        Assert.True(result.EntityBudget.AverageFrameTicks >= 0);
+        Assert.True(result.EntityBudget.AverageFrameAllocatedBytes >= 0);
     }
 
     [Fact]
