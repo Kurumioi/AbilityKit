@@ -10,14 +10,14 @@ public sealed class ServerProjectBoundaryAnalyzer : DiagnosticAnalyzer
     private static readonly ImmutableDictionary<string, ImmutableArray<string>> ForbiddenNamespaceReferences =
         new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal)
         {
-            ["AbilityKit.Orleans.Contracts"] = ImmutableArray.Create(
-                "AbilityKit.Orleans.Grains",
-                "AbilityKit.Orleans.Gateway",
-                "AbilityKit.Orleans.Host",
-                "AbilityKit.Orleans.Hosting"),
-            ["AbilityKit.Orleans.Hosting"] = ImmutableArray.Create(
-                "AbilityKit.Orleans.Gateway",
-                "AbilityKit.Orleans.Host")
+            [ServerAssemblyNames.Contracts] = ImmutableArray.Create(
+                ServerAssemblyNames.Grains,
+                ServerAssemblyNames.Gateway,
+                ServerAssemblyNames.Host,
+                ServerAssemblyNames.Hosting),
+            [ServerAssemblyNames.Hosting] = ImmutableArray.Create(
+                ServerAssemblyNames.Gateway,
+                ServerAssemblyNames.Host)
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(

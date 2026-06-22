@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Battle;
+﻿using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
@@ -7,10 +7,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 订阅状态同步 Handler
+/// 璁㈤槄鐘舵€佸悓姝?Handler
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.SubscribeStateSync)]
-public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
+public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
@@ -75,4 +75,5 @@ public sealed class SubscribeStateSyncHandler : GatewayRequestHandlerBase
         }
     }
 }
+
 

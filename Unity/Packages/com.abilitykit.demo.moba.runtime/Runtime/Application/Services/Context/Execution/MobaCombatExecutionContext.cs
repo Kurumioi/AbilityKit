@@ -5,6 +5,10 @@ namespace AbilityKit.Demo.Moba.Services
         bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context);
     }
 
+    /// <summary>
+    /// Canonical execution-time context for MOBA combat/effect/action/condition execution.
+    /// Business execution code should normalize trigger payloads into this model before reading origin, lineage, snapshot, skill runtime, or frame data.
+    /// </summary>
     public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider
     {
         public MobaCombatExecutionContext(

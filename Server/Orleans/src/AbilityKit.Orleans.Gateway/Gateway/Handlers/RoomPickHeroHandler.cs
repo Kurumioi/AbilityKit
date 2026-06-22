@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Rooms;
+﻿using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -6,10 +6,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 房间英雄选择 Handler
+/// 鎴块棿鑻遍泟閫夋嫨 Handler
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.PickHero)]
-public sealed class RoomPickHeroHandler : GatewayRequestHandlerBase
+public sealed partial class RoomPickHeroHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
 
@@ -54,3 +54,4 @@ public sealed class RoomPickHeroHandler : GatewayRequestHandlerBase
         }
     }
 }
+

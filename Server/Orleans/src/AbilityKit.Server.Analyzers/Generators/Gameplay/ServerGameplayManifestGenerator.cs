@@ -34,7 +34,7 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(context.CompilationProvider.Combine(descriptorCandidates).Combine(moduleCandidates), static (context, source) =>
         {
             var compilation = source.Left.Left;
-            if (!string.Equals(compilation.AssemblyName, "AbilityKit.Orleans.Grains", StringComparison.Ordinal))
+            if (!GeneratorAssemblyTargets.IsTargetAssembly(compilation, ServerAssemblyNames.Grains))
             {
                 return;
             }
@@ -59,12 +59,12 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
         return new DescriptorCandidate(
             property.Identifier.ValueText,
             creation.ArgumentList.Arguments[0].Expression.ToString(),
-            GetStringValue(creation.ArgumentList.Arguments[1].Expression) ?? creation.ArgumentList.Arguments[1].Expression.ToString(),
+            GeneratorSyntaxReader.GetStringLiteralValueOrExpression(creation.ArgumentList.Arguments[1].Expression),
             creation.ArgumentList.Arguments[2].Expression.ToString(),
             creation.ArgumentList.Arguments[3].Expression.ToString(),
             creation.ArgumentList.Arguments[4].Expression.ToString(),
             creation.ArgumentList.Arguments[5].Expression.ToString(),
-            GetStringValue(creation.ArgumentList.Arguments[6].Expression) ?? creation.ArgumentList.Arguments[6].Expression.ToString());
+            GeneratorSyntaxReader.GetStringLiteralValueOrExpression(creation.ArgumentList.Arguments[6].Expression));
     }
 
     private static ModuleCandidate? CreateModuleCandidate(ObjectCreationExpressionSyntax creation)
@@ -100,13 +100,6 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
         return creation.Type.ToString().EndsWith("ServerGameplayModule", StringComparison.Ordinal);
     }
 
-    private static string? GetStringValue(ExpressionSyntax expression)
-    {
-        return expression is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.StringLiteralExpression)
-            ? literal.Token.ValueText
-            : null;
-    }
-
     private static string? ResolveReturnedCreationType(ExpressionSyntax expression)
     {
         var creation = expression.DescendantNodesAndSelf().OfType<ObjectCreationExpressionSyntax>().FirstOrDefault();
@@ -137,7 +130,7 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
         var builder = ImmutableArray.CreateBuilder<string>();
         foreach (var argument in invocation.ArgumentList.Arguments)
         {
-            var value = GetStringValue(argument.Expression) ?? argument.Expression.ToString();
+            var value = GeneratorSyntaxReader.GetStringLiteralValueOrExpression(argument.Expression);
             if (!string.IsNullOrWhiteSpace(value))
             {
                 builder.Add(value);
@@ -217,7 +210,7 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
             builder.Append("        new GeneratedServerGameplayManifestEntry(");
             builder.Append(entry.RoomTypeExpression);
             builder.Append(", ");
-            builder.Append(ToLiteral(entry.DisplayName));
+            builder.Append(CSharpLiteral.String(entry.DisplayName));
             builder.Append(", ");
             builder.Append(entry.DefaultMaxPlayersExpression);
             builder.Append(", ");
@@ -227,35 +220,23 @@ public sealed class ServerGameplayManifestGenerator : IIncrementalGenerator
             builder.Append(", ");
             builder.Append(entry.DefaultTickRateExpression);
             builder.Append(", ");
-            builder.Append(ToNullableLiteral(entry.DefaultSyncTemplateId));
+            builder.Append(CSharpLiteral.NullableStringOrNullExpression(entry.DefaultSyncTemplateId));
             builder.Append(", ");
-            builder.Append(ToNullableLiteral(entry.DefaultSyncMode));
+            builder.Append(CSharpLiteral.NullableStringOrNullExpression(entry.DefaultSyncMode));
             builder.Append(", new[] { ");
-            builder.Append(string.Join(", ", entry.SupportedSyncTemplateIds.Select(ToLiteral)));
+            builder.Append(string.Join(", ", entry.SupportedSyncTemplateIds.Select(CSharpLiteral.String)));
             builder.Append(" }, ");
-            builder.Append(ToNullableLiteral(entry.RoomAdapterType));
+            builder.Append(CSharpLiteral.NullableStringOrNullExpression(entry.RoomAdapterType));
             builder.Append(", ");
-            builder.Append(ToNullableLiteral(entry.BattleRuntimeAdapterType));
+            builder.Append(CSharpLiteral.NullableStringOrNullExpression(entry.BattleRuntimeAdapterType));
             builder.Append(", new[] { ");
-            builder.Append(string.Join(", ", entry.WorldBlueprintTypes.Select(ToLiteral)));
+            builder.Append(string.Join(", ", entry.WorldBlueprintTypes.Select(CSharpLiteral.String)));
             builder.AppendLine(" }),");
         }
 
         builder.AppendLine("    };");
         builder.AppendLine("}");
         return builder.ToString();
-    }
-
-    private static string ToNullableLiteral(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) || string.Equals(value, "null", StringComparison.Ordinal)
-            ? "null"
-            : ToLiteral(value!);
-    }
-
-    private static string ToLiteral(string value)
-    {
-        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
     private sealed record DescriptorCandidate(

@@ -3,7 +3,7 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
-    public sealed class ProjectileHitArgs : MobaTriggerInvocationContextBase, IMobaActorContextProvider, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaOriginContextProvider, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider, IMobaContextSourceProvider, IMobaPersistentContextSourceProvider
+    public sealed class ProjectileHitArgs : MobaTriggerInvocationContextBase, IMobaActorContextProvider, IMobaTriggerSkillRuntimeContext, IMobaTriggerExecutionSnapshotProvider, IMobaContextSourceProvider, IMobaPersistentContextSourceProvider
     {
         public override EffectContextKind Kind => EffectContextKind.Projectile;
         public int SourceConfigId { get; set; }
@@ -30,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return actorId > 0;
         }
 
-        public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
+        public override bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
             if (SourceContext.IsValid)
             {
@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return false;
         }
 
-        public bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
+        public override bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
         {
             if (TryGetLineageContext(out var lineageContext))
             {
@@ -54,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return false;
         }
 
-        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        public override bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             if (SourceContext.TryGetOrigin(out var sourceOrigin))
             {

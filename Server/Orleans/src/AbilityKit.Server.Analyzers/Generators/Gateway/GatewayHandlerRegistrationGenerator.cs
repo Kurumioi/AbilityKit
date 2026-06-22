@@ -1,0 +1,196 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+
+namespace AbilityKit.Server.Analyzers;
+
+[Generator(LanguageNames.CSharp)]
+public sealed class GatewayHandlerRegistrationGenerator : IIncrementalGenerator
+{
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        var handlers = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax classDeclaration && classDeclaration.AttributeLists.Count > 0,
+                static (syntaxContext, _) => GetHandlerCandidate(syntaxContext))
+            .Where(static candidate => candidate is not null)
+            .Select(static (candidate, _) => candidate!)
+            .Collect();
+
+        context.RegisterSourceOutput(context.CompilationProvider.Combine(handlers), static (sourceContext, source) =>
+        {
+            if (!GeneratorAssemblyTargets.IsTargetAssembly(source.Left, ServerAssemblyNames.Gateway))
+            {
+                return;
+            }
+
+            var candidates = source.Right
+                .OrderBy(static candidate => candidate.OpCode)
+                .ThenBy(static candidate => candidate.FullTypeName, StringComparer.Ordinal)
+                .ToImmutableArray();
+
+            var duplicateGroups = candidates
+                .GroupBy(candidate => candidate.OpCode)
+                .Where(group => group.Count() > 1)
+                .ToImmutableArray();
+
+            if (duplicateGroups.Length > 0)
+            {
+                foreach (var group in duplicateGroups)
+                {
+                    var first = group.First();
+                    foreach (var duplicate in group.Skip(1))
+                    {
+                        sourceContext.ReportDiagnostic(Diagnostic.Create(
+                            GatewayHandlerGeneratorDescriptors.DuplicateGatewayHandlerOpCode,
+                            Location.None,
+                            duplicate.OpCode,
+                            first.FullTypeName));
+                    }
+                }
+
+                return;
+            }
+
+            sourceContext.AddSource("GeneratedGatewayHandlerRegistration.g.cs", SourceText.From(Render(candidates), Encoding.UTF8));
+        });
+    }
+
+    private static GatewayHandlerCandidate? GetHandlerCandidate(GeneratorSyntaxContext context)
+    {
+        var classDeclaration = (ClassDeclarationSyntax)context.Node;
+        if (classDeclaration.Modifiers.Any(SyntaxKind.AbstractKeyword))
+        {
+            return null;
+        }
+
+        var symbol = context.SemanticModel.GetDeclaredSymbol(classDeclaration) as INamedTypeSymbol;
+        if (symbol is null || !ImplementsGatewayRequestHandler(symbol))
+        {
+            return null;
+        }
+
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), "AbilityKit.Orleans.Gateway.Core.GatewayHandlerAttribute", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (attribute.ConstructorArguments.Length == 0)
+            {
+                return null;
+            }
+
+            if (!TryReadUInt32(attribute.ConstructorArguments[0], out var opCode))
+            {
+                return null;
+            }
+
+            return new GatewayHandlerCandidate(
+                symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty),
+                symbol.Name,
+                symbol.ContainingNamespace.ToDisplayString(),
+                opCode);
+        }
+
+        return null;
+    }
+
+    private static bool TryReadUInt32(TypedConstant argument, out uint value)
+    {
+        switch (argument.Value)
+        {
+            case uint uintValue:
+                value = uintValue;
+                return true;
+            case int intValue when intValue >= 0:
+                value = (uint)intValue;
+                return true;
+            case long longValue when longValue >= 0 && longValue <= uint.MaxValue:
+                value = (uint)longValue;
+                return true;
+            default:
+                value = default;
+                return false;
+        }
+    }
+
+    private static bool ImplementsGatewayRequestHandler(INamedTypeSymbol symbol)
+    {
+        return symbol.AllInterfaces.Any(interfaceSymbol => string.Equals(interfaceSymbol.ToDisplayString(), "AbilityKit.Orleans.Gateway.Abstractions.IGatewayRequestHandler", StringComparison.Ordinal));
+    }
+
+    private static string Render(ImmutableArray<GatewayHandlerCandidate> candidates)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated />");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine("using System;");
+        builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        builder.AppendLine();
+        builder.AppendLine("namespace AbilityKit.Orleans.Gateway.Generated");
+        builder.AppendLine("{");
+        builder.AppendLine("    public static class GeneratedGatewayHandlerRegistration");
+        builder.AppendLine("    {");
+        builder.AppendLine("        public static IServiceCollection AddGeneratedGatewayHandlers(this IServiceCollection services)");
+        builder.AppendLine("        {");
+
+        foreach (var candidate in candidates)
+        {
+            builder.Append("            services.AddSingleton<");
+            builder.Append(candidate.FullTypeName);
+            builder.AppendLine(">();");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("            return services;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        public static void RegisterGeneratedGatewayHandlers(global::AbilityKit.Orleans.Gateway.Core.GatewayHandlerRegistry registry, IServiceProvider serviceProvider)");
+        builder.AppendLine("        {");
+        foreach (var candidate in candidates)
+        {
+            builder.Append("            registry.Register(");
+            builder.Append(candidate.OpCode);
+            builder.Append(", serviceProvider.GetRequiredService<");
+            builder.Append(candidate.FullTypeName);
+            builder.AppendLine(">());");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+
+        foreach (var namespaceGroup in candidates.GroupBy(static candidate => candidate.Namespace).OrderBy(static group => group.Key, StringComparer.Ordinal))
+        {
+            builder.AppendLine();
+            builder.Append("namespace ");
+            builder.AppendLine(namespaceGroup.Key);
+            builder.AppendLine("{");
+
+            foreach (var candidate in namespaceGroup.OrderBy(static candidate => candidate.TypeName, StringComparer.Ordinal))
+            {
+                builder.Append("    public sealed partial class ");
+                builder.AppendLine(candidate.TypeName);
+                builder.AppendLine("    {");
+                builder.Append("        public override uint OpCode => ");
+                builder.Append(candidate.OpCode);
+                builder.AppendLine(";");
+                builder.AppendLine("    }");
+                builder.AppendLine();
+            }
+
+            builder.AppendLine("}");
+        }
+
+        return builder.ToString();
+    }
+
+    private sealed record GatewayHandlerCandidate(string FullTypeName, string TypeName, string Namespace, uint OpCode);
+}

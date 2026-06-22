@@ -482,30 +482,30 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 通过 triggerId 直接执行触发计划
-        /// 用于 Projectile hit、Area enter/exit、Buff interval 等场景
+        /// 通过强类型触发请求直接执行触发计划。
+        /// 用于 Projectile hit、Area enter/exit、Buff interval 等场景。
         /// </summary>
-        public void ExecuteTriggerId(int triggerId, object payload)
+        public void ExecuteTrigger<TPayload>(in MobaTriggerExecutionRequest<TPayload> request)
         {
-            if (triggerId <= 0)
+            if (request.TriggerId <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(triggerId), triggerId, "Trigger id must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(request.TriggerId), request.TriggerId, "Trigger id must be positive.");
             }
 
-            var executionContext = CreateCombatExecutionContext(payload, triggerId, triggerId);
+            var executionContext = CreateCombatExecutionContext(request.Payload, request.TriggerId, request.TriggerId);
             var lineageInput = executionContext.LineageInput;
 
-            if (!TryGetPlanByTriggerId(triggerId, out var plan))
+            if (!TryGetPlanByTriggerId(request.TriggerId, out var plan))
             {
-                throw new InvalidOperationException($"Missing trigger plan for direct trigger execution. triggerId={triggerId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
+                throw new InvalidOperationException($"Missing trigger plan for direct trigger execution. triggerId={request.TriggerId}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, kind={lineageInput.ContextKind}");
             }
 
-            if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return;
+            if (!TryEnterExecutionBudget(request.TriggerId, in executionContext, out var budgetToken, out var conditionContext)) return;
 
-            using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
+            using (var session = BeginExecutionSession(request.TriggerId, request.TriggerId, in executionContext, in lineageInput, in plan, in budgetToken))
             {
-                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
-                var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(triggerId, payload);
+                var conditionsPassed = EvaluateTriggerConditions(request.TriggerId, in conditionContext);
+                var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(request.TriggerId, request.Payload);
                 session.Complete(planExecuted);
             }
         }

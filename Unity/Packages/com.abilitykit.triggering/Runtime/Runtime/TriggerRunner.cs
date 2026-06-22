@@ -499,9 +499,9 @@ namespace AbilityKit.Triggering.Runtime
             ShortCircuitCueKind cueKind)
         {
             _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
-            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, MapReason(reason), in execCtx);
+            _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, TriggerRunnerCueDispatcher.MapReason(reason), in execCtx);
 
-            var cueContext = BuildCueContext(
+            var cueContext = TriggerRunnerCueDispatcher.BuildCueContext(
                 key,
                 in args,
                 entry.Phase,
@@ -513,7 +513,7 @@ namespace AbilityKit.Triggering.Runtime
                 interruptTriggerId,
                 interruptConditionPassed,
                 control);
-            DispatchShortCircuitCue(entry.Trigger, in cueContext, cueKind);
+            TriggerRunnerCueDispatcher.DispatchShortCircuitCue(entry.Trigger, in cueContext, (TriggerRunnerShortCircuitCueKind)cueKind);
         }
 
         private static void DispatchShortCircuitCue<TArgs>(
@@ -521,15 +521,7 @@ namespace AbilityKit.Triggering.Runtime
             in TriggerCueContext cueContext,
             ShortCircuitCueKind cueKind)
         {
-            switch (cueKind)
-            {
-                case ShortCircuitCueKind.Skipped:
-                    trigger.Cue.OnSkipped(in cueContext);
-                    break;
-                case ShortCircuitCueKind.Interrupted:
-                    trigger.Cue.OnInterrupted(in cueContext);
-                    break;
-            }
+            TriggerRunnerCueDispatcher.DispatchShortCircuitCue(trigger, in cueContext, (TriggerRunnerShortCircuitCueKind)cueKind);
         }
 
         private void NotifyActionFailed<TArgs>(
@@ -572,20 +564,14 @@ namespace AbilityKit.Triggering.Runtime
             bool interruptConditionPassed,
             ExecutionControl control)
         {
-            var triggerId = 0;
-            var triggerTypeName = trigger?.GetType().Name ?? "Unknown";
-            if (trigger is ITriggerWithId tid) triggerId = tid.TriggerId;
-
-            return new TriggerCueContext(
-                key.IntId,
-                key.StringId,
-                args,
+            return TriggerRunnerCueDispatcher.BuildCueContext(
+                key,
+                in args,
                 phase,
                 priority,
                 order,
-                triggerId,
-                triggerTypeName,
-                MapReason(reason),
+                trigger,
+                reason,
                 interruptSourceName,
                 interruptTriggerId,
                 interruptConditionPassed,
@@ -594,15 +580,7 @@ namespace AbilityKit.Triggering.Runtime
 
         private static ETriggerShortCircuitReason MapReason(ShortCircuitReason reason)
         {
-            switch (reason)
-            {
-                case ShortCircuitReason.ConditionFailed: return ETriggerShortCircuitReason.ConditionFailed;
-                case ShortCircuitReason.StopPropagation: return ETriggerShortCircuitReason.StopPropagation;
-                case ShortCircuitReason.Cancel: return ETriggerShortCircuitReason.Cancel;
-                case ShortCircuitReason.InterruptedByHigherPriority: return ETriggerShortCircuitReason.InterruptedByHigherPriority;
-                case ShortCircuitReason.InterruptedByFailedCondition: return ETriggerShortCircuitReason.InterruptedByFailedCondition;
-                default: return ETriggerShortCircuitReason.None;
-            }
+            return TriggerRunnerCueDispatcher.MapReason(reason);
         }
 
         private static void InsertSorted<TArgs>(List<Entry<TArgs>> list, Entry<TArgs> entry)

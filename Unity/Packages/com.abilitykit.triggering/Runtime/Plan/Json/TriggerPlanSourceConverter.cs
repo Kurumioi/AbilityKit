@@ -9,14 +9,13 @@ using Newtonsoft.Json.Linq;
 namespace AbilityKit.Triggering.Runtime.Plan.Json
 {
     /// <summary>
-    /// 触发器计划源格式转换器
-    /// 将人类可读的源格式 JSON 转换为运行时格式 JSON
+    /// 瑙﹀彂鍣ㄨ鍒掓簮鏍煎紡杞崲鍣?    /// 灏嗕汉绫诲彲璇荤殑婧愭牸寮?JSON 杞崲涓鸿繍琛屾椂鏍煎紡 JSON
     /// </summary>
     public sealed class TriggerPlanSourceConverter
     {
+        private readonly TriggerPlanSourceConditionWriter _conditionWriter = new TriggerPlanSourceConditionWriter();
         /// <summary>
-        /// 将源格式 JSON 字符串转换为运行时格式 JSON 字符串
-        /// </summary>
+        /// 灏嗘簮鏍煎紡 JSON 瀛楃涓茶浆鎹负杩愯鏃舵牸寮?JSON 瀛楃涓?        /// </summary>
         public string ConvertSourceToRuntimeJson(string sourceJson)
         {
             if (string.IsNullOrEmpty(sourceJson))
@@ -120,7 +119,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             writer.WriteValue((int)ParseScope(trigger.scope));
 
             writer.WritePropertyName("Predicate");
-            WritePredicate(writer, ResolveConditionList(trigger.conditions, trigger.conditionRefs, trigger.condition_refs, conditionCatalog, new HashSet<string>(StringComparer.OrdinalIgnoreCase)));
+            _conditionWriter.WritePredicate(writer, ResolveConditionList(trigger.conditions, trigger.conditionRefs, trigger.condition_refs, conditionCatalog, new HashSet<string>(StringComparer.OrdinalIgnoreCase)), WriteParamValue);
 
             WriteExecutionControl(writer, trigger);
 
@@ -161,9 +160,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
                 else if (executionToken is JObject obj)
                 {
-                    mode = ReadString(obj, "mode", "type") ?? mode;
-                    maxExecutions = ReadInt(obj, maxExecutions, "max_executions", "maxExecutions", "count", "times");
-                    cooldownMs = ReadFloat(obj, cooldownMs, "cooldown_ms", "cooldownMs", "cooldown", "interval_ms", "intervalMs");
+                    mode = TriggerPlanSourceJsonUtility.ReadString(obj, "mode", "type") ?? mode;
+                    maxExecutions = TriggerPlanSourceJsonUtility.ReadInt(obj, maxExecutions, "max_executions", "maxExecutions", "count", "times");
+                    cooldownMs = TriggerPlanSourceJsonUtility.ReadFloat(obj, cooldownMs, "cooldown_ms", "cooldownMs", "cooldown", "interval_ms", "intervalMs");
                 }
             }
 
@@ -192,45 +191,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 writer.WriteValue(cooldownMs);
             }
             writer.WriteEndObject();
-        }
-
-        private static string ReadString(JObject obj, params string[] aliases)
-        {
-            if (obj == null || aliases == null) return null;
-            for (int i = 0; i < aliases.Length; i++)
-            {
-                if (obj.TryGetValue(aliases[i], StringComparison.OrdinalIgnoreCase, out var token))
-                {
-                    return token?.ToString();
-                }
-            }
-            return null;
-        }
-
-        private static int ReadInt(JObject obj, int defaultValue, params string[] aliases)
-        {
-            if (obj == null || aliases == null) return defaultValue;
-            for (int i = 0; i < aliases.Length; i++)
-            {
-                if (obj.TryGetValue(aliases[i], StringComparison.OrdinalIgnoreCase, out var token))
-                {
-                    return token.Value<int?>() ?? defaultValue;
-                }
-            }
-            return defaultValue;
-        }
-
-        private static float ReadFloat(JObject obj, float defaultValue, params string[] aliases)
-        {
-            if (obj == null || aliases == null) return defaultValue;
-            for (int i = 0; i < aliases.Length; i++)
-            {
-                if (obj.TryGetValue(aliases[i], StringComparison.OrdinalIgnoreCase, out var token))
-                {
-                    return token.Value<float?>() ?? defaultValue;
-                }
-            }
-            return defaultValue;
         }
 
         private static JObject GetExecutionRootSource(TriggerSourceTriggerJson trigger)
@@ -279,183 +239,6 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
         }
 
-        private void WritePredicate(JsonTextWriter writer, List<JObject> conditions)
-        {
-            writer.WriteStartObject();
-
-            if (conditions == null || conditions.Count == 0)
-            {
-                writer.WritePropertyName("Kind");
-                writer.WriteValue("none");
-                writer.WritePropertyName("Nodes");
-                writer.WriteNull();
-            }
-            else
-            {
-                writer.WritePropertyName("Kind");
-                writer.WriteValue("expr");
-                writer.WritePropertyName("Nodes");
-                writer.WriteStartArray();
-
-                WriteConditionList(writer, conditions, "And");
-
-                writer.WriteEndArray();
-            }
-
-            writer.WriteEndObject();
-        }
-
-        private void WriteConditionList(JsonTextWriter writer, IReadOnlyList<JObject> conditions, string logicalOp)
-        {
-            if (conditions == null || conditions.Count == 0)
-            {
-                throw new InvalidOperationException($"Condition group '{logicalOp}' must contain at least one condition.");
-            }
-
-            for (var i = 0; i < conditions.Count; i++)
-            {
-                WriteCondition(writer, conditions[i]);
-                if (i > 0)
-                {
-                    WriteBoolOperator(writer, logicalOp);
-                }
-            }
-        }
-
-        private void WriteCondition(JsonTextWriter writer, JObject cond)
-        {
-            if (cond == null)
-            {
-                throw new InvalidOperationException("Condition item cannot be null.");
-            }
-
-            var type = cond["type"]?.ToString();
-            if (string.IsNullOrEmpty(type))
-            {
-                throw new InvalidOperationException("Condition type is required.");
-            }
-
-            switch (type)
-            {
-                case "all":
-                case "and":
-                    WriteConditionList(writer, ReadConditionItems(cond), "And");
-                    break;
-
-                case "any":
-                case "or":
-                    WriteConditionList(writer, ReadConditionItems(cond), "Or");
-                    break;
-
-                case "not":
-                    WriteConditionList(writer, ReadConditionItems(cond), "And");
-                    WriteBoolOperator(writer, "Not");
-                    break;
-
-                case "compare":
-                case "compare_numeric":
-                    WriteCompareNode(writer, cond, cond["op"]?.ToString() ?? cond["compare_op"]?.ToString() ?? cond["compareOp"]?.ToString());
-                    break;
-
-                case "arg_eq":
-                    WriteCompareNode(writer, cond, "Equal");
-                    break;
-
-                case "arg_gt":
-                    WriteCompareNode(writer, cond, "GreaterThan");
-                    break;
-
-                case "arg_gte":
-                    WriteCompareNode(writer, cond, "GreaterThanOrEqual");
-                    break;
-
-                case "arg_lt":
-                    WriteCompareNode(writer, cond, "LessThan");
-                    break;
-
-                case "arg_lte":
-                    WriteCompareNode(writer, cond, "LessThanOrEqual");
-                    break;
-
-                case "arg_neq":
-                    WriteCompareNode(writer, cond, "NotEqual");
-                    break;
-
-                default:
-                    throw new InvalidOperationException($"Unsupported condition type: {type}");
-            }
-        }
-
-        private static List<JObject> ReadConditionItems(JObject cond)
-        {
-            var items = new List<JObject>();
-            var inner = cond["items"] ?? cond["item"] ?? cond["conditions"] ?? cond["condition"];
-            if (inner is JArray arr)
-            {
-                foreach (var item in arr)
-                {
-                    if (item is JObject obj)
-                    {
-                        items.Add(obj);
-                    }
-                }
-            }
-            else if (inner is JObject obj)
-            {
-                items.Add(obj);
-            }
-
-            return items;
-        }
-
-        private static void WriteBoolConst(JsonTextWriter writer, bool value)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("Const");
-            writer.WritePropertyName("ConstValue");
-            writer.WriteValue(value);
-            writer.WriteEndObject();
-        }
-
-        private static void WriteBoolOperator(JsonTextWriter writer, string kind)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue(kind);
-            writer.WriteEndObject();
-        }
-
-        private void WriteCompareNode(JsonTextWriter writer, JObject cond, string op)
-        {
-            var argName = cond["arg_name"]?.ToString();
-            var leftVarDomain = (cond["left_var_domain"] ?? cond["var_domain"])?.ToString();
-            var leftVarKey = (cond["left_var_key"] ?? cond["var_key"])?.ToString();
-
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("CompareNumeric");
-            writer.WritePropertyName("CompareOp");
-            writer.WriteValue(NormalizeCompareOp(op));
-            writer.WritePropertyName("Left");
-            if (cond["left"] != null)
-            {
-                WriteParamValue(writer, cond["left"]);
-            }
-            else if (!string.IsNullOrEmpty(leftVarDomain) && !string.IsNullOrEmpty(leftVarKey))
-            {
-                WriteVarValue(writer, leftVarDomain, leftVarKey);
-            }
-            else
-            {
-                WritePayloadFieldValue(writer, argName);
-            }
-
-            writer.WritePropertyName("Right");
-            WriteParamValue(writer, cond["right"] ?? cond["value"]);
-            writer.WriteEndObject();
-        }
-
         private void WriteExecutionNode(
             JsonTextWriter writer,
             JObject node,
@@ -496,7 +279,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 if (TryGetNodeCondition(node, conditionCatalog, out var conditionNodes))
                 {
                     writer.WritePropertyName("Condition");
-                    WritePredicate(writer, conditionNodes);
+                    _conditionWriter.WritePredicate(writer, conditionNodes, WriteParamValue);
                 }
 
                 var weight = node["weight"]?.Value<float?>();
@@ -698,7 +481,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 if (TryGetUntilCondition(node, conditionCatalog, out var untilConditions))
                 {
                     writer.WritePropertyName("UntilCondition");
-                    WritePredicate(writer, untilConditions);
+                    _conditionWriter.WritePredicate(writer, untilConditions, WriteParamValue);
                 }
             }
 
@@ -895,12 +678,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             var normalized = (JObject)condition.DeepClone();
             var type = normalized["type"]?.ToString();
-            if (!IsKind(type, "all", "and", "any", "or", "not"))
+            if (!TriggerPlanSourceJsonUtility.IsKind(type, "all", "and", "any", "or", "not"))
             {
                 return normalized;
             }
 
-            var inlineItems = ReadConditionItems(normalized);
+            var inlineItems = TriggerPlanSourceConditionWriter.ReadConditionItems(normalized);
             var conditionRefs = ReadStringList(normalized, "conditionRefs");
             var conditionRefsSnake = ReadStringList(normalized, "condition_refs");
             var mergedItems = ResolveConditionList(inlineItems, conditionRefs, conditionRefsSnake, catalog, resolving);
@@ -1100,7 +883,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private static bool IsCompositeAction(JObject action)
         {
             var type = action?["type"]?.ToString();
-            return IsKind(type, "seq", "sequence");
+            return TriggerPlanSourceJsonUtility.IsKind(type, "seq", "sequence");
         }
 
         private static List<JObject> ReadActionItems(JObject action)
@@ -1421,7 +1204,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 case JTokenType.Integer:
                 case JTokenType.Float:
-                    WriteConstValue(writer, value.Value<double>());
+                    TriggerPlanSourceValueWriter.WriteConstValue(writer, value.Value<double>());
                     break;
 
                 case JTokenType.String:
@@ -1429,7 +1212,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     break;
 
                 case JTokenType.Boolean:
-                    WriteConstValue(writer, value.Value<bool>() ? 1.0 : 0.0);
+                    TriggerPlanSourceValueWriter.WriteConstValue(writer, value.Value<bool>() ? 1.0 : 0.0);
                     break;
 
                 case JTokenType.Object:
@@ -1445,15 +1228,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (value == null)
             {
-                WriteConstValue(writer, 0);
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, 0);
                 return;
             }
 
-            var kind = ReadString(value, "kind", "type");
-            var payload = ReadString(value, "payload", "payload_field", "payloadField", "field");
-            if (!string.IsNullOrEmpty(payload) || IsKind(kind, "payload", "payload_field", "payloadField"))
+            var kind = TriggerPlanSourceJsonUtility.ReadString(value, "kind", "type");
+            var payload = TriggerPlanSourceJsonUtility.ReadString(value, "payload", "payload_field", "payloadField", "field");
+            if (!string.IsNullOrEmpty(payload) || TriggerPlanSourceJsonUtility.IsKind(kind, "payload", "payload_field", "payloadField"))
             {
-                WritePayloadFieldValue(writer, payload ?? ReadString(value, "name", "key"));
+                TriggerPlanSourceValueWriter.WritePayloadFieldValue(writer, payload ?? TriggerPlanSourceJsonUtility.ReadString(value, "name", "key"));
                 return;
             }
 
@@ -1464,18 +1247,18 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
-            var varDomain = ReadString(value, "var_domain", "varDomain", "domain", "domainId", "DomainId");
-            var varKey = ReadString(value, "var_key", "varKey", "key", "Key");
-            if (!string.IsNullOrEmpty(varDomain) && !string.IsNullOrEmpty(varKey) || IsKind(kind, "var", "variable"))
+            var varDomain = TriggerPlanSourceJsonUtility.ReadString(value, "var_domain", "varDomain", "domain", "domainId", "DomainId");
+            var varKey = TriggerPlanSourceJsonUtility.ReadString(value, "var_key", "varKey", "key", "Key");
+            if (!string.IsNullOrEmpty(varDomain) && !string.IsNullOrEmpty(varKey) || TriggerPlanSourceJsonUtility.IsKind(kind, "var", "variable"))
             {
-                WriteVarValue(writer, string.IsNullOrEmpty(varDomain) ? "trigger" : varDomain, varKey);
+                TriggerPlanSourceValueWriter.WriteVarValue(writer, string.IsNullOrEmpty(varDomain) ? "trigger" : varDomain, varKey);
                 return;
             }
 
-            var expr = ReadString(value, "expr", "expression", "exprText", "ExprText");
-            if (!string.IsNullOrEmpty(expr) || IsKind(kind, "expr", "expression"))
+            var expr = TriggerPlanSourceJsonUtility.ReadString(value, "expr", "expression", "exprText", "ExprText");
+            if (!string.IsNullOrEmpty(expr) || TriggerPlanSourceJsonUtility.IsKind(kind, "expr", "expression"))
             {
-                WriteExprValue(writer, expr ?? string.Empty);
+                TriggerPlanSourceValueWriter.WriteExprValue(writer, expr ?? string.Empty);
                 return;
             }
 
@@ -1486,272 +1269,48 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             if (string.IsNullOrEmpty(value))
             {
-                WriteConstValue(writer, 0);
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, 0);
                 return;
             }
 
             if (value.StartsWith("payload:", StringComparison.OrdinalIgnoreCase))
             {
-                WritePayloadFieldValue(writer, value.Substring("payload:".Length));
+                TriggerPlanSourceValueWriter.WritePayloadFieldValue(writer, value.Substring("payload:".Length));
                 return;
             }
 
             if (value.StartsWith("@"))
             {
-                WritePayloadFieldValue(writer, value.Substring(1));
+                TriggerPlanSourceValueWriter.WritePayloadFieldValue(writer, value.Substring(1));
                 return;
             }
 
             if (value.StartsWith("$"))
             {
-                WriteVarValue(writer, "trigger", value.TrimStart('$'));
+                TriggerPlanSourceValueWriter.WriteVarValue(writer, "trigger", value.TrimStart('$'));
                 return;
             }
 
             if (value.StartsWith("="))
             {
-                WriteExprValue(writer, value.Substring(1).Trim());
+                TriggerPlanSourceValueWriter.WriteExprValue(writer, value.Substring(1).Trim());
                 return;
             }
 
             if (double.TryParse(value, out var numValue))
             {
-                WriteConstValue(writer, numValue);
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, numValue);
                 return;
             }
 
             if (value.StartsWith("%"))
             {
-                WriteVarValue(writer, "trigger", value.TrimStart('%'));
+                TriggerPlanSourceValueWriter.WriteVarValue(writer, "trigger", value.TrimStart('%'));
                 return;
             }
 
             throw new InvalidOperationException($"Unsupported action parameter string value: {value}");
         }
 
-        private static bool IsKind(string kind, params string[] values)
-        {
-            if (string.IsNullOrEmpty(kind) || values == null) return false;
-            for (var i = 0; i < values.Length; i++)
-            {
-                if (string.Equals(kind, values[i], StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static string NormalizeCompareOp(string op)
-        {
-            if (string.IsNullOrEmpty(op)) return "Equal";
-            switch (op.Trim().ToLowerInvariant())
-            {
-                case "eq":
-                case "=":
-                case "==":
-                case "equal":
-                    return "Equal";
-                case "ne":
-                case "neq":
-                case "!=":
-                case "not_equal":
-                case "not-equal":
-                case "notequal":
-                    return "NotEqual";
-                case "gt":
-                case ">":
-                case "greater_than":
-                case "greater-than":
-                case "greaterthan":
-                    return "GreaterThan";
-                case "ge":
-                case "gte":
-                case ">=":
-                case "greater_than_or_equal":
-                case "greater-than-or-equal":
-                case "greaterthanorequal":
-                    return "GreaterThanOrEqual";
-                case "lt":
-                case "<":
-                case "less_than":
-                case "less-than":
-                case "lessthan":
-                    return "LessThan";
-                case "le":
-                case "lte":
-                case "<=":
-                case "less_than_or_equal":
-                case "less-than-or-equal":
-                case "lessthanorequal":
-                    return "LessThanOrEqual";
-                default:
-                    return op;
-            }
-        }
-
-        private static void WriteConstValue(JsonTextWriter writer, double value)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("Const");
-            writer.WritePropertyName("ConstValue");
-            writer.WriteValue(value);
-            writer.WriteEndObject();
-        }
-
-        private static void WritePayloadFieldValue(JsonTextWriter writer, string payloadField)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("PayloadField");
-            writer.WritePropertyName("FieldId");
-            writer.WriteValue(string.IsNullOrEmpty(payloadField) ? 0 : StableStringId.Get("payload:" + payloadField));
-            writer.WriteEndObject();
-        }
-
-        private static void WriteVarValue(JsonTextWriter writer, string domain, string key)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("Var");
-            writer.WritePropertyName("DomainId");
-            writer.WriteValue(domain ?? string.Empty);
-            writer.WritePropertyName("Key");
-            writer.WriteValue(key ?? string.Empty);
-            writer.WriteEndObject();
-        }
-
-        private static void WriteExprValue(JsonTextWriter writer, string expr)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("Kind");
-            writer.WriteValue("Expr");
-            writer.WritePropertyName("ExprText");
-            writer.WriteValue(expr ?? string.Empty);
-            writer.WriteEndObject();
-        }
-
-        /// <summary>
-        /// 源格式 JSON 结构
-        /// </summary>
-#pragma warning disable 0649 // DTO fields are populated by JSON deserialization.
-        private class TriggerPlanSourceJson
-        {
-            public string version;
-            public TriggerSourceMetadataJson metadata;
-            public List<TriggerSourceVariableJson> variables;
-            public Dictionary<string, ActionSourceDefJson> actions;
-            public Dictionary<string, ConditionSourceDefJson> conditions;
-            public Dictionary<string, BehaviorSourceDefJson> behaviors;
-            public Dictionary<string, JToken> conditionGroups;
-            public Dictionary<string, JToken> condition_groups;
-            public Dictionary<string, JToken> actionGroups;
-            public Dictionary<string, JToken> action_groups;
-            public List<TriggerSourceTriggerJson> triggers;
-        }
-
-        private class TriggerSourceMetadataJson
-        {
-            public string author;
-            public string created_at;
-            public string last_modified;
-            public string description;
-        }
-
-        private class TriggerSourceVariableJson
-        {
-            public string name;
-            public string description;
-        }
-
-        private class ActionSourceDefJson
-        {
-            public string type;
-            public string displayName;
-            public string description;
-            public string category;
-            public bool isComposite;
-            public List<ActionSourceParamJson> @params;
-        }
-
-        private class ActionSourceParamJson
-        {
-            public string name;
-            public string type;
-            public bool required;
-            public object defaultValue;
-        }
-
-        private class ConditionSourceDefJson
-        {
-            public string type;
-            public string displayName;
-            public string description;
-            public string category;
-            public bool isComposite;
-            public List<ConditionSourceParamJson> @params;
-        }
-
-        private class ConditionSourceParamJson
-        {
-            public string name;
-            public string type;
-            public bool required;
-            public object defaultValue;
-        }
-
-        private class BehaviorSourceDefJson
-        {
-            public string id;
-            public string displayName;
-            public string description;
-            public JObject behavior;
-            public JObject root;
-        }
-    
-        private readonly struct ActionArgSource
-        {
-            public readonly string Name;
-            public readonly JToken Value;
-
-            public ActionArgSource(string name, JToken value)
-            {
-                Name = name;
-                Value = value;
-            }
-        }
-
-        private class TriggerSourceTriggerJson
-        {
-            public int id;
-            public string name;
-            public string @event;
-            public int priority;
-            public string phase;
-            public string scope;
-            public bool enabled;
-            public bool allowExternal;
-            public string comment;
-            public List<JObject> conditions;
-            public List<JObject> actions;
-            public List<string> conditionRefs;
-            public List<string> condition_refs;
-            public List<string> actionRefs;
-            public List<string> action_refs;
-            public JObject behavior;
-            public List<JObject> executables;
-            public JToken execution;
-            public JToken executionControl;
-            public JToken execution_control;
-            public bool once;
-            public bool repeat;
-            public int maxExecutions;
-            public int max_executions;
-            public float cooldownMs;
-            public float cooldown_ms;
-        }
-#pragma warning restore 0649
     }
 }

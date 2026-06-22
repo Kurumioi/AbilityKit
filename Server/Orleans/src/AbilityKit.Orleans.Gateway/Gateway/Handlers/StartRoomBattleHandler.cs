@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Battle;
+﻿using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
@@ -7,10 +7,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 房间启动战斗 Handler
+/// 鎴块棿鍚姩鎴樻枟 Handler
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.StartBattle)]
-public sealed class StartRoomBattleHandler : GatewayRequestHandlerBase
+public sealed partial class StartRoomBattleHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
 
@@ -79,3 +79,4 @@ public sealed class StartRoomBattleHandler : GatewayRequestHandlerBase
         }
     }
 }
+

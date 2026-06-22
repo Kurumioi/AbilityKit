@@ -40,6 +40,10 @@ namespace AbilityKit.Demo.Moba.Services
         RuntimeDebug = 7
     }
 
+    /// <summary>
+    /// Resolved context source view for query, snapshot, retention, diagnostics, and debug usage.
+    /// This is intentionally broad, but it should not replace MobaCombatExecutionContext as the canonical execution-time model.
+    /// </summary>
     public readonly struct MobaContextSourceView
     {
         public MobaContextSourceView(

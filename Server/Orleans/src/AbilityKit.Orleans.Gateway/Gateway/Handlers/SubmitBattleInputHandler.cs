@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Battle;
+﻿using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -6,10 +6,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 通用战斗输入提交 Handler。payload 由具体玩法协议解释，Gateway 只负责鉴权与转发。
+/// 閫氱敤鎴樻枟杈撳叆鎻愪氦 Handler銆俻ayload 鐢卞叿浣撶帺娉曞崗璁В閲婏紝Gateway 鍙礋璐ｉ壌鏉冧笌杞彂銆?
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.SubmitBattleInput)]
-public sealed class SubmitBattleInputHandler : GatewayRequestHandlerBase
+public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
 
@@ -70,3 +70,4 @@ public sealed class SubmitBattleInputHandler : GatewayRequestHandlerBase
         }
     }
 }
+

@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public interface IMobaOriginContextProvider
@@ -102,9 +104,10 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// Bridge API for payloads that still carry only actor/config/context primitives.
-        /// Prefer FromLineageContext, FromTraceContext, or propagating an existing origin in new runtime code.
+        /// Compatibility bridge for payloads that still carry only actor/config/context primitives.
+        /// Prefer <see cref="FromLineageContext"/>, <see cref="FromTraceContext"/>, or propagating an existing origin in new runtime code.
         /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static MobaGameplayOrigin FromLegacy(
             int sourceActorId,
             int targetActorId,

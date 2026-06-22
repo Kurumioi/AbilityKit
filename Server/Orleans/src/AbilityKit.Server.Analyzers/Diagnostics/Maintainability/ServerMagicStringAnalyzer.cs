@@ -48,8 +48,7 @@ public sealed class ServerMagicStringAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var filePath = literal.SyntaxTree.FilePath;
-        if (!IsServerSourceFile(filePath) || IsTestSourceFile(filePath))
+        if (!ServerSourceFileFilter.IsProductionServerSourceFile(literal.SyntaxTree.FilePath))
         {
             return;
         }
@@ -88,27 +87,4 @@ public sealed class ServerMagicStringAnalyzer : DiagnosticAnalyzer
             || literal.FirstAncestorOrSelf<ArgumentSyntax>() is not null;
     }
 
-    private static bool IsServerSourceFile(string? filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return false;
-        }
-
-        var normalized = filePath!.Replace('\\', '/');
-        return normalized.Contains("/Server/Orleans/src/", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsTestSourceFile(string? filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return false;
-        }
-
-        var normalized = filePath!.Replace('\\', '/');
-        return normalized.Contains(".Tests/", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("/bin/", StringComparison.OrdinalIgnoreCase);
-    }
 }

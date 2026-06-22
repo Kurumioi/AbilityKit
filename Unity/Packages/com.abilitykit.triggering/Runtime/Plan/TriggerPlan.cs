@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+﻿using System;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
@@ -7,317 +6,8 @@ using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
-    public readonly struct ActionArgumentsPlan
-    {
-        public readonly byte Arity;
-        public readonly NumericValueRef Arg0;
-        public readonly NumericValueRef Arg1;
-        public readonly Dictionary<string, ActionArgValue> NamedArgs;
-
-        public bool HasNamedArgs => NamedArgs != null && NamedArgs.Count > 0;
-
-        public ActionArgumentsPlan(byte arity, NumericValueRef arg0, NumericValueRef arg1, Dictionary<string, ActionArgValue> namedArgs)
-        {
-            Arity = arity;
-            Arg0 = arg0;
-            Arg1 = arg1;
-            NamedArgs = namedArgs;
-        }
-    }
-
-    public readonly struct ActionSchedulePlan
-    {
-        public readonly Config.EActionScheduleMode Mode;
-        public readonly float Param;
-        public readonly int MaxExecutions;
-        public readonly bool CanBeInterrupted;
-
-        public ActionSchedulePlan(Config.EActionScheduleMode mode, float param, int maxExecutions, bool canBeInterrupted)
-        {
-            Mode = mode;
-            Param = param;
-            MaxExecutions = maxExecutions;
-            CanBeInterrupted = canBeInterrupted;
-        }
-    }
-
-    public readonly struct ActionExecutionPlan
-    {
-        public readonly Config.EActionExecutionPolicy Policy;
-        public readonly int RetryMaxRetries;
-        public readonly float RetryDelayMs;
-
-        public ActionExecutionPlan(Config.EActionExecutionPolicy policy, int retryMaxRetries = 3, float retryDelayMs = 0f)
-        {
-            Policy = policy;
-            RetryMaxRetries = retryMaxRetries;
-            RetryDelayMs = retryDelayMs;
-        }
-    }
-
     /// <summary>
-    /// Action 调用计划（参数化动作描述）
-    /// </summary>
-    public readonly struct ActionCallPlan
-    {
-        public readonly ActionId Id;
-        public readonly byte Arity;
-        public readonly NumericValueRef Arg0;
-        public readonly NumericValueRef Arg1;
-
-        /// <summary>
-        /// 具名参数字典（key=参数名，value=参数值引用）
-        /// 为 null 时表示向后兼容的位置参数模式（使用 Arg0/Arg1）
-        /// </summary>
-        public readonly Dictionary<string, ActionArgValue> Args;
-
-        /// <summary>
-        /// 调度模式（Action 自身如何运行）
-        /// Immediate: 立即执行一次
-        /// Delayed: 延迟执行（等待 ScheduleParam 毫秒）
-        /// Periodic: 周期执行（每 ScheduleParam 毫秒）
-        /// Continuous: 持续调度执行（按 ScheduleParam 间隔，直到外部中断或达到执行次数）
-        /// Timeline: 时间线执行（按时间轴序列）
-        /// </summary>
-        public readonly Config.EActionScheduleMode ScheduleMode;
-
-        /// <summary>
-        /// 调度参数
-        /// Delayed: 延迟时间（毫秒）
-        /// Periodic: 周期间隔（毫秒）
-        /// Timeline: 时间线总时长（毫秒）
-        /// </summary>
-        public readonly float ScheduleParam;
-
-        /// <summary>
-        /// 最大执行次数（-1=无限，仅对 Periodic/Delayed 有效）
-        /// </summary>
-        public readonly int MaxExecutions;
-
-        /// <summary>
-        /// 是否可被中断（持续行为有效）
-        /// </summary>
-        public readonly bool CanBeInterrupted;
-
-        /// <summary>
-        /// 执行策略（单次执行的约束）
-        /// </summary>
-        public readonly Config.EActionExecutionPolicy ExecutionPolicy;
-
-        /// <summary>
-        /// WithRetry 策略的最大重试次数。
-        /// </summary>
-        public readonly int RetryMaxRetries;
-
-        /// <summary>
-        /// WithRetry 策略的单次重试延迟（毫秒）。0 表示同帧立即重试。
-        /// </summary>
-        public readonly float RetryDelayMs;
-
-        /// <summary>
-        /// 创建无参数的动作调用（默认 Immediate）
-        /// </summary>
-        public ActionCallPlan(ActionId id)
-        {
-            Id = id;
-            Arity = 0;
-            Arg0 = default;
-            Arg1 = default;
-            Args = null;
-            ScheduleMode = Config.EActionScheduleMode.Immediate;
-            ScheduleParam = 0;
-            MaxExecutions = -1;
-            CanBeInterrupted = true;
-            ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
-            RetryMaxRetries = 3;
-            RetryDelayMs = 0f;
-        }
-
-        /// <summary>
-        /// 创建带参数的动作调用（默认 Immediate）
-        /// </summary>
-        public ActionCallPlan(ActionId id, NumericValueRef arg0, NumericValueRef arg1 = default, NumericValueRef arg2 = default)
-        {
-            Id = id;
-            if (arg2.Kind != ENumericValueRefKind.Const || arg2.ConstValue != 0 || !string.IsNullOrEmpty(arg2.Key) || !string.IsNullOrEmpty(arg2.ExprText))
-            {
-                Arity = 3;
-                Arg0 = arg0;
-                Arg1 = arg1;
-                Args = new Dictionary<string, ActionArgValue> { ["_2"] = ActionArgValue.Of(arg2, "_2") };
-            }
-            else if (arg1.Kind != ENumericValueRefKind.Const || arg1.ConstValue != 0 || !string.IsNullOrEmpty(arg1.Key) || !string.IsNullOrEmpty(arg1.ExprText))
-            {
-                Arity = 2;
-                Arg0 = arg0;
-                Arg1 = arg1;
-                Args = null;
-            }
-            else if (arg0.Kind != ENumericValueRefKind.Const || arg0.ConstValue != 0 || !string.IsNullOrEmpty(arg0.Key) || !string.IsNullOrEmpty(arg0.ExprText))
-            {
-                Arity = 1;
-                Arg0 = arg0;
-                Arg1 = default;
-                Args = null;
-            }
-            else
-            {
-                Arity = 0;
-                Arg0 = default;
-                Arg1 = default;
-                Args = null;
-            }
-            ScheduleMode = Config.EActionScheduleMode.Immediate;
-            ScheduleParam = 0;
-            MaxExecutions = -1;
-            CanBeInterrupted = true;
-            ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
-            RetryMaxRetries = 3;
-            RetryDelayMs = 0f;
-        }
-
-        /// <summary>
-        /// 创建带常量参数的动作调用（默认 Immediate）
-        /// </summary>
-        public ActionCallPlan(ActionId id, params double[] constArgs)
-        {
-            Id = id;
-            switch (constArgs.Length)
-            {
-                case 0:
-                    Arity = 0;
-                    Arg0 = default;
-                    Arg1 = default;
-                    Args = null;
-                    break;
-                case 1:
-                    Arity = 1;
-                    Arg0 = NumericValueRef.Const(constArgs[0]);
-                    Arg1 = default;
-                    Args = null;
-                    break;
-                case 2:
-                    Arity = 2;
-                    Arg0 = NumericValueRef.Const(constArgs[0]);
-                    Arg1 = NumericValueRef.Const(constArgs[1]);
-                    Args = null;
-                    break;
-                default:
-                    Arity = (byte)constArgs.Length;
-                    Arg0 = NumericValueRef.Const(constArgs[0]);
-                    Arg1 = NumericValueRef.Const(constArgs[1]);
-                    Args = new Dictionary<string, ActionArgValue>();
-                    for (int i = 2; i < constArgs.Length; i++)
-                        Args[$"__{i}"] = ActionArgValue.OfConst(constArgs[i], $"__{i}");
-                    break;
-            }
-            ScheduleMode = Config.EActionScheduleMode.Immediate;
-            ScheduleParam = 0;
-            MaxExecutions = -1;
-            CanBeInterrupted = true;
-            ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
-            RetryMaxRetries = 3;
-            RetryDelayMs = 0f;
-        }
-
-        /// <summary>
-        /// 创建带有具名参数的 ActionCallPlan（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan WithArgs(ActionId id, Dictionary<string, ActionArgValue> args)
-        {
-            return new ActionCallPlan(id, args);
-        }
-
-        private ActionCallPlan(ActionId id, Dictionary<string, ActionArgValue> args)
-        {
-            Id = id;
-            Arity = (byte)(args != null ? args.Count : 0);
-            Arg0 = default;
-            Arg1 = default;
-            Args = args;
-            ScheduleMode = Config.EActionScheduleMode.Immediate;
-            ScheduleParam = 0;
-            MaxExecutions = -1;
-            CanBeInterrupted = true;
-            ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
-            RetryMaxRetries = 3;
-            RetryDelayMs = 0f;
-        }
-
-        /// <summary>
-        /// 是否使用了具名参数模式
-        /// </summary>
-        public bool HasNamedArgs => Arguments.HasNamedArgs;
-
-        public ActionArgumentsPlan Arguments => new ActionArgumentsPlan(Arity, Arg0, Arg1, Args);
-
-        public ActionSchedulePlan Schedule => new ActionSchedulePlan(ScheduleMode, ScheduleParam, MaxExecutions, CanBeInterrupted);
-
-        public ActionExecutionPlan Execution => new ActionExecutionPlan(ExecutionPolicy, RetryMaxRetries, RetryDelayMs);
-
-        /// <summary>
-        /// 完整构造函数（用于扩展方法创建修改后的副本）
-        /// </summary>
-        public ActionCallPlan(
-            ActionId id,
-            byte arity,
-            NumericValueRef arg0,
-            NumericValueRef arg1,
-            Dictionary<string, ActionArgValue> args,
-            Config.EActionScheduleMode scheduleMode,
-            float scheduleParam,
-            int maxExecutions,
-            bool canBeInterrupted,
-            Config.EActionExecutionPolicy executionPolicy,
-            int retryMaxRetries = 3,
-            float retryDelayMs = 0f)
-        {
-            if (retryMaxRetries < 0) throw new ArgumentOutOfRangeException(nameof(retryMaxRetries));
-            if (retryDelayMs < 0f) throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
-
-            Id = id;
-            Arity = arity;
-            Arg0 = arg0;
-            Arg1 = arg1;
-            Args = args;
-            ScheduleMode = scheduleMode;
-            ScheduleParam = scheduleParam;
-            MaxExecutions = maxExecutions;
-            CanBeInterrupted = canBeInterrupted;
-            ExecutionPolicy = executionPolicy;
-            RetryMaxRetries = retryMaxRetries;
-            RetryDelayMs = retryDelayMs;
-        }
-    }
-
-    public enum ETriggerExecutionMode : byte
-    {
-        Always = 0,
-        Once = 1,
-        Cooldown = 2,
-        Repeat = 3,
-    }
-
-    public readonly struct TriggerExecutionControlPlan
-    {
-        public static TriggerExecutionControlPlan Always => default;
-
-        public readonly ETriggerExecutionMode Mode;
-        public readonly int MaxExecutions;
-        public readonly float CooldownMs;
-
-        public TriggerExecutionControlPlan(ETriggerExecutionMode mode, int maxExecutions = 0, float cooldownMs = 0f)
-        {
-            Mode = mode;
-            MaxExecutions = maxExecutions;
-            CooldownMs = cooldownMs;
-        }
-
-        public bool IsDefault => Mode == ETriggerExecutionMode.Always && MaxExecutions == 0 && CooldownMs <= 0f;
-    }
-
-    /// <summary>
-    /// 触发器计划（不可变数据结构）
+    /// 瑙﹀彂鍣ㄨ鍒掞紙涓嶅彲鍙樻暟鎹粨鏋勶級
     /// </summary>
     public readonly struct TriggerPlan<TArgs>
     {
@@ -325,13 +15,13 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly int Priority;
 
         /// <summary>
-        /// 触发器 ID
+        /// 瑙﹀彂鍣?ID
         /// </summary>
         public readonly int TriggerId;
 
         /// <summary>
-        /// 优先级打断阈值。Execute 成功后自动调用 StopBelowPriority。
-        /// 0 = 不自动打断；>0 = 以此值为阈值打断更低优先级的触发器。
+        /// 浼樺厛绾ф墦鏂槇鍊笺€侲xecute 鎴愬姛鍚庤嚜鍔ㄨ皟鐢?StopBelowPriority銆?
+        /// 0 = 涓嶈嚜鍔ㄦ墦鏂紱>0 = 浠ユ鍊间负闃堝€兼墦鏂洿浣庝紭鍏堢骇鐨勮Е鍙戝櫒銆?
         /// </summary>
         public readonly int InterruptPriority;
 
@@ -348,21 +38,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly ActionCallPlan[] Actions;
 
         /// <summary>
-        /// 表现层 Cue（VFX / SFX / UI 反馈）
+        /// 琛ㄧ幇灞?Cue锛圴FX / SFX / UI 鍙嶉锛?
         /// </summary>
         public readonly ITriggerCue Cue;
 
         /// <summary>
-        /// 调度配置（持续行为相关）
+        /// 璋冨害閰嶇疆锛堟寔缁涓虹浉鍏筹級
         /// </summary>
         public readonly ScheduleModePlan Schedule;
 
         public readonly TriggerExecutionControlPlan ExecutionControl;
 
-        // ========== 核心构造器（保留 3 个）==========
+        // ========== 鏍稿績鏋勯€犲櫒锛堜繚鐣?3 涓級==========
 
         /// <summary>
-        /// 无条件触发器构造器
+        /// 鏃犳潯浠惰Е鍙戝櫒鏋勯€犲櫒
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -392,7 +82,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 函数条件触发器构造器
+        /// 鍑芥暟鏉′欢瑙﹀彂鍣ㄦ瀯閫犲櫒
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -424,7 +114,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 表达式条件触发器构造器
+        /// 琛ㄨ揪寮忔潯浠惰Е鍙戝櫒鏋勯€犲櫒
         /// </summary>
         public TriggerPlan(
             int phase,
@@ -454,10 +144,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionControl = executionControl;
         }
 
-        // ========== 便捷工厂方法==========
+        // ========== 渚挎嵎宸ュ巶鏂规硶==========
 
         /// <summary>
-        /// 创建无条件触发器
+        /// 鍒涘缓鏃犳潯浠惰Е鍙戝櫒
         /// </summary>
         public static TriggerPlan<TArgs> Create(
             int phase = 0,
@@ -469,7 +159,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 创建带函数条件的触发器（无参数）
+        /// 鍒涘缓甯﹀嚱鏁版潯浠剁殑瑙﹀彂鍣紙鏃犲弬鏁帮級
         /// </summary>
         public static TriggerPlan<TArgs> When(
             int phase,
@@ -482,7 +172,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 创建带函数条件的触发器（带参数）
+        /// 鍒涘缓甯﹀嚱鏁版潯浠剁殑瑙﹀彂鍣紙甯﹀弬鏁帮級
         /// </summary>
         public static TriggerPlan<TArgs> When(
             int phase,
@@ -496,7 +186,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 创建带表达式条件的触发器
+        /// 鍒涘缓甯﹁〃杈惧紡鏉′欢鐨勮Е鍙戝櫒
         /// </summary>
         public static TriggerPlan<TArgs> WhenExpr(
             int phase,
@@ -509,7 +199,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 添加动作，返回新的 TriggerPlan
+        /// 娣诲姞鍔ㄤ綔锛岃繑鍥炴柊鐨?TriggerPlan
         /// </summary>
         public TriggerPlan<TArgs> AddActions(params ActionCallPlan[] actions)
         {
@@ -573,239 +263,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
             Cue = cue;
             Schedule = schedule;
             ExecutionControl = executionControl;
-        }
-    }
-
-    /// <summary>
-    /// 调度模式运行时数据
-    /// </summary>
-    public readonly struct ScheduleModePlan
-    {
-        public static ScheduleModePlan None => default;
-
-        /// <summary>
-        /// 调度模式
-        /// </summary>
-        public readonly EScheduleMode Mode;
-
-        /// <summary>
-        /// 调度间隔（毫秒），0 表示每次 Update 都可驱动
-        /// </summary>
-        public readonly float IntervalMs;
-
-        /// <summary>
-        /// 最大执行次数，-1=无限
-        /// </summary>
-        public readonly int MaxExecutions;
-
-        /// <summary>
-        /// 是否可中断
-        /// </summary>
-        public readonly bool CanBeInterrupted;
-
-        public ScheduleModePlan(EScheduleMode mode, float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
-        {
-            Mode = mode;
-            IntervalMs = intervalMs;
-            MaxExecutions = maxExecutions;
-            CanBeInterrupted = canBeInterrupted;
-        }
-
-        /// <summary>
-        /// 创建外部生命周期控制的持续调度计划。
-        /// </summary>
-        public static ScheduleModePlan Continuous(float intervalMs = 0, int maxExecutions = -1, bool canBeInterrupted = true)
-            => new ScheduleModePlan(EScheduleMode.Continuous, intervalMs, maxExecutions, canBeInterrupted);
-
-        public static ScheduleModePlan Periodic(float intervalMs, int maxExecutions = -1)
-            => new ScheduleModePlan(EScheduleMode.Periodic, intervalMs, maxExecutions, canBeInterrupted: true);
-
-        public static ScheduleModePlan Timed(float delayMs)
-            => new ScheduleModePlan(EScheduleMode.Timed, delayMs, 1, canBeInterrupted: true);
-    }
-
-    /// <summary>
-    /// ActionCallPlan 的扩展方法
-    /// </summary>
-    public static class ActionCallPlanExtensions
-    {
-        /// <summary>
-        /// 创建无参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan Call(ActionId id)
-        {
-            return new ActionCallPlan(id);
-        }
-
-        /// <summary>
-        /// 创建带一个参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan Call(this ActionId id, NumericValueRef arg0)
-        {
-            return new ActionCallPlan(id, arg0);
-        }
-
-        /// <summary>
-        /// 创建带两个参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan Call(this ActionId id, NumericValueRef arg0, NumericValueRef arg1)
-        {
-            return new ActionCallPlan(id, arg0, arg1);
-        }
-
-        /// <summary>
-        /// 创建带有具名参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan CallArgs(this ActionId id, Dictionary<string, ActionArgValue> args)
-        {
-            return ActionCallPlan.WithArgs(id, args);
-        }
-
-        /// <summary>
-        /// 创建带有两个具名参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan CallArgs(this ActionId id, string name0, double value0, string name1, double value1)
-        {
-            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
-            {
-                [name0] = ActionArgValue.OfConst(value0, name0),
-                [name1] = ActionArgValue.OfConst(value1, name1)
-            });
-        }
-
-        /// <summary>
-        /// 创建带有三个具名参数的动作调用（默认 Immediate）
-        /// </summary>
-        public static ActionCallPlan CallArgs(this ActionId id, string name0, double value0, string name1, double value1, string name2, double value2)
-        {
-            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
-            {
-                [name0] = ActionArgValue.OfConst(value0, name0),
-                [name1] = ActionArgValue.OfConst(value1, name1),
-                [name2] = ActionArgValue.OfConst(value2, name2)
-            });
-        }
-
-        /// <summary>
-        /// 创建带具名参数的动作调用（扩展方法版本）
-        /// </summary>
-        public static ActionCallPlan WithArgs(this ActionId id, Dictionary<string, ActionArgValue> args)
-        {
-            return ActionCallPlan.WithArgs(id, args);
-        }
-
-        /// <summary>
-        /// 创建带两个具名参数的动作调用（扩展方法版本）
-        /// </summary>
-        public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1)
-        {
-            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
-            {
-                [name0] = ActionArgValue.OfConst(value0, name0),
-                [name1] = ActionArgValue.OfConst(value1, name1)
-            });
-        }
-
-        /// <summary>
-        /// 创建带三个具名参数的动作调用（扩展方法版本）
-        /// </summary>
-        public static ActionCallPlan WithArgs(this ActionId id, string name0, double value0, string name1, double value1, string name2, double value2)
-        {
-            return ActionCallPlan.WithArgs(id, new Dictionary<string, ActionArgValue>
-            {
-                [name0] = ActionArgValue.OfConst(value0, name0),
-                [name1] = ActionArgValue.OfConst(value1, name1),
-                [name2] = ActionArgValue.OfConst(value2, name2)
-            });
-        }
-
-        // ========== 调度模式工厂方法 ==========
-
-        /// <summary>
-        /// 创建立即执行的动作
-        /// </summary>
-        public static ActionCallPlan Immediate(this ActionId id)
-        {
-            var plan = new ActionCallPlan(id);
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                Config.EActionScheduleMode.Immediate, 0, -1, true,
-                Config.EActionExecutionPolicy.Immediate);
-        }
-
-        /// <summary>
-        /// 创建延迟执行的动作
-        /// </summary>
-        /// <param name="delayMs">延迟时间（毫秒）</param>
-        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
-        public static ActionCallPlan Delayed(this ActionId id, float delayMs, int maxExecutions = 1)
-        {
-            var plan = new ActionCallPlan(id);
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                Config.EActionScheduleMode.Delayed, delayMs, maxExecutions, true,
-                Config.EActionExecutionPolicy.Immediate);
-        }
-
-        /// <summary>
-        /// 创建周期执行的动作
-        /// </summary>
-        /// <param name="intervalMs">周期间隔（毫秒）</param>
-        /// <param name="maxExecutions">最大执行次数，-1=无限</param>
-        /// <param name="canBeInterrupted">是否可中断</param>
-        public static ActionCallPlan Periodic(this ActionId id, float intervalMs, int maxExecutions = -1, bool canBeInterrupted = true)
-        {
-            var plan = new ActionCallPlan(id);
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                Config.EActionScheduleMode.Periodic, intervalMs, maxExecutions, canBeInterrupted,
-                Config.EActionExecutionPolicy.Immediate);
-        }
-
-        /// <summary>
-        /// 创建持续调度执行的动作（按间隔执行，直到外部中断或达到执行次数）
-        /// </summary>
-        /// <param name="canBeInterrupted">是否可中断</param>
-        public static ActionCallPlan Continuous(this ActionId id, bool canBeInterrupted = true)
-        {
-            var plan = new ActionCallPlan(id);
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                Config.EActionScheduleMode.Continuous, 0, -1, canBeInterrupted,
-                Config.EActionExecutionPolicy.Immediate);
-        }
-
-        /// <summary>
-        /// 创建带执行策略的动作
-        /// </summary>
-        public static ActionCallPlan WithExecutionPolicy(this ActionCallPlan plan, Config.EActionExecutionPolicy policy)
-        {
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
-                policy, plan.RetryMaxRetries, plan.RetryDelayMs);
-        }
-
-        /// <summary>
-        /// 创建带重试策略的动作。
-        /// </summary>
-        public static ActionCallPlan WithRetry(this ActionCallPlan plan, int maxRetries = 3, float retryDelayMs = 0f)
-        {
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                plan.ScheduleMode, plan.ScheduleParam, plan.MaxExecutions, plan.CanBeInterrupted,
-                Config.EActionExecutionPolicy.WithRetry, maxRetries, retryDelayMs);
-        }
-
-        /// <summary>
-        /// 创建带调度参数的动作
-        /// </summary>
-        public static ActionCallPlan WithSchedule(this ActionCallPlan plan, Config.EActionScheduleMode mode, float param = 0, int maxExecutions = -1, bool canBeInterrupted = true)
-        {
-            return new ActionCallPlan(
-                plan.Id, plan.Arity, plan.Arg0, plan.Arg1, plan.Args,
-                mode, param, maxExecutions, canBeInterrupted,
-                plan.ExecutionPolicy, plan.RetryMaxRetries, plan.RetryDelayMs);
         }
     }
 }

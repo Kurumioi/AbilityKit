@@ -38,7 +38,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0) continue;
 
-                _triggers.ExecuteDirectTrigger(triggerId, CreatePayload(triggerId, buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime, in persistentSource, removeReason, durationSeconds), "buff.stage." + stage);
+                var payload = CreatePayload(triggerId, buffId, sourceActorId, targetActorId, sourceContextId, stage, runtime, in persistentSource, removeReason, durationSeconds);
+                var request = MobaTriggerExecutionRequest<BuffTriggerContext>.Create(triggerId, payload, "buff.stage." + stage);
+                _triggers.ExecuteDirectTrigger(in request);
             }
         }
 
@@ -145,7 +147,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
     /// <summary>
     /// Buff 触发器上下文：同时提供 Actor、trace、runtime、技能运行时和持久来源视图。
     /// </summary>
-    internal sealed class BuffTriggerContext : MobaTriggerInvocationContextBase, IBuffTriggerContext, IMobaTriggerLineageContextProvider, IMobaTriggerTraceContextProvider, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaOriginContextProvider, IMobaTriggerStageSnapshotProvider, IMobaContextSourceProvider, IMobaPersistentContextSourceProvider
+    internal sealed class BuffTriggerContext : MobaTriggerInvocationContextBase, IBuffTriggerContext, IMobaTriggerRuntimeContext<BuffRuntime>, IMobaTriggerSkillRuntimeContext, IMobaTriggerStageSnapshotProvider, IMobaContextSourceProvider, IMobaPersistentContextSourceProvider
     {
         public override EffectContextKind Kind => EffectContextKind.Buff;
         public int BuffId { get; set; }
@@ -167,9 +169,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         public BuffRuntime Runtime { get; set; }
         public MobaPersistentContextSourceSnapshot PersistentSource { get; set; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle => Runtime != null && Runtime.SkillRuntimeHandle.IsValid ? Runtime.SkillRuntimeHandle : PersistentSource.Source.SkillRuntimeHandle;
-        public MobaTriggerLineageContext LineageContext => ResolveLineageContext();
-        public MobaTriggerTraceContext TraceContext => LineageContext.ToTraceContext();
-        public MobaGameplayOrigin Origin
+        public override MobaTriggerLineageContext LineageContext => ResolveLineageContext();
+        public override MobaTriggerTraceContext TraceContext => LineageContext.ToTraceContext();
+        public override MobaGameplayOrigin Origin
         {
             get
             {
@@ -181,13 +183,13 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             }
         }
 
-        public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
+        public override bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
         {
             lineageContext = LineageContext;
             return true;
         }
 
-        public bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
+        public override bool TryGetTraceContext(out MobaTriggerTraceContext traceContext)
         {
             traceContext = TraceContext;
             return true;
@@ -219,7 +221,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return actorId > 0;
         }
 
-        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        public override bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             origin = Origin;
             return origin.IsValid;

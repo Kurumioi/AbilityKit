@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Rooms;
+﻿using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -6,10 +6,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 创建房间 Handler
+/// 鍒涘缓鎴块棿 Handler
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.CreateRoom)]
-public sealed class CreateRoomHandler : GatewayRequestHandlerBase
+public sealed partial class CreateRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
 
@@ -74,3 +74,4 @@ public sealed class CreateRoomHandler : GatewayRequestHandlerBase
         }
     }
 }
+

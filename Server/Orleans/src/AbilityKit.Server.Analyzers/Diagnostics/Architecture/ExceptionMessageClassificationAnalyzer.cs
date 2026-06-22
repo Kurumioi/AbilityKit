@@ -22,7 +22,7 @@ public sealed class ExceptionMessageClassificationAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
     {
         var invocation = (InvocationExpressionSyntax)context.Node;
-        if (!IsServerSourceFile(invocation.SyntaxTree.FilePath) || IsTestSourceFile(invocation.SyntaxTree.FilePath))
+        if (!ServerSourceFileFilter.IsProductionServerSourceFile(invocation.SyntaxTree.FilePath))
         {
             return;
         }
@@ -62,27 +62,4 @@ public sealed class ExceptionMessageClassificationAnalyzer : DiagnosticAnalyzer
             value));
     }
 
-    private static bool IsServerSourceFile(string? filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return false;
-        }
-
-        var normalized = filePath!.Replace('\\', '/');
-        return normalized.Contains("/Server/Orleans/src/", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsTestSourceFile(string? filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            return false;
-        }
-
-        var normalized = filePath!.Replace('\\', '/');
-        return normalized.Contains(".Tests/", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("/obj/", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("/bin/", StringComparison.OrdinalIgnoreCase);
-    }
 }

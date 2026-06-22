@@ -9,7 +9,7 @@ namespace AbilityKit.Demo.Moba.Services
     /// 上下文强类型访问扩展方法
     /// 提供基于 AbilityContextKeys 枚举的强类型数据访问
     /// </summary>
-    public static class AbilityContextExtensions
+    public static partial class AbilityContextExtensions
     {
         // ========== 溯源相关 ==========
 

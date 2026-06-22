@@ -28,7 +28,15 @@ namespace AbilityKit.Demo.Moba.Services
         public int TargetActorId { get; }
         public long SourceContextId { get; }
         public long RootContextId { get; }
+        /// <summary>
+        /// Compatibility name for ownership context identity. Prefer <see cref="OwnerContextId"/> in new code.
+        /// </summary>
         public long OwnerKey { get; }
+
+        /// <summary>
+        /// Preferred ownership context identity name.
+        /// </summary>
+        public long OwnerContextId => OwnerKey;
         public int SourceConfigId { get; }
 
         public bool HasExecutionSource => SourceActorId > 0 && SourceContextId != 0;

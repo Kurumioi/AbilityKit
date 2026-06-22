@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public sealed class MobaGameplayOriginBuilder
@@ -65,6 +67,10 @@ namespace AbilityKit.Demo.Moba.Services
             return this;
         }
 
+        /// <summary>
+        /// Compatibility bridge for legacy primitive payloads. Prefer <see cref="FromOrigin"/> or <see cref="FromLineageContext"/> in new code.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public MobaGameplayOriginBuilder FromLegacy(int sourceActorId, int targetActorId, MobaTraceKind kind, int configId, long contextId)
         {
             _sourceActorId = sourceActorId;

@@ -3,7 +3,7 @@ using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba
 {
-    public sealed class AttackInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
+    public sealed class AttackInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
     {
         public int AttackerActorId;
         public int TargetActorId;
@@ -38,6 +38,8 @@ namespace AbilityKit.Demo.Moba
             FinalDamage = new NumberValue(NumberValueMode.OverrideOnly);
         }
 
+        public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;
+
         public bool TryGetSourceActorId(out int actorId)
         {
             actorId = AttackerActorId;
@@ -50,7 +52,7 @@ namespace AbilityKit.Demo.Moba
             return actorId > 0;
         }
 
-        public bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
+        public override bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
         {
             if (Origin.IsValid)
             {
@@ -64,7 +66,7 @@ namespace AbilityKit.Demo.Moba
             return origin.IsValid;
         }
 
-        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        public override bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
         {
             if (TryGetOrigin(out var origin) && origin.IsValid)
             {
@@ -74,6 +76,18 @@ namespace AbilityKit.Demo.Moba
 
             lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageAttack, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, OriginConfigId);
             return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
+        }
+
+        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                traceContext = lineageContext.ToTraceContext();
+                return true;
+            }
+
+            traceContext = default;
+            return false;
         }
 
         public bool TryGetContextSource(out Services.MobaContextSourceView source)
@@ -104,7 +118,7 @@ namespace AbilityKit.Demo.Moba
         }
     }
 
-    public sealed class AttackCalcInfo : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
+    public sealed class AttackCalcInfo : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
     {
         public AttackInfo Attack;
 
@@ -122,6 +136,8 @@ namespace AbilityKit.Demo.Moba
             HpDamage = new NumberValue(NumberValueMode.BaseAddMul);
         }
 
+        public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;
+
         public bool TryGetSourceActorId(out int actorId)
         {
             if (Attack != null) return Attack.TryGetSourceActorId(out actorId);
@@ -136,17 +152,29 @@ namespace AbilityKit.Demo.Moba
             return false;
         }
 
-        public bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
+        public override bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
         {
             if (Attack != null) return Attack.TryGetOrigin(out origin);
             origin = default;
             return false;
         }
 
-        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        public override bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
         {
             if (Attack != null && Attack.TryGetLineageContext(out lineageContext)) return true;
             lineageContext = default;
+            return false;
+        }
+
+        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                traceContext = lineageContext.ToTraceContext();
+                return true;
+            }
+
+            traceContext = default;
             return false;
         }
 
@@ -168,7 +196,7 @@ namespace AbilityKit.Demo.Moba
         }
     }
 
-    public sealed class DamageResult : Services.IMobaActorContextProvider, Services.IMobaOriginContextProvider, Services.IMobaTriggerLineageContextProvider, Services.IMobaContextSourceProvider
+    public sealed class DamageResult : Services.MobaTriggerInvocationContextBase, Services.IMobaActorContextProvider, Services.IMobaContextSourceProvider
     {
         public int AttackerActorId;
         public int TargetActorId;
@@ -191,6 +219,8 @@ namespace AbilityKit.Demo.Moba
         public float TargetHp;
         public float TargetMaxHp;
 
+        public override Services.EffectContextKind Kind => Services.EffectContextKind.Trigger;
+
         public bool TryGetSourceActorId(out int actorId)
         {
             actorId = AttackerActorId;
@@ -203,7 +233,7 @@ namespace AbilityKit.Demo.Moba
             return actorId > 0;
         }
 
-        public bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
+        public override bool TryGetOrigin(out Services.MobaGameplayOrigin origin)
         {
             if (Origin.IsValid)
             {
@@ -217,7 +247,7 @@ namespace AbilityKit.Demo.Moba
             return origin.IsValid;
         }
 
-        public bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
+        public override bool TryGetLineageContext(out Services.MobaTriggerLineageContext lineageContext)
         {
             if (TryGetOrigin(out var origin) && origin.IsValid)
             {
@@ -228,6 +258,18 @@ namespace AbilityKit.Demo.Moba
 
             lineageContext = new Services.MobaTriggerLineageContext(Services.EffectContextKind.Trigger, Services.MobaTraceKind.DamageApply, AttackerActorId, TargetActorId, OriginContextId, OriginContextId, 0, ReasonParam);
             return AttackerActorId > 0 || TargetActorId > 0 || OriginContextId != 0;
+        }
+
+        public override bool TryGetTraceContext(out Services.MobaTriggerTraceContext traceContext)
+        {
+            if (TryGetLineageContext(out var lineageContext))
+            {
+                traceContext = lineageContext.ToTraceContext();
+                return true;
+            }
+
+            traceContext = default;
+            return false;
         }
 
         public bool TryGetContextSource(out Services.MobaContextSourceView source)

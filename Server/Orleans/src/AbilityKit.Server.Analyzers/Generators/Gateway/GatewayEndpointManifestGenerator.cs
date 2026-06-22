@@ -25,7 +25,7 @@ public sealed class GatewayEndpointManifestGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(context.CompilationProvider.Combine(endpoints), static (context, source) =>
         {
-            if (!string.Equals(source.Left.AssemblyName, "AbilityKit.Orleans.Gateway", StringComparison.Ordinal))
+            if (!GeneratorAssemblyTargets.IsTargetAssembly(source.Left, ServerAssemblyNames.Gateway))
             {
                 return;
             }
@@ -65,7 +65,7 @@ public sealed class GatewayEndpointManifestGenerator : IIncrementalGenerator
             return null;
         }
 
-        var route = ((LiteralExpressionSyntax)invocation.ArgumentList.Arguments[0].Expression).Token.ValueText;
+        var route = GeneratorSyntaxReader.GetStringLiteralValue(invocation.ArgumentList.Arguments[0].Expression) ?? string.Empty;
         var prefix = ResolveRoutePrefix(invocation, memberAccess.Expression);
         var expressionStatement = invocation.FirstAncestorOrSelf<ExpressionStatementSyntax>();
         var chainRoot = expressionStatement?.Expression ?? invocation;
@@ -109,13 +109,11 @@ public sealed class GatewayEndpointManifestGenerator : IIncrementalGenerator
 
             foreach (var invocation in initializer.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
             {
-                if (invocation.Expression is MemberAccessExpressionSyntax memberAccess
-                    && memberAccess.Name.Identifier.ValueText == "MapGroup"
+                if (GeneratorSyntaxReader.IsInvocationNamed(invocation, "MapGroup")
                     && invocation.ArgumentList.Arguments.Count > 0
-                    && invocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax literal
-                    && literal.IsKind(SyntaxKind.StringLiteralExpression))
+                    && GeneratorSyntaxReader.GetStringLiteralValue(invocation.ArgumentList.Arguments[0].Expression) is { } routePrefix)
                 {
-                    return literal.Token.ValueText;
+                    return routePrefix;
                 }
             }
         }
@@ -127,13 +125,11 @@ public sealed class GatewayEndpointManifestGenerator : IIncrementalGenerator
     {
         foreach (var invocation in chainRoot.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>())
         {
-            if (invocation.Expression is MemberAccessExpressionSyntax memberAccess
-                && memberAccess.Name.Identifier.ValueText == methodName
+            if (GeneratorSyntaxReader.IsInvocationNamed(invocation, methodName)
                 && invocation.ArgumentList.Arguments.Count > 0
-                && invocation.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax literal
-                && literal.IsKind(SyntaxKind.StringLiteralExpression))
+                && GeneratorSyntaxReader.GetStringLiteralValue(invocation.ArgumentList.Arguments[0].Expression) is { } value)
             {
-                return literal.Token.ValueText;
+                return value;
             }
         }
 
@@ -219,31 +215,21 @@ public sealed class GatewayEndpointManifestGenerator : IIncrementalGenerator
         foreach (var endpoint in endpoints)
         {
             builder.Append("        new GeneratedGatewayEndpointManifestEntry(");
-            builder.Append(ToLiteral(endpoint.HttpMethod));
+            builder.Append(CSharpLiteral.String(endpoint.HttpMethod));
             builder.Append(", ");
-            builder.Append(ToLiteral(endpoint.Path));
+            builder.Append(CSharpLiteral.String(endpoint.Path));
             builder.Append(", ");
-            builder.Append(ToNullableLiteral(endpoint.Name));
+            builder.Append(CSharpLiteral.NullableString(endpoint.Name));
             builder.Append(", ");
-            builder.Append(ToNullableLiteral(endpoint.RequestType));
+            builder.Append(CSharpLiteral.NullableString(endpoint.RequestType));
             builder.Append(", new[] { ");
-            builder.Append(string.Join(", ", endpoint.ProducedStatusCodes.Select(ToLiteral)));
+            builder.Append(string.Join(", ", endpoint.ProducedStatusCodes.Select(CSharpLiteral.String)));
             builder.AppendLine(" }),");
         }
 
         builder.AppendLine("    };");
         builder.AppendLine("}");
         return builder.ToString();
-    }
-
-    private static string ToNullableLiteral(string? value)
-    {
-        return value is null ? "null" : ToLiteral(value);
-    }
-
-    private static string ToLiteral(string value)
-    {
-        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
     private sealed record EndpointCandidate(

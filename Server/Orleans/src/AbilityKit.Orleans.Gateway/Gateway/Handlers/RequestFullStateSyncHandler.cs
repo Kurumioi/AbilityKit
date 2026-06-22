@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Battle;
+﻿using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
@@ -7,10 +7,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 请求服务端向当前连接对应账号推送一次完整状态快照。
+/// 璇锋眰鏈嶅姟绔悜褰撳墠杩炴帴瀵瑰簲璐﹀彿鎺ㄩ€佷竴娆″畬鏁寸姸鎬佸揩鐓с€?
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.RequestFullStateSync)]
-public sealed class RequestFullStateSyncHandler : GatewayRequestHandlerBase
+public sealed partial class RequestFullStateSyncHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
     private readonly IGatewaySessionRegistry _sessionRegistry;
@@ -93,3 +93,4 @@ public sealed class RequestFullStateSyncHandler : GatewayRequestHandlerBase
         }
     }
 }
+

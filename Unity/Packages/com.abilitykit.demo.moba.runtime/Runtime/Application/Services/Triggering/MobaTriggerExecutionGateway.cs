@@ -187,25 +187,25 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             if (_diagnostics == null) services.TryResolve(out _diagnostics);
         }
 
-        public void ExecuteDirectTrigger(int triggerId, object payload, string source = null)
+        public void ExecuteDirectTrigger<TPayload>(in MobaTriggerExecutionRequest<TPayload> request)
         {
-            if (triggerId <= 0)
+            if (request.TriggerId <= 0)
             {
-                RecordInvalidDirectTrigger(triggerId, source);
+                RecordInvalidDirectTrigger(request.TriggerId, request.Source);
                 return;
             }
 
-            Stats = Stats.WithDirectRequest(triggerId, source, payload?.GetType().Name);
+            Stats = Stats.WithDirectRequest(request.TriggerId, request.Source, request.PayloadTypeName);
             _diagnostics?.Counter("moba.trigger.direct.requested");
             if (_effects == null)
             {
-                RecordWarning("moba.trigger.direct.missingEffects", $"[MobaTriggerExecutionGateway] direct trigger ignored because effect execution service is missing. triggerId={triggerId} source={source} payloadType={payload?.GetType().Name}");
+                RecordWarning("moba.trigger.direct.missingEffects", $"[MobaTriggerExecutionGateway] direct trigger ignored because effect execution service is missing. triggerId={request.TriggerId} source={request.Source} payloadType={request.PayloadTypeName}");
                 Stats = Stats.WithDirectMissingService();
                 _diagnostics?.Counter("moba.trigger.direct.missingEffects");
                 return;
             }
 
-            _effects.ExecuteTriggerId(triggerId, payload);
+            _effects.ExecuteTrigger(in request);
             Stats = Stats.WithDirectExecuted();
             _diagnostics?.Counter("moba.trigger.direct.executed");
         }

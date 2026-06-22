@@ -5,8 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using GatewayAbstractions = Gateway::AbilityKit.Orleans.Gateway.Abstractions;
 using GatewayCore = Gateway::AbilityKit.Orleans.Gateway.Core;
-using GatewayHandlers = Gateway::AbilityKit.Orleans.Gateway.Handlers;
+using GatewayGenerated = Gateway::AbilityKit.Orleans.Gateway.Generated;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
+
 internal static class ShooterSmokeGatewayServiceCollectionExtensions
 {
     public static IServiceCollection AddShooterSmokeGateway(this IServiceCollection services, int tcpGatewayPort)
@@ -29,25 +30,15 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
         services.AddSingleton<GatewayCore.GatewaySessionRegistry>();
         services.AddSingleton<GatewayAbstractions.IGatewaySessionRegistry>(sp => sp.GetRequiredService<GatewayCore.GatewaySessionRegistry>());
 
-        services.AddSingleton<GatewayHandlers.GuestLoginHandler>();
-        services.AddSingleton<GatewayHandlers.TimeSyncHandler>();
-        services.AddSingleton<GatewayHandlers.CreateRoomHandler>();
-        services.AddSingleton<GatewayHandlers.JoinRoomHandler>();
-        services.AddSingleton<GatewayHandlers.RoomReadyHandler>();
-        services.AddSingleton<GatewayHandlers.RoomPickHeroHandler>();
-        services.AddSingleton<GatewayHandlers.RestoreRoomHandler>();
-        services.AddSingleton<GatewayHandlers.StartRoomBattleHandler>();
-        services.AddSingleton<GatewayHandlers.SubmitBattleInputHandler>();
-        services.AddSingleton<GatewayHandlers.SubscribeStateSyncHandler>();
-        services.AddSingleton<GatewayHandlers.RequestFullStateSyncHandler>();
-
         services.AddSingleton<GatewayCore.GatewayHandlerRegistry>(sp =>
         {
             var registry = new GatewayCore.GatewayHandlerRegistry(sp);
-            registry.RegisterFromAssembly(typeof(GatewayCore.GatewayHandlerRegistry).Assembly);
+            GatewayGenerated.GeneratedGatewayHandlerRegistration.RegisterGeneratedGatewayHandlers(registry, sp);
             return registry;
         });
         services.AddSingleton<GatewayAbstractions.IGatewayHandlerRegistry>(sp => sp.GetRequiredService<GatewayCore.GatewayHandlerRegistry>());
+
+        GatewayGenerated.GeneratedGatewayHandlerRegistration.AddGeneratedGatewayHandlers(services);
 
         services.AddSingleton<GatewayCore.GatewayRequestRouter>();
         services.AddSingleton<GatewayAbstractions.IGatewayRequestRouter>(sp => sp.GetRequiredService<GatewayCore.GatewayRequestRouter>());

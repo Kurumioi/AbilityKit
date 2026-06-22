@@ -1,4 +1,4 @@
-using AbilityKit.Orleans.Contracts.Rooms;
+﻿using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -6,10 +6,10 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// 恢复当前账号所在房间 Handler。
+/// 鎭㈠褰撳墠璐﹀彿鎵€鍦ㄦ埧闂?Handler銆?
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.RestoreRoom)]
-public sealed class RestoreRoomHandler : GatewayRequestHandlerBase
+public sealed partial class RestoreRoomHandler : GatewayRequestHandlerBase
 {
     private readonly IClusterClient _clusterClient;
 
@@ -70,3 +70,4 @@ public sealed class RestoreRoomHandler : GatewayRequestHandlerBase
         }
     }
 }
+

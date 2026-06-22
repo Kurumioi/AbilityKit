@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
     <ProjectReference Include="..\AbilityKit.Orleans.Hosting\AbilityKit.Orleans.Hosting.csproj" />
+    <ProjectReference Include="..\AbilityKit.Server.Analyzers\AbilityKit.Server.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Protocol.Room\AbilityKit.Protocol.Room.csproj" />

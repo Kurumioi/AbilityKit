@@ -1,0 +1,186 @@
+using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using static AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanSourceJsonUtility;
+using static AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanSourceValueWriter;
+
+namespace AbilityKit.Triggering.Runtime.Plan.Json
+{
+    internal sealed class TriggerPlanSourceConditionWriter
+    {
+        public delegate void ParamValueWriter(JsonTextWriter writer, JToken value);
+
+        public void WritePredicate(JsonTextWriter writer, List<JObject> conditions, ParamValueWriter writeParamValue)
+        {
+            if (writeParamValue == null)
+            {
+                throw new ArgumentNullException(nameof(writeParamValue));
+            }
+
+            writer.WriteStartObject();
+
+            if (conditions == null || conditions.Count == 0)
+            {
+                writer.WritePropertyName("Kind");
+                writer.WriteValue("none");
+                writer.WritePropertyName("Nodes");
+                writer.WriteNull();
+            }
+            else
+            {
+                writer.WritePropertyName("Kind");
+                writer.WriteValue("expr");
+                writer.WritePropertyName("Nodes");
+                writer.WriteStartArray();
+
+                WriteConditionList(writer, conditions, "And", writeParamValue);
+
+                writer.WriteEndArray();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        private static void WriteConditionList(JsonTextWriter writer, IReadOnlyList<JObject> conditions, string logicalOp, ParamValueWriter writeParamValue)
+        {
+            if (conditions == null || conditions.Count == 0)
+            {
+                throw new InvalidOperationException($"Condition group '{logicalOp}' must contain at least one condition.");
+            }
+
+            for (var i = 0; i < conditions.Count; i++)
+            {
+                WriteCondition(writer, conditions[i], writeParamValue);
+                if (i > 0)
+                {
+                    WriteBoolOperator(writer, logicalOp);
+                }
+            }
+        }
+
+        private static void WriteCondition(JsonTextWriter writer, JObject cond, ParamValueWriter writeParamValue)
+        {
+            if (cond == null)
+            {
+                throw new InvalidOperationException("Condition item cannot be null.");
+            }
+
+            var type = cond["type"]?.ToString();
+            if (string.IsNullOrEmpty(type))
+            {
+                throw new InvalidOperationException("Condition type is required.");
+            }
+
+            switch (type)
+            {
+                case "all":
+                case "and":
+                    WriteConditionList(writer, ReadConditionItems(cond), "And", writeParamValue);
+                    break;
+
+                case "any":
+                case "or":
+                    WriteConditionList(writer, ReadConditionItems(cond), "Or", writeParamValue);
+                    break;
+
+                case "not":
+                    WriteConditionList(writer, ReadConditionItems(cond), "And", writeParamValue);
+                    WriteBoolOperator(writer, "Not");
+                    break;
+
+                case "compare":
+                case "compare_numeric":
+                    WriteCompareNode(writer, cond, cond["op"]?.ToString() ?? cond["compare_op"]?.ToString() ?? cond["compareOp"]?.ToString(), writeParamValue);
+                    break;
+
+                case "arg_eq":
+                    WriteCompareNode(writer, cond, "Equal", writeParamValue);
+                    break;
+
+                case "arg_gt":
+                    WriteCompareNode(writer, cond, "GreaterThan", writeParamValue);
+                    break;
+
+                case "arg_gte":
+                    WriteCompareNode(writer, cond, "GreaterThanOrEqual", writeParamValue);
+                    break;
+
+                case "arg_lt":
+                    WriteCompareNode(writer, cond, "LessThan", writeParamValue);
+                    break;
+
+                case "arg_lte":
+                    WriteCompareNode(writer, cond, "LessThanOrEqual", writeParamValue);
+                    break;
+
+                case "arg_neq":
+                    WriteCompareNode(writer, cond, "NotEqual", writeParamValue);
+                    break;
+
+                default:
+                    throw new InvalidOperationException($"Unsupported condition type: {type}");
+            }
+        }
+
+        public static List<JObject> ReadConditionItems(JObject cond)
+        {
+            var items = new List<JObject>();
+            var inner = cond["items"] ?? cond["item"] ?? cond["conditions"] ?? cond["condition"];
+            if (inner is JArray arr)
+            {
+                foreach (var item in arr)
+                {
+                    if (item is JObject obj)
+                    {
+                        items.Add(obj);
+                    }
+                }
+            }
+            else if (inner is JObject obj)
+            {
+                items.Add(obj);
+            }
+
+            return items;
+        }
+
+        private static void WriteBoolOperator(JsonTextWriter writer, string kind)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("Kind");
+            writer.WriteValue(kind);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteCompareNode(JsonTextWriter writer, JObject cond, string op, ParamValueWriter writeParamValue)
+        {
+            var argName = cond["arg_name"]?.ToString();
+            var leftVarDomain = (cond["left_var_domain"] ?? cond["var_domain"])?.ToString();
+            var leftVarKey = (cond["left_var_key"] ?? cond["var_key"])?.ToString();
+
+            writer.WriteStartObject();
+            writer.WritePropertyName("Kind");
+            writer.WriteValue("CompareNumeric");
+            writer.WritePropertyName("CompareOp");
+            writer.WriteValue(NormalizeCompareOp(op));
+            writer.WritePropertyName("Left");
+            if (cond["left"] != null)
+            {
+                writeParamValue(writer, cond["left"]);
+            }
+            else if (!string.IsNullOrEmpty(leftVarDomain) && !string.IsNullOrEmpty(leftVarKey))
+            {
+                WriteVarValue(writer, leftVarDomain, leftVarKey);
+            }
+            else
+            {
+                WritePayloadFieldValue(writer, argName);
+            }
+
+            writer.WritePropertyName("Right");
+            writeParamValue(writer, cond["right"] ?? cond["value"]);
+            writer.WriteEndObject();
+        }
+    }
+}

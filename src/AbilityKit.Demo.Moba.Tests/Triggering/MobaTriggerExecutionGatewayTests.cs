@@ -13,7 +13,8 @@ public sealed class MobaTriggerExecutionGatewayTests
         var diagnostics = new TestDiagnosticsService();
         var gateway = new MobaTriggerExecutionGateway(effects: null, subscriptions: null, diagnostics);
 
-        gateway.ExecuteDirectTrigger(0, payload: "payload", source: "test.invalid");
+        var request = MobaTriggerExecutionRequest<string>.Create(0, "payload", "test.invalid");
+        gateway.ExecuteDirectTrigger(in request);
 
         Assert.Equal(1, gateway.Stats.DirectInvalidRequests);
         Assert.Equal(0, gateway.Stats.DirectRequests);
@@ -31,7 +32,8 @@ public sealed class MobaTriggerExecutionGatewayTests
         var gateway = new MobaTriggerExecutionGateway(effects: null, subscriptions: null, diagnostics);
         var payload = new TestPayload();
 
-        gateway.ExecuteDirectTrigger(7001, payload, source: "test.direct");
+        var request = MobaTriggerExecutionRequest<TestPayload>.Create(7001, payload, "test.direct");
+        gateway.ExecuteDirectTrigger(in request);
 
         Assert.Equal(1, gateway.Stats.DirectRequests);
         Assert.Equal(1, gateway.Stats.DirectMissingService);
