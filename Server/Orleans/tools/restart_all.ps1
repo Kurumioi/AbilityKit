@@ -1,9 +1,11 @@
 # AbilityKit Orleans Development Environment Restart Script
-# Compatibility wrapper for start_orleans_dev.ps1.
+# Compatibility wrapper for start_abilitykit.ps1.
 
 param(
+    [string[]]$Profile,
     [switch]$NoCleanup,
     [switch]$NoBuild,
+    [switch]$CleanAll,
     [string]$Configuration = 'Debug',
     [int]$GatewayPort = 5001,
     [int]$SiloPort = 11111,
@@ -13,16 +15,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$startScript = Join-Path $PSScriptRoot 'start_orleans_dev.ps1'
-if (-not (Test-Path $startScript)) {
-    throw "Start script was not found: $startScript"
+$launcherScript = Join-Path $PSScriptRoot 'start_abilitykit.ps1'
+if (-not (Test-Path $launcherScript)) {
+    throw "Launcher script was not found: $launcherScript"
 }
 
 $startParams = @{
+    Configuration = $Configuration
     GatewayPort = $GatewayPort
     SiloPort = $SiloPort
     SiloGatewayPort = $SiloGatewayPort
     TcpPort = $TcpPort
+}
+
+if ($Profile -and $Profile.Count -gt 0) {
+    $startParams.Profile = $Profile
 }
 
 if ($NoCleanup) {
@@ -33,8 +40,8 @@ if ($NoBuild) {
     $startParams.NoBuild = $true
 }
 
-if ($Configuration -ne 'Debug') {
-    $startParams.Configuration = $Configuration
+if ($CleanAll) {
+    $startParams.CleanAll = $true
 }
 
-& $startScript @startParams
+& $launcherScript @startParams

@@ -3,7 +3,7 @@ using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleContext : IPoolable, IBattleHudInputSink
+    public sealed partial class BattleContext : IPoolable, IBattleHudInputSink, IBattleRuntimeContext, IBattleEntityContext, IBattleInputContext, IBattleSnapshotRoutingContext
     {
         private static readonly ObjectPool<BattleContext> Pool = Pools.GetPool(
             key: "BattleContext",

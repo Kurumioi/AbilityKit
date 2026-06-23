@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -19,8 +20,8 @@ namespace AbilityKit.Game.Flow.Battle.View
         {
             systemFactory ??= new BattleFloatingTextSystemFactory();
 
-            _floatingTexts = systemFactory.CreateStore();
             _factory = factory ?? systemFactory.CreateFloatingTextFactory();
+            _floatingTexts = systemFactory.CreateStore(_factory.Release);
         }
 
         public void Spawn(in EC.IEntity vfxNode, string text, in Vector3 worldPos, Color color)
@@ -39,14 +40,15 @@ namespace AbilityKit.Game.Flow.Battle.View
         public void Clear()
         {
             _floatingTexts.Clear();
+            _factory.ClearPool();
         }
     }
 
     internal sealed class BattleFloatingTextSystemFactory
     {
-        public BattleFloatingTextStore CreateStore()
+        public BattleFloatingTextStore CreateStore(Action<BattleWorldFloatingText> release = null)
         {
-            return new BattleFloatingTextStore();
+            return new BattleFloatingTextStore(release);
         }
 
         public BattleWorldFloatingTextFactory CreateFloatingTextFactory()

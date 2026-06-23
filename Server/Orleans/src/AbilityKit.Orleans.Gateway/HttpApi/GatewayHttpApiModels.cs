@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Rooms;
 using Orleans.Serialization;
@@ -160,6 +161,190 @@ internal sealed record AdminServerStatusHttpResponse(
     [property: Id(15)] string? LastOperationRequestedBy,
     [property: Id(16)] long? LastOperationRequestedAtTicks,
     [property: Id(17)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminClusterDiagnosticsHttpResponse(
+    [property: Id(0)] string ClusterId,
+    [property: Id(1)] string ServiceId,
+    [property: Id(2)] int? SiloPort,
+    [property: Id(3)] int? OrleansGatewayPort,
+    [property: Id(4)] bool ClientConnected,
+    [property: Id(5)] string ClientStatus,
+    [property: Id(6)] AdminClusterNodeProbeHttpResponse[] Nodes,
+    [property: Id(7)] string[] RuntimeMetrics,
+    [property: Id(8)] string[] Warnings,
+    [property: Id(9)] AdminServerStatusHttpResponse GatewayProcess,
+    [property: Id(10)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminClusterNodeProbeHttpResponse(
+    [property: Id(0)] string NodeId,
+    [property: Id(1)] string Role,
+    [property: Id(2)] string Endpoint,
+    [property: Id(3)] string Status,
+    [property: Id(4)] string Diagnostics);
+
+[GenerateSerializer]
+internal sealed record AdminSkillDiagnosticsSummaryHttpResponse(
+    [property: Id(0)] string? RoomId,
+    [property: Id(1)] string? RoomType,
+    [property: Id(2)] string? BattleId,
+    [property: Id(3)] ulong WorldId,
+    [property: Id(4)] bool IsInBattle,
+    [property: Id(5)] int CurrentFrame,
+    [property: Id(6)] string[] Members,
+    [property: Id(7)] string DiagnosticsStatus,
+    [property: Id(8)] AdminSkillActorSummaryHttpResponse[] Actors,
+    [property: Id(9)] AdminSkillMetricHttpResponse[] Metrics,
+    [property: Id(10)] string[] Warnings,
+    [property: Id(11)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillActorSummaryHttpResponse(
+    [property: Id(0)] string AccountId,
+    [property: Id(1)] int ActorId,
+    [property: Id(2)] int BasicAttackSkillId,
+    [property: Id(3)] int[] SkillIds,
+    [property: Id(4)] string Diagnostics);
+
+[GenerateSerializer]
+internal sealed record AdminSkillMetricHttpResponse(
+    [property: Id(0)] string Name,
+    [property: Id(1)] double Value,
+    [property: Id(2)] string Unit,
+    [property: Id(3)] string Source);
+
+[GenerateSerializer]
+internal sealed record AdminSkillDiagnosticsEventsHttpResponse(
+    [property: Id(0)] string DiagnosticsStatus,
+    [property: Id(1)] AdminSkillEventFilterHttpResponse Filters,
+    [property: Id(2)] AdminSkillEventHttpResponse[] Events,
+    [property: Id(3)] string[] Warnings,
+    [property: Id(4)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillEventFilterHttpResponse(
+    [property: Id(0)] string? BattleId,
+    [property: Id(1)] int? ActorId,
+    [property: Id(2)] int? SkillId,
+    [property: Id(3)] int Limit);
+
+[GenerateSerializer]
+internal sealed record AdminSkillEventHttpResponse(
+    [property: Id(0)] int Frame,
+    [property: Id(1)] int ActorId,
+    [property: Id(2)] int SkillId,
+    [property: Id(3)] long SkillInstanceId,
+    [property: Id(4)] string Stage,
+    [property: Id(5)] string EventType,
+    [property: Id(6)] int? TargetActorId,
+    [property: Id(7)] double? Value,
+    [property: Id(8)] string? Message,
+    [property: Id(9)] string Severity);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisModelHttpResponse(
+    [property: Id(0)] string ModelVersion,
+    [property: Id(1)] string[] Sources,
+    [property: Id(2)] AdminSkillAnalysisStageHttpResponse[] Stages,
+    [property: Id(3)] AdminSkillAnalysisFieldHttpResponse[] CorrelationFields,
+    [property: Id(4)] AdminSkillAnalysisProjectionSchemaHttpResponse[] ProjectionSchemas,
+    [property: Id(5)] string[] Notes,
+    [property: Id(6)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisStageHttpResponse(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string RuntimeSource,
+    [property: Id(3)] string AcceptanceSource,
+    [property: Id(4)] string[] Fields);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisFieldHttpResponse(
+    [property: Id(0)] string Name,
+    [property: Id(1)] string Description,
+    [property: Id(2)] bool RequiredForCorrelation);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisProjectionSchemaHttpResponse(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string Description,
+    [property: Id(3)] string[] Fields);
+
+[GenerateSerializer]
+internal sealed record AdminApiErrorHttpResponse(
+    [property: Id(0)] string Code,
+    [property: Id(1)] string Message,
+    [property: Id(2)] string Target,
+    [property: Id(3)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceBatchHttpResponse(
+    [property: Id(0)] string ArtifactDirectory,
+    [property: Id(1)] bool HasBatchSummary,
+    [property: Id(2)] JsonNode? BatchSummary,
+    [property: Id(3)] AdminSkillAcceptanceCaseListItemHttpResponse[] Cases,
+    [property: Id(4)] string[] Warnings,
+    [property: Id(5)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceCaseListItemHttpResponse(
+    [property: Id(0)] string CaseId,
+    [property: Id(1)] string? Description,
+    [property: Id(2)] string? WorldId,
+    [property: Id(3)] int TickRate,
+    [property: Id(4)] bool Accelerated,
+    [property: Id(5)] bool? Passed,
+    [property: Id(6)] int FinalFrame,
+    [property: Id(7)] int FinalTimeMs,
+    [property: Id(8)] int TraceNodeCount,
+    [property: Id(9)] string SummaryPath,
+    [property: Id(10)] string TracePath);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceCaseHttpResponse(
+    [property: Id(0)] string CaseId,
+    [property: Id(1)] string ArtifactDirectory,
+    [property: Id(2)] JsonNode? Summary,
+    [property: Id(3)] JsonNode[] TraceRecords,
+    [property: Id(4)] string SummaryPath,
+    [property: Id(5)] string TracePath,
+    [property: Id(6)] string[] Warnings,
+    [property: Id(7)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceRunPlanHttpResponse(
+    [property: Id(0)] bool Allowed,
+    [property: Id(1)] string Message,
+    [property: Id(2)] string ArtifactDirectory,
+    [property: Id(3)] string ExecutionMode,
+    [property: Id(4)] bool CanRequestFromAdmin,
+    [property: Id(5)] AdminSkillAcceptanceExecutionStrategyHttpResponse[] Strategies,
+    [property: Id(6)] AdminSkillAcceptanceAllowedScriptHttpResponse[] AllowedScripts,
+    [property: Id(7)] string[] RequiredApprovals,
+    [property: Id(8)] string[] AuditFields,
+    [property: Id(9)] string[] Notes,
+    [property: Id(10)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceExecutionStrategyHttpResponse(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string Boundary,
+    [property: Id(3)] string Status,
+    [property: Id(4)] string Description);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceAllowedScriptHttpResponse(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string RelativePath,
+    [property: Id(3)] string Shell,
+    [property: Id(4)] bool Exists,
+    [property: Id(5)] string[] Arguments,
+    [property: Id(6)] string[] Produces);
 
 [GenerateSerializer]
 internal sealed record AdminServerOperationHttpRequest(

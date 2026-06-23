@@ -1,3 +1,4 @@
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Game.Battle.Vfx;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ namespace AbilityKit.Game.Flow
     {
         public GameObject Load(string path)
         {
-            return string.IsNullOrEmpty(path) ? null : Resources.Load<GameObject>(path);
+            return ResourcesAssetProvider.Shared.Load<GameObject>(path);
         }
     }
 

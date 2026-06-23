@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
+using AbilityKit.Game.Battle.Shared.Assets;
 using UnityEngine;
 
 namespace AbilityKit.Game.Battle.Moba.Config.Sources
@@ -21,7 +22,7 @@ namespace AbilityKit.Game.Battle.Moba.Config.Sources
         {
             text = null;
             var fullPath = GetFullPath(path);
-            var asset = Resources.Load<TextAsset>(fullPath);
+            var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(fullPath);
             if (asset == null) return false;
             text = asset.text;
             return !string.IsNullOrEmpty(text);
@@ -31,7 +32,7 @@ namespace AbilityKit.Game.Battle.Moba.Config.Sources
         {
             bytes = null;
             var fullPath = GetFullPath(path);
-            var asset = Resources.Load<TextAsset>(fullPath);
+            var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(fullPath);
             if (asset == null) return false;
             bytes = asset.bytes;
             return bytes != null && bytes.Length > 0;

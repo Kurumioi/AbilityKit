@@ -6,9 +6,11 @@ using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 internal static class GatewayHttpApi
 {
@@ -175,10 +177,111 @@ internal static class GatewayHttpApi
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status500InternalServerError);
 
+        group.MapPost("/rooms/create", CreateAdminRoomAsync)
+            .WithName("Gateway.AdminCreateRoom")
+            .Accepts<WebCreateRoomRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/join", JoinAdminRoomAsync)
+            .WithName("Gateway.AdminJoinRoom")
+            .Accepts<WebRoomRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/restore-current", RestoreCurrentAdminRoomAsync)
+            .WithName("Gateway.AdminRestoreCurrentRoom")
+            .Accepts<SessionTokenRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/leave", LeaveAdminRoomAsync)
+            .WithName("Gateway.AdminLeaveRoom")
+            .Accepts<WebRoomRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/close", CloseAdminRoomAsync)
+            .WithName("Gateway.AdminCloseRoom")
+            .Accepts<WebRoomRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/mark-offline", MarkAdminRoomMemberOfflineAsync)
+            .WithName("Gateway.AdminMarkRoomMemberOffline")
+            .Accepts<WebRoomRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/ready", SetAdminRoomReadyAsync)
+            .WithName("Gateway.AdminSetRoomReady")
+            .Accepts<WebRoomReadyRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/pick-hero", PickAdminRoomHeroAsync)
+            .WithName("Gateway.AdminPickRoomHero")
+            .Accepts<WebRoomPickHeroRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
+        group.MapPost("/rooms/start-battle", StartAdminRoomBattleAsync)
+            .WithName("Gateway.AdminStartRoomBattle")
+            .Accepts<WebStartRoomBattleRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
         group.MapGet("/server/status", (IWebHostEnvironment environment) =>
             Results.Ok(GatewayAdminOperations.GetStatus(environment)))
             .WithName("Gateway.AdminServerStatus")
             .Produces<AdminServerStatusHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/cluster/diagnostics", (IClusterClient client, IOptions<AbilityKitOrleansClusterOptions> clusterOptions, IWebHostEnvironment environment) =>
+            Results.Ok(GatewayClusterDiagnostics.GetDiagnostics(client, clusterOptions.Value, environment)))
+            .WithName("Gateway.AdminClusterDiagnostics")
+            .Produces<AdminClusterDiagnosticsHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/summary", async (string? roomId, string? battleId, IClusterClient client) =>
+            Results.Ok(await GatewaySkillDiagnostics.GetSummaryAsync(client, roomId, battleId)))
+            .WithName("Gateway.AdminSkillDiagnosticsSummary")
+            .Produces<AdminSkillDiagnosticsSummaryHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/events", async (string? battleId, int? actorId, int? skillId, int? limit) =>
+            Results.Ok(await GatewaySkillDiagnostics.GetEventsAsync(battleId, actorId, skillId, limit ?? 100)))
+            .WithName("Gateway.AdminSkillDiagnosticsEvents")
+            .Produces<AdminSkillDiagnosticsEventsHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/analysis-model", () =>
+            Results.Ok(GatewaySkillDiagnostics.GetAnalysisModel()))
+            .WithName("Gateway.AdminSkillAnalysisModel")
+            .Produces<AdminSkillAnalysisModelHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/acceptance/batch", (string? artifactDirectory) =>
+            Results.Ok(GatewaySkillAcceptanceArtifacts.GetBatch(artifactDirectory)))
+            .WithName("Gateway.AdminSkillAcceptanceBatch")
+            .Produces<AdminSkillAcceptanceBatchHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/acceptance/cases/{caseId}", (string caseId, string? artifactDirectory, int? traceLimit) =>
+            GatewaySkillAcceptanceArtifacts.GetCase(caseId, artifactDirectory, traceLimit))
+            .WithName("Gateway.AdminSkillAcceptanceCase")
+            .Produces<AdminSkillAcceptanceCaseHttpResponse>(StatusCodes.Status200OK)
+            .Produces<AdminSkillAcceptanceCaseHttpResponse>(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        group.MapGet("/skills/acceptance/run-plan", (string? artifactDirectory) =>
+            Results.Ok(GatewaySkillAcceptanceArtifacts.GetRunPlan(artifactDirectory)))
+            .WithName("Gateway.AdminSkillAcceptanceRunPlan")
+            .Produces<AdminSkillAcceptanceRunPlanHttpResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/server/maintenance", async (AdminServerOperationHttpRequest request, IClusterClient client, IWebHostEnvironment environment) =>
             await ExecuteAdminServerOperationAsync(request, client, environment, GatewayAdminOperations.SetMaintenanceMode))
@@ -267,6 +370,278 @@ internal static class GatewayHttpApi
 
         var room = client.GetGrain<IRoomGrain>(roomId);
         await room.MarkOfflineAsync(accountId);
+    }
+
+    private static Task<IResult> CreateAdminRoomAsync(WebCreateRoomRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            var directory = client.GetGrain<IRoomDirectoryGrain>($"{NormalizeAdminRegion(request.Region)}:{NormalizeAdminServerId(request.ServerId)}");
+            var response = await directory.CreateRoomAsync(new CreateRoomRequest(
+                accountId,
+                NormalizeAdminRegion(request.Region),
+                NormalizeAdminServerId(request.ServerId),
+                string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType,
+                request.Title ?? string.Empty,
+                request.IsPublic,
+                request.MaxPlayers,
+                request.Tags));
+
+            if (request.AutoJoin)
+            {
+                var room = client.GetGrain<IRoomGrain>(response.RoomId);
+                await room.JoinMemberAsync(new JoinRoomMemberRequest(accountId));
+                await BindAdminCurrentRoomAsync(client, accountId, response.RoomId);
+            }
+
+            return Results.Ok(response);
+        });
+    }
+
+    private static Task<IResult> JoinAdminRoomAsync(WebRoomRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            var response = await room.JoinMemberAsync(new JoinRoomMemberRequest(accountId));
+            await BindAdminCurrentRoomAsync(client, accountId, request.RoomId);
+            return Results.Ok(response);
+        });
+    }
+
+    private static Task<IResult> RestoreCurrentAdminRoomAsync(SessionTokenRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+            var roomId = await mapping.TryGetAccountRoomAsync(accountId);
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                return GatewayEndpointHelpers.ToRoomHttpError(
+                    RoomGatewayErrorCodes.AccountNotInRoom,
+                    "No current room for account.",
+                    StatusCodes.Status404NotFound,
+                    GatewayStatusCode.NotFound);
+            }
+
+            var room = client.GetGrain<IRoomGrain>(roomId);
+            var restore = await room.RestoreAsync(accountId);
+            return Results.Ok(restore);
+        });
+    }
+
+    private static Task<IResult> LeaveAdminRoomAsync(WebRoomRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            await room.LeaveAsync(accountId);
+            var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+            await mapping.ClearAccountRoomAsync(accountId, request.RoomId);
+            return Results.Ok(new { Success = true });
+        });
+    }
+
+    private static Task<IResult> CloseAdminRoomAsync(WebRoomRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            await room.CloseAsync(accountId);
+            var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+            await mapping.ClearAccountRoomAsync(accountId, request.RoomId);
+            return Results.Ok(new { Success = true });
+        });
+    }
+
+    private static Task<IResult> MarkAdminRoomMemberOfflineAsync(WebRoomRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            await room.MarkOfflineAsync(accountId);
+            var state = await room.GetRuntimeStateAsync();
+            return Results.Ok(state);
+        });
+    }
+
+    private static Task<IResult> SetAdminRoomReadyAsync(WebRoomReadyRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            await room.SetReadyAsync(new RoomReadyRequest(accountId, request.Ready));
+            var snapshot = await room.GetSnapshotAsync();
+            return Results.Ok(snapshot);
+        });
+    }
+
+    private static Task<IResult> PickAdminRoomHeroAsync(WebRoomPickHeroRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            await room.SubmitGameplayCommandAsync(RoomGameplayCommandRequest.CreateMobaLoadout(
+                accountId,
+                request.HeroId,
+                request.TeamId,
+                request.SpawnPointId,
+                request.Level,
+                request.AttributeTemplateId,
+                request.BasicAttackSkillId,
+                request.SkillIds));
+            await room.SetReadyAsync(new RoomReadyRequest(accountId, true));
+            var snapshot = await room.GetSnapshotAsync();
+            return Results.Ok(snapshot);
+        });
+    }
+
+    private static Task<IResult> StartAdminRoomBattleAsync(WebStartRoomBattleRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var room = client.GetGrain<IRoomGrain>(request.RoomId);
+            var response = await room.StartBattleAsync(new StartRoomBattleRequest(
+                accountId,
+                request.GameplayId,
+                request.RuleSetId,
+                request.ConfigVersion,
+                request.ProtocolVersion,
+                request.WorldType,
+                request.ClientId,
+                new BattleSyncStartOptions(
+                    request.SyncTemplateId,
+                    request.SyncModel ?? 0,
+                    request.NetworkEnvironmentId,
+                    request.CarrierName,
+                    request.EnableAuthoritativeWorld,
+                    request.InterpolationEnabled,
+                    request.InputDelayFrames)));
+            return Results.Ok(response);
+        });
+    }
+
+    private static Task BindAdminCurrentRoomAsync(IClusterClient client, string accountId, string roomId)
+    {
+        var mapping = client.GetGrain<IRoomIdMappingGrain>("global");
+        return mapping.BindAccountRoomAsync(accountId, roomId);
+    }
+
+    private static string NormalizeAdminRegion(string? region)
+    {
+        return string.IsNullOrWhiteSpace(region) ? "dev" : region;
+    }
+
+    private static string NormalizeAdminServerId(string? serverId)
+    {
+        return string.IsNullOrWhiteSpace(serverId) ? "default" : serverId;
+    }
+
+    private static IResult InvalidAdminRoomSession()
+    {
+        return GatewayEndpointHelpers.ToRoomHttpError(
+            RoomGatewayErrorCodes.BadRequest,
+            "Invalid session",
+            StatusCodes.Status400BadRequest,
+            GatewayStatusCode.BadRequest);
+    }
+
+    private static IResult AdminRoomBadRequest(string message)
+    {
+        return GatewayEndpointHelpers.ToRoomHttpError(
+            RoomGatewayErrorCodes.BadRequest,
+            message,
+            StatusCodes.Status400BadRequest,
+            GatewayStatusCode.BadRequest);
     }
 
     private static IResult ListGameplays()

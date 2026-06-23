@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using AbilityKit.Ability.Config;
+using AbilityKit.Game.Battle.Shared.Assets;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 #if UNITY_EDITOR
@@ -21,6 +22,12 @@ namespace AbilityKit.Demo.Moba.View.Config
     public sealed class ResourcesTextAssetLoader : ITextAssetLoader, ITextAssetDirectoryLoader
     {
         private readonly Dictionary<string, TextAsset> _enumeratedAssets = new Dictionary<string, TextAsset>(StringComparer.Ordinal);
+        private readonly IAssetProvider _assets;
+
+        public ResourcesTextAssetLoader(IAssetProvider assets = null)
+        {
+            _assets = assets ?? ResourcesAssetProvider.Shared;
+        }
 
         public bool TryLoadText(string path, out string text)
         {
@@ -30,7 +37,7 @@ namespace AbilityKit.Demo.Moba.View.Config
 
             if (!_enumeratedAssets.TryGetValue(normalizedPath, out var asset) || asset == null)
             {
-                asset = Resources.Load<TextAsset>(normalizedPath);
+                asset = _assets.Load<TextAsset>(normalizedPath);
             }
             if (asset == null) return false;
 
@@ -46,7 +53,7 @@ namespace AbilityKit.Demo.Moba.View.Config
 
             if (!_enumeratedAssets.TryGetValue(normalizedPath, out var asset) || asset == null)
             {
-                asset = Resources.Load<TextAsset>(normalizedPath);
+                asset = _assets.Load<TextAsset>(normalizedPath);
             }
             if (asset == null) return false;
 
@@ -64,7 +71,7 @@ namespace AbilityKit.Demo.Moba.View.Config
             if (editorPaths.Count > 0) return editorPaths;
 #endif
 
-            var assets = Resources.LoadAll<TextAsset>(normalizedDirectory);
+            var assets = _assets.LoadAll<TextAsset>(normalizedDirectory);
             if (assets == null || assets.Length == 0) return Array.Empty<string>();
 
             var paths = new List<string>(assets.Length);

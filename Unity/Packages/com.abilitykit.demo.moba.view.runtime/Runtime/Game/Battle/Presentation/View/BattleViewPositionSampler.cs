@@ -23,10 +23,10 @@ namespace AbilityKit.Game.Flow
             SampleEntity(entity, in pos, _sampleTimes.Resolve(ctx));
         }
 
-        public void SampleAliveEntityPositions(BattleContext ctx, double sampleTime)
+        public void SampleAliveEntityPositions(IBattleEntityContext ctx, double sampleTime)
         {
             if (ctx?.EntityWorld == null) return;
-
+ 
             ctx.EntityWorld.ForEachAlive(entity =>
             {
                 if (!entity.TryGetRef(out BattleNetIdComponent netIdComp) || netIdComp == null) return;
@@ -59,10 +59,10 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleViewSampleTimeResolver
     {
-        public double Resolve(BattleContext ctx)
+        public double Resolve(IBattleRuntimeContext ctx)
         {
             if (ctx == null) return 0d;
-
+ 
             var tickRate = ctx.Plan.World.TickRate;
             if (tickRate <= 0) tickRate = 30;
             return (double)ctx.LastFrame / tickRate;

@@ -1,0 +1,491 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using NUnit.Framework;
+using UnityEngine;
+
+namespace AbilityKit.Game.Test.UnitTest
+{
+    public static class MobaAcceptanceRunner
+    {
+        public const string DefaultExpectationDirectory = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations";
+
+        public static MobaAcceptanceSummary RunSkillExpectationFile(string expectationPath, string artifactDirectory = null, bool exportArtifacts = true)
+        {
+            var expectation = LoadExpectation(expectationPath);
+            return RunSkillExpectation(expectation, artifactDirectory, exportArtifacts, expectationPath);
+        }
+
+        public static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory = null, bool exportArtifacts = true)
+        {
+            return RunSkillExpectation(expectation, artifactDirectory, exportArtifacts, null);
+        }
+
+        public static MobaAcceptanceSummary RunSkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, string expectationPath)
+        {
+            Assert.IsNotNull(expectation, "Acceptance expectation must not be null.");
+
+            var caseId = string.IsNullOrEmpty(expectation.caseId) ? "moba_acceptance" : expectation.caseId;
+            var worldId = ResolveWorldId(expectation, caseId);
+            var tickRate = ResolveTickRate(expectation);
+            expectation.caseId = caseId;
+            expectation.worldId = worldId;
+            expectation.tickRate = tickRate;
+
+            var tracePath = MobaAcceptanceTraceExporter.GetTraceJsonlPath(artifactDirectory, caseId);
+            var summaryPath = MobaAcceptanceTraceExporter.GetSummaryJsonPath(artifactDirectory, caseId);
+
+            return HasScenarioFlow(expectation)
+                ? RunScenarioExpectation(expectation, artifactDirectory, exportArtifacts, expectationPath, tracePath, summaryPath)
+                : RunLegacySkillExpectation(expectation, artifactDirectory, exportArtifacts, expectationPath, tracePath, summaryPath);
+        }
+
+        public static MobaAcceptanceBatchSummary RunExpectationDirectory(string expectationDirectory = null, string artifactDirectory = null, bool exportArtifacts = true, bool recursive = true)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var resolvedExpectationDirectory = ResolveProjectRelativePath(string.IsNullOrEmpty(expectationDirectory) ? DefaultExpectationDirectory : expectationDirectory);
+            Assert.IsTrue(Directory.Exists(resolvedExpectationDirectory), $"Acceptance expectation directory missing: {expectationDirectory}");
+
+            var directory = string.IsNullOrEmpty(artifactDirectory) ? MobaAcceptanceTraceExporter.DefaultArtifactDirectory : artifactDirectory;
+            var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var files = Directory.GetFiles(resolvedExpectationDirectory, "*.expected.json", searchOption);
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+
+            var results = new List<MobaAcceptanceCaseRunResult>(files.Length);
+            for (var i = 0; i < files.Length; i++)
+            {
+                results.Add(RunExpectationFileForBatch(files[i], directory, exportArtifacts));
+            }
+
+            stopwatch.Stop();
+            var batch = BuildBatchSummary(resolvedExpectationDirectory, directory, recursive, stopwatch.ElapsedMilliseconds, results.ToArray());
+            if (exportArtifacts)
+            {
+                ExportBatchSummary(batch);
+            }
+
+            return batch;
+        }
+
+        public static MobaAcceptanceExpectation LoadExpectation(string expectationPath)
+        {
+            Assert.IsFalse(string.IsNullOrEmpty(expectationPath), "Expectation path must not be empty.");
+            var resolvedPath = ResolveProjectRelativePath(expectationPath);
+            Assert.IsTrue(File.Exists(resolvedPath), $"Acceptance expectation file missing: {expectationPath}");
+
+            var json = File.ReadAllText(resolvedPath);
+            var expectation = JsonUtility.FromJson<MobaAcceptanceExpectation>(json);
+            Assert.IsNotNull(expectation, $"Failed to parse acceptance expectation: {expectationPath}");
+            return expectation;
+        }
+
+        public static string ResolveProjectRelativePath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            if (File.Exists(path) || Directory.Exists(path)) return path;
+
+            const string unityPrefix = "Unity/";
+            if (path.StartsWith(unityPrefix, StringComparison.Ordinal))
+            {
+                var withoutUnityPrefix = path.Substring(unityPrefix.Length);
+                if (File.Exists(withoutUnityPrefix) || Directory.Exists(withoutUnityPrefix)) return withoutUnityPrefix;
+            }
+
+            var unityRelativePath = Path.Combine("Unity", path);
+            if (File.Exists(unityRelativePath) || Directory.Exists(unityRelativePath)) return unityRelativePath;
+
+            return path;
+        }
+
+        public static string GetBatchSummaryPath(string artifactDirectory)
+        {
+            var directory = string.IsNullOrEmpty(artifactDirectory) ? MobaAcceptanceTraceExporter.DefaultArtifactDirectory : artifactDirectory;
+            return Path.Combine(directory, "batch_summary.json");
+        }
+
+        private static MobaAcceptanceCaseRunResult RunExpectationFileForBatch(string expectationPath, string artifactDirectory, bool exportArtifacts)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = new MobaAcceptanceCaseRunResult
+            {
+                expectationPath = NormalizePath(expectationPath),
+                startedUtc = DateTime.UtcNow.ToString("O")
+            };
+
+            try
+            {
+                result.summary = RunSkillExpectationFile(expectationPath, artifactDirectory, exportArtifacts);
+                result.caseId = result.summary != null ? result.summary.caseId : string.Empty;
+                result.passed = result.summary != null && result.summary.result != null && result.summary.result.passed;
+            }
+            catch (Exception ex)
+            {
+                result.passed = false;
+                result.errorType = ex.GetType().FullName;
+                result.errorMessage = ex.Message;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                result.durationMs = stopwatch.ElapsedMilliseconds;
+            }
+
+            return result;
+        }
+
+        private static MobaAcceptanceBatchSummary BuildBatchSummary(string expectationDirectory, string artifactDirectory, bool recursive, long durationMs, MobaAcceptanceCaseRunResult[] results)
+        {
+            var passed = 0;
+            var failed = 0;
+            for (var i = 0; i < results.Length; i++)
+            {
+                if (results[i].passed) passed++;
+                else failed++;
+            }
+
+            var summaryPath = GetBatchSummaryPath(artifactDirectory);
+            return new MobaAcceptanceBatchSummary
+            {
+                expectationDirectory = NormalizePath(expectationDirectory),
+                artifactDirectory = NormalizePath(string.IsNullOrEmpty(artifactDirectory) ? MobaAcceptanceTraceExporter.DefaultArtifactDirectory : artifactDirectory),
+                recursive = recursive,
+                startedUtc = DateTime.UtcNow.ToString("O"),
+                durationMs = durationMs,
+                total = results.Length,
+                passed = passed,
+                failed = failed,
+                allPassed = failed == 0,
+                results = results,
+                batchSummaryJsonPath = NormalizePath(summaryPath)
+            };
+        }
+
+        private static void ExportBatchSummary(MobaAcceptanceBatchSummary batch)
+        {
+            if (batch == null) throw new ArgumentNullException(nameof(batch));
+            var path = string.IsNullOrEmpty(batch.batchSummaryJsonPath) ? GetBatchSummaryPath(batch.artifactDirectory) : batch.batchSummaryJsonPath;
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+            File.WriteAllText(path, JsonUtility.ToJson(batch, true));
+        }
+
+        private static MobaAcceptanceSummary RunLegacySkillExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, string expectationPath, string tracePath, string summaryPath)
+        {
+            Assert.IsNotNull(expectation.config, $"Acceptance expectation {expectation.caseId} must include config section.");
+            Assert.IsNotNull(expectation.input, $"Acceptance expectation {expectation.caseId} must include input section.");
+
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                skillIds: new[] { expectation.config.skillId },
+                worldId: expectation.worldId,
+                playerId: string.IsNullOrEmpty(expectation.input.playerId) ? MobaSkillConfigTestHarness.DefaultPlayerId : expectation.input.playerId,
+                tickRate: expectation.tickRate))
+            {
+                AssertConfigChain(harness, expectation);
+
+                harness.EnterGameAndWarmup(reason: "moba acceptance " + expectation.caseId);
+                harness.AssertSlotSkill(expectation.input.slot, expectation.config.skillId);
+
+                var effectTrace = harness.CastSkillSlotAndTickUntilEffect(
+                    slot: expectation.input.slot,
+                    skillId: expectation.config.skillId,
+                    effectId: expectation.config.effectId);
+
+                harness.AssertSkillCastTrace(expectation.config.skillId);
+                AssertRuntimeEffects(harness, expectation, effectTrace.RootId);
+
+                var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
+
+                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, summaryPath);
+                summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
+
+                if (exportArtifacts)
+                {
+                    MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records);
+                }
+
+                return summary;
+            }
+        }
+
+        private static MobaAcceptanceSummary RunScenarioExpectation(MobaAcceptanceExpectation expectation, string artifactDirectory, bool exportArtifacts, string expectationPath, string tracePath, string summaryPath)
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForScenario(expectation, worldId: expectation.worldId, tickRate: expectation.tickRate))
+            {
+                if (expectation.config != null)
+                {
+                    AssertConfigChain(harness, expectation);
+                }
+
+                harness.EnterGameAndWarmup(reason: "moba acceptance scenario " + expectation.caseId);
+                AssertScenarioSlotSkills(harness, expectation);
+                ExecuteSetupActions(harness, GetSetupActions(expectation));
+                ExecuteTimeline(harness, GetTimeline(expectation));
+                TickScenarioTail(harness, expectation);
+
+                var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
+                MobaAcceptanceExpectationAssert.AssertStateMatches(expectation, records, harness);
+
+                var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, summaryPath);
+                summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
+
+                if (exportArtifacts)
+                {
+                    MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records);
+                }
+
+                return summary;
+            }
+        }
+
+        private static void AssertConfigChain(MobaSkillConfigTestHarness harness, MobaAcceptanceExpectation expectation)
+        {
+            harness.AssertSkillUsesCastFlow(expectation.config.skillId, expectation.config.castFlowId);
+            harness.AssertCastFlowContainsTimelineEffect(expectation.config.castFlowId, expectation.config.effectId);
+
+            if (expectation.config.expectedProjectile != null && expectation.config.expectedProjectile.projectileId > 0)
+            {
+                harness.AssertProjectileConfigExists(expectation.config.expectedProjectile.launcherId, expectation.config.expectedProjectile.projectileId);
+            }
+
+            var actions = expectation.config.expectedActions;
+            if (actions == null || actions.Length == 0)
+            {
+                harness.AssertTriggerPlanContainsActions(expectation.config.triggerId);
+                return;
+            }
+
+            var actionIds = new int[actions.Length];
+            for (var i = 0; i < actions.Length; i++)
+            {
+                actionIds[i] = actions[i].actionId;
+            }
+
+            harness.AssertTriggerPlanContainsActions(expectation.config.triggerId, actionIds);
+        }
+
+        private static void AssertRuntimeEffects(MobaSkillConfigTestHarness harness, MobaAcceptanceExpectation expectation, long effectRootId)
+        {
+            var actions = expectation.config.expectedActions;
+            if (actions != null)
+            {
+                for (var i = 0; i < actions.Length; i++)
+                {
+                    harness.AssertActionExecutedUnderEffect(effectRootId, actions[i].actionId, actions[i].type);
+                }
+            }
+
+            if (expectation.config.expectedProjectile != null && expectation.config.expectedProjectile.projectileId > 0)
+            {
+                harness.AssertProjectileLaunchedUnderEffect(
+                    effectRootId,
+                    expectation.config.expectedProjectile.launcherId,
+                    expectation.config.expectedProjectile.projectileId);
+            }
+        }
+
+        private static void AssertScenarioSlotSkills(MobaSkillConfigTestHarness harness, MobaAcceptanceExpectation expectation)
+        {
+            var actors = GetActors(expectation);
+            if (actors == null) return;
+
+            for (var i = 0; i < actors.Length; i++)
+            {
+                var actor = actors[i];
+                if (actor == null || string.IsNullOrEmpty(actor.alias) || string.IsNullOrEmpty(actor.playerId)) continue;
+                if (actor.skillIds == null || actor.skillIds.Length == 0) continue;
+
+                var actorId = harness.AssertActorId(actor.alias);
+                var loadout = harness.World.Services.Resolve<AbilityKit.Demo.Moba.Services.MobaSkillLoadoutService>();
+                for (var slot = 1; slot <= actor.skillIds.Length; slot++)
+                {
+                    Assert.IsTrue(loadout.TryGetSkillId(actorId, slot, out var slotSkillId), $"Slot {slot} skill missing for actor {actor.alias}({actorId}).");
+                    Assert.AreEqual(actor.skillIds[slot - 1], slotSkillId);
+                }
+            }
+        }
+
+        private static void ExecuteSetupActions(MobaSkillConfigTestHarness harness, MobaAcceptanceSetupActionExpectation[] actions)
+        {
+            if (actions == null) return;
+            for (var i = 0; i < actions.Length; i++)
+            {
+                ExecuteAction(harness, actions[i]);
+            }
+        }
+
+        private static void ExecuteTimeline(MobaSkillConfigTestHarness harness, MobaAcceptanceTimelineStepExpectation[] timeline)
+        {
+            if (timeline == null || timeline.Length == 0) return;
+
+            var steps = new List<MobaAcceptanceTimelineStepExpectation>(timeline);
+            steps.Sort((a, b) => Math.Max(0, a != null ? a.atMs : 0).CompareTo(Math.Max(0, b != null ? b.atMs : 0)));
+            var cursorMs = 0;
+            for (var i = 0; i < steps.Count; i++)
+            {
+                var step = steps[i];
+                if (step == null) continue;
+
+                var atMs = Math.Max(0, step.atMs);
+                harness.TickMilliseconds(atMs - cursorMs);
+                cursorMs = atMs;
+                ExecuteAction(harness, step);
+            }
+        }
+
+        private static void TickScenarioTail(MobaSkillConfigTestHarness harness, MobaAcceptanceExpectation expectation)
+        {
+            if (expectation != null && expectation.config != null && expectation.config.skillId > 0 && expectation.config.effectId > 0)
+            {
+                harness.TickMilliseconds(harness.CalculateWaitMillisecondsForSkillEffect(expectation.config.skillId, expectation.config.effectId) + 100);
+                return;
+            }
+
+            harness.Tick(5);
+        }
+
+        private static void ExecuteAction(MobaSkillConfigTestHarness harness, MobaAcceptanceSetupActionExpectation action)
+        {
+            if (action == null || action.enabled == false && string.Equals(action.action, "disabled", StringComparison.OrdinalIgnoreCase)) return;
+            if (IsWaitAction(action.action))
+            {
+                harness.TickMilliseconds(action.durationMs);
+                return;
+            }
+
+            if (IsSkillAction(action.action))
+            {
+                var actorAlias = ResolveActorAlias(harness, action.actorAlias);
+                harness.SubmitSkillInput(actorAlias, action.slot, ResolveSkillInputPhase(action.action), action.targetAlias, action.targetActorId, action.position, action.direction);
+            }
+        }
+
+        private static void ExecuteAction(MobaSkillConfigTestHarness harness, MobaAcceptanceTimelineStepExpectation step)
+        {
+            if (step == null) return;
+            if (IsWaitAction(step.action))
+            {
+                harness.TickMilliseconds(step.durationMs);
+                return;
+            }
+
+            if (IsSkillAction(step.action))
+            {
+                var actorAlias = ResolveActorAlias(harness, step.actorAlias);
+                harness.SubmitSkillInput(actorAlias, step.slot, ResolveSkillInputPhase(step.action), step.targetAlias, step.targetActorId, step.position, step.direction);
+            }
+        }
+
+        private static string ResolveActorAlias(MobaSkillConfigTestHarness harness, string actorAlias)
+        {
+            if (!string.IsNullOrEmpty(actorAlias)) return actorAlias;
+            if (harness != null && harness.ScenarioActors != null)
+            {
+                for (var i = 0; i < harness.ScenarioActors.Length; i++)
+                {
+                    var actor = harness.ScenarioActors[i];
+                    if (actor != null && !string.IsNullOrEmpty(actor.alias) && !string.IsNullOrEmpty(actor.playerId)) return actor.alias;
+                }
+            }
+
+            return MobaSkillConfigTestHarness.DefaultPlayerId;
+        }
+
+        private static string ResolveSkillInputPhase(string action)
+        {
+            if (string.Equals(action, "release", StringComparison.OrdinalIgnoreCase)) return "release";
+            if (string.Equals(action, "hold", StringComparison.OrdinalIgnoreCase)) return "hold";
+            if (string.Equals(action, "cancel", StringComparison.OrdinalIgnoreCase)) return "cancel";
+            return "press";
+        }
+
+        private static bool IsSkillAction(string action)
+        {
+            return string.IsNullOrEmpty(action)
+                || string.Equals(action, "cast_skill", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "skill_input", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "press", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "release", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "hold", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "cancel", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsWaitAction(string action)
+        {
+            return string.Equals(action, "wait", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "tick", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasScenarioFlow(MobaAcceptanceExpectation expectation)
+        {
+            return expectation != null
+                && (expectation.scenario != null
+                    || HasAny(expectation.actors)
+                    || HasAny(GetSetupActions(expectation))
+                    || HasAny(GetTimeline(expectation))
+                    || HasAny(GetStateExpectations(expectation))
+                    || HasAny(GetContextExpectations(expectation)));
+        }
+
+        private static string ResolveWorldId(MobaAcceptanceExpectation expectation, string caseId)
+        {
+            if (expectation != null && expectation.scenario != null && !string.IsNullOrEmpty(expectation.scenario.worldId)) return expectation.scenario.worldId;
+            if (expectation != null && !string.IsNullOrEmpty(expectation.worldId)) return expectation.worldId;
+            return caseId + "_world";
+        }
+
+        private static int ResolveTickRate(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation != null && expectation.scenario != null && expectation.scenario.tickRate > 0) return expectation.scenario.tickRate;
+            if (expectation != null && expectation.tickRate > 0) return expectation.tickRate;
+            return 30;
+        }
+
+        private static MobaAcceptanceActorExpectation[] GetActors(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return null;
+            if (expectation.scenario != null && expectation.scenario.actors != null && expectation.scenario.actors.Length > 0) return expectation.scenario.actors;
+            return expectation.actors;
+        }
+
+        private static MobaAcceptanceSetupActionExpectation[] GetSetupActions(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return null;
+            if (expectation.scenario != null && expectation.scenario.setupActions != null && expectation.scenario.setupActions.Length > 0) return expectation.scenario.setupActions;
+            return expectation.setupActions;
+        }
+
+        private static MobaAcceptanceTimelineStepExpectation[] GetTimeline(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return null;
+            if (expectation.scenario != null && expectation.scenario.timeline != null && expectation.scenario.timeline.Length > 0) return expectation.scenario.timeline;
+            return expectation.timeline;
+        }
+
+        private static MobaAcceptanceStateExpectation[] GetStateExpectations(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return null;
+            if (expectation.scenario != null && expectation.scenario.stateExpectations != null && expectation.scenario.stateExpectations.Length > 0) return expectation.scenario.stateExpectations;
+            return expectation.stateExpectations;
+        }
+
+        private static MobaAcceptanceContextExpectation[] GetContextExpectations(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return null;
+            if (expectation.scenario != null && expectation.scenario.contextExpectations != null && expectation.scenario.contextExpectations.Length > 0) return expectation.scenario.contextExpectations;
+            return expectation.contextExpectations;
+        }
+
+        private static bool HasAny<T>(T[] values)
+        {
+            return values != null && values.Length > 0;
+        }
+
+        private static string NormalizePath(string path)
+        {
+            return string.IsNullOrEmpty(path) ? path : path.Replace('\\', '/');
+        }
+    }
+}

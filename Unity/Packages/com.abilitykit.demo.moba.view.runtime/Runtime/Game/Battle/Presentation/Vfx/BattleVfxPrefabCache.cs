@@ -39,7 +39,7 @@ namespace AbilityKit.Game.Battle.Vfx
     {
         public GameObject Load(string resource)
         {
-            return string.IsNullOrEmpty(resource) ? null : Resources.Load<GameObject>(resource);
+            return AbilityKit.Game.Battle.Shared.Assets.ResourcesAssetProvider.Shared.Load<GameObject>(resource);
         }
     }
 }

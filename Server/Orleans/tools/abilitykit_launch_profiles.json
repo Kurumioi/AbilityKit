@@ -1,0 +1,38 @@
+{
+  "defaultProfile": "dev",
+  "profiles": {
+    "dev": {
+      "description": "Default single local development environment. Gateway admin is served from http://localhost:5001/admin.",
+      "instanceName": "dev",
+      "clusterId": "abilitykit-dev",
+      "serviceId": "abilitykit-orleans",
+      "configuration": "Debug",
+      "gatewayPort": 5001,
+      "siloPort": 11111,
+      "siloGatewayPort": 30000,
+      "tcpPort": 4000
+    },
+    "ops-a": {
+      "description": "First parallel operations/demo environment on alternate ports.",
+      "instanceName": "ops-a",
+      "clusterId": "abilitykit-ops-a",
+      "serviceId": "abilitykit-orleans-ops-a",
+      "configuration": "Debug",
+      "gatewayPort": 5011,
+      "siloPort": 11211,
+      "siloGatewayPort": 30100,
+      "tcpPort": 4010
+    },
+    "ops-b": {
+      "description": "Second parallel operations/demo environment on alternate ports.",
+      "instanceName": "ops-b",
+      "clusterId": "abilitykit-ops-b",
+      "serviceId": "abilitykit-orleans-ops-b",
+      "configuration": "Debug",
+      "gatewayPort": 5021,
+      "siloPort": 11311,
+      "siloGatewayPort": 30200,
+      "tcpPort": 4020
+    }
+  }
+}

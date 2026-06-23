@@ -11,10 +11,24 @@ namespace AbilityKit.Game.Flow.Battle.View
         public Vector3 Velocity { get; set; }
         public Color BaseColor { get; set; }
 
+        public void Reset(string text, in Vector3 worldPos, Color color)
+        {
+            if (GameObject == null || Text == null) return;
+
+            GameObject.transform.position = worldPos;
+            GameObject.SetActive(true);
+            Text.text = text;
+            Text.color = color;
+            Age = 0f;
+            Lifetime = 0.9f;
+            Velocity = new Vector3(0f, 1.5f, 0f);
+            BaseColor = color;
+        }
+
         public bool Tick(float deltaTime)
         {
             if (GameObject == null || Text == null) return false;
-
+ 
             Age += deltaTime;
             GameObject.transform.position += Velocity * deltaTime;
 
@@ -26,6 +40,14 @@ namespace AbilityKit.Game.Flow.Battle.View
             return Age < Lifetime;
         }
 
+        public void Deactivate()
+        {
+            if (GameObject != null)
+            {
+                GameObject.SetActive(false);
+            }
+        }
+
         public void Destroy()
         {
             if (GameObject != null)
@@ -33,7 +55,7 @@ namespace AbilityKit.Game.Flow.Battle.View
                 Object.Destroy(GameObject);
                 GameObject = null;
             }
-
+ 
             Text = null;
         }
     }

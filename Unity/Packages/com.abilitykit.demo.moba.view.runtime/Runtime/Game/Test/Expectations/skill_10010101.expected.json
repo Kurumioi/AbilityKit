@@ -1,0 +1,78 @@
+{
+  "caseId": "skill_10010101_basic",
+  "description": "Skill slot 1 casts skill 10010101 and executes configured effect 10001 down to concrete trigger actions and projectile launch.",
+  "worldId": "skill_10010101_acceptance_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "input": {
+    "playerId": "p1",
+    "slot": 1,
+    "phase": "Press"
+  },
+  "config": {
+    "skillId": 10010101,
+    "castFlowId": 10010101,
+    "effectId": 10001,
+    "triggerId": 10001,
+    "expectedActions": [
+      {
+        "actionId": 589451731,
+        "type": "debug_log"
+      },
+      {
+        "actionId": 508656420,
+        "type": "shoot_projectile"
+      }
+    ],
+    "expectedProjectile": {
+      "launcherId": 100001,
+      "projectileId": 200001
+    }
+  },
+  "mustContain": [
+    {
+      "kind": "SkillCast",
+      "configId": 10010101
+    },
+    {
+      "kind": "EffectExecution",
+      "configId": 10001
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 589451731,
+      "underEffectId": 10001
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 508656420,
+      "underEffectId": 10001
+    },
+    {
+      "kind": "ProjectileLaunch",
+      "configId": 200001,
+      "underEffectId": 10001
+    }
+  ],
+  "mustNotContain": [],
+  "relationships": [
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10001,
+      "childKind": "EffectAction",
+      "childConfigId": 589451731
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10001,
+      "childKind": "EffectAction",
+      "childConfigId": 508656420
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10001,
+      "childKind": "ProjectileLaunch",
+      "childConfigId": 200001
+    }
+  ]
+}

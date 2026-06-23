@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.ECS.Entitas;
@@ -9,10 +10,16 @@ namespace AbilityKit.Game.Battle
     public sealed class DefaultBattleDebugFacade : IBattleDebugFacade
     {
         private readonly List<EcsEntityId> _entityIdCache = new List<EcsEntityId>(256);
-
+        private readonly Func<BattleLogicSession> _sessionProvider;
+ 
+        public DefaultBattleDebugFacade(Func<BattleLogicSession> sessionProvider = null)
+        {
+            _sessionProvider = sessionProvider;
+        }
+ 
         public bool TryGetSession(out BattleLogicSession session)
         {
-            session = BattleLogicSessionHost.Current;
+            session = _sessionProvider != null ? _sessionProvider() : null;
             return session != null;
         }
 

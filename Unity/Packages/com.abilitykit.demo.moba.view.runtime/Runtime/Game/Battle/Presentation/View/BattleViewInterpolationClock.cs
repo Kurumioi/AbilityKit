@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Flow
         public double RenderTime => _renderTime;
 
         public bool Advance(
-            BattleContext ctx,
+            IBattleRuntimeContext ctx,
             float deltaTime,
             float backTimeTicks,
             float maxLagTicks,

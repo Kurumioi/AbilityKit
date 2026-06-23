@@ -1,3 +1,4 @@
+using AbilityKit.Game.Battle.Shared.Assets;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -29,7 +30,7 @@ namespace AbilityKit.Game.Flow
         private GameObject CreateGameObject(BattleHudConfig cfg, RectTransform root)
         {
             var prefab = !string.IsNullOrEmpty(cfg.HpBarPrefabPath)
-                ? Resources.Load<GameObject>(cfg.HpBarPrefabPath)
+                ? ResourcesAssetProvider.Shared.Load<GameObject>(cfg.HpBarPrefabPath)
                 : null;
 
             if (prefab != null)

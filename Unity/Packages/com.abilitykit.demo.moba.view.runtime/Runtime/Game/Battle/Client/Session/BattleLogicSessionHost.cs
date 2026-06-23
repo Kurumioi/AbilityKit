@@ -4,43 +4,32 @@ namespace AbilityKit.Game.Battle
 {
     public static class BattleLogicSessionHost
     {
-        private static BattleLogicSession _current;
+        private static IBattleLogicSessionRegistry _registry = new DefaultBattleLogicSessionRegistry();
 
-        public static event Action<BattleLogicSession> SessionChanged;
+        public static event Action<BattleLogicSession> SessionChanged
+        {
+            add => _registry.SessionChanged += value;
+            remove => _registry.SessionChanged -= value;
+        }
 
-        public static BattleLogicSession Current => _current;
+        public static IBattleLogicSessionRegistry Registry
+        {
+            get => _registry;
+            set => _registry = value ?? throw new ArgumentNullException(nameof(value));
+        }
 
-        public static bool HasSession => _current != null;
+        public static BattleLogicSession Current => _registry.Current;
+
+        public static bool HasSession => _registry.HasSession;
 
         public static BattleLogicSession Start(BattleLogicSessionOptions options, IBattleLogicTransport remoteTransport = null)
         {
-            if (options == null) throw new ArgumentNullException(nameof(options));
-
-            if (BattleDebugFacadeProvider.Current == null)
-            {
-                BattleDebugFacadeProvider.Current = new DefaultBattleDebugFacade();
-            }
-
-            Stop();
-
-            _current = new BattleLogicSession(options, remoteTransport);
-            SessionChanged?.Invoke(_current);
-            return _current;
+            return _registry.Start(options, remoteTransport);
         }
 
         public static void Stop()
         {
-            if (_current == null) return;
-
-            try
-            {
-                _current.Dispose();
-            }
-            finally
-            {
-                _current = null;
-                SessionChanged?.Invoke(null);
-            }
+            _registry.Stop();
         }
     }
 }

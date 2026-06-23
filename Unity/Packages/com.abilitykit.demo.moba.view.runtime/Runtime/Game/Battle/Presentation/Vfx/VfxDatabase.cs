@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Game.Battle.Shared.Assets;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -24,7 +25,7 @@ namespace AbilityKit.Game.Battle.Vfx
         {
             if (string.IsNullOrEmpty(path)) throw new ArgumentException(nameof(path));
 
-            var asset = Resources.Load<TextAsset>(path);
+            var asset = ResourcesAssetProvider.Shared.Load<TextAsset>(path);
             if (asset == null) throw new InvalidOperationException($"Vfx json not found in Resources: {path}");
 
             var json = asset.text;

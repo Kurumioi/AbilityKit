@@ -14,7 +14,41 @@ This folder contains the Orleans server, TCP gateway, room/battle grains, and Sh
 
 ## Run
 
-- Build and run `AbilityKit.Orleans.Host` for standalone local server development.
+Use the one-click launcher to build and start the Orleans Host plus HTTP/TCP Gateway for local development:
+
+```powershell
+.\tools\start_abilitykit.ps1
+```
+
+The default `dev` profile serves the admin console at `http://localhost:5001/admin` and the health endpoint at `http://localhost:5001/health`.
+
+List configured launch profiles:
+
+```powershell
+.\tools\start_abilitykit.ps1 -ListProfiles
+```
+
+Run a named environment profile:
+
+```powershell
+.\tools\start_abilitykit.ps1 -Profile ops-a
+```
+
+Run multiple local environments on one machine by starting profiles with isolated ports and cluster IDs:
+
+```powershell
+.\tools\start_abilitykit.ps1 -Profile ops-a,ops-b -NoBuild
+```
+
+Override ports directly when a profile needs temporary port changes:
+
+```powershell
+.\tools\start_abilitykit.ps1 -Profile dev -GatewayPort 5051 -SiloPort 11511 -SiloGatewayPort 30500 -TcpPort 4050
+```
+
+Profiles are defined in `tools\abilitykit_launch_profiles.json`. Each profile owns its `instanceName`, `clusterId`, `serviceId`, HTTP gateway port, Orleans silo port, Orleans gateway port, and TCP gateway port. Logs are written under `logs\<instanceName>\`.
+
+`tools\restart_all.ps1` remains as a compatibility wrapper and now delegates to the profile launcher.
 
 ## Shooter Smoke
 

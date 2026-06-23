@@ -1,5 +1,6 @@
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Game.Battle.Shared.Logging;
 using AbilityKit.Protocol.Moba;
 using UnityEngine;
 
@@ -40,6 +41,7 @@ namespace AbilityKit.Game.Flow
         private static BattleStartConfig LoadConfig()
         {
 #if UNITY_EDITOR
+            var logger = new UnityBattleLogger();
             var guids = AssetDatabase.FindAssets($"t:{nameof(BattleStartConfig)}");
             for (int i = 0; i < guids.Length; i++)
             {
@@ -47,12 +49,12 @@ namespace AbilityKit.Game.Flow
                 var asset = AssetDatabase.LoadAssetAtPath<BattleStartConfig>(path);
                 if (asset != null)
                 {
-                    Debug.Log($"[TestBattleBootstrapper] Loaded BattleStartConfig from: {path}");
+                    logger.Info($"[TestBattleBootstrapper] Loaded BattleStartConfig from: {path}");
                     return asset;
                 }
             }
 
-            Debug.LogWarning("[TestBattleBootstrapper] BattleStartConfig not found via AssetDatabase. Falling back to defaults (Local mode).");
+            logger.Warning("[TestBattleBootstrapper] BattleStartConfig not found via AssetDatabase. Falling back to defaults (Local mode).");
 #endif
             return ScriptableObject.CreateInstance<BattleStartConfig>();
         }

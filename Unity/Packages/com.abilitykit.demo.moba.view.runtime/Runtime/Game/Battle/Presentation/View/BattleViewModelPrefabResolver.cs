@@ -1,5 +1,6 @@
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Game.Battle.Shared.Assets;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -13,7 +14,7 @@ namespace AbilityKit.Game.Flow
     {
         public GameObject Load(string path)
         {
-            return string.IsNullOrEmpty(path) ? null : Resources.Load<GameObject>(path);
+            return ResourcesAssetProvider.Shared.Load<GameObject>(path);
         }
     }
 

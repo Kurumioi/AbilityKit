@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Game.Flow.Battle.View
@@ -5,6 +6,12 @@ namespace AbilityKit.Game.Flow.Battle.View
     internal sealed class BattleFloatingTextStore
     {
         private readonly List<BattleWorldFloatingText> _items = new List<BattleWorldFloatingText>(64);
+        private readonly Action<BattleWorldFloatingText> _release;
+
+        public BattleFloatingTextStore(Action<BattleWorldFloatingText> release = null)
+        {
+            _release = release;
+        }
 
         public void Add(BattleWorldFloatingText floatingText)
         {
@@ -27,7 +34,7 @@ namespace AbilityKit.Game.Flow.Battle.View
 
                 if (floatingText.Tick(deltaTime)) continue;
 
-                floatingText.Destroy();
+                Release(floatingText);
                 _items.RemoveAt(i);
             }
         }
@@ -36,10 +43,22 @@ namespace AbilityKit.Game.Flow.Battle.View
         {
             for (var i = 0; i < _items.Count; i++)
             {
-                _items[i]?.Destroy();
+                Release(_items[i]);
             }
 
             _items.Clear();
+        }
+
+        private void Release(BattleWorldFloatingText floatingText)
+        {
+            if (floatingText == null) return;
+            if (_release != null)
+            {
+                _release(floatingText);
+                return;
+            }
+
+            floatingText.Destroy();
         }
     }
 }

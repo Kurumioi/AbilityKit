@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
+using AbilityKit.Orleans.Gateway.HttpApi;
 using Xunit;
 
 namespace AbilityKit.Orleans.Gateway.Tests;
@@ -26,27 +28,123 @@ public sealed class GatewayAdminConsoleTests
     public void Admin_console_source_should_wrap_api_and_dashboard_calls()
     {
         var apiClient = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "adminApiClient.ts"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
+        var boundaries = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "adminApiBoundaries.ts"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
         var app = File.ReadAllText(GetAdminConsoleProjectPath("src", "App.vue"));
 
         Assert.Contains("export class AdminApiClient", apiClient);
         Assert.Contains("VITE_ABILITYKIT_GATEWAY_URL", apiClient);
-        Assert.Contains("/api/admin/dashboard", app);
-        Assert.Contains("refreshDashboard", app);
-        Assert.Contains("adminStorage", app);
+        Assert.Contains("export class AdminDomainApis", domainApi);
+        Assert.Contains("export class AdminSkillApi", domainApi);
+        Assert.Contains("export class RoomApi", domainApi);
+        Assert.Contains("adminApiBoundaries", boundaries);
+        Assert.Contains("/api/admin", boundaries);
+        Assert.Contains("/api/rooms", boundaries);
+        Assert.Contains("useAdminConsoleStore", store);
+        Assert.Contains("/api/admin/dashboard", domainApi);
+        Assert.Contains("refreshDashboard", store);
+        Assert.Contains("adminStorage", store);
+        Assert.Contains("AdminApiBoundaryPanel", app);
+    }
+
+    [Fact]
+    public void Admin_console_source_should_expose_formal_layout_and_server_operations()
+    {
+        var app = File.ReadAllText(GetAdminConsoleProjectPath("src", "App.vue"));
+        var sidebar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "AdminSidebar.vue"));
+        var topbar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "AdminTopbar.vue"));
+        var skillDiagnosticsPanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillDiagnosticsPanel.vue"));
+        var skillAcceptancePanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillAcceptancePanel.vue"));
+        var navigation = File.ReadAllText(GetAdminConsoleProjectPath("src", "navigation", "adminNavigation.ts"));
+        var router = File.ReadAllText(GetAdminConsoleProjectPath("src", "router", "adminRouter.ts"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var skillAcceptanceAnalysis = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "skillAcceptanceAnalysis.ts"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
+        var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+        var css = File.ReadAllText(GetAdminConsoleProjectPath("src", "styles.css"));
+
+        Assert.Contains("class=\"admin-layout shell\"", app);
+        Assert.Contains("class=\"sidebar\"", sidebar);
+        Assert.Contains("class=\"workspace\"", app);
+        Assert.Contains("class=\"topbar\"", topbar);
+        Assert.Contains("id=\"overview\"", app);
+        Assert.Contains("id=\"ops\"", app);
+        Assert.Contains("id=\"rooms\"", app);
+        Assert.Contains("id=\"battle\"", app);
+        Assert.Contains("id=\"debug\"", app);
+        Assert.Contains("服务器运维", app);
+        Assert.Contains("集群诊断", app);
+        Assert.Contains("SkillDiagnosticsPanel", app);
+        Assert.Contains("SkillAcceptancePanel", app);
+        Assert.Contains("技能分析", skillDiagnosticsPanel);
+        Assert.Contains("Scenario 验收报告", skillAcceptancePanel);
+        Assert.Contains("id=\"cluster\"", app);
+        Assert.Contains("id=\"skills\"", skillDiagnosticsPanel);
+        Assert.Contains("id=\"skill-acceptance\"", skillAcceptancePanel);
+        Assert.Contains("cluster-panel", app);
+        Assert.Contains("skill-panel", skillDiagnosticsPanel);
+        Assert.Contains("acceptance-panel", skillAcceptancePanel);
+        Assert.Contains("buildAcceptanceTraceTree", skillAcceptanceAnalysis);
+        Assert.Contains("buildAcceptanceAssertionGroups", skillAcceptanceAnalysis);
+        Assert.Contains("clusterLabel", store);
+        Assert.Contains("serverModeLabel", store);
+        Assert.Contains("refreshServerStatus", store);
+        Assert.Contains("refreshClusterDiagnostics", store);
+        Assert.Contains("refreshSkillSummary", store);
+        Assert.Contains("refreshSkillEvents", store);
+        Assert.Contains("submitMobaLoadout", store);
+        Assert.Contains("setMaintenanceMode", store);
+        Assert.Contains("setDrainMode", store);
+        Assert.Contains("requestRestart", store);
+        Assert.Contains("adminNavigationItems", navigation);
+        Assert.Contains("resolveAdminRouteKey", navigation);
+        Assert.Contains("useAdminRouter", router);
+        Assert.Contains("/api/admin/server/status", domainApi);
+        Assert.Contains("/api/admin/server/maintenance", domainApi);
+        Assert.Contains("/api/admin/server/drain", domainApi);
+        Assert.Contains("/api/admin/server/restart-request", domainApi);
+        Assert.Contains("/api/admin/rooms/create", domainApi);
+        Assert.Contains("/api/admin/rooms/pick-hero", domainApi);
+        Assert.Contains("/api/admin/rooms/start-battle", domainApi);
+        Assert.DoesNotContain("'/api/rooms/", domainApi);
+        Assert.Contains("/api/admin/skills/summary", domainApi);
+        Assert.Contains("/api/admin/skills/events", domainApi);
+        Assert.Contains("export interface AdminServerStatus", types);
+        Assert.Contains("export interface AdminClusterDiagnostics", types);
+        Assert.Contains("export interface AdminClusterNodeProbe", types);
+        Assert.Contains("export interface AdminSkillDiagnosticsSummary", types);
+        Assert.Contains("export interface AdminSkillDiagnosticsEvents", types);
+        Assert.Contains("export interface AdminSkillEvent", types);
+        Assert.Contains("export interface AdminServerOperationResponse", types);
+        Assert.Contains("serverStatus?: AdminServerStatus | null", types);
+        Assert.Contains(".admin-layout", css);
+        Assert.Contains(".sidebar", css);
+        Assert.Contains(".topbar", css);
+        Assert.Contains(".featured-card", css);
+        Assert.Contains(".ops-status", css);
+        Assert.Contains(".cluster-panel", css);
+        Assert.Contains(".diagnostic-grid", css);
+        Assert.Contains(".probe-item", css);
+        Assert.Contains(".skill-panel", css);
+        Assert.Contains(".skill-layout", css);
+        Assert.Contains(".event-timeline", css);
+        Assert.Contains(".badge", css);
     }
 
     [Fact]
     public void Admin_console_source_should_default_to_shooter_operations()
     {
-        var app = File.ReadAllText(GetAdminConsoleProjectPath("src", "App.vue"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
 
-        Assert.Contains("selectedRoomType = ref('shooter')", app);
-        Assert.Contains("roomType: 'shooter'", app);
-        Assert.Contains("gameplayId: 2", app);
-        Assert.Contains("worldType: 'shooter_battle'", app);
-        Assert.Contains("syncTemplateId: 'pure-state-authority'", app);
-        Assert.Contains("startShooterRoomQuick", app);
-        Assert.Contains("/api/shooter-sandbox/start", app);
+        Assert.Contains("selectedRoomType = ref('shooter')", store);
+        Assert.Contains("roomType: 'shooter'", store);
+        Assert.Contains("gameplayId: 2", store);
+        Assert.Contains("worldType: 'shooter_battle'", store);
+        Assert.Contains("syncTemplateId: 'pure-state-authority'", store);
+        Assert.Contains("startShooterRoomQuick", store);
+        Assert.Contains("/api/shooter-sandbox/start", domainApi);
     }
 
     [Fact]
@@ -95,6 +193,297 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("BuildAdminDashboardAsync", source);
         Assert.Contains("AdminDashboardHttpResponse", source);
         Assert.Contains("GatewayGameplayCatalog.All", source);
+        Assert.Contains("GatewayAdminOperations.GetStatus", source);
+    }
+
+    [Fact]
+    public void Gateway_api_should_expose_admin_cluster_diagnostics()
+    {
+        var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
+        var diagnostics = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayClusterDiagnostics.cs"));
+
+        Assert.Contains("/cluster/diagnostics", api);
+        Assert.Contains("Gateway.AdminClusterDiagnostics", api);
+        Assert.Contains("GatewayClusterDiagnostics.GetDiagnostics", api);
+        Assert.Contains("AbilityKitOrleansClusterOptions", api);
+        Assert.Contains("AdminClusterDiagnosticsHttpResponse", models);
+        Assert.Contains("AdminClusterNodeProbeHttpResponse", models);
+        Assert.Contains("internal static class GatewayClusterDiagnostics", diagnostics);
+        Assert.Contains("runtimeMetrics", diagnostics);
+        Assert.Contains("gateway-client", diagnostics);
+        Assert.Contains("local-silo", diagnostics);
+    }
+
+    [Fact]
+    public void Gateway_api_should_expose_admin_skill_diagnostics()
+    {
+        var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
+        var diagnostics = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillDiagnostics.cs"));
+        var modelProvider = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAnalysisModelProvider.cs"));
+        var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+        var projection = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "skillAnalysisProjection.ts"));
+        var visualizer = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillTraceVisualizer.vue"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+ 
+        Assert.Contains("/skills/summary", api);
+        Assert.Contains("/skills/events", api);
+        Assert.Contains("/skills/analysis-model", api);
+        Assert.Contains("Gateway.AdminSkillDiagnosticsSummary", api);
+        Assert.Contains("Gateway.AdminSkillDiagnosticsEvents", api);
+        Assert.Contains("Gateway.AdminSkillAnalysisModel", api);
+        Assert.Contains("GatewaySkillDiagnostics.GetSummaryAsync", api);
+        Assert.Contains("GatewaySkillDiagnostics.GetEventsAsync", api);
+        Assert.Contains("GatewaySkillDiagnostics.GetAnalysisModel", api);
+        Assert.Contains("AdminSkillDiagnosticsSummaryHttpResponse", models);
+        Assert.Contains("AdminSkillDiagnosticsEventsHttpResponse", models);
+        Assert.Contains("AdminSkillEventHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisModelHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisStageHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisFieldHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisProjectionSchemaHttpResponse", models);
+        Assert.Contains("ProjectionSchemas", models);
+        Assert.Contains("internal static class GatewaySkillDiagnostics", diagnostics);
+        Assert.Contains("TraceNotConnected", diagnostics);
+        Assert.Contains("GetCurrentFrameAsync", diagnostics);
+        Assert.Contains("GatewaySkillAnalysisModelProvider.GetModel", diagnostics);
+        Assert.Contains("internal static class GatewaySkillAnalysisModelProvider", modelProvider);
+        Assert.Contains("ModelVersion = \"skill-analysis-v1\"", modelProvider);
+        Assert.Contains("SkillAnalysisStageDefinition", modelProvider);
+        Assert.Contains("SkillAnalysisFieldDefinition", modelProvider);
+        Assert.Contains("SkillAnalysisProjectionSchemaDefinition", modelProvider);
+        Assert.Contains("analysis-node-v1", modelProvider);
+        Assert.Contains("analysis-filter-v1", modelProvider);
+        Assert.Contains("analysis-entity-relation-v1", modelProvider);
+        Assert.Contains("analysis-timeline-event-v1", modelProvider);
+        Assert.Contains("SkillPipelineContext / SkillPipelineRunner", modelProvider);
+        Assert.Contains("export interface SkillAnalysisFilterState", types);
+        Assert.Contains("export interface SkillAnalysisEntityRelationProjection", types);
+        Assert.Contains("createDefaultSkillAnalysisFilter", projection);
+        Assert.Contains("filterSkillAnalysisNodes", projection);
+        Assert.Contains("buildSkillAnalysisEntityRelations", projection);
+        Assert.Contains("inferSkillAnalysisEntityKind", projection);
+        Assert.Contains("trace-filter-panel", visualizer);
+        Assert.Contains("战斗实体关联", visualizer);
+        Assert.Contains("sourceContext", visualizer);
+        Assert.Contains("acceptanceAnalysisFilteredFlat", store);
+        Assert.Contains("runtimeAnalysisEntityRelations", store);
+    }
+
+    [Fact]
+    public void Gateway_api_should_expose_admin_skill_acceptance_artifacts()
+    {
+        var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
+        var artifacts = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAcceptanceArtifacts.cs"));
+
+        Assert.Contains("/skills/acceptance/batch", api);
+        Assert.Contains("/skills/acceptance/cases/{caseId}", api);
+        Assert.Contains("/skills/acceptance/run-plan", api);
+        Assert.Contains("Gateway.AdminSkillAcceptanceBatch", api);
+        Assert.Contains("Gateway.AdminSkillAcceptanceCase", api);
+        Assert.Contains("Gateway.AdminSkillAcceptanceRunPlan", api);
+        Assert.Contains("GatewaySkillAcceptanceArtifacts.GetBatch", api);
+        Assert.Contains("GatewaySkillAcceptanceArtifacts.GetCase", api);
+        Assert.Contains("GatewaySkillAcceptanceArtifacts.GetRunPlan", api);
+        Assert.Contains("AdminApiErrorHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceBatchHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceCaseListItemHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceCaseHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceRunPlanHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceExecutionStrategyHttpResponse", models);
+        Assert.Contains("AdminSkillAcceptanceAllowedScriptHttpResponse", models);
+        Assert.Contains("DefaultArtifactDirectory = \"artifacts/moba-acceptance\"", artifacts);
+        Assert.Contains("ArtifactRootDirectory = \"artifacts\"", artifacts);
+        Assert.Contains("BatchSummaryFileName = \"batch_summary.json\"", artifacts);
+        Assert.Contains("SummaryFileSuffix = \"_summary.json\"", artifacts);
+        Assert.Contains("TraceFileSuffix = \"_trace.jsonl\"", artifacts);
+        Assert.Contains("SummarySearchPattern = \"*_summary.json\"", artifacts);
+        Assert.Contains("Read-only artifact browsing is available now.", artifacts);
+        Assert.Contains("allow-listed script", artifacts);
+        Assert.Contains("BuildAllowedScripts", artifacts);
+        Assert.Contains("BuildExecutionStrategies", artifacts);
+        Assert.Contains("ResolveArtifactDirectory", artifacts);
+        Assert.Contains("ArtifactDirectoryResolution", artifacts);
+        Assert.Contains("ArtifactDirectoryOutOfBounds", artifacts);
+        Assert.Contains("BuildError", artifacts);
+        Assert.Contains("ValidateCaseId", artifacts);
+        Assert.Contains("SanitizeCaseId", artifacts);
+        Assert.Contains("ReadTraceRecords", artifacts);
+        Assert.Contains("ReadNullableBool", artifacts);
+    }
+
+    [Fact]
+    public void Gateway_skill_acceptance_artifacts_should_persist_and_reload_web_analysis_content()
+    {
+        var artifactDirectory = Path.Combine("artifacts", "moba-acceptance-web-analysis-persistence");
+        var fullArtifactDirectory = Path.GetFullPath(artifactDirectory, Directory.GetCurrentDirectory());
+        if (Directory.Exists(fullArtifactDirectory))
+        {
+            Directory.Delete(fullArtifactDirectory, recursive: true);
+        }
+
+        Directory.CreateDirectory(fullArtifactDirectory);
+
+        var caseId = "skill_web_analysis_persistence";
+        var summaryPath = Path.Combine(fullArtifactDirectory, caseId + "_summary.json");
+        var tracePath = Path.Combine(fullArtifactDirectory, caseId + "_trace.jsonl");
+        var batchPath = Path.Combine(fullArtifactDirectory, "batch_summary.json");
+
+        File.WriteAllText(batchPath, """
+            {
+              "total": 1,
+              "passed": 1,
+              "failed": 0,
+              "allPassed": true
+            }
+            """);
+        File.WriteAllText(summaryPath, $$"""
+            {
+              "caseId": "{{caseId}}",
+              "description": "web analysis persistence smoke",
+              "worldId": "web_analysis_world",
+              "tickRate": 30,
+              "accelerated": true,
+              "summaryJsonPath": "{{NormalizeJsonPath(summaryPath)}}",
+              "traceJsonlPath": "{{NormalizeJsonPath(tracePath)}}",
+              "result": {
+                "passed": true,
+                "finalFrame": 12,
+                "finalTimeMs": 400,
+                "traceNodeCount": 3,
+                "skillCastTraceFound": true,
+                "effectExecutionTraceFound": true,
+                "projectileLaunched": true
+              }
+            }
+            """);
+        File.WriteAllLines(tracePath, new[]
+        {
+            "{\"contextId\":101,\"parentContextId\":0,\"rootContextId\":101,\"kind\":\"SkillCast\",\"stage\":\"skill-cast\",\"actorId\":1,\"skillId\":10010101,\"frame\":1,\"severity\":\"info\",\"message\":\"cast accepted\"}",
+            "{\"contextId\":102,\"parentContextId\":101,\"rootContextId\":101,\"kind\":\"EffectExecution\",\"stage\":\"effect-execution\",\"sourceActorId\":1,\"targetActorId\":2,\"configId\":2001,\"frame\":2,\"severity\":\"info\",\"message\":\"effect executed\"}",
+            "{\"contextId\":103,\"parentContextId\":102,\"rootContextId\":101,\"ownerContextId\":102,\"kind\":\"ProjectileLaunch\",\"stage\":\"projectile\",\"sourceActorId\":1,\"targetActorId\":2,\"configId\":3001,\"frame\":3,\"severity\":\"info\",\"message\":\"projectile launched\"}"
+        });
+
+        var batch = GatewaySkillAcceptanceArtifacts.GetBatch(artifactDirectory);
+        var caseResult = GatewaySkillAcceptanceArtifacts.GetCase(caseId, artifactDirectory, traceLimit: 500);
+        var acceptanceCase = Assert.IsType<AdminSkillAcceptanceCaseHttpResponse>(GetMinimalApiResultValue(caseResult));
+
+        Assert.True(batch.HasBatchSummary);
+        Assert.Empty(batch.Warnings);
+        var caseItem = Assert.Single(batch.Cases);
+        Assert.Equal(caseId, caseItem.CaseId);
+        Assert.Equal(3, caseItem.TraceNodeCount);
+        Assert.True(caseItem.Passed);
+        Assert.Equal(NormalizeJsonPath(summaryPath), caseItem.SummaryPath);
+        Assert.Equal(NormalizeJsonPath(tracePath), caseItem.TracePath);
+
+        Assert.Equal(caseId, acceptanceCase.CaseId);
+        Assert.NotNull(acceptanceCase.Summary);
+        Assert.Equal(3, acceptanceCase.TraceRecords.Length);
+        Assert.Empty(acceptanceCase.Warnings);
+        Assert.Equal("SkillCast", acceptanceCase.TraceRecords[0]?["kind"]?.GetValue<string>());
+        Assert.Equal("EffectExecution", acceptanceCase.TraceRecords[1]?["kind"]?.GetValue<string>());
+        Assert.Equal("ProjectileLaunch", acceptanceCase.TraceRecords[2]?["kind"]?.GetValue<string>());
+        Assert.Equal(102, acceptanceCase.TraceRecords[2]?["ownerContextId"]?.GetValue<int>());
+    }
+ 
+    [Fact]
+    public void Gateway_api_should_expose_admin_room_facade_endpoints()
+    {
+        var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
+        var boundaries = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "adminApiBoundaries.ts"));
+
+        Assert.Contains("/rooms/create", api);
+        Assert.Contains("/rooms/join", api);
+        Assert.Contains("/rooms/restore-current", api);
+        Assert.Contains("/rooms/leave", api);
+        Assert.Contains("/rooms/close", api);
+        Assert.Contains("/rooms/mark-offline", api);
+        Assert.Contains("/rooms/ready", api);
+        Assert.Contains("/rooms/pick-hero", api);
+        Assert.Contains("/rooms/start-battle", api);
+        Assert.Contains("Gateway.AdminCreateRoom", api);
+        Assert.Contains("Gateway.AdminJoinRoom", api);
+        Assert.Contains("Gateway.AdminRestoreCurrentRoom", api);
+        Assert.Contains("Gateway.AdminPickRoomHero", api);
+        Assert.Contains("Gateway.AdminStartRoomBattle", api);
+        Assert.Contains("/api/admin/rooms/create", domainApi);
+        Assert.Contains("/api/admin/rooms/join", domainApi);
+        Assert.Contains("/api/admin/rooms/restore-current", domainApi);
+        Assert.Contains("/api/admin/rooms/mark-offline", domainApi);
+        Assert.Contains("/api/admin/rooms/pick-hero", domainApi);
+        Assert.Contains("/api/admin/rooms/start-battle", domainApi);
+        Assert.Contains("后台页面默认只依赖这里", boundaries);
+        Assert.Contains("后台不直接调用", boundaries);
+    }
+
+    [Fact]
+    public void Gateway_api_should_expose_admin_server_operations()
+    {
+        var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
+        var operations = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayAdminOperations.cs"));
+
+        Assert.Contains("/server/status", api);
+        Assert.Contains("/server/maintenance", api);
+        Assert.Contains("/server/drain", api);
+        Assert.Contains("/server/restart-request", api);
+        Assert.Contains("ExecuteAdminServerOperationAsync", api);
+        Assert.Contains("Gateway.AdminServerStatus", api);
+        Assert.Contains("Gateway.AdminSetMaintenanceMode", api);
+        Assert.Contains("Gateway.AdminSetDrainMode", api);
+        Assert.Contains("Gateway.AdminRequestServerRestart", api);
+        Assert.Contains("AdminServerStatusHttpResponse", models);
+        Assert.Contains("AdminServerOperationHttpRequest", models);
+        Assert.Contains("AdminServerOperationHttpResponse", models);
+        Assert.Contains("internal static class GatewayAdminOperations", operations);
+        Assert.Contains("SetMaintenanceMode", operations);
+        Assert.Contains("SetDrainMode", operations);
+        Assert.Contains("RequestRestart", operations);
+        Assert.Contains("maintenanceMode = true", operations);
+        Assert.Contains("drainMode = true", operations);
+    }
+
+    [Fact]
+    public void Orleans_tools_should_support_one_click_and_multi_profile_launch()
+    {
+        var launcher = File.ReadAllText(GetOrleansToolPath("start_abilitykit.ps1"));
+        var startScript = File.ReadAllText(GetOrleansToolPath("start_orleans_dev.ps1"));
+        var stopScript = File.ReadAllText(GetOrleansToolPath("stop_abilitykit.ps1"));
+        var restartWrapper = File.ReadAllText(GetOrleansToolPath("restart_all.ps1"));
+        var profiles = File.ReadAllText(GetOrleansToolPath("abilitykit_launch_profiles.json"));
+
+        Assert.Contains("abilitykit_launch_profiles.json", launcher);
+        Assert.Contains("ListProfiles", launcher);
+        Assert.Contains("string[]]$Profile", launcher);
+        Assert.Contains("GatewayPort", launcher);
+        Assert.Contains("SiloPort", launcher);
+        Assert.Contains("SiloGatewayPort", launcher);
+        Assert.Contains("TcpPort", launcher);
+        Assert.Contains("start_orleans_dev.ps1", launcher);
+        Assert.Contains("ClusterId", startScript);
+        Assert.Contains("ServiceId", startScript);
+        Assert.Contains("InstanceName", startScript);
+        Assert.Contains("--AbilityKit:Orleans:ClusterId", startScript);
+        Assert.Contains("--AbilityKit:Gateway:Http:Port", startScript);
+        Assert.Contains("--AbilityKit:Gateway:Tcp:Port", startScript);
+        Assert.Contains("/health/ready", startScript);
+        Assert.Contains("/health/live", startScript);
+        Assert.Contains("Test-AbilityKitTcpPort", startScript);
+        Assert.Contains("Waiting for Orleans Silo Gateway TCP endpoint", startScript);
+        Assert.Contains("Orleans Silo Gateway is not reachable", startScript);
+        Assert.Contains("logs", startScript);
+        Assert.Contains("stop_abilitykit.ps1", startScript);
+        Assert.Contains("Stop-AbilityKitServices", stopScript);
+        Assert.Contains("[switch]$All", stopScript);
+        Assert.Contains("AbilityKit.Orleans.Host.csproj", stopScript);
+        Assert.Contains("AbilityKit.Orleans.Gateway.csproj", stopScript);
+        Assert.Contains("start_abilitykit.ps1", restartWrapper);
+        Assert.Contains("ops-a", profiles);
+        Assert.Contains("ops-b", profiles);
     }
 
     private static string GetAdminConsoleProjectPath(params string[] segments)
@@ -110,6 +499,23 @@ public sealed class GatewayAdminConsoleTests
     private static string GetGatewayDirectoryPath(params string[] segments)
     {
         return FindWorkspacePath(Prepend(new[] { "Server", "Orleans", "src", "AbilityKit.Orleans.Gateway" }, segments), Directory.Exists);
+    }
+
+    private static string GetOrleansToolPath(params string[] segments)
+    {
+        return FindWorkspacePath(Prepend(new[] { "Server", "Orleans", "tools" }, segments), File.Exists);
+    }
+
+    private static object? GetMinimalApiResultValue(object result)
+    {
+        var valueProperty = result.GetType().GetProperty("Value");
+        Assert.NotNull(valueProperty);
+        return valueProperty.GetValue(result);
+    }
+
+    private static string NormalizeJsonPath(string path)
+    {
+        return Path.GetFullPath(path, Directory.GetCurrentDirectory()).Replace('\\', '/');
     }
 
     private static string FindWorkspacePath(string[] segments, Func<string, bool> exists)
