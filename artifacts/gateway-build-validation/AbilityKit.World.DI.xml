@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.World.DI</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Ability.World.Abstractions.WorldId">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> Value<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Ability.World.DI.IWorldScopeSeeder">
+             <summary>
+             在创建 scope 时把外部构造的实例「播种」进该 scope 的协作接口。
+            
+             语义（见 MobaFlowSpec.md 播种机制）：
+             - 播种用于注入<b>跨阶段输入</b>（如 per-battle 的 bootstrapper / gateway 工厂），
+               解决「容器在构造期一次建好、但 per-scope 数据此时尚不存在」的矛盾。
+             - 播种实例的生命周期归<b>调用方</b>：<c>scope.Dispose()</c> 不会连带释放它。
+             - 播种会覆盖容器内同类型的 scoped 工厂（解析时播种实例优先命中）。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.IWorldScopeSeeder.Seed(System.Type,System.Object)">
+            <summary>把 <paramref name="instance"/> 播种为服务类型 <paramref name="serviceType"/> 的解析结果。</summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.IWorldScopeSeeder.Seed``1(``0)">
+            <summary>把 <paramref name="instance"/> 播种为服务类型 <typeparamref name="TService"/> 的解析结果。</summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldActivator.InjectMembersInto(System.Object,AbilityKit.Ability.World.DI.IWorldResolver)">
+            <summary>
+            Resolve and assign all <c>[WorldInject]</c> fields/properties on an already-created instance.
+            Intended for tests: build an instance manually (e.g. via parameterless ctor), then push mocks
+            in through the same injection path the container uses at runtime.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldContainer.CreateScope(System.Action{AbilityKit.Ability.World.DI.IWorldScopeSeeder})">
+             <summary>
+             创建一个 scope 并在返回前把跨阶段输入「播种」进去。
+            
+             用于解决「容器构造期一次建好、但 per-scope 数据此时尚不存在」的矛盾：
+             <paramref name="configure"/> 在 scope 创建后、首次解析前执行，可通过
+             <see cref="T:AbilityKit.Ability.World.DI.IWorldScopeSeeder"/> 注入实例。播种实例的生命周期归调用方，
+             <c>scope.Dispose()</c> 不接管其释放。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldScope.SeedInstance(System.Type,System.Object)">
+             <summary>
+             把一个外部构造的实例播种进本 scope（建 scope 时由 seeder 调用）。
+            
+             语义（见 MobaFlowSpec.md 播种机制）：
+             - 播种=注入外部输入（如 per-battle 的 bootstrapper/gateway），其生命周期归<b>调用方</b>。
+             - 播种实例写入独立的 <see cref="F:AbilityKit.Ability.World.DI.WorldScope._seeded"/> 字典，<b>不</b>进 <see cref="F:AbilityKit.Ability.World.DI.WorldScope._disposeOrder"/>：
+               <see cref="M:AbilityKit.Ability.World.DI.WorldScope.Dispose"/> 只释放 scope 自己创建的实例，绝不连带释放仍被别处持有的播种对象。
+             - 播种会覆盖容器内同类型的 scoped 工厂（解析时 <see cref="F:AbilityKit.Ability.World.DI.WorldScope._seeded"/> 优先命中）。
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Ability.World.DI.WorldTestInjector">
+             <summary>
+             测试辅助：在不启动完整 <see cref="T:AbilityKit.Ability.World.DI.WorldContainer"/> 的情况下，向一个已创建的实例
+             注入其 <c>[WorldInject]</c> 字段/属性（包含 required:false 的可选依赖）。
+            
+             适用于以 <c>[WorldInject]</c> 私有字段注入为主、构造函数参数很多而不便改造成构造注入的服务：
+             直接 <c>new</c> 出实例（或通过无参/简单构造函数），再用本工具把 mock 推入，
+             走的是与运行时完全相同的注入路径，避免单元测试退化成必须起整个容器的集成测试。
+            
+             仅用于测试代码。生产代码应继续通过容器解析。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Inject``1(``0,AbilityKit.Ability.World.DI.IWorldResolver)">
+            <summary>
+            使用一个已有的 <see cref="T:AbilityKit.Ability.World.DI.IWorldResolver"/>（例如 mock resolver）注入实例上的所有 [WorldInject] 成员。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Inject``1(``0,System.Collections.Generic.IReadOnlyDictionary{System.Type,System.Object})">
+            <summary>
+            使用一组手工提供的 (serviceType -> instance) 依赖注入实例上的所有 [WorldInject] 成员。
+            未在字典中提供的可选依赖（required:false）会被跳过；缺失的必选依赖会抛异常。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.For``1(``0)">
+            <summary>
+            创建一个可链式登记 mock 依赖的构建器，登记完成后对目标实例执行注入。
+            用法：
+            <code>
+            WorldTestInjector.For(new MobaSummonService())
+                .With(mockAllocator)
+                .With&lt;MobaActorRegistry&gt;(mockRegistry)
+                .Build();
+            </code>
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Builder`1.With``1(``0)">
+            <summary>登记依赖，服务类型显式指定。</summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Builder`1.With(System.Object)">
+            <summary>登记依赖，服务类型由实例的运行时类型推断（适合具体类作为服务类型登记）。</summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Builder`1.With(System.Type,System.Object)">
+            <summary>登记依赖，显式给出服务类型键。</summary>
+        </member>
+        <member name="M:AbilityKit.Ability.World.DI.WorldTestInjector.Builder`1.Build">
+            <summary>执行注入并返回目标实例。</summary>
+        </member>
+    </members>
+</doc>

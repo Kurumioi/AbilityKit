@@ -70,7 +70,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 return db;
             });
 
-            builder.Register<TriggerPlanJsonDatabase>(WorldLifetime.Singleton, container =>
+            builder.Register<TriggerPlanJsonDatabase>(WorldLifetime.Scoped, container =>
             {
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
                 var db = new TriggerPlanJsonDatabase

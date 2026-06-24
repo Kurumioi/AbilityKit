@@ -58,9 +58,8 @@ namespace AbilityKit.Game.Flow
 
             if (task.IsFaulted)
             {
-                var ex = task.Exception != null ? task.Exception.GetBaseException() : null;
-                var wrapped = new InvalidOperationException("Gateway room preparation failed.", ex);
-                Log.Exception(wrapped, "[BattleSessionFeature] Gateway room preparation failed");
+                var wrapped = GatewaySessionFailurePolicy.WrapPreparationFailure(task);
+                GatewaySessionFailurePolicy.LogPreparationFailure(wrapped);
                 runtime.StopGatewayRoomPreparation();
                 runtime.NotifySessionFailed(wrapped);
                 return;

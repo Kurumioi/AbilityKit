@@ -88,14 +88,15 @@ flowchart TB
 
 ### 3.1 框架使用者路线
 
-1. [AbilityKit 能力地图](01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md)
-2. [AbilityKit 是什么](01-OverviewAndGettingStarted/01-WhatIsAbilityKit.md)
-3. [核心概念](01-OverviewAndGettingStarted/02-CoreConcepts.md)
-4. [逻辑世界概述](02-LogicalWorldDesign/01-WorldOverview.md)
-5. [Host 运行时](03-LogicalWorldHostDesign/01-HostRuntime.md)
-6. [技能系统架构](08-GameplayModules/01-SkillSystemArchitecture.md)
-7. [触发器系统](08-GameplayModules/02-TriggeringSystem.md)
-8. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
+1. [序章：为什么需要 AbilityKit](00-Prologue.md)
+2. [AbilityKit 能力地图](01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md)
+3. [AbilityKit 是什么](01-OverviewAndGettingStarted/01-WhatIsAbilityKit.md)
+4. [核心概念](01-OverviewAndGettingStarted/02-CoreConcepts.md)
+5. [逻辑世界概述](02-LogicalWorldDesign/01-WorldOverview.md)
+6. [Host 运行时](03-LogicalWorldHostDesign/01-HostRuntime.md)
+7. [技能系统架构](08-GameplayModules/01-SkillSystemArchitecture.md)
+8. [触发器系统](08-GameplayModules/02-TriggeringSystem.md)
+9. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
 
 ### 3.2 框架扩展者路线
 
@@ -119,6 +120,12 @@ flowchart TB
 ---
 
 ## 4. 当前文档目录
+
+### 00 序章
+
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| [00-序章：为什么需要 AbilityKit](00-Prologue.md) | 已新增 | 项目起因、战斗系统补丁化困境、跨项目复用诉求、GAS/EGamePlay/ET/Orleans 技术选型与 package 方案 |
 
 ### 01 概览与入门
 
@@ -266,6 +273,7 @@ flowchart TB
 | 2026-06-21 | 1.1 | 按功能模块重新组织目录结构 |
 | 2026-06-23 | 2.0 | 调整为能力中心文档体系，补充源码入口和总览流程图 |
 | 2026-06-23 | 2.1 | 新增工程质量与测试流程专题，补充单元测试、契约测试、DemoHarness、冒烟测试和稳定性收益 |
+| 2026-06-23 | 2.2 | 新增序章文档，说明 AbilityKit 的项目起因、技术选型和 Package 化方向 |
 
 ---
 

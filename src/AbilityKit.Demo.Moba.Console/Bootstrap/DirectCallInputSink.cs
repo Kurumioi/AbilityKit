@@ -45,6 +45,9 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
     {
         private readonly IMobaBattleInputPort _inputPort;
         private bool _disposed;
+        private RuntimeInputDiagnostics _diagnostics;
+
+        public RuntimeInputDiagnostics Diagnostics => _diagnostics;
 
         public RuntimePortInputSink(IMobaBattleInputPort inputPort)
         {
@@ -59,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
             }
 
             var result = _inputPort.Submit(frame, inputs);
+            _diagnostics = _diagnostics.Record(frame.Value, inputs.Count, result.Succeeded, result.CommandCount, result.ToString());
             if (!result.Succeeded)
             {
                 Platform.Log.Input($"[RuntimePortInputSink] Submit rejected. {result}");
@@ -68,6 +72,42 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
         public void Dispose()
         {
             _disposed = true;
+        }
+    }
+
+    public readonly struct RuntimeInputDiagnostics
+    {
+        public static readonly RuntimeInputDiagnostics Empty = new RuntimeInputDiagnostics(0, 0, 0, 0, 0, false, null);
+
+        public RuntimeInputDiagnostics(int submitCount, int acceptedCount, int submittedCommandCount, int acceptedCommandCount, int lastFrame, bool lastSucceeded, string lastResult)
+        {
+            SubmitCount = submitCount;
+            AcceptedCount = acceptedCount;
+            SubmittedCommandCount = submittedCommandCount;
+            AcceptedCommandCount = acceptedCommandCount;
+            LastFrame = lastFrame;
+            LastSucceeded = lastSucceeded;
+            LastResult = lastResult;
+        }
+
+        public int SubmitCount { get; }
+        public int AcceptedCount { get; }
+        public int SubmittedCommandCount { get; }
+        public int AcceptedCommandCount { get; }
+        public int LastFrame { get; }
+        public bool LastSucceeded { get; }
+        public string LastResult { get; }
+
+        public RuntimeInputDiagnostics Record(int frame, int submittedCommands, bool succeeded, int acceptedCommands, string result)
+        {
+            return new RuntimeInputDiagnostics(
+                SubmitCount + 1,
+                AcceptedCount + (succeeded ? 1 : 0),
+                SubmittedCommandCount + submittedCommands,
+                AcceptedCommandCount + acceptedCommands,
+                frame,
+                succeeded,
+                result);
         }
     }
 

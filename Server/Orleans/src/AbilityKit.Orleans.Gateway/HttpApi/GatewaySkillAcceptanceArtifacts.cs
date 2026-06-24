@@ -292,15 +292,36 @@ internal static class GatewaySkillAcceptanceArtifacts
 
     private static ArtifactDirectoryResolution ResolveArtifactDirectory(string? artifactDirectory)
     {
+        var baseDirectory = ResolveWorkspaceRoot();
         var requested = string.IsNullOrWhiteSpace(artifactDirectory) ? DefaultArtifactDirectory : artifactDirectory.Trim();
-        var fullPath = Path.GetFullPath(requested, Directory.GetCurrentDirectory());
-        var artifactRoot = Path.GetFullPath(ArtifactRootDirectory, Directory.GetCurrentDirectory());
+        var fullPath = Path.IsPathRooted(requested)
+            ? Path.GetFullPath(requested)
+            : Path.GetFullPath(requested, baseDirectory);
+        var artifactRoot = Path.GetFullPath(ArtifactRootDirectory, baseDirectory);
         var isAllowed = IsPathUnderDirectory(fullPath, artifactRoot);
         var displayPath = NormalizePath(fullPath);
         var error = isAllowed
             ? null
             : $"Artifact directory must stay under {NormalizePath(artifactRoot)}. Requested: {displayPath}";
         return new ArtifactDirectoryResolution(fullPath, displayPath, isAllowed, error);
+    }
+
+    private static string ResolveWorkspaceRoot()
+    {
+        var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "LICENSE"))
+                && Directory.Exists(Path.Combine(directory.FullName, "Server"))
+                && Directory.Exists(Path.Combine(directory.FullName, "Unity")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return Directory.GetCurrentDirectory();
     }
 
     private static SkillAcceptanceCaseIdValidation ValidateCaseId(string caseId)

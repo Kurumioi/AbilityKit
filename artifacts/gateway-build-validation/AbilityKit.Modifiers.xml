@@ -1,0 +1,2242 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.Modifiers</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Modifiers.CustomModifierData">
+             <summary>
+             自定义修改器数据。
+             用于存储非数值类型的修改器数据。
+            
+             使用示例：
+             ```csharp
+             // 技能 ID
+             CustomModifierData.Int(999)
+            
+             // 标签/状态键
+             CustomModifierData.String("Invincible")
+            
+             // 复杂数据（JSON 序列化）
+             CustomModifierData.Bytes(jsonBytes)
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.CustomModifierData.CustomTypeId">
+            <summary>自定义类型 ID（业务层定义）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.CustomModifierData.IntValue">
+            <summary>整数数据</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.CustomModifierData.StringValue">
+            <summary>字符串数据</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.CustomModifierData.RawData">
+            <summary>原始字节数据（用于序列化复杂结构）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.CustomModifierData.Int(System.Int32)">
+            <summary>创建整数数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.CustomModifierData.String(System.String)">
+            <summary>创建字符串数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.CustomModifierData.Bytes(System.Byte[])">
+            <summary>创建字节数据</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.CustomModifierData.None">
+            <summary>空/无效的自定义数据</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.CustomModifierData.IsEmpty">
+            <summary>是否为空</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierSnapshotData">
+            <summary>
+            修改器快照数据（紧凑格式）。
+            用于网络传输和状态存储。
+            
+            32 字节固定大小，适合高性能场景：
+            - 网络传输（帧同步、状态同步）
+            - 快照保存（回滚、存档）
+            - 状态缓存（预计算、批量处理）
+            
+            字段布局：
+            - 4 字节: Key (ModifierKey.Packed)
+            - 1 字节: Op (ModifierOp)
+            - 2 字节: Priority
+            - 4 字节: SourceId
+            - 1 字节: MagnitudeType
+            - 4 字节: BaseValue
+            - 4 字节: Coefficient
+            - 4 字节: DecayParams
+            - 4 字节: CurveDataIndex
+            - 2 字节: SourceNameIndex
+            - 2 字节: 对齐填充
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.BinarySize">
+            <summary>二进制大小（固定 32 字节）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.KeyPacked">
+            <summary>修改目标键</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.Op">
+            <summary>操作类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.Priority">
+            <summary>优先级</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.SourceId">
+            <summary>来源标识</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.MagnitudeType">
+            <summary>数值类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.BaseValue">
+            <summary>基础值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.Coefficient">
+            <summary>系数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.DecayParams">
+            <summary>衰减参数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.CurveDataIndex">
+            <summary>曲线数据索引</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSnapshotData.SourceNameIndex">
+            <summary>来源名称索引</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.FromModifierData(AbilityKit.Modifiers.ModifierData@)">
+            <summary>
+            从 ModifierData 转换
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.ToModifierData">
+            <summary>
+            转换为 ModifierData
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.WriteTo(System.Span{System.Byte})">
+            <summary>
+            写入二进制数据（小端序）
+            </summary>
+            <param name="buffer">目标缓冲区（至少 32 字节）</param>
+            <returns>写入的字节数</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.ReadFrom(System.ReadOnlySpan{System.Byte})">
+            <summary>
+            从二进制数据读取（小端序）
+            </summary>
+            <param name="buffer">源缓冲区（至少 32 字节）</param>
+            <returns>读取的数据</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.WriteBatch(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierSnapshotData},System.Span{System.Byte})">
+            <summary>
+            批量写入多个快照数据
+            </summary>
+            <param name="data">快照数据数组</param>
+            <param name="buffer">目标缓冲区</param>
+            <returns>写入的字节数</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSnapshotData.ReadBatch(System.ReadOnlySpan{System.Byte},System.Int32)">
+            <summary>
+            批量读取多个快照数据
+            </summary>
+            <param name="buffer">源缓冲区</param>
+            <param name="count">要读取的数量</param>
+            <returns>快照数据数组</returns>
+        </member>
+        <member name="T:AbilityKit.Modifiers.LittleEndian">
+            <summary>
+            小端字节序读写工具。
+            用于二进制序列化/反序列化。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierData">
+             <summary>
+             修改器数据。
+             表示一个具体的、可生效的修改器实例。
+            
+             重构说明：
+             - 使用新的 MagnitudeSource 结构（支持时间衰减）
+             - 保留原有 API 向后兼容
+             - 新增 Metadata 字段用于调试
+            
+             使用示例：
+             ```csharp
+             // 固定值修改
+             var addMod = ModifierData.Add(ModifierKey.AttackPower, 100f);
+             var mulMod = ModifierData.Mul(ModifierKey.AttackPower, 1.2f);
+            
+             // 时间衰减修改（新增）
+             var speedBoost = ModifierData.Add(
+                 ModifierKey.MoveSpeed,
+                 MagnitudeSource.TimeDecay(50f, 5f, DecayType.Exponential)
+             );
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.Key">
+            <summary>修改目标键</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.Op">
+            <summary>操作类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.Priority">
+            <summary>优先级（数字越小越先计算）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.SourceId">
+            <summary>来源标识（业务层定义，用于溯源和批量移除）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.SourceNameIndex">
+            <summary>来源名称索引（用于调试显示，-1 表示无名称）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.Magnitude">
+            <summary>
+            数值来源策略数据
+            支持：固定值、等级曲线、属性引用、时间衰减
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.GetMagnitude(System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            获取当前生效的数值（根据数值来源计算）
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.Metadata">
+            <summary>
+            修改器元数据（用于调试/显示）
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierData.CustomData">
+            <summary>
+            自定义数据槽（用于非数值类型的修改器）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Add(AbilityKit.Modifiers.ModifierKey,System.Single,System.Int32,System.Int16,System.Int32)">
+            <summary>创建加法修改器（固定值）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Add(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.MagnitudeSource@,System.Int32,System.Int16,System.Int32)">
+            <summary>创建加法修改器（自定义数值来源）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Mul(AbilityKit.Modifiers.ModifierKey,System.Single,System.Int32,System.Int16,System.Int32)">
+            <summary>创建乘法修改器（固定值）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Mul(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.MagnitudeSource@,System.Int32,System.Int16,System.Int32)">
+            <summary>创建乘法修改器（自定义数值来源）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Override(AbilityKit.Modifiers.ModifierKey,System.Single,System.Int32,System.Int16)">
+            <summary>创建覆盖修改器（固定值）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Override(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.MagnitudeSource@,System.Int32,System.Int16)">
+            <summary>创建覆盖修改器（自定义数值来源）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.PercentAdd(AbilityKit.Modifiers.ModifierKey,System.Single,System.Int32,System.Int16,System.Int32)">
+            <summary>创建百分比加成修改器</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.AddWithTimeDecay(AbilityKit.Modifiers.ModifierKey,System.Single,System.Single,AbilityKit.Modifiers.DecayType,System.Single,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建带时间衰减的加法修改器。
+            数值随时间从初始值逐渐衰减到 0。
+            </summary>
+            <param name="key">修改目标键</param>
+            <param name="initialValue">初始加成值</param>
+            <param name="duration">持续时间（秒）</param>
+            <param name="decayType">衰减类型</param>
+            <param name="decayCoefficient">衰减系数（用于指数衰减）</param>
+            <param name="sourceId">来源 ID</param>
+            <param name="sourceNameIndex">来源名称索引</param>
+            <param name="priority">优先级</param>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.PercentAddWithTimeDecay(AbilityKit.Modifiers.ModifierKey,System.Single,System.Single,AbilityKit.Modifiers.DecayType,System.Single,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建带时间衰减的百分比加成修改器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.CreateWithPipeline(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierOp,AbilityKit.Modifiers.ModifierPipeline,System.Int32,System.Int16,System.Int32)">
+             <summary>
+             创建带修饰器管道的修改器。
+             支持复杂的数值变换组合，如：时间衰减 + 等级曲线 + 属性引用。
+            
+             使用示例：
+             ```csharp
+             var pipeline = ModifierPipeline.Create()
+                 .ThenTimeDecay(50f, 5f, DecayType.Exponential)
+                 .ThenLevelCurve(10f, levelCurve)
+                 .ThenAttributeRef(ModifierKey.Strength, 0.5 f);
+            
+             var mod = ModifierData.CreateWithPipeline(
+                 ModifierKey.AttackPower,
+                 ModifierOp.Add,
+                 pipeline,
+                 sourceId: 1
+             );
+             ```
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.AddWithPipeline(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierPipeline,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建带修饰器管道的加法修改器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.MulWithPipeline(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierPipeline,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建带修饰器管道的乘法修改器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.PercentAddWithPipeline(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierPipeline,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建带修饰器管道的百分比加成修改器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.Custom(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierOp,AbilityKit.Modifiers.CustomModifierData,System.Int32,System.Int16,System.Int32)">
+            <summary>
+            创建自定义修改器（使用 CustomData）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierData.CustomWithValue(AbilityKit.Modifiers.ModifierKey,AbilityKit.Modifiers.ModifierOp,System.Single,AbilityKit.Modifiers.CustomModifierData,System.Int32,System.Int32)">
+            <summary>
+            创建带数值的自定义修改器
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierLifecycleState">
+            <summary>
+            修改器生命周期状态
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycleState.Inactive">
+            <summary>未激活</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycleState.Active">
+            <summary>激活中</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycleState.Expiring">
+            <summary>即将过期（可用于触发预警事件）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycleState.Expired">
+            <summary>已过期</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycleState.Removed">
+            <summary>已移除</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierLifecycle">
+            <summary>
+            修改器生命周期信息
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycle.StartFrame">
+            <summary>生效开始帧</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycle.DurationFrames">
+            <summary>持续帧数（0 表示永久）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierLifecycle.State">
+            <summary>当前状态</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierLifecycle.IsPermanent">
+            <summary>是否永久有效</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.IsExpired(System.Int32)">
+            <summary>
+            计算当前帧是否已过期
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.GetRemainingFrames(System.Int32)">
+            <summary>
+            获取剩余帧数
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.GetElapsedFrames(System.Int32)">
+            <summary>
+            获取已过帧数
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.GetProgress(System.Int32)">
+            <summary>
+            获取进度（0-1）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.Permanent(System.Int32)">
+            <summary>
+            创建永久生命周期
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierLifecycle.Temporary(System.Int32,System.Int32)">
+            <summary>
+            创建临时生命周期
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierContextData">
+            <summary>
+            修改器上下文数据（纯值类型，用于计算）。
+            不包含任何引用类型。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.Level">
+            <summary>当前等级</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.CurrentFrame">
+            <summary>当前帧</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.CurrentTimeMs">
+            <summary>当前时间戳（毫秒）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.DeltaTimeMs">
+            <summary>增量时间（毫秒）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.ElapsedFrames">
+            <summary>修改器生效已过帧数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.ElapsedTimeMs">
+            <summary>修改器生效已过时间（毫秒）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierContextData.Metadata">
+            <summary>元数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierContextData.GetAttribute(AbilityKit.Modifiers.ModifierKey)">
+            <summary>
+            获取属性值（需要外部实现）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierContextData.GetCurveData(System.Int32)">
+            <summary>
+            获取曲线数据（需要外部实现）
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierContextData.Empty">
+            <summary>创建空上下文</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierResult`1">
+            <summary>
+            修改器计算结果（通用版本）。
+            用于任何类型的值。
+            </summary>
+            <typeparam name="T">值类型</typeparam>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult`1.BaseValue">
+            <summary>基础值（未经任何修改的原始值）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult`1.FinalValue">
+            <summary>计算后的最终值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult`1.Count">
+            <summary>生效的修改器数量</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult`1.HasModifiers">
+            <summary>是否有生效的修改器</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult`1.Empty(`0)">
+            <summary>创建空结果</summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:AbilityKit.Modifiers.ModifierResult" -->
+        <member name="F:AbilityKit.Modifiers.ModifierResult.BaseValue">
+            <summary>基础值（未经任何修改的原始值）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.AddSum">
+            <summary>加法修改器之和</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.PercentProduct">
+            <summary>百分比加成修改器之积（每个元素为 1 + value）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.MulProduct">
+            <summary>乘法修改器之积</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.OverrideValue">
+            <summary>覆盖值（如果有 Override 操作）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.OverrideFlag">
+            <summary>
+            Override 标志。
+            0 = 无 Override，非 0 = 有 Override。
+            使用 byte 而非 bool 以避免对齐问题。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierResult.Count">
+            <summary>生效的修改器数量</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.FinalValue">
+            <summary>
+            计算后的最终值。
+            如果有 Override，优先返回覆盖值。
+            计算公式：FinalValue = (BaseValue + AddSum) × PercentProduct × MulProduct
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.HasOverride">
+            <summary>是否有覆盖操作</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.HasModifiers">
+            <summary>是否有生效的修改器</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.NetChange">
+            <summary>
+            净变化值（FinalValue - BaseValue）
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.PercentChange">
+            <summary>
+            获取相对于基础值的百分比变化
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierResult.PercentChange100">
+            <summary>
+            百分比变化（返回百分比形式，如 20 表示 20%）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.Empty(System.Single)">
+            <summary>创建空结果（只有基础值）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.WithOverride(System.Single,System.Single)">
+            <summary>创建带 Override 的结果</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.WithAddMul(System.Single,System.Single,System.Single,System.Single,System.Int32)">
+            <summary>创建带加法和乘法的结果</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.SetOverride(System.Single)">
+            <summary>
+            设置 Override 值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.Add(System.Single)">
+            <summary>
+            添加加法值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.Mul(System.Single)">
+            <summary>
+            添加乘法值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierResult.Merge(AbilityKit.Modifiers.ModifierResult@)">
+            <summary>
+            合并另一个结果
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierSourceEntry">
+            <summary>
+            修改器来源条目。
+            纯值类型，不含 string。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSourceEntry.Op">
+            <summary>操作类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSourceEntry.Value">
+            <summary>原始数值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSourceEntry.Contribution">
+            <summary>对最终值的贡献量</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSourceEntry.SourceId">
+            <summary>来源标识（业务层自行映射到名称）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierSourceEntry.SourceNameIndex">
+            <summary>来源名称索引（用于调试显示）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierSourceEntry.GetSourceName">
+            <summary>
+            获取来源名称
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IModifierRecorder">
+            <summary>
+            修改器来源记录器接口。
+            用于在计算过程中收集来源信息，零堆分配。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierRecorder.Begin(System.Int32)">
+            <summary>开始记录</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierRecorder.Record(AbilityKit.Modifiers.ModifierSourceEntry@)">
+            <summary>记录一个来源</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierRecorder.Count">
+            <summary>获取已记录的来源数量</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierRecorder.GetEntry(System.Int32)">
+            <summary>获取指定索引的来源</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.DefaultRecorder">
+            <summary>
+            默认来源记录器实现。
+            预分配固定大小数组，无扩容 GC。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.NullRecorder">
+            <summary>
+            空记录器（用于关闭来源追踪）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierCache">
+             <summary>
+             修饰器缓存。
+             缓存修饰器计算结果，避免重复计算。
+            
+             设计原则：
+             - 无 GC：所有字段均为值类型
+             - 自动失效：当检测到修改器数据变化时自动失效
+             - 支持时变检测：检测是否有时变修饰器，必要时禁用缓存
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierCache.Empty">
+            <summary>创建空缓存</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierCache.IsEmpty">
+            <summary>是否为空</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCache.TryGet(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.ModifierResult@)">
+            <summary>
+            尝试获取缓存的结果
+            </summary>
+            <param name="modifiers">修改器数组</param>
+            <param name="baseValue">基础值</param>
+            <param name="context">上下文</param>
+            <param name="result">输出结果</param>
+            <returns>是否有有效缓存</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCache.Store(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.ModifierResult)">
+            <summary>
+            存储缓存结果
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCache.Clear">
+            <summary>
+            清除缓存
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierComputeCore">
+             <summary>
+             修饰器计算核心。
+             包含修饰器计算的核心逻辑，不包含缓存。
+            
+             设计原则：
+             - 单一职责：只负责计算，不负责缓存
+             - 无 GC：所有方法返回值均为值类型
+             - 可测试：核心逻辑可以独立测试
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComputeCore.Compute(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.IModifierRecorder)">
+            <summary>
+            计算修改器对基础值的影响
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComputeCore.ComputeFinal(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算单个标签的最终值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComputeCore.ComputeBatch(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.ReadOnlySpan{System.Single},System.Single,AbilityKit.Modifiers.IModifierContext,System.Span{AbilityKit.Modifiers.ModifierResult})">
+            <summary>
+            批量计算多个基础值的修改结果
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierCalculator">
+             <summary>
+             通用修改器计算器。
+             支持操作注册表扩展。
+            
+             核心职责：
+             - 将修改器数组应用到基础值上，产生 ModifierResult
+             - 支持来源追踪（零堆分配）
+             - 支持缓存（基于修改器数量检测变化）
+            
+             设计原则：
+             - 无 GC：所有方法返回值均为值类型
+             - 缓存本地化：计算器本身无状态
+             - 可扩展：通过操作注册表支持自定义操作
+             - 职责分离：使用 ModifierCacheAndCore 进行计算
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierCalculator.EnableCache">
+            <summary>是否启用缓存</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.#ctor">
+            <summary>创建计算器</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single)">
+            <summary>
+            计算修改器对基础值的影响（不追踪来源）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single)">
+            <summary>
+            计算修改器对基础值的影响（不追踪来源，指定等级）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierRecorder)">
+            <summary>
+            计算修改器对基础值的影响（追踪来源）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.CalculateFinal(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single)">
+            <summary>
+            计算单个标签的最终值（简化版本）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierRecorder,System.Single,System.Func{AbilityKit.Modifiers.ModifierKey,System.Single})">
+            <summary>
+            计算修改器对基础值的影响（完整版本）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            使用调用方提供的完整上下文计算修改器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Calculate(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,AbilityKit.Modifiers.IModifierRecorder,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            使用调用方提供的完整上下文计算修改器，并可选记录来源。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.CalculateBatch(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.ReadOnlySpan{System.Single},System.Single,AbilityKit.Modifiers.IModifierContext,System.Span{AbilityKit.Modifiers.ModifierResult})">
+            <summary>
+            批量计算多个基础值的修改结果
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.ClearCache">
+            <summary>
+            手动清空缓存
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierCalculator.Invalidate">
+            <summary>
+            使缓存失效（强制重新计算）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.SimpleModifierContext">
+            <summary>
+            简单修改器上下文。
+            用于不需要完整上下文的场景。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IComposerStrategy">
+             <summary>
+             操作组合策略接口。
+             定义如何将多个修改器的效果合并到基础值上。
+            
+             使用场景：
+             - 默认策略：按 Priority 分组计算
+             - 自定义策略：业务层可实现不同的组合顺序或公式
+            
+             示例：
+             ```csharp
+             // 默认策略：Override > Add > PercentAdd > Mul
+             public class DefaultComposerStrategy : IComposerStrategy { ... }
+            
+             // 自定义策略：业务层可按需实现
+             public class MyStrategy : IComposerStrategy { ... }
+             ```
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IComposerStrategy.Compose(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            组合多个修改器到基础值上
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IComposerStrategy.Name">
+            <summary>
+            策略名称
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.OperatorComposer">
+             <summary>
+             操作组合器。
+             管理修饰器操作的组合逻辑。
+            
+             职责：
+             - 使用 IModifierOperator 执行具体操作
+             - 支持策略注入：可自定义组合顺序和公式
+             - 默认策略：按操作优先级分组计算（Override > Add > PercentAdd > Mul）
+            
+             设计原则：
+             - 无 GC：所有方法返回值均为值类型
+             - 零分配：使用 Span 进行批处理
+             - 可扩展：业务层可实现 IComposerStrategy 自定义组合逻辑
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.OperatorComposer.DefaultStrategy">
+             <summary>
+             默认组合策略。
+             按操作优先级分组计算：
+             - Priority 0: Override（终止操作，直接替换值）
+             - Priority 10: Add（加法）
+             - Priority 15: PercentAdd（百分比加成）
+             - Priority 20: Mul（乘法）
+            
+             计算公式：
+             FinalValue = OverrideFlag ? OverrideValue
+                                    : (BaseValue + AddSum) × PercentProduct × MulProduct
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.Compose(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+             <summary>
+             组合多个修改器到基础值上。
+             使用默认策略（按操作优先级分组计算）。
+            
+             操作顺序由 IModifierOperator.Priority 决定：
+             - Priority 0: Override（最先，检查到就终止）
+             - Priority 10: Add（加法）
+             - Priority 15: PercentAdd（百分比加成）
+             - Priority 20: Mul（乘法）
+            
+             注意：此方法会对修改器进行稳定排序，修改器数量较多时会有一定开销。
+             如需高性能，可预先排序后使用 ComposeSorted 或注入自定义策略。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.Compose(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.IComposerStrategy)">
+            <summary>
+            组合多个修改器到基础值上（使用指定策略）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.ComposeSorted(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            组合已排序的修改器（高性能路径，避免重复排序）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.ComposeBatch(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.ReadOnlySpan{System.Single},System.Single,AbilityKit.Modifiers.IModifierContext,System.Span{AbilityKit.Modifiers.ModifierResult})">
+            <summary>
+            批量组合修改器
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.ComposeBatch(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.ReadOnlySpan{System.Single},System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.IComposerStrategy,System.Span{AbilityKit.Modifiers.ModifierResult})">
+            <summary>
+            批量组合修改器（使用指定策略）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.SortByPriority(System.Span{AbilityKit.Modifiers.ModifierData})">
+            <summary>
+            按修改器优先级和操作优先级进行稳定排序
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposer.GetOperatorPriority(AbilityKit.Modifiers.ModifierOp)">
+            <summary>
+            获取操作的计算优先级
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.OperatorComposerExtensions">
+            <summary>
+            OperatorComposer 的扩展方法
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposerExtensions.ApplyModifiers(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算修改器对单个值的影响
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposerExtensions.CalculateWithDetails(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算修改器对单个值的影响（返回详细信息）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.OperatorComposerExtensions.ApplyModifiers(System.ReadOnlySpan{AbilityKit.Modifiers.ModifierData},System.Single,System.Single,AbilityKit.Modifiers.IModifierContext,AbilityKit.Modifiers.IComposerStrategy)">
+            <summary>
+            计算修改器对单个值的影响（使用指定策略）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierCompositionType">
+            <summary>
+            修饰器组合类型
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierCompositionType.Chain">
+            <summary>
+            链式组合：修饰器依次执行，前一个的输出作为后一个的输入
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierCompositionType.Parallel">
+            <summary>
+            并行组合：多个修饰器的结果相加
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierCompositionType.Conditional">
+            <summary>
+            条件组合：根据条件选择不同的修饰器
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IModifierComposer">
+             <summary>
+             修饰器组合器接口。
+             定义如何组合多个修饰器。
+            
+             设计原则：
+             - 单一职责：只负责修饰器之间的组合逻辑
+             - 可嵌套：支持任意深度的组合
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierComposer.CompositionType">
+            <summary>组合类型</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierComposer.Compose(System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算组合后的值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierComposer.GetMaxBaseValue">
+            <summary>
+            获取最大基础值（用于缓存估计）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ChainComposer">
+             <summary>
+             链式组合器。
+             修饰器依次执行，前一个的输出作为后一个的输入。
+            
+             流程：baseValue -> modifier0 -> modifier1 -> ... -> result
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ChainComposer._modifiers">
+            <summary>修饰器数组</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ChainComposer.Count">
+            <summary>修饰器数量</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ParallelComposer">
+             <summary>
+             并行组合器。
+             多个修饰器的结果相加。
+            
+             流程：baseValue + modifier0 + modifier1 + ... -> result
+            
+             使用场景：
+             - 同一属性有多个来源的加成
+             - 多个 Buff 同时生效
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ParallelComposer._modifiers">
+            <summary>修饰器数组</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ParallelComposer.Count">
+            <summary>修饰器数量</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierCondition">
+            <summary>
+            条件选择器
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ConditionalModifier">
+            <summary>
+            条件修饰器对
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ConditionalComposer">
+             <summary>
+             条件组合器。
+             根据条件选择不同的修饰器执行。
+            
+             流程：
+             if condition0: result = modifier0.Modify(baseValue)
+             else if condition1: result = modifier1.Modify(baseValue)
+             else: result = baseValue
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ConditionalComposer.DefaultModifier">
+            <summary>默认修饰器（无条件）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ConditionalComposer.Conditions">
+            <summary>条件修饰器对</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ConditionalComposer.Count">
+            <summary>条件数量</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierComposerFactory">
+            <summary>
+            修饰器组合器工厂
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComposerFactory.Chain(AbilityKit.Modifiers.IMagnitudeModifier[])">
+            <summary>
+            创建链式组合器
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComposerFactory.Parallel(AbilityKit.Modifiers.IMagnitudeModifier[])">
+            <summary>
+            创建并行组合器
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComposerFactory.When(AbilityKit.Modifiers.ModifierCondition,AbilityKit.Modifiers.IMagnitudeModifier,AbilityKit.Modifiers.IMagnitudeModifier)">
+            <summary>
+            创建条件组合器
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierComposerFactory.WhenAny(AbilityKit.Modifiers.IMagnitudeModifier,AbilityKit.Modifiers.ConditionalModifier[])">
+            <summary>
+            创建条件组合器（多条件）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierOp">
+             <summary>
+             修改器操作类型。
+             决定如何将修改器的值应用到基础值上。
+            
+             内置操作（0-99）：
+             - 0-9: 基础算术操作
+             - 10-19: 百分比/比例操作
+             - 20-29: 覆盖/替换操作
+             - 100+: 业务层自定义操作
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierOp.Add">
+            <summary>加法：Base + Value</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierOp.Mul">
+            <summary>乘法：Base × Value</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierOp.Override">
+            <summary>覆盖：直接替换为 Value</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierOp.PercentAdd">
+            <summary>百分比加成：Base × (1 + Value)。Value=0.2 表示 +20%</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierOp.Custom">
+            <summary>自定义操作开始标识（业务层可扩展）</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierOpExtensions">
+            <summary>
+            ModifierOp 扩展方法
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOpExtensions.IsAdditive(AbilityKit.Modifiers.ModifierOp)">
+            <summary>是否为加法类操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOpExtensions.IsMultiplicative(AbilityKit.Modifiers.ModifierOp)">
+            <summary>是否为乘法类操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOpExtensions.IsOverride(AbilityKit.Modifiers.ModifierOp)">
+            <summary>是否为覆盖操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOpExtensions.IsBuiltin(AbilityKit.Modifiers.ModifierOp)">
+            <summary>是否为内置操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOpExtensions.GetSymbol(AbilityKit.Modifiers.ModifierOp)">
+            <summary>获取操作符号</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.ITagModifierTarget">
+            <summary>
+            标签修改器目标接口。
+            实现此接口的对象可以接收标签修改。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.ITagModifierTarget.AddTag(System.String,System.Int32)">
+            <summary>添加标签</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.ITagModifierTarget.RemoveTag(System.String,System.Int32)">
+            <summary>移除标签</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.ITagModifierTarget.HasTag(System.String)">
+            <summary>是否拥有标签</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.ITagModifierTarget.GetTags">
+            <summary>获取所有标签（用于调试）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.ITagModifierTarget.GetTagSources">
+            <summary>获取标签来源映射（用于调试）</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.TagModifierHandler">
+             <summary>
+             标签修改器处理器。
+             处理标签的添加和移除。
+            
+             用法：
+             ```csharp
+             var target = new CharacterTags();
+             var handler = new TagModifierHandler(target);
+            
+             // 添加标签
+             var mod = ModifierData.Custom(
+                 key: ModifierKey.Create(...),
+                 op: ModifierOp.Custom,
+                 customData: CustomModifierData.String("Invincible")
+             );
+             handler.Apply(default, mod, context);  // 添加 Invincible 标签
+            
+             // 移除标签
+             var mod2 = ModifierData.Custom(
+                 key: ModifierKey.Create(...),
+                 op: ModifierOp.Custom + 1,  // 表示移除
+                 customData: CustomModifierData.String("Invincible")
+             );
+             ```
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.TagModifierHandler.Apply(System.String,AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            应用标签修改。
+            Op.Custom 表示添加标签，Op.Custom + 1 表示移除标签。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.IStateModifierTarget">
+            <summary>
+            状态修改器目标接口。
+            实现此接口的对象可以接收状态修改（保存/恢复）。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.IStateModifierTarget.GetState(System.String)">
+            <summary>获取状态值</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.IStateModifierTarget.SetState(System.String,System.Object)">
+            <summary>设置状态值</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.IStateModifierTarget.SaveOriginal(System.String,System.Int32,System.Object)">
+            <summary>保存原始状态（用于还原）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.Examples.IStateModifierTarget.RestoreOriginal(System.String,System.Int32)">
+            <summary>还原原始状态</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.StateModifyResult">
+            <summary>
+            状态修改���结果
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.StateModifierHandler">
+             <summary>
+             状态修改器处理器。
+             处理状态的保存和恢复。
+            
+             用法：
+             ```csharp
+             var target = new CharacterState();
+             var handler = new StateModifierHandler(target);
+            
+             // 设置状态（保存原始值）
+             var mod = ModifierData.Custom(
+                 key: ModifierKey.Create(...),
+                 op: ModifierOp.Custom,
+                 customData: CustomModifierData.String("MoveSpeed")
+             );
+             mod.Magnitude = MagnitudeStrategyData.Fixed(200f);  // 移动速度设置为 200
+             handler.Apply(default, mod, context);
+             ```
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.SkillIdModifierHandler">
+             <summary>
+             技能 ID 修改器处理器。
+             用于强制使用特定技能。
+            
+             示例：
+             ```csharp
+             var handler = new SkillIdModifierHandler();
+             var mod = ModifierData.Override(
+                 key: ModifierKey.Create(...),
+                 value: 0,
+                 customData: CustomModifierData.Int(999)  // 强制使用技能 999
+             );
+             int skillId = handler.Apply(default, mod, context);
+             ```
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.Examples.PrefabModifierHandler">
+             <summary>
+             预制体修改器处理器。
+             用于替换技能使用的预制体。
+            
+             示例：
+             ```csharp
+             var handler = new PrefabModifierHandler();
+             var mod = ModifierData.Custom(
+                 key: ModifierKey.Create(...),
+                 op: ModifierOp.Override,
+                 customData: CustomModifierData.String("Assets/Prefabs/CustomBullet.prefab")
+             );
+             string prefabPath = handler.Apply(default, mod, context);
+             ```
+             </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:AbilityKit.Modifiers.IModifierHandler`1" -->
+        <member name="M:AbilityKit.Modifiers.IModifierHandler`1.Apply(`0,AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            应用单个修改器到当前值
+            </summary>
+            <param name="currentValue">当前累积的值</param>
+            <param name="modifier">修改器数据</param>
+            <param name="context">修改器上下文（用于获取属性、等级等）</param>
+            <returns>应用后的值</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierHandler`1.Compare(`0,`0)">
+            <summary>
+            比较两个值，用于 Override 优先级判断。
+            返回值：&lt;0 表示 a 更优先，&gt;0 表示 b 更优先，=0 表示相同
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierHandler`1.Combine(System.Span{`0}@)">
+            <summary>
+            合并多个修改器的值（用于叠加层数等场景）。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierHandlerBase`1">
+            <summary>
+            修改���处理器基类。
+            提供通用的应用逻辑，子类只需实现类型特定的方法。
+            </summary>
+            <typeparam name="TValue">值的类型</typeparam>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.Apply(`0,AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            应用单个修改器到当前值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.ApplyOperator(`0,AbilityKit.Modifiers.IModifierOperator,System.Single)">
+            <summary>
+            使用操作器应用修改
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.GetModifierValue(AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            从修改器获取数值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.ApplyCustom(`0,AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            自定义操作处理。子类可重写。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.Compare(`0,`0)">
+            <summary>
+            比较两个值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierHandlerBase`1.Combine(System.Span{`0}@)">
+            <summary>
+            合并多个值
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.NumericModifierHandler">
+             <summary>
+             数值型修改器处理器。
+             处理 float/int 类型的数值修改。
+            
+             内置操作：
+             - Add: Base + Value
+             - Mul: Base × Value
+             - PercentAdd: Base × (1 + Value)
+             - Override: 直接替换
+            
+             业务层可通过继承扩展自定义操作。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.NumericModifierHandler.ApplyOperator(System.Single,AbilityKit.Modifiers.IModifierOperator,System.Single)">
+            <summary>
+            使用 IModifierOperator 应用修改
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.NumericModifierHandler.Compare(System.Single,System.Single)">
+            <summary>
+            比较两个值，用于 Override 优先级判断。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.NumericModifierHandler.Combine(System.Span{System.Single}@)">
+            <summary>
+            合并多个修改器的值。对于数值类型，默认求和。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IntModifierHandler">
+            <summary>
+            整数型修改器处理器。
+            处理 int 类型的数值修改。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IntModifierHandler.ApplyOperator(System.Int32,AbilityKit.Modifiers.IModifierOperator,System.Single)">
+            <summary>
+            使用 IModifierOperator 应用修改
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IntModifierHandler.Compare(System.Int32,System.Int32)">
+            <summary>
+            比较两个值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IntModifierHandler.Combine(System.Span{System.Int32}@)">
+            <summary>
+            合并多个值
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.BooleanModifierHandler">
+             <summary>
+             布尔型修改器处理器。
+             处理 bool 类型的状态修改。
+            
+             操作：
+             - Override: 直接设置为目标值
+             - Add: 切换状态 (XOR)
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.EnumModifierHandler`1">
+             <summary>
+             枚举型修改器处理器。
+             处理枚举类型的修改（通常使用 Override）。
+            
+             示例：技能阶段、Buff 类型等
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierKey">
+             <summary>
+             修改器键。
+             用于标识修改器的作用目标（属性、技能参数、状态等）。
+            
+             32 位压缩存储：
+             [Reserved:8][Custom:8][SubCategory:8][Category:8]
+            
+             使用示例：
+             ```csharp
+             // 预定义键
+             ModifierKey.AttackPower
+             ModifierKey.MaxHealth
+            
+             // 自定义键
+             var key = ModifierKey.Create(categoryId: 10, subCategoryId: 2, customId: 0);
+            
+             // 业务层扩展分类
+             ModifierKey.Categories.Projectile = 30;
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierKey.Packed">
+            <summary>压缩后的键值</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierKey.Create(System.Byte,System.Byte,System.Byte)">
+            <summary>
+            创建自定义键
+            </summary>
+            <param name="categoryId">分类 ID (0-255)</param>
+            <param name="subCategoryId">子分类 ID (0-255)</param>
+            <param name="customId">自定义 ID (0-255)</param>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierKey.FromPacked(System.UInt32)">
+            <summary>
+            从压缩值创建
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierKey.None">
+            <summary>
+            无效键
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierKey.IsValid">
+            <summary>是否为有效键</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierKey.IsEmpty">
+            <summary>是否为空键</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierKey.Categories">
+            <summary>
+            分类扩展点
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ValueSourceType">
+            <summary>
+            数值来源类型枚举
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ValueSourceType.Fixed">
+            <summary>固定值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ValueSourceType.Scalable">
+            <summary>等级曲线</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ValueSourceType.Attribute">
+            <summary>属性引用</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ValueSourceType.TimeDecay">
+            <summary>时间衰减</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ValueSourceType.Pipeline">
+            <summary>修饰器管道</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IValueSource">
+             <summary>
+             数值来源接口。
+             定义如何根据上下文计算当前数值。
+            
+             设计原则：
+             - 单一职责：只负责根据上下文计算数值
+             - 可组合：通过 IMagnitudeModifier 组合多个变换
+             - 可序列化：支持 TypeId 用于反序列化
+            
+             使用示例：
+             ```csharp
+             // 定义
+             public interface IValueSource
+             {
+                 byte TypeId { get; }
+                 float Calculate(float level, IModifierContext context);
+             }
+            
+             // 使用
+             IValueSource source = new TimeDecaySource(50f, 5f);
+             float value = source.Calculate(1f, context);
+             ```
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IValueSource.TypeId">
+            <summary>类型 ID（用于序列化/反序列化）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IValueSource.Calculate(System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算当前数值
+            </summary>
+            <param name="level">等级</param>
+            <param name="context">上下文</param>
+            <returns>计算后的数值</returns>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IValueSource.BaseValue">
+            <summary>
+            获取基础值（用于缓存估计/比较）
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IValueSource.IsTimeVarying">
+            <summary>
+            是否是时变来源（值会随时间变化）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.FixedValueSource">
+            <summary>
+            固定值来源。
+            返回恒定的数值。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.LevelCurveSource">
+            <summary>
+            等级曲线来源。
+            根据等级从曲线中插值获取数值。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.AttributeRefSource">
+            <summary>
+            属性引用来源。
+            获取指定属性的值并乘以系数。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.TimeDecaySource">
+            <summary>
+            时间衰减来源。
+            根据已过时间从初始值逐渐衰减到 0。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.PipelineSource">
+            <summary>
+            修饰器管道来源。
+            通过修饰器管道计算数值。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ValueSourceRegistry">
+            <summary>
+            数值来源注册表。
+            用于运行时注册自定义来源类型。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ValueSourceRegistry.Register(System.Byte,System.Func{AbilityKit.Modifiers.IValueSource})">
+            <summary>
+            注册自定义来源工厂
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ValueSourceRegistry.Create(System.Byte)">
+            <summary>
+            创建指定类型的来源
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.DecayType">
+            <summary>
+            衰减类型
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.Linear">
+            <summary>线性衰减</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.Exponential">
+            <summary>指数衰减（先快后慢）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.Logarithmic">
+            <summary>对数衰减（先慢后快）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.EaseOut">
+            <summary>缓出曲线（先快后慢）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.EaseIn">
+            <summary>缓入曲线（先慢后快）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.EaseInOut">
+            <summary>缓入缓出</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayType.CustomCurve">
+            <summary>自定义曲线</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MagnitudeModifierAttribute">
+            <summary>
+            修饰器类型标记
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeModifierAttribute.ModifierTypeId">
+            <summary>修饰器类型 ID（用于序列化）</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IMagnitudeModifier">
+             <summary>
+             数值修饰器接口。
+             支持修饰器链式组合，每个修饰器负责特定的数值变换。
+            
+             组合示例：
+             ```csharp
+             // 创建一个"时间衰减 + 等级曲线 + 属性引用"的修改器
+             var pipeline = ModifierPipeline.Create()
+                 .Then(new TimeDecayModifier(duration: 5f, decayType: DecayType.Exponential))
+                 .Then(new LevelCurveModifier(curve: levelUpCurve))
+                 .Then(new AttributeRefModifier(AttributeKey.Strength, coefficient: 0.5f));
+            
+             // 计算最终数值
+             float result = pipeline.Calculate(context, baseValue: 100f);
+             ```
+             </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IMagnitudeModifier.ModifierTypeId">
+            <summary>修饰器类型 ID（用于序列化）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IMagnitudeModifier.Name">
+            <summary>修饰器名称（用于调试）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IMagnitudeModifier.Modify(AbilityKit.Modifiers.IModifierContext,System.Single)">
+            <summary>
+            修改数值
+            </summary>
+            <param name="context">上下文</param>
+            <param name="input">输入值（来自前一个修饰器的输出）</param>
+            <returns>修改后的值</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IMagnitudeModifier.GetBaseValue">
+            <summary>
+            获取基础值（用于缓存/比较）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.FixedModifier">
+            <summary>
+            固定值修饰器（无操作，直接传递输入值）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.TimeDecayModifier">
+             <summary>
+             时间衰减修饰器。
+             根据已过时间从初始值逐渐衰减到 0。
+            
+             使用示例：
+             ```csharp
+             var decay = new TimeDecayModifier(50f, 5f, DecayType.Exponential);
+             float currentValue = decay.Modify(context, 0f); // 随时间变化
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.TimeDecayModifier.InitialValue">
+            <summary>初始值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.TimeDecayModifier.Duration">
+            <summary>持续时间（秒）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.TimeDecayModifier.DecayType">
+            <summary>衰减类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.TimeDecayModifier.Coefficient">
+            <summary>衰减系数（用于指数衰减）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.TimeDecayModifier.Curve">
+            <summary>曲线数据（用于 CustomCurve）</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.LevelCurveModifier">
+             <summary>
+             等级曲线修饰器。
+             根据等级从曲线中插值获取缩放因子。
+            
+             使用示例：
+             ```csharp
+             float[] curve = { 1f, 1f, 5f, 1.5f, 10f, 2f }; // [level, value, ...]
+             var levelCurve = new LevelCurveModifier(10f, curve);
+             float bonus = levelCurve.Modify(context, 0f); // 基于等级返回加成值
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.LevelCurveModifier.BaseValue">
+            <summary>基础值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.LevelCurveModifier.Curve">
+            <summary>曲线数据 [level0, value0, level1, value1, ...]</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.AttributeRefModifier">
+             <summary>
+             属性引用修饰器。
+             获取指定属性的值并乘以系数。
+            
+             使用示例：
+             ```csharp
+             var attrRef = new AttributeRefModifier(ModifierKey.Strength, 0.5f);
+             float bonus = attrRef.Modify(context, 0f); // 返回 Strength * 0.5
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.AttributeRefModifier.AttributeKey">
+            <summary>引用的属性键</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.AttributeRefModifier.Coefficient">
+            <summary>系数</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.StackingModifier">
+             <summary>
+             叠加修饰器。
+             将多个修饰器的结果相加。
+            
+             使用示例：
+             ```csharp
+             var stack = new StackingModifier(
+                 new TimeDecayModifier(10f, 5f),
+                 new LevelCurveModifier(5f, curve)
+             );
+             float result = stack.Modify(context, 0f); // 返回两个修饰器的和
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingModifier.Modifiers">
+            <summary>子修饰器数组</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ScaleModifier">
+             <summary>
+             缩放修饰器。
+             将输入值乘以缩放因子。
+            
+             使用示例：
+             ```csharp
+             var scale = new ScaleModifier(1.5f);
+             float result = scale.Modify(context, 100f); // 返回 150f
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ScaleModifier.Scale">
+            <summary>缩放系数</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierPipeline">
+             <summary>
+             修饰器管道。
+             管理多个修饰器的组合计算。
+            
+             设计原则：
+             - 修饰器按添加顺序依次执行
+             - 支持任意数量的修饰器组合
+             - 零 GC 友好的值类型实现
+            
+             使用示例：
+             ```csharp
+             // 创建管道：基础值 → 时间衰减 → 等级缩放 → 属性加成
+             var pipeline = ModifierPipeline.Create(
+                 new TimeDecayModifier(100f, 5f, DecayType.Exponential),
+                 new LevelCurveModifier(10f, levelCurve),
+                 new AttributeRefModifier(ModifierKey.Bonus, 0.2f)
+             );
+            
+             float result = pipeline.Calculate(context, baseValue: 0f);
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierPipeline._modifiers">
+            <summary>修饰器数组</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierPipeline._count">
+            <summary>修饰器数量</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierPipeline.Name">
+            <summary>管道名称</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierPipeline.ModifierTypeId">
+            <summary>修饰器类型 ID</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.#ctor(AbilityKit.Modifiers.IMagnitudeModifier[])">
+            <summary>
+            创建修饰器管道
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.Modify(AbilityKit.Modifiers.IModifierContext,System.Single)">
+            <summary>
+            计算管道输出
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.GetBaseValue">
+            <summary>
+            获取最大基础值（用于缓存估计）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.Then(AbilityKit.Modifiers.IMagnitudeModifier)">
+            <summary>
+            添加修饰器
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.ThenTimeDecay(System.Single,System.Single,AbilityKit.Modifiers.DecayType)">
+            <summary>
+            添加时间衰减
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.ThenLevelCurve(System.Single,System.Single[])">
+            <summary>
+            添加等级曲线
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.ThenAttributeRef(AbilityKit.Modifiers.ModifierKey,System.Single)">
+            <summary>
+            添加属性引用
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.ThenScale(System.Single)">
+            <summary>
+            添加缩放
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.TimeDecay(System.Single,System.Single,AbilityKit.Modifiers.DecayType)">
+            <summary>
+            创建时间衰减管道
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.LevelCurve(System.Single,System.Single[])">
+            <summary>
+            创建等级曲线管道
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.AttributeRef(AbilityKit.Modifiers.ModifierKey,System.Single)">
+            <summary>
+            创建属性引用管道
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierPipeline.Scale(System.Single)">
+            <summary>
+            创建缩放管道
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierPipeline.Item(System.Int32)">
+            <summary>
+            获取指定索引的修饰器
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MagnitudeModifierUtils">
+            <summary>
+            修饰器工具类
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeModifierUtils.CalculateDecay(System.Single,AbilityKit.Modifiers.DecayType)">
+            <summary>
+            计算衰减曲线上的值
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeModifierUtils.InterpolateCurve(System.Single,System.Single[])">
+            <summary>
+            从曲线插值
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MagnitudeSourceType">
+            <summary>
+            数值来源类型枚举
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSourceType.Fixed">
+            <summary>固定值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSourceType.Scalable">
+            <summary>等级曲线</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSourceType.Attribute">
+            <summary>属性引用</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSourceType.TimeDecay">
+            <summary>时间衰减</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSourceType.Pipeline">
+            <summary>修饰器管道</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IModifierContext">
+             <summary>
+             修改器上下文接口。
+             提供修改器计算过程中需要的外部数据。
+            
+             扩展功能：
+             - 通用数据槽（业务层可注入任意数据）
+             - 时间相关（用于时变修改器）
+             - 生命周期回调（用于 Buff 管理）
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.GetAttribute(AbilityKit.Modifiers.ModifierKey)">
+            <summary>获取属性值</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierContext.Level">
+            <summary>获取当前等级</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierContext.CurrentTime">
+            <summary>当前时间（秒）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierContext.DeltaTime">
+            <summary>增量时间（秒）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierContext.ElapsedTime">
+            <summary>距离修改器生效的已过时间（秒）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.GetData``1(System.String)">
+            <summary>获取数据（泛型）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.TryGetData``1(System.String,``0@)">
+            <summary>尝试获取数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.GetFloat(System.String)">
+            <summary>获取浮点数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.TryGetFloat(System.String,System.Single@)">
+            <summary>尝试获取浮点数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.GetInt(System.String)">
+            <summary>获取整型数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierContext.TryGetInt(System.String,System.Int32@)">
+            <summary>尝试获取整型数据</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.IModifierContext.Metadata">
+            <summary>获取修改器元数据</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierMetadata">
+             <summary>
+             修改器元数据（零 GC 版本）。
+             用于调试、UI 显示、日志记录等。
+            
+             设计原则：
+             - 零 GC：所有字段均为值类型
+             - 零分配：使用 int 索引代替 string，使用位掩码代替 string[]
+             - 快速比较：所有字段可直接比较
+            
+             业务层可通过 ModifierMetadataRegistry 注册字符串并获取索引。
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierMetadata.SourceNameIndex">
+            <summary>来源名称索引（-1 表示无名称）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierMetadata.TagsMask">
+            <summary>标签位掩码（支持最多 32 个标签）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierMetadata.CreatedTime">
+            <summary>修改器创建时间</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierMetadata.OwnerId">
+            <summary>修改器拥有者标识</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierMetadata.IsEmpty">
+            <summary>是否为空</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.ModifierMetadata.Empty">
+            <summary>创建空元数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadata.Create(System.String,System.Int32,System.String[])">
+            <summary>
+            创建带来源的元数据
+            </summary>
+            <param name="sourceName">来源名称（会注册到字符串表）</param>
+            <param name="ownerId">拥有者 ID</param>
+            <param name="tags">标签（会注册到位掩码）</param>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadata.CreateByIndex(System.Int16,System.UInt32,System.Int32)">
+            <summary>
+            创建带来源索引的元数据（高性能版本）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadata.HasTag(System.Int32)">
+            <summary>
+            检查是否包含指定标签
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadata.GetSourceName">
+            <summary>
+            获取来源名称（从注册表查找）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierMetadataRegistry">
+             <summary>
+             修改器元数据注册表。
+             管理字符串和标签的注册与查找。
+            
+             使用方式：
+             1. 业务层初始化时注册常用字符串
+             2. ModifierMetadata 使用 int 索引存储
+             3. 调试时通过索引查找实际字符串
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadataRegistry.RegisterName(System.String)">
+            <summary>
+            注册名称，返回索引
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadataRegistry.GetName(System.Int16)">
+            <summary>
+            获取名称
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadataRegistry.RegisterTags(System.String[])">
+            <summary>
+            注册标签，返回位掩码
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierMetadataRegistry.RegisterCommonTags(System.String[])">
+            <summary>
+            注册常用标签（批量初始化，提升性能）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IModifierLifecycle">
+            <summary>
+            修改器生命周期管理器接口。
+            管理修改器的添加、更新、移除等事件。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierLifecycle.OnAdded(AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>修改器被添加时调用</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierLifecycle.OnUpdate(AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>每帧更新时调用（用于时变修改器）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierLifecycle.OnRemoved(AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext)">
+            <summary>修改器被移除时调用</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.IModifierLifecycle.OnExpiring(AbilityKit.Modifiers.ModifierData@,AbilityKit.Modifiers.IModifierContext,System.Single)">
+            <summary>修改器即将过期时调用</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.NullModifierLifecycle">
+            <summary>
+            空生命周期管理器
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.IModifierOperator">
+            <summary>
+            修改器操作接口。
+            定义如何将修改器应用到基础值上。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.AddOperator">
+            <summary>加法操作</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MulOperator">
+            <summary>乘法操作</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.OverrideOperator">
+            <summary>覆盖操作</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.PercentAddOperator">
+            <summary>百分比加成操作</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierOperatorRegistry">
+            <summary>
+            修改器操作注册表。
+            管理所有内置和自定义操作。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOperatorRegistry.Register(AbilityKit.Modifiers.IModifierOperator)">
+            <summary>注册自定义操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOperatorRegistry.Get(AbilityKit.Modifiers.ModifierOp)">
+            <summary>获取操作</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierOperatorRegistry.GetSymbol(AbilityKit.Modifiers.ModifierOp)">
+            <summary>获取操作符号</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MagnitudeSource">
+             <summary>
+             统一数值来源结构。
+             支持：固定值、等级曲线、属性引用、时间衰减、修饰器管道。
+            
+             设计原则：
+             - 零 GC：所有字段均为值类型（除 ArrayData）
+             - 序列化友好：保持简单字段便于 Unity 序列化
+             - 语义化：提供类型安全的访问属性
+            
+             字段布局：
+             - Data0: 基础值/初始值
+             - Data1: 系数/持续时间/属性键
+             - Data2: 衰减类型/曲线参数
+             - ArrayData: 曲线数据
+            
+             使用示例：
+             ```csharp
+             // 固定值
+             var source = MagnitudeSource.Fixed(100f);
+            
+             // 时间衰减
+             var source = MagnitudeSource.TimeDecay(50f, 5f, DecayType.Exponential);
+            
+             // 等级曲线
+             var source = MagnitudeSource.LevelCurve(10f, curve);
+            
+             // 修饰器管道（可组合多个修饰器）
+             var pipeline = ModifierPipeline.Create()
+                 .ThenTimeDecay(50f, 5f, DecayType.Exponential)
+                 .ThenLevelCurve(10f, curve)
+                 .ThenAttributeRef(ModifierKey.Strength, 0.5f);
+             var source = MagnitudeSource.Pipeline(pipeline);
+            
+             // 计算当前数值
+             float currentValue = source.Calculate(level, context);
+             ```
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.Type">
+            <summary>来源类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.Data0">
+            <summary>基础值/初始值</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.Data1">
+            <summary>系数/持续时间/属性键</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.Data2">
+            <summary>衰减类型/曲线参数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.ArrayData">
+            <summary>曲线数据</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudeSource.PipelineData">
+            <summary>修饰器管道数据</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.BaseValue">
+            <summary>获取基础值（语义化属性）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.Coefficient">
+            <summary>获取系数</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.Duration">
+            <summary>获取持续时间（TimeDecay）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.DecayType">
+            <summary>获取衰减类型（TimeDecay）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.AttributeKey">
+            <summary>获取属性键（Attribute）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.CurveData">
+            <summary>获取曲线数据</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.IsTimeVarying">
+            <summary>
+            是否是时变来源（值会随时间变化）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.Calculate(System.Single,AbilityKit.Modifiers.IModifierContext)">
+            <summary>
+            计算当前数值（根据来源类型）
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.Fixed(System.Single)">
+            <summary>创建固定值来源</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.LevelCurve(System.Single,System.Single[],System.Single)">
+            <summary>创建等级曲线来源</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.Attribute(AbilityKit.Modifiers.ModifierKey,System.Single)">
+            <summary>创建属性引用来源</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.TimeDecay(System.Single,System.Single,AbilityKit.Modifiers.DecayType)">
+            <summary>创建时间衰减来源</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.TimeDecay(System.Single,System.Single,System.Single,AbilityKit.Modifiers.DecayType)">
+            <summary>创建时间衰减来源（带系数）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.TimeDecay(System.Single,System.Single,System.Single[])">
+            <summary>创建时间衰减来源（自定义曲线）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.Pipeline(AbilityKit.Modifiers.ModifierPipeline)">
+            <summary>创建修饰器管道来源（支持复杂组合）</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.Pipeline(System.Single,AbilityKit.Modifiers.ModifierPipeline)">
+            <summary>创建修饰器管道来源（带基础值）</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudeSource.IsEmpty">
+            <summary>是否是空来源</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.WithBaseValue(System.Single)">
+            <summary>复制并设置基础值</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudeSource.WithCoefficient(System.Single)">
+            <summary>复制并设置系数</summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.MagnitudePipelineData">
+            <summary>
+            修饰器管道数据。
+            用于 MagnitudeSource 的序列化。
+            支持存储最多 4 个修饰器。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudePipelineData.Count">
+            <summary>修饰器数量</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudePipelineData.Modifier0">
+            <summary>修饰器0</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudePipelineData.Modifier1">
+            <summary>修饰器1</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudePipelineData.Modifier2">
+            <summary>修饰器2</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.MagnitudePipelineData.Modifier3">
+            <summary>修饰器3</summary>
+        </member>
+        <member name="P:AbilityKit.Modifiers.MagnitudePipelineData.IsEmpty">
+            <summary>是否为空</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudePipelineData.Create(AbilityKit.Modifiers.ModifierPipeline)">
+            <summary>创建管道数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.MagnitudePipelineData.Calculate(AbilityKit.Modifiers.IModifierContext,System.Single)">
+            <summary>
+            计算管道输出
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.SingleModifierData">
+            <summary>
+            单个修饰器数据（用于序列化）
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.TypeId">
+            <summary>修饰器类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.Param0">
+            <summary>参数0</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.Param1">
+            <summary>参数1</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.Param2">
+            <summary>参数2</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.Param3">
+            <summary>参数3</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.SingleModifierData.Curve">
+            <summary>曲线数据</summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.SingleModifierData.Create(AbilityKit.Modifiers.IMagnitudeModifier)">
+            <summary>
+            创建修饰器数据
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.SingleModifierData.CreateModifier">
+            <summary>
+            创建修饰器实例
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.SingleModifierData.Modify(AbilityKit.Modifiers.IModifierContext,System.Single)">
+            <summary>
+            修改数值
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.StackingType">
+            <summary>
+            叠加类型。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingType.Exclusive">
+            <summary>
+            独占：同一来源只能有一个实例在该堆叠组中。
+            新来的相同源会替换旧的。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingType.Aggregate">
+            <summary>
+            聚合：同一来源可以有多个实例在该堆叠组中。
+            新来的相同源会叠加层数。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.ModifierStacking">
+             <summary>
+             叠加组。
+             用于管理同类修改器的叠加逻辑。
+            
+             对标 GAS 的 FGameplayEffectStackingModule。
+            
+             设计原则：
+             - 独立于 ModifierData，叠加逻辑由业务层决定
+             - 这里只提供计算逻辑：如何合并多个叠加条目
+             - 存储由业务层负责（可以用 List、Dictionary 或 ECS Component）
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierStacking.Config">
+            <summary>
+            叠加组配置
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierStacking.StackCount">
+            <summary>
+            当前叠加层数
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.ModifierStacking.Entry">
+            <summary>
+            单个叠加条目的数据
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.CreateAggregate(AbilityKit.Modifiers.ModifierKey,System.Int32,System.Int32,System.Nullable{AbilityKit.Modifiers.ModifierData})">
+            <summary>
+            创建聚合叠加组
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.CreateExclusive(AbilityKit.Modifiers.ModifierKey,System.Nullable{AbilityKit.Modifiers.ModifierData})">
+            <summary>
+            创建独占叠加组
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.TryPush(AbilityKit.Modifiers.ModifierData@)">
+            <summary>
+            尝试添加一层叠加
+            </summary>
+            <param name="newEntry">新的叠加条目</param>
+            <returns>是否成功添加</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.TryPop">
+            <summary>
+            移除一层叠加
+            </summary>
+            <returns>是否还有剩余</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.Clear">
+            <summary>
+            清空所有叠加
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.ExpandTo(System.Span{AbilityKit.Modifiers.ModifierData})">
+            <summary>
+            展开为修改器列表（用于 ModifierCalculator 计算）
+            </summary>
+            <param name="results">预分配的数组</param>
+            <returns>实际使用的条目数</returns>
+        </member>
+        <member name="M:AbilityKit.Modifiers.ModifierStacking.CalculateStackedValue(System.Single)">
+            <summary>
+            快速计算叠加后的数值（不分配）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.StackingConfig">
+            <summary>
+            叠加配置
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingConfig.Type">
+            <summary>叠加类型</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingConfig.StackKey">
+            <summary>叠加标识键（用于区分不同的叠加组）</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingConfig.MaxStackCount">
+            <summary>最大叠加层数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.StackingConfig.Decay">
+            <summary>
+            衰减配置（可选）
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Modifiers.DecayConfig">
+            <summary>
+            衰减配置
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayConfig.AutoDecay">
+            <summary>是否在持续时间结束后自动衰减</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayConfig.DecayPerStackDuration">
+            <summary>每层衰减时间（秒）。0 表示不自动衰减。</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayConfig.DecayPerStackCount">
+            <summary>每层衰减时减少的叠加数</summary>
+        </member>
+        <member name="F:AbilityKit.Modifiers.DecayConfig.RemoveOnFullDecay">
+            <summary>是否完全移除（true）或保留 1 层（false）</summary>
+        </member>
+    </members>
+</doc>

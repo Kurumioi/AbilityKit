@@ -8,10 +8,11 @@ using AbilityKit.Protocol.Moba.GatewayTimeSync;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
 using AbilityKit.Protocol.Moba.Room;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Game.Flow;
 
 namespace AbilityKit.Game.Battle.Agent
 {
-    public sealed class GatewayRoomClient
+    public sealed class GatewayRoomClient : IGatewayRoomClient
     {
         private readonly IConnection _connection;
         private readonly RequestClient _request;

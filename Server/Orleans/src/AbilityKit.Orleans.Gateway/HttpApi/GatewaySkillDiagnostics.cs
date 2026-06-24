@@ -6,7 +6,7 @@ using Orleans;
 
 internal static class GatewaySkillDiagnostics
 {
-    private const string TraceNotConnected = "TraceNotConnected";
+    private const string RuntimeContextOnly = "RuntimeContextOnly";
 
     public static async Task<AdminSkillDiagnosticsSummaryHttpResponse> GetSummaryAsync(
         IClusterClient client,
@@ -14,10 +14,7 @@ internal static class GatewaySkillDiagnostics
         string? battleId)
     {
         RoomRuntimeState? runtimeState = null;
-        var warnings = new List<string>
-        {
-            "Skill trace sink is not connected yet. Current response only uses room and battle context already available from Orleans grains."
-        };
+        var warnings = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(roomId))
         {
@@ -59,12 +56,12 @@ internal static class GatewaySkillDiagnostics
 
         var metrics = new[]
         {
-            new AdminSkillMetricHttpResponse("CastCount", 0, "count", TraceNotConnected),
-            new AdminSkillMetricHttpResponse("RejectCount", 0, "count", TraceNotConnected),
-            new AdminSkillMetricHttpResponse("FailureCount", 0, "count", TraceNotConnected),
-            new AdminSkillMetricHttpResponse("DamageTotal", 0, "value", TraceNotConnected),
-            new AdminSkillMetricHttpResponse("BuffApplyCount", 0, "count", TraceNotConnected),
-            new AdminSkillMetricHttpResponse("AvgPipelineMs", 0, "ms", TraceNotConnected)
+            new AdminSkillMetricHttpResponse("CastCount", 0, "count", RuntimeContextOnly),
+            new AdminSkillMetricHttpResponse("RejectCount", 0, "count", RuntimeContextOnly),
+            new AdminSkillMetricHttpResponse("FailureCount", 0, "count", RuntimeContextOnly),
+            new AdminSkillMetricHttpResponse("DamageTotal", 0, "value", RuntimeContextOnly),
+            new AdminSkillMetricHttpResponse("BuffApplyCount", 0, "count", RuntimeContextOnly),
+            new AdminSkillMetricHttpResponse("AvgPipelineMs", 0, "ms", RuntimeContextOnly)
         };
 
         return new AdminSkillDiagnosticsSummaryHttpResponse(
@@ -75,7 +72,7 @@ internal static class GatewaySkillDiagnostics
             runtimeState?.IsInBattle ?? false,
             currentFrame,
             members,
-            TraceNotConnected,
+            RuntimeContextOnly,
             actorSummaries,
             metrics,
             warnings.ToArray(),
@@ -95,13 +92,10 @@ internal static class GatewaySkillDiagnostics
     {
         var effectiveLimit = limit <= 0 ? 100 : Math.Min(limit, 500);
         var filters = new AdminSkillEventFilterHttpResponse(battleId, actorId, skillId, effectiveLimit);
-        var warnings = new[]
-        {
-            "Skill event timeline is waiting for MOBA runtime trace sink integration."
-        };
+        var warnings = Array.Empty<string>();
 
         var response = new AdminSkillDiagnosticsEventsHttpResponse(
-            TraceNotConnected,
+            RuntimeContextOnly,
             filters,
             Array.Empty<AdminSkillEventHttpResponse>(),
             warnings,

@@ -12,14 +12,7 @@ namespace AbilityKit.Game.Flow
 
         private Task GatewayRoomPreparationTask => _gatewayTask;
 
-        private bool ShouldPrepareGatewayRoom()
-        {
-            var gateway = _plan.Gateway;
-            if (_plan.HostMode != BattleStartConfig.BattleHostMode.GatewayRemote) return false;
-            if (!gateway.UseGatewayTransport) return false;
-            if (!gateway.AutoCreateRoom && !gateway.AutoJoinRoom) return false;
-            return true;
-        }
+        private bool ShouldPrepareGatewayRoom() => GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(_plan);
 
         private void StartGatewayRoomPreparation()
         {
@@ -30,7 +23,7 @@ namespace AbilityKit.Game.Flow
             _gatewayConn.Open(gateway.Host, gateway.Port);
 
             var opCodes = new GatewayRoomOpCodes(gateway.CreateRoomOpCode, gateway.JoinRoomOpCode);
-            _gatewayClient = new GatewayRoomClient(_gatewayConn, opCodes);
+            _gatewayClient = _gatewayRoomClientFactory.CreateGatewayRoomClient(_gatewayConn, opCodes);
 
             _gatewayTask = PrepareRoomAsync();
         }
@@ -41,12 +34,8 @@ namespace AbilityKit.Game.Flow
             _gatewayClient = null;
 
             StopTimeSyncLoop();
-            _gatewayWorldStartAnchors.Clear();
-
-            if (_connectionRegistry != null)
-            {
-                _connectionRegistry.Remove(AbilityKitConnectionRole.GatewayReliable);
-            }
+            GatewayRoomCleanupHelper.ClearWorldStartAnchors(_gatewayWorldStartAnchors);
+            GatewayRoomCleanupHelper.RemoveGatewayReliableConnection(_connectionRegistry);
 
             _gatewayConn = null;
         }

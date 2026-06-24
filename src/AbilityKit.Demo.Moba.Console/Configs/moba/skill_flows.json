@@ -4,12 +4,19 @@
     "Name": "廉颇-技能1",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {
@@ -28,12 +35,19 @@
     "Name": "廉颇-技能2",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {
@@ -52,12 +66,19 @@
     "Name": "廉颇-技能3",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
         }
       },
       {

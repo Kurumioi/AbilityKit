@@ -49,9 +49,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         /// </summary>
         public InMatchPhase? GetInMatchPhase()
         {
-            return _phaseHost.CurrentPhase == "InMatch"
-                ? _phaseHost.GetPhase("InMatch") as InMatchPhase
-                : null;
+            return _phaseHost.GetPhase("InMatch") as InMatchPhase;
         }
 
         private void OnPhaseEnteredFromHost(string phaseName)

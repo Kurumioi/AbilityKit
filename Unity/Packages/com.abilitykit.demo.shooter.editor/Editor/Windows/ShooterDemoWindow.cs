@@ -2,6 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using DiagnosticsProcess = System.Diagnostics.Process;
+using DiagnosticsProcessStartInfo = System.Diagnostics.ProcessStartInfo;
+using System.IO;
+using System.Net.Sockets;
 using AbilityKit.Demo.Shooter.Editor.Diagnostics;
 using AbilityKit.Demo.Shooter.Editor.Input;
 using AbilityKit.Demo.Shooter.Editor.Sink;
@@ -42,9 +46,22 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private string _remoteHost = ShooterRemoteStateSyncDefaults.DefaultHost;
         private int _remotePort = ShooterRemoteStateSyncDefaults.DefaultPort;
         private string _remoteSessionToken = ShooterRemoteStateSyncDefaults.DefaultSessionToken;
+        private string _remoteAccountId = string.Empty;
         private string _remoteRegion = ShooterRemoteStateSyncDefaults.DefaultRegion;
         private string _remoteServerId = ShooterRemoteStateSyncDefaults.DefaultServerId;
+        private string _remoteRoomTitle = "Unity Shooter Room";
+        private int _remoteRoomMaxPlayers = 1;
+        private string _remoteSelectedRoomId = string.Empty;
+        private string _remoteRoomFilter = string.Empty;
+        private bool _remoteShowFullRooms = true;
+        private int _remoteSelectedRoomIndex;
+        private readonly List<ShooterGatewayRoomSummary> _remoteRooms = new();
+        private readonly List<ShooterGatewayRoomSummary> _remoteVisibleRooms = new();
         private bool _remoteLaunchPending;
+        private bool _remoteLobbyPending;
+        private bool _remoteServerReachable;
+        private double _nextRemoteServerProbeTime;
+        private string _remoteServerStatusText = "服务器: 未检查";
 
         // --- Run state ---
         private bool _running;
@@ -103,8 +120,14 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private const string RemoteHostKey = "AbilityKit.ShooterDemo.RemoteHost";
         private const string RemotePortKey = "AbilityKit.ShooterDemo.RemotePort";
         private const string RemoteSessionTokenKey = "AbilityKit.ShooterDemo.RemoteSessionToken";
+        private const string RemoteAccountIdKey = "AbilityKit.ShooterDemo.RemoteAccountId";
         private const string RemoteRegionKey = "AbilityKit.ShooterDemo.RemoteRegion";
         private const string RemoteServerIdKey = "AbilityKit.ShooterDemo.RemoteServerId";
+        private const string RemoteRoomTitleKey = "AbilityKit.ShooterDemo.RemoteRoomTitle";
+        private const string RemoteRoomMaxPlayersKey = "AbilityKit.ShooterDemo.RemoteRoomMaxPlayers";
+        private const string RemoteSelectedRoomIdKey = "AbilityKit.ShooterDemo.RemoteSelectedRoomId";
+        private const string RemoteRoomFilterKey = "AbilityKit.ShooterDemo.RemoteRoomFilter";
+        private const string RemoteShowFullRoomsKey = "AbilityKit.ShooterDemo.RemoteShowFullRooms";
 
         [MenuItem("Tools/AbilityKit/Shooter Demo")]
         private static void Open()
@@ -438,16 +461,51 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             }
 
             EditorGUILayout.LabelField("远程状态同步", EditorStyles.boldLabel);
-            EditorGUI.BeginDisabledGroup(_running || _remoteLaunchPending || ShooterRemoteStateSyncPlayModeHost.IsStarting);
+            var busy = _running || _remoteLaunchPending || _remoteLobbyPending || ShooterRemoteStateSyncPlayModeHost.IsStarting;
+            DrawRemoteServerControls(busy);
+            EditorGUI.BeginDisabledGroup(busy);
             _remoteHost = EditorGUILayout.TextField("Host", _remoteHost);
             _remotePort = EditorGUILayout.IntField("Port", _remotePort);
             _remoteSessionToken = EditorGUILayout.TextField("Session", _remoteSessionToken);
+            EditorGUI.BeginDisabledGroup(true);
+            EditorGUILayout.TextField("Account", string.IsNullOrWhiteSpace(_remoteAccountId) ? "<not logged in>" : _remoteAccountId);
+            EditorGUI.EndDisabledGroup();
             _remoteRegion = EditorGUILayout.TextField("Region", _remoteRegion);
             _remoteServerId = EditorGUILayout.TextField("Server", _remoteServerId);
+            _remoteRoomTitle = EditorGUILayout.TextField("Room Title", _remoteRoomTitle);
+            _remoteRoomMaxPlayers = EditorGUILayout.IntSlider("Max Players", _remoteRoomMaxPlayers, 1, ShooterGameplay.DefaultMaxPlayers);
             EditorGUI.EndDisabledGroup();
 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(busy);
+            if (GUILayout.Button("游客登录", GUILayout.Height(22)))
+            {
+                GuestLoginRemoteAsync();
+            }
+            EditorGUI.BeginDisabledGroup(string.IsNullOrWhiteSpace(_remoteSessionToken));
+            if (GUILayout.Button("刷新房间", GUILayout.Height(22)))
+            {
+                RefreshRemoteRoomsAsync();
+            }
+            if (GUILayout.Button("创建房间", GUILayout.Height(22)))
+            {
+                CreateRemoteRoomAsync(false);
+            }
+            if (GUILayout.Button("一人房间并开始", GUILayout.Height(22)))
+            {
+                CreateRemoteRoomAsync(true);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            DrawRemoteRoomSelection(busy);
+
+            var launchModeText = string.IsNullOrWhiteSpace(_remoteSelectedRoomId)
+                ? "未选择房间：连接时先 RestoreRoom，失败后自动 Create/Ready/Start/Subscribe。"
+                : $"已选择房间 {_remoteSelectedRoomId}：若 Web/Sandbox 已开战则 Join 后直接 Subscribe，否则 Join/Ready/Start/Subscribe。";
             EditorGUILayout.HelpBox(
-                "先尝试 RestoreRoom，失败后自动 Create/Ready/Start/Subscribe。默认连接 Server/Orleans/tools/restart_shooter_state_sync.bat 启动的 127.0.0.1:41001。",
+                launchModeText + " 默认连接 Server/Orleans/tools/restart_shooter_state_sync.bat 启动的 127.0.0.1:41001。",
                 MessageType.Info);
         }
 
@@ -1078,12 +1136,20 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             ShooterPlayModeSessionOptions options,
             ShooterClientNetworkEndpoint endpoint)
         {
-            return ShooterRemoteStateSyncLaunchOptions.RestoreFirst(
-                options,
-                endpoint,
-                _remoteSessionToken,
-                _remoteRegion,
-                _remoteServerId);
+            return string.IsNullOrWhiteSpace(_remoteSelectedRoomId)
+                ? ShooterRemoteStateSyncLaunchOptions.RestoreFirst(
+                    options,
+                    endpoint,
+                    _remoteSessionToken,
+                    _remoteRegion,
+                    _remoteServerId)
+                : ShooterRemoteStateSyncLaunchOptions.JoinRoom(
+                    options,
+                    endpoint,
+                    _remoteSessionToken,
+                    _remoteRegion,
+                    _remoteServerId,
+                    _remoteSelectedRoomId);
         }
 
         private async System.Threading.Tasks.Task StartRemoteStateSyncInPlayModeAsync(
@@ -1237,6 +1303,468 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
         private static string NormalizeRemoteText(string value, string fallback)
         {
             return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+        }
+
+        private void DrawRemoteServerControls(bool busy)
+        {
+            ProbeRemoteServerIfNeeded();
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("Shooter 状态同步服务器", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(_remoteServerStatusText, EditorStyles.miniLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(busy);
+            if (GUILayout.Button("开启/重启服务器", GUILayout.Height(22)))
+            {
+                StartRemoteServerProcess();
+            }
+
+            if (GUILayout.Button("检查服务器", GUILayout.Height(22)))
+            {
+                ProbeRemoteServerNow();
+            }
+
+            if (GUILayout.Button("停止服务器", GUILayout.Height(22)))
+            {
+                StopRemoteServerProcess();
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.HelpBox("会打开独立命令行窗口运行 Server/Orleans/tools/restart_shooter_state_sync.bat；状态通过当前 Host/Port 的 TCP 探测判断。", MessageType.Info);
+            EditorGUILayout.EndVertical();
+        }
+
+        private void ProbeRemoteServerIfNeeded()
+        {
+            var now = EditorApplication.timeSinceStartup;
+            if (now < _nextRemoteServerProbeTime)
+            {
+                return;
+            }
+
+            _nextRemoteServerProbeTime = now + 2d;
+            ProbeRemoteServerNow();
+        }
+
+        private void ProbeRemoteServerNow()
+        {
+            var host = string.IsNullOrWhiteSpace(_remoteHost) ? ShooterRemoteStateSyncDefaults.DefaultHost : _remoteHost.Trim();
+            var port = _remotePort;
+            if (port <= 0 || port > 65535)
+            {
+                _remoteServerReachable = false;
+                _remoteServerStatusText = "服务器: 端口无效";
+                return;
+            }
+
+            _remoteServerReachable = CanConnectTcp(host, port, 80);
+            _remoteServerStatusText = _remoteServerReachable
+                ? $"服务器: 已开启 ({host}:{port})"
+                : $"服务器: 未连接 ({host}:{port})";
+        }
+
+        private static bool CanConnectTcp(string host, int port, int timeoutMilliseconds)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                var result = client.BeginConnect(host, port, null, null);
+                if (!result.AsyncWaitHandle.WaitOne(timeoutMilliseconds))
+                {
+                    return false;
+                }
+
+                client.EndConnect(result);
+                return client.Connected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void StartRemoteServerProcess()
+        {
+            try
+            {
+                NormalizeRemoteLobbyFields();
+                var scriptPath = ResolveWorkspacePath("Server/Orleans/tools/restart_shooter_state_sync.bat");
+                if (!File.Exists(scriptPath))
+                {
+                    _lastError = $"未找到服务器启动脚本：{scriptPath}";
+                    Repaint();
+                    return;
+                }
+
+                var arguments = $"/c start \"AbilityKit Shooter Server\" cmd /k \"\"{scriptPath}\" -TcpPort {_remotePort}\"";
+                DiagnosticsProcess.Start(new DiagnosticsProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = arguments,
+                    WorkingDirectory = ResolveWorkspacePath(string.Empty),
+                    UseShellExecute = false,
+                    CreateNoWindow = false
+                });
+
+                _nextRemoteServerProbeTime = EditorApplication.timeSinceStartup + 1d;
+                _remoteServerStatusText = $"服务器: 正在启动 ({_remoteHost}:{_remotePort})";
+                _lastError = "已打开 Shooter 状态同步服务器命令行窗口。";
+                Repaint();
+            }
+            catch (Exception ex)
+            {
+                _lastError = $"Start Shooter server failed: {ex.Message}";
+                UnityEngine.Debug.LogException(ex);
+                Repaint();
+            }
+        }
+
+        private void StopRemoteServerProcess()
+        {
+            try
+            {
+                var scriptPath = ResolveWorkspacePath("Server/Orleans/tools/abilitykit_process_utils.ps1");
+                if (!File.Exists(scriptPath))
+                {
+                    _lastError = $"未找到服务器停止工具：{scriptPath}";
+                    Repaint();
+                    return;
+                }
+
+                var command = $". '{scriptPath}'; Stop-AbilityKitServices -Ports @({_remotePort},12111,31001) -CommandPatterns @('AbilityKit.Orleans.ShooterSmoke.csproj') -GraceSeconds 2";
+                DiagnosticsProcess.Start(new DiagnosticsProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{command}\"",
+                    WorkingDirectory = ResolveWorkspacePath(string.Empty),
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+
+                _nextRemoteServerProbeTime = EditorApplication.timeSinceStartup + 1d;
+                _remoteServerStatusText = "服务器: 正在停止";
+                _lastError = "已发送 Shooter 状态同步服务器停止命令。";
+                Repaint();
+            }
+            catch (Exception ex)
+            {
+                _lastError = $"Stop Shooter server failed: {ex.Message}";
+                UnityEngine.Debug.LogException(ex);
+                Repaint();
+            }
+        }
+
+        private static string ResolveWorkspacePath(string relativePath)
+        {
+            var unityRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+            var workspaceRoot = Directory.GetParent(unityRoot)?.FullName ?? unityRoot;
+            return string.IsNullOrWhiteSpace(relativePath)
+                ? workspaceRoot
+                : Path.GetFullPath(Path.Combine(workspaceRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        }
+
+        private void DrawRemoteRoomSelection(bool busy)
+        {
+            EditorGUI.BeginDisabledGroup(busy);
+            _remoteRoomFilter = EditorGUILayout.TextField("房间筛选", _remoteRoomFilter);
+            _remoteShowFullRooms = EditorGUILayout.ToggleLeft("显示满员/运行中房间（Web/Sandbox 可能已开战）", _remoteShowFullRooms);
+            EditorGUI.EndDisabledGroup();
+
+            BuildRemoteVisibleRooms();
+            if (_remoteVisibleRooms.Count == 0)
+            {
+                var emptyText = _remoteRooms.Count == 0 ? "<none>" : "<no matched rooms>";
+                EditorGUILayout.LabelField("房间", string.IsNullOrWhiteSpace(_remoteSelectedRoomId) ? emptyText : _remoteSelectedRoomId, EditorStyles.miniLabel);
+                return;
+            }
+
+            var labels = new string[_remoteVisibleRooms.Count];
+            for (var i = 0; i < _remoteVisibleRooms.Count; i++)
+            {
+                labels[i] = FormatRemoteRoomLabel(_remoteVisibleRooms[i]);
+            }
+
+            if (!SelectRemoteVisibleRoom(_remoteSelectedRoomId))
+            {
+                _remoteSelectedRoomIndex = 0;
+                _remoteSelectedRoomId = _remoteVisibleRooms[0].RoomId;
+            }
+
+            EditorGUI.BeginDisabledGroup(busy);
+            var nextIndex = EditorGUILayout.Popup("房间", ClampIndex(_remoteSelectedRoomIndex, _remoteVisibleRooms.Count), labels);
+            if (nextIndex != _remoteSelectedRoomIndex || string.IsNullOrWhiteSpace(_remoteSelectedRoomId))
+            {
+                _remoteSelectedRoomIndex = nextIndex;
+                _remoteSelectedRoomId = _remoteVisibleRooms[nextIndex].RoomId;
+            }
+
+            var selected = FindRemoteRoom(_remoteSelectedRoomId);
+            if (selected.HasValue)
+            {
+                EditorGUILayout.HelpBox(FormatRemoteRoomDetail(selected.Value), MessageType.None);
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginDisabledGroup(string.IsNullOrWhiteSpace(_remoteSelectedRoomId));
+            if (GUILayout.Button("进入所选房间", GUILayout.Height(20)))
+            {
+                StartRemoteStateSyncInternal();
+            }
+            if (GUILayout.Button("清除选择", GUILayout.Height(20)))
+            {
+                _remoteSelectedRoomId = string.Empty;
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            EditorGUI.EndDisabledGroup();
+        }
+
+        private async void GuestLoginRemoteAsync()
+        {
+            await ExecuteRemoteLobbyOperationAsync(async client =>
+            {
+                var result = await client.GuestLoginAsync(new ShooterGatewayGuestLoginRequest($"unity-shooter-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}"));
+                if (!result.Success || string.IsNullOrWhiteSpace(result.SessionToken))
+                {
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Message) ? "GuestLogin failed." : result.Message);
+                }
+
+                _remoteSessionToken = result.SessionToken;
+                _remoteAccountId = result.AccountId;
+                _lastError = "游客登录成功。";
+            });
+        }
+
+        private async void RefreshRemoteRoomsAsync()
+        {
+            await ExecuteRemoteLobbyOperationAsync(async client =>
+            {
+                NormalizeRemoteLobbyFields();
+                var result = await client.ListRoomsAsync(new ShooterGatewayListRoomsRequest(_remoteSessionToken, _remoteRegion, _remoteServerId, roomType: ShooterGameplay.RoomType));
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Message) ? "ListRooms failed." : result.Message);
+                }
+
+                _remoteRooms.Clear();
+                _remoteRooms.AddRange(result.Rooms);
+                SelectRemoteRoom(_remoteSelectedRoomId);
+                BuildRemoteVisibleRooms();
+                _lastError = $"已刷新 {_remoteRooms.Count} 个 Shooter 房间，当前显示 {_remoteVisibleRooms.Count} 个。";
+            });
+        }
+
+        private async void CreateRemoteRoomAsync(bool startAfterCreate)
+        {
+            await ExecuteRemoteLobbyOperationAsync(async client =>
+            {
+                NormalizeRemoteLobbyFields();
+                var spec = ShooterRoomLaunchSpec.CreateDefault($"unity-{_controlledPlayerId}");
+                var request = new ShooterGatewayCreateRoomRequest(
+                    _remoteSessionToken,
+                    _remoteRegion,
+                    _remoteServerId,
+                    ShooterGameplay.RoomType,
+                    _remoteRoomTitle,
+                    isPublic: true,
+                    _remoteRoomMaxPlayers,
+                    spec.Tags);
+                var result = await client.CreateRoomAsync(request);
+                if (!result.Success || string.IsNullOrWhiteSpace(result.RoomId))
+                {
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Message) ? "CreateRoom failed." : result.Message);
+                }
+
+                _remoteSelectedRoomId = result.RoomId;
+                await RefreshRemoteRoomsForClientAsync(client);
+                _lastError = startAfterCreate ? "房间已创建，正在启动。" : $"房间已创建：{result.RoomId}";
+            });
+
+            if (startAfterCreate && !string.IsNullOrWhiteSpace(_remoteSelectedRoomId))
+            {
+                StartRemoteStateSyncInternal();
+            }
+        }
+
+        private async System.Threading.Tasks.Task ExecuteRemoteLobbyOperationAsync(Func<ShooterRoomGatewayRoomClient, System.Threading.Tasks.Task> operation)
+        {
+            if (_remoteLobbyPending || _remoteLaunchPending || _running)
+            {
+                return;
+            }
+
+            if (!TryBuildRemoteEndpoint(out var endpoint))
+            {
+                Repaint();
+                return;
+            }
+
+            try
+            {
+                _remoteLobbyPending = true;
+                _lastError = $"正在连接 {endpoint.Host}:{endpoint.Port} ...";
+                Repaint();
+
+                using var launcher = ShooterClientNetworkLauncher.Create(ShooterClientConnectionFactory.Tcp());
+                launcher.Open(endpoint);
+                var client = new ShooterRoomGatewayRoomClient(launcher.GatewayConnection);
+                await operation(client);
+                SaveConfigToSessionState();
+            }
+            catch (Exception ex)
+            {
+                _lastError = $"Remote lobby failed: {ex.Message}";
+                Debug.LogException(ex);
+            }
+            finally
+            {
+                _remoteLobbyPending = false;
+                Repaint();
+            }
+        }
+
+        private async System.Threading.Tasks.Task RefreshRemoteRoomsForClientAsync(ShooterRoomGatewayRoomClient client)
+        {
+            var result = await client.ListRoomsAsync(new ShooterGatewayListRoomsRequest(_remoteSessionToken, _remoteRegion, _remoteServerId, roomType: ShooterGameplay.RoomType));
+            if (result.Success)
+            {
+                _remoteRooms.Clear();
+                _remoteRooms.AddRange(result.Rooms);
+                SelectRemoteRoom(_remoteSelectedRoomId);
+                BuildRemoteVisibleRooms();
+            }
+        }
+
+        private void NormalizeRemoteLobbyFields()
+        {
+            _remoteSessionToken = NormalizeRemoteText(_remoteSessionToken, ShooterRemoteStateSyncDefaults.DefaultSessionToken);
+            _remoteRegion = NormalizeRemoteText(_remoteRegion, ShooterRemoteStateSyncDefaults.DefaultRegion);
+            _remoteServerId = NormalizeRemoteText(_remoteServerId, ShooterRemoteStateSyncDefaults.DefaultServerId);
+            _remoteRoomTitle = NormalizeRemoteText(_remoteRoomTitle, "Unity Shooter Room");
+            _remoteRoomMaxPlayers = Math.Max(1, Math.Min(ShooterGameplay.DefaultMaxPlayers, _remoteRoomMaxPlayers));
+        }
+
+        private void SelectRemoteRoom(string roomId)
+        {
+            BuildRemoteVisibleRooms();
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                _remoteSelectedRoomIndex = 0;
+                _remoteSelectedRoomId = _remoteVisibleRooms.Count == 0 ? string.Empty : _remoteVisibleRooms[0].RoomId;
+                return;
+            }
+
+            if (SelectRemoteVisibleRoom(roomId))
+            {
+                return;
+            }
+
+            _remoteSelectedRoomIndex = 0;
+        }
+
+        private void BuildRemoteVisibleRooms()
+        {
+            _remoteVisibleRooms.Clear();
+            var filter = _remoteRoomFilter?.Trim() ?? string.Empty;
+            for (var i = 0; i < _remoteRooms.Count; i++)
+            {
+                var room = _remoteRooms[i];
+                if (!_remoteShowFullRooms && !room.HasOpenSlot)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter) && !RemoteRoomMatchesFilter(in room, filter))
+                {
+                    continue;
+                }
+
+                _remoteVisibleRooms.Add(room);
+            }
+        }
+
+        private bool SelectRemoteVisibleRoom(string roomId)
+        {
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < _remoteVisibleRooms.Count; i++)
+            {
+                if (string.Equals(_remoteVisibleRooms[i].RoomId, roomId, StringComparison.Ordinal))
+                {
+                    _remoteSelectedRoomIndex = i;
+                    _remoteSelectedRoomId = roomId;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private ShooterGatewayRoomSummary? FindRemoteRoom(string roomId)
+        {
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                return null;
+            }
+
+            for (var i = 0; i < _remoteRooms.Count; i++)
+            {
+                if (string.Equals(_remoteRooms[i].RoomId, roomId, StringComparison.Ordinal))
+                {
+                    return _remoteRooms[i];
+                }
+            }
+
+            return null;
+        }
+
+        private static bool RemoteRoomMatchesFilter(in ShooterGatewayRoomSummary room, string filter)
+        {
+            return ContainsIgnoreCase(room.RoomId, filter)
+                || ContainsIgnoreCase(room.Title, filter)
+                || ContainsIgnoreCase(room.OwnerAccountId, filter)
+                || ContainsIgnoreCase(GetRemoteRoomSource(in room), filter);
+        }
+
+        private static bool ContainsIgnoreCase(string value, string filter)
+        {
+            return !string.IsNullOrWhiteSpace(value)
+                && value.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string FormatRemoteRoomLabel(in ShooterGatewayRoomSummary room)
+        {
+            var title = string.IsNullOrWhiteSpace(room.Title) ? room.RoomId : room.Title;
+            var slot = room.MaxPlayers <= 0 ? $"{room.PlayerCount}/∞" : $"{room.PlayerCount}/{room.MaxPlayers}";
+            var state = room.HasOpenSlot ? "可加入" : "满员/运行中";
+            return $"[{GetRemoteRoomSource(in room)}] {title} [{slot}] {state} {room.RoomId}";
+        }
+
+        private static string FormatRemoteRoomDetail(in ShooterGatewayRoomSummary room)
+        {
+            var owner = string.IsNullOrWhiteSpace(room.OwnerAccountId) ? "<unknown>" : room.OwnerAccountId;
+            return $"来源：{GetRemoteRoomSource(in room)}\n房间：{room.DisplayName}\n人数：{room.PlayerCount}/{(room.MaxPlayers <= 0 ? "∞" : room.MaxPlayers.ToString())}\nOwner：{owner}\n提示：Web/Sandbox 已开战房间会在进入后直接订阅运行中战斗。";
+        }
+
+        private static string GetRemoteRoomSource(in ShooterGatewayRoomSummary room)
+        {
+            if (room.Tags != null && room.Tags.TryGetValue("source", out var source) && !string.IsNullOrWhiteSpace(source))
+            {
+                if (source.IndexOf("admin", StringComparison.OrdinalIgnoreCase) >= 0) return "Web";
+                if (source.IndexOf("sandbox", StringComparison.OrdinalIgnoreCase) >= 0) return "Sandbox";
+                if (source.IndexOf("unity", StringComparison.OrdinalIgnoreCase) >= 0) return "Unity";
+                return source;
+            }
+
+            if (!string.IsNullOrWhiteSpace(room.Title) && room.Title.IndexOf("Sandbox", StringComparison.OrdinalIgnoreCase) >= 0) return "Sandbox";
+            if (!string.IsNullOrWhiteSpace(room.Title) && room.Title.IndexOf("Admin", StringComparison.OrdinalIgnoreCase) >= 0) return "Web";
+            if (!string.IsNullOrWhiteSpace(room.Title) && room.Title.IndexOf("Unity", StringComparison.OrdinalIgnoreCase) >= 0) return "Unity";
+            return "Room";
         }
 
         // =====================================================================
@@ -1521,8 +2049,14 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             SessionState.SetString(RemoteHostKey, _remoteHost);
             SessionState.SetInt(RemotePortKey, _remotePort);
             SessionState.SetString(RemoteSessionTokenKey, _remoteSessionToken);
+            SessionState.SetString(RemoteAccountIdKey, _remoteAccountId);
             SessionState.SetString(RemoteRegionKey, _remoteRegion);
             SessionState.SetString(RemoteServerIdKey, _remoteServerId);
+            SessionState.SetString(RemoteRoomTitleKey, _remoteRoomTitle);
+            SessionState.SetInt(RemoteRoomMaxPlayersKey, _remoteRoomMaxPlayers);
+            SessionState.SetString(RemoteSelectedRoomIdKey, _remoteSelectedRoomId);
+            SessionState.SetString(RemoteRoomFilterKey, _remoteRoomFilter);
+            SessionState.SetBool(RemoteShowFullRoomsKey, _remoteShowFullRooms);
         }
 
         private void RestoreConfigFromSessionState()
@@ -1544,8 +2078,14 @@ namespace AbilityKit.Demo.Shooter.Editor.Windows
             _remoteHost = SessionState.GetString(RemoteHostKey, _remoteHost);
             _remotePort = SessionState.GetInt(RemotePortKey, _remotePort);
             _remoteSessionToken = SessionState.GetString(RemoteSessionTokenKey, _remoteSessionToken);
+            _remoteAccountId = SessionState.GetString(RemoteAccountIdKey, _remoteAccountId);
             _remoteRegion = SessionState.GetString(RemoteRegionKey, _remoteRegion);
             _remoteServerId = SessionState.GetString(RemoteServerIdKey, _remoteServerId);
+            _remoteRoomTitle = SessionState.GetString(RemoteRoomTitleKey, _remoteRoomTitle);
+            _remoteRoomMaxPlayers = Math.Max(1, Math.Min(ShooterGameplay.DefaultMaxPlayers, SessionState.GetInt(RemoteRoomMaxPlayersKey, _remoteRoomMaxPlayers)));
+            _remoteSelectedRoomId = SessionState.GetString(RemoteSelectedRoomIdKey, _remoteSelectedRoomId);
+            _remoteRoomFilter = SessionState.GetString(RemoteRoomFilterKey, _remoteRoomFilter);
+            _remoteShowFullRooms = SessionState.GetBool(RemoteShowFullRoomsKey, _remoteShowFullRooms);
             _inputProvider.ControlledPlayerId = _controlledPlayerId;
         }
 

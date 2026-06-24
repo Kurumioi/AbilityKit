@@ -71,10 +71,10 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
             _battleTime = 0;
             _spawnedActorCount = 0;
 
-            // 获取 FeatureContext - 使用 IBattleFlow 自身
-            if (_flow is IFeatureContext featureCtx)
+            // 使用 ConsoleBattleContext 适配器附加 Feature，确保 BattleEntityFeature 能创建并注入 ECS World。
+            if (_context != null)
             {
-                _features.Attach(featureCtx);
+                _features.Attach(new FeatureContextAdapter(_context));
             }
         }
 

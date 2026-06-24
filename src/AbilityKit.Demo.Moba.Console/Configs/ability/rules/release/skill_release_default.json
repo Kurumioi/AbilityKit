@@ -1,0 +1,11 @@
+{
+  "id": 900101011,
+  "name": "skill_release_default",
+  "enabled": true,
+  "phase": "immediate",
+  "event": "",
+  "allowExternal": false,
+  "priority": 0,
+  "conditions": [],
+  "actions": []
+}

@@ -4,7 +4,7 @@ namespace AbilityKit.Game.Flow
     {
         private void StartRemoteDrivenLocalWorld()
         {
-            RemoteDrivenWorldInstaller.EnsureStarted(new RemoteDrivenWorldInstallOptions(
+            _worldInstaller.EnsureRemoteDrivenStarted(new RemoteDrivenWorldInstallOptions(
                 _plan,
                 _ctx,
                 _handles.RemoteDriven,

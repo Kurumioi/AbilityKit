@@ -207,6 +207,13 @@ export interface SkillAnalysisNodeProjection {
   kind: string;
   stage: string;
   label: string;
+  displayName: string;
+  detailLabel: string;
+  configLabel: string;
+  actorLabel: string;
+  sourceActorLabel: string;
+  targetActorLabel: string;
+  runtimeLabel: string;
   configId?: number | null;
   frame: number;
   timeMs: number;
@@ -219,6 +226,12 @@ export interface SkillAnalysisNodeProjection {
   sourceContextId?: string | null;
   entityKind: string;
   entityKey: string;
+  domain: string;
+  domainLabel: string;
+  laneLabel: string;
+  triggerLabel: string;
+  conditionLabel: string;
+  actionLabel: string;
   status: string;
   severity: string;
   summary: string;

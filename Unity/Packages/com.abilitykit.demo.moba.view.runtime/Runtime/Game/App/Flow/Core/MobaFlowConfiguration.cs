@@ -87,7 +87,7 @@ namespace AbilityKit.Game.Flow
 
         private static PhaseStateMachineSpec<MobaBattleState, MobaBattleEvent> BuildBattleMachine()
         {
-            return new PhaseStateMachineSpec<MobaBattleState, MobaBattleEvent>("Battle", 6, 5)
+            return new PhaseStateMachineSpec<MobaBattleState, MobaBattleEvent>("Battle", 6, 9)
                 .AddState(MobaBattleState.Prepare)
                 .AddState(MobaBattleState.Connect)
                 .AddState(MobaBattleState.CreateOrJoinWorld)
@@ -99,6 +99,10 @@ namespace AbilityKit.Game.Flow
                 .AddTransition(MobaBattleEvent.Connected, MobaBattleState.Connect, MobaBattleState.CreateOrJoinWorld)
                 .AddTransition(MobaBattleEvent.JoinedWorld, MobaBattleState.CreateOrJoinWorld, MobaBattleState.LoadAssets)
                 .AddTransition(MobaBattleEvent.LoadingDone, MobaBattleState.LoadAssets, MobaBattleState.InMatch)
+                .AddTransition(MobaBattleEvent.Ended, MobaBattleState.Prepare, MobaBattleState.End)
+                .AddTransition(MobaBattleEvent.Ended, MobaBattleState.Connect, MobaBattleState.End)
+                .AddTransition(MobaBattleEvent.Ended, MobaBattleState.CreateOrJoinWorld, MobaBattleState.End)
+                .AddTransition(MobaBattleEvent.Ended, MobaBattleState.LoadAssets, MobaBattleState.End)
                 .AddTransition(MobaBattleEvent.Ended, MobaBattleState.InMatch, MobaBattleState.End);
         }
     }

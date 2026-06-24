@@ -1,0 +1,115 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "AbilityKit.World.FrameSync/1.0.0": {
+        "dependencies": {
+          "AbilityKit.Core": "1.0.0",
+          "AbilityKit.World.DI": "1.0.0",
+          "MemoryPack": "1.21.0"
+        },
+        "runtime": {
+          "AbilityKit.World.FrameSync.dll": {}
+        }
+      },
+      "MemoryPack/1.21.0": {
+        "dependencies": {
+          "MemoryPack.Core": "1.21.0"
+        }
+      },
+      "MemoryPack.Core/1.21.0": {
+        "runtime": {
+          "lib/net8.0/MemoryPack.Core.dll": {
+            "assemblyVersion": "1.21.0.0",
+            "fileVersion": "1.21.0.0"
+          }
+        }
+      },
+      "AbilityKit.Attributes/1.0.0": {
+        "dependencies": {
+          "AbilityKit.Modifiers": "1.0.0"
+        },
+        "runtime": {
+          "AbilityKit.Attributes.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AbilityKit.Core/1.0.0": {
+        "runtime": {
+          "AbilityKit.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AbilityKit.Modifiers/1.0.0": {
+        "runtime": {
+          "AbilityKit.Modifiers.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "AbilityKit.World.DI/1.0.0": {
+        "dependencies": {
+          "AbilityKit.Attributes": "1.0.0",
+          "AbilityKit.Core": "1.0.0",
+          "MemoryPack": "1.21.0"
+        },
+        "runtime": {
+          "AbilityKit.World.DI.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "AbilityKit.World.FrameSync/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "MemoryPack/1.21.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-13vgZvUZAKSnAEuOn5ISpnH39D642W6FLwJSgxDuOt0wRhN9Y8Mo1IVV3l/R7cKiJw1JFS4K+GLk77SJuIGBsg==",
+      "path": "memorypack/1.21.0",
+      "hashPath": "memorypack.1.21.0.nupkg.sha512"
+    },
+    "MemoryPack.Core/1.21.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-rxXCVxpFEzZ9tGeHCj/HIuM5sMHV7cWLhwlgLsEgArQCae//+Y230ycbqPx1+EDUdqaErZK20ODwNWuMM1Hq2g==",
+      "path": "memorypack.core/1.21.0",
+      "hashPath": "memorypack.core.1.21.0.nupkg.sha512"
+    },
+    "AbilityKit.Attributes/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AbilityKit.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AbilityKit.Modifiers/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AbilityKit.World.DI/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

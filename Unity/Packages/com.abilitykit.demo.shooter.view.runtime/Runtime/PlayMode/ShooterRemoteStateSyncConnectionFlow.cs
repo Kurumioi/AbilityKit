@@ -51,6 +51,29 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 throw new ArgumentNullException(nameof(runtime));
             }
 
+            if (launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.JoinRoom)
+            {
+                if (string.IsNullOrWhiteSpace(launchOptions.RoomId))
+                {
+                    throw new InvalidOperationException("Remote state-sync join mode requires a room id.");
+                }
+
+                var joined = await JoinReadyStartAndSubscribeAsync(
+                    launcher,
+                    runtime,
+                    presentationSession,
+                    launchOptions,
+                    startGame,
+                    launchSpec,
+                    playerId).ConfigureAwait(false);
+                return new ShooterRemoteStateSyncConnectionResult(
+                    joined,
+                    launchOptions.LaunchMode,
+                    joined.Flow.EntryKind,
+                    false,
+                    null);
+            }
+
             if (launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.CreateNew)
             {
                 var created = await CreateReadyStartAndSubscribeAsync(
@@ -122,6 +145,28 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 launchOptions.SessionToken,
                 launchOptions.Region,
                 launchOptions.ServerId,
+                launchSpec,
+                playerId,
+                launchOptions.SessionOptions.TickRate,
+                launchOptions.Timeout);
+        }
+
+        private static Task<ShooterClientNetworkLaunchResult> JoinReadyStartAndSubscribeAsync(
+            ShooterClientNetworkLauncher launcher,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterRemoteStateSyncLaunchOptions launchOptions,
+            ShooterStartGamePayload startGame,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId)
+        {
+            return launcher.JoinReadyStartAndSubscribeAsync(
+                launchOptions.Endpoint,
+                runtime,
+                presentationSession,
+                startGame,
+                launchOptions.SessionToken,
+                launchOptions.RoomId,
                 launchSpec,
                 playerId,
                 launchOptions.SessionOptions.TickRate,

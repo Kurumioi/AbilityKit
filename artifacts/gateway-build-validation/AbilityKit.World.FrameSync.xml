@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.World.FrameSync</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Ability.Host.PlayerId">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> Value<br/>
+            </code>
+            </remarks>
+        </member>
+    </members>
+</doc>

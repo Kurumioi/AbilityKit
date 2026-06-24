@@ -18,7 +18,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         RestoreFirst = 0,
         CreateNew = 1,
-        RestoreOnly = 2
+        RestoreOnly = 2,
+        JoinRoom = 3
     }
 
     public readonly struct ShooterRemoteStateSyncLaunchOptions
@@ -30,7 +31,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             string region = ShooterRemoteStateSyncDefaults.DefaultRegion,
             string serverId = ShooterRemoteStateSyncDefaults.DefaultServerId,
             ShooterRemoteStateSyncLaunchMode launchMode = ShooterRemoteStateSyncLaunchMode.RestoreFirst,
-            TimeSpan? timeout = null)
+            TimeSpan? timeout = null,
+            string roomId = "")
         {
             SessionOptions = sessionOptions.Normalized();
             Endpoint = endpoint;
@@ -39,6 +41,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             ServerId = string.IsNullOrWhiteSpace(serverId) ? ShooterRemoteStateSyncDefaults.DefaultServerId : serverId;
             LaunchMode = launchMode;
             Timeout = timeout ?? TimeSpan.FromSeconds(5);
+            RoomId = roomId ?? string.Empty;
         }
 
         public ShooterPlayModeSessionOptions SessionOptions { get; }
@@ -48,6 +51,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public string ServerId { get; }
         public ShooterRemoteStateSyncLaunchMode LaunchMode { get; }
         public TimeSpan Timeout { get; }
+        public string RoomId { get; }
 
         public static ShooterRemoteStateSyncLaunchOptions RestoreFirst(
             ShooterPlayModeSessionOptions sessionOptions,
@@ -65,6 +69,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 serverId,
                 ShooterRemoteStateSyncLaunchMode.RestoreFirst,
                 timeout);
+        }
+
+        public static ShooterRemoteStateSyncLaunchOptions JoinRoom(
+            ShooterPlayModeSessionOptions sessionOptions,
+            ShooterClientNetworkEndpoint endpoint,
+            string sessionToken,
+            string region,
+            string serverId,
+            string roomId,
+            TimeSpan? timeout = null)
+        {
+            return new ShooterRemoteStateSyncLaunchOptions(
+                sessionOptions,
+                endpoint,
+                sessionToken,
+                region,
+                serverId,
+                ShooterRemoteStateSyncLaunchMode.JoinRoom,
+                timeout,
+                roomId);
         }
     }
 }

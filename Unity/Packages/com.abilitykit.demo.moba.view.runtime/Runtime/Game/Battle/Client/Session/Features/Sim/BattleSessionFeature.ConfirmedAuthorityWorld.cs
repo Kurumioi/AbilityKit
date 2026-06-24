@@ -4,7 +4,7 @@ namespace AbilityKit.Game.Flow
     {
         private void StartConfirmedAuthorityWorld()
         {
-            ConfirmedAuthorityWorldInstaller.EnsureStarted(new ConfirmedAuthorityWorldInstallOptions(
+            _worldInstaller.EnsureConfirmedAuthorityStarted(new ConfirmedAuthorityWorldInstallOptions(
                 _plan,
                 _ctx,
                 _flow,

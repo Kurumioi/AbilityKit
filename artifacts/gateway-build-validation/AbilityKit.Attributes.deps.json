@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "AbilityKit.Attributes/1.0.0": {
+        "dependencies": {
+          "AbilityKit.Modifiers": "1.0.0"
+        },
+        "runtime": {
+          "AbilityKit.Attributes.dll": {}
+        }
+      },
+      "AbilityKit.Modifiers/1.0.0": {
+        "runtime": {
+          "AbilityKit.Modifiers.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "AbilityKit.Attributes/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "AbilityKit.Modifiers/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

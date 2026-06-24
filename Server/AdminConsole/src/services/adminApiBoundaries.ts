@@ -1,7 +1,7 @@
 export const adminApiBoundaries = {
   admin: {
     prefix: '/api/admin',
-    responsibility: '后台专用聚合、诊断、运维、审计与房间管理 Facade，后台页面默认只依赖这里。'
+    responsibility: '后台专用聚合、诊断、运维、审计与房间管理门面，后台页面默认只依赖这里。'
   },
   rooms: {
     prefix: '/api/rooms',
@@ -9,7 +9,7 @@ export const adminApiBoundaries = {
   },
   sandbox: {
     prefix: '/api/shooter-sandbox',
-    responsibility: '演示用 Shooter Sandbox 自动化入口。'
+    responsibility: '演示用 Shooter 沙盒自动化入口。'
   },
   debug: {
     prefix: '/debug',

@@ -100,7 +100,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 var payload = MobaMoveCodec.Serialize(dx, dz);
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
-                    new PlayerId(Context.LocalActorId.ToString()),
+                    GetLocalPlayerId(),
                     MobaOpCodes.Input.Move,
                     payload);
 
@@ -123,7 +123,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 var payload = ConsoleSkillInputCodec.Serialize(slot, SkillInputPhase.Press);
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
-                    new PlayerId(Context.LocalActorId.ToString()),
+                    GetLocalPlayerId(),
                     MobaOpCodes.Input.SkillInput,
                     payload);
 
@@ -141,7 +141,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
 
                 var cmd = new PlayerInputCommand(
                     new FrameIndex(Context.LastFrame),
-                    new PlayerId(Context.LocalActorId.ToString()),
+                    GetLocalPlayerId(),
                     MobaOpCodes.Input.SkillInput,
                     payload);
 
@@ -149,6 +149,17 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
                 Platform.Log.Input($"[Input] Skill{Context.HudSkillAimSubmitSlot} aim released at ({aimX:F1}, {aimZ:F1})");
                 Context.HudSkillAimSubmit = false;
             }
+        }
+
+        private PlayerId GetLocalPlayerId()
+        {
+            var playerId = Context?.Plan.PlayerId;
+            if (!string.IsNullOrEmpty(playerId))
+            {
+                return new PlayerId(playerId);
+            }
+
+            return new PlayerId(Context?.LocalActorId.ToString() ?? string.Empty);
         }
 
         private void SubmitToSink(FrameIndex frame, PlayerInputCommand command)

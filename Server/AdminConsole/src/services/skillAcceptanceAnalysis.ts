@@ -93,7 +93,7 @@ export function buildAcceptanceTraceTree(records: Record<string, unknown>[]): Ac
       nodeId,
       rootId: toNumber(record.rootId),
       parentId: toNumber(record.parentId),
-      kind: toText(record.kind) || 'Unknown',
+      kind: toText(record.kind) || '未知',
       configId: toNumber(record.configId),
       frame: toNumber(record.frame),
       timeMs: toNumber(record.timeMs),
@@ -140,7 +140,7 @@ export function flattenAcceptanceTraceTree(nodes: AcceptanceTraceTreeNode[], dep
 
 export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> | null, caseId: string): AcceptanceAssertionGroup[] {
   if (!summary) {
-    return [{ key: 'empty', title: '断言分组', items: ['尚未选择 case。'] }];
+    return [{ key: 'empty', title: '断言分组', items: ['尚未选择用例。'] }];
   }
 
   const groups: AcceptanceAssertionGroup[] = [];
@@ -150,35 +150,35 @@ export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> 
   const readArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 
   addGroup('meta', '场景元数据', [
-    `caseId: ${caseId || toText(summary.caseId) || 'unknown'}`,
-    `worldId: ${toText(summary.worldId) || 'unknown'}`,
-    `tickRate: ${toNumber(summary.tickRate)}`,
-    `accelerated: ${summary.accelerated === true}`
+    `用例 ID: ${caseId || toText(summary.caseId) || '未知'}`,
+    `世界 ID: ${toText(summary.worldId) || '未知'}`,
+    `帧率: ${toNumber(summary.tickRate)}`,
+    `加速: ${summary.accelerated === true}`
   ]);
 
-  addGroup('actors', 'Actor 断言', readArray(summary.actors).map((item, index) => {
+  addGroup('actors', '角色断言', readArray(summary.actors).map((item, index) => {
     const actor = item as Record<string, unknown>;
-    const alias = toText(actor.alias) || `Actor${index + 1}`;
+    const alias = toText(actor.alias) || `角色${index + 1}`;
     const heroId = toNumber(actor.heroId);
-    const actorId = toText(actor.actorId) || 'unknown';
+    const actorId = toText(actor.actorId) || '未知';
     const level = toNumber(actor.level);
     const skills = readArray(actor.skillIds).map(x => toText(x)).filter(Boolean).join(', ');
-    return `${alias} | actorId=${actorId} | hero=${heroId} | level=${level}${skills ? ` | skills=${skills}` : ''}`;
+    return `${alias} | 角色ID=${actorId} | 英雄=${heroId} | 等级=${level}${skills ? ` | 技能=${skills}` : ''}`;
   }));
 
-  addGroup('setup', 'Setup Actions', readArray(summary.setupActions).map((item, index) => {
+  addGroup('setup', '初始化动作', readArray(summary.setupActions).map((item, index) => {
     const action = item as Record<string, unknown>;
-    const actionName = toText(action.action) || `Setup${index + 1}`;
+    const actionName = toText(action.action) || `初始化${index + 1}`;
     const actorAlias = toText(action.actorAlias);
     const targetAlias = toText(action.targetAlias);
     const skillId = toNumber(action.skillId);
     const payload = toText(action.payload);
-    return [actionName, actorAlias ? `actor=${actorAlias}` : '', targetAlias ? `target=${targetAlias}` : '', skillId > 0 ? `skillId=${skillId}` : '', payload ? `payload=${payload}` : '']
+    return [actionName, actorAlias ? `角色=${actorAlias}` : '', targetAlias ? `目标=${targetAlias}` : '', skillId > 0 ? `技能ID=${skillId}` : '', payload ? `载荷=${payload}` : '']
       .filter(Boolean)
       .join(' | ');
   }));
 
-  addGroup('timeline', 'Timeline 断言', readArray(summary.timeline).map((item, index) => {
+  addGroup('timeline', '时间轴断言', readArray(summary.timeline).map((item, index) => {
     const step = item as Record<string, unknown>;
     const stepId = toText(step.stepId) || `Step${index + 1}`;
     const atMs = toNumber(step.atMs);
@@ -186,21 +186,21 @@ export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> 
     const actorAlias = toText(step.actorAlias);
     const targetAlias = toText(step.targetAlias);
     const skillId = toNumber(step.skillId);
-    return `${stepId} @ ${atMs}ms${action ? ` | ${action}` : ''}${actorAlias ? ` | actor=${actorAlias}` : ''}${targetAlias ? ` | target=${targetAlias}` : ''}${skillId > 0 ? ` | skillId=${skillId}` : ''}`;
+    return `${stepId} @ ${atMs}ms${action ? ` | ${action}` : ''}${actorAlias ? ` | 角色=${actorAlias}` : ''}${targetAlias ? ` | 目标=${targetAlias}` : ''}${skillId > 0 ? ` | 技能ID=${skillId}` : ''}`;
   }));
 
-  addGroup('state', 'State 断言', readArray(summary.stateExpectations).map((item, index) => {
+  addGroup('state', '状态断言', readArray(summary.stateExpectations).map((item, index) => {
     const state = item as Record<string, unknown>;
-    const alias = toText(state.alias) || `State${index + 1}`;
+    const alias = toText(state.alias) || `状态${index + 1}`;
     const property = toText(state.property);
     const comparator = toText(state.comparator) || '==';
     const expected = toText(state.expectedValue) || (state.expectedFloat ?? state.expectedInt ?? state.expectedBool);
     return `${alias}${property ? `.${property}` : ''} ${comparator} ${expected}`;
   }));
 
-  addGroup('context', 'Context 断言', readArray(summary.contextExpectations).map((item, index) => {
+  addGroup('context', '上下文断言', readArray(summary.contextExpectations).map((item, index) => {
     const context = item as Record<string, unknown>;
-    const alias = toText(context.alias) || `Context${index + 1}`;
+    const alias = toText(context.alias) || `上下文${index + 1}`;
     const kind = toText(context.kind);
     const property = toText(context.property);
     const comparator = toText(context.comparator) || '==';
@@ -209,19 +209,19 @@ export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> 
   }));
 
   const result = summary.result as Record<string, unknown> | undefined;
-  addGroup('trace', 'Trace 结果', [
-    `passed: ${toText(result?.passed) || 'unknown'}`,
-    `skillCastTraceFound: ${toText(result?.skillCastTraceFound) || 'unknown'}`,
-    `effectExecutionTraceFound: ${toText(result?.effectExecutionTraceFound) || 'unknown'}`,
-    `allExpectedActionsExecuted: ${toText(result?.allExpectedActionsExecuted) || 'unknown'}`,
-    `projectileLaunched: ${toText(result?.projectileLaunched) || 'unknown'}`,
-    `finalFrame: ${toNumber(result?.finalFrame)}`,
-    `traceNodeCount: ${toNumber(result?.traceNodeCount)}`
+  addGroup('trace', '追踪结果', [
+    `通过: ${toText(result?.passed) || '未知'}`,
+    `找到技能释放追踪: ${toText(result?.skillCastTraceFound) || '未知'}`,
+    `找到效果执行追踪: ${toText(result?.effectExecutionTraceFound) || '未知'}`,
+    `全部预期动作已执行: ${toText(result?.allExpectedActionsExecuted) || '未知'}`,
+    `已发射投射物: ${toText(result?.projectileLaunched) || '未知'}`,
+    `最终帧: ${toNumber(result?.finalFrame)}`,
+    `追踪节点数: ${toNumber(result?.traceNodeCount)}`
   ]);
 
-  addGroup('counts', 'Trace Counts', readArray(summary.traceCounts).map((item) => {
+  addGroup('counts', '追踪计数', readArray(summary.traceCounts).map((item) => {
     const count = item as Record<string, unknown>;
-    return `${toText(count.kind) || 'Unknown'}: ${toNumber(count.count)}`;
+    return `${toText(count.kind) || '未知'}: ${toNumber(count.count)}`;
   }));
 
   return groups;

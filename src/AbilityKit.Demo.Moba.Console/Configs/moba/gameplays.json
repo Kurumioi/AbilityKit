@@ -1,0 +1,10 @@
+[
+  {
+    "Id": 1,
+    "Name": "Default Battle Gameplay",
+    "TriggerIds": [900001, 900002, 900003, 900004],
+    "DefaultDurationMs": 600000,
+    "WinPolicy": 0,
+    "Tags": []
+  }
+]

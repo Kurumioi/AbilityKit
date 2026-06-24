@@ -245,7 +245,9 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("AdminSkillAnalysisProjectionSchemaHttpResponse", models);
         Assert.Contains("ProjectionSchemas", models);
         Assert.Contains("internal static class GatewaySkillDiagnostics", diagnostics);
-        Assert.Contains("TraceNotConnected", diagnostics);
+        Assert.Contains("RuntimeContextOnly", diagnostics);
+        Assert.DoesNotContain("TraceNotConnected", diagnostics);
+        Assert.DoesNotContain("Skill trace sink is not connected", diagnostics);
         Assert.Contains("GetCurrentFrameAsync", diagnostics);
         Assert.Contains("GatewaySkillAnalysisModelProvider.GetModel", diagnostics);
         Assert.Contains("internal static class GatewaySkillAnalysisModelProvider", modelProvider);
@@ -258,6 +260,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("analysis-entity-relation-v1", modelProvider);
         Assert.Contains("analysis-timeline-event-v1", modelProvider);
         Assert.Contains("SkillPipelineContext / SkillPipelineRunner", modelProvider);
+        Assert.Contains("完整技能链路以 Scenario artifact trace 为主数据源", modelProvider);
+        Assert.DoesNotContain("Future live traces", modelProvider);
         Assert.Contains("export interface SkillAnalysisFilterState", types);
         Assert.Contains("export interface SkillAnalysisEntityRelationProjection", types);
         Assert.Contains("createDefaultSkillAnalysisFilter", projection);
@@ -265,6 +269,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("buildSkillAnalysisEntityRelations", projection);
         Assert.Contains("inferSkillAnalysisEntityKind", projection);
         Assert.Contains("trace-filter-panel", visualizer);
+        Assert.Contains("select-node", visualizer);
+        Assert.Contains("selectTimelineEvent", visualizer);
         Assert.Contains("战斗实体关联", visualizer);
         Assert.Contains("sourceContext", visualizer);
         Assert.Contains("acceptanceAnalysisFilteredFlat", store);
@@ -318,7 +324,7 @@ public sealed class GatewayAdminConsoleTests
     public void Gateway_skill_acceptance_artifacts_should_persist_and_reload_web_analysis_content()
     {
         var artifactDirectory = Path.Combine("artifacts", "moba-acceptance-web-analysis-persistence");
-        var fullArtifactDirectory = Path.GetFullPath(artifactDirectory, Directory.GetCurrentDirectory());
+        var fullArtifactDirectory = Path.GetFullPath(artifactDirectory, GetWorkspaceRoot());
         if (Directory.Exists(fullArtifactDirectory))
         {
             Directory.Delete(fullArtifactDirectory, recursive: true);
@@ -474,6 +480,12 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("/health/live", startScript);
         Assert.Contains("Test-AbilityKitTcpPort", startScript);
         Assert.Contains("Waiting for Orleans Silo Gateway TCP endpoint", startScript);
+        Assert.Contains("SiloGatewayWaitSeconds", startScript);
+        Assert.Contains("ForceStartGateway", startScript);
+        Assert.Contains("dotnet run --project", startScript);
+        Assert.Contains("--no-build", startScript);
+        Assert.Contains("Runtime windows will use dotnet run --no-build", startScript);
+        Assert.Contains("Gateway startup skipped", startScript);
         Assert.Contains("Orleans Silo Gateway is not reachable", startScript);
         Assert.Contains("logs", startScript);
         Assert.Contains("stop_abilitykit.ps1", startScript);
@@ -515,7 +527,15 @@ public sealed class GatewayAdminConsoleTests
 
     private static string NormalizeJsonPath(string path)
     {
-        return Path.GetFullPath(path, Directory.GetCurrentDirectory()).Replace('\\', '/');
+        return Path.GetFullPath(path, GetWorkspaceRoot()).Replace('\\', '/');
+    }
+
+    private static string GetWorkspaceRoot()
+    {
+        return FindWorkspacePath(Array.Empty<string>(), directory =>
+            File.Exists(Path.Combine(directory, "LICENSE"))
+            && Directory.Exists(Path.Combine(directory, "Server"))
+            && Directory.Exists(Path.Combine(directory, "Unity")));
     }
 
     private static string FindWorkspacePath(string[] segments, Func<string, bool> exists)

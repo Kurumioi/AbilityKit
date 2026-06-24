@@ -4,10 +4,10 @@
       <div class="brand-mark">AK</div>
       <div>
         <strong>AbilityKit</strong>
-        <span>Admin Console</span>
+        <span>管理后台</span>
       </div>
     </div>
-    <nav class="sidebar-nav" aria-label="Admin sections">
+    <nav class="sidebar-nav" aria-label="后台模块">
       <a
         v-for="item in items"
         :key="item.key"
@@ -22,7 +22,7 @@
       <span class="status-dot" :class="maintenanceMode ? 'warn-dot' : 'ok-dot'"></span>
       <div>
         <strong>{{ serverModeLabel }}</strong>
-        <small>{{ environmentName || 'Unknown Environment' }}</small>
+        <small>{{ environmentName || '未知环境' }}</small>
       </div>
     </div>
   </aside>

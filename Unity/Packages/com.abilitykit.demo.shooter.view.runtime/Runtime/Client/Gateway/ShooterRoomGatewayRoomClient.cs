@@ -11,6 +11,16 @@ namespace AbilityKit.Demo.Shooter.View
 {
     public interface IShooterRoomGatewayRoomClient
     {
+        Task<ShooterGatewayGuestLoginResult> GuestLoginAsync(
+            ShooterGatewayGuestLoginRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ShooterGatewayListRoomsResult> ListRoomsAsync(
+            ShooterGatewayListRoomsRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<ShooterGatewayCreateRoomResult> CreateRoomAsync(
             ShooterGatewayCreateRoomRequest request,
             TimeSpan? timeout = null,
@@ -61,6 +71,45 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _opCodes = opCodes;
+        }
+
+        public async Task<ShooterGatewayGuestLoginResult> GuestLoginAsync(
+            ShooterGatewayGuestLoginRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateGuestLogin(in request);
+
+            var req = new WireRoomGuestLoginReq
+            {
+                GuestId = request.GuestId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.GuestLogin, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(respPayload);
+            return new ShooterGatewayGuestLoginResult(wire.Success, wire.SessionToken ?? string.Empty, wire.AccountId ?? string.Empty, wire.Message ?? string.Empty);
+        }
+
+        public async Task<ShooterGatewayListRoomsResult> ListRoomsAsync(
+            ShooterGatewayListRoomsRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateListRooms(in request);
+
+            var req = new WireListRoomsReq
+            {
+                SessionToken = request.SessionToken,
+                Region = request.Region,
+                ServerId = request.ServerId,
+                Offset = request.Offset,
+                Limit = request.Limit,
+                RoomType = request.RoomType
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.ListRooms, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireListRoomsRes>(respPayload);
+            return new ShooterGatewayListRoomsResult(wire.Success, ToRoomSummaries(wire.Rooms), wire.NextOffset, wire.Message ?? string.Empty);
         }
 
         public async Task<ShooterGatewayCreateRoomResult> CreateRoomAsync(
@@ -249,6 +298,20 @@ namespace AbilityKit.Demo.Shooter.View
                 ToRestoreErrorCode(wire.ErrorCode));
         }
 
+        private static void ValidateGuestLogin(in ShooterGatewayGuestLoginRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.GuestId)) throw new ArgumentException("guestId is required.", nameof(request));
+        }
+
+        private static void ValidateListRooms(in ShooterGatewayListRoomsRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.Region)) throw new ArgumentException("region is required.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.ServerId)) throw new ArgumentException("serverId is required.", nameof(request));
+            if (request.Offset < 0) throw new ArgumentOutOfRangeException(nameof(request));
+            if (request.Limit <= 0) throw new ArgumentOutOfRangeException(nameof(request));
+        }
+
         private static void ValidateCreateRoom(in ShooterGatewayCreateRoomRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
@@ -299,6 +362,34 @@ namespace AbilityKit.Demo.Shooter.View
             if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
             if (string.IsNullOrWhiteSpace(request.Region)) throw new ArgumentException("region is required.", nameof(request));
             if (string.IsNullOrWhiteSpace(request.ServerId)) throw new ArgumentException("serverId is required.", nameof(request));
+        }
+
+        private static IReadOnlyList<ShooterGatewayRoomSummary> ToRoomSummaries(List<WireRoomSummary>? rooms)
+        {
+            if (rooms == null || rooms.Count == 0)
+            {
+                return Array.Empty<ShooterGatewayRoomSummary>();
+            }
+
+            var result = new ShooterGatewayRoomSummary[rooms.Count];
+            for (var i = 0; i < rooms.Count; i++)
+            {
+                var room = rooms[i];
+                result[i] = new ShooterGatewayRoomSummary(
+                    room.Region ?? string.Empty,
+                    room.ServerId ?? string.Empty,
+                    room.RoomId ?? string.Empty,
+                    room.RoomType ?? string.Empty,
+                    room.Title ?? string.Empty,
+                    room.IsPublic,
+                    room.MaxPlayers,
+                    room.PlayerCount,
+                    room.OwnerAccountId ?? string.Empty,
+                    room.CreatedAtUnixMs,
+                    ToDictionary(room.Tags));
+            }
+
+            return result;
         }
 
         private static Dictionary<string, string>? ToDictionary(IReadOnlyDictionary<string, string>? source)
@@ -378,6 +469,8 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterRoomGatewayRoomOpCodes
     {
         public static ShooterRoomGatewayRoomOpCodes Default => new ShooterRoomGatewayRoomOpCodes(
+            RoomGatewayOpCodes.GuestLogin,
+            RoomGatewayOpCodes.ListRooms,
             RoomGatewayOpCodes.CreateRoom,
             RoomGatewayOpCodes.JoinRoom,
             RoomGatewayOpCodes.SubscribeStateSync,
@@ -386,6 +479,8 @@ namespace AbilityKit.Demo.Shooter.View
             RoomGatewayOpCodes.RequestFullStateSync,
             RoomGatewayOpCodes.RestoreRoom);
 
+        public readonly uint GuestLogin;
+        public readonly uint ListRooms;
         public readonly uint CreateRoom;
         public readonly uint JoinRoom;
         public readonly uint SubscribeStateSync;
@@ -395,17 +490,24 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly uint RestoreRoom;
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle)
-            : this(createRoom, joinRoom, subscribeStateSync, setReady, startBattle, RoomGatewayOpCodes.RequestFullStateSync)
+            : this(RoomGatewayOpCodes.GuestLogin, RoomGatewayOpCodes.ListRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, RoomGatewayOpCodes.RequestFullStateSync, RoomGatewayOpCodes.RestoreRoom)
         {
         }
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync)
-            : this(createRoom, joinRoom, subscribeStateSync, setReady, startBattle, requestFullStateSync, RoomGatewayOpCodes.RestoreRoom)
+            : this(RoomGatewayOpCodes.GuestLogin, RoomGatewayOpCodes.ListRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, requestFullStateSync, RoomGatewayOpCodes.RestoreRoom)
         {
         }
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom)
+            : this(RoomGatewayOpCodes.GuestLogin, RoomGatewayOpCodes.ListRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, requestFullStateSync, restoreRoom)
         {
+        }
+
+        public ShooterRoomGatewayRoomOpCodes(uint guestLogin, uint listRooms, uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom)
+        {
+            GuestLogin = guestLogin;
+            ListRooms = listRooms;
             CreateRoom = createRoom;
             JoinRoom = joinRoom;
             SubscribeStateSync = subscribeStateSync;
@@ -413,6 +515,36 @@ namespace AbilityKit.Demo.Shooter.View
             StartBattle = startBattle;
             RequestFullStateSync = requestFullStateSync;
             RestoreRoom = restoreRoom;
+        }
+    }
+
+    public readonly struct ShooterGatewayGuestLoginRequest
+    {
+        public readonly string GuestId;
+
+        public ShooterGatewayGuestLoginRequest(string guestId)
+        {
+            GuestId = guestId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayListRoomsRequest
+    {
+        public readonly string SessionToken;
+        public readonly string Region;
+        public readonly string ServerId;
+        public readonly int Offset;
+        public readonly int Limit;
+        public readonly string RoomType;
+
+        public ShooterGatewayListRoomsRequest(string sessionToken, string region, string serverId, int offset = 0, int limit = 20, string roomType = ShooterGameplay.RoomType)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            Region = region ?? string.Empty;
+            ServerId = serverId ?? string.Empty;
+            Offset = offset;
+            Limit = limit;
+            RoomType = roomType ?? string.Empty;
         }
     }
 
@@ -555,6 +687,71 @@ namespace AbilityKit.Demo.Shooter.View
             AuthoritativeStateHash = authoritativeStateHash;
             Reason = reason ?? string.Empty;
         }
+    }
+
+    public readonly struct ShooterGatewayGuestLoginResult
+    {
+        public readonly bool Success;
+        public readonly string SessionToken;
+        public readonly string AccountId;
+        public readonly string Message;
+
+        public ShooterGatewayGuestLoginResult(bool success, string sessionToken, string accountId, string message)
+        {
+            Success = success;
+            SessionToken = sessionToken ?? string.Empty;
+            AccountId = accountId ?? string.Empty;
+            Message = message ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayListRoomsResult
+    {
+        public readonly bool Success;
+        public readonly IReadOnlyList<ShooterGatewayRoomSummary> Rooms;
+        public readonly int NextOffset;
+        public readonly string Message;
+
+        public ShooterGatewayListRoomsResult(bool success, IReadOnlyList<ShooterGatewayRoomSummary>? rooms, int nextOffset, string message)
+        {
+            Success = success;
+            Rooms = rooms ?? Array.Empty<ShooterGatewayRoomSummary>();
+            NextOffset = nextOffset;
+            Message = message ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayRoomSummary
+    {
+        public readonly string Region;
+        public readonly string ServerId;
+        public readonly string RoomId;
+        public readonly string RoomType;
+        public readonly string Title;
+        public readonly bool IsPublic;
+        public readonly int MaxPlayers;
+        public readonly int PlayerCount;
+        public readonly string OwnerAccountId;
+        public readonly long CreatedAtUnixMs;
+        public readonly IReadOnlyDictionary<string, string>? Tags;
+
+        public ShooterGatewayRoomSummary(string region, string serverId, string roomId, string roomType, string title, bool isPublic, int maxPlayers, int playerCount, string ownerAccountId, long createdAtUnixMs, IReadOnlyDictionary<string, string>? tags)
+        {
+            Region = region ?? string.Empty;
+            ServerId = serverId ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            RoomType = roomType ?? string.Empty;
+            Title = title ?? string.Empty;
+            IsPublic = isPublic;
+            MaxPlayers = maxPlayers;
+            PlayerCount = playerCount;
+            OwnerAccountId = ownerAccountId ?? string.Empty;
+            CreatedAtUnixMs = createdAtUnixMs;
+            Tags = tags;
+        }
+
+        public bool HasOpenSlot => MaxPlayers <= 0 || PlayerCount < MaxPlayers;
+        public string DisplayName => string.IsNullOrWhiteSpace(Title) ? RoomId : $"{Title} ({RoomId})";
     }
 
     public readonly struct ShooterGatewayCreateRoomResult

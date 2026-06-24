@@ -100,6 +100,26 @@ namespace AbilityKit.Protocol.Room
     }
 
     [MemoryPackable]
+    public partial struct WireListRoomsReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string Region { get; set; }
+        [MemoryPackOrder(2)] public string ServerId { get; set; }
+        [MemoryPackOrder(3)] public int Offset { get; set; }
+        [MemoryPackOrder(4)] public int Limit { get; set; }
+        [MemoryPackOrder(5)] public string RoomType { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireListRoomsRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public List<WireRoomSummary>? Rooms { get; set; }
+        [MemoryPackOrder(2)] public int NextOffset { get; set; }
+        [MemoryPackOrder(3)] public string Message { get; set; }
+    }
+
+    [MemoryPackable]
     public partial struct WireRestoreRoomRes
     {
         [MemoryPackOrder(0)] public bool Success { get; set; }

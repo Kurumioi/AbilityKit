@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.World.Snapshot</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher">
+             <summary>
+             Dispatches snapshot envelopes by opCode.
+            
+             Notes:
+             - This type is transport/session agnostic. Call <see cref="M:AbilityKit.Core.Snapshots.Routing.FrameSnapshotDispatcher.Feed(AbilityKit.Ability.Host.ISnapshotEnvelope)"/> to push envelopes into it.
+             - Decoding is registered per opCode, and handlers subscribe to typed payloads.
+             </summary>
+        </member>
+        <member name="T:AbilityKit.Core.Snapshots.Routing.ISnapshotDispatcher">
+            <summary>
+            Minimal interface for snapshot dispatching, allowing View Runtime to provide
+            its own FrameSnapshotDispatcher implementation that subscribes to BattleLogicSession.
+            </summary>
+        </member>
+        <member name="E:AbilityKit.Core.Snapshots.Routing.ISnapshotDispatcher.SnapshotReceived">
+            <summary>
+            Event fired when a snapshot envelope is received.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Core.Snapshots.Routing.ISnapshotDispatcher.Subscribe``1(System.Int32,System.Action{AbilityKit.Ability.Host.ISnapshotEnvelope,``0})">
+            <summary>
+            Subscribe to a specific snapshot type.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Core.Snapshots.Routing.SnapshotPipeline">
+             <summary>
+             A typed, ordered pipeline for handling snapshots.
+            
+             Register opCode decoders first, then add one or more ordered stages.
+             </summary>
+        </member>
+    </members>
+</doc>

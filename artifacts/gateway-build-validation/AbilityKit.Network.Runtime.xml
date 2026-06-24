@@ -1,0 +1,1054 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.Network.Runtime</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningMiddleware">
+             <summary>
+             A reproducible network environment simulator that plugs into the middleware chain.
+             It applies a <see cref="T:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile"/> (latency, jitter, loss, reorder) to both
+             inbound and outbound packets so any sync model can be exercised under controlled, repeatable
+             adverse conditions.
+            
+             Delivery is time-driven and deterministic: a packet that is not dropped is buffered with a
+             scheduled delivery time, and is released to the next stage only when <see cref="M:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningMiddleware.Advance(System.Int64)"/> is
+             called with a clock value at or past that time. Supplying a fixed <paramref name="seed"/> and an
+             injectable clock makes "sync model x network profile" comparisons fully replayable in tests
+             without real waiting.
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningMiddleware.#ctor(AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile,System.Func{System.Int64},System.Int32)">
+            <summary>
+            Creates a conditioning middleware.
+            </summary>
+            <param name="profile">The network conditions to apply.</param>
+            <param name="clockMs">
+            Monotonic clock returning the current time in milliseconds. Injectable so tests can drive a
+            virtual clock. When null, a real wall clock is used.
+            </param>
+            <param name="seed">Seed for the deterministic random source backing jitter, loss and reorder.</param>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningMiddleware.Advance(System.Int64)">
+            <summary>
+            Releases every buffered packet whose scheduled delivery time is at or before
+            <paramref name="nowMs"/>, in delivery-time order. Call this from the host loop (or a test)
+            with the current clock value to flush due packets.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningStats">
+            <summary>
+            Running counters for a <see cref="T:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningMiddleware"/>, useful for demo overlays
+            and assertions in tests.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditioningStats.PendingCount">
+            <summary>Packets currently buffered awaiting their scheduled delivery time.</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile">
+            <summary>
+            A reproducible description of a simulated network environment.
+            Gameplay-agnostic: any sample (Shooter, Moba) can run any sync model under any profile.
+            Latency is expressed one-way in milliseconds; combine inbound and outbound to model RTT.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.BaseLatencyMs">
+            <summary>One-way base latency in milliseconds applied to every packet.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.JitterMs">
+            <summary>Maximum +/- jitter in milliseconds added on top of <see cref="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.BaseLatencyMs"/>.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.PacketLossRate">
+            <summary>Probability in [0,1] that a packet is dropped instead of delivered.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.ReorderRate">
+            <summary>
+            Probability in [0,1] that a packet is pulled earlier than its scheduled time,
+            causing it to be delivered out of order relative to its neighbours.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.BandwidthKbps">
+            <summary>Bandwidth cap in kilobits per second. 0 means unlimited.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.Ideal">
+            <summary>Ideal link: zero latency, no loss. Useful as the baseline in comparisons.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.Lan">
+            <summary>Local area network: a few milliseconds, no loss.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.Mobile4G">
+            <summary>Typical 4G mobile link: moderate latency with noticeable jitter.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.CrossRegion">
+            <summary>Cross-region link: high base latency, mild jitter.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.PoorWifi">
+            <summary>Poor wifi: high jitter and meaningful loss, the stress case for sync models.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Conditioning.NetworkConditionProfile.LimitedBandwidth">
+            <summary>
+            Low-bandwidth link (128 Kbps) with otherwise ideal conditions.
+            Exercises bandwidth budget — useful for verifying that sync models
+            remain correct when the transport throttles throughput.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.DemoHarness.ISyncDemoCarrier">
+            <summary>
+            同步 DemoHarness 用来驱动单个示例 carrier 的玩法无关适配器。
+            Shooter、Moba 或未来示例都可以实现它，而不需要把具体玩法类型泄漏到框架层。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessCarrierSelector">
+            <summary>
+            DemoHarness 集成可复用的 carrier 能力选择器。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessScenario">
+            <summary>
+            描述一次 A x B x C 演示运行：同步模型、网络档案与 carrier。
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessStepTelemetry.HealthEvents">
+            <summary>
+            Gameplay-agnostic health signals emitted during this step (snapshot flow, interpolation,
+            recovery, input, validation). Empty when the carrier only reports reconciliation data.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessMetrics.HealthEventCount">
+            <summary>Total number of <see cref="T:AbilityKit.Network.Runtime.Sync.SyncHealthEvent"/>s observed across all steps.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessMetrics.HealthWarningCount">
+            <summary>Number of observed health events with <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Warning"/> severity.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessMetrics.HealthErrorCount">
+            <summary>Number of observed health events with <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Error"/> severity.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.DemoHarness.DemoHarnessRunner.#ctor(System.Func{AbilityKit.Network.Runtime.DemoHarness.DemoHarnessScenario,AbilityKit.Network.Runtime.Sync.SyncClock})">
+            <summary>
+            Creates a runner with a custom clock factory. Hosts inject a factory backed by a
+            <see cref="T:AbilityKit.Network.Runtime.Sync.TimeSyncBridge"/> so produced anchors carry an estimated server clock; the
+            default factory builds a bare local-frame clock with no server-time stamping.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.INetworkSyncController">
+            <summary>
+            Common contract for a client side synchronization controller.
+            A controller owns the runtime behaviour for one <see cref="T:AbilityKit.Network.Runtime.NetworkSyncModel"/>,
+            such as prediction and rollback, authoritative interpolation or batched state sync.
+            This abstraction is intentionally gameplay-agnostic so every sample can describe
+            its active synchronization strategy through a single shared seam.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.INetworkSyncController.SyncModel">
+            <summary>
+            The synchronization strategy this controller implements.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.INetworkSyncController.IsStarted">
+            <summary>
+            Whether the controller has an active synchronized session running.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.INetworkSyncController.CurrentFrame">
+            <summary>
+            The current frame the controller has advanced its local simulation or playback to.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.InterpolationConfig">
+            <summary>
+            Gameplay-agnostic tuning for authoritative remote playback driven by
+            <see cref="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1"/> + <see cref="T:AbilityKit.Network.Runtime.InterpolationTimeline"/>.
+            <see cref="P:AbilityKit.Network.Runtime.InterpolationConfig.TicksPerSecond"/> maps the authoritative server-tick timeline to wall-clock seconds,
+            and <see cref="P:AbilityKit.Network.Runtime.InterpolationConfig.InterpolationDelayTicks"/> is how far behind the newest authoritative sample the
+            remote playback is held so jitter is absorbed and interpolation has two samples to blend.
+            <see cref="P:AbilityKit.Network.Runtime.InterpolationConfig.BufferCapacity"/> bounds how many remote snapshots are retained.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.InterpolationConfig.DefaultCatchUpRate">
+            <summary>Default soft catch-up rate: absorb clock drift at up to 10% of real time per frame.</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.InterpolationConfig.DefaultMaxExtrapolationTicks">
+            <summary>
+            Default extrapolation tolerance: when the delayed playback time runs more than 50ms past the
+            newest buffered snapshot (a starved buffer), playback holds the last authoritative pose and
+            is flagged as starved rather than drifting further.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationConfig.CatchUpRate">
+            <summary>
+            How aggressively the playback clock converges toward the authoritative server time. Zero
+            snaps directly; a positive value (clamped to 1) smoothly absorbs drift. See
+            <see cref="P:AbilityKit.Network.Runtime.InterpolationTimeline.MaxCatchUpRate"/>.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationConfig.MaxExtrapolationTicks">
+            <summary>
+            How far past the newest buffered snapshot the delayed playback may run before it is treated
+            as starved. Within this tolerance playback holds on the newest authoritative pose; beyond it
+            the controller flags the buffer as starved (see
+            <see cref="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.IsRemotePlaybackStarved"/>).
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationConfig.Default">
+            <summary>
+            Default tuning: a 100ms interpolation delay against a millisecond timeline, retaining the
+            last 32 remote snapshots, with soft clock convergence and a 50ms extrapolation tolerance.
+            Samples that carry server ticks in other units can supply a matching
+            <see cref="P:AbilityKit.Network.Runtime.InterpolationConfig.TicksPerSecond"/>.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.InterpolationDiagnostics">
+            <summary>
+            A point-in-time snapshot of authoritative remote interpolation playback health, surfaced for
+            diagnostics / smoke output / connection-quality hints. This is intentionally kept off the
+            mode-agnostic <see cref="T:AbilityKit.Network.Runtime.INetworkSyncController"/> surface: only controllers that actually
+            interpolate implement <see cref="T:AbilityKit.Network.Runtime.IInterpolationDiagnosticsProvider"/>.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.BufferedRemoteSnapshotCount">
+            <summary>Number of remote authoritative snapshots currently buffered for interpolation.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.RemotePlaybackTicks">
+            <summary>The current delayed remote playback time, in timeline ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.EstimatedServerTicks">
+            <summary>The current local estimate of authoritative server time, in timeline ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.HasPublishedRemoteFrame">
+            <summary>Whether at least one remote interpolation frame has been published to presentation.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.IsRemotePlaybackStarved">
+            <summary>
+            Whether the delayed playback time is running past the newest buffered snapshot by more than
+            the configured extrapolation tolerance (the remote buffer is starved and playback is holding
+            the last authoritative pose rather than extrapolating further).
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationDiagnostics.PlaybackDelayTicks">
+            <summary>How far the playback clock trails the estimated server time, in timeline ticks.</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.IInterpolationDiagnosticsProvider">
+            <summary>
+            Implemented by sync controllers that run authoritative remote interpolation and can therefore
+            report <see cref="T:AbilityKit.Network.Runtime.InterpolationDiagnostics"/>. Controllers for non-interpolating sync models do
+            not implement this, so consumers should probe with a type check / <c>TryGet</c> pattern.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.InterpolationMath">
+            <summary>
+            Gameplay-agnostic interpolation primitives shared by
+            <see cref="F:AbilityKit.Network.Runtime.NetworkSyncModel.AuthoritativeInterpolation"/> style projectors. Keeps the math for
+            blending remote snapshot fields (scalars and angles) in one place so individual game layers do
+            not reimplement subtly wrong versions (most notably angle interpolation across the wrap point).
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.InterpolationMath.TwoPiRadians">
+            <summary>A full turn in radians (2π).</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.InterpolationMath.FullTurnDegrees">
+            <summary>A full turn in degrees.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationMath.Lerp(System.Single,System.Single,System.Single)">
+            <summary>Linearly interpolates a scalar between <paramref name="from"/> and <paramref name="to"/>.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationMath.LerpAngle(System.Single,System.Single,System.Single,System.Single)">
+            <summary>
+            Interpolates an angle along the shortest arc, taking the wrap-around at the period boundary
+            into account so values straddling the seam (e.g. 350° → 10°) rotate the short way instead of
+            spinning almost all the way around. The result is returned within <c>[0, period)</c>.
+            </summary>
+            <param name="fromAngle">Start angle in the same unit as <paramref name="period"/>.</param>
+            <param name="toAngle">End angle in the same unit as <paramref name="period"/>.</param>
+            <param name="t">Interpolation factor in [0,1].</param>
+            <param name="period">The full-turn period (<see cref="F:AbilityKit.Network.Runtime.InterpolationMath.TwoPiRadians"/> for radians, <see cref="F:AbilityKit.Network.Runtime.InterpolationMath.FullTurnDegrees"/> for degrees).</param>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationMath.LerpAngleRadians(System.Single,System.Single,System.Single)">
+            <summary>Interpolates an angle expressed in radians along the shortest arc.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationMath.LerpAngleDegrees(System.Single,System.Single,System.Single)">
+            <summary>Interpolates an angle expressed in degrees along the shortest arc.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationMath.Repeat(System.Single,System.Single)">
+            <summary>
+            Wraps <paramref name="value"/> into the range <c>[0, period)</c>, mirroring the behaviour of
+            Unity's <c>Mathf.Repeat</c> without taking a UnityEngine dependency.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.InterpolationTimeline">
+             <summary>
+             Gameplay-agnostic interpolation timeline for <see cref="F:AbilityKit.Network.Runtime.NetworkSyncModel.AuthoritativeInterpolation"/>
+             style playback. It advances a local estimate of server time from frame delta time, folds in
+             authoritative server ticks observed on incoming snapshots, and exposes the delayed playback
+             time used to sample a <see cref="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1"/>.
+            
+             The timeline intentionally keeps remote playback a fixed <see cref="P:AbilityKit.Network.Runtime.InterpolationTimeline.InterpolationDelayTicks"/>
+             behind the newest authoritative sample so that, under normal jitter, the target time falls
+             between two buffered snapshots and remote entities move smoothly instead of snapping.
+            
+             Two correction behaviours are supported. With the default (<see cref="P:AbilityKit.Network.Runtime.InterpolationTimeline.MaxCatchUpRate"/> == 0)
+             the local estimate snaps directly to the authoritative target, which is simple and fully
+             deterministic. With a positive catch-up rate the estimate instead converges toward the
+             authoritative target over several frames at a bounded rate, so clock drift between the local
+             frame clock and the server tick stream is absorbed smoothly rather than via a visible jump.
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationTimeline.#ctor(System.Int64,System.Int64,System.Double)">
+            <param name="ticksPerSecond">Timeline resolution: how many ticks represent one second.</param>
+            <param name="interpolationDelayTicks">How far behind the newest authoritative time playback is held.</param>
+            <param name="maxCatchUpRate">
+            The maximum extra fraction of a frame's advance that may be spent closing the gap between the
+            estimate and the authoritative target each frame. <c>0</c> snaps the estimate to the target;
+            e.g. <c>0.1</c> lets the estimate catch up at up to 10% faster (or slower) than real time so
+            drift is absorbed smoothly. Values are clamped to <c>[0, 1]</c>.
+            </param>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.TicksPerSecond">
+            <summary>Timeline resolution: how many ticks represent one second of server time.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.InterpolationDelayTicks">
+            <summary>How far behind the newest authoritative time playback is held, in ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.MaxCatchUpRate">
+            <summary>
+            The bounded soft catch-up rate. Zero means the estimate snaps to the authoritative target;
+            a positive value means the estimate converges smoothly toward it.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.HasServerTime">
+            <summary>Whether the timeline has observed at least one authoritative server time.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.EstimatedServerTicks">
+            <summary>The current local estimate of server time, in ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.TargetServerTicks">
+            <summary>
+            The authoritative target server time the estimate is converging toward, in ticks. In snap
+            mode this equals <see cref="P:AbilityKit.Network.Runtime.InterpolationTimeline.EstimatedServerTicks"/>.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.InterpolationTimeline.PlaybackTicks">
+            <summary>
+            The delayed playback time used to sample the remote snapshot buffer. This is the estimated
+            server time minus the interpolation delay, never negative.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationTimeline.ObserveServerTicks(System.Int64)">
+            <summary>
+            Folds an authoritative server time (from a received snapshot) into the timeline. The first
+            observation seeds both the target and the estimate. Later observations move the target
+            forward only (stale times are ignored). In snap mode the estimate is pulled forward with the
+            target; in soft catch-up mode the estimate is left to converge during <see cref="M:AbilityKit.Network.Runtime.InterpolationTimeline.Advance(System.Single)"/>.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.InterpolationTimeline.Advance(System.Single)">
+            <summary>
+            Advances the local server time estimate by a frame delta. No-op until the first
+            authoritative server time has been observed. The authoritative target advances at real time;
+            in soft catch-up mode the estimate advances at real time plus a bounded correction toward the
+            target so accumulated drift is absorbed gradually.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1">
+             <summary>
+             Gameplay-agnostic orchestration for <see cref="F:AbilityKit.Network.Runtime.NetworkSyncModel.AuthoritativeInterpolation"/>
+             style remote playback. It owns the <see cref="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1"/> +
+             <see cref="T:AbilityKit.Network.Runtime.InterpolationTimeline"/> pair and the extrapolation/starvation policy, so each demo
+             only has to: (1) decode an incoming push into a <typeparamref name="TSample"/> and feed it via
+             <see cref="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.Observe(`0)"/>, and (2) project + apply the sampled interpolation to its presentation.
+            
+             Typical per-frame usage:
+             <code>
+             playback.Advance(deltaSeconds);
+             if (playback.TrySample(out var interpolation))
+             {
+                 var projected = project(in interpolation);
+                 presentation.Apply(in projected);
+             }
+             </code>
+             </summary>
+             <typeparam name="TSample">The buffered remote snapshot sample type.</typeparam>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.BufferedSampleCount">
+            <summary>Number of remote authoritative snapshots currently buffered for interpolation.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.PlaybackTicks">
+            <summary>The current delayed remote playback time, in timeline ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.EstimatedServerTicks">
+            <summary>The current local estimate of authoritative server time, in timeline ticks.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.HasPublished">
+            <summary>Whether at least one remote interpolation sample has been produced via <see cref="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.TrySample(AbilityKit.Network.Runtime.RemoteSnapshotInterpolation{`0}@)"/>.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.IsStarved">
+            <summary>
+            Whether the most recent <see cref="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.TrySample(AbilityKit.Network.Runtime.RemoteSnapshotInterpolation{`0}@)"/> found the delayed playback time running past
+            the newest buffered snapshot by more than <see cref="P:AbilityKit.Network.Runtime.InterpolationConfig.MaxExtrapolationTicks"/>.
+            Indicates the buffer is starved (e.g. snapshots stopped arriving) and playback is holding the
+            last authoritative pose rather than extrapolating further.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.Observe(`0)">
+            <summary>
+            Buffers a decoded remote authoritative sample and folds its server time into the timeline.
+            Stale/duplicate samples (timeline value not strictly ahead of the newest buffered sample) are
+            rejected and do not advance the timeline.
+            </summary>
+            <returns><c>true</c> when the sample was accepted, <c>false</c> when it was stale/duplicate.</returns>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.Advance(System.Single)">
+            <summary>Advances the delayed playback timeline by a frame delta.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.TrySample(AbilityKit.Network.Runtime.RemoteSnapshotInterpolation{`0}@)">
+             <summary>
+             Samples the buffer at the current delayed playback time. Returns <c>false</c> until at least
+             one authoritative time has been observed and the buffer is non-empty. On success it updates
+             <see cref="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.IsStarved"/> (per the extrapolation policy) and marks <see cref="P:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.HasPublished"/>.
+            
+             Extrapolation policy: when the delayed playback time runs past the newest buffered snapshot
+             the buffer is starved. Remote poses are deliberately not extrapolated forward (that would
+             invent unauthoritative motion); the returned interpolation holds the newest sample. Once the
+             gap exceeds the configured tolerance the playback is additionally flagged as starved so
+             callers can react (e.g. surface a connection-quality hint).
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.GetDiagnostics">
+            <summary>Captures the current interpolation playback health for diagnostics / smoke output.</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteInterpolationPlayback`1.Reset">
+            <summary>Clears the buffer and resets the timeline and playback flags.</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1">
+             <summary>
+             Gameplay-agnostic ordered buffer of remote authoritative snapshots keyed by a monotonic
+             timeline value (typically server ticks). Used by <see cref="F:AbilityKit.Network.Runtime.NetworkSyncModel.AuthoritativeInterpolation"/>
+             style controllers to retain a short history of remote state so the presentation layer can
+             play back delayed, smoothly interpolated entity state instead of snapping to the latest push.
+            
+             The buffer keeps samples sorted by <see cref="P:AbilityKit.Network.Runtime.IRemoteSnapshotSample.TimelineTicks"/> ascending,
+             drops out-of-order or duplicate samples, and trims old samples beyond a bounded capacity.
+             </summary>
+             <typeparam name="TSnapshot">The remote snapshot payload type.</typeparam>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1.NewestTimelineTicks">
+            <summary>
+            The newest buffered timeline value, or <c>null</c> when the buffer is empty.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1.OldestTimelineTicks">
+            <summary>
+            The oldest buffered timeline value, or <c>null</c> when the buffer is empty.
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1.TryAdd(`0)">
+            <summary>
+            Adds a snapshot to the buffer. Snapshots whose timeline value is older than or equal to
+            the newest buffered sample are rejected as stale, keeping the buffer strictly increasing.
+            </summary>
+            <returns><c>true</c> when the snapshot was accepted, <c>false</c> when it was stale/duplicate.</returns>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1.TrySample(System.Int64,AbilityKit.Network.Runtime.RemoteSnapshotInterpolation{`0}@)">
+            <summary>
+            Selects the two samples bracketing the requested timeline value and the interpolation
+            factor between them. When the target falls before the oldest sample the result clamps to
+            the oldest sample; when it falls after the newest sample the result reports extrapolation
+            against the newest sample.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.IRemoteSnapshotSample">
+            <summary>
+            Contract for a remote snapshot stored in a <see cref="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1"/>.
+            The timeline value must be monotonically increasing across snapshots; server ticks are the
+            canonical source in the Shooter sample.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1">
+            <summary>
+            The result of sampling a <see cref="T:AbilityKit.Network.Runtime.RemoteSnapshotBuffer`1"/> at a target timeline
+            value: the bracketing snapshots, the interpolation factor between them and, when the target is
+            ahead of the newest sample, how far the playback would have to extrapolate.
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.From">
+            <summary>The earlier bracketing snapshot.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.To">
+            <summary>The later bracketing snapshot. Equals <see cref="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.From"/> when clamped/extrapolating.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.Alpha">
+            <summary>Interpolation factor in [0,1] between <see cref="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.From"/> and <see cref="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.To"/>.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.ExtrapolationTicks">
+            <summary>
+            How far past the newest sample the target time fell, in timeline ticks. Zero when the
+            target was inside the buffered range. Positive values indicate the playback is starved and
+            holding on the newest sample (an extrapolation policy may choose to act on this).
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.IsInterpolating">
+            <summary>Whether the sample is a genuine interpolation between two distinct snapshots.</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.RemoteSnapshotInterpolation`1.IsExtrapolating">
+            <summary>Whether the target time is ahead of the newest buffered snapshot.</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.LagCompensation.ServerRewindLagCompensationConfig">
+            <summary>
+            Configuration for server-side rewind lag compensation.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.LagCompensation.LagCompensatedEntitySnapshot">
+            <summary>
+            Sphere hitbox snapshot for one server-authoritative entity at a captured frame.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.LagCompensation.LagCompensationQuery">
+            <summary>
+            Input query for evaluating a client-reported hit against rewound server history.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.LagCompensation.LagCompensationHitResult">
+            <summary>
+            Deterministic result of a server-side rewound hit evaluation.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.LagCompensation.ServerRewindLagCompensationService">
+            <summary>
+            Framework-level server rewind helper for favor-the-shooter hit validation.
+            Demos provide authoritative entity snapshots; this service owns history and deterministic ray-sphere evaluation.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.NetworkSyncModel">
+            <summary>
+            Describes the network synchronization strategy used by a session or gameplay sample.
+            This is intentionally gameplay-agnostic so samples can share the same sync vocabulary.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.Unspecified">
+            <summary>
+            No explicit network synchronization model has been selected.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.Lockstep">
+            <summary>
+            Deterministic input synchronization without client rollback recovery.
+            Not implemented yet — reserved for a future lockstep sync strategy.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.PredictRollback">
+            <summary>
+            Local prediction, authoritative snapshots, rollback, replay and reconciliation.
+            Implemented (see the predict-rollback client sync strategy).
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.AuthoritativeInterpolation">
+            <summary>
+            Server authoritative entity state snapshots consumed through interpolation or extrapolation.
+            Implemented (see the authoritative-interpolation client sync strategy).
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.BatchStateSync">
+            <summary>
+            Server authoritative state updates published in low-frequency batches.
+            Not implemented yet — reserved for a future batched state-sync strategy.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.MassBattleLodSync">
+            <summary>
+            Large-scale server authoritative synchronization with interest management and LOD policies.
+            Not implemented yet — reserved for a future mass-battle LOD sync strategy.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.HybridHeroPrediction">
+            <summary>
+            Mixed strategy, usually local hero prediction plus remote interpolation and batched ordinary units.
+            Not implemented yet — reserved for a future hybrid hero-prediction strategy.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.FastReconnect">
+            <summary>
+            Fast reconnect and state restoration flow built around targeted snapshots.
+            Not implemented yet — reserved for a future fast-reconnect strategy.
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.NetworkSyncModel.ServerRewindLagCompensation">
+            <summary>
+            Server-side rewind of authoritative history for latency-compensated hit validation.
+            Implemented by the server rewind lag compensation helper.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.FastReconnectPhase">
+            <summary>
+            <see cref="T:AbilityKit.Network.Runtime.Sync.FastReconnectSession"/> 当前所处的生命周期阶段。会话从 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Connected"/> 开始，
+            连接中断后进入 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Disconnected"/>，重连时根据客户端落后程度选择两条恢复路径之一：
+            <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Resuming"/>（小 gap，从缓冲增量追帧）或 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.AwaitingFullSnapshot"/>（大 gap，需要新的权威快照）。
+            任一路径最终都会进入 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Recovered"/>。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.FastReconnectStepReport">
+            <summary>
+            单次 <see cref="T:AbilityKit.Network.Runtime.Sync.FastReconnectSession"/> 阶段迁移的结果：会话当前阶段、该迁移的玩法无关校正诊断，
+            以及迁移过程中发出的健康事件。Carrier 会把 <see cref="P:AbilityKit.Network.Runtime.Sync.FastReconnectStepReport.Reconciliation"/> 与 <see cref="P:AbilityKit.Network.Runtime.Sync.FastReconnectStepReport.HealthEvents"/>
+            直接转发到 <see cref="N:AbilityKit.Network.Runtime.DemoHarness"/> 单步遥测中，让 harness 使用与其他同步模型相同的管线聚合重连视图。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.FastReconnectSession">
+            <summary>
+            <see cref="F:AbilityKit.Network.Runtime.NetworkSyncModel.FastReconnect"/> 能力的玩法无关实现（审计迁移步骤 7）。
+            该会话是 <see cref="P:AbilityKit.Network.Runtime.Sync.NetworkSyncProfiles.FastReconnect"/> 档案背后的可复用运行时
+            （Recovery = <see cref="F:AbilityKit.Network.Runtime.Sync.RecoveryPolicy.ReconnectResume"/> | <see cref="F:AbilityKit.Network.Runtime.Sync.RecoveryPolicy.RequestFullSnapshot"/>）：
+            它跟踪最后确认的权威帧，并在重连时根据帧 gap 相对可配置恢复窗口的大小，在增量恢复与完整快照重建之间决策。
+            每次迁移都会暴露统一的 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncHealthEvent"/>（<see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.SnapshotGap"/>、
+            <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.FullSnapshotRequested"/>、<see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.FullSnapshotApplied"/>、
+            <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.InterpolationRecovered"/>）以及 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport"/>，
+            让示例完全通过框架驱动重连，而不是重新实现各自的恢复状态。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.#ctor(System.Int32)">
+            <param name="resumeWindowFrames">
+            可通过增量恢复处理的最大权威帧 gap。重连 gap 小于等于该窗口时从缓冲增量恢复；更大的 gap 会强制完整快照重建。
+            </param>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.FastReconnectSession.LastAckedServerFrame">
+            <summary>客户端已完整确认的最新权威帧。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.FastReconnectSession.CurrentServerFrame">
+            <summary>最近一次重连时观察到的权威帧（连接中为 0）。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.FastReconnectSession.PendingGapFrames">
+            <summary>
+            当前进行中的恢复正在闭合的帧 gap。仅当 <see cref="P:AbilityKit.Network.Runtime.Sync.FastReconnectSession.Phase"/> 为 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Resuming"/>
+            或 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.AwaitingFullSnapshot"/> 时有效。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.ObserveServerFrame(System.Int32)">
+            <summary>
+            在连接状态下记录一次常规权威心跳，并确认 <paramref name="serverFrame"/>。
+            发出信息级 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.SnapshotReceived"/> 事件。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.Disconnect">
+            <summary>
+            标记连接已丢失。本地播放会保持饥饿状态，直到调用 <see cref="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.Reconnect(System.Int32)"/>。
+            在最后确认帧发出 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.InterpolationStarved"/> 警告。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.Reconnect(System.Int32)">
+            <summary>
+            在 <paramref name="currentServerFrame"/> 处重新建立连接并选择恢复路径。
+            始终发出携带 gap 的 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.SnapshotGap"/> 警告；恢复窗口内的 gap 进入
+            <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Resuming"/>，否则请求完整快照（<see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.FullSnapshotRequested"/>）
+            并进入 <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.AwaitingFullSnapshot"/>。调用 <see cref="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.CompleteRecovery"/> 完成恢复。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.FastReconnectSession.CompleteRecovery">
+            <summary>
+            完成进行中的恢复：增量恢复会将客户端追到权威帧，完整快照路径会先应用快照
+            （<see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.FullSnapshotApplied"/>）。两条路径都会以
+            <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.InterpolationRecovered"/> 结束，并让会话进入已闭合 gap 的
+            <see cref="F:AbilityKit.Network.Runtime.Sync.FastReconnectPhase.Recovered"/>。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.IClientSyncStrategy`2">
+             <summary>
+             客户端同步模型的玩法无关契约（同步演示框架的“A 轴”）。一个策略封装一种让本地客户端与权威时间线保持一致的方式，
+             例如预测回滚，或纯远端 actor 权威插值，并且不依赖任何具体示例（Shooter、Moba 等）。
+            
+             示例只需提供两个玩法特定类型，其余部分可原样复用策略：<typeparamref name="TInput"/> 是玩家逐 tick 产生的本地命令，
+             <typeparamref name="TSample"/> 是策略播放的已解码远端快照样本。其他内容（tick 节奏、校正记账、恢复状态）都位于框架中，
+             因此一个同步模型只需实现一次，就可以在多个示例间共享。
+             </summary>
+             <typeparam name="TInput">每个 tick 提交的玩法特定本地输入命令。</typeparam>
+             <typeparam name="TSample">从权威端观察到的已解码远端快照样本。</typeparam>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.IClientSyncStrategy`2.Tick(System.Single)">
+            <summary>
+            按给定帧间隔推进策略，并根据模型应用预测、重放和/或插值，返回本 tick 的模拟结果。
+            </summary>
+            <param name="deltaSeconds">距离上一个 tick 的经过时间，单位为秒。</param>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.IClientSyncStrategy`2.SubmitInput(`0@)">
+            <summary>
+            记录本地玩家当前 tick 的输入。不消费本地输入的模型（例如纯权威插值）可以忽略它。
+            </summary>
+            <param name="input">本帧产生的本地命令。</param>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.IClientSyncStrategy`2.ObserveRemote(`1@)">
+            <summary>
+            将来自权威端的已解码远端快照样本送入策略，使其可以向权威状态校正、缓冲或插值。
+            </summary>
+            <param name="sample">从权威端观察到的远端样本。</param>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.IClientSyncStrategy`2.GetReconciliationReport">
+            <summary>
+            返回最近一次校正/恢复诊断；如果模型尚未校正，则返回 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.None"/>。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileControllerBuilder`2">
+            <summary>
+            根据调用方持有的上下文构建指定 profile 的同步控制器。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileControllerRegistry`2">
+            <summary>
+            面向示例与玩法客户端的可复用 profile 键控控制器注册表。
+            <para>
+            框架代码负责 profile 选择与注册机制；玩法示例只需提供自身的强类型上下文和控制器构建器，
+            从而让示例工厂保持轻量，同时继续兼容基于旧模型的 API。
+            </para>
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry">
+            <summary>
+            审计迁移步骤 6“枚举收敛”决策的单一事实来源：<see cref="T:AbilityKit.Network.Runtime.NetworkSyncModel"/> 保留为向后兼容的别名 key，
+            实际能力描述位于 <see cref="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfile"/>。该注册表是唯一知道所有已知模型、规范档案与稳定显示名的位置，
+            因此映射关系不再需要同时维护手写 switch 与静态属性集合。
+            </summary>
+            <remarks>
+            该注册表与玩法和协议无关：它只引用帧、tick、策略层概念。游戏层可以继续通过旧 API 传入
+            <see cref="T:AbilityKit.Network.Runtime.NetworkSyncModel"/>；新逻辑应读取解析后的 <see cref="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfile"/> 策略字段，而不是对别名分支。
+            </remarks>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.Count">
+            <summary>
+            已注册兼容模型数量。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.Resolve(AbilityKit.Network.Runtime.NetworkSyncModel)">
+            <summary>
+            解析兼容模型对应的规范 <see cref="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfile"/>。
+            对未知模型抛出 <see cref="T:System.ArgumentOutOfRangeException"/>，避免调用方静默使用空档案运行。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.TryResolve(AbilityKit.Network.Runtime.NetworkSyncModel,AbilityKit.Network.Runtime.Sync.NetworkSyncProfile@)">
+            <summary>
+            尝试解析兼容模型对应的规范档案，不抛出异常。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.GetName(AbilityKit.Network.Runtime.NetworkSyncModel)">
+            <summary>
+            返回兼容模型的稳定显示名（与枚举成员名一致）。对未知模型抛出 <see cref="T:System.ArgumentOutOfRangeException"/>。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.Models">
+            <summary>
+            按枚举顺序遍历所有已注册兼容模型。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry.Profiles">
+            <summary>
+            按枚举顺序遍历所有已注册档案。适合在不手写每个 profile 的情况下构建能力矩阵。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.NetworkSyncProfiles.FromCompatibilityModel(AbilityKit.Network.Runtime.NetworkSyncModel)">
+            <summary>
+            为旧兼容模型解析规范 profile。映射现在由 <see cref="T:AbilityKit.Network.Runtime.Sync.NetworkSyncProfileRegistry"/> 统一持有
+            （审计迁移步骤 6 的枚举收敛），因此 model→profile 关系只存在于一个位置，而不是在这里再复制一份
+            手写 switch。该方法作为既有调用点保留。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.ServerClockEstimator">
+             <summary>
+             协议无关的估算器，用于把 NTP 风格的时间同步往返样本转换为本地时钟与权威服务器时钟之间的
+             持续偏移估计，以及往返时间（RTT）。它刻意只接收原始 tick 值，从而与任何具体线协议类型
+             （例如网关时间同步响应）解耦：调用方传入 <c>clientSendTicks</c>、<c>serverReceiveTicks</c> 和
+             <c>clientReceiveTicks</c>，估算器会折叠每个样本。
+            
+             与真实 NTP 客户端类似，RTT 最低（排队/抖动最少）的样本通常最准确，因此估算器保留目前观测到的
+             最低 RTT 样本对应偏移，而不是对噪声样本求平均。这样 <see cref="!:ServerTicksNow"/> 在抖动下保持稳定，
+             同时在更好（更低 RTT）样本到来时仍能快速收敛。
+             </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.#ctor(System.Int64)">
+            <param name="serverTickFrequency">
+            一秒对应多少个服务器 tick。用于把 RTT/偏移转换为秒以便诊断。必须为正；非正值会按 1 处理，避免除零。
+            </param>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.ServerTickFrequency">
+            <summary>一秒对应多少个服务器 tick。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.HasSample">
+            <summary>是否已经观测到至少一个往返样本。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.SampleCount">
+            <summary>目前已折叠的往返样本数量。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.BestRoundTripTicks">
+            <summary>
+            目前观测到的最佳（最低）往返时间，单位为 tick。首个样本到来前为零。
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.BestRoundTripSeconds">
+            <summary>目前观测到的最佳往返时间，单位为秒。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.OffsetTicks">
+            <summary>
+            需要加到本地时钟值上以获得服务器时间的估算偏移，单位为 tick。该值来自最低 RTT 样本对应偏移。
+            首个样本到来前为零。
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.OffsetSeconds">
+            <summary>估算时钟偏移，单位为秒。</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.ObserveRoundTrip(System.Int64,System.Int64,System.Int64)">
+             <summary>
+             将一个往返时间同步样本折叠进估算。所有值都使用相同 tick 单位（<see cref="P:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.ServerTickFrequency"/>）。
+             本地发送/接收时间戳来自同一个本地时钟；服务器时间戳来自服务器时钟。
+            
+             RTT 为 <c>clientReceive - clientSend</c>。假设路径对称，服务器时间戳相当于在本地时间
+             <c>clientSend + RTT/2</c> 处采集，因此偏移为 <c>serverReceive - (clientSend + RTT/2)</c>。
+             只有当该样本 RTT 是目前最低值（或它是首个样本）时才会采纳，模拟 NTP 的最佳样本选择。
+             </summary>
+             <param name="clientSendTicks">请求发出时的本地时钟。</param>
+             <param name="serverReceiveTicks">服务器标记响应时的服务器时钟。</param>
+             <param name="clientReceiveTicks">收到响应时的本地时钟。</param>
+             <returns>如果该样本成为新的最佳估算则为 <c>true</c>；否则为 <c>false</c>。</returns>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.ToServerTicks(System.Int64)">
+            <summary>
+            应用当前偏移，将本地时钟值转换为估算的权威服务器时钟值。没有样本前原样返回 <paramref name="localTicks"/>。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.StampServerTicks(AbilityKit.Network.Runtime.Sync.SyncTimeAnchor,System.Int64)">
+            <summary>
+            使用 <paramref name="localTicks"/> 对应的估算服务器时钟标记 <paramref name="anchor"/>。
+            尚未观测到样本时原样返回 anchor，确保调用方不会发布伪造的服务器时间。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.ServerClockEstimator.Reset">
+            <summary>清除所有已观测样本，将估算器恢复到初始状态。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncClock">
+            <summary>
+            同步栈的单一时间源：推进本地帧时间线，并在 <see cref="T:AbilityKit.Network.Runtime.Sync.ServerClockEstimator"/> 已观测到往返样本后，
+            为每个产出的 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncTimeAnchor"/> 标记估算服务器时钟。它是时间锚点的唯一工厂，
+            让预测、插值、回溯与演示播放共享同一套时钟。
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncClock.ServerClock">
+            <summary>
+            可选的服务器时钟估算器。当它存在且已有样本时，时间锚点会携带估算的 <see cref="P:AbilityKit.Network.Runtime.Sync.SyncTimeAnchor.ServerTicks"/>。
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncClock.LocalFrame">
+            <summary><see cref="M:AbilityKit.Network.Runtime.Sync.SyncClock.Advance"/> 下一次将发出的本地帧索引。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncClock.DeltaSeconds">
+            <summary>每次 <see cref="M:AbilityKit.Network.Runtime.Sync.SyncClock.Advance"/> 调用推进的秒数。</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncClock.Advance">
+            <summary>
+            产出当前帧的时间锚点，然后推进本地帧计数器。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncClock.AnchorFor(System.Int32)">
+            <summary>
+            为显式帧索引构建时间锚点，不推进内部状态。适用于拥有自身帧计数器的重放或确定性 harness 循环。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncClock.Reset">
+            <summary>将本地帧计数器重置为零。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncHealthEvent">
+            <summary>
+            单次同步 tick 中发出的玩法无关同步健康信号。Carrier 会将它与 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport"/> 一起暴露，
+            让 DemoHarness 可以聚合统一的健康视图（快照流、插值、恢复、输入、验证），而不是继续扩展校正报告。
+            该事件刻意保持轻量：包含类别、严重级别、关联帧，以及一个含义由类别决定的数值负载
+            （例如重放 tick 数、丢弃快照数、重映射帧）。
+            </summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncHealthEvent.Info(AbilityKit.Network.Runtime.Sync.SyncHealthEventKind,System.Int32,System.Int64)">
+            <summary>创建指定类别的 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Info"/> 事件。</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncHealthEvent.Warning(AbilityKit.Network.Runtime.Sync.SyncHealthEventKind,System.Int32,System.Int64)">
+            <summary>创建指定类别的 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Warning"/> 事件。</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.SyncHealthEvent.Error(AbilityKit.Network.Runtime.Sync.SyncHealthEventKind,System.Int32,System.Int64)">
+            <summary>创建指定类别的 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Error"/> 事件。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind">
+            <summary>
+            客户端/服务器同步策略在单个 tick 中可发出的玩法无关同步健康事件分类。这是同步抽象审计（§6.5）
+            要求的统一诊断词汇：<see cref="T:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport"/> 保持聚焦预测/回滚校正，而更广泛的
+            生命周期信号（快照流、插值饥饿、恢复请求、输入接收、延迟补偿验证）会作为离散
+            <see cref="T:AbilityKit.Network.Runtime.Sync.SyncHealthEvent"/> 上报，让 DemoHarness 无需膨胀校正报告即可聚合它们。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncHealthEventKind.None">
+            <summary>无事件；默认/空槽位。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity">
+            <summary>
+            <see cref="T:AbilityKit.Network.Runtime.Sync.SyncHealthEvent"/> 的严重程度分层，让 harness 与 UI 无需在各处硬编码分类，
+            即可区分常规信号、降级和故障。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Info">
+            <summary>常规、预期内信号（例如收到快照、输入被接收）。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Warning">
+            <summary>可恢复降级（例如插值饥饿、快照丢弃）。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncHealthSeverity.Error">
+            <summary>需要校正/恢复的故障（例如快照 gap、输入被拒绝）。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason">
+            <summary>
+            客户端同步策略判定本地状态已偏离权威服务器状态并需要校正的玩法无关原因。
+            它统一了各个示例过去通过自定义枚举表达的含义（例如 Shooter 的 ShooterClientResyncReason），
+            让演示框架可以跨所有 <see cref="T:AbilityKit.Network.Runtime.NetworkSyncModel"/> 统一报告校正。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.None">
+            <summary>不需要校正；本地状态与服务器保持同步。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.ImportFailed">
+            <summary>导入/应用权威快照失败。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.AuthoritativeHashMismatch">
+            <summary>权威状态哈希与本地预测哈希不一致。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.ClientHashRejected">
+            <summary>服务器拒绝了客户端上报的状态哈希。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.FrameTooFarBehind">
+            <summary>本地模拟落后权威帧过多，无法增量追赶。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.FrameTooFarAhead">
+            <summary>本地模拟超前权威帧过多。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.SnapshotTimeout">
+            <summary>预期的权威快照未在允许窗口内到达。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.WorldMismatch">
+            <summary>权威更新指向了与本地不同的世界/会话。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport">
+             <summary>
+             客户端同步策略产出的玩法无关校正/追赶诊断。
+             它替代示例过去暴露的零散 Last* 字段（例如 Shooter 的 LastResyncReason /
+             LastResyncClientFrame / LastResyncAuthoritativeStateHash ...），为演示框架提供单一统一方式，
+             跨所有同步模型展示“客户端为何分歧，以及如何恢复”。
+            
+             从不进行校正的模型（例如远端 actor 的纯权威插值）只需报告 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.None"/>。
+             </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.None">
+            <summary>表示未发生校正的空报告。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.Reason">
+            <summary>最近一次校正被触发的原因（或 <see cref="F:AbilityKit.Network.Runtime.Sync.SyncReconciliationReason.None"/>）。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.RecoveryState">
+            <summary>策略当前所处的恢复阶段。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.NeedsFullSnapshot">
+            <summary>策略是否正在等待完整权威快照以恢复。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.ClientFrame">
+            <summary>检测到分歧时的本地模拟帧。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.AuthoritativeFrame">
+            <summary>分歧涉及的权威服务器帧。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.ClientStateHash">
+            <summary>分歧点处的本地预测状态哈希。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.AuthoritativeStateHash">
+            <summary>分歧点处的权威状态哈希。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.ReplayTicks">
+            <summary>最近一次回滚/校正期间重放的 tick 数（没有时为 0）。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncReconciliationReport.DidReconcile">
+            <summary>最近一次校正确实修复了本地状态时为 true。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncRecoveryState">
+            <summary>
+            客户端同步策略当前所处的玩法无关恢复阶段。统一了示例过去通过自定义枚举表达的状态
+            （例如 Shooter 的 ShooterClientRecoveryState）。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncRecoveryState.Normal">
+            <summary>本地模拟/播放正常跟随服务器。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncRecoveryState.CatchUp">
+            <summary>通过快进本地模拟追赶较小的帧差。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncRecoveryState.AwaitingFullSnapshot">
+            <summary>漂移超过增量恢复能力；正在等待完整权威快照。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncRecoveryState.ApplyingFullSnapshot">
+            <summary>正在应用已收到的完整权威快照。</summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncRecoveryState.Recovered">
+            <summary>恢复刚刚完成，本地状态已还原到权威状态。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncTickResult">
+            <summary>
+            客户端同步策略推进一次 update 后的玩法无关结果。
+            记录本地模拟/播放推进了多远，供演示框架驱动表现，并比较不同同步模型与网络 profile 下的行为。
+            </summary>
+        </member>
+        <member name="F:AbilityKit.Network.Runtime.Sync.SyncTickResult.NotStarted">
+            <summary>表示策略未推进的结果（例如尚未启动）。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncTickResult.Ticks">
+            <summary>本次 update 中推进的固定模拟/播放 tick 数。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncTickResult.Frame">
+            <summary>策略将本地模拟或播放推进到的帧。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.SyncTickResult.StateHash">
+            <summary>本次 update 后本地模拟的状态哈希（不适用时为 0）。</summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.SyncTimeAnchor">
+            <summary>
+            捕获预测、插值、回溯和演示播放共用的时间坐标。
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Network.Runtime.Sync.TimeSyncBridge">
+            <summary>
+            时间同步交换与同步时钟之间的协议无关接缝。它持有一个 <see cref="T:AbilityKit.Network.Runtime.Sync.ServerClockEstimator"/>，
+            将每次请求/响应往返折叠进去，并提供接入该估算器的 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncClock"/>，让产出的 anchor 在样本充分
+            收敛后携带估算服务器时钟。
+            <para>
+            该 bridge 只接收原始 <see cref="T:System.Int64"/> tick 值；具体线协议消息（例如房间网关时间同步响应）的映射发生在
+            协议边界，因此本包永远不依赖任何协议包。调用方负责确保三个 tick 时间戳都使用 <see cref="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.TickFrequency"/>
+            确立的同一 tick 单位。
+            </para>
+            </summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.TickFrequency">
+            <summary>客户端与服务器时间戳共享的 tick 单位。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.HasConverged">
+            <summary>至少一个往返样本已折叠后为 true。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.SampleCount">
+            <summary>目前已观测到的往返样本数量。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.BestRoundTripSeconds">
+            <summary>目前观测到的最佳（最低）往返延迟，单位为秒。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.OffsetSeconds">
+            <summary>当前最佳估算的客户端到服务器时钟偏移，单位为秒。</summary>
+        </member>
+        <member name="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.Estimator">
+            <summary>底层估算器，暴露给诊断与时钟接线使用。</summary>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.ObserveResponse(System.Int64,System.Int64,System.Int64)">
+            <summary>
+            将一次时间同步交换折叠进估算器。三个时间戳对应典型请求/响应流程：客户端在
+            <paramref name="clientSendTicks"/> 发送，服务器以 <paramref name="serverNowTicks"/> 上报自身时钟，
+            客户端在 <paramref name="clientReceiveTicks"/> 收到响应。
+            </summary>
+            <returns>当该样本改善了最佳往返估算时为 true。</returns>
+        </member>
+        <member name="M:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.CreateClock(System.Double,System.Int64)">
+            <summary>
+            产出接入该 bridge 估算器的 <see cref="T:AbilityKit.Network.Runtime.Sync.SyncClock"/>。当 <see cref="P:AbilityKit.Network.Runtime.Sync.TimeSyncBridge.HasConverged"/> 为 true 后，
+            它发出的 anchor 会携带估算服务器时钟。
+            </summary>
+        </member>
+    </members>
+</doc>

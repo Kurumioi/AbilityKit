@@ -19,9 +19,17 @@ export function createDefaultSkillAnalysisFilter(): SkillAnalysisFilterState {
 
 export function inferSkillAnalysisStage(kind: string): string {
   const normalized = kind.toLowerCase();
-  if (normalized.includes('effect') || normalized.includes('damage') || normalized.includes('buff') || normalized.includes('projectile') || normalized.includes('area')) return 'effect-execution';
-  if (normalized.includes('assert') || normalized.includes('expect') || normalized.includes('result')) return 'assertion-result';
-  if (normalized.includes('cast') || normalized.includes('skill')) return 'cast-pipeline';
+  if (includesAny(normalized, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown'])) return 'trigger-condition';
+  if (includesAny(normalized, ['trigger', 'event', 'passive', 'aura'])) return 'trigger-lineage';
+  if (includesAny(normalized, ['action', 'plan', 'command'])) return 'trigger-action';
+  if (includesAny(normalized, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff-lifecycle';
+  if (includesAny(normalized, ['projectile', 'bullet', 'missile'])) return 'projectile-lifecycle';
+  if (includesAny(normalized, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
+  if (includesAny(normalized, ['damage', 'heal', 'shield'])) return 'damage-pipeline';
+  if (includesAny(normalized, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation-events';
+  if (includesAny(normalized, ['effect', 'area', 'aoe', 'summon'])) return 'effect-execution';
+  if (includesAny(normalized, ['assert', 'expect', 'result'])) return 'assertion-result';
+  if (includesAny(normalized, ['cast', 'skill', 'active', 'channel', 'charge'])) return 'cast-pipeline';
   return 'trigger-lineage';
 }
 
@@ -33,15 +41,19 @@ export function inferSkillAnalysisSeverity(record: Record<string, unknown>, stat
 }
 
 export function inferSkillAnalysisEntityKind(kind: string, stage: string, record: Record<string, unknown>): string {
-  const text = `${kind} ${stage} ${toText(record.runtimeKind)} ${toText(record.entityKind)} ${toText(record.eventType)}`.toLowerCase();
-  if (text.includes('projectile')) return 'projectile';
-  if (text.includes('area') || text.includes('aoe')) return 'area';
-  if (text.includes('buff')) return 'buff';
-  if (text.includes('damage')) return 'damage';
-  if (text.includes('presentation')) return 'presentation';
-  if (text.includes('action')) return 'effect-action';
-  if (text.includes('effect')) return 'effect';
-  if (text.includes('skill') || text.includes('cast')) return 'actor-skill';
+  const text = buildClassificationText(kind, stage, record);
+  if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown'])) return 'trigger-condition';
+  if (includesAny(text, ['passive', 'aura'])) return 'passive-skill';
+  if (includesAny(text, ['trigger', 'event'])) return 'trigger-source';
+  if (includesAny(text, ['projectile', 'bullet', 'missile'])) return 'projectile';
+  if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
+  if (includesAny(text, ['area', 'aoe'])) return 'area';
+  if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
+  if (includesAny(text, ['damage', 'heal', 'shield'])) return 'damage';
+  if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation';
+  if (includesAny(text, ['action', 'plan', 'command'])) return 'effect-action';
+  if (includesAny(text, ['effect', 'summon'])) return 'effect';
+  if (includesAny(text, ['skill', 'cast', 'active', 'channel', 'charge'])) return 'actor-skill';
   return 'context';
 }
 
@@ -49,7 +61,7 @@ export function buildSkillAnalysisNodeProjection(record: Record<string, unknown>
   const numericNodeId = toNumber(record.nodeId);
   if (numericNodeId <= 0) return null;
 
-  const kind = toText(record.kind) || toText(record.eventType) || 'Unknown';
+  const kind = toText(record.kind) || toText(record.eventType) || '未知';
   const status = toText(record.status) || (record.isEnded === true ? 'ended' : 'running');
   const failure = toText(record.failReason) || toText(record.failure) || toText(record.reason) || null;
   const configId = toNumber(record.configId || record.runtimeConfigId || record.effectId || record.actionId);
@@ -61,11 +73,23 @@ export function buildSkillAnalysisNodeProjection(record: Record<string, unknown>
   const timeMs = toNumber(record.timeMs);
   const stage = toText(record.stage) || inferSkillAnalysisStage(kind);
   const entityKind = inferSkillAnalysisEntityKind(kind, stage, record);
+  const domain = inferSkillAnalysisDomain(kind, stage, entityKind, record);
+  const domainLabel = skillAnalysisDomainLabel(domain);
+  const laneLabel = skillAnalysisLaneLabel(domain, stage, entityKind);
+  const triggerLabel = resolveTriggerLabel(record, domain);
+  const conditionLabel = resolveConditionLabel(record, domain);
+  const actionLabel = resolveActionLabel(record, domain, entityKind);
   const sourceContextId = String(toNumber(record.sourceContextId || record.contextId || record.immediateContextId) || numericNodeId);
   const rootContextId = String(toNumber(record.rootContextId || record.rootId) || numericNodeId);
   const ownerContextId = String(toNumber(record.ownerContextId || record.parentContextId || record.rootId) || 0);
   const entityKey = buildEntityKey(entityKind, record, numericNodeId, configId, actorId, sourceContextId);
-  const labelParts = [kind, configId > 0 ? `#${configId}` : '', skillId > 0 ? `skill ${skillId}` : ''].filter(Boolean);
+  const displayName = resolveTraceDisplayName(record, kind, entityKind, configId, skillId);
+  const configLabel = resolveConfigLabel(record, kind, entityKind, configId, skillId);
+  const runtimeLabel = resolveRuntimeLabel(record, entityKind, numericNodeId, sourceContextId);
+  const actorLabel = resolveActorLabel(record, 'actor', actorId);
+  const sourceActorLabel = resolveActorLabel(record, 'source', sourceActorId);
+  const targetActorLabel = resolveActorLabel(record, 'target', targetActorId);
+  const detailLabel = [configLabel, runtimeLabel, sourceActorLabel, targetActorLabel].filter(Boolean).join(' / ');
 
   return {
     nodeId: String(numericNodeId),
@@ -76,7 +100,14 @@ export function buildSkillAnalysisNodeProjection(record: Record<string, unknown>
     numericParentId: toNumber(record.parentId),
     kind,
     stage,
-    label: labelParts.join(' '),
+    label: displayName,
+    displayName,
+    detailLabel,
+    configLabel,
+    actorLabel,
+    sourceActorLabel,
+    targetActorLabel,
+    runtimeLabel,
     configId: configId > 0 ? configId : null,
     frame,
     timeMs,
@@ -89,6 +120,12 @@ export function buildSkillAnalysisNodeProjection(record: Record<string, unknown>
     sourceContextId,
     entityKind,
     entityKey,
+    domain,
+    domainLabel,
+    laneLabel,
+    triggerLabel,
+    conditionLabel,
+    actionLabel,
     status,
     severity: inferSkillAnalysisSeverity(record, status),
     summary: buildNodeSummary(record, caseId),
@@ -140,7 +177,7 @@ export function buildSkillAnalysisFilterOptions(nodes: SkillAnalysisFlatNodeProj
     severities: uniqueSorted(nodes.map(x => x.severity)),
     stages: uniqueSorted(nodes.map(x => x.stage)),
     kinds: uniqueSorted(nodes.map(x => x.kind)),
-    entityKinds: uniqueSorted(nodes.map(x => x.entityKind)),
+    entityKinds: uniqueSorted(nodes.map(x => x.domain || x.entityKind)),
     actorIds: uniqueNumbers(nodes.flatMap(x => [x.actorId || 0, x.sourceActorId || 0, x.targetActorId || 0])),
     skillIds: uniqueNumbers(nodes.map(x => x.skillId || 0)),
     configIds: uniqueNumbers(nodes.map(x => x.configId || 0)),
@@ -157,7 +194,7 @@ export function nodeMatchesSkillAnalysisFilter(node: SkillAnalysisFlatNodeProjec
   if (!matchesOption(node.severity, filter.severity)) return false;
   if (!matchesOption(node.stage, filter.stage)) return false;
   if (!matchesOption(node.kind, filter.kind)) return false;
-  if (!matchesOption(node.entityKind, filter.entityKind)) return false;
+  if (!matchesOption(node.domain || node.entityKind, filter.entityKind)) return false;
   if (!matchesNumberFilter([node.actorId, node.sourceActorId, node.targetActorId], filter.actorId)) return false;
   if (!matchesNumberFilter([node.skillId], filter.skillId)) return false;
   if (!matchesNumberFilter([node.configId], filter.configId)) return false;
@@ -166,7 +203,7 @@ export function nodeMatchesSkillAnalysisFilter(node: SkillAnalysisFlatNodeProjec
 
   const text = filter.searchText.trim().toLowerCase();
   if (!text) return true;
-  const haystack = [node.label, node.kind, node.stage, node.status, node.severity, node.summary, node.failure || '', node.entityKind, node.entityKey, node.nodeId, node.parentId, node.rootId, toText(node.raw)].join(' ').toLowerCase();
+  const haystack = [node.label, node.displayName, node.detailLabel, node.configLabel, node.actorLabel, node.sourceActorLabel, node.targetActorLabel, node.runtimeLabel, node.kind, node.stage, node.status, node.severity, node.summary, node.failure || '', node.entityKind, node.domain, node.domainLabel, node.laneLabel, node.triggerLabel, node.conditionLabel, node.actionLabel, node.entityKey, node.nodeId, node.parentId, node.rootId, toText(node.raw)].join(' ').toLowerCase();
   return haystack.includes(text);
 }
 
@@ -180,7 +217,7 @@ export function buildSkillAnalysisEntityRelations(nodes: SkillAnalysisFlatNodePr
     group.totalNodes += 1;
     if (isFailureNode(node)) group.failureCount += 1;
 
-    const relationKey = `${ownerKey}:${node.entityKind}:${node.entityKey}`;
+    const relationKey = `${ownerKey}:${node.domain || node.entityKind}:${node.entityKey}`;
     if (!relationBuckets.has(relationKey)) relationBuckets.set(relationKey, []);
     relationBuckets.get(relationKey)?.push(node);
   }
@@ -191,9 +228,9 @@ export function buildSkillAnalysisEntityRelations(nodes: SkillAnalysisFlatNodePr
     const relation: SkillAnalysisEntityRelationProjection = {
       id: bucketKey,
       ownerKey,
-      entityKind: first.entityKind,
+      entityKind: first.domainLabel || first.entityKind,
       entityKey: first.entityKey,
-      label: `${first.entityKind} / ${first.entityKey}`,
+      label: `${first.displayName} / ${first.runtimeLabel || first.entityKey}`,
       nodeCount: bucketNodes.length,
       failureCount: bucketNodes.filter(isFailureNode).length,
       firstFrame: Math.min(...bucketNodes.map(x => x.frame)),
@@ -214,8 +251,8 @@ export function buildTimelineFromAnalysisNodes(nodes: SkillAnalysisFlatNodeProje
       id: `${node.source}:${node.nodeId}`,
       frame: node.frame,
       timeMs: node.timeMs,
-      lane: `${node.stage}/${node.entityKind}`,
-      label: node.label,
+      lane: node.laneLabel || skillAnalysisLaneLabel(node.domain, node.stage, node.entityKind),
+      label: node.detailLabel ? `${node.displayName} · ${node.detailLabel}` : node.displayName,
       nodeId: node.nodeId,
       severity: node.severity,
       source: node.source
@@ -229,13 +266,137 @@ export function buildTimelineFromRuntimeEvents(events: AdminSkillDiagnosticsEven
       id: `runtime:${event.frame}:${event.skillInstanceId}:${event.stage}:${index}`,
       frame: event.frame,
       timeMs: 0,
-      lane: event.stage || 'runtime-event',
-      label: `${event.eventType} Actor ${event.actorId} Skill ${event.skillId}`,
+      lane: skillAnalysisLaneLabel(inferRuntimeEventDomain(event.stage, event.eventType), event.stage || 'runtime-event', event.eventType),
+      label: `${event.eventType} 角色 ${event.actorId} 技能 ${event.skillId}`,
       nodeId: null,
       severity: event.severity || 'info',
       source: 'runtime-diagnostics'
     }))
     .sort((a, b) => a.frame - b.frame || a.id.localeCompare(b.id));
+}
+
+export function inferSkillAnalysisDomain(kind: string, stage: string, entityKind: string, record: Record<string, unknown>): string {
+  const text = buildClassificationText(kind, stage, record, entityKind);
+  if (includesAny(text, ['active', '主动', 'cast', 'skillcast', 'manual'])) return 'active-skill';
+  if (includesAny(text, ['passive', '被动', 'aura', '光环'])) return 'passive-skill';
+  if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown', '条件'])) return 'trigger-condition';
+  if (includesAny(text, ['action', 'plan', 'command', '行为', '动作'])) return 'trigger-action';
+  if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
+  if (includesAny(text, ['projectile', 'bullet', 'missile', '子弹', '投射'])) return 'projectile';
+  if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement', '位移'])) return 'movement';
+  if (includesAny(text, ['damage', 'heal', 'shield', '伤害', '治疗'])) return 'damage';
+  if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation', '表现'])) return 'presentation';
+  if (includesAny(text, ['effect', 'area', 'aoe', 'summon', '效果'])) return 'effect';
+  if (includesAny(text, ['trigger', 'event', '触发'])) return 'trigger-source';
+  if (includesAny(text, ['assert', 'expect', 'result'])) return 'assertion';
+  return entityKind === 'actor-skill' ? 'active-skill' : 'context';
+}
+
+function inferRuntimeEventDomain(stage: string, eventType: string): string {
+  const text = `${stage} ${eventType}`.toLowerCase();
+  if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown'])) return 'trigger-condition';
+  if (includesAny(text, ['action', 'plan', 'command'])) return 'trigger-action';
+  if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
+  if (includesAny(text, ['projectile', 'bullet', 'missile'])) return 'projectile';
+  if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
+  if (includesAny(text, ['damage', 'heal', 'shield'])) return 'damage';
+  if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation';
+  if (includesAny(text, ['effect', 'area', 'aoe', 'summon'])) return 'effect';
+  if (includesAny(text, ['trigger', 'event', 'passive', 'aura'])) return 'trigger-source';
+  if (includesAny(text, ['cast', 'skill', 'active', 'channel', 'charge'])) return 'active-skill';
+  return 'context';
+}
+
+export function skillAnalysisDomainLabel(domain: string): string {
+  const labels: Record<string, string> = {
+    'active-skill': '主动技能',
+    'passive-skill': '被动/光环',
+    'trigger-source': '触发源',
+    'trigger-condition': '触发条件',
+    'trigger-action': '触发行为',
+    effect: '效果执行',
+    buff: 'Buff 生命周期',
+    projectile: '投射物/子弹',
+    movement: '位移/运动',
+    damage: '伤害/治疗',
+    presentation: '表现事件',
+    assertion: '验收断言',
+    context: '上下文'
+  };
+  return labels[domain] || domain || '上下文';
+}
+
+function skillAnalysisLaneLabel(domain: string, stage: string, entityKind: string): string {
+  const effectiveDomain = domain || inferSkillAnalysisDomain(entityKind, stage, entityKind, {});
+  const laneMap: Record<string, string> = {
+    'active-skill': 'Skill Pipeline 主动释放',
+    'passive-skill': 'Skill Pipeline 被动/光环',
+    'trigger-source': 'Trigger Source 触发源',
+    'trigger-condition': 'Trigger Conditions 条件判定',
+    'trigger-action': 'Trigger Plan Actions 行为计划',
+    effect: 'Effect Execution 效果执行',
+    buff: 'Buff Lifecycle Buff 生命周期',
+    projectile: 'Projectile Lifecycle 投射物生命周期',
+    movement: 'Movement / Displacement 位移运动',
+    damage: 'Damage / Heal Pipeline 结算管线',
+    presentation: 'Presentation Events 表现事件',
+    assertion: 'Assertion Result 验收断言',
+    context: 'Context / Lineage 上下文溯源'
+  };
+  return laneMap[effectiveDomain] || `${stage}/${entityKind}`;
+}
+
+function resolveTriggerLabel(record: Record<string, unknown>, domain: string): string {
+  const explicit = firstText(record, ['triggerName', 'triggerDisplayName', 'eventType', 'triggerType', 'sourceEvent', 'listenEvent']);
+  if (explicit) return explicit;
+  if (domain === 'active-skill') return '玩家/AI 主动释放';
+  if (domain === 'passive-skill') return '被动监听/光环刷新';
+  if (domain === 'trigger-condition' || domain === 'trigger-action' || domain === 'trigger-source') return '事件触发链路';
+  return '';
+}
+
+function resolveConditionLabel(record: Record<string, unknown>, domain: string): string {
+  const explicit = firstText(record, ['conditionName', 'conditionDisplayName', 'predicateName', 'filterName', 'budgetName', 'costName', 'cooldownName', 'failReason', 'failure', 'reason']);
+  if (explicit) return explicit;
+  if (domain === 'trigger-condition') return '条件 / 资源 / 冷却判定';
+  return '';
+}
+
+function resolveActionLabel(record: Record<string, unknown>, domain: string, entityKind: string): string {
+  const explicit = firstText(record, ['actionName', 'actionDisplayName', 'effectName', 'behaviorName', 'commandName', 'planName', 'runtimeName']);
+  if (explicit) return explicit;
+  if (domain === 'trigger-action') return '触发后行为计划';
+  if (domain === 'projectile') return '发射/飞行/命中';
+  if (domain === 'movement') return '位移/运动控制';
+  if (domain === 'buff') return '附加/叠层/持续/移除';
+  if (domain === 'damage') return '伤害/治疗结算';
+  if (domain === 'effect' || entityKind === 'effect') return '效果执行';
+  return '';
+}
+
+function buildClassificationText(kind: string, stage: string, record: Record<string, unknown>, entityKind = ''): string {
+  return [
+    kind,
+    stage,
+    entityKind,
+    toText(record.runtimeKind),
+    toText(record.entityKind),
+    toText(record.eventType),
+    toText(record.skillKind),
+    toText(record.castKind),
+    toText(record.triggerType),
+    toText(record.effectType),
+    toText(record.actionType),
+    toText(record.behaviorType),
+    toText(record.conditionType),
+    toText(record.configName),
+    toText(record.displayName),
+    toText(record.message)
+  ].join(' ').toLowerCase();
+}
+
+function includesAny(value: string, needles: string[]): boolean {
+  return needles.some(needle => value.includes(needle));
 }
 
 function sortSkillAnalysisNodes(nodes: SkillAnalysisNodeProjection[]): void {
@@ -257,7 +418,85 @@ function buildNodeSummary(record: Record<string, unknown>, caseId: string): stri
     toText(record.message),
     toText(record.result)
   ].filter(Boolean);
-  return parts.join(' | ') || 'trace node projection';
+  return parts.join(' | ') || '追踪节点投影';
+}
+
+function resolveTraceDisplayName(record: Record<string, unknown>, kind: string, entityKind: string, configId: number, skillId: number): string {
+  const explicit = firstText(record, ['displayName', 'name', 'traceName', 'skillName', 'effectName', 'actionName', 'projectileName', 'buffName', 'entityName', 'runtimeName', 'configName', 'phaseName', 'triggerName', 'slotName']);
+  if (explicit) return explicit;
+
+  const domainName = domainKindName(kind, entityKind);
+  if (entityKind === 'actor-skill' && skillId > 0) return `${domainName} · 技能 #${skillId}`;
+  if (configId > 0) return `${domainName} · 配置 #${configId}`;
+  return domainName;
+}
+
+function resolveConfigLabel(record: Record<string, unknown>, kind: string, entityKind: string, configId: number, skillId: number): string {
+  const explicit = firstText(record, ['configDisplayName', 'configName', 'skillName', 'effectName', 'actionName', 'projectileName', 'buffName', 'triggerName']);
+  const configType = configKindName(kind, entityKind);
+  if (explicit && configId > 0) return `${configType} ${explicit} (#${configId})`;
+  if (explicit) return `${configType} ${explicit}`;
+  if (entityKind === 'actor-skill' && skillId > 0) return `技能配置 #${skillId}`;
+  if (configId > 0) return `${configType} #${configId}`;
+  return '';
+}
+
+function resolveRuntimeLabel(record: Record<string, unknown>, entityKind: string, nodeId: number, sourceContextId: string): string {
+  const explicit = firstText(record, ['runtimeDisplayName', 'runtimeName', 'debugName', 'entityName', 'objectName', 'viewName']);
+  const runtimeKind = toText(record.runtimeKind) || entityKind;
+  const runtimeId = toNumber(record.runtimeId || record.instanceId || record.entityId || record.projectileRuntimeId || record.buffRuntimeId || record.contextId || record.sourceContextId);
+  if (explicit && runtimeId > 0) return `${explicit} (${runtimeKind}#${runtimeId})`;
+  if (explicit) return explicit;
+  if (runtimeId > 0) return `${runtimeKind} 运行时 #${runtimeId}`;
+  if (sourceContextId && sourceContextId !== '0') return `上下文 #${sourceContextId}`;
+  return `${entityKind} 节点 #${nodeId}`;
+}
+
+function resolveActorLabel(record: Record<string, unknown>, role: 'actor' | 'source' | 'target', actorId: number): string {
+  const fieldMap: Record<typeof role, string[]> = {
+    actor: ['actorName', 'actorDisplayName', 'entityName'],
+    source: ['sourceActorName', 'sourceName', 'casterName', 'ownerName'],
+    target: ['targetActorName', 'targetName']
+  };
+  const explicit = firstText(record, fieldMap[role]);
+  const roleName = role === 'source' ? '施法者' : role === 'target' ? '目标' : '角色';
+  if (explicit && actorId > 0) return `${roleName} ${explicit} (#${actorId})`;
+  if (explicit) return `${roleName} ${explicit}`;
+  if (actorId > 0) return `${roleName} #${actorId}`;
+  return '';
+}
+
+function firstText(record: Record<string, unknown>, fields: string[]): string {
+  for (const field of fields) {
+    const value = toText(record[field]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function domainKindName(kind: string, entityKind: string): string {
+  const text = `${kind} ${entityKind}`.toLowerCase();
+  if (text.includes('skill') || text.includes('cast')) return '技能释放';
+  if (text.includes('projectile')) return '投射物发射';
+  if (text.includes('buff')) return 'Buff 附加';
+  if (text.includes('damage')) return '伤害结算';
+  if (text.includes('action')) return '效果动作';
+  if (text.includes('effect')) return '效果执行';
+  if (text.includes('presentation')) return '表现事件';
+  if (text.includes('assert') || text.includes('expect')) return '验收断言';
+  return kind || entityKind || '追踪节点';
+}
+
+function configKindName(kind: string, entityKind: string): string {
+  const text = `${kind} ${entityKind}`.toLowerCase();
+  if (text.includes('skill') || text.includes('cast')) return '技能';
+  if (text.includes('projectile')) return '投射物';
+  if (text.includes('buff')) return 'Buff';
+  if (text.includes('damage')) return '伤害';
+  if (text.includes('action')) return '动作';
+  if (text.includes('effect')) return '效果';
+  if (text.includes('presentation')) return '表现';
+  return '配置';
 }
 
 function buildEntityKey(entityKind: string, record: Record<string, unknown>, nodeId: number, configId: number, actorId: number, sourceContextId: string): string {
@@ -286,7 +525,7 @@ function ensureEntityGroup(groups: Map<string, SkillAnalysisEntityGroupProjectio
   const group: SkillAnalysisEntityGroupProjection = {
     id: ownerKey,
     ownerKey,
-    label: `主实体 ${ownerKey}`,
+    label: node.sourceActorLabel || node.actorLabel || `主实体 ${ownerKey}`,
     actorId: node.sourceActorId || node.actorId || null,
     rootId: node.rootId || null,
     totalNodes: 0,

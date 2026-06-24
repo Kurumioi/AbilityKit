@@ -2,9 +2,6 @@ using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
-using AbilityKit.Game.Battle.Transport;
-using AbilityKit.Network.Protocol;
-using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Game.Flow
 {
@@ -28,18 +25,12 @@ namespace AbilityKit.Game.Flow
                     throw new InvalidOperationException($"GatewayRemote requires numeric WorldId(roomId). worldId='{world.WorldId}'");
                 }
 
-                var gatewayOptions = NetworkTransportOptionsFactory.Create(
-                    host: gateway.Host,
-                    port: gateway.Port,
-                    transportFactory: () => new TcpTransport(),
-                    playerIdToUInt: pid => uint.TryParse(pid.Value, out var n) ? n : localPlayerId,
-                    playerIdFromUInt: n => new PlayerId(n.ToString()),
-                    worldIdToUlong: wid => ulong.TryParse(wid.Value, out var n) ? n : roomId,
-                    worldIdFromUlong: n => new WorldId(n.ToString()),
-                    roomId: roomId,
-                    sessionToken: gateway.SessionToken);
-
-                var transport = new NetworkTransport(gatewayOptions, _unityDispatcher, _networkIoDispatcher);
+                var transport = _transportFactory.CreateGatewayRemoteTransport(
+                    _plan,
+                    localPlayerId,
+                    roomId,
+                    _unityDispatcher,
+                    _networkIoDispatcher);
                 return BattleLogicSessionHost.Start(opts, remoteTransport: transport);
             }
 

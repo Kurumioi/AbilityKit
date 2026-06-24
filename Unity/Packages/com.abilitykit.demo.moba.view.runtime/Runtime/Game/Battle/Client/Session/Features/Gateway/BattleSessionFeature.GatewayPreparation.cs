@@ -8,22 +8,14 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleSessionFeature
     {
-        private async Task PrepareRoomAsync()
+        private Task PrepareRoomAsync()
         {
-            await WaitForGatewayConnectionAsync();
-            await EnsureGatewaySessionTokenAsync();
-
-            var gateway = _plan.Gateway;
-            if (gateway.AutoCreateRoom)
-            {
-                await CreateAndJoinGatewayRoomAsync();
-                return;
-            }
-
-            if (gateway.AutoJoinRoom)
-            {
-                await JoinGatewayRoomAsync();
-            }
+            return GatewayRoomPreparationController.RunAsync(
+                getPlan: () => _plan,
+                waitForConnectionAsync: WaitForGatewayConnectionAsync,
+                ensureSessionTokenAsync: EnsureGatewaySessionTokenAsync,
+                createAndJoinRoomAsync: CreateAndJoinGatewayRoomAsync,
+                joinRoomAsync: JoinGatewayRoomAsync);
         }
 
         private async Task WaitForGatewayConnectionAsync()
@@ -80,12 +72,7 @@ namespace AbilityKit.Game.Flow
 
             Log.Info($"[BattleSessionFeature] GatewayRoom CreateRoom ok. roomId='{result.RoomId}' numericRoomId={result.NumericRoomId}");
 
-            if (result.NumericRoomId == 0)
-            {
-                throw new InvalidOperationException($"Gateway CreateRoom returned invalid NumericRoomId. roomId='{result.RoomId}'");
-            }
-
-            var worldId = result.NumericRoomId.ToString();
+            var worldId = GatewayRoomPreparationHelper.ResolveCreatedRoomWorldId(in result);
             _plan = _plan.WithGatewayRoom(worldId, result.NumericRoomId);
 
             var updatedGateway = _plan.Gateway;
@@ -93,13 +80,12 @@ namespace AbilityKit.Game.Flow
                 sessionToken: updatedGateway.SessionToken,
                 region: updatedGateway.Region,
                 serverId: updatedGateway.ServerId,
-                roomId: string.IsNullOrWhiteSpace(result.RoomId) ? updatedGateway.NumericRoomId.ToString() : result.RoomId);
+                roomId: GatewayRoomPreparationHelper.ResolveCreatedRoomJoinRoomId(in result, updatedGateway.NumericRoomId));
 
-            var wid = new WorldId(_plan.World.WorldId);
-            if (joinResult.WorldStartAnchor.ServerTickFrequency != 0)
-            {
-                _gatewayWorldStartAnchors[wid] = joinResult.WorldStartAnchor;
-            }
+            GatewayRoomPreparationHelper.TryRecordWorldStartAnchor(
+                _gatewayWorldStartAnchors,
+                new WorldId(_plan.World.WorldId),
+                in joinResult.WorldStartAnchor);
 
             StartTimeSyncLoop();
 
@@ -110,15 +96,7 @@ namespace AbilityKit.Game.Flow
         {
             var world = _plan.World;
             var gateway = _plan.Gateway;
-            var joinRoomId = gateway.JoinRoomId;
-            if (string.IsNullOrWhiteSpace(joinRoomId))
-            {
-                joinRoomId = gateway.NumericRoomId != 0 ? gateway.NumericRoomId.ToString() : world.WorldId;
-            }
-            if (string.IsNullOrWhiteSpace(joinRoomId))
-            {
-                throw new InvalidOperationException("GatewayAutoJoinRoom requires JoinRoomId or WorldId.");
-            }
+            var joinRoomId = GatewayRoomPreparationHelper.ResolveJoinRoomId(_plan);
 
             Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom... roomId='{joinRoomId}'");
             var result = await _gatewayClient.JoinRoomAsync(
@@ -127,22 +105,16 @@ namespace AbilityKit.Game.Flow
                 serverId: gateway.ServerId,
                 roomId: joinRoomId);
 
-            var tmpWid = new WorldId(world.WorldId);
-            if (result.WorldStartAnchor.ServerTickFrequency != 0)
-            {
-                _gatewayWorldStartAnchors[tmpWid] = result.WorldStartAnchor;
-            }
+            GatewayRoomPreparationHelper.TryRecordWorldStartAnchor(
+                _gatewayWorldStartAnchors,
+                new WorldId(world.WorldId),
+                in result.WorldStartAnchor);
 
             StartTimeSyncLoop();
 
             Log.Info($"[BattleSessionFeature] GatewayRoom JoinRoom ok. numericRoomId={result.NumericRoomId}");
 
-            if (result.NumericRoomId == 0)
-            {
-                throw new InvalidOperationException($"Gateway JoinRoom returned invalid NumericRoomId. roomId='{joinRoomId}'");
-            }
-
-            var worldId = result.NumericRoomId.ToString();
+            var worldId = GatewayRoomPreparationHelper.ResolveJoinedRoomWorldId(in result, joinRoomId);
             _plan = _plan.WithGatewayRoom(worldId, result.NumericRoomId);
         }
     }

@@ -47,15 +47,7 @@ namespace AbilityKit.Game.Flow
 
         public void BeginScript(BattleTestScript script)
         {
-            TickCount = 0;
-            MoveApplyCount = 0;
-            SkillApplyCount = 0;
-            IdleApplyCount = 0;
-            WaitApplyCount = 0;
-            LastReleasedSkillSlot = 0;
-            _releasedSkillSlots.Clear();
-            SampleTime = 0d;
-            LastResult = null;
+            ResetRuntimeState();
 
             _clock.Reset();
             _ctx.LastFrame = 0;
@@ -115,6 +107,19 @@ namespace AbilityKit.Game.Flow
             LastResult = result;
             _ctx.SetHudMove(0f, 0f);
             _ctx.EndHudMove();
+        }
+
+        private void ResetRuntimeState()
+        {
+            TickCount = 0;
+            MoveApplyCount = 0;
+            SkillApplyCount = 0;
+            IdleApplyCount = 0;
+            WaitApplyCount = 0;
+            LastReleasedSkillSlot = 0;
+            _releasedSkillSlots.Clear();
+            SampleTime = 0d;
+            LastResult = null;
         }
     }
 }

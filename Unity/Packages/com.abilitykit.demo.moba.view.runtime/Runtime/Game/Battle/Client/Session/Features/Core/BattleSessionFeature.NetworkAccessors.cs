@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
             set => _handles.GatewayRoom.Conn = value;
         }
 
-        private GatewayRoomClient _gatewayClient
+        private IGatewayRoomClient _gatewayClient
         {
             get => _handles.GatewayRoom.Client;
             set => _handles.GatewayRoom.Client = value;

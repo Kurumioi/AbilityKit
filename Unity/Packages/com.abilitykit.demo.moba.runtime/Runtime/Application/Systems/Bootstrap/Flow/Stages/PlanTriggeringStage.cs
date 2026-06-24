@@ -39,7 +39,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             try
             {
                 Log.Info("[PlanTriggeringStage] starting...");
-                if (!services.TryResolve<TriggerPlanJsonDatabase>(out var db) || db == null)
+                var db = services.Resolve<TriggerPlanJsonDatabase>();
+                if (db == null)
                 {
                     throw new InvalidOperationException("PlanTriggeringStage requires TriggerPlanJsonDatabase.");
                 }

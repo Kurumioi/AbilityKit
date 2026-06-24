@@ -1,10 +1,21 @@
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Core.Configuration;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Share;
+using BattleLogicSessionOptions = AbilityKit.Game.Battle.BattleLogicSessionOptions;
+using BattleStartPlan = AbilityKit.Game.Flow.BattleStartPlan;
 using AbilityKit.Game.Battle;
+using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
+using AbilityKit.Network.Abstractions;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -99,6 +110,538 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void GameFlowDomain_UsesInjectedRuntimeServicesForSettingsPersistence()
+        {
+            var runtime = new TestGameFlowRuntimeServices();
+            var flow = new GameFlowDomain(runtime, new TestMobaFeatureFactoryProvider(), new TestLogSink());
+
+            flow.StartWithPersistentSettingsSync();
+
+            Assert.AreEqual(1, runtime.LoadPersistentSettingsSyncCount);
+            Assert.AreEqual(0, runtime.LoadPersistentSettingsCount);
+            Assert.AreSame(flow.Settings, runtime.LastSyncSettings);
+        }
+
+        [Test]
+        public void GameFlowDomain_InstallsFeaturesFromInjectedFactoryProvider()
+        {
+            var runtime = new TestGameFlowRuntimeServices();
+            var provider = new TestMobaFeatureFactoryProvider();
+            var flow = new GameFlowDomain(runtime, provider, new TestLogSink());
+
+            var installed = flow.AttachBattleFeatures(new[] { "context", "session" });
+
+            Assert.AreEqual(2, installed);
+            Assert.AreEqual(2, runtime.FeatureBinder.AttachCount);
+            CollectionAssert.AreEqual(new[] { "context", "session" }, provider.CreatedFeatureIds);
+        }
+
+        [Test]
+        public void GameFlowDomain_CreatesSessionFeatureThroughInjectedFactory()
+        {
+            var runtime = new TestGameFlowRuntimeServices();
+            var provider = new TestMobaFeatureFactoryProvider();
+            var sessionFactory = new TestBattleSessionFeatureFactory();
+            var flow = new GameFlowDomain(runtime, provider, sessionFactory, new TestLogSink());
+
+            var installed = flow.AttachBattleFeatures(new[] { "session" });
+
+            Assert.AreEqual(1, installed);
+            Assert.AreEqual(1, sessionFactory.CreateCount);
+            Assert.AreSame(sessionFactory.LastCreatedFeature, runtime.FeatureBinder.LastAttachedFeature);
+            CollectionAssert.AreEqual(new[] { "session" }, provider.CreatedFeatureIds);
+        }
+
+        [Test]
+        public void BattleSessionFeature_StartsWorldsThroughInjectedInstaller()
+        {
+            var installer = new TestBattleSessionWorldInstaller();
+            var feature = new BattleSessionFeature(null, null, null, installer);
+
+            InvokePrivate(feature, "StartRemoteDrivenLocalWorld");
+            InvokePrivate(feature, "StartConfirmedAuthorityWorld");
+
+            Assert.AreEqual(1, installer.RemoteDrivenStartCount);
+            Assert.AreEqual(1, installer.ConfirmedAuthorityStartCount);
+        }
+
+        [Test]
+        public void BattleSessionFeature_UsesInjectedTransportFactoryForGatewayRemoteSession()
+        {
+            var installer = new TestBattleSessionWorldInstaller();
+            var transportFactory = new TestBattleSessionTransportFactory();
+            var feature = new BattleSessionFeature(null, null, null, installer, transportFactory);
+            var plan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
+                    joinRoomId: string.Empty,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+            var opts = new BattleLogicSessionOptions
+            {
+                Mode = BattleLogicMode.Remote,
+                WorldId = new WorldId("1001"),
+                WorldType = "battle",
+                ClientId = "client_1",
+                PlayerId = "7",
+                AutoConnect = false,
+                AutoCreateWorld = false,
+                AutoJoin = false,
+            };
+
+            SetPrivatePlan(feature, plan);
+            var session = (BattleLogicSession)InvokePrivate(feature, "StartBattleLogicSession", opts);
+
+            try
+            {
+                Assert.IsNotNull(session);
+                Assert.AreEqual(1, transportFactory.CreateCount);
+                Assert.AreEqual(7u, transportFactory.LastLocalPlayerId);
+                Assert.AreEqual(1001ul, transportFactory.LastRoomId);
+                Assert.AreEqual(plan, transportFactory.LastPlan);
+                Assert.IsNotNull(transportFactory.LastCallbackDispatcher);
+                Assert.IsNotNull(transportFactory.LastIoDispatcher);
+            }
+            finally
+            {
+                session?.Dispose();
+            }
+        }
+
+        [Test]
+        public void BattleSessionFeature_UsesInjectedGatewayConnectionFactoryForRoomConnection()
+        {
+            var installer = new TestBattleSessionWorldInstaller();
+            var gatewayConnectionFactory = new TestBattleSessionGatewayConnectionFactory();
+            var feature = new BattleSessionFeature(null, null, null, installer, null, gatewayConnectionFactory);
+            var plan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: true,
+                    autoJoinRoom: false,
+                    joinRoomId: string.Empty,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+
+            SetPrivatePlan(feature, plan);
+            var connection = (IConnection)InvokePrivate(feature, "CreateGatewayRoomConnection", plan);
+
+            Assert.AreSame(gatewayConnectionFactory.Connection, connection);
+            Assert.AreEqual(1, gatewayConnectionFactory.CreateCount);
+            Assert.AreEqual(plan, gatewayConnectionFactory.LastPlan);
+            Assert.IsNotNull(gatewayConnectionFactory.LastCallbackDispatcher);
+            Assert.IsNotNull(gatewayConnectionFactory.LastIoDispatcher);
+        }
+
+        [Test]
+        public void BattleSessionFeature_UsesInjectedGatewayRoomClientFactoryForRoomClient()
+        {
+            var installer = new TestBattleSessionWorldInstaller();
+            var gatewayConnectionFactory = new TestBattleSessionGatewayConnectionFactory();
+            var gatewayRoomClientFactory = new TestBattleSessionGatewayRoomClientFactory();
+            var feature = new BattleSessionFeature(null, null, null, installer, null, gatewayConnectionFactory, gatewayRoomClientFactory);
+            var plan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
+                    joinRoomId: string.Empty,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+
+            SetPrivatePlan(feature, plan);
+            InvokePrivate(feature, "StartGatewayRoomPreparation");
+
+            try
+            {
+                Assert.AreSame(gatewayConnectionFactory.Connection, gatewayRoomClientFactory.LastConnection);
+                Assert.AreEqual(1, gatewayRoomClientFactory.CreateCount);
+                Assert.AreEqual(110u, gatewayRoomClientFactory.LastOpCodes.CreateRoom);
+                Assert.AreEqual(111u, gatewayRoomClientFactory.LastOpCodes.JoinRoom);
+            }
+            finally
+            {
+                InvokePrivate(feature, "StopGatewayRoomPreparation");
+            }
+        }
+ 
+        [Test]
+        public void GatewayRoomPreparationHelper_DetectsGatewayRoomPreparationRequirement()
+        {
+            var autoJoinPlan = CreateGatewayPlan(worldId: "1001", numericRoomId: 2002, joinRoomId: string.Empty);
+            var noGatewayPlan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .Build();
+            var noRoomPlan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: false,
+                    joinRoomId: string.Empty,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+
+            Assert.IsTrue(GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(autoJoinPlan));
+            Assert.IsFalse(GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(noGatewayPlan));
+            Assert.IsFalse(GatewayRoomPreparationHelper.ShouldPrepareGatewayRoom(noRoomPlan));
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ResolvesJoinRoomIdByPriority()
+        {
+            var explicitPlan = CreateGatewayPlan(worldId: "1001", numericRoomId: 2002, joinRoomId: "room_explicit");
+            var numericPlan = CreateGatewayPlan(worldId: "1001", numericRoomId: 2002, joinRoomId: string.Empty);
+            var worldPlan = CreateGatewayPlan(worldId: "1001", numericRoomId: 0, joinRoomId: string.Empty);
+
+            Assert.AreEqual("room_explicit", GatewayRoomPreparationHelper.ResolveJoinRoomId(explicitPlan));
+            Assert.AreEqual("2002", GatewayRoomPreparationHelper.ResolveJoinRoomId(numericPlan));
+            Assert.AreEqual("1001", GatewayRoomPreparationHelper.ResolveJoinRoomId(worldPlan));
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ThrowsWhenJoinRoomIdCannotBeResolved()
+        {
+            var plan = CreateGatewayPlan(worldId: string.Empty, numericRoomId: 0, joinRoomId: string.Empty);
+
+            Assert.Throws<InvalidOperationException>(() => GatewayRoomPreparationHelper.ResolveJoinRoomId(plan));
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ResolvesCreatedRoomWorldId()
+        {
+            var result = new GatewayCreateRoomResult("room_1001", 1001);
+
+            var worldId = GatewayRoomPreparationHelper.ResolveCreatedRoomWorldId(in result);
+
+            Assert.AreEqual("1001", worldId);
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ThrowsWhenCreatedRoomNumericIdIsInvalid()
+        {
+            var result = new GatewayCreateRoomResult("room_invalid", 0);
+
+            Assert.Throws<InvalidOperationException>(() => GatewayRoomPreparationHelper.ResolveCreatedRoomWorldId(in result));
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ResolvesCreatedRoomJoinRoomId()
+        {
+            var explicitResult = new GatewayCreateRoomResult("room_1001", 1001);
+            var numericFallbackResult = new GatewayCreateRoomResult(string.Empty, 1001);
+
+            Assert.AreEqual("room_1001", GatewayRoomPreparationHelper.ResolveCreatedRoomJoinRoomId(in explicitResult, 1001));
+            Assert.AreEqual("1001", GatewayRoomPreparationHelper.ResolveCreatedRoomJoinRoomId(in numericFallbackResult, 1001));
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ResolvesJoinedRoomWorldId()
+        {
+            var result = new GatewayJoinRoomResult(
+                numericRoomId: 1001,
+                snapshotJson: string.Empty,
+                worldStartAnchor: default);
+
+            var worldId = GatewayRoomPreparationHelper.ResolveJoinedRoomWorldId(in result, "room_1001");
+
+            Assert.AreEqual("1001", worldId);
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_ThrowsWhenJoinedRoomNumericIdIsInvalid()
+        {
+            var result = new GatewayJoinRoomResult(
+                numericRoomId: 0,
+                snapshotJson: string.Empty,
+                worldStartAnchor: default);
+
+            Assert.Throws<InvalidOperationException>(() => GatewayRoomPreparationHelper.ResolveJoinedRoomWorldId(in result, "room_invalid"));
+        }
+ 
+        [Test]
+        public void GatewayRoomPreparationHelper_RecordsValidWorldStartAnchor()
+        {
+            var anchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();
+            var worldId = new WorldId("1001");
+            var anchor = new GatewayWorldStartAnchor(
+                startServerTicks: 100,
+                serverTickFrequency: 1000,
+                startFrame: 12,
+                fixedDeltaSeconds: 0.033d);
+
+            var recorded = GatewayRoomPreparationHelper.TryRecordWorldStartAnchor(anchors, worldId, in anchor);
+
+            Assert.IsTrue(recorded);
+            Assert.IsTrue(anchors.TryGetValue(worldId, out var stored));
+            Assert.AreEqual(1000, stored.ServerTickFrequency);
+            Assert.AreEqual(12, stored.StartFrame);
+        }
+
+        [Test]
+        public void GatewayRoomPreparationHelper_IgnoresInvalidWorldStartAnchor()
+        {
+            var anchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();
+            var worldId = new WorldId("1001");
+            var anchor = new GatewayWorldStartAnchor(
+                startServerTicks: 100,
+                serverTickFrequency: 0,
+                startFrame: 12,
+                fixedDeltaSeconds: 0.033d);
+
+            var recorded = GatewayRoomPreparationHelper.TryRecordWorldStartAnchor(anchors, worldId, in anchor);
+
+            Assert.IsFalse(recorded);
+            Assert.IsFalse(anchors.ContainsKey(worldId));
+        }
+
+        [Test]
+        public void GatewayTimeSyncHelper_NormalizesRuntimeOptions()
+        {
+            var raw = new BattleStartPlanTimeSyncOptions(
+                opCode: 120,
+                intervalMs: 0,
+                alpha: 2d,
+                timeoutMs: -1,
+                idealFrameSafetyConstMarginFrames: 0,
+                idealFrameSafetyRttFactor: 0d,
+                idealFrameSafetyMinMarginFrames: 0,
+                idealFrameSafetyMaxMarginFrames: 0);
+
+            var options = GatewayTimeSyncHelper.ResolveRuntimeOptions(in raw);
+
+            Assert.AreEqual(120u, options.OpCode);
+            Assert.AreEqual(1000, options.IntervalMs);
+            Assert.AreEqual(1d, options.Alpha);
+            Assert.AreEqual(2000, options.TimeoutMs);
+        }
+
+        [Test]
+        public void GatewayTimeSyncHelper_CalculatesRttAndClockOffset()
+        {
+            var sample = GatewayTimeSyncHelper.CalculateSample(
+                clientSendTicks: 1000,
+                clientReceiveTicks: 1300,
+                serverNowTicks: 2000,
+                serverTickFrequency: 1000,
+                localTickFrequency: 1000d);
+
+            Assert.AreEqual(0.3d, sample.RttSeconds, 0.000001d);
+            Assert.AreEqual(-0.85d, sample.OffsetSeconds, 0.000001d);
+        }
+
+        [Test]
+        public void GatewayTimeSyncHelper_ClampsNegativeRtt()
+        {
+            var sample = GatewayTimeSyncHelper.CalculateSample(
+                clientSendTicks: 1300,
+                clientReceiveTicks: 1000,
+                serverNowTicks: 2000,
+                serverTickFrequency: 1000,
+                localTickFrequency: 1000d);
+
+            Assert.AreEqual(0d, sample.RttSeconds, 0.000001d);
+        }
+
+        [Test]
+        public void GatewayTimeSyncHelper_AppliesFirstAndEwmaSamples()
+        {
+            var firstSample = new GatewayTimeSyncSample(rttSeconds: 0.3d, offsetSeconds: -0.8d);
+            var first = GatewayTimeSyncHelper.ApplySample(
+                hasClockSync: false,
+                currentClockOffsetSecondsEwma: 0d,
+                currentRttSecondsEwma: 0d,
+                currentSamples: 0,
+                sample: in firstSample,
+                alpha: 0.5d);
+            var secondSample = new GatewayTimeSyncSample(rttSeconds: 0.5d, offsetSeconds: -0.4d);
+            var second = GatewayTimeSyncHelper.ApplySample(
+                hasClockSync: first.HasClockSync,
+                currentClockOffsetSecondsEwma: first.ClockOffsetSecondsEwma,
+                currentRttSecondsEwma: first.RttSecondsEwma,
+                currentSamples: first.Samples,
+                sample: in secondSample,
+                alpha: 0.5d);
+
+            Assert.IsTrue(first.HasClockSync);
+            Assert.AreEqual(-0.8d, first.ClockOffsetSecondsEwma, 0.000001d);
+            Assert.AreEqual(0.3d, first.RttSecondsEwma, 0.000001d);
+            Assert.AreEqual(1, first.Samples);
+            Assert.AreEqual(-0.6d, second.ClockOffsetSecondsEwma, 0.000001d);
+            Assert.AreEqual(0.4d, second.RttSecondsEwma, 0.000001d);
+            Assert.AreEqual(2, second.Samples);
+        }
+
+        [Test]
+        public void GatewayFrameTimingHelper_ResolvesRawMarginAndLimitedFrame()
+        {
+            var anchor = new GatewayWorldStartAnchor(
+                startServerTicks: 1000,
+                serverTickFrequency: 1000,
+                startFrame: 10,
+                fixedDeltaSeconds: 0.1d);
+            var timeSync = new BattleStartPlanTimeSyncOptions(
+                opCode: 120,
+                intervalMs: 1000,
+                alpha: 0.5d,
+                timeoutMs: 2000,
+                idealFrameSafetyConstMarginFrames: 2,
+                idealFrameSafetyRttFactor: 1.5d,
+                idealFrameSafetyMinMarginFrames: 1,
+                idealFrameSafetyMaxMarginFrames: 4);
+            var input = new GatewayFrameTimingInput(
+                in anchor,
+                hasClockSync: true,
+                clockOffsetSecondsEwma: 0.5d,
+                rttSecondsEwma: 0.2d,
+                timeSync: in timeSync);
+
+            var raw = GatewayFrameTimingHelper.ResolveIdealFrameRaw(in input, localNowSeconds: 2.15d);
+            var margin = GatewayFrameTimingHelper.ResolveIdealFrameSafetyMarginFrames(in input);
+            var limit = GatewayFrameTimingHelper.ResolveIdealFrameLimit(in input, localNowSeconds: 2.15d);
+
+            Assert.AreEqual(16, raw);
+            Assert.AreEqual(3, margin);
+            Assert.AreEqual(13, limit);
+        }
+
+        [Test]
+        public void GatewaySessionFailurePolicy_ControlsPreparationAndTimeSyncFailures()
+        {
+            var source = new InvalidOperationException("boom");
+            var task = Task.FromException(source);
+
+            var wrapped = GatewaySessionFailurePolicy.WrapPreparationFailure(task);
+
+            Assert.AreEqual("Gateway room preparation failed.", wrapped.Message);
+            Assert.AreSame(source, wrapped.InnerException);
+            Assert.IsFalse(GatewaySessionFailurePolicy.ShouldNotifyTimeSyncFailure(new OperationCanceledException(), 99, 3));
+            Assert.IsFalse(GatewaySessionFailurePolicy.ShouldNotifyTimeSyncFailure(source, 2, 3));
+            Assert.IsTrue(GatewaySessionFailurePolicy.ShouldNotifyTimeSyncFailure(source, 3, 3));
+            Assert.IsTrue(GatewaySessionFailurePolicy.ShouldNotifyTimeSyncFailure(source, 1, 0));
+        }
+
+        [Test]
+        public void MobaFlowConfiguration_AllowsFailureEndTransitionFromEveryBattleRuntimeState()
+        {
+            var config = MobaFlowConfiguration.CreateDefault();
+            var failedStates = new[]
+            {
+                MobaBattleState.Prepare,
+                MobaBattleState.Connect,
+                MobaBattleState.CreateOrJoinWorld,
+                MobaBattleState.LoadAssets,
+                MobaBattleState.InMatch
+            };
+
+            foreach (var state in failedStates)
+            {
+                var found = false;
+                for (var i = 0; i < config.BattleMachine.Transitions.Count; i++)
+                {
+                    var transition = config.BattleMachine.Transitions[i];
+                    if (Equals(transition.Trigger, MobaBattleEvent.Ended) &&
+                        Equals(transition.From, state) &&
+                        Equals(transition.To, MobaBattleState.End))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                Assert.IsTrue(found, state.ToString());
+            }
+        }
+ 
+        [Test]
+        public void GatewayRoomCleanupHelper_ClearsAnchorsAndRemovesReliableConnection()
+        {
+            var anchors = new Dictionary<WorldId, GatewayWorldStartAnchor>
+            {
+                [new WorldId("1001")] = new GatewayWorldStartAnchor(100, 1000, 12, 0.033d)
+            };
+            var registry = new TestAbilityKitConnectionRegistry(removeResult: true);
+
+            GatewayRoomCleanupHelper.ClearWorldStartAnchors(anchors);
+            var removed = GatewayRoomCleanupHelper.RemoveGatewayReliableConnection(registry);
+
+            Assert.AreEqual(0, anchors.Count);
+            Assert.IsTrue(removed);
+            Assert.AreEqual(AbilityKitConnectionRole.GatewayReliable, registry.LastRemovedRole);
+            Assert.IsTrue(registry.LastRemoveDispose);
+        }
+
+        [Test]
+        public async Task GatewayRoomPreparationController_RunsCreateBeforeJoinBranch()
+        {
+            var calls = new List<string>();
+            var plan = BattleStartPlanBuilder
+                .ForWorld("1001", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 1001,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: true,
+                    autoJoinRoom: true,
+                    joinRoomId: string.Empty,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+
+            await GatewayRoomPreparationController.RunAsync(
+                getPlan: () => plan,
+                waitForConnectionAsync: () => { calls.Add("wait"); return Task.CompletedTask; },
+                ensureSessionTokenAsync: () => { calls.Add("token"); return Task.CompletedTask; },
+                createAndJoinRoomAsync: () => { calls.Add("create"); return Task.CompletedTask; },
+                joinRoomAsync: () => { calls.Add("join"); return Task.CompletedTask; });
+
+            CollectionAssert.AreEqual(new[] { "wait", "token", "create" }, calls);
+        }
+
+        [Test]
         public void BattleWorldFloatingTextFactory_ReusesReleasedInstance()
         {
             var factory = new BattleWorldFloatingTextFactory();
@@ -157,6 +700,51 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 DestroyIfAlive(floatingText);
             }
+        }
+
+        private static void InvokePrivate(object target, string methodName)
+        {
+            InvokePrivate(target, methodName, Array.Empty<object>());
+        }
+
+        private static object InvokePrivate(object target, string methodName, params object[] args)
+        {
+            var method = target.GetType().GetMethod(
+                methodName,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(method, methodName);
+            return method.Invoke(target, args);
+        }
+
+        private static void SetPrivatePlan(BattleSessionFeature feature, BattleStartPlan plan)
+        {
+            var backingProperty = typeof(BattleSessionFeature).GetProperty(
+                "_plan",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(backingProperty, "_plan");
+            backingProperty.SetValue(feature, plan);
+            Assert.AreEqual(plan, feature.Plan);
+        }
+
+        private static BattleStartPlan CreateGatewayPlan(string worldId, ulong numericRoomId, string joinRoomId)
+        {
+            return BattleStartPlanBuilder
+                .ForWorld(worldId, "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.GatewayRemote)
+                .WithGateway(
+                    useGatewayTransport: true,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: numericRoomId,
+                    sessionToken: "token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: false,
+                    autoJoinRoom: true,
+                    joinRoomId: joinRoomId,
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
         }
 
         private static PresentationCueData CreatePresentationCue(
@@ -230,5 +818,367 @@ namespace AbilityKit.Game.Test.UnitTest
                 floatingText.Text = null;
             }
         }
+    
+        private sealed class TestMobaFeatureFactoryProvider : IMobaFeatureFactoryProvider
+        {
+            public readonly List<string> CreatedFeatureIds = new List<string>();
+
+            public MobaFeatureFactoryRegistry CreateFeatureFactoryRegistry(Func<IBattleSessionFeature> createBattleSessionFeature)
+            {
+                var registry = new MobaFeatureFactoryRegistry();
+                Register(registry, "boot_menu");
+                Register(registry, "root_debug");
+                Register(registry, "debug_ongui");
+                Register(registry, "context");
+                Register(registry, "entity");
+                Register(registry, "sync");
+                Register(registry, "input");
+                Register(registry, "view");
+                Register(registry, "hud");
+                registry.Register("session", (in AbilityKit.Game.Flow.GamePhaseContext ctx) =>
+                {
+                    CreatedFeatureIds.Add("session");
+                    return createBattleSessionFeature();
+                });
+                return registry;
+            }
+
+            private void Register(MobaFeatureFactoryRegistry registry, string id)
+            {
+                registry.Register(id, (in AbilityKit.Game.Flow.GamePhaseContext ctx) =>
+                {
+                    CreatedFeatureIds.Add(id);
+                    return new TestGamePhaseFeature(id);
+                });
+            }
+        }
+
+        private sealed class TestBattleSessionFeatureFactory : IBattleSessionFeatureFactory
+        {
+            public int CreateCount { get; private set; }
+            public IBattleSessionFeature LastCreatedFeature { get; private set; }
+
+            public IBattleSessionFeature Create(IBattleBootstrapper bootstrapper, Func<BattleStartPlan, IConnection> gatewayConnectionFactory)
+            {
+                CreateCount++;
+                LastCreatedFeature = new TestBattleSessionFeature();
+                return LastCreatedFeature;
+            }
+        }
+
+        private sealed class TestBattleSessionWorldInstaller : IBattleSessionWorldInstaller
+        {
+            public int RemoteDrivenStartCount { get; private set; }
+            public int ConfirmedAuthorityStartCount { get; private set; }
+
+            public void EnsureRemoteDrivenStarted(RemoteDrivenWorldInstallOptions options)
+            {
+                RemoteDrivenStartCount++;
+            }
+
+            public void EnsureConfirmedAuthorityStarted(ConfirmedAuthorityWorldInstallOptions options)
+            {
+                ConfirmedAuthorityStartCount++;
+            }
+        }
+
+        private sealed class TestBattleSessionTransportFactory : IBattleSessionTransportFactory
+        {
+            private readonly TestBattleLogicTransport _transport = new TestBattleLogicTransport();
+
+            public int CreateCount { get; private set; }
+            public BattleStartPlan LastPlan { get; private set; }
+            public uint LastLocalPlayerId { get; private set; }
+            public ulong LastRoomId { get; private set; }
+            public IDispatcher LastCallbackDispatcher { get; private set; }
+            public IDispatcher LastIoDispatcher { get; private set; }
+
+            public IBattleLogicTransport CreateGatewayRemoteTransport(
+                BattleStartPlan plan,
+                uint localPlayerId,
+                ulong roomId,
+                IDispatcher callbackDispatcher,
+                IDispatcher ioDispatcher)
+            {
+                CreateCount++;
+                LastPlan = plan;
+                LastLocalPlayerId = localPlayerId;
+                LastRoomId = roomId;
+                LastCallbackDispatcher = callbackDispatcher;
+                LastIoDispatcher = ioDispatcher;
+                return _transport;
+            }
+        }
+
+        private sealed class TestBattleLogicTransport : IBattleLogicTransport
+        {
+            public event Action<FramePacket> FramePushed;
+
+            public void Connect() { }
+            public void Disconnect() { }
+            public void SendCreateWorld(CreateWorldRequest request) { }
+            public void SendJoin(JoinWorldRequest request) { }
+            public void SendLeave(LeaveWorldRequest request) { }
+            public void SendInput(SubmitInputRequest request) { }
+        }
+
+        private sealed class TestBattleSessionGatewayConnectionFactory : IBattleSessionGatewayConnectionFactory
+        {
+            public TestConnection Connection { get; } = new TestConnection();
+            public int CreateCount { get; private set; }
+            public BattleStartPlan LastPlan { get; private set; }
+            public IDispatcher LastCallbackDispatcher { get; private set; }
+            public IDispatcher LastIoDispatcher { get; private set; }
+
+            public IConnection CreateGatewayRoomConnection(
+                BattleStartPlan plan,
+                IDispatcher callbackDispatcher,
+                IDispatcher ioDispatcher)
+            {
+                CreateCount++;
+                LastPlan = plan;
+                LastCallbackDispatcher = callbackDispatcher;
+                LastIoDispatcher = ioDispatcher;
+                return Connection;
+            }
+        }
+
+        private sealed class TestBattleSessionGatewayRoomClientFactory : IBattleSessionGatewayRoomClientFactory
+        {
+            public int CreateCount { get; private set; }
+            public IConnection LastConnection { get; private set; }
+            public GatewayRoomOpCodes LastOpCodes { get; private set; }
+
+            public IGatewayRoomClient CreateGatewayRoomClient(IConnection connection, GatewayRoomOpCodes opCodes)
+            {
+                CreateCount++;
+                LastConnection = connection;
+                LastOpCodes = opCodes;
+                return new TestGatewayRoomClient();
+            }
+        }
+
+        private sealed class TestGatewayRoomClient : IGatewayRoomClient
+        {
+            public Task<GatewayTimeSyncResult> TimeSyncAsync(uint timeSyncOpCode, long clientSendTicks, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<string> GuestLoginAsync(uint guestLoginOpCode, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayCreateRoomResult> CreateRoomAsync(
+                string sessionToken,
+                string region,
+                string serverId,
+                string roomType,
+                string title,
+                bool isPublic,
+                int maxPlayers,
+                IReadOnlyDictionary<string, string> tags,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayJoinRoomResult> JoinRoomAsync(
+                string sessionToken,
+                string region,
+                string serverId,
+                string roomId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+        }
+ 
+        private sealed class TestAbilityKitConnectionRegistry : IAbilityKitConnectionRegistry
+        {
+            private readonly bool _removeResult;
+
+            public TestAbilityKitConnectionRegistry(bool removeResult)
+            {
+                _removeResult = removeResult;
+            }
+
+            public AbilityKitConnectionRole LastRemovedRole { get; private set; }
+            public bool LastRemoveDispose { get; private set; }
+
+            public bool TryGet(AbilityKitConnectionRole role, out IConnection connection)
+            {
+                connection = null;
+                return false;
+            }
+
+            public IConnection GetRequired(AbilityKitConnectionRole role) => throw new InvalidOperationException();
+
+            public void Register(AbilityKitConnectionRole role, IConnection connection, bool disposeOnReplace = true) { }
+
+            public IConnection GetOrCreate(AbilityKitConnectionDescriptor descriptor, Func<AbilityKitConnectionDescriptor, IConnection> factory)
+            {
+                return factory(descriptor);
+            }
+
+            public bool Remove(AbilityKitConnectionRole role, bool dispose = true)
+            {
+                LastRemovedRole = role;
+                LastRemoveDispose = dispose;
+                return _removeResult;
+            }
+
+            public void Dispose() { }
+        }
+
+        private sealed class TestConnection : IConnection
+        {
+            public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+            public bool IsConnected => State == ConnectionState.Connected;
+
+            public event Action Connected;
+            public event Action Disconnected;
+            public event Action<Exception> Error;
+            public event Action<uint, uint, ArraySegment<byte>> PacketReceived;
+            public event Action<uint, ArraySegment<byte>> ServerPushReceived;
+            public event Action<string, string> Kicked;
+
+            public void Open(string host, int port)
+            {
+                State = ConnectionState.Connected;
+                Connected?.Invoke();
+            }
+
+            public void Close()
+            {
+                State = ConnectionState.Disconnected;
+                Disconnected?.Invoke();
+            }
+
+            public void Tick(float deltaTime) { }
+            public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0) { }
+            public void Dispose() => Close();
+        }
+
+        private sealed class TestGamePhaseFeature : AbilityKit.Game.Flow.IGamePhaseFeature
+        {
+            public TestGamePhaseFeature(string id)
+            {
+                Id = id;
+            }
+
+            public string Id { get; }
+            public string Name => Id;
+            public int Priority => 0;
+            public bool IsEnabled { get; set; } = true;
+            public void OnAttach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
+            public void OnDetach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
+            public void Tick(in AbilityKit.Game.Flow.GamePhaseContext ctx, float deltaTime) { }
+        }
+
+        private sealed class TestBattleSessionFeature : IBattleSessionFeature
+        {
+            public event Action SessionStarted;
+            public event Action FirstFrameReceived;
+            public event Action<Exception> SessionFailed;
+
+            public string Name => "test_session";
+            public int Priority => 0;
+            public bool IsEnabled { get; set; } = true;
+            public void OnAttach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
+            public void OnDetach(in AbilityKit.Game.Flow.GamePhaseContext ctx) { }
+            public void Tick(in AbilityKit.Game.Flow.GamePhaseContext ctx, float deltaTime) { }
+        }
+    
+            private sealed class TestGameFlowRuntimeServices : IGameFlowRuntimeServices
+            {
+                public TestGameFlowRuntimeServices()
+                {
+                    FeatureBinder = new TestFeatureBinder();
+                    Features = new TestGameFeatureStore();
+                    BattleEntities = new TestBattleEntityRuntime();
+                }
+    
+                public IGameHost Host => null;
+                public TestFeatureBinder FeatureBinder { get; }
+                IFeatureBinder IGameFlowRuntimeServices.FeatureBinder => FeatureBinder;
+                public IGameFeatureStore Features { get; }
+                public IBattleEntityRuntime BattleEntities { get; }
+                public int LoadPersistentSettingsCount { get; private set; }
+                public int LoadPersistentSettingsSyncCount { get; private set; }
+                public LayeredJsonSettingsStore LastAsyncSettings { get; private set; }
+                public LayeredJsonSettingsStore LastSyncSettings { get; private set; }
+    
+                public void LoadPersistentSettings(LayeredJsonSettingsStore settings)
+                {
+                    LoadPersistentSettingsCount++;
+                    LastAsyncSettings = settings;
+                }
+    
+                public void LoadPersistentSettingsSync(LayeredJsonSettingsStore settings)
+                {
+                    LoadPersistentSettingsSyncCount++;
+                    LastSyncSettings = settings;
+                }
+    
+                public bool TrySaveSettingsOverridesToPersistent(LayeredJsonSettingsStore settings)
+                {
+                    return true;
+                }
+            }
+    
+            private sealed class TestFeatureBinder : IFeatureBinder
+            {
+                public int AttachCount { get; private set; }
+                public int DetachCount { get; private set; }
+                public object LastAttachedFeature { get; private set; }
+                public void AttachFeature(object feature)
+                {
+                    AttachCount++;
+                    LastAttachedFeature = feature;
+                }
+                public void DetachFeature(object feature) => DetachCount++;
+            }
+    
+            private sealed class TestGameFeatureStore : IGameFeatureStore
+            {
+                private readonly Dictionary<Type, object> _components = new Dictionary<Type, object>();
+    
+                public bool TryGet<T>(out T component) where T : class
+                {
+                    if (_components.TryGetValue(typeof(T), out var value))
+                    {
+                        component = (T)value;
+                        return true;
+                    }
+    
+                    component = null;
+                    return false;
+                }
+    
+                public void Set<T>(T component) where T : class => _components[typeof(T)] = component;
+                public void Remove<T>() where T : class => _components.Remove(typeof(T));
+                public void Remove(Type componentType) => _components.Remove(componentType);
+            }
+    
+            private sealed class TestBattleEntityRuntime : IBattleEntityRuntime
+            {
+                public bool TryGetWorld<TWorld>(out TWorld world)
+                {
+                    world = default;
+                    return false;
+                }
+    
+                public bool TryCreateNode<TNode>(string debugName, out TNode node)
+                {
+                    node = default;
+                    return false;
+                }
+    
+                public void DestroyTree<TNode>(TNode root) { }
+            }
+    
+            private sealed class TestLogSink : ILogSink
+            {
+                public void Info(string message) { }
+                public void Warning(string message) { }
+                public void Error(string message) { }
+                public void Exception(Exception exception, string message = null) { }
+            }
     }
 }

@@ -15,8 +15,11 @@ namespace AbilityKit.Game.Flow
 #endif
 
         private readonly IBattleBootstrapper _bootstrapper;
-        private readonly Func<BattleStartPlan, IConnection> _gatewayConnectionFactory;
         private readonly IAbilityKitConnectionRegistry _connectionRegistry;
+        private readonly IBattleSessionWorldInstaller _worldInstaller;
+        private readonly IBattleSessionTransportFactory _transportFactory;
+        private readonly IBattleSessionGatewayConnectionFactory _gatewayConnectionFactory;
+        private readonly IBattleSessionGatewayRoomClientFactory _gatewayRoomClientFactory;
 
         private readonly BattleSessionState _state = new BattleSessionState();
         private readonly BattleSessionHandles _handles = new BattleSessionHandles();
@@ -35,11 +38,36 @@ namespace AbilityKit.Game.Flow
         private static bool _editorPlayModeHookInstalled;
 #endif
 
-        public BattleSessionFeature(IBattleBootstrapper bootstrapper, Func<BattleStartPlan, IConnection> gatewayConnectionFactory = null, IAbilityKitConnectionRegistry connectionRegistry = null)
+        public BattleSessionFeature(
+            IBattleBootstrapper bootstrapper,
+            Func<BattleStartPlan, IConnection> gatewayConnectionFactory = null,
+            IAbilityKitConnectionRegistry connectionRegistry = null)
+            : this(
+                bootstrapper,
+                gatewayConnectionFactory,
+                connectionRegistry,
+                new DefaultBattleSessionWorldInstaller(),
+                new DefaultBattleSessionTransportFactory(),
+                new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory),
+                new DefaultBattleSessionGatewayRoomClientFactory())
+        {
+        }
+
+        internal BattleSessionFeature(
+            IBattleBootstrapper bootstrapper,
+            Func<BattleStartPlan, IConnection> gatewayConnectionFactory,
+            IAbilityKitConnectionRegistry connectionRegistry,
+            IBattleSessionWorldInstaller worldInstaller,
+            IBattleSessionTransportFactory transportFactory = null,
+            IBattleSessionGatewayConnectionFactory gatewayRoomConnectionFactory = null,
+            IBattleSessionGatewayRoomClientFactory gatewayRoomClientFactory = null)
         {
             _bootstrapper = bootstrapper;
-            _gatewayConnectionFactory = gatewayConnectionFactory;
             _connectionRegistry = connectionRegistry ?? new AbilityKitConnectionRegistry();
+            _worldInstaller = worldInstaller ?? new DefaultBattleSessionWorldInstaller();
+            _transportFactory = transportFactory ?? new DefaultBattleSessionTransportFactory();
+            _gatewayConnectionFactory = gatewayRoomConnectionFactory ?? new DefaultBattleSessionGatewayConnectionFactory(gatewayConnectionFactory);
+            _gatewayRoomClientFactory = gatewayRoomClientFactory ?? new DefaultBattleSessionGatewayRoomClientFactory();
             _orchestrator = new SessionOrchestrator(_state, _handles, this);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();

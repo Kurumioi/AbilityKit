@@ -98,6 +98,26 @@ internal static class RoomGatewayWireMapper
         };
     }
 
+    public static WireListRoomsRes ToListRoomsRes(ListRoomsResponse response, string message = "")
+    {
+        var rooms = response.Rooms == null ? new List<WireRoomSummary>() : new List<WireRoomSummary>(response.Rooms.Count);
+        if (response.Rooms != null)
+        {
+            foreach (var room in response.Rooms)
+            {
+                rooms.Add(ToWireSummary(room));
+            }
+        }
+
+        return new WireListRoomsRes
+        {
+            Success = true,
+            Rooms = rooms,
+            NextOffset = response.NextOffset,
+            Message = message ?? string.Empty
+        };
+    }
+
     public static RoomGameplayCommandRequest ToGameplayCommand(string accountId, WireRoomPickHeroReq req)
     {
         return RoomGameplayCommandRequest.CreateMobaLoadout(
@@ -199,7 +219,7 @@ internal static class RoomGatewayWireMapper
         };
     }
 
-    private static WireRoomSummary ToWireSummary(RoomSummary? summary)
+    public static WireRoomSummary ToWireSummary(RoomSummary? summary)
     {
         if (summary == null)
         {

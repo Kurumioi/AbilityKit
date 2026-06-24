@@ -39,17 +39,13 @@ namespace AbilityKit.Game.Flow
 
             _gatewayTimeSyncTask = Task.Run(async () =>
             {
-                var timeSync = _plan.TimeSync;
+                var timeSync = GatewayTimeSyncHelper.ResolveRuntimeOptions(_plan.TimeSync);
                 var alpha = timeSync.Alpha;
-                if (alpha < 0) alpha = 0;
-                if (alpha > 1) alpha = 1;
-
                 var intervalMs = timeSync.IntervalMs;
-                if (intervalMs <= 0) intervalMs = 1000;
-
                 var opCode = timeSync.OpCode;
                 var timeoutMs = timeSync.TimeoutMs;
-                if (timeoutMs <= 0) timeoutMs = 2000;
+                var failureCount = 0;
+                const int NotifyThreshold = 3;
 
                 while (!token.IsCancellationRequested)
                 {
@@ -59,29 +55,27 @@ namespace AbilityKit.Game.Flow
                         var res = await _gatewayClient.TimeSyncAsync(timeSyncOpCode: opCode, clientSendTicks: t0, timeout: TimeSpan.FromMilliseconds(timeoutMs), cancellationToken: token);
                         var t2 = Stopwatch.GetTimestamp();
 
-                        var localFreq = (double)Stopwatch.Frequency;
-                        var rtt = (t2 - t0) / localFreq;
-                        if (rtt < 0) rtt = 0;
+                        var sample = GatewayTimeSyncHelper.CalculateSample(
+                            clientSendTicks: t0,
+                            clientReceiveTicks: t2,
+                            serverNowTicks: res.ServerNowTicks,
+                            serverTickFrequency: res.ServerTickFrequency,
+                            localTickFrequency: Stopwatch.Frequency);
+                        var timeSyncState = _state.GatewayRoomTimeSync;
+                        var ewma = GatewayTimeSyncHelper.ApplySample(
+                            hasClockSync: timeSyncState.HasClockSync,
+                            currentClockOffsetSecondsEwma: timeSyncState.ClockOffsetSecondsEwma,
+                            currentRttSecondsEwma: timeSyncState.RttSecondsEwma,
+                            currentSamples: timeSyncState.Samples,
+                            sample: in sample,
+                            alpha: alpha);
 
-                        var serverNowSeconds = res.ServerNowTicks / (double)res.ServerTickFrequency;
-                        var localNowSeconds = t2 / localFreq;
-                        var serverNowEstimatedAtReceive = serverNowSeconds + (rtt * 0.5);
-                        var offsetSeconds = localNowSeconds - serverNowEstimatedAtReceive;
+                        timeSyncState.HasClockSync = ewma.HasClockSync;
+                        timeSyncState.ClockOffsetSecondsEwma = ewma.ClockOffsetSecondsEwma;
+                        timeSyncState.RttSecondsEwma = ewma.RttSecondsEwma;
+                        timeSyncState.Samples = ewma.Samples;
 
-                        if (!_state.GatewayRoomTimeSync.HasClockSync)
-                        {
-                            _state.GatewayRoomTimeSync.HasClockSync = true;
-                            _state.GatewayRoomTimeSync.ClockOffsetSecondsEwma = offsetSeconds;
-                            _state.GatewayRoomTimeSync.RttSecondsEwma = rtt;
-                            _state.GatewayRoomTimeSync.Samples = 1;
-                        }
-                        else
-                        {
-                            _state.GatewayRoomTimeSync.ClockOffsetSecondsEwma = (alpha * offsetSeconds) + ((1.0 - alpha) * _state.GatewayRoomTimeSync.ClockOffsetSecondsEwma);
-                            _state.GatewayRoomTimeSync.RttSecondsEwma = (alpha * rtt) + ((1.0 - alpha) * _state.GatewayRoomTimeSync.RttSecondsEwma);
-                            _state.GatewayRoomTimeSync.Samples++;
-                        }
-
+                        failureCount = 0;
                         BattleFlowDebugProvider.TimeSyncStats = BuildCurrentTimeSyncStats(opCode, intervalMs, alpha, timeoutMs);
                         UpdateTimeSyncStatsByWorld(opCode, intervalMs, alpha, timeoutMs);
                     }
@@ -91,7 +85,12 @@ namespace AbilityKit.Game.Flow
                     }
                     catch (Exception ex)
                     {
-                        Log.Exception(ex, "[BattleSessionFeature] TimeSync loop error");
+                        failureCount++;
+                        GatewaySessionFailurePolicy.LogTimeSyncFailure(ex, failureCount);
+                        if (GatewaySessionFailurePolicy.ShouldNotifyTimeSyncFailure(ex, failureCount, NotifyThreshold))
+                        {
+                            _eventsCtrl.NotifySessionFailed(this, ex);
+                        }
                     }
 
                     try

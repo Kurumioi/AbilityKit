@@ -82,11 +82,9 @@ internal static class GatewaySkillAnalysisModelProvider
 
     private static readonly string[] Notes =
     {
-        "Scenario artifact viewer and runtime skill diagnostics now share the same conceptual model: context, lineage, effect and assertion.",
-        "High-density battle analysis should start from filters first: failure, entityKind, actorId, configId, rootId and contextId are the primary narrowing dimensions.",
-        "Entity relation projection groups main actors with projectile, area, buff, damage, presentation and effect-action children through source/root/owner context.",
-        "The current runtime endpoint still returns TraceNotConnected placeholders until the MOBA runtime trace sink is projected into Orleans/Gateway.",
-        "Future live traces should emit the same correlation fields as acceptance JSONL so the Web UI can switch between replay artifact and live battle views."
+        "运行态技能诊断当前提供房间、战斗帧、参与者和事件入口；完整技能链路以 Scenario artifact trace 为主数据源。",
+        "高密度战斗分析优先使用筛选条件缩小范围：failure、entityKind、actorId、configId、rootId、contextId。",
+        "实体关联视图会按 source/root/owner context 聚合主 Actor、Projectile、AOE、Buff、Damage、表现事件和 EffectAction。"
     };
 
     public static AdminSkillAnalysisModelHttpResponse GetModel()

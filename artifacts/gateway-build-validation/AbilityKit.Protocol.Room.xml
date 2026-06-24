@@ -1,0 +1,404 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>AbilityKit.Protocol.Room</name>
+    </assembly>
+    <members>
+        <member name="T:AbilityKit.Protocol.GatewayTimeSync.WireTimeSyncBinary">
+            <summary>
+            Wire time sync protocol codec backed by MemoryPack.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Protocol.GatewayTimeSync.WireTimeSyncReq">
+            <remarks>
+            MemoryPack GenerateType: unmanaged<br/>
+            <code>
+            <b>long</b> ClientSendTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.GatewayTimeSync.WireTimeSyncRes">
+            <remarks>
+            MemoryPack GenerateType: unmanaged<br/>
+            <code>
+            <b>long</b> ClientSendTicks<br/>
+            <b>long</b> ServerNowTicks<br/>
+            <b>long</b> ServerTickFrequency<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.RoomGatewayOpCodes">
+            <summary>
+            Room gateway opcodes used by Orleans Gateway room entrypoints.
+            </summary>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomGuestLoginReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> GuestId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomGuestLoginRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> AccountId<br/>
+            <b>string</b> Message<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireCreateRoomReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> Region<br/>
+            <b>string</b> ServerId<br/>
+            <b>string</b> RoomType<br/>
+            <b>string</b> Title<br/>
+            <b>bool</b> IsPublic<br/>
+            <b>int</b> MaxPlayers<br/>
+            <b>System.Collections.Generic.Dictionary&lt;string, string&gt;</b> Tags<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireCreateRoomRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> RoomId<br/>
+            <b>ulong</b> NumericRoomId<br/>
+            <b>string</b> Message<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireJoinRoomReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> Region<br/>
+            <b>string</b> ServerId<br/>
+            <b>string</b> RoomId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireJoinRoomRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> RoomId<br/>
+            <b>ulong</b> NumericRoomId<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomSnapshot</b> Snapshot<br/>
+            <b>AbilityKit.Protocol.Room.WireWorldStartAnchor</b> WorldStartAnchor<br/>
+            <b>string</b> Message<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomJoinKind</b> JoinKind<br/>
+            <b>long</b> ServerNowTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRestoreRoomReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> Region<br/>
+            <b>string</b> ServerId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireListRoomsReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> Region<br/>
+            <b>string</b> ServerId<br/>
+            <b>int</b> Offset<br/>
+            <b>int</b> Limit<br/>
+            <b>string</b> RoomType<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireListRoomsRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>System.Collections.Generic.List&lt;AbilityKit.Protocol.Room.WireRoomSummary&gt;</b> Rooms<br/>
+            <b>int</b> NextOffset<br/>
+            <b>string</b> Message<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRestoreRoomRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>bool</b> HasActiveRoom<br/>
+            <b>bool</b> IsInBattle<br/>
+            <b>string</b> RoomId<br/>
+            <b>ulong</b> NumericRoomId<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomSnapshot</b> Snapshot<br/>
+            <b>AbilityKit.Protocol.Room.WireWorldStartAnchor</b> WorldStartAnchor<br/>
+            <b>string</b> Message<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomJoinKind</b> JoinKind<br/>
+            <b>long</b> ServerNowTicks<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomRestoreStatus</b> Status<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomRestoreErrorCode</b> ErrorCode<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomReadyReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> RoomId<br/>
+            <b>bool</b> Ready<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomSnapshotRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> RoomId<br/>
+            <b>ulong</b> NumericRoomId<br/>
+            <b>AbilityKit.Protocol.Room.WireRoomSnapshot</b> Snapshot<br/>
+            <b>string</b> Message<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomPickHeroReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> RoomId<br/>
+            <b>int</b> HeroId<br/>
+            <b>int</b> TeamId<br/>
+            <b>int</b> SpawnPointId<br/>
+            <b>int</b> Level<br/>
+            <b>int</b> AttributeTemplateId<br/>
+            <b>int</b> BasicAttackSkillId<br/>
+            <b>System.Collections.Generic.List&lt;int&gt;</b> SkillIds<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireStartRoomBattleReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> RoomId<br/>
+            <b>int</b> GameplayId<br/>
+            <b>int</b> RuleSetId<br/>
+            <b>int</b> ConfigVersion<br/>
+            <b>int</b> ProtocolVersion<br/>
+            <b>string</b> WorldType<br/>
+            <b>string</b> ClientId<br/>
+            <b>string</b> SyncTemplateId<br/>
+            <b>int</b> SyncModel<br/>
+            <b>string</b> NetworkEnvironmentId<br/>
+            <b>string</b> CarrierName<br/>
+            <b>bool</b> EnableAuthoritativeWorld<br/>
+            <b>bool</b> InterpolationEnabled<br/>
+            <b>int</b> InputDelayFrames<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireStartRoomBattleRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> BattleId<br/>
+            <b>ulong</b> WorldId<br/>
+            <b>bool</b> Started<br/>
+            <b>string</b> Message<br/>
+            <b>AbilityKit.Protocol.Room.WireWorldStartAnchor</b> WorldStartAnchor<br/>
+            <b>long</b> ServerNowTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireSubmitBattleInputReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> BattleId<br/>
+            <b>ulong</b> WorldId<br/>
+            <b>int</b> Frame<br/>
+            <b>uint</b> PlayerId<br/>
+            <b>int</b> InputOpCode<br/>
+            <b>byte[]</b> Payload<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireSubmitBattleInputRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>int</b> AcceptedFrame<br/>
+            <b>string</b> Message<br/>
+            <b>int</b> CurrentFrame<br/>
+            <b>string</b> Status<br/>
+            <b>bool</b> ShouldResync<br/>
+            <b>long</b> ServerTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireSubscribeStateSyncReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> BattleId<br/>
+            <b>string</b> RoomId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireSubscribeStateSyncRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>string</b> Message<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRequestFullStateSyncReq">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> SessionToken<br/>
+            <b>string</b> BattleId<br/>
+            <b>string</b> RoomId<br/>
+            <b>ulong</b> WorldId<br/>
+            <b>int</b> ClientFrame<br/>
+            <b>int</b> LastAuthoritativeFrame<br/>
+            <b>uint</b> ClientStateHash<br/>
+            <b>uint</b> AuthoritativeStateHash<br/>
+            <b>string</b> Reason<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRequestFullStateSyncRes">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>bool</b> Success<br/>
+            <b>bool</b> Accepted<br/>
+            <b>string</b> Message<br/>
+            <b>long</b> ServerTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireStateSyncSnapshotPush">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>ulong</b> WorldId<br/>
+            <b>int</b> Frame<br/>
+            <b>double</b> Timestamp<br/>
+            <b>bool</b> IsFullSnapshot<br/>
+            <b>System.Collections.Generic.List&lt;AbilityKit.Protocol.Room.WireStateSyncActorSnapshot&gt;</b> Actors<br/>
+            <b>int</b> PayloadOpCode<br/>
+            <b>byte[]</b> Payload<br/>
+            <b>long</b> ServerTicks<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireStateSyncActorSnapshot">
+            <remarks>
+            MemoryPack GenerateType: unmanaged<br/>
+            <code>
+            <b>int</b> ActorId<br/>
+            <b>float</b> X<br/>
+            <b>float</b> Y<br/>
+            <b>float</b> Z<br/>
+            <b>float</b> Rotation<br/>
+            <b>float</b> VelocityX<br/>
+            <b>float</b> VelocityZ<br/>
+            <b>float</b> Hp<br/>
+            <b>float</b> HpMax<br/>
+            <b>int</b> TeamId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomSummary">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> Region<br/>
+            <b>string</b> ServerId<br/>
+            <b>string</b> RoomId<br/>
+            <b>string</b> RoomType<br/>
+            <b>string</b> Title<br/>
+            <b>bool</b> IsPublic<br/>
+            <b>int</b> MaxPlayers<br/>
+            <b>int</b> PlayerCount<br/>
+            <b>string</b> OwnerAccountId<br/>
+            <b>long</b> CreatedAtUnixMs<br/>
+            <b>System.Collections.Generic.Dictionary&lt;string, string&gt;</b> Tags<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomPlayerSnapshot">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>string</b> AccountId<br/>
+            <b>int</b> TeamId<br/>
+            <b>bool</b> Ready<br/>
+            <b>int</b> HeroId<br/>
+            <b>int</b> SpawnPointId<br/>
+            <b>int</b> Level<br/>
+            <b>int</b> AttributeTemplateId<br/>
+            <b>int</b> BasicAttackSkillId<br/>
+            <b>System.Collections.Generic.List&lt;int&gt;</b> SkillIds<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireRoomSnapshot">
+            <remarks>
+            MemoryPack GenerateType: Object<br/>
+            <code>
+            <b>AbilityKit.Protocol.Room.WireRoomSummary</b> Summary<br/>
+            <b>System.Collections.Generic.List&lt;string&gt;</b> Members<br/>
+            <b>System.Collections.Generic.List&lt;AbilityKit.Protocol.Room.WireRoomPlayerSnapshot&gt;</b> Players<br/>
+            <b>bool</b> CanStart<br/>
+            <b>string</b> BattleId<br/>
+            <b>ulong</b> WorldId<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:AbilityKit.Protocol.Room.WireWorldStartAnchor">
+            <remarks>
+            MemoryPack GenerateType: unmanaged<br/>
+            <code>
+            <b>long</b> StartServerTicks<br/>
+            <b>long</b> ServerTickFrequency<br/>
+            <b>int</b> StartFrame<br/>
+            <b>double</b> FixedDeltaSeconds<br/>
+            </code>
+            </remarks>
+        </member>
+        <member name="T:System.Runtime.CompilerServices.IsExternalInit">
+            <summary>
+            Polyfill for C# 9.0 init accessor in .NET Framework 4.x.
+            Required for MemoryPack generated code compatibility.
+            </summary>
+        </member>
+    </members>
+</doc>

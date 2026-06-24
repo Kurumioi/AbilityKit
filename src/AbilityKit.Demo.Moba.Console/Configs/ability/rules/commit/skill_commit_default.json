@@ -1,0 +1,11 @@
+{
+  "id": 900101012,
+  "name": "skill_commit_default",
+  "enabled": true,
+  "phase": "immediate",
+  "event": "",
+  "allowExternal": false,
+  "priority": 0,
+  "conditions": [],
+  "actions": []
+}

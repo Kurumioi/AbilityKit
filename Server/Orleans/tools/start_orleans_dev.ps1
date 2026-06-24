@@ -9,7 +9,9 @@ param(
     [string]$Configuration = 'Debug',
     [switch]$NoBuild,
     [switch]$NoCleanup,
-    [switch]$CleanAll
+    [switch]$CleanAll,
+    [switch]$ForceStartGateway,
+    [int]$SiloGatewayWaitSeconds = 120
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,13 +53,22 @@ $commonArgs = @(
     '-p:nodeReuse=false'
 )
 
+$startupStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+$runBuildArgs = ''
+$noBuildArg = '--no-build'
+
 if (-not $NoBuild) {
     Write-Host 'Building Orleans Host and Gateway...' -ForegroundColor Cyan
+    $buildStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     dotnet build $hostProj -c $Configuration @commonArgs
     dotnet build $gatewayProj -c $Configuration @commonArgs
+    $buildStopwatch.Stop()
+    Write-Host ("Build completed in {0:n1}s. Runtime windows will use dotnet run --no-build to avoid rebuilding." -f $buildStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
+}
+else {
+    Write-Host 'Skipping build because -NoBuild was specified. Runtime windows will use dotnet run --no-build.' -ForegroundColor Yellow
 }
 
-$runBuildArgs = $commonArgs -join ' '
 $hostConfigArgs = @(
     '--AbilityKit:Orleans:ClusterId', $ClusterId,
     '--AbilityKit:Orleans:ServiceId', $ServiceId,
@@ -72,8 +83,6 @@ $gatewayConfigArgs = @(
     '--AbilityKit:Gateway:Tcp:Port', $TcpPort,
     '--TcpGateway:Port', $TcpPort
 ) -join ' '
-$noBuildArg = if ($NoBuild) { '--no-build' } else { '' }
-
 Write-Host "Starting AbilityKit instance '$InstanceName'..." -ForegroundColor Green
 Write-Host "  ClusterId:        $ClusterId" -ForegroundColor Gray
 Write-Host "  ServiceId:        $ServiceId" -ForegroundColor Gray
@@ -92,8 +101,9 @@ $hostWindow = Start-Process powershell -ArgumentList $hostArgs -PassThru -Window
 Write-Host "  Host window PID: $($hostWindow.Id)" -ForegroundColor Gray
 
 Write-Host "Waiting for Orleans Silo Gateway TCP endpoint 127.0.0.1:$SiloGatewayPort ..." -ForegroundColor Cyan
+$siloWaitStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $siloGatewayReady = $false
-$siloGatewayDeadline = (Get-Date).AddSeconds(60)
+$siloGatewayDeadline = (Get-Date).AddSeconds($SiloGatewayWaitSeconds)
 while ((Get-Date) -lt $siloGatewayDeadline) {
     if (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $SiloGatewayPort -TimeoutMilliseconds 1000) {
         $siloGatewayReady = $true
@@ -103,13 +113,22 @@ while ((Get-Date) -lt $siloGatewayDeadline) {
     Start-Sleep -Seconds 1
 }
 
+$siloWaitStopwatch.Stop()
+
 if (-not $siloGatewayReady) {
-    Write-Host "Orleans Silo Gateway: not listening yet (127.0.0.1:$SiloGatewayPort)" -ForegroundColor Yellow
-    Write-Host "  Gateway will still be started, but Orleans client startup may fail until the silo binds this port." -ForegroundColor Yellow
+    Write-Host ("Orleans Silo Gateway: not listening after {0:n1}s (127.0.0.1:$SiloGatewayPort)" -f $siloWaitStopwatch.Elapsed.TotalSeconds) -ForegroundColor Yellow
+    Write-Host "  Host may still be building/starting, may have exited, or may be blocked by another process/port." -ForegroundColor Yellow
     Write-Host "  Please inspect host log: $hostLog" -ForegroundColor Yellow
+    if (-not $ForceStartGateway) {
+        Write-Host "  Gateway startup skipped to avoid an immediate Orleans client ConnectionRefused failure." -ForegroundColor Yellow
+        Write-Host "  Re-run with -ForceStartGateway only if you intentionally want to start the HTTP Gateway before the Silo Gateway port is ready." -ForegroundColor Yellow
+        exit 1
+    }
+
+    Write-Host "  -ForceStartGateway specified; Gateway will still be started, but Orleans client startup may fail until the silo binds this port." -ForegroundColor Yellow
 }
 else {
-    Write-Host "Orleans Silo Gateway: OK (127.0.0.1:$SiloGatewayPort)" -ForegroundColor Green
+    Write-Host ("Orleans Silo Gateway: OK after {0:n1}s (127.0.0.1:$SiloGatewayPort)" -f $siloWaitStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
 }
 
 Write-Host 'Starting Orleans Gateway...' -ForegroundColor Cyan
@@ -119,14 +138,18 @@ $gatewayArgs = @('-NoExit', '-NoProfile', '-Command', $gatewayCommand)
 $gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -PassThru -WindowStyle Normal
 Write-Host "  Gateway window PID: $($gatewayWindow.Id)" -ForegroundColor Gray
 
+$gatewayHealthStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 if (Wait-AbilityKitHttpEndpoint -Uri $healthUri -TimeoutSeconds 30) {
-    Write-Host "Gateway Health: OK ($healthUri)" -ForegroundColor Green
+    $gatewayHealthStopwatch.Stop()
+    Write-Host ("Gateway Health: OK after {0:n1}s ($healthUri)" -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
 }
 elseif (Wait-AbilityKitHttpEndpoint -Uri $healthLiveUri -TimeoutSeconds 5) {
+    $gatewayHealthStopwatch.Stop()
     Write-Host "Gateway Health: live but not ready ($healthLiveUri)" -ForegroundColor Yellow
 }
 else {
-    Write-Host "Gateway Health: not ready yet ($healthUri)" -ForegroundColor Yellow
+    $gatewayHealthStopwatch.Stop()
+    Write-Host ("Gateway Health: not ready after {0:n1}s ($healthUri)" -f $gatewayHealthStopwatch.Elapsed.TotalSeconds) -ForegroundColor Yellow
     if (-not (Test-AbilityKitTcpPort -HostName '127.0.0.1' -Port $SiloGatewayPort -TimeoutMilliseconds 1000)) {
         Write-Host "  Orleans Silo Gateway is not reachable: 127.0.0.1:$SiloGatewayPort" -ForegroundColor Yellow
     }
@@ -136,6 +159,8 @@ else {
     Write-Host "  Please inspect logs: $hostLog and $gatewayLog" -ForegroundColor Yellow
 }
 
+$startupStopwatch.Stop()
+Write-Host ("Startup script orchestration completed in {0:n1}s." -f $startupStopwatch.Elapsed.TotalSeconds) -ForegroundColor Green
 Write-Host ''
 Write-Host 'Gateway:' -ForegroundColor Green
 Write-Host "  Admin: $adminUri"

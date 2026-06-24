@@ -16,7 +16,7 @@ namespace AbilityKit.Game.Flow
         internal sealed class GatewayRoomHandles
         {
             internal IConnection Conn;
-            internal GatewayRoomClient Client;
+            internal IGatewayRoomClient Client;
             internal Task Task;
 
             internal readonly Dictionary<WorldId, GatewayWorldStartAnchor> WorldStartAnchors = new Dictionary<WorldId, GatewayWorldStartAnchor>();

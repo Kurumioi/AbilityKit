@@ -29,28 +29,35 @@ const acceptanceRunPlan = ref<AdminSkillAcceptanceRunPlan | null>(null);
 const lastResponse = ref('');
 
 const account = reactive({ accountId: adminStorage.get('accountId', ''), expireSeconds: 86400, kickExisting: true });
-const create = reactive({ roomType: 'shooter', title: 'Shooter Admin Room', isPublic: true, maxPlayers: 4, tagsJson: '{\n  "source": "admin-console"\n}' });
+const create = reactive({ roomType: 'shooter', title: 'Shooter 后台房间', isPublic: true, maxPlayers: 4, tagsJson: '{\n  "source": "admin-console"\n}' });
 const battle = reactive({ gameplayId: 2, ruleSetId: 0, configVersion: 1, protocolVersion: 1, worldType: 'shooter_battle', syncTemplateId: 'pure-state-authority' });
 const skillLoadout = reactive({ heroId: 1, teamId: 1, spawnPointId: 1, level: 1, attributeTemplateId: 1, basicAttackSkillId: 1001, skillIdsText: '1002,1003,1004' });
 const skillEventFilter = reactive<{ battleId: string; actorId: number | null; skillId: number | null; limit: number }>({ battleId: '', actorId: null, skillId: null, limit: 100 });
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
-const serverOperation = reactive({ reason: 'admin console operation' });
+const serverOperation = reactive({ reason: '后台控制台操作' });
 const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', traceLimit: 500, statusFilter: 'all', searchText: '', sortKey: 'caseId' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
+const selectedAcceptanceAnalysisNodeKey = ref('');
+const selectedRuntimeAnalysisNodeKey = ref('');
 
 const selectedGameplay = computed(() => gameplays.value.find(x => x.roomType === selectedRoomType.value) || null);
-const accountLabel = computed(() => dashboard.value?.accountId || account.accountId || (sessionToken.value ? 'session' : '未登录'));
-const sandboxLabel = computed(() => sandbox.state?.running ? 'Running' : 'Stopped');
+const selectedRoomSummary = computed(() => roomId.value ? rooms.value.find(room => room.roomId === roomId.value) || null : null);
+const effectiveRoomId = computed(() => roomId.value || snapshot.value?.summary?.roomId || selectedRoomSummary.value?.roomId || '');
+const hasSession = computed(() => Boolean(sessionToken.value));
+const hasCurrentRoom = computed(() => Boolean(effectiveRoomId.value));
+const canOperateCurrentRoom = computed(() => !busy.value && hasSession.value && hasCurrentRoom.value);
+const accountLabel = computed(() => dashboard.value?.accountId || account.accountId || (sessionToken.value ? '已登录会话' : '未登录'));
+const sandboxLabel = computed(() => sandbox.state?.running ? '运行中' : '已停止');
 const serverModeLabel = computed(() => {
-  if (!serverStatus.value) return 'Unknown';
+  if (!serverStatus.value) return '未知';
   const flags = [];
-  if (serverStatus.value.restartRequested) flags.push('RestartRequested');
-  if (serverStatus.value.maintenanceMode) flags.push('Maintenance');
-  if (serverStatus.value.drainMode) flags.push('Drain');
-  return flags.length > 0 ? flags.join(' / ') : 'Normal';
+  if (serverStatus.value.restartRequested) flags.push('已请求重启');
+  if (serverStatus.value.maintenanceMode) flags.push('维护中');
+  if (serverStatus.value.drainMode) flags.push('排空中');
+  return flags.length > 0 ? flags.join(' / ') : '正常';
 });
-const clusterLabel = computed(() => clusterDiagnostics.value ? `${clusterDiagnostics.value.clusterId} / ${clusterDiagnostics.value.serviceId}` : 'Unknown');
+const clusterLabel = computed(() => clusterDiagnostics.value ? `${clusterDiagnostics.value.clusterId} / ${clusterDiagnostics.value.serviceId}` : '未知');
 const skillBattleId = computed(() => skillEventFilter.battleId || skillSummary.value?.battleId || runtimeState.value?.battleId || '');
 const battleId = computed(() => skillBattleId.value || runtimeState.value?.battleId || '');
 const acceptancePassedCount = computed(() => acceptanceBatch.value?.cases?.filter(x => x.passed === true).length || 0);
@@ -72,8 +79,10 @@ const runtimeAnalysisFilterOptions = computed(() => buildSkillAnalysisFilterOpti
 const runtimeAnalysisFilteredFlat = computed(() => filterSkillAnalysisNodes(runtimeAnalysisFlat.value, runtimeAnalysisFilter));
 const runtimeAnalysisTimeline = computed(() => runtimeAnalysisFilteredFlat.value.length > 0 ? buildTimelineFromAnalysisNodes(runtimeAnalysisFilteredFlat.value) : buildTimelineFromRuntimeEvents(skillEvents.value));
 const runtimeAnalysisEntityRelations = computed(() => buildSkillAnalysisEntityRelations(runtimeAnalysisFilteredFlat.value));
-const selectedAcceptanceAnalysisNode = computed(() => acceptanceAnalysisFilteredFlat.value[0] || null);
-const selectedRuntimeAnalysisNode = computed(() => runtimeAnalysisFilteredFlat.value[0] || null);
+const selectedAcceptanceAnalysisNode = computed(() => findSelectedAnalysisNode(acceptanceAnalysisFilteredFlat.value, selectedAcceptanceAnalysisNodeKey.value));
+const selectedRuntimeAnalysisNode = computed(() => findSelectedAnalysisNode(runtimeAnalysisFilteredFlat.value, selectedRuntimeAnalysisNodeKey.value));
+const skillDiagnosticsWarnings = computed(() => [...(skillSummary.value?.warnings || []), ...(skillEvents.value?.warnings || [])]);
+const skillAnalysisModelNotes = computed(() => skillAnalysisModel.value?.notes || []);
 
 watch(sessionToken, value => adminStorage.set('sessionToken', value));
 watch(() => account.accountId, value => adminStorage.set('accountId', value));
@@ -226,6 +235,22 @@ function toText(value: unknown): string {
   }
 }
 
+function getAnalysisNodeKey(node: SkillAnalysisFlatNodeProjection): string {
+  return `${node.source}:${node.nodeId}`;
+}
+
+function findSelectedAnalysisNode(nodes: SkillAnalysisFlatNodeProjection[], key: string): SkillAnalysisFlatNodeProjection | null {
+  return nodes.find(node => getAnalysisNodeKey(node) === key) || nodes[0] || null;
+}
+
+function selectAcceptanceAnalysisNode(node: SkillAnalysisFlatNodeProjection): void {
+  selectedAcceptanceAnalysisNodeKey.value = getAnalysisNodeKey(node);
+}
+
+function selectRuntimeAnalysisNode(node: SkillAnalysisFlatNodeProjection): void {
+  selectedRuntimeAnalysisNodeKey.value = getAnalysisNodeKey(node);
+}
+
 async function refreshAcceptanceArtifacts(): Promise<void> {
   await refreshAcceptanceBatch();
   await refreshAcceptanceRunPlan();
@@ -287,20 +312,35 @@ async function submitMobaLoadout(): Promise<void> {
 
 async function createRoom(): Promise<void> {
   let tags: Record<string, string> | null = null;
-  try { tags = parseTags(); } catch { lastResponse.value = 'Invalid tags JSON'; return; }
+  try { tags = parseTags(); } catch { lastResponse.value = '标签 JSON 格式无效'; return; }
   const data = await call<CreateRoomResponse>(apis.rooms.create({ sessionToken: sessionToken.value, region: region.value, serverId: serverId.value, roomType: create.roomType, title: create.title, isPublic: create.isPublic === true, maxPlayers: Number(create.maxPlayers || 0), tags }));
   if (data?.roomId) roomId.value = data.roomId;
   await refreshDashboard();
 }
 
-function selectRoom(value: string): void {
+async function selectRoom(value: string): Promise<void> {
   roomId.value = value;
+  const selected = rooms.value.find(room => room.roomId === value);
+  if (selected) {
+    selectedRoomType.value = selected.roomType || selectedRoomType.value;
+    create.roomType = selected.roomType || create.roomType;
+  }
+
+  snapshot.value = selected ? { summary: selected, members: [], canStart: false } : null;
+  runtimeState.value = null;
+  if (sessionToken.value && value) await joinRoom(value);
 }
 
-async function joinRoom(): Promise<void> {
-  const data = await call<CreateRoomResponse>(apis.rooms.join({ sessionToken: sessionToken.value, roomId: roomId.value }));
-  if (data?.snapshot) snapshot.value = data.snapshot;
+async function joinRoom(targetRoomId = effectiveRoomId.value): Promise<boolean> {
+  if (!targetRoomId) return false;
+  roomId.value = targetRoomId;
+  const data = await call<CreateRoomResponse>(apis.rooms.join({ sessionToken: sessionToken.value, roomId: targetRoomId }));
+  if (!data?.snapshot) return false;
+  roomId.value = data.snapshot.summary?.roomId || targetRoomId;
+  snapshot.value = data.snapshot;
+  selectedRoomType.value = data.snapshot.summary?.roomType || selectedRoomType.value;
   await refreshDashboard();
+  return true;
 }
 
 async function restoreCurrentRoom(): Promise<void> {
@@ -311,25 +351,43 @@ async function restoreCurrentRoom(): Promise<void> {
   }
 }
 
-async function leaveRoom(): Promise<void> {
-  await call(apis.rooms.leave({ sessionToken: sessionToken.value, roomId: roomId.value }));
+async function leaveRoom(targetRoomId = effectiveRoomId.value): Promise<void> {
+  if (!targetRoomId) return;
+  roomId.value = targetRoomId;
+  const leavingRoomId = targetRoomId;
+  const result = await call(apis.rooms.leave({ sessionToken: sessionToken.value, roomId: leavingRoomId }));
+  if (!result) return;
   snapshot.value = null;
   runtimeState.value = null;
   roomId.value = '';
   await refreshDashboard();
+  await selectNextAvailableRoom(leavingRoomId);
 }
 
-async function markOffline(): Promise<void> {
-  const data = await call<RoomRuntimeState>(apis.rooms.markOffline({ sessionToken: sessionToken.value, roomId: roomId.value }));
+async function markOffline(targetRoomId = effectiveRoomId.value): Promise<void> {
+  if (!targetRoomId) return;
+  roomId.value = targetRoomId;
+  const data = await call<RoomRuntimeState>(apis.rooms.markOffline({ sessionToken: sessionToken.value, roomId: targetRoomId }));
   if (data) runtimeState.value = data;
 }
 
-async function closeRoom(): Promise<void> {
-  await call(apis.rooms.close({ sessionToken: sessionToken.value, roomId: roomId.value }));
-  snapshot.value = null;
-  runtimeState.value = null;
-  roomId.value = '';
+async function closeRoom(targetRoomId = effectiveRoomId.value): Promise<void> {
+  if (!targetRoomId) return;
+  const result = await call(apis.rooms.close({ sessionToken: sessionToken.value, roomId: targetRoomId }));
+  if (!result) return;
+  if (roomId.value === targetRoomId) {
+    snapshot.value = null;
+    runtimeState.value = null;
+    roomId.value = '';
+  }
   await refreshDashboard();
+  if (!roomId.value || roomId.value === targetRoomId) await selectNextAvailableRoom(targetRoomId);
+}
+
+async function selectNextAvailableRoom(excludedRoomId: string): Promise<void> {
+  const next = rooms.value.find(room => room.roomId !== excludedRoomId);
+  if (!next) return;
+  await selectRoom(next.roomId);
 }
 
 async function startShooterRoomQuick(): Promise<void> {
@@ -350,7 +408,7 @@ async function startBattle(): Promise<void> {
 }
 
 async function startShooterSandbox(): Promise<void> {
-  await call(apis.sandbox.start({ sandboxId: sandbox.sandboxId || 'default', region: region.value, serverId: serverId.value, botCount: Number(sandbox.botCount || 3), maxPlayers: Number(sandbox.maxPlayers || 4), tickRate: Number(sandbox.tickRate || 30), title: 'Shooter Admin Sandbox', tags: { source: 'admin-console' } }));
+  await call(apis.sandbox.start({ sandboxId: sandbox.sandboxId || 'default', region: region.value, serverId: serverId.value, botCount: Number(sandbox.botCount || 3), maxPlayers: Number(sandbox.maxPlayers || 4), tickRate: Number(sandbox.tickRate || 30), title: 'Shooter 后台沙盒', tags: { source: 'admin-console' } }));
   await refreshDashboard();
 }
 
@@ -397,7 +455,14 @@ export function useAdminConsoleStore() {
     acceptance,
     acceptanceAnalysisFilter,
     runtimeAnalysisFilter,
+    selectedAcceptanceAnalysisNodeKey,
+    selectedRuntimeAnalysisNodeKey,
     selectedGameplay,
+    selectedRoomSummary,
+    effectiveRoomId,
+    hasSession,
+    hasCurrentRoom,
+    canOperateCurrentRoom,
     accountLabel,
     sandboxLabel,
     serverModeLabel,
@@ -425,6 +490,10 @@ export function useAdminConsoleStore() {
     runtimeAnalysisEntityRelations,
     selectedAcceptanceAnalysisNode,
     selectedRuntimeAnalysisNode,
+    skillDiagnosticsWarnings,
+    skillAnalysisModelNotes,
+    selectAcceptanceAnalysisNode,
+    selectRuntimeAnalysisNode,
     formatBytes,
     formatDuration,
     applyGameplayDefaults,

@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
@@ -22,6 +27,9 @@ using AbilityKit.Demo.Moba.Console.Replay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Console.AutoTest;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.EntitasAdapters;
+using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 using AbilityKit.Protocol.Moba;
 using BattleConfig = AbilityKit.Demo.Moba.Console.Battle.Config;
 using ShareBattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
@@ -55,6 +63,7 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly BattleFlow _flow;
         private readonly IConsoleBattleView _battleView;
         private readonly ConsoleVfxManager _presentationVfxManager;
+        private readonly ConsoleViewFeature _viewFeature;
         private readonly ConsoleSyncFeature _syncFeature;
         private readonly ConsoleInputFeature _inputFeature;
         private readonly ConsoleHudFeature _hudFeature;
@@ -80,6 +89,9 @@ namespace AbilityKit.Demo.Moba.Console
         private DateTime _lastTick;
         private double _totalTime;
         private IWorldResolver _worldResolver;
+        private IWorld? _runtimeWorld;
+        private WorldManager? _runtimeWorldManager;
+        private Bootstrap.RuntimePortInputSink? _runtimeInputSink;
 
         public PlatformComponents Platform { get; }
         public IBattleSyncAdapter? SyncAdapter => _syncAdapter;
@@ -91,6 +103,9 @@ namespace AbilityKit.Demo.Moba.Console
         public IReadOnlyList<IWorldModule> Modules => _modules;
         public ShareReplayRecorder? ReplayRecorder => _replayRecorder;
         public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
+        public IWorldResolver? RuntimeServices => _runtimeWorld?.Services;
+        public bool RuntimeInputPortReady => _runtimeWorld?.Services?.TryResolve<IMobaBattleInputPort>(out var port) == true && port != null;
+        public Bootstrap.RuntimeInputDiagnostics RuntimeInputDiagnostics => _runtimeInputSink?.Diagnostics ?? Bootstrap.RuntimeInputDiagnostics.Empty;
 
         BattleConfig.BattleStartConfig IBattleStartConfigProvider.Config => _config;
 
@@ -121,6 +136,7 @@ namespace AbilityKit.Demo.Moba.Console
                 Platform.Renderer,
                 _presentationVfxManager);
 
+            _viewFeature = new ConsoleViewFeature(_battleView);
             _syncFeature = new ConsoleSyncFeature();
             _inputFeature = new ConsoleInputFeature();
             _hudFeature = new ConsoleHudFeature();
@@ -256,7 +272,6 @@ namespace AbilityKit.Demo.Moba.Console
             }
 
             var container = builder.Build();
-            _worldResolver = container;
 
             if (_mobaConfig == null)
             {
@@ -277,13 +292,52 @@ namespace AbilityKit.Demo.Moba.Console
             }
 
             var effectService = new ConsoleEffectExecutionService();
+            CreateRuntimeWorld();
+            _worldResolver = _runtimeWorld?.Services ?? container;
+        }
+
+        private void CreateRuntimeWorld()
+        {
+            if (_runtimeWorld != null) return;
+
+            MobaBootstrapFlowModule.EnsureInitialized();
+
+            var launchSpec = _config.BuildLaunchSpec();
+            var registry = new WorldTypeRegistry().RegisterEntitasWorld(launchSpec.WorldType);
+            _runtimeWorldManager = new WorldManager(new RegistryWorldFactory(registry));
+
+            var builder = WorldServiceContainerFactory.CreateWithAttributes(
+                WorldServiceProfile.All,
+                new[]
+                {
+                    typeof(WorldServiceContainerFactory).Assembly,
+                    typeof(MobaWorldBootstrapModule).Assembly,
+                    typeof(ConsoleBattleBootstrapper).Assembly
+                },
+                new[] { "AbilityKit" });
+
+            builder.AddModule(new Bootstrap.ConsoleConfigModule());
+            builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
+            builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+
+            var options = new WorldCreateOptions(new WorldId(launchSpec.WorldId), launchSpec.WorldType)
+            {
+                ServiceBuilder = builder,
+            };
+            options.Modules.Add(new MobaWorldBootstrapModule());
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
+
+            _runtimeWorld = _runtimeWorldManager.Create(options);
+            Log.System($"[Bootstrapper] Runtime world initialized: {_runtimeWorld.Id} ({_runtimeWorld.WorldType})");
         }
 
         private void CreateBattleSession()
         {
             if (_worldResolver != null && _worldResolver.TryResolve<IMobaBattleInputPort>(out var inputPort) && inputPort != null)
             {
-                _inputFeature.SetInputSink(new Bootstrap.RuntimePortInputSink(inputPort));
+                _runtimeInputSink = new Bootstrap.RuntimePortInputSink(inputPort);
+                _inputFeature.SetInputSink(_runtimeInputSink);
                 Log.System($"[Bootstrapper] RuntimePort InputSink initialized");
                 return;
             }
@@ -329,12 +383,14 @@ namespace AbilityKit.Demo.Moba.Console
             // 设置 BattleFlow 的 Context
             _flow.SetBattleContext(_context);
 
-            // 配置 InMatchPhase 的 Features
+            // 配置 InMatchPhase 的上下文与 Features
             var inMatchPhase = _flow.GetInMatchPhase();
             if (inMatchPhase != null)
             {
+                inMatchPhase.SetContext(_context, _config, _mobaConfig);
                 inMatchPhase.ConfigureFeatures(features =>
                 {
+                    features.AddConsoleFeature(_viewFeature);
                     features.AddConsoleFeature(_syncFeature);
                     features.AddConsoleFeature(_inputFeature);
                     features.AddConsoleFeature(_hudFeature);
@@ -389,6 +445,7 @@ namespace AbilityKit.Demo.Moba.Console
 
             // 由 PhaseHost -> InMatchPhase -> FeatureHost 管理 Features
             _flow.Tick((float)elapsed);
+            _runtimeWorld?.Tick((float)elapsed);
 
             // Features 现在由 FeatureHost.Tick() 自动管理；自动测试输入由共享 runner driver 显式 Apply，避免本地步骤机重复脚本语义。
             // _syncFeature.Tick(_context, (float)elapsed);
@@ -499,6 +556,8 @@ namespace AbilityKit.Demo.Moba.Console
             // _inputFeature?.OnDetach(_context);
             // _syncFeature?.OnDetach(_context);
 
+            _runtimeInputSink?.Dispose();
+            _runtimeWorldManager?.DisposeAll();
             _cuePresenter?.Dispose();
             _viewBinder?.Dispose();
             _snapshotDispatcher?.Dispose();
