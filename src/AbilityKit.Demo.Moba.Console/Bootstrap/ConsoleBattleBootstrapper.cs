@@ -19,6 +19,7 @@ using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Console.Battle.Sync;
 using AbilityKit.Demo.Moba.Console.Battle.Features;
+using AbilityKit.Demo.Moba.Console.Battle.Session;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Console.Presentation;
 using AbilityKit.Demo.Moba.Console.View;
@@ -66,6 +67,8 @@ namespace AbilityKit.Demo.Moba.Console
         private readonly ConsoleViewFeature _viewFeature;
         private readonly ConsoleSyncFeature _syncFeature;
         private readonly ConsoleInputFeature _inputFeature;
+        private readonly ConsoleViewTimeline _viewTimeline;
+        private readonly ConsoleViewTimelineRuntimeOperation _viewTimelineRuntime;
         private readonly ConsoleHudFeature _hudFeature;
         private readonly ConsoleInputHandler _inputHandler;
         private readonly List<IWorldModule> _modules;
@@ -96,6 +99,8 @@ namespace AbilityKit.Demo.Moba.Console
         public PlatformComponents Platform { get; }
         public IBattleSyncAdapter? SyncAdapter => _syncAdapter;
         public ViewBinderNamespace.IConsoleViewBinder? ViewBinder => _viewBinder;
+        public ConsoleViewTimeline ViewTimeline => _viewTimeline;
+        public ConsoleViewTimelineRuntimeOperation ViewTimelineRuntime => _viewTimelineRuntime;
         public IConsoleBattleView BattleView => _battleView;
         public IBattleFlow Flow => _flow;
         public ConsoleBattleContext Context => _context;
@@ -124,8 +129,10 @@ namespace AbilityKit.Demo.Moba.Console
             _mobaConfig = mobaConfig;
 
             Platform = new PlatformComponents();
-            _context = new ConsoleBattleContext { Plan = _config.BuildPlan() };
+            _context = new ConsoleBattleContext { Plan = _config.BuildPlan(), Hooks = new ConsoleSessionHooks() };
             _flow = new BattleFlow();
+            _viewTimeline = new ConsoleViewTimeline();
+            _viewTimelineRuntime = new ConsoleViewTimelineRuntimeOperation();
 
             _presentationVfxManager = new ConsoleVfxManager(new ConsoleVfxDatabase());
             _battleView = new ConsoleBattleView(
@@ -455,6 +462,7 @@ namespace AbilityKit.Demo.Moba.Console
             _cuePresenter?.Tick(_syncAdapter?.LogicTimeSeconds ?? _totalTime);
             _battleView.Tick((float)elapsed);
             _syncAdapter?.Tick((float)elapsed);
+            _viewTimelineRuntime.SeekAllToCurrentFrame(_context, _viewTimeline);
 
             if (_viewBinder != null)
             {
@@ -559,7 +567,9 @@ namespace AbilityKit.Demo.Moba.Console
             _runtimeInputSink?.Dispose();
             _runtimeWorldManager?.DisposeAll();
             _cuePresenter?.Dispose();
+            _viewTimeline?.Dispose();
             _viewBinder?.Dispose();
+            _context.Hooks?.Dispose();
             _snapshotDispatcher?.Dispose();
             _shareViewEventSink?.Dispose();
             _replayRecorder?.Dispose();

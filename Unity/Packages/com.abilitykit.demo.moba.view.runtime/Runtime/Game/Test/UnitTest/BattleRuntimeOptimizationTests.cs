@@ -702,6 +702,36 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [Test]
+        public void ViewTimelineRuntimeOperation_SkipsWhenFrameAlreadyAligned()
+        {
+            var decision = ViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 12, lastAlignedFrame: 12, tickRate: 30);
+
+            Assert.IsFalse(decision.ShouldSeek);
+            Assert.AreEqual(12, decision.Frame);
+            Assert.AreEqual(0f, decision.SecondsPerFrame);
+        }
+
+        [Test]
+        public void ViewTimelineRuntimeOperation_UsesZeroSecondsPerFrameForInvalidTickRate()
+        {
+            var decision = ViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 13, lastAlignedFrame: 12, tickRate: 0);
+
+            Assert.IsTrue(decision.ShouldSeek);
+            Assert.AreEqual(13, decision.Frame);
+            Assert.AreEqual(0f, decision.SecondsPerFrame);
+        }
+
+        [Test]
+        public void ViewTimelineRuntimeOperation_ResolvesSecondsPerFrameFromTickRate()
+        {
+            var decision = ViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 13, lastAlignedFrame: 12, tickRate: 25);
+
+            Assert.IsTrue(decision.ShouldSeek);
+            Assert.AreEqual(13, decision.Frame);
+            Assert.AreEqual(0.04f, decision.SecondsPerFrame, 0.0001f);
+        }
+
         private static void InvokePrivate(object target, string methodName)
         {
             InvokePrivate(target, methodName, Array.Empty<object>());

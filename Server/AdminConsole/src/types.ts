@@ -315,6 +315,14 @@ export interface AdminSkillAcceptanceCaseListItem {
   traceNodeCount: number;
   summaryPath: string;
   tracePath: string;
+  category?: string | null;
+  tags: string[];
+  generatedFrom?: string | null;
+  lastReviewedAt?: string | null;
+  missingTraceNodes?: string | null;
+  unexpectedTraceNodes?: string | null;
+  missingActions?: string | null;
+  missingRelationships?: string | null;
 }
 
 export interface AdminSkillAcceptanceBatch {
@@ -353,6 +361,70 @@ export interface AdminSkillAcceptanceAllowedScript {
   exists: boolean;
   arguments: string[];
   produces: string[];
+}
+
+export interface AdminSkillAcceptanceArtifactDirectory {
+  artifactDirectory: string;
+  displayName: string;
+  exists: boolean;
+  hasBatchSummary: boolean;
+  caseCount: number;
+  lastWriteUtcTicks: number;
+}
+
+export interface AdminSkillAcceptanceArtifactDirectoryList {
+  artifactRootDirectory: string;
+  directories: AdminSkillAcceptanceArtifactDirectory[];
+  warnings: string[];
+  serverNowTicks: number;
+}
+
+export interface AdminSkillAcceptanceRunRequest {
+  sessionToken?: string | null;
+  artifactDirectory?: string | null;
+  caseId?: string | null;
+  description?: string | null;
+  actorId: number;
+  targetActorId: number;
+  skillId: number;
+  effectId: number;
+  projectileId: number;
+  areaId: number;
+  buffId: number;
+  shieldId: number;
+  baseDamage: number;
+  mitigatedDamage: number;
+  shieldAbsorb: number;
+  hpDamage: number;
+  tickRate: number;
+  durationFrames: number;
+  templateId?: string | null;
+  operatorReason?: string | null;
+}
+
+export interface AdminSkillAcceptanceRunResponse {
+  success: boolean;
+  operationId: string;
+  artifactDirectory: string;
+  caseId: string;
+  summaryPath: string;
+  tracePath: string;
+  batch: AdminSkillAcceptanceBatch;
+  warnings: string[];
+  serverNowTicks: number;
+}
+
+export interface AdminSkillAcceptanceTemplate {
+  id: string;
+  displayName: string;
+  description: string;
+  covers: string[];
+  defaults: AdminSkillAcceptanceRunRequest;
+}
+
+export interface AdminSkillAcceptanceTemplateList {
+  templates: AdminSkillAcceptanceTemplate[];
+  serverNowTicks: number;
 }
 
 export interface AdminSkillAcceptanceRunPlan {

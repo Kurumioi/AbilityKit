@@ -43,6 +43,16 @@ namespace AbilityKit.Game.Test.UnitTest
 
         public static MobaAcceptanceBatchSummary RunExpectationDirectory(string expectationDirectory = null, string artifactDirectory = null, bool exportArtifacts = true, bool recursive = true)
         {
+            return RunExpectationDirectory(expectationDirectory, artifactDirectory, exportArtifacts, recursive, null, null);
+        }
+
+        public static MobaAcceptanceBatchSummary RunExpectationDirectory(string expectationDirectory, string artifactDirectory, bool exportArtifacts, bool recursive, string categoryFilter)
+        {
+            return RunExpectationDirectory(expectationDirectory, artifactDirectory, exportArtifacts, recursive, categoryFilter, null);
+        }
+
+        public static MobaAcceptanceBatchSummary RunExpectationDirectory(string expectationDirectory, string artifactDirectory, bool exportArtifacts, bool recursive, string categoryFilter, string tagFilter)
+        {
             var stopwatch = Stopwatch.StartNew();
             var resolvedExpectationDirectory = ResolveProjectRelativePath(string.IsNullOrEmpty(expectationDirectory) ? DefaultExpectationDirectory : expectationDirectory);
             Assert.IsTrue(Directory.Exists(resolvedExpectationDirectory), $"Acceptance expectation directory missing: {expectationDirectory}");
@@ -55,17 +65,28 @@ namespace AbilityKit.Game.Test.UnitTest
             var results = new List<MobaAcceptanceCaseRunResult>(files.Length);
             for (var i = 0; i < files.Length; i++)
             {
+                if (!ShouldRunExpectationFile(files[i], categoryFilter, tagFilter)) continue;
                 results.Add(RunExpectationFileForBatch(files[i], directory, exportArtifacts));
             }
 
             stopwatch.Stop();
-            var batch = BuildBatchSummary(resolvedExpectationDirectory, directory, recursive, stopwatch.ElapsedMilliseconds, results.ToArray());
+            var batch = BuildBatchSummary(resolvedExpectationDirectory, directory, recursive, categoryFilter, tagFilter, stopwatch.ElapsedMilliseconds, results.ToArray());
             if (exportArtifacts)
             {
                 ExportBatchSummary(batch);
             }
 
             return batch;
+        }
+
+        public static MobaAcceptanceBatchSummary RunContractExpectationDirectory(string expectationDirectory = null, string artifactDirectory = null, bool exportArtifacts = true, bool recursive = true, string tagFilter = null)
+        {
+            return RunExpectationDirectory(expectationDirectory, artifactDirectory, exportArtifacts, recursive, "contract", tagFilter);
+        }
+
+        public static MobaAcceptanceBatchSummary RunGoldenExpectationDirectory(string expectationDirectory = null, string artifactDirectory = null, bool exportArtifacts = true, bool recursive = true, string tagFilter = null)
+        {
+            return RunExpectationDirectory(expectationDirectory, artifactDirectory, exportArtifacts, recursive, "golden", tagFilter);
         }
 
         public static MobaAcceptanceExpectation LoadExpectation(string expectationPath)
@@ -134,7 +155,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return result;
         }
 
-        private static MobaAcceptanceBatchSummary BuildBatchSummary(string expectationDirectory, string artifactDirectory, bool recursive, long durationMs, MobaAcceptanceCaseRunResult[] results)
+        private static MobaAcceptanceBatchSummary BuildBatchSummary(string expectationDirectory, string artifactDirectory, bool recursive, string categoryFilter, string tagFilter, long durationMs, MobaAcceptanceCaseRunResult[] results)
         {
             var passed = 0;
             var failed = 0;
@@ -149,6 +170,8 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 expectationDirectory = NormalizePath(expectationDirectory),
                 artifactDirectory = NormalizePath(string.IsNullOrEmpty(artifactDirectory) ? MobaAcceptanceTraceExporter.DefaultArtifactDirectory : artifactDirectory),
+                categoryFilter = categoryFilter,
+                tagFilter = tagFilter,
                 recursive = recursive,
                 startedUtc = DateTime.UtcNow.ToString("O"),
                 durationMs = durationMs,
@@ -159,6 +182,46 @@ namespace AbilityKit.Game.Test.UnitTest
                 results = results,
                 batchSummaryJsonPath = NormalizePath(summaryPath)
             };
+        }
+
+        private static bool ShouldRunExpectationFile(string expectationPath, string categoryFilter, string tagFilter)
+        {
+            if (string.IsNullOrEmpty(categoryFilter) && string.IsNullOrEmpty(tagFilter)) return true;
+            var expectation = LoadExpectation(expectationPath);
+            if (!string.IsNullOrEmpty(categoryFilter) && !CategoryEquals(ResolveCategory(expectation), categoryFilter)) return false;
+            if (!string.IsNullOrEmpty(tagFilter) && !HasTag(expectation, tagFilter)) return false;
+            return true;
+        }
+
+        public static string ResolveCategory(MobaAcceptanceExpectation expectation)
+        {
+            if (expectation == null) return string.Empty;
+            if (expectation.scenario != null && !string.IsNullOrEmpty(expectation.scenario.category)) return expectation.scenario.category;
+            if (!string.IsNullOrEmpty(expectation.category)) return expectation.category;
+            return "contract";
+        }
+
+        public static bool HasTag(MobaAcceptanceExpectation expectation, string tag)
+        {
+            if (expectation == null || string.IsNullOrEmpty(tag)) return false;
+            if (HasTag(expectation.tags, tag)) return true;
+            return expectation.scenario != null && HasTag(expectation.scenario.tags, tag);
+        }
+
+        private static bool HasTag(string[] tags, string tag)
+        {
+            if (tags == null) return false;
+            for (var i = 0; i < tags.Length; i++)
+            {
+                if (string.Equals(tags[i], tag, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
+        }
+
+        private static bool CategoryEquals(string category, string expected)
+        {
+            return string.Equals(string.IsNullOrEmpty(category) ? "contract" : category, expected, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void ExportBatchSummary(MobaAcceptanceBatchSummary batch)

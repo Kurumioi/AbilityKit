@@ -3,7 +3,7 @@ import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
 import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree } from '../services/skillAcceptanceAnalysis';
 import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, SkillAnalysisFlatNodeProjection } from '../types';
+import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -26,6 +26,9 @@ const skillAnalysisModel = ref<AdminSkillAnalysisModel | null>(null);
 const acceptanceBatch = ref<AdminSkillAcceptanceBatch | null>(null);
 const acceptanceCase = ref<AdminSkillAcceptanceCase | null>(null);
 const acceptanceRunPlan = ref<AdminSkillAcceptanceRunPlan | null>(null);
+const acceptanceArtifactDirectories = ref<AdminSkillAcceptanceArtifactDirectoryList | null>(null);
+const acceptanceTemplates = ref<AdminSkillAcceptanceTemplateList | null>(null);
+const acceptanceLastRun = ref<AdminSkillAcceptanceRunResponse | null>(null);
 const lastResponse = ref('');
 
 const account = reactive({ accountId: adminStorage.get('accountId', ''), expireSeconds: 86400, kickExisting: true });
@@ -35,7 +38,7 @@ const skillLoadout = reactive({ heroId: 1, teamId: 1, spawnPointId: 1, level: 1,
 const skillEventFilter = reactive<{ battleId: string; actorId: number | null; skillId: number | null; limit: number }>({ battleId: '', actorId: null, skillId: null, limit: 100 });
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
 const serverOperation = reactive({ reason: '后台控制台操作' });
-const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', traceLimit: 500, statusFilter: 'all', searchText: '', sortKey: 'caseId' });
+const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const selectedAcceptanceAnalysisNodeKey = ref('');
@@ -196,6 +199,18 @@ async function refreshSkillDiagnostics(): Promise<void> {
   await refreshSkillAnalysisModel();
 }
 
+async function refreshAcceptanceArtifactDirectories(): Promise<void> {
+  const data = await call<AdminSkillAcceptanceArtifactDirectoryList>(apis.skills.acceptanceArtifactDirectories());
+  if (data) acceptanceArtifactDirectories.value = data;
+}
+
+async function refreshAcceptanceTemplates(): Promise<void> {
+  const data = await call<AdminSkillAcceptanceTemplateList>(apis.skills.acceptanceTemplates());
+  if (!data) return;
+  acceptanceTemplates.value = data;
+  if (!acceptance.selectedTemplateId && data.templates?.length) acceptance.selectedTemplateId = data.templates[0].id;
+}
+
 async function refreshAcceptanceBatch(): Promise<void> {
   const data = await call<AdminSkillAcceptanceBatch>(apis.skills.acceptanceBatch(buildQuery({ artifactDirectory: acceptance.artifactDirectory })));
   if (!data) return;
@@ -252,9 +267,73 @@ function selectRuntimeAnalysisNode(node: SkillAnalysisFlatNodeProjection): void 
 }
 
 async function refreshAcceptanceArtifacts(): Promise<void> {
+  await refreshAcceptanceArtifactDirectories();
+  await refreshAcceptanceTemplates();
   await refreshAcceptanceBatch();
   await refreshAcceptanceRunPlan();
   if (acceptance.selectedCaseId) await refreshAcceptanceCase(acceptance.selectedCaseId);
+}
+
+function selectAcceptanceArtifactDirectory(value: string): void {
+  if (!value) return;
+  acceptance.artifactDirectory = value;
+  acceptance.selectedCaseId = '';
+  acceptanceCase.value = null;
+}
+
+function applyAcceptanceTemplate(templateId = acceptance.selectedTemplateId): void {
+  const template = acceptanceTemplates.value?.templates?.find(item => item.id === templateId);
+  if (!template) return;
+  acceptance.selectedTemplateId = template.id;
+  acceptance.runDescription = template.description || acceptance.runDescription;
+  acceptance.runSkillId = template.defaults.skillId;
+  acceptance.runEffectId = template.defaults.effectId;
+  acceptance.runProjectileId = template.defaults.projectileId;
+  acceptance.runAreaId = template.defaults.areaId;
+  acceptance.runBuffId = template.defaults.buffId;
+  acceptance.runShieldId = template.defaults.shieldId;
+  acceptance.runBaseDamage = template.defaults.baseDamage;
+  acceptance.runMitigatedDamage = template.defaults.mitigatedDamage;
+  acceptance.runShieldAbsorb = template.defaults.shieldAbsorb;
+  acceptance.runHpDamage = template.defaults.hpDamage;
+  acceptance.runTickRate = template.defaults.tickRate;
+  acceptance.runDurationFrames = template.defaults.durationFrames;
+}
+
+function buildAcceptanceRunRequest(): AdminSkillAcceptanceRunRequest {
+  return {
+    sessionToken: sessionToken.value || null,
+    artifactDirectory: acceptance.artifactDirectory,
+    caseId: acceptance.runCaseId || null,
+    description: acceptance.runDescription,
+    actorId: Number(acceptance.runActorId || 1),
+    targetActorId: Number(acceptance.runTargetActorId || 2),
+    skillId: Number(acceptance.runSkillId || 1002),
+    effectId: Number(acceptance.runEffectId || 2001),
+    projectileId: Number(acceptance.runProjectileId || 0),
+    areaId: Number(acceptance.runAreaId || 0),
+    buffId: Number(acceptance.runBuffId || 0),
+    shieldId: Number(acceptance.runShieldId || 0),
+    baseDamage: Number(acceptance.runBaseDamage || 0),
+    mitigatedDamage: Number(acceptance.runMitigatedDamage || 0),
+    shieldAbsorb: Number(acceptance.runShieldAbsorb || 0),
+    hpDamage: Number(acceptance.runHpDamage || 0),
+    tickRate: Number(acceptance.runTickRate || 30),
+    durationFrames: Number(acceptance.runDurationFrames || 12),
+    templateId: acceptance.selectedTemplateId || null,
+    operatorReason: acceptance.runOperatorReason || null
+  };
+}
+
+async function runAcceptanceAnalysis(): Promise<void> {
+  const data = await call<AdminSkillAcceptanceRunResponse>(apis.skills.acceptanceRun(buildAcceptanceRunRequest()));
+  if (!data) return;
+  acceptanceLastRun.value = data;
+  acceptanceBatch.value = data.batch;
+  acceptance.artifactDirectory = data.artifactDirectory;
+  acceptance.selectedCaseId = data.caseId;
+  await refreshAcceptanceArtifactDirectories();
+  await refreshAcceptanceCase(data.caseId);
 }
 
 async function setMaintenanceMode(enabled: boolean): Promise<void> {
@@ -444,6 +523,9 @@ export function useAdminConsoleStore() {
     acceptanceBatch,
     acceptanceCase,
     acceptanceRunPlan,
+    acceptanceArtifactDirectories,
+    acceptanceTemplates,
+    acceptanceLastRun,
     lastResponse,
     account,
     create,
@@ -507,7 +589,12 @@ export function useAdminConsoleStore() {
     refreshAcceptanceBatch,
     refreshAcceptanceCase,
     refreshAcceptanceRunPlan,
+    refreshAcceptanceArtifactDirectories,
+    refreshAcceptanceTemplates,
     refreshAcceptanceArtifacts,
+    selectAcceptanceArtifactDirectory,
+    applyAcceptanceTemplate,
+    runAcceptanceAnalysis,
     setMaintenanceMode,
     setDrainMode,
     requestRestart,

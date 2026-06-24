@@ -23,11 +23,15 @@ export function inferSkillAnalysisStage(kind: string): string {
   if (includesAny(normalized, ['trigger', 'event', 'passive', 'aura'])) return 'trigger-lineage';
   if (includesAny(normalized, ['action', 'plan', 'command'])) return 'trigger-action';
   if (includesAny(normalized, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff-lifecycle';
+  if (includesAny(normalized, ['continuous', 'periodic', 'tick', 'interval'])) return 'continuous-tick';
   if (includesAny(normalized, ['projectile', 'bullet', 'missile'])) return 'projectile-lifecycle';
+  if (includesAny(normalized, ['area', 'aoe', 'zone'])) return 'area-lifecycle';
+  if (includesAny(normalized, ['shield', 'absorb'])) return 'shield-lifecycle';
+  if (includesAny(normalized, ['summon', 'pet', 'minion'])) return 'summon-lifecycle';
   if (includesAny(normalized, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
-  if (includesAny(normalized, ['damage', 'heal', 'shield'])) return 'damage-pipeline';
+  if (includesAny(normalized, ['damage', 'heal', 'attackcalc', 'mitigate'])) return 'damage-pipeline';
   if (includesAny(normalized, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation-events';
-  if (includesAny(normalized, ['effect', 'area', 'aoe', 'summon'])) return 'effect-execution';
+  if (includesAny(normalized, ['effect'])) return 'effect-execution';
   if (includesAny(normalized, ['assert', 'expect', 'result'])) return 'assertion-result';
   if (includesAny(normalized, ['cast', 'skill', 'active', 'channel', 'charge'])) return 'cast-pipeline';
   return 'trigger-lineage';
@@ -45,14 +49,17 @@ export function inferSkillAnalysisEntityKind(kind: string, stage: string, record
   if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown'])) return 'trigger-condition';
   if (includesAny(text, ['passive', 'aura'])) return 'passive-skill';
   if (includesAny(text, ['trigger', 'event'])) return 'trigger-source';
+  if (includesAny(text, ['continuous', 'periodic', 'interval'])) return 'continuous';
   if (includesAny(text, ['projectile', 'bullet', 'missile'])) return 'projectile';
+  if (includesAny(text, ['area', 'aoe', 'zone'])) return 'area';
+  if (includesAny(text, ['shield', 'absorb'])) return 'shield';
+  if (includesAny(text, ['summon', 'pet', 'minion'])) return 'summon';
   if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
-  if (includesAny(text, ['area', 'aoe'])) return 'area';
   if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
-  if (includesAny(text, ['damage', 'heal', 'shield'])) return 'damage';
+  if (includesAny(text, ['damage', 'heal', 'attackcalc', 'mitigate'])) return 'damage';
   if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation';
   if (includesAny(text, ['action', 'plan', 'command'])) return 'effect-action';
-  if (includesAny(text, ['effect', 'summon'])) return 'effect';
+  if (includesAny(text, ['effect'])) return 'effect';
   if (includesAny(text, ['skill', 'cast', 'active', 'channel', 'charge'])) return 'actor-skill';
   return 'context';
 }
@@ -280,13 +287,17 @@ export function inferSkillAnalysisDomain(kind: string, stage: string, entityKind
   if (includesAny(text, ['active', '主动', 'cast', 'skillcast', 'manual'])) return 'active-skill';
   if (includesAny(text, ['passive', '被动', 'aura', '光环'])) return 'passive-skill';
   if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown', '条件'])) return 'trigger-condition';
-  if (includesAny(text, ['action', 'plan', 'command', '行为', '动作'])) return 'trigger-action';
+  if (includesAny(text, ['continuous', 'periodic', 'interval', '持续'])) return 'continuous';
   if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
   if (includesAny(text, ['projectile', 'bullet', 'missile', '子弹', '投射'])) return 'projectile';
+  if (includesAny(text, ['area', 'aoe', 'zone', '区域'])) return 'area';
+  if (includesAny(text, ['shield', 'absorb', '护盾', '吸收'])) return 'shield';
+  if (includesAny(text, ['summon', 'pet', 'minion', '召唤'])) return 'summon';
   if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement', '位移'])) return 'movement';
-  if (includesAny(text, ['damage', 'heal', 'shield', '伤害', '治疗'])) return 'damage';
+  if (includesAny(text, ['damage', 'heal', 'attackcalc', 'mitigate', '伤害', '治疗'])) return 'damage';
   if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation', '表现'])) return 'presentation';
-  if (includesAny(text, ['effect', 'area', 'aoe', 'summon', '效果'])) return 'effect';
+  if (includesAny(text, ['action', 'plan', 'command', '行为', '动作'])) return 'trigger-action';
+  if (includesAny(text, ['effect', '效果'])) return 'effect';
   if (includesAny(text, ['trigger', 'event', '触发'])) return 'trigger-source';
   if (includesAny(text, ['assert', 'expect', 'result'])) return 'assertion';
   return entityKind === 'actor-skill' ? 'active-skill' : 'context';
@@ -295,13 +306,17 @@ export function inferSkillAnalysisDomain(kind: string, stage: string, entityKind
 function inferRuntimeEventDomain(stage: string, eventType: string): string {
   const text = `${stage} ${eventType}`.toLowerCase();
   if (includesAny(text, ['condition', 'predicate', 'filter', 'budget', 'cost', 'cooldown'])) return 'trigger-condition';
+  if (includesAny(text, ['continuous', 'periodic', 'interval'])) return 'continuous';
   if (includesAny(text, ['action', 'plan', 'command'])) return 'trigger-action';
   if (includesAny(text, ['buff', 'debuff', 'modifier', 'stack'])) return 'buff';
   if (includesAny(text, ['projectile', 'bullet', 'missile'])) return 'projectile';
+  if (includesAny(text, ['area', 'aoe', 'zone'])) return 'area';
+  if (includesAny(text, ['shield', 'absorb'])) return 'shield';
+  if (includesAny(text, ['summon', 'pet', 'minion'])) return 'summon';
   if (includesAny(text, ['displacement', 'move', 'dash', 'blink', 'knockback', 'movement'])) return 'movement';
-  if (includesAny(text, ['damage', 'heal', 'shield'])) return 'damage';
+  if (includesAny(text, ['damage', 'heal', 'attackcalc', 'mitigate'])) return 'damage';
   if (includesAny(text, ['presentation', 'cue', 'vfx', 'sfx', 'animation'])) return 'presentation';
-  if (includesAny(text, ['effect', 'area', 'aoe', 'summon'])) return 'effect';
+  if (includesAny(text, ['effect'])) return 'effect';
   if (includesAny(text, ['trigger', 'event', 'passive', 'aura'])) return 'trigger-source';
   if (includesAny(text, ['cast', 'skill', 'active', 'channel', 'charge'])) return 'active-skill';
   return 'context';
@@ -316,7 +331,11 @@ export function skillAnalysisDomainLabel(domain: string): string {
     'trigger-action': '触发行为',
     effect: '效果执行',
     buff: 'Buff 生命周期',
+    continuous: '持续行为',
     projectile: '投射物/子弹',
+    area: '区域效果',
+    shield: '护盾生命周期',
+    summon: '召唤物生命周期',
     movement: '位移/运动',
     damage: '伤害/治疗',
     presentation: '表现事件',
@@ -330,13 +349,17 @@ function skillAnalysisLaneLabel(domain: string, stage: string, entityKind: strin
   const effectiveDomain = domain || inferSkillAnalysisDomain(entityKind, stage, entityKind, {});
   const laneMap: Record<string, string> = {
     'active-skill': 'Skill Pipeline 主动释放',
-    'passive-skill': 'Skill Pipeline 被动/光环',
+    'passive-skill': 'Passive / Aura 被动监听',
     'trigger-source': 'Trigger Source 触发源',
     'trigger-condition': 'Trigger Conditions 条件判定',
     'trigger-action': 'Trigger Plan Actions 行为计划',
     effect: 'Effect Execution 效果执行',
     buff: 'Buff Lifecycle Buff 生命周期',
+    continuous: 'Continuous Tick 持续行为',
     projectile: 'Projectile Lifecycle 投射物生命周期',
+    area: 'Area Lifecycle 区域生命周期',
+    shield: 'Shield Lifecycle 护盾生命周期',
+    summon: 'Summon Lifecycle 召唤物生命周期',
     movement: 'Movement / Displacement 位移运动',
     damage: 'Damage / Heal Pipeline 结算管线',
     presentation: 'Presentation Events 表现事件',
@@ -367,6 +390,10 @@ function resolveActionLabel(record: Record<string, unknown>, domain: string, ent
   if (explicit) return explicit;
   if (domain === 'trigger-action') return '触发后行为计划';
   if (domain === 'projectile') return '发射/飞行/命中';
+  if (domain === 'area') return '生成/进入/停留/离开/过期';
+  if (domain === 'shield') return '添加/吸收/移除/过期清理';
+  if (domain === 'summon') return '召唤/运行/清理';
+  if (domain === 'continuous') return '绑定/周期 Tick/结束';
   if (domain === 'movement') return '位移/运动控制';
   if (domain === 'buff') return '附加/叠层/持续/移除';
   if (domain === 'damage') return '伤害/治疗结算';
@@ -382,16 +409,31 @@ function buildClassificationText(kind: string, stage: string, record: Record<str
     toText(record.runtimeKind),
     toText(record.entityKind),
     toText(record.eventType),
+    toText(record.eventId),
     toText(record.skillKind),
     toText(record.castKind),
     toText(record.triggerType),
+    toText(record.triggerId),
     toText(record.effectType),
+    toText(record.effectId),
     toText(record.actionType),
+    toText(record.actionId),
     toText(record.behaviorType),
     toText(record.conditionType),
     toText(record.configName),
     toText(record.displayName),
-    toText(record.message)
+    toText(record.message),
+    toText(record.projectileId),
+    toText(record.launcherId),
+    toText(record.areaId),
+    toText(record.templateId),
+    toText(record.buffId),
+    toText(record.buffIds),
+    toText(record.shieldId),
+    toText(record.instanceId),
+    toText(record.damageType),
+    toText(record.reasonKind),
+    toText(record.reasonParam)
   ].join(' ').toLowerCase();
 }
 
@@ -478,6 +520,10 @@ function domainKindName(kind: string, entityKind: string): string {
   const text = `${kind} ${entityKind}`.toLowerCase();
   if (text.includes('skill') || text.includes('cast')) return '技能释放';
   if (text.includes('projectile')) return '投射物发射';
+  if (text.includes('area') || text.includes('aoe')) return '区域效果';
+  if (text.includes('shield')) return '护盾';
+  if (text.includes('summon')) return '召唤物';
+  if (text.includes('continuous')) return '持续行为';
   if (text.includes('buff')) return 'Buff 附加';
   if (text.includes('damage')) return '伤害结算';
   if (text.includes('action')) return '效果动作';
@@ -491,6 +537,10 @@ function configKindName(kind: string, entityKind: string): string {
   const text = `${kind} ${entityKind}`.toLowerCase();
   if (text.includes('skill') || text.includes('cast')) return '技能';
   if (text.includes('projectile')) return '投射物';
+  if (text.includes('area') || text.includes('aoe')) return '区域';
+  if (text.includes('shield')) return '护盾';
+  if (text.includes('summon')) return '召唤物';
+  if (text.includes('continuous')) return '持续行为';
   if (text.includes('buff')) return 'Buff';
   if (text.includes('damage')) return '伤害';
   if (text.includes('action')) return '动作';
@@ -502,7 +552,7 @@ function configKindName(kind: string, entityKind: string): string {
 function buildEntityKey(entityKind: string, record: Record<string, unknown>, nodeId: number, configId: number, actorId: number, sourceContextId: string): string {
   const runtimeKind = toText(record.runtimeKind);
   const runtimeConfigId = toNumber(record.runtimeConfigId);
-  const entityId = toNumber(record.entityId || record.projectileId || record.buffId || record.areaId || record.contextId || record.sourceContextId);
+  const entityId = toNumber(record.entityId || record.runtimeId || record.instanceId || record.projectileRuntimeId || record.projectileId || record.buffRuntimeId || record.buffId || record.areaRuntimeId || record.areaId || record.shieldId || record.summonId || record.contextId || record.sourceContextId);
   if (entityId > 0) return `${entityKind}:${entityId}`;
   if (runtimeKind && runtimeConfigId > 0) return `${runtimeKind}:${runtimeConfigId}`;
   if (configId > 0) return `${entityKind}:${configId}`;

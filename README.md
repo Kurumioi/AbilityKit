@@ -399,6 +399,7 @@ dotnet run
 
 | 模块                                                                                                | 文档                                         |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| [工程化测试门禁](./Docs/AbilityKit测试门禁与批量回归规范.md)                                                 | P0/P1/P2 测试门禁、批量回归、xUnit Trait 标签与 CI 接入规范 |
 | [技术选型](./Unity/Packages/技术选型文档.md)                                                                | 从零开发战斗框架的技术选型                              |
 | [Host 模块](./Unity/Packages/com.abilitykit.host.extension/Document/)                               | 游戏服务器运行时框架                                 |
 | [状态同步与预测](./Unity/Packages/com.abilitykit.world.statesync/Document/StateSyncDesign.md)            | 客户端预测、Rollback、StateHash 校验                |

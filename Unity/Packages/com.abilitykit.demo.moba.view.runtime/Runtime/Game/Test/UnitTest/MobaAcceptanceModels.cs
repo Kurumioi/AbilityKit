@@ -10,6 +10,10 @@ namespace AbilityKit.Game.Test.UnitTest
         public string worldId;
         public int tickRate;
         public bool accelerated;
+        public string category;
+        public string[] tags;
+        public string generatedFrom;
+        public string lastReviewedAt;
         public MobaAcceptanceInputExpectation input;
         public MobaAcceptanceConfigExpectation config;
         public MobaAcceptanceScenarioExpectation scenario;
@@ -32,6 +36,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public string worldId;
         public int tickRate;
         public bool accelerated;
+        public string category;
+        public string[] tags;
         public MobaAcceptanceActorExpectation[] actors;
         public MobaAcceptanceSetupActionExpectation[] setupActions;
         public MobaAcceptanceTimelineStepExpectation[] timeline;
@@ -183,6 +189,8 @@ namespace AbilityKit.Game.Test.UnitTest
         public string kind;
         public int configId;
         public int underEffectId;
+        public int minCount;
+        public int maxCount;
     }
 
     [Serializable]
@@ -229,6 +237,10 @@ namespace AbilityKit.Game.Test.UnitTest
         public string expectationPath;
         public int tickRate;
         public bool accelerated;
+        public string category;
+        public string[] tags;
+        public string generatedFrom;
+        public string lastReviewedAt;
         public MobaAcceptanceScenarioExpectation scenario;
         public MobaAcceptanceActorExpectation[] actors;
         public MobaAcceptanceSetupActionExpectation[] setupActions;
@@ -238,6 +250,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public MobaAcceptanceInputExpectation input;
         public MobaAcceptanceConfigExpectation config;
         public MobaAcceptanceResult result;
+        public MobaAcceptanceCoverageSummary coverage;
         public MobaAcceptanceTraceCount[] traceCounts;
         public string traceJsonlPath;
         public string summaryJsonPath;
@@ -251,10 +264,42 @@ namespace AbilityKit.Game.Test.UnitTest
         public bool effectExecutionTraceFound;
         public bool allExpectedActionsExecuted;
         public bool projectileLaunched;
+        public bool buffApplied;
         public long effectRootId;
         public int finalFrame;
         public int finalTimeMs;
         public int traceNodeCount;
+        public int expectedTraceNodeCount;
+        public int matchedExpectedTraceNodeCount;
+        public int missingExpectedTraceNodeCount;
+        public int expectedActionCount;
+        public int executedExpectedActionCount;
+        public int expectedRelationshipCount;
+        public int satisfiedRelationshipCount;
+    }
+
+    [Serializable]
+    public sealed class MobaAcceptanceCoverageSummary
+    {
+        public int expectedTraceNodeCount;
+        public int matchedExpectedTraceNodeCount;
+        public int missingExpectedTraceNodeCount;
+        public int forbiddenTraceNodeCount;
+        public int unexpectedForbiddenTraceNodeCount;
+        public int expectedActionCount;
+        public int executedExpectedActionCount;
+        public int expectedRelationshipCount;
+        public int satisfiedRelationshipCount;
+        public int expectedStateCount;
+        public int expectedContextCount;
+        public bool allRequiredTraceNodesMatched;
+        public bool allForbiddenTraceNodesAbsent;
+        public bool allExpectedActionsExecuted;
+        public bool allRelationshipsSatisfied;
+        public string missingTraceNodes;
+        public string unexpectedTraceNodes;
+        public string missingActions;
+        public string missingRelationships;
     }
 
     [Serializable]
@@ -282,6 +327,8 @@ namespace AbilityKit.Game.Test.UnitTest
     {
         public string expectationDirectory;
         public string artifactDirectory;
+        public string categoryFilter;
+        public string tagFilter;
         public bool recursive;
         public string startedUtc;
         public long durationMs;

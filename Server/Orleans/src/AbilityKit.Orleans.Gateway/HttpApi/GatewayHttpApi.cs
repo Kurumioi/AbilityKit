@@ -266,10 +266,27 @@ internal static class GatewayHttpApi
             .WithName("Gateway.AdminSkillAnalysisModel")
             .Produces<AdminSkillAnalysisModelHttpResponse>(StatusCodes.Status200OK);
 
+        group.MapGet("/skills/acceptance/artifact-directories", () =>
+            Results.Ok(GatewaySkillAcceptanceArtifacts.ListArtifactDirectories()))
+            .WithName("Gateway.AdminSkillAcceptanceArtifactDirectories")
+            .Produces<AdminSkillAcceptanceArtifactDirectoryListHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/acceptance/templates", () =>
+            Results.Ok(GatewaySkillAcceptanceArtifacts.GetTemplates()))
+            .WithName("Gateway.AdminSkillAcceptanceTemplates")
+            .Produces<AdminSkillAcceptanceTemplateListHttpResponse>(StatusCodes.Status200OK);
+
         group.MapGet("/skills/acceptance/batch", (string? artifactDirectory) =>
             Results.Ok(GatewaySkillAcceptanceArtifacts.GetBatch(artifactDirectory)))
             .WithName("Gateway.AdminSkillAcceptanceBatch")
             .Produces<AdminSkillAcceptanceBatchHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapPost("/skills/acceptance/run", (AdminSkillAcceptanceRunRequest request) =>
+            GatewaySkillAcceptanceArtifacts.Run(request))
+            .WithName("Gateway.AdminSkillAcceptanceRun")
+            .Accepts<AdminSkillAcceptanceRunRequest>("application/json")
+            .Produces<AdminSkillAcceptanceRunResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
 
         group.MapGet("/skills/acceptance/cases/{caseId}", (string caseId, string? artifactDirectory, int? traceLimit) =>
             GatewaySkillAcceptanceArtifacts.GetCase(caseId, artifactDirectory, traceLimit))

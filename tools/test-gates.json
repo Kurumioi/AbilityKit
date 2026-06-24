@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 3,
+  "owner": "AbilityKit Engineering",
+  "defaultGate": "precheck",
+  "documentation": "Docs/AbilityKit测试门禁与批量回归规范.md",
+  "ci": {
+    "workflow": ".github/workflows/abilitykit-test-gates.yml",
+    "artifactRoot": "artifacts/test-gates",
+    "pullRequestGate": "precheck",
+    "manualDefaultGate": "regression",
+    "scheduledGate": "regression",
+    "scheduledCronUtc": "0 18 * * *",
+    "scheduledCronDescription": "Daily 02:00 Asia/Shanghai regression baseline."
+  },
+  "policies": {
+    "P0": {
+      "name": "Development Blocker",
+      "rule": "Must pass before continuing feature development or submitting related changes."
+    },
+    "P1": {
+      "name": "Contract Blocker",
+      "rule": "Must pass after runtime contract, networking, DI, or presentation-runtime boundary changes."
+    },
+    "P2": {
+      "name": "Regression Baseline",
+      "rule": "Must pass before broad refactors, release candidates, or batch merges."
+    }
+  },
+  "gates": [
+    {
+      "name": "precheck",
+      "level": "P0",
+      "owner": "Core/MOBA Runtime",
+      "description": "Fast local gate before continuing feature development.",
+      "scope": [
+        "local-development",
+        "moba-console",
+        "battle-entry"
+      ],
+      "requiredBefore": [
+        "continue-feature-development",
+        "commit-related-runtime-or-console-changes"
+      ],
+      "failurePolicy": "Stop new feature work immediately. Fix the failing build or smoke test first.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Build moba console",
+          "kind": "dotnet-build",
+          "project": "src/AbilityKit.Demo.Moba.Console/AbilityKit.Demo.Moba.Console.csproj"
+        },
+        {
+          "name": "Moba console smoke gate",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "Gate=MobaConsoleSmoke"
+        }
+      ]
+    },
+    {
+      "name": "moba-console-smoke",
+      "level": "P0",
+      "owner": "MOBA Runtime/Presentation",
+      "description": "MOBA console smoke tests that must pass before presentation/runtime follow-up work.",
+      "scope": [
+        "moba-console",
+        "presentation-testability",
+        "battle-runtime-smoke",
+        "skill-cast-trace"
+      ],
+      "requiredBefore": [
+        "continue-moba-presentation-work",
+        "change-console-battle-entry",
+        "change-runtime-input-or-view-timeline-path"
+      ],
+      "failurePolicy": "Block follow-up MOBA presentation/runtime changes until the smoke path passes.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Moba console smoke gate",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "Gate=MobaConsoleSmoke"
+        }
+      ]
+    },
+    {
+      "name": "runtime-contracts",
+      "level": "P1",
+      "owner": "Runtime Platform",
+      "description": "Core pure-C# runtime contract tests for networking, DI and shared presentation runtime.",
+      "scope": [
+        "network-runtime",
+        "world-di",
+        "game-view-runtime-contracts"
+      ],
+      "requiredBefore": [
+        "merge-runtime-contract-change",
+        "continue-after-network-di-or-view-runtime-boundary-change"
+      ],
+      "failurePolicy": "Fix contract breakage or explicitly update the design document before continuing dependent work.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Network runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj"
+        },
+        {
+          "name": "World DI tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.World.DI.Tests/AbilityKit.World.DI.Tests.csproj"
+        },
+        {
+          "name": "Game view runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Game.View.Runtime.Tests/AbilityKit.Game.View.Runtime.Tests.csproj"
+        }
+      ]
+    },
+    {
+      "name": "regression",
+      "level": "P2",
+      "owner": "AbilityKit Engineering",
+      "description": "Batch regression gate for the main pure-C# test projects used before broad refactors or merges.",
+      "scope": [
+        "batch-regression",
+        "moba-runtime",
+        "moba-view-runtime",
+        "shooter-runtime",
+        "runtime-contracts"
+      ],
+      "requiredBefore": [
+        "broad-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as release or merge blocker. Triage by failing project and add/adjust smaller gates if needed.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Moba console smoke gate",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "Gate=MobaConsoleSmoke"
+        },
+        {
+          "name": "Moba view runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.View.Runtime.Tests/AbilityKit.Demo.Moba.View.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Shooter runtime tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj"
+        },
+        {
+          "name": "Runtime contracts",
+          "kind": "gate",
+          "gate": "runtime-contracts"
+        }
+      ]
+    }
+  ]
+}

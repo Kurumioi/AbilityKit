@@ -27,6 +27,8 @@ export interface AcceptanceCaseFilters {
   statusFilter: string;
   searchText: string;
   sortKey: string;
+  categoryFilter?: string;
+  tagFilter?: string;
 }
 
 export function toNumber(value: unknown): number {
@@ -52,14 +54,18 @@ export function toText(value: unknown): string {
 export function filterAcceptanceCases(cases: AdminSkillAcceptanceBatch['cases'], filters: AcceptanceCaseFilters): AdminSkillAcceptanceBatch['cases'] {
   const keyword = filters.searchText.trim().toLowerCase();
   const status = filters.statusFilter;
+  const category = (filters.categoryFilter || '').trim().toLowerCase();
+  const tag = (filters.tagFilter || '').trim().toLowerCase();
   const filtered = cases.filter(item => {
     const statusMatched = status === 'all'
       || (status === 'passed' && item.passed === true)
       || (status === 'failed' && item.passed === false)
       || (status === 'unknown' && item.passed !== true && item.passed !== false);
     if (!statusMatched) return false;
+    if (category && String(item.category || '').toLowerCase() !== category) return false;
+    if (tag && !(item.tags || []).some(value => String(value).toLowerCase() === tag)) return false;
     if (!keyword) return true;
-    return [item.caseId, item.description, item.worldId, item.summaryPath, item.tracePath]
+    return [item.caseId, item.description, item.worldId, item.summaryPath, item.tracePath, item.category, item.generatedFrom, item.lastReviewedAt, ...(item.tags || [])]
       .filter(Boolean)
       .some(value => String(value).toLowerCase().includes(keyword));
   });
@@ -149,9 +155,14 @@ export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> 
   };
   const readArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 
+  const tags = readArray(summary.tags).map(item => toText(item)).filter(Boolean).join(', ');
   addGroup('meta', '场景元数据', [
     `用例 ID: ${caseId || toText(summary.caseId) || '未知'}`,
     `世界 ID: ${toText(summary.worldId) || '未知'}`,
+    `类别: ${toText(summary.category) || toText((summary.scenario as Record<string, unknown> | undefined)?.category) || 'contract'}`,
+    `标签: ${tags || '无'}`,
+    `生成来源: ${toText(summary.generatedFrom) || '未知'}`,
+    `最后 Review: ${toText(summary.lastReviewedAt) || '未知'}`,
     `帧率: ${toNumber(summary.tickRate)}`,
     `加速: ${summary.accelerated === true}`
   ]);
@@ -217,6 +228,14 @@ export function buildAcceptanceAssertionGroups(summary: Record<string, unknown> 
     `已发射投射物: ${toText(result?.projectileLaunched) || '未知'}`,
     `最终帧: ${toNumber(result?.finalFrame)}`,
     `追踪节点数: ${toNumber(result?.traceNodeCount)}`
+  ]);
+
+  const coverage = summary.coverage as Record<string, unknown> | undefined;
+  addGroup('coverage', '覆盖缺口', [
+    `缺失追踪节点: ${toText(coverage?.missingTraceNodes) || '无'}`,
+    `未预期追踪节点: ${toText(coverage?.unexpectedTraceNodes) || '无'}`,
+    `缺失动作: ${toText(coverage?.missingActions) || '无'}`,
+    `缺失关系: ${toText(coverage?.missingRelationships) || '无'}`
   ]);
 
   addGroup('counts', '追踪计数', readArray(summary.traceCounts).map((item) => {

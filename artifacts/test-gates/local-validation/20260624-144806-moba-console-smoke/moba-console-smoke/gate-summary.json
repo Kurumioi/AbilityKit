@@ -1,0 +1,32 @@
+﻿{
+    "gate":  "moba-console-smoke",
+    "gatePath":  [
+                     "moba-console-smoke"
+                 ],
+    "level":  "P0",
+    "owner":  "MOBA Runtime/Presentation",
+    "status":  "Passed",
+    "startedAt":  "2026-06-24T14:48:06.3174240+08:00",
+    "endedAt":  "2026-06-24T14:48:53.8289588+08:00",
+    "elapsedSeconds":  47.512,
+    "outputDirectory":  "C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke",
+    "summaryPath":  "C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke\\gate-summary.json",
+    "failureMessage":  null,
+    "steps":  [
+                  {
+                      "name":  "Moba console smoke gate",
+                      "kind":  "dotnet-test",
+                      "project":  "C:\\Workspace\\gitProject\\AbilityKit\\src\\AbilityKit.Demo.Moba.Tests\\AbilityKit.Demo.Moba.Tests.csproj",
+                      "filter":  "Gate=MobaConsoleSmoke",
+                      "command":  "dotnet test C:\\Workspace\\gitProject\\AbilityKit\\src\\AbilityKit.Demo.Moba.Tests\\AbilityKit.Demo.Moba.Tests.csproj -c Debug -v minimal --logger trx;LogFileName=01-Moba_console_smoke_gate.trx --results-directory C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke\\test-results --no-restore --nologo --filter Gate=MobaConsoleSmoke",
+                      "status":  "Passed",
+                      "exitCode":  0,
+                      "startedAt":  "2026-06-24T14:48:06.6780990+08:00",
+                      "endedAt":  "2026-06-24T14:48:53.7881205+08:00",
+                      "elapsedSeconds":  47.11,
+                      "logFile":  "C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke\\01-Moba_console_smoke_gate.log",
+                      "resultsDirectory":  "C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke\\test-results",
+                      "trxFile":  "C:\\Workspace\\gitProject\\AbilityKit\\artifacts\\test-gates\\local-validation\\20260624-144806-moba-console-smoke\\moba-console-smoke\\test-results\\01-Moba_console_smoke_gate.trx"
+                  }
+              ]
+}

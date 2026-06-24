@@ -301,7 +301,15 @@ internal sealed record AdminSkillAcceptanceCaseListItemHttpResponse(
     [property: Id(7)] int FinalTimeMs,
     [property: Id(8)] int TraceNodeCount,
     [property: Id(9)] string SummaryPath,
-    [property: Id(10)] string TracePath);
+    [property: Id(10)] string TracePath,
+    [property: Id(11)] string? Category,
+    [property: Id(12)] string[] Tags,
+    [property: Id(13)] string? GeneratedFrom,
+    [property: Id(14)] string? LastReviewedAt,
+    [property: Id(15)] string? MissingTraceNodes,
+    [property: Id(16)] string? UnexpectedTraceNodes,
+    [property: Id(17)] string? MissingActions,
+    [property: Id(18)] string? MissingRelationships);
 
 [GenerateSerializer]
 internal sealed record AdminSkillAcceptanceCaseHttpResponse(
@@ -313,6 +321,88 @@ internal sealed record AdminSkillAcceptanceCaseHttpResponse(
     [property: Id(5)] string TracePath,
     [property: Id(6)] string[] Warnings,
     [property: Id(7)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceDeleteRequest(
+    [property: Id(0)] string? SessionToken,
+    [property: Id(1)] string? ArtifactDirectory,
+    [property: Id(2)] string[] CaseIds,
+    [property: Id(3)] string? OperatorReason);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceDeleteResponse(
+    [property: Id(0)] bool Success,
+    [property: Id(1)] string ArtifactDirectory,
+    [property: Id(2)] string[] DeletedCaseIds,
+    [property: Id(3)] string[] DeletedPaths,
+    [property: Id(4)] string[] MissingCaseIds,
+    [property: Id(5)] string[] Warnings,
+    [property: Id(6)] AdminSkillAcceptanceBatchHttpResponse Batch,
+    [property: Id(7)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceArtifactDirectoryHttpResponse(
+    [property: Id(0)] string ArtifactDirectory,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] bool Exists,
+    [property: Id(3)] bool HasBatchSummary,
+    [property: Id(4)] int CaseCount,
+    [property: Id(5)] long LastWriteUtcTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceArtifactDirectoryListHttpResponse(
+    [property: Id(0)] string ArtifactRootDirectory,
+    [property: Id(1)] AdminSkillAcceptanceArtifactDirectoryHttpResponse[] Directories,
+    [property: Id(2)] string[] Warnings,
+    [property: Id(3)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceRunRequest(
+    [property: Id(0)] string? SessionToken,
+    [property: Id(1)] string? ArtifactDirectory,
+    [property: Id(2)] string? CaseId,
+    [property: Id(3)] string? Description,
+    [property: Id(4)] int ActorId,
+    [property: Id(5)] int TargetActorId,
+    [property: Id(6)] int SkillId,
+    [property: Id(7)] int EffectId,
+    [property: Id(8)] int ProjectileId,
+    [property: Id(9)] int AreaId,
+    [property: Id(10)] int BuffId,
+    [property: Id(11)] int ShieldId,
+    [property: Id(12)] int BaseDamage,
+    [property: Id(13)] int MitigatedDamage,
+    [property: Id(14)] int ShieldAbsorb,
+    [property: Id(15)] int HpDamage,
+    [property: Id(16)] int TickRate,
+    [property: Id(17)] int DurationFrames,
+    [property: Id(18)] string? TemplateId,
+    [property: Id(19)] string? OperatorReason);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceRunResponse(
+    [property: Id(0)] bool Success,
+    [property: Id(1)] string OperationId,
+    [property: Id(2)] string ArtifactDirectory,
+    [property: Id(3)] string CaseId,
+    [property: Id(4)] string SummaryPath,
+    [property: Id(5)] string TracePath,
+    [property: Id(6)] AdminSkillAcceptanceBatchHttpResponse Batch,
+    [property: Id(7)] string[] Warnings,
+    [property: Id(8)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceTemplateHttpResponse(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] string Description,
+    [property: Id(3)] string[] Covers,
+    [property: Id(4)] AdminSkillAcceptanceRunRequest Defaults);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAcceptanceTemplateListHttpResponse(
+    [property: Id(0)] AdminSkillAcceptanceTemplateHttpResponse[] Templates,
+    [property: Id(1)] long ServerNowTicks);
 
 [GenerateSerializer]
 internal sealed record AdminSkillAcceptanceRunPlanHttpResponse(

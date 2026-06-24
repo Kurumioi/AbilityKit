@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using AbilityKit.Ability.Host;
+using AbilityKit.Demo.Moba.Console.View;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Testing;
 using Xunit;
@@ -11,6 +12,9 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 public sealed class ConsoleMobaSmokeFlowTests : ConsoleMobaSmokeTestBase
 {
     [Fact]
+    [Trait("Gate", "MobaConsoleSmoke")]
+    [Trait("Category", "Smoke")]
+    [Trait("Category", "MobaConsole")]
     public void Console_entry_full_battle_scenario_runs_through_shared_smoke_environment()
     {
         using var result = RunConsoleScenario(new FullBattleScenario { RandomSeed = 1337 });
@@ -22,6 +26,43 @@ public sealed class ConsoleMobaSmokeFlowTests : ConsoleMobaSmokeTestBase
     }
 
     [Fact]
+    [Trait("Gate", "MobaConsoleSmoke")]
+    [Trait("Category", "MobaConsole")]
+    [Trait("Category", "Presentation")]
+    public void Console_view_timeline_alignment_decision_is_testable_without_runtime()
+    {
+        var skip = ConsoleViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 8, lastAlignedFrame: 8, tickRate: 30);
+        var seek = ConsoleViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 9, lastAlignedFrame: 8, tickRate: 25);
+        var invalidTickRate = ConsoleViewTimelineRuntimeOperation.ResolveAlignment(currentFrame: 10, lastAlignedFrame: 9, tickRate: 0);
+
+        Assert.False(skip.ShouldSeek);
+        Assert.Equal(8, skip.Frame);
+        Assert.Equal(0f, skip.SecondsPerFrame);
+        Assert.True(seek.ShouldSeek);
+        Assert.Equal(9, seek.Frame);
+        Assert.Equal(0.04f, seek.SecondsPerFrame, 0.0001f);
+        Assert.True(invalidTickRate.ShouldSeek);
+        Assert.Equal(0f, invalidTickRate.SecondsPerFrame);
+    }
+
+    [Fact]
+    [Trait("Gate", "MobaConsoleSmoke")]
+    [Trait("Category", "Smoke")]
+    [Trait("Category", "MobaConsole")]
+    [Trait("Category", "Presentation")]
+    public void Console_entry_aligns_view_timeline_through_smoke_tick_path()
+    {
+        using var result = RunConsoleScenario(new FullBattleScenario { RandomSeed = 1337 });
+
+        AssertConsoleSmokePassed(result);
+        Assert.True(result.Bootstrapper.ViewTimelineRuntime.LastAlignedFrame > 0);
+        Assert.Equal(result.Bootstrapper.Context.LastFrame, result.Bootstrapper.ViewTimelineRuntime.LastAlignedFrame);
+    }
+
+    [Fact]
+    [Trait("Gate", "MobaConsoleSmoke")]
+    [Trait("Category", "Smoke")]
+    [Trait("Category", "MobaConsole")]
     public void Console_entry_skill_cast_scenario_validates_effect_trigger_context_trace_entry_path()
     {
         const int skillSlot = 1;

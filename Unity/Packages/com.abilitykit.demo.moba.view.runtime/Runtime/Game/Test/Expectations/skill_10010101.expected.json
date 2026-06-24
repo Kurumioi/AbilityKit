@@ -4,6 +4,10 @@
   "worldId": "skill_10010101_acceptance_world",
   "tickRate": 30,
   "accelerated": true,
+  "category": "golden",
+  "tags": ["golden", "core", "projectile", "representative"],
+  "generatedFrom": "manual",
+  "lastReviewedAt": "2026-06-24",
   "input": {
     "playerId": "p1",
     "slot": 1,

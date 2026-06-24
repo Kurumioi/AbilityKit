@@ -2,8 +2,46 @@
   <section id="skill-acceptance" class="card span-12 acceptance-panel">
     <div class="card-head"><div><p class="section-kicker">场景产物</p><h2>场景验收报告</h2></div><span class="badge">{{ admin.acceptanceBatch.value?.cases?.length || 0 }} 个用例</span></div>
     <div class="acceptance-toolbar row"><div><label>产物目录</label><input v-model="admin.acceptance.artifactDirectory" placeholder="artifacts/moba-acceptance" /></div><div><label>追踪上限</label><input v-model.number="admin.acceptance.traceLimit" type="number" /></div></div>
-    <div class="acceptance-filters row"><div><label>搜索用例 / 描述 / 路径</label><input v-model="admin.acceptance.searchText" placeholder="例如：projectile、damage、case id" /></div><div><label>状态过滤</label><select v-model="admin.acceptance.statusFilter"><option value="all">全部</option><option value="failed">失败优先排查</option><option value="passed">仅通过</option><option value="unknown">未知</option></select></div><div><label>排序</label><select v-model="admin.acceptance.sortKey"><option value="caseId">用例 ID</option><option value="failedFirst">失败优先</option><option value="duration">耗时</option><option value="trace">追踪数量</option><option value="status">状态</option></select></div></div>
-    <div class="actions action-bar"><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshAcceptanceArtifacts">刷新场景产物</button><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshAcceptanceRunPlan">查看执行入口边界</button></div>
+    <div class="artifact-directory-strip">
+      <article v-for="directory in admin.acceptanceArtifactDirectories.value?.directories || []" :key="directory.artifactDirectory" class="artifact-directory-card" :class="{ active: directory.artifactDirectory === admin.acceptance.artifactDirectory, missing: !directory.exists }" @click="admin.selectAcceptanceArtifactDirectory(directory.artifactDirectory)">
+        <strong>{{ directory.displayName || directory.artifactDirectory }}</strong>
+        <small>{{ directory.artifactDirectory }}</small>
+        <span>{{ directory.exists ? `${directory.caseCount} 个用例 / ${directory.hasBatchSummary ? '有批次' : '无批次'}` : '目录缺失' }}</span>
+      </article>
+    </div>
+    <div class="acceptance-filters row"><div><label>搜索用例 / 描述 / 路径 / 标签</label><input v-model="admin.acceptance.searchText" placeholder="例如：projectile、damage、case id" /></div><div><label>Category</label><select v-model="admin.acceptance.categoryFilter"><option value="">全部</option><option value="contract">contract</option><option value="golden">golden</option><option value="draft">draft</option></select></div><div><label>Tag</label><input v-model="admin.acceptance.tagFilter" placeholder="例如：buff、projectile、core" /></div><div><label>状态过滤</label><select v-model="admin.acceptance.statusFilter"><option value="all">全部</option><option value="failed">失败优先排查</option><option value="passed">仅通过</option><option value="unknown">未知</option></select></div><div><label>排序</label><select v-model="admin.acceptance.sortKey"><option value="caseId">用例 ID</option><option value="failedFirst">失败优先</option><option value="duration">耗时</option><option value="trace">追踪数量</option><option value="status">状态</option></select></div></div>
+    <div class="acceptance-runner-panel">
+      <div class="trace-section-head"><h3>后台战斗分析构建</h3><span class="badge">P1 / P2</span></div>
+      <p class="muted">先选模板，再调整角色、技能、效果、生命周期对象和伤害阶段参数；提交后会在产物目录写入 summary / trace JSONL，并自动加载查看。</p>
+      <div class="runner-template-grid">
+        <article v-for="template in admin.acceptanceTemplates.value?.templates || []" :key="template.id" class="runner-template-card" :class="{ active: template.id === admin.acceptance.selectedTemplateId }" @click="admin.applyAcceptanceTemplate(template.id)">
+          <div><strong>{{ template.displayName }}</strong><span class="badge">{{ template.id }}</span></div>
+          <p>{{ template.description }}</p>
+          <small>{{ template.covers.join(' / ') }}</small>
+        </article>
+      </div>
+      <div class="runner-form-grid">
+        <div><label>用例 ID（可空）</label><input v-model="admin.acceptance.runCaseId" placeholder="自动生成 admin_combat_..." /></div>
+        <div><label>说明</label><input v-model="admin.acceptance.runDescription" /></div>
+        <div><label>释放者</label><input v-model.number="admin.acceptance.runActorId" type="number" /></div>
+        <div><label>目标</label><input v-model.number="admin.acceptance.runTargetActorId" type="number" /></div>
+        <div><label>技能 ID</label><input v-model.number="admin.acceptance.runSkillId" type="number" /></div>
+        <div><label>效果 ID</label><input v-model.number="admin.acceptance.runEffectId" type="number" /></div>
+        <div><label>投射物 ID</label><input v-model.number="admin.acceptance.runProjectileId" type="number" /></div>
+        <div><label>区域 ID</label><input v-model.number="admin.acceptance.runAreaId" type="number" /></div>
+        <div><label>Buff ID</label><input v-model.number="admin.acceptance.runBuffId" type="number" /></div>
+        <div><label>护盾 ID</label><input v-model.number="admin.acceptance.runShieldId" type="number" /></div>
+        <div><label>基础伤害</label><input v-model.number="admin.acceptance.runBaseDamage" type="number" /></div>
+        <div><label>减免后伤害</label><input v-model.number="admin.acceptance.runMitigatedDamage" type="number" /></div>
+        <div><label>护盾吸收</label><input v-model.number="admin.acceptance.runShieldAbsorb" type="number" /></div>
+        <div><label>生命伤害</label><input v-model.number="admin.acceptance.runHpDamage" type="number" /></div>
+        <div><label>帧率</label><input v-model.number="admin.acceptance.runTickRate" type="number" /></div>
+        <div><label>持续帧</label><input v-model.number="admin.acceptance.runDurationFrames" type="number" /></div>
+      </div>
+      <label>操作原因</label><input v-model="admin.acceptance.runOperatorReason" />
+      <div v-if="admin.acceptanceLastRun.value" class="status-box"><strong>最近导出：{{ admin.acceptanceLastRun.value.caseId }}</strong><span>{{ admin.acceptanceLastRun.value.summaryPath }}</span><span>{{ admin.acceptanceLastRun.value.tracePath }}</span></div>
+    </div>
+    <div class="actions action-bar"><button class="success" :disabled="admin.busy.value" @click="admin.runAcceptanceAnalysis">构建并导出分析文件</button><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshAcceptanceArtifacts">刷新场景产物</button><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshAcceptanceRunPlan">查看执行入口边界</button></div>
     <div class="ops-status acceptance-summary"><div><span>产物目录</span><strong>{{ admin.acceptanceBatch.value?.artifactDirectory || admin.acceptance.artifactDirectory }}</strong></div><div><span>批次摘要</span><strong>{{ admin.acceptanceBatch.value?.hasBatchSummary ? '已找到' : '缺失' }}</strong></div><div><span>通过</span><strong>{{ admin.acceptancePassedCount.value }}</strong></div><div><span>失败</span><strong>{{ admin.acceptanceFailedCount.value }}</strong></div><div><span>未知</span><strong>{{ admin.acceptanceUnknownCount.value }}</strong></div><div><span>过滤后</span><strong>{{ admin.acceptanceFilteredCases.value.length }}</strong></div></div>
     <div class="acceptance-layout">
       <div class="acceptance-case-list">
@@ -11,7 +49,9 @@
         <article v-for="item in admin.acceptanceFilteredCases.value" :key="item.caseId" class="acceptance-case" :class="{ active: item.caseId === admin.acceptance.selectedCaseId, failed: item.passed === false }" @click="admin.refreshAcceptanceCase(item.caseId)">
           <div><strong>{{ item.caseId }}</strong><small>{{ item.description || item.worldId || item.summaryPath }}</small></div>
           <span class="badge" :class="item.passed === false ? 'danger' : ''">{{ item.passed === false ? '失败' : item.passed === true ? '通过' : '未知' }}</span>
+          <p><span class="badge">{{ item.category || 'contract' }}</span> {{ (item.tags || []).join(' / ') || 'no-tags' }}</p>
           <p>帧 {{ item.finalFrame }} / {{ item.finalTimeMs }}ms / 追踪 {{ item.traceNodeCount }}</p>
+          <p v-if="item.missingTraceNodes || item.missingActions || item.missingRelationships" class="muted">缺口：{{ item.missingTraceNodes || 'trace ok' }} / {{ item.missingActions || 'actions ok' }} / {{ item.missingRelationships || 'relations ok' }}</p>
         </article>
         <p v-if="!admin.acceptanceBatch.value?.cases?.length" class="muted">尚未读取到场景产物；先通过 Unity、单元测试或 CI 生成 batch_summary.json 与 *_trace.jsonl。</p>
         <p v-else-if="!admin.acceptanceFilteredCases.value.length" class="muted">当前过滤条件下没有匹配的用例。</p>

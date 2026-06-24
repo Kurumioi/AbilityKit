@@ -48,9 +48,20 @@ namespace AbilityKit.Game.Test.UnitTest
             for (var i = 0; i < expectations.Length; i++)
             {
                 var expectation = expectations[i];
-                Assert.IsTrue(
-                    Contains(records, expectation.kind, expectation.configId, expectation.underEffectId > 0 ? effectRootId : 0),
-                    $"Missing required trace node: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}.");
+                var count = Count(records, expectation.kind, expectation.configId, expectation.underEffectId > 0 ? effectRootId : 0);
+                var minCount = expectation.minCount > 0 ? expectation.minCount : 1;
+                Assert.GreaterOrEqual(
+                    count,
+                    minCount,
+                    $"Missing required trace node: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, minCount={minCount}, actualCount={count}.");
+
+                if (expectation.maxCount > 0)
+                {
+                    Assert.LessOrEqual(
+                        count,
+                        expectation.maxCount,
+                        $"Required trace node exceeds max count: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, maxCount={expectation.maxCount}, actualCount={count}.");
+                }
             }
         }
 
@@ -61,9 +72,11 @@ namespace AbilityKit.Game.Test.UnitTest
             for (var i = 0; i < expectations.Length; i++)
             {
                 var expectation = expectations[i];
-                Assert.IsFalse(
-                    Contains(records, expectation.kind, expectation.configId, expectation.underEffectId > 0 ? effectRootId : 0),
-                    $"Unexpected trace node present: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}.");
+                var count = Count(records, expectation.kind, expectation.configId, expectation.underEffectId > 0 ? effectRootId : 0);
+                Assert.AreEqual(
+                    0,
+                    count,
+                    $"Unexpected trace node present: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, actualCount={count}.");
             }
         }
 
@@ -414,18 +427,24 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static bool Contains(MobaAcceptanceTraceRecord[] records, string kind, int configId, long requiredRootId)
         {
-            if (records == null) return false;
+            return Count(records, kind, configId, requiredRootId) > 0;
+        }
 
+        private static int Count(MobaAcceptanceTraceRecord[] records, string kind, int configId, long requiredRootId)
+        {
+            if (records == null) return 0;
+
+            var count = 0;
             for (var i = 0; i < records.Length; i++)
             {
                 var record = records[i];
                 if (!KindEquals(record.kind, kind)) continue;
                 if (record.configId != configId) continue;
                 if (requiredRootId > 0 && record.rootId != requiredRootId) continue;
-                return true;
+                count++;
             }
 
-            return false;
+            return count;
         }
 
         private static long FindFirstTraceRootId(MobaAcceptanceTraceRecord[] records, string kind, int configId)

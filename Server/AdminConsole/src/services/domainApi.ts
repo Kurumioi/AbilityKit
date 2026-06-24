@@ -1,5 +1,5 @@
 import { AdminApiClient } from './adminApiClient';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState } from '../types';
+import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState } from '../types';
 
 export class AdminDashboardApi {
   public constructor(private readonly client: AdminApiClient) {}
@@ -52,8 +52,20 @@ export class AdminSkillApi {
     return this.client.request<AdminSkillAnalysisModel>('/api/admin/skills/analysis-model', undefined, 'GET');
   }
 
+  public acceptanceArtifactDirectories() {
+    return this.client.request<AdminSkillAcceptanceArtifactDirectoryList>('/api/admin/skills/acceptance/artifact-directories', undefined, 'GET');
+  }
+
+  public acceptanceTemplates() {
+    return this.client.request<AdminSkillAcceptanceTemplateList>('/api/admin/skills/acceptance/templates', undefined, 'GET');
+  }
+
   public acceptanceBatch(query: string) {
     return this.client.request<AdminSkillAcceptanceBatch>(`/api/admin/skills/acceptance/batch${query}`, undefined, 'GET');
+  }
+
+  public acceptanceRun(request: unknown) {
+    return this.client.request<AdminSkillAcceptanceRunResponse>('/api/admin/skills/acceptance/run', request);
   }
 
   public acceptanceCase(caseId: string, query: string) {
