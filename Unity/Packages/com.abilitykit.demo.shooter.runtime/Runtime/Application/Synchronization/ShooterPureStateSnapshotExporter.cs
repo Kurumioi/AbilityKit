@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterStateHashProvider _stateHashProvider;
         private readonly ISveltoWorldContext? _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
+        private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -92,7 +93,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return BuildCandidates(players, bullets, isFullBaseline, isLowFrequencyFrame, interestScope);
         }
 
-        private static ShooterPureStateCandidate[] BuildCandidates(
+        private ShooterPureStateCandidate[] BuildCandidates(
             ShooterPlayerSnapshot[] players,
             ShooterBulletSnapshot[] bullets,
             bool isFullBaseline,
@@ -110,7 +111,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     flags |= ShooterPureStateEntityFlags.LowFrequency;
                 }
 
-                var priority = CreatePlayerPriority(in player, interestScope);
+                var priority = _interestPolicy.CreatePlayerPriority(in player, interestScope);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
@@ -131,7 +132,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.KeyInteraction,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
             }
 
             for (var i = 0; i < bullets.Length; i++)
@@ -143,7 +144,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     flags |= ShooterPureStateEntityFlags.LowFrequency;
                 }
 
-                var priority = CreateBulletPriority(in bullet, interestScope);
+                var priority = _interestPolicy.CreateBulletPriority(in bullet, interestScope);
                 if (priority <= 0)
                 {
                     flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
@@ -169,7 +170,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.Combat,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
             }
 
             return candidates;
@@ -185,7 +186,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
             var projectileCollection = context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var bulletCount);
-            var candidates = new ShooterPureStateCandidate[playerCount + bulletCount];
+            var enemyCollection = context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
+            var candidates = new ShooterPureStateCandidate[playerCount + bulletCount + enemyCount];
             var index = 0;
 
             var playerOrder = _orderBuffer.CreateSortedPlayerOrder(players, playerCount);
@@ -198,7 +201,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     flags |= ShooterPureStateEntityFlags.LowFrequency;
                 }
 
-                var priority = CreatePlayerPriority(in player, interestScope);
+                var priority = _interestPolicy.CreatePlayerPriority(in player, interestScope);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
@@ -219,7 +222,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.KeyInteraction,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
             }
 
             var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(bullets, bulletCount);
@@ -232,7 +235,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     flags |= ShooterPureStateEntityFlags.LowFrequency;
                 }
 
-                var priority = CreateBulletPriority(in bullet, interestScope);
+                var priority = _interestPolicy.CreateBulletPriority(in bullet, interestScope);
                 if (priority <= 0)
                 {
                     flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
@@ -258,7 +261,54 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.Combat,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
+            }
+
+            var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
+            for (var i = 0; i < enemyCount; i++)
+            {
+                var enemyIndex = enemyOrder[i];
+                var entityId = checked((int)enemyIds[enemyIndex]);
+                var transform = enemyTransforms[enemyIndex];
+                var health = enemyHealths[enemyIndex];
+                var flags = (byte)ShooterPureStateEntityFlags.Visible;
+                if (health.Alive != 0)
+                {
+                    flags |= ShooterPureStateEntityFlags.Alive;
+                }
+
+                if (isLowFrequencyFrame && health.Alive == 0)
+                {
+                    flags |= ShooterPureStateEntityFlags.LowFrequency;
+                }
+
+                var priority = _interestPolicy.CreateEnemyPriority(in transform, in health, interestScope);
+                if (priority <= 0)
+                {
+                    flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
+                }
+
+                var entity = new ShooterPureStateEntityDelta(
+                    entityId,
+                    ShooterPackedEntityKinds.Enemy,
+                    ShooterPureStateEntityLayers.Combat,
+                    CreateDeltaKind(isFullBaseline),
+                    0,
+                    QuantizePosition(transform.X),
+                    QuantizePosition(transform.Y),
+                    QuantizeVelocity(transform.DirectionX),
+                    QuantizeVelocity(transform.DirectionY),
+                    health.Current,
+                    0,
+                    0,
+                    flags);
+                var hint = new ShooterPureStateVisibilityHint(
+                    entityId,
+                    ShooterPackedEntityKinds.Enemy,
+                    ShooterPureStateEntityLayers.Combat,
+                    flags,
+                    priority);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(transform.X, transform.Y, interestScope), entityId);
             }
 
             return candidates;

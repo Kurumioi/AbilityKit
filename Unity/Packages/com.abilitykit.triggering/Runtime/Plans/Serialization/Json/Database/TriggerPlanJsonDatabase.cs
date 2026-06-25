@@ -23,12 +23,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private static readonly TriggerPlanConverter _converter = new TriggerPlanConverter();
 
         /// <summary>
-        /// Cue 工厂接口
-        /// 负责将 JSON 中的 CueKind / CueVfxId / CueSfxId 解析为具体的 ITriggerCue 实例
+        /// Cue 工厂接口。
+        /// 负责将 JSON 中的通用 Cue 描述解析为具体的 ITriggerCue 实例。
         /// </summary>
         public interface ICueFactory
         {
-            ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId);
+            ITriggerCue Create(in TriggerCueDescriptor descriptor);
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
             private DefaultCueFactory() { }
 
-            public ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId)
+            public ITriggerCue Create(in TriggerCueDescriptor descriptor)
             {
                 return NullTriggerCue.Instance;
             }
@@ -92,19 +92,24 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public ExecutionNodeDto ExecutionRoot;
  
             /// <summary>
-            /// 表现 Cue 类型名，由 ICueFactory 解析为 ITriggerCue 实例
+            /// Cue 模板、通道或资源键。
             /// </summary>
-            public string CueKind;
+            public string CueId;
 
             /// <summary>
-            /// Cue VFX 标识（供工厂实现使用）
+            /// 主资源标识。
             /// </summary>
-            public string CueVfxId;
+            public string CuePrimaryAssetId;
 
             /// <summary>
-            /// Cue SFX 标识（供工厂实现使用）
+            /// 次资源标识。
             /// </summary>
-            public string CueSfxId;
+            public string CueSecondaryAssetId;
+
+            /// <summary>
+            /// 项目自定义扩展载荷。
+            /// </summary>
+            public string CuePayload;
         }
 
         [Serializable]
@@ -192,6 +197,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public string ExecutionPolicy;
             public int RetryMaxRetries = 3;
             public float RetryDelayMs;
+
+            public string CueId;
+            public string CuePrimaryAssetId;
+            public string CueSecondaryAssetId;
+            public string CuePayload;
         }
 
         [Serializable]
@@ -470,7 +480,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         eid = StableStringId.Get("event:" + t.EventName);
                     }
 
-                    var cue = CueFactory.Create(t.CueKind, t.CueVfxId, t.CueSfxId) ?? NullTriggerCue.Instance;
+                    var cueDescriptor = BuildCueDescriptor(t);
+                    var cue = CueFactory.Create(in cueDescriptor) ?? NullTriggerCue.Instance;
                     var plan = _converter.Convert(t, cue);
                     var executionRoot = _converter.ConvertExecutionRoot(t, dto);
                     next.Add(new Record(t.TriggerId, t.EventName, eid, NormalizeScope(t.Scope), in plan, executionRoot));
@@ -486,6 +497,18 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             _byTriggerId = byTriggerId;
             _executionRootsByTriggerId = executionRootsByTriggerId;
             _strings = strings;
+        }
+
+        private static TriggerCueDescriptor BuildCueDescriptor(TriggerPlanDto dto)
+        {
+            if (dto == null) return TriggerCueDescriptor.Empty;
+
+            return new TriggerCueDescriptor(
+                kind: dto.CueId,
+                cueId: dto.CueId,
+                primaryAssetId: dto.CuePrimaryAssetId,
+                secondaryAssetId: dto.CueSecondaryAssetId,
+                payload: dto.CuePayload);
         }
 
         private static TriggerPlanScope NormalizeScope(TriggerPlanScope scope)

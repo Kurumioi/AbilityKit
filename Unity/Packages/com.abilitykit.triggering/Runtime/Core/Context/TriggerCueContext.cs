@@ -1,5 +1,22 @@
+using AbilityKit.Triggering.Runtime.Config;
+
 namespace AbilityKit.Triggering.Runtime
 {
+    /// <summary>
+    /// 可选的 Cue 生命周期扩展数据提供者。
+    /// 事件参数实现该接口后，TriggerRunner 与行为级 Action 派发会把返回的数据写入 TriggerCueContext.CueData/CuePayload。
+    /// </summary>
+    public interface ITriggerCueDataProvider
+    {
+        bool TryGetCueData(
+            ECueLevel cueLevel,
+            ECueLifecycleStage cueStage,
+            int actionIndex,
+            in TriggerCueDescriptor cueDescriptor,
+            out object cueData,
+            out string cuePayload);
+    }
+
     /// <summary>
     /// 触发器 Cue 回调的上下文
     /// 携带触发器调度时的全部信息，供 Cue 层渲染使用
@@ -47,6 +64,24 @@ namespace AbilityKit.Triggering.Runtime
         /// <summary>打断控制句柄（可能为 null）</summary>
         public readonly ExecutionControl Control;
 
+        /// <summary>Cue 归属级别：Trigger 或 Behavior。</summary>
+        public readonly ECueLevel CueLevel;
+
+        /// <summary>当前 Cue 生命周期阶段。</summary>
+        public readonly ECueLifecycleStage CueStage;
+
+        /// <summary>行为级 Cue 对应的 Action/行为索引；非行为级阶段为 -1。</summary>
+        public readonly int ActionIndex;
+
+        /// <summary>当前生命周期回调对应的 Cue 描述。行为级 Cue 可用它覆盖触发器级默认描述。</summary>
+        public readonly TriggerCueDescriptor CueDescriptor;
+
+        /// <summary>当前生命周期回调携带的通用扩展数据。业务层可在 Cue 实现中按需转换读取。</summary>
+        public readonly object CueData;
+
+        /// <summary>当前生命周期回调携带的通用文本载荷。未显式指定时默认使用 CueDescriptor.Payload。</summary>
+        public readonly string CuePayload;
+
         public TriggerCueContext(
             int eventId,
             string eventName,
@@ -61,6 +96,46 @@ namespace AbilityKit.Triggering.Runtime
             int interruptTriggerId,
             bool interruptConditionPassed,
             ExecutionControl control)
+            : this(
+                eventId,
+                eventName,
+                args,
+                phase,
+                priority,
+                order,
+                triggerId,
+                triggerTypeName,
+                interruptReason,
+                interruptSourceName,
+                interruptTriggerId,
+                interruptConditionPassed,
+                control,
+                ECueLevel.Trigger,
+                ECueLifecycleStage.None,
+                -1)
+        {
+        }
+
+        public TriggerCueContext(
+            int eventId,
+            string eventName,
+            TCueParams args,
+            int phase,
+            int priority,
+            long order,
+            int triggerId,
+            string triggerTypeName,
+            ETriggerShortCircuitReason interruptReason,
+            string interruptSourceName,
+            int interruptTriggerId,
+            bool interruptConditionPassed,
+            ExecutionControl control,
+            ECueLevel cueLevel,
+            ECueLifecycleStage cueStage,
+            int actionIndex,
+            in TriggerCueDescriptor cueDescriptor = default,
+            object cueData = null,
+            string cuePayload = null)
         {
             EventId = eventId;
             EventName = eventName;
@@ -75,6 +150,12 @@ namespace AbilityKit.Triggering.Runtime
             InterruptTriggerId = interruptTriggerId;
             InterruptConditionPassed = interruptConditionPassed;
             Control = control;
+            CueLevel = cueLevel;
+            CueStage = cueStage;
+            ActionIndex = actionIndex;
+            CueDescriptor = cueDescriptor.IsEmpty ? TriggerCueDescriptor.Empty : cueDescriptor;
+            CueData = cueData;
+            CuePayload = cuePayload ?? CueDescriptor.Payload;
         }
     }
 
@@ -123,6 +204,24 @@ namespace AbilityKit.Triggering.Runtime
         /// <summary>打断控制句柄（可能为 null）</summary>
         public readonly ExecutionControl Control;
 
+        /// <summary>Cue 归属级别：Trigger 或 Behavior。</summary>
+        public readonly ECueLevel CueLevel;
+
+        /// <summary>当前 Cue 生命周期阶段。</summary>
+        public readonly ECueLifecycleStage CueStage;
+
+        /// <summary>行为级 Cue 对应的 Action/行为索引；非行为级阶段为 -1。</summary>
+        public readonly int ActionIndex;
+
+        /// <summary>当前生命周期回调对应的 Cue 描述。行为级 Cue 可用它覆盖触发器级默认描述。</summary>
+        public readonly TriggerCueDescriptor CueDescriptor;
+
+        /// <summary>当前生命周期回调携带的通用扩展数据。业务层可在 Cue 实现中按需转换读取。</summary>
+        public readonly object CueData;
+
+        /// <summary>当前生命周期回调携带的通用文本载荷。未显式指定时默认使用 CueDescriptor.Payload。</summary>
+        public readonly string CuePayload;
+
         public TriggerCueContext(
             int eventId,
             string eventName,
@@ -137,6 +236,46 @@ namespace AbilityKit.Triggering.Runtime
             int interruptTriggerId,
             bool interruptConditionPassed,
             ExecutionControl control)
+            : this(
+                eventId,
+                eventName,
+                args,
+                phase,
+                priority,
+                order,
+                triggerId,
+                triggerTypeName,
+                interruptReason,
+                interruptSourceName,
+                interruptTriggerId,
+                interruptConditionPassed,
+                control,
+                ECueLevel.Trigger,
+                ECueLifecycleStage.None,
+                -1)
+        {
+        }
+
+        public TriggerCueContext(
+            int eventId,
+            string eventName,
+            object args,
+            int phase,
+            int priority,
+            long order,
+            int triggerId,
+            string triggerTypeName,
+            ETriggerShortCircuitReason interruptReason,
+            string interruptSourceName,
+            int interruptTriggerId,
+            bool interruptConditionPassed,
+            ExecutionControl control,
+            ECueLevel cueLevel,
+            ECueLifecycleStage cueStage,
+            int actionIndex,
+            in TriggerCueDescriptor cueDescriptor = default,
+            object cueData = null,
+            string cuePayload = null)
         {
             EventId = eventId;
             EventName = eventName;
@@ -151,6 +290,12 @@ namespace AbilityKit.Triggering.Runtime
             InterruptTriggerId = interruptTriggerId;
             InterruptConditionPassed = interruptConditionPassed;
             Control = control;
+            CueLevel = cueLevel;
+            CueStage = cueStage;
+            ActionIndex = actionIndex;
+            CueDescriptor = cueDescriptor.IsEmpty ? TriggerCueDescriptor.Empty : cueDescriptor;
+            CueData = cueData;
+            CuePayload = cuePayload ?? CueDescriptor.Payload;
         }
     }
 }

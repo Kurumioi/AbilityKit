@@ -11,8 +11,11 @@ using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.EntitasAdapters;
+using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
@@ -187,6 +190,127 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             Assert.IsTrue(TryGetActorId(alias, out var actorId), message ?? $"Actor alias missing: {alias}");
             return actorId;
+        }
+
+        public void RegisterActorAlias(string alias, int actorId)
+        {
+            if (string.IsNullOrEmpty(alias) || actorId <= 0) return;
+            _aliasToActorId[alias] = actorId;
+        }
+
+        public bool TryGetActorEntity(int actorId, out ActorEntity entity)
+        {
+            entity = null;
+            if (actorId <= 0) return false;
+            var lookup = World.Services.Resolve<MobaActorLookupService>();
+            return lookup.TryGetActorEntity(actorId, out entity) && entity != null;
+        }
+
+        public ActorEntity AssertActorEntity(int actorId, string message = null)
+        {
+            Assert.IsTrue(TryGetActorEntity(actorId, out var entity), message ?? $"Actor entity missing: {actorId}");
+            return entity;
+        }
+
+        public ActorEntity AssertActorEntity(string alias, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return AssertActorEntity(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public int SpawnScenarioActor(
+            string alias,
+            int actorId,
+            string kind,
+            int teamId,
+            int heroId,
+            int attributeTemplateId,
+            int level,
+            int unitSubType,
+            int mainType,
+            string ownerPlayerId,
+            int ownerActorId,
+            string sourceKind,
+            int sourceId,
+            MobaAcceptanceVector3Expectation position)
+        {
+            var resolvedMainType = mainType != 0 ? (EntityMainType)mainType : EntityMainType.Unit;
+            var resolvedUnitSubType = unitSubType != 0 ? (UnitSubType)unitSubType : UnitSubType.Hero;
+            var entityKind = ResolveEntityKind(kind, resolvedMainType, resolvedUnitSubType);
+            var transform = new Transform3(ToVec3(position), Quat.Identity, Vec3.One);
+            var info = new MobaEntityInfo(
+                actorId: actorId,
+                kind: entityKind,
+                transform: transform,
+                team: (Team)(teamId > 0 ? teamId : 1),
+                mainType: resolvedMainType,
+                unitSubType: resolvedUnitSubType,
+                ownerPlayer: new PlayerId(string.IsNullOrEmpty(ownerPlayerId) ? PlayerId.Value : ownerPlayerId),
+                templateId: heroId > 0 ? heroId : 1);
+            var spec = new MobaActorBuildSpec(
+                in info,
+                ResolveBuildSourceKind(sourceKind),
+                sourceId,
+                ownerActorId);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.AllocateActorIdIfMissing = actorId <= 0;
+            request.Initializer = (entity, buildSpec) => World.Services.Resolve<ActorEntityInitPipeline>().InitializeFromAttributeTemplate(entity, attributeTemplateId > 0 ? attributeTemplateId : 1001);
+
+            var spawn = World.Services.Resolve<IMobaActorSpawnService>();
+            Assert.IsTrue(spawn.TrySpawn(in request, out var result), $"Scenario spawn_actor failed. alias={alias} actorId={actorId} error={result.Error}");
+            RegisterActorAlias(alias, result.ActorId);
+            return result.ActorId;
+        }
+
+        public void MoveScenarioActor(int actorId, MobaAcceptanceVector3Expectation position)
+        {
+            var entity = AssertActorEntity(actorId);
+            var current = entity.hasTransform ? entity.transform.Value : Transform3.Identity;
+            entity.ReplaceTransform(new Transform3(ToVec3(position), current.Rotation, current.Scale));
+        }
+
+        public void SetScenarioActorAttribute(int actorId, string property, float value)
+        {
+            var entity = AssertActorEntity(actorId);
+            var attrs = new MobaAttrs(entity);
+            if (string.Equals(property, "hp", StringComparison.OrdinalIgnoreCase))
+            {
+                attrs.Hp = value;
+                return;
+            }
+
+            if (string.Equals(property, "mana", StringComparison.OrdinalIgnoreCase))
+            {
+                attrs.Mana = value;
+                return;
+            }
+
+            Assert.IsFalse(string.IsNullOrEmpty(property), "set_attr requires property.");
+            var normalized = property.Replace(".", "_").Replace("-", "_");
+            Assert.IsTrue(Enum.TryParse(normalized, ignoreCase: true, out BattleAttributeType type) && type != BattleAttributeType.None, $"Unsupported set_attr property: {property}");
+            attrs.SetBase(type, value);
+        }
+
+        public void AddScenarioBuff(int targetActorId, int buffId, int sourceActorId, int durationOverrideMs)
+        {
+            Assert.Greater(targetActorId, 0, "add_buff requires target actor.");
+            Assert.Greater(buffId, 0, "add_buff requires buffId.");
+            var buffs = World.Services.Resolve<MobaBuffService>();
+            Assert.IsTrue(buffs.ApplyBuffImmediate(targetActorId, buffId, sourceActorId, durationOverrideMs), $"add_buff failed. targetActorId={targetActorId} buffId={buffId} sourceActorId={sourceActorId}");
+        }
+
+        public void RemoveScenarioBuff(int targetActorId, int buffId, int sourceActorId, bool removeAll)
+        {
+            Assert.Greater(targetActorId, 0, "remove_buff requires target actor.");
+            Assert.Greater(buffId, 0, "remove_buff requires buffId.");
+            var buffs = World.Services.Resolve<MobaBuffService>();
+            if (removeAll)
+            {
+                buffs.RemoveBuffsImmediate(targetActorId, buffId, sourceActorId, removeAll: true, TraceLifecycleReason.Dispelled);
+                return;
+            }
+
+            buffs.RemoveBuffImmediate(targetActorId, buffId, sourceActorId, TraceLifecycleReason.Dispelled);
         }
 
         public void Tick(int ticks)
@@ -780,6 +904,26 @@ namespace AbilityKit.Game.Test.UnitTest
         private static Vec3 ToVec3(MobaAcceptanceVector3Expectation value)
         {
             return value == null ? Vec3.Zero : new Vec3(value.x, value.y, value.z);
+        }
+
+        private static MobaEntityKind ResolveEntityKind(string kind, EntityMainType mainType, UnitSubType unitSubType)
+        {
+            if (!string.IsNullOrEmpty(kind) && Enum.TryParse(kind, ignoreCase: true, out MobaEntityKind parsed) && parsed != MobaEntityKind.Unknown)
+            {
+                return parsed;
+            }
+
+            return ActorArchetypeFactory.CreateKindFromType(mainType, unitSubType);
+        }
+
+        private static MobaActorBuildSourceKind ResolveBuildSourceKind(string sourceKind)
+        {
+            if (!string.IsNullOrEmpty(sourceKind) && Enum.TryParse(sourceKind, ignoreCase: true, out MobaActorBuildSourceKind parsed))
+            {
+                return parsed;
+            }
+
+            return MobaActorBuildSourceKind.Unknown;
         }
 
         private static SkillInputPhase ParseSkillInputPhase(string phase)

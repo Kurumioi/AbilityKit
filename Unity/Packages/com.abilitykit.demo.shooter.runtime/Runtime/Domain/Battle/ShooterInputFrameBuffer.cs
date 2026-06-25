@@ -11,16 +11,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly Dictionary<int, Dictionary<int, ShooterPlayerCommand>> _frames = new Dictionary<int, Dictionary<int, ShooterPlayerCommand>>();
         private readonly Dictionary<int, ShooterPlayerCommand> _latest = new Dictionary<int, ShooterPlayerCommand>();
         private int _oldestRetainedFrame;
+        private int _retainedFrameWindow = 120;
 
         public int OldestRetainedFrame => _oldestRetainedFrame;
 
         public IReadOnlyDictionary<int, ShooterPlayerCommand> LatestCommands => _latest;
+
+        public int RetainedFrameWindow => _retainedFrameWindow;
 
         public void Clear()
         {
             _frames.Clear();
             _latest.Clear();
             _oldestRetainedFrame = 0;
+        }
+
+        public void SetRetainedFrameWindow(int frames)
+        {
+            _retainedFrameWindow = frames < 1 ? 1 : frames;
+            TrimBefore(Math.Max(_oldestRetainedFrame, _latest.Count == 0 ? 0 : GetLatestFrame() - _retainedFrameWindow));
         }
 
         public void SetCommand(int frame, in ShooterPlayerCommand command)
@@ -158,6 +167,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _oldestRetainedFrame = frame;
+        }
+        public void TrimToWindow(int currentFrame)
+        {
+            TrimBefore(Math.Max(_oldestRetainedFrame, currentFrame - _retainedFrameWindow));
+        }
+
+        private int GetLatestFrame()
+        {
+            var latest = 0;
+            foreach (var frame in _frames.Keys)
+            {
+                if (frame > latest)
+                {
+                    latest = frame;
+                }
+            }
+
+            return latest;
         }
     }
 }

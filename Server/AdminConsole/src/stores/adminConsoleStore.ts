@@ -3,7 +3,7 @@ import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
 import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree } from '../services/skillAcceptanceAnalysis';
 import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, SkillAnalysisFlatNodeProjection } from '../types';
+import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -38,7 +38,7 @@ const skillLoadout = reactive({ heroId: 1, teamId: 1, spawnPointId: 1, level: 1,
 const skillEventFilter = reactive<{ battleId: string; actorId: number | null; skillId: number | null; limit: number }>({ battleId: '', actorId: null, skillId: null, limit: 100 });
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
 const serverOperation = reactive({ reason: '后台控制台操作' });
-const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
+const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', selectedCaseIds: [] as string[], traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const selectedAcceptanceAnalysisNodeKey = ref('');
@@ -67,6 +67,8 @@ const acceptancePassedCount = computed(() => acceptanceBatch.value?.cases?.filte
 const acceptanceFailedCount = computed(() => acceptanceBatch.value?.cases?.filter(x => x.passed === false).length || 0);
 const acceptanceUnknownCount = computed(() => acceptanceBatch.value?.cases?.filter(x => x.passed !== true && x.passed !== false).length || 0);
 const acceptanceFilteredCases = computed(() => filterAcceptanceCases(acceptanceBatch.value?.cases || [], acceptance));
+const acceptanceSelectedCount = computed(() => acceptance.selectedCaseIds.length);
+const acceptanceAllFilteredSelected = computed(() => acceptanceFilteredCases.value.length > 0 && acceptanceFilteredCases.value.every(item => acceptance.selectedCaseIds.includes(item.caseId)));
 const acceptanceTracePreview = computed(() => acceptanceCase.value?.traceRecords?.slice(0, 80) || []);
 const acceptanceTraceTree = computed(() => buildAcceptanceTraceTree(acceptanceCase.value?.traceRecords || []));
 const acceptanceTraceFlat = computed(() => flattenAcceptanceTraceTree(acceptanceTraceTree.value));
@@ -215,7 +217,9 @@ async function refreshAcceptanceBatch(): Promise<void> {
   const data = await call<AdminSkillAcceptanceBatch>(apis.skills.acceptanceBatch(buildQuery({ artifactDirectory: acceptance.artifactDirectory })));
   if (!data) return;
   acceptanceBatch.value = data;
-  if (!acceptance.selectedCaseId && data.cases?.length) acceptance.selectedCaseId = data.cases[0].caseId;
+  const caseIds = new Set((data.cases || []).map(item => item.caseId));
+  acceptance.selectedCaseIds = acceptance.selectedCaseIds.filter(caseId => caseIds.has(caseId));
+  if (!acceptance.selectedCaseId || !caseIds.has(acceptance.selectedCaseId)) acceptance.selectedCaseId = data.cases?.[0]?.caseId || '';
 }
 
 async function refreshAcceptanceCase(caseId = acceptance.selectedCaseId): Promise<void> {
@@ -274,10 +278,51 @@ async function refreshAcceptanceArtifacts(): Promise<void> {
   if (acceptance.selectedCaseId) await refreshAcceptanceCase(acceptance.selectedCaseId);
 }
 
+function isAcceptanceCaseSelected(caseId: string): boolean {
+  return acceptance.selectedCaseIds.includes(caseId);
+}
+
+function toggleAcceptanceCaseSelection(caseId: string): void {
+  if (!caseId) return;
+  if (isAcceptanceCaseSelected(caseId)) {
+    acceptance.selectedCaseIds = acceptance.selectedCaseIds.filter(item => item !== caseId);
+    return;
+  }
+
+  acceptance.selectedCaseIds = [...acceptance.selectedCaseIds, caseId];
+}
+
+function selectAllFilteredAcceptanceCases(): void {
+  acceptance.selectedCaseIds = acceptanceFilteredCases.value.map(item => item.caseId);
+}
+
+function clearAcceptanceCaseSelection(): void {
+  acceptance.selectedCaseIds = [];
+}
+
+async function deleteAcceptanceCases(caseIds = acceptance.selectedCaseIds): Promise<void> {
+  const requestedCaseIds = [...new Set((caseIds || []).map(caseId => caseId.trim()).filter(Boolean))];
+  if (!requestedCaseIds.length) return;
+  const data = await call<AdminSkillAcceptanceDeleteResponse>(apis.skills.acceptanceDelete({ sessionToken: sessionToken.value || null, artifactDirectory: acceptance.artifactDirectory, caseIds: requestedCaseIds, operatorReason: acceptance.runOperatorReason || null }));
+  if (!data) return;
+  acceptanceBatch.value = data.batch;
+  acceptance.selectedCaseIds = acceptance.selectedCaseIds.filter(caseId => !data.deletedCaseIds.includes(caseId));
+  if (acceptance.selectedCaseId && data.deletedCaseIds.includes(acceptance.selectedCaseId)) {
+    acceptance.selectedCaseId = data.batch.cases?.[0]?.caseId || '';
+  }
+  if (acceptance.selectedCaseId) await refreshAcceptanceCase(acceptance.selectedCaseId);
+}
+
+async function deleteAcceptanceCase(caseId: string): Promise<void> {
+  if (!caseId) return;
+  await deleteAcceptanceCases([caseId]);
+}
+
 function selectAcceptanceArtifactDirectory(value: string): void {
   if (!value) return;
   acceptance.artifactDirectory = value;
   acceptance.selectedCaseId = '';
+  acceptance.selectedCaseIds = [];
   acceptanceCase.value = null;
 }
 
@@ -555,6 +600,8 @@ export function useAdminConsoleStore() {
     acceptanceFailedCount,
     acceptanceUnknownCount,
     acceptanceFilteredCases,
+    acceptanceSelectedCount,
+    acceptanceAllFilteredSelected,
     acceptanceTracePreview,
     acceptanceTraceTree,
     acceptanceTraceFlat,
@@ -576,6 +623,12 @@ export function useAdminConsoleStore() {
     skillAnalysisModelNotes,
     selectAcceptanceAnalysisNode,
     selectRuntimeAnalysisNode,
+    isAcceptanceCaseSelected,
+    toggleAcceptanceCaseSelection,
+    selectAllFilteredAcceptanceCases,
+    clearAcceptanceCaseSelection,
+    deleteAcceptanceCases,
+    deleteAcceptanceCase,
     formatBytes,
     formatDuration,
     applyGameplayDefaults,

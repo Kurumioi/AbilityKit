@@ -283,24 +283,30 @@ public sealed class GatewayAdminConsoleTests
         var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
         var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
         var artifacts = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAcceptanceArtifacts.cs"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var panel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillAcceptancePanel.vue"));
 
         Assert.Contains("/skills/acceptance/artifact-directories", api);
         Assert.Contains("/skills/acceptance/templates", api);
         Assert.Contains("/skills/acceptance/batch", api);
         Assert.Contains("/skills/acceptance/cases/{caseId}", api);
         Assert.Contains("/skills/acceptance/run", api);
+        Assert.Contains("/skills/acceptance/delete", api);
         Assert.Contains("/skills/acceptance/run-plan", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceArtifactDirectories", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceTemplates", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceBatch", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceCase", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceRun", api);
+        Assert.Contains("Gateway.AdminSkillAcceptanceDelete", api);
         Assert.Contains("Gateway.AdminSkillAcceptanceRunPlan", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.ListArtifactDirectories", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.GetTemplates", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.GetBatch", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.GetCase", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.Run", api);
+        Assert.Contains("GatewaySkillAcceptanceArtifacts.Delete", api);
         Assert.Contains("GatewaySkillAcceptanceArtifacts.GetRunPlan", api);
         Assert.Contains("AdminApiErrorHttpResponse", models);
         Assert.Contains("AdminSkillAcceptanceBatchHttpResponse", models);
@@ -310,6 +316,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("AdminSkillAcceptanceArtifactDirectoryListHttpResponse", models);
         Assert.Contains("AdminSkillAcceptanceRunRequest", models);
         Assert.Contains("AdminSkillAcceptanceRunResponse", models);
+        Assert.Contains("AdminSkillAcceptanceDeleteRequest", models);
+        Assert.Contains("AdminSkillAcceptanceDeleteResponse", models);
         Assert.Contains("AdminSkillAcceptanceTemplateHttpResponse", models);
         Assert.Contains("AdminSkillAcceptanceTemplateListHttpResponse", models);
         Assert.Contains("AdminSkillAcceptanceRunPlanHttpResponse", models);
@@ -324,6 +332,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("ListArtifactDirectories", artifacts);
         Assert.Contains("GetTemplates", artifacts);
         Assert.Contains("Run(AdminSkillAcceptanceRunRequest request)", artifacts);
+        Assert.Contains("Delete(AdminSkillAcceptanceDeleteRequest request)", artifacts);
+        Assert.Contains("DeleteArtifactFile", artifacts);
         Assert.Contains("BuildTemplate", artifacts);
         Assert.Contains("BuildGeneratedSummary", artifacts);
         Assert.Contains("BuildGeneratedTraceRecords", artifacts);
@@ -344,6 +354,15 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("ReadTraceRecords", artifacts);
         Assert.Contains("ReadStringArray", artifacts);
         Assert.Contains("ReadNullableBool", artifacts);
+        Assert.Contains("/api/admin/skills/acceptance/delete", domainApi);
+        Assert.Contains("AdminSkillAcceptanceDeleteResponse", domainApi);
+        Assert.Contains("selectedCaseIds", store);
+        Assert.Contains("toggleAcceptanceCaseSelection", store);
+        Assert.Contains("deleteAcceptanceCases", store);
+        Assert.Contains("deleteAcceptanceCase", store);
+        Assert.Contains("全选过滤结果", panel);
+        Assert.Contains("删除选中", panel);
+        Assert.Contains("刷新列表", panel);
     }
 
     [Fact]

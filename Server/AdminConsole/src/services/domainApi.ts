@@ -1,5 +1,5 @@
 import { AdminApiClient } from './adminApiClient';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState } from '../types';
+import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState } from '../types';
 
 export class AdminDashboardApi {
   public constructor(private readonly client: AdminApiClient) {}
@@ -62,6 +62,10 @@ export class AdminSkillApi {
 
   public acceptanceBatch(query: string) {
     return this.client.request<AdminSkillAcceptanceBatch>(`/api/admin/skills/acceptance/batch${query}`, undefined, 'GET');
+  }
+
+  public acceptanceDelete(request: unknown) {
+    return this.client.request<AdminSkillAcceptanceDeleteResponse>('/api/admin/skills/acceptance/delete', request);
   }
 
   public acceptanceRun(request: unknown) {

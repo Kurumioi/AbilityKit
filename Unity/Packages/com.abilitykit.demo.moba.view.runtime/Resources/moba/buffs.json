@@ -19,11 +19,11 @@
   {
     "Id": 101,
     "Name": "持续掉血buff",
-    "DurationMs": 2000,
+    "DurationMs": 5000,
     "OngoingEffectId": 101,
     "OnAddEffects": [],
     "OnRemoveEffects": [],
-    "OnIntervalEffects": [10101],
+    "OnIntervalEffects": [],
     "IntervalMs": 1000,
     "StackingPolicy": 0,
     "RefreshPolicy": 1,
@@ -46,5 +46,37 @@
         "Priority": 10
       }
     ]
+  },
+  {
+    "Id": 10020001,
+    "Name": "小乔-治愈微笑-短暂加速占位",
+    "DurationMs": 2000,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [],
+    "Modifiers": []
+  },
+  {
+    "Id": 10020301,
+    "Name": "小乔-星华缭乱-持续落星状态",
+    "DurationMs": 5000,
+    "OngoingEffectId": 20020301,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [10020311],
+    "IntervalMs": 1000,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [],
+    "Modifiers": []
   }
 ]

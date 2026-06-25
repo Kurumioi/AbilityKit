@@ -6,10 +6,33 @@ namespace AbilityKit.Triggering.Runtime.Config
     public enum ECueKind : byte
     {
         None = 0,
-        Vfx = 1,
-        Sfx = 2,
-        VfxSfx = 3,
-        Custom = 4,
+        Descriptor = 1,
+    }
+
+    /// <summary>
+    /// Cue 归属级别。
+    /// Trigger 级别绑定一次触发器调度生命周期；Behavior 级别绑定具体行为/Action 生命周期。
+    /// </summary>
+    public enum ECueLevel : byte
+    {
+        None = 0,
+        Trigger = 1,
+        Behavior = 2,
+    }
+
+    /// <summary>
+    /// Cue 生命周期阶段。
+    /// 仅表达触发器框架自身会派发的通用生命周期；业务特定生命周期应由业务层通过 CueData/CuePayload 扩展。
+    /// </summary>
+    public enum ECueLifecycleStage : byte
+    {
+        None = 0,
+        ConditionPassed = 1,
+        ConditionFailed = 2,
+        BeforeAction = 3,
+        Executed = 4,
+        Interrupted = 5,
+        Skipped = 6,
     }
 
     /// <summary>

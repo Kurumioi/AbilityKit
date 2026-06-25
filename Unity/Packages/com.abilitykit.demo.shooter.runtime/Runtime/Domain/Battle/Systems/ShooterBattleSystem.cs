@@ -84,24 +84,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
     }
 
-    internal sealed class ShooterPlayerBotAiBattleSystem : IShooterBattleSystem
+    internal sealed class ShooterBotAiServiceBattleSystem : IShooterBattleSystem
     {
-        private readonly ShooterBotAiSystem _botAiSystem;
+        private readonly IShooterBotAiRuntime _botAiRuntime;
 
-        public ShooterPlayerBotAiBattleSystem(IShooterBattleServiceResolver services)
+        public ShooterBotAiServiceBattleSystem(IShooterBattleServiceResolver services)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
 
-            _botAiSystem = services.Resolve<ShooterBotAiSystem>();
+            _botAiRuntime = services.Resolve<IShooterBotAiRuntime>();
         }
 
         public int Order => ShooterBattleSystemOrder.PlayerBotAi;
 
-        public string name => nameof(ShooterPlayerBotAiBattleSystem);
+        public string name => nameof(ShooterBotAiServiceBattleSystem);
 
         public void Step(in float deltaTime)
         {
-            _botAiSystem.Tick(deltaTime);
+            _botAiRuntime.Tick(deltaTime);
         }
     }
 

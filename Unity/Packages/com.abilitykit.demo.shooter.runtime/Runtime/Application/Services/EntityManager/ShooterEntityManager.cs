@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterEntityLimitOptions _limits;
         private readonly HashSet<int> _playerIds = new HashSet<int>();
         private readonly HashSet<int> _projectileIds = new HashSet<int>();
+        private readonly HashSet<int> _enemyIds = new HashSet<int>();
         private int _structuralChangeDepth;
         private bool _hasPendingStructuralChanges;
 
@@ -38,9 +39,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public int ProjectileCount => _projectileIds.Count;
 
+        public int EnemyCount => _enemyIds.Count;
+
         public IReadOnlyCollection<int> PlayerIds => _playerIds;
 
         public IReadOnlyCollection<int> ProjectileIds => _projectileIds;
+
+        public IReadOnlyCollection<int> EnemyIds => _enemyIds;
 
         public void Clear()
         {
@@ -57,8 +62,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 removed = true;
             }
 
+            if (_context.EntitiesDB.ExistsAndIsNotEmpty(ShooterSveltoGroups.GameplayTargets))
+            {
+                _context.EntityFunctions.RemoveEntitiesFromGroup(ShooterSveltoGroups.GameplayTargets);
+                removed = true;
+            }
+
             _playerIds.Clear();
             _projectileIds.Clear();
+            _enemyIds.Clear();
 
             if (removed)
             {
@@ -253,9 +265,93 @@ namespace AbilityKit.Demo.Shooter.Runtime
             SubmitStructuralChanges();
         }
 
+        public bool HasEnemy(int enemyId)
+        {
+            return _enemyIds.Contains(enemyId);
+        }
+
+        public bool TryGetEnemy(int enemyId, out ShooterSveltoTransformComponent transform, out ShooterSveltoHealthComponent health)
+        {
+            transform = default;
+            health = default;
+            if (!_enemyIds.Contains(enemyId))
+            {
+                return false;
+            }
+
+            var entityId = (uint)enemyId;
+            if (!_context.EntitiesDB.TryQueryMappedEntities<ShooterSveltoTransformComponent>(ShooterSveltoGroups.GameplayTargets, out var transformMapper) ||
+                !_context.EntitiesDB.TryQueryMappedEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets, out var healthMapper))
+            {
+                return false;
+            }
+
+            transform = transformMapper.Entity(entityId);
+            health = healthMapper.Entity(entityId);
+            return true;
+        }
+
+        public void AddEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health)
+        {
+            if (enemyId <= 0)
+            {
+                return;
+            }
+
+            if (_enemyIds.Contains(enemyId))
+            {
+                SetEnemy(enemyId, in transform, in health);
+                return;
+            }
+
+            if (IsEntityBudgetFull())
+            {
+                return;
+            }
+
+            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, (uint)enemyId, in transform, in health);
+            _enemyIds.Add(enemyId);
+            SubmitStructuralChanges();
+        }
+
+        public void SetEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health)
+        {
+            if (enemyId <= 0)
+            {
+                return;
+            }
+
+            if (!_enemyIds.Contains(enemyId))
+            {
+                AddEnemy(enemyId, in transform, in health);
+                return;
+            }
+
+            var entityId = (uint)enemyId;
+            if (!_context.EntitiesDB.TryQueryMappedEntities<ShooterSveltoTransformComponent>(ShooterSveltoGroups.GameplayTargets, out var transformMapper) ||
+                !_context.EntitiesDB.TryQueryMappedEntities<ShooterSveltoHealthComponent>(ShooterSveltoGroups.GameplayTargets, out var healthMapper))
+            {
+                return;
+            }
+
+            transformMapper.Entity(entityId) = transform;
+            healthMapper.Entity(entityId) = health;
+        }
+
+        public void RemoveEnemy(int enemyId)
+        {
+            if (!_enemyIds.Remove(enemyId))
+            {
+                return;
+            }
+
+            _context.EntityFunctions.RemoveEntity<ShooterSveltoGameplayTargetDescriptor>((uint)enemyId, ShooterSveltoGroups.GameplayTargets);
+            SubmitStructuralChanges();
+        }
+
         private bool IsEntityBudgetFull()
         {
-            return PlayerCount + ProjectileCount >= MaxEntityCount;
+            return PlayerCount + ProjectileCount + EnemyCount >= MaxEntityCount;
         }
     }
 }

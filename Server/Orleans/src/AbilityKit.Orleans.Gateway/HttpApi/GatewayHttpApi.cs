@@ -288,6 +288,13 @@ internal static class GatewayHttpApi
             .Produces<AdminSkillAcceptanceRunResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest);
 
+        group.MapPost("/skills/acceptance/delete", (AdminSkillAcceptanceDeleteRequest request) =>
+            GatewaySkillAcceptanceArtifacts.Delete(request))
+            .WithName("Gateway.AdminSkillAcceptanceDelete")
+            .Accepts<AdminSkillAcceptanceDeleteRequest>("application/json")
+            .Produces<AdminSkillAcceptanceDeleteResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest);
+
         group.MapGet("/skills/acceptance/cases/{caseId}", (string caseId, string? artifactDirectory, int? traceLimit) =>
             GatewaySkillAcceptanceArtifacts.GetCase(caseId, artifactDirectory, traceLimit))
             .WithName("Gateway.AdminSkillAcceptanceCase")

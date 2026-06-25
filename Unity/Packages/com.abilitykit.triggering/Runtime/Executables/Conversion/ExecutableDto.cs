@@ -175,9 +175,10 @@ namespace AbilityKit.Triggering.Runtime.Executable
         public int InterruptPriority;
         public ConditionConfig Predicate;
         public List<ExecutableConfig> Executables;
-        public string CueKind;
-        public string CueVfxId;
-        public string CueSfxId;
+        public string CueId;
+        public string CuePrimaryAssetId;
+        public string CueSecondaryAssetId;
+        public string CuePayload;
     }
 
     /// <summary>

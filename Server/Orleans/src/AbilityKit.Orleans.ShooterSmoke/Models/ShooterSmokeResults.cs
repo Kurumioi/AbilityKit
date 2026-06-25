@@ -95,4 +95,17 @@ internal readonly record struct ShooterSmokeResult(
     int ReconnectProjectionComponentUpdates,
     int ReconnectProjectionFinalEntityCount,
     int ReconnectProjectionFinalPlayerCount,
-    int ReconnectProjectionFinalBulletCount);
+    int ReconnectProjectionFinalBulletCount,
+    int GameplayStartFrame,
+    int GameplayFinalFrame,
+    ShooterBattleMatchState GameplayFinalMatchState,
+    bool GameplayMatchFinal,
+    bool GameplayMatchVictory,
+    int GameplayMatchCompletedFrame,
+    int GameplayDefeatedEnemies,
+    int GameplayVictoryTargetDefeats,
+    int GameplayTimeLimitFrames,
+    int GameplayRemainingTimeFrames,
+    bool GameplayMoved,
+    bool GameplayFired,
+    bool GameplayDefeatedEnemy);

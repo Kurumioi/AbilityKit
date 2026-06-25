@@ -80,16 +80,54 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
     public readonly struct ShooterSveltoGameplayBattleFlowConfig
     {
+        public const int DefaultEnemyLoadoutId = 100;
+        public const int DefaultEnemyAttackIntervalFrames = 12;
+        public const int DefaultEnemyAttackDamage = 1;
+        public const float DefaultEnemyProjectileSpeedScale = 0.55f;
+        public const int DefaultEnemyProjectilesPerShot = 1;
+        public const float DefaultEnemySpreadDegrees = 0f;
+
         public ShooterSveltoGameplayBattleFlowConfig(
             int durationFrames,
             int victoryTargetDefeats,
             int maxActiveEnemies,
             ShooterSveltoGameplayWaveConfig[] waves)
+            : this(
+                durationFrames,
+                victoryTargetDefeats,
+                maxActiveEnemies,
+                waves,
+                DefaultEnemyLoadoutId,
+                DefaultEnemyAttackIntervalFrames,
+                DefaultEnemyAttackDamage,
+                DefaultEnemyProjectileSpeedScale,
+                DefaultEnemyProjectilesPerShot,
+                DefaultEnemySpreadDegrees)
+        {
+        }
+
+        public ShooterSveltoGameplayBattleFlowConfig(
+            int durationFrames,
+            int victoryTargetDefeats,
+            int maxActiveEnemies,
+            ShooterSveltoGameplayWaveConfig[] waves,
+            int enemyLoadoutId,
+            int enemyAttackIntervalFrames,
+            int enemyAttackDamage,
+            float enemyProjectileSpeedScale,
+            int enemyProjectilesPerShot,
+            float enemySpreadDegrees)
         {
             DurationFrames = durationFrames < 1 ? 1 : durationFrames;
             VictoryTargetDefeats = victoryTargetDefeats < 1 ? 1 : victoryTargetDefeats;
             MaxActiveEnemies = maxActiveEnemies < 1 ? 1 : maxActiveEnemies;
             Waves = waves is { Length: > 0 } ? (ShooterSveltoGameplayWaveConfig[])waves.Clone() : DefaultWaves();
+            EnemyLoadoutId = enemyLoadoutId < 1 ? DefaultEnemyLoadoutId : enemyLoadoutId;
+            EnemyAttackIntervalFrames = enemyAttackIntervalFrames < 1 ? DefaultEnemyAttackIntervalFrames : enemyAttackIntervalFrames;
+            EnemyAttackDamage = enemyAttackDamage < 1 ? DefaultEnemyAttackDamage : enemyAttackDamage;
+            EnemyProjectileSpeedScale = enemyProjectileSpeedScale <= 0f ? DefaultEnemyProjectileSpeedScale : enemyProjectileSpeedScale;
+            EnemyProjectilesPerShot = enemyProjectilesPerShot < 1 ? DefaultEnemyProjectilesPerShot : enemyProjectilesPerShot;
+            EnemySpreadDegrees = enemySpreadDegrees < 0f ? DefaultEnemySpreadDegrees : enemySpreadDegrees;
         }
 
         public int DurationFrames { get; }
@@ -99,6 +137,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int MaxActiveEnemies { get; }
 
         public ShooterSveltoGameplayWaveConfig[] Waves { get; }
+
+        public int EnemyLoadoutId { get; }
+
+        public int EnemyAttackIntervalFrames { get; }
+
+        public int EnemyAttackDamage { get; }
+
+        public float EnemyProjectileSpeedScale { get; }
+
+        public int EnemyProjectilesPerShot { get; }
+
+        public float EnemySpreadDegrees { get; }
 
         public static ShooterSveltoGameplayBattleFlowConfig Default => ShooterSveltoGameplayScenarioJsonParser.ParseBattleFlow(ShooterSveltoGameplayScenarioJsonCatalog.DefaultBattleFlowJson);
 
@@ -264,6 +314,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
   ""durationFrames"": 120,
   ""victoryTargetDefeats"": 96,
   ""maxActiveEnemies"": 48,
+  ""enemyLoadoutId"": 100,
+  ""enemyAttackIntervalFrames"": 12,
+  ""enemyAttackDamage"": 1,
+  ""enemyProjectileSpeedScale"": 0.55,
+  ""enemyProjectilesPerShot"": 1,
+  ""enemySpreadDegrees"": 0.0,
   ""waves"": [
     { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
     { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
@@ -295,6 +351,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
     ""durationFrames"": 120,
     ""victoryTargetDefeats"": 96,
     ""maxActiveEnemies"": 48,
+    ""enemyLoadoutId"": 100,
+    ""enemyAttackIntervalFrames"": 12,
+    ""enemyAttackDamage"": 1,
+    ""enemyProjectileSpeedScale"": 0.55,
+    ""enemyProjectilesPerShot"": 1,
+    ""enemySpreadDegrees"": 0.0,
     ""waves"": [
       { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
       { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
@@ -327,6 +389,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
     ""durationFrames"": 180,
     ""victoryTargetDefeats"": 96,
     ""maxActiveEnemies"": 36,
+    ""enemyLoadoutId"": 100,
+    ""enemyAttackIntervalFrames"": 12,
+    ""enemyAttackDamage"": 1,
+    ""enemyProjectileSpeedScale"": 0.55,
+    ""enemyProjectilesPerShot"": 1,
+    ""enemySpreadDegrees"": 0.0,
     ""waves"": [
       { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
       { ""waveId"": 2, ""startFrame"": 30, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
@@ -387,6 +455,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int DurationFrames { get; set; }
         public int VictoryTargetDefeats { get; set; }
         public int MaxActiveEnemies { get; set; }
+        public int EnemyLoadoutId { get; set; }
+        public int EnemyAttackIntervalFrames { get; set; }
+        public int EnemyAttackDamage { get; set; }
+        public float EnemyProjectileSpeedScale { get; set; }
+        public int EnemyProjectilesPerShot { get; set; }
+        public float EnemySpreadDegrees { get; set; }
         public ShooterSveltoGameplayWaveDto[]? Waves { get; set; }
 
         public ShooterSveltoGameplayBattleFlowConfig ToConfig()
@@ -399,7 +473,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 DurationFrames,
                 VictoryTargetDefeats,
                 MaxActiveEnemies,
-                waves);
+                waves,
+                EnemyLoadoutId,
+                EnemyAttackIntervalFrames,
+                EnemyAttackDamage,
+                EnemyProjectileSpeedScale,
+                EnemyProjectilesPerShot,
+                EnemySpreadDegrees);
         }
     }
 

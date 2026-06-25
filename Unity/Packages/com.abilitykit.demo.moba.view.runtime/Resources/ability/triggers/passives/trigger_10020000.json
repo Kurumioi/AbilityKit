@@ -1,0 +1,26 @@
+{
+  "triggers": [
+    {
+      "id": 10020000,
+      "name": "小乔-治愈微笑-命中后移速占位",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [10020001],
+          "target_self": true
+        },
+        {
+          "type": "debug_log",
+          "message": "小乔被动触发：添加短暂移速状态（配置先行占位）",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

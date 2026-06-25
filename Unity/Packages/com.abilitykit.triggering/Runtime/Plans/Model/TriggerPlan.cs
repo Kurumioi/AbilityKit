@@ -38,7 +38,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly ActionCallPlan[] Actions;
 
         /// <summary>
-        /// 表现层 Cue（VFX / SFX / UI 反馈）
+        /// Cue 回调处理器。
         /// </summary>
         public readonly ITriggerCue Cue;
 

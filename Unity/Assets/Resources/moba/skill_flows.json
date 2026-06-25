@@ -70,5 +70,77 @@
         }
       }
     ]
+  },
+  {
+    "Id": 10020101,
+    "Name": "小乔-绽放之舞-配置先行版",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10020101, "ExecuteMode": 0, "EventTag": "xq_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10020201,
+    "Name": "小乔-甜蜜恋风-配置先行版",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 700,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10020201, "ExecuteMode": 0, "EventTag": "xq_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10020301,
+    "Name": "小乔-星华缭乱-配置先行版",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10020301, "ExecuteMode": 0, "EventTag": "xq_skill_3_cast" }
+          ]
+        }
+      }
+    ]
   }
 ]

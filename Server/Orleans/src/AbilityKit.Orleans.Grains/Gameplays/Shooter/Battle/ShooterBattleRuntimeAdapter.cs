@@ -199,10 +199,19 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             var snapshot = _runtime.GetSnapshot();
+            var matchResult = _runtime.MatchResult;
             return new BattleSnapshot
             {
                 Frame = snapshot.Frame,
-                Actors = CreateActorSnapshots(in snapshot)
+                Actors = CreateActorSnapshots(in snapshot),
+                MatchState = snapshot.MatchState,
+                MatchFinal = matchResult.IsFinal,
+                MatchVictory = matchResult.IsVictory,
+                MatchCompletedFrame = matchResult.CompletedFrame,
+                DefeatedEnemies = matchResult.DefeatedEnemies,
+                VictoryTargetDefeats = matchResult.VictoryTargetDefeats,
+                TimeLimitFrames = snapshot.TimeLimitFrames,
+                RemainingTimeFrames = snapshot.RemainingTimeFrames
             };
         }
 

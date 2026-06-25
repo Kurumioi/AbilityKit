@@ -3,10 +3,10 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Battle.View
 {
-    public sealed class BattleHudSkillAimInputMapper : MonoBehaviour
+    public sealed class BattleHudSkillAimInputMapper : IDisposable
     {
-        [SerializeField] private BattleHudInputView _hud;
-        [SerializeField] private Transform _cameraTransform;
+        private BattleHudInputView _hud;
+        private Transform _cameraTransform;
         private readonly BattleHudSkillAimInputMapperFactory _factory = new BattleHudSkillAimInputMapperFactory();
         private BattleHudCameraTransformResolver _cameraResolver;
         private BattleHudCameraPlaneInputProjector _projector;
@@ -26,34 +26,15 @@ namespace AbilityKit.Game.Battle.View
             _hudSubscription.SetHud(_hud);
 
             ResolveCameraTransform();
-            if (isActiveAndEnabled)
-            {
-                _hudSubscription.Hook();
-            }
-        }
-
-        private void Awake()
-        {
-            EnsureHudSubscription();
-            _hudSubscription.SetHud(_hud);
-            ResolveCameraTransform();
-        }
-
-        private void OnEnable()
-        {
-            EnsureHudSubscription();
-            _hudSubscription.SetHud(_hud);
             _hudSubscription.Hook();
         }
 
-        private void OnDisable()
-        {
-            _hudSubscription?.Unhook();
-        }
-
-        private void OnDestroy()
+        public void Dispose()
         {
             _hudSubscription?.Clear();
+            _hudSubscription = null;
+            _hud = null;
+            _cameraTransform = null;
         }
 
         private void ResolveCameraTransform()

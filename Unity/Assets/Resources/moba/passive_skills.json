@@ -10,5 +10,11 @@
     "Name": "被动技能-护盾",
     "CooldownMs": 10000,
     "TriggerIds": [3002]
+  },
+  {
+    "Id": 10020000,
+    "Name": "小乔-治愈微笑",
+    "CooldownMs": 0,
+    "TriggerIds": [10020000]
   }
 ]

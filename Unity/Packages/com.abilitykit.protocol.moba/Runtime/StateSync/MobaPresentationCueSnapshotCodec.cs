@@ -22,6 +22,22 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Completed = 26,
     }
 
+    public enum MobaPresentationCueReplicationMode : byte
+    {
+        None = 0,
+        ReliableForLifecycle = 1,
+        UnreliableForTick = 2,
+    }
+
+    public enum MobaPresentationCuePredictionState : byte
+    {
+        None = 0,
+        Predicted = 1,
+        ServerConfirmed = 2,
+        Corrected = 3,
+        Rejected = 4,
+    }
+
     [MemoryPackable]
     public partial struct MobaPresentationCueSnapshotEntry
     {
@@ -76,6 +92,14 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(48)] public float[] NumericParamValues;
         [MemoryPackOrder(49)] public string[] StringParamKeys;
         [MemoryPackOrder(50)] public string[] StringParamValues;
+        [MemoryPackOrder(51)] public int CueLevel;
+        [MemoryPackOrder(52)] public int CueStage;
+        [MemoryPackOrder(53)] public int ReplicationMode;
+        [MemoryPackOrder(54)] public string ReplicationId;
+        [MemoryPackOrder(55)] public int PredictionKey;
+        [MemoryPackOrder(56)] public int PredictionState;
+        [MemoryPackOrder(57)] public int PredictedFrame;
+        [MemoryPackOrder(58)] public int ConfirmedFrame;
     }
 
     [MemoryPackable]

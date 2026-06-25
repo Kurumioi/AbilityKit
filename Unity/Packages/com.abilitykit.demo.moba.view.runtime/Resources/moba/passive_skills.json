@@ -1,26 +1,20 @@
 [
   {
-    "Id": 20001,
-    "Name": "测试被动",
-    "CooldownMs": 1000,
-    "TriggerIds": [
-      20001
-    ]
+    "Id": 2001,
+    "Name": "被动技能-狂暴",
+    "CooldownMs": 0,
+    "TriggerIds": [3001]
   },
   {
-    "Id": 20002,
-    "Name": "测试被动",
+    "Id": 2002,
+    "Name": "被动技能-护盾",
     "CooldownMs": 10000,
-    "TriggerIds": [
-      20002
-    ]
+    "TriggerIds": [3002]
   },
   {
-    "Id": 20003,
-    "Name": "测试被动",
-    "CooldownMs": 10000,
-    "TriggerIds": [
-      20003
-    ]
+    "Id": 10020000,
+    "Name": "小乔-治愈微笑",
+    "CooldownMs": 0,
+    "TriggerIds": [10020000]
   }
 ]

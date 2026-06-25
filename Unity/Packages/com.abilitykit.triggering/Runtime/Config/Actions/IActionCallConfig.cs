@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Config.Cue;
 using AbilityKit.Triggering.Runtime.Config.Values;
 
 namespace AbilityKit.Triggering.Runtime.Config.Actions
@@ -12,5 +13,6 @@ namespace AbilityKit.Triggering.Runtime.Config.Actions
         ActionId ActionId { get; }
         int Arity { get; }
         IReadOnlyList<IValueRefConfig> Args { get; }
+        ICueConfig Cue { get; }
     }
 }

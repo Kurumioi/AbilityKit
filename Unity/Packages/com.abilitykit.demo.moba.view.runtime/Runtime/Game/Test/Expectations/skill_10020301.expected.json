@@ -1,0 +1,78 @@
+{
+  "caseId": "skill_10020301_xiao_qiao_ultimate_buff",
+  "description": "Xiao Qiao skill 3 casts skill 10020301 and applies configured ongoing ultimate buff 10020301 through trigger 10020301.",
+  "worldId": "skill_10020301_xiao_qiao_acceptance_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "category": "contract",
+  "tags": ["xiao-qiao", "skill-3", "buff", "ongoing", "smoke"],
+  "generatedFrom": "manual",
+  "lastReviewedAt": "2026-06-25",
+  "input": {
+    "playerId": "p1",
+    "slot": 1,
+    "phase": "Press"
+  },
+  "config": {
+    "skillId": 10020301,
+    "castFlowId": 10020301,
+    "effectId": 10020301,
+    "triggerId": 10020301,
+    "expectedActions": [
+      {
+        "actionId": -906340766,
+        "type": "add_buff"
+      },
+      {
+        "actionId": 589451731,
+        "type": "debug_log"
+      }
+    ]
+  },
+  "mustContain": [
+    {
+      "kind": "SkillCast",
+      "configId": 10020301
+    },
+    {
+      "kind": "EffectExecution",
+      "configId": 10020301
+    },
+    {
+      "kind": "EffectAction",
+      "configId": -906340766,
+      "underEffectId": 10020301
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 589451731,
+      "underEffectId": 10020301
+    },
+    {
+      "kind": "BuffApply",
+      "configId": 10020301,
+      "underEffectId": 10020301
+    }
+  ],
+  "mustNotContain": [],
+  "relationships": [
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020301,
+      "childKind": "EffectAction",
+      "childConfigId": -906340766
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020301,
+      "childKind": "EffectAction",
+      "childConfigId": 589451731
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020301,
+      "childKind": "BuffApply",
+      "childConfigId": 10020301
+    }
+  ]
+}

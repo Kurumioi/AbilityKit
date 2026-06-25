@@ -28,7 +28,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterPackedSnapshotImporter _packedSnapshotImporter;
         private readonly ShooterPackedSnapshotBytesCodec _bytesCodec;
         private readonly ShooterPureStateSnapshotExporter _pureStateSnapshotExporter;
-        private readonly ShooterBotAiSystem _botAiSystem;
+        private readonly ShooterBotAiRuntime _botAiRuntime;
+        private readonly ShooterBotAiService _botAiService;
         private readonly ShooterBattleServiceContext _services;
         private readonly ShooterBattleSveltoStepEngine _battleStepEngine;
 
@@ -38,7 +39,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits)
-            : this(entityLimits, ShooterEnemyWaveOptions.Disabled)
+            : this(entityLimits, ShooterEnemyWaveOptions.DefaultEnabled)
         {
         }
 
@@ -68,7 +69,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules)
-            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled)
+            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.DefaultEnabled)
         {
         }
 
@@ -85,7 +86,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _packedSnapshotImporter = new ShooterPackedSnapshotImporter(_state, _entities);
             _bytesCodec = new ShooterPackedSnapshotBytesCodec();
             _pureStateSnapshotExporter = new ShooterPureStateSnapshotExporter(_state, this, this, _entities);
-            _botAiSystem = new ShooterBotAiSystem(_state, _entities);
+            _botAiRuntime = new ShooterBotAiRuntime(_state, _entities);
+            _botAiService = new ShooterBotAiService(_botAiRuntime);
             _services = CreateServiceContext(_enemyWaveOptions);
             _battleStepEngine = new ShooterBattlePipelineFactory().Create(_services);
             _services.EnginesRoot.AddEngine(_battleStepEngine);
@@ -106,7 +108,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _state.Reset(in spec);
             _state.VictoryTargetDefeats = _enemyWaveOptions.VictoryTargetDefeats;
             _state.SetTimeLimitFrames(_enemyWaveOptions.DurationFrames);
-            _botAiSystem.ClearBotAi();
+            _botAiService.ClearBotAi();
 
             var players = spec.Players ?? Array.Empty<ShooterStartPlayer>();
             _entities.BeginStructuralChanges();
@@ -172,7 +174,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _battleStepEngine.Step(in deltaTime);
-            _state.InputBuffer.TrimBefore(Math.Max(0, _state.CurrentFrame - 120));
+            _state.InputBuffer.TrimToWindow(_state.CurrentFrame);
             return _state.IsStarted;
         }
 
@@ -217,21 +219,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _entities.SetPlayer(in player);
         }
 
-        public int BotAiCount => _botAiSystem.BotAiCount;
+        public int BotAiCount => _botAiService.BotAiCount;
 
         public bool MountBotAi(in ShooterBotAiMountOptions options)
         {
-            return _botAiSystem.MountBotAi(in options);
+            return _botAiService.MountBotAi(in options);
         }
 
         public bool UnmountBotAi(int playerId)
         {
-            return _botAiSystem.UnmountBotAi(playerId);
+            return _botAiService.UnmountBotAi(playerId);
         }
 
         public void ClearBotAi()
         {
-            _botAiSystem.ClearBotAi();
+            _botAiService.ClearBotAi();
         }
 
         public byte[] ExportPackedSnapshotBytes(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
@@ -251,10 +253,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 .Add(_entities)
                 .Add(_rules)
                 .Add(_simulation)
-                .Add(_botAiSystem)
+                .Add(_botAiRuntime)
+                .Add(_botAiService)
                 .Add(enemyWaveOptions)
                 .Add<IShooterSveltoWorld>(new ShooterSveltoWorld(_entities.SveltoContext))
-                .Add<IShooterBotAiPort>(_botAiSystem)
+                .Add<IShooterBotAiPort>(_botAiService)
                 .Add<IShooterBattleRuntimePort>(this)
                 .Add<IShooterGameStartPort>(this)
                 .Add<IShooterInputPort>(this)

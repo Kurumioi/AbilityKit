@@ -36,5 +36,24 @@
     "ReturnAfterMs": 1500,
     "ReturnSpeed": 40.0,
     "ReturnStopDistance": 2.0
+  },
+  {
+    "Id": 30020101,
+    "Name": "小乔-绽放之舞-扇子投射物-配置先行",
+    "VfxId": 0,
+    "Speed": 18.0,
+    "LifetimeMs": 1500,
+    "MaxDistance": 12.0,
+    "HitPolicyKind": 1,
+    "HitsRemaining": 8,
+    "HitCooldownMs": 250,
+    "TickIntervalMs": 0,
+    "OnHitEffectId": 10020111,
+    "OnSpawnVfxId": 0,
+    "OnHitVfxId": 0,
+    "OnExpireVfxId": 0,
+    "ReturnAfterMs": 0,
+    "ReturnSpeed": 0,
+    "ReturnStopDistance": 0
   }
 ]

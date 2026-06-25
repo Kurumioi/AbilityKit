@@ -13,5 +13,20 @@
     "CollisionLayerMask": 1,
     "MaxTargets": 10,
     "OnDelayTriggerIds": []
+  },
+  {
+    "Id": 40020201,
+    "Name": "小乔-甜蜜恋风-目标点击飞区域-配置先行",
+    "ModelId": 0,
+    "VfxId": 0,
+    "AttachMode": 0,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 4.0,
+    "DelayMs": 300,
+    "CollisionLayerMask": 1,
+    "MaxTargets": 10,
+    "OnDelayTriggerIds": [10020211]
   }
 ]

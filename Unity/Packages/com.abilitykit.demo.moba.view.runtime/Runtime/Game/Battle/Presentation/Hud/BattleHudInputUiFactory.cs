@@ -30,8 +30,8 @@ namespace AbilityKit.Game.Flow
 
             var inputView = inputUiRoot.AddComponent<BattleHudInputView>();
             var moveJoystick = _controls.CreateMoveJoystick(inputUiRoot.transform, canvas);
-            var moveMapper = inputUiRoot.AddComponent<BattleHudMoveInputMapper>();
-            var skillAimMapper = inputUiRoot.AddComponent<BattleHudSkillAimInputMapper>();
+            var moveMapper = new BattleHudMoveInputMapper();
+            var skillAimMapper = new BattleHudSkillAimInputMapper();
 
             var skill1 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill1);
             var skill2 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill2);

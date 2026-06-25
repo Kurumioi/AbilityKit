@@ -6,8 +6,8 @@ namespace AbilityKit.Triggering.Runtime
         void Execute(in TArgs args, in ExecCtx<TCtx> ctx);
 
         /// <summary>
-        /// 触发器的表现层 Cue（VFX / SFX / UI）
-        /// 默认返回 NullTriggerCue.Instance
+        /// 触发器的 Cue 回调处理器。
+        /// 默认返回 NullTriggerCue.Instance。
         /// </summary>
         ITriggerCue Cue => NullTriggerCue.Instance;
     }

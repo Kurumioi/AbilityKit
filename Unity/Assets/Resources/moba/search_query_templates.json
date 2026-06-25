@@ -14,5 +14,21 @@
     "Radius": 8.0,
     "MaxCount": 5,
     "ExcludeCaster": true
+  },
+  {
+    "Id": 50020201,
+    "Name": "小乔-甜蜜恋风-目标点范围查询占位",
+    "CenterMode": 1,
+    "Radius": 4.0,
+    "MaxCount": 10,
+    "ExcludeCaster": true
+  },
+  {
+    "Id": 50020301,
+    "Name": "小乔-星华缭乱-自身周围范围查询占位",
+    "CenterMode": 0,
+    "Radius": 8.0,
+    "MaxCount": 1,
+    "ExcludeCaster": true
   }
 ]

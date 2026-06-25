@@ -45,13 +45,25 @@
     <div class="ops-status acceptance-summary"><div><span>产物目录</span><strong>{{ admin.acceptanceBatch.value?.artifactDirectory || admin.acceptance.artifactDirectory }}</strong></div><div><span>批次摘要</span><strong>{{ admin.acceptanceBatch.value?.hasBatchSummary ? '已找到' : '缺失' }}</strong></div><div><span>通过</span><strong>{{ admin.acceptancePassedCount.value }}</strong></div><div><span>失败</span><strong>{{ admin.acceptanceFailedCount.value }}</strong></div><div><span>未知</span><strong>{{ admin.acceptanceUnknownCount.value }}</strong></div><div><span>过滤后</span><strong>{{ admin.acceptanceFilteredCases.value.length }}</strong></div></div>
     <div class="acceptance-layout">
       <div class="acceptance-case-list">
-        <h3>用例列表</h3>
-        <article v-for="item in admin.acceptanceFilteredCases.value" :key="item.caseId" class="acceptance-case" :class="{ active: item.caseId === admin.acceptance.selectedCaseId, failed: item.passed === false }" @click="admin.refreshAcceptanceCase(item.caseId)">
-          <div><strong>{{ item.caseId }}</strong><small>{{ item.description || item.worldId || item.summaryPath }}</small></div>
-          <span class="badge" :class="item.passed === false ? 'danger' : ''">{{ item.passed === false ? '失败' : item.passed === true ? '通过' : '未知' }}</span>
-          <p><span class="badge">{{ item.category || 'contract' }}</span> {{ (item.tags || []).join(' / ') || 'no-tags' }}</p>
-          <p>帧 {{ item.finalFrame }} / {{ item.finalTimeMs }}ms / 追踪 {{ item.traceNodeCount }}</p>
-          <p v-if="item.missingTraceNodes || item.missingActions || item.missingRelationships" class="muted">缺口：{{ item.missingTraceNodes || 'trace ok' }} / {{ item.missingActions || 'actions ok' }} / {{ item.missingRelationships || 'relations ok' }}</p>
+        <div class="acceptance-list-toolbar">
+          <h3>用例列表</h3>
+          <div class="actions">
+            <span class="badge">已选 {{ admin.acceptanceSelectedCount.value }}</span>
+            <button class="secondary" :disabled="admin.busy.value || !admin.acceptanceFilteredCases.value.length" @click="admin.selectAllFilteredAcceptanceCases">全选过滤结果</button>
+            <button class="secondary" :disabled="admin.busy.value || !admin.acceptanceSelectedCount.value" @click="admin.clearAcceptanceCaseSelection">清空选择</button>
+            <button class="danger" :disabled="admin.busy.value || !admin.acceptanceSelectedCount.value" @click="admin.deleteAcceptanceCases()">删除选中</button>
+            <button class="secondary" :disabled="admin.busy.value" @click="admin.refreshAcceptanceArtifacts">刷新列表</button>
+          </div>
+        </div>
+        <article v-for="item in admin.acceptanceFilteredCases.value" :key="item.caseId" class="acceptance-case" :class="{ active: item.caseId === admin.acceptance.selectedCaseId, selected: admin.isAcceptanceCaseSelected(item.caseId), failed: item.passed === false }" @click="admin.refreshAcceptanceCase(item.caseId)">
+          <label class="acceptance-case-select" @click.stop>
+            <input type="checkbox" :checked="admin.isAcceptanceCaseSelected(item.caseId)" @change="admin.toggleAcceptanceCaseSelection(item.caseId)" />
+          </label>
+          <div class="acceptance-case-main"><div><strong>{{ item.caseId }}</strong><small>{{ item.description || item.worldId || item.summaryPath }}</small></div><p><span class="badge">{{ item.category || 'contract' }}</span> {{ (item.tags || []).join(' / ') || 'no-tags' }}</p><p>帧 {{ item.finalFrame }} / {{ item.finalTimeMs }}ms / 追踪 {{ item.traceNodeCount }}</p><p v-if="item.missingTraceNodes || item.missingActions || item.missingRelationships" class="muted">缺口：{{ item.missingTraceNodes || 'trace ok' }} / {{ item.missingActions || 'actions ok' }} / {{ item.missingRelationships || 'relations ok' }}</p></div>
+          <div class="acceptance-case-actions">
+            <span class="badge" :class="item.passed === false ? 'danger' : ''">{{ item.passed === false ? '失败' : item.passed === true ? '通过' : '未知' }}</span>
+            <button class="danger" :disabled="admin.busy.value" @click.stop="admin.deleteAcceptanceCase(item.caseId)">删除</button>
+          </div>
         </article>
         <p v-if="!admin.acceptanceBatch.value?.cases?.length" class="muted">尚未读取到场景产物；先通过 Unity、单元测试或 CI 生成 batch_summary.json 与 *_trace.jsonl。</p>
         <p v-else-if="!admin.acceptanceFilteredCases.value.length" class="muted">当前过滤条件下没有匹配的用例。</p>

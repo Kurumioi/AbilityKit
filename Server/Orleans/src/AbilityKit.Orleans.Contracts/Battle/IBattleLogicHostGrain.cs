@@ -172,6 +172,14 @@ public class BattleSnapshot
 {
     [Id(0)] public int Frame { get; set; }
     [Id(1)] public List<ActorSnapshot> Actors { get; set; } = new();
+    [Id(2)] public int MatchState { get; set; }
+    [Id(3)] public bool MatchFinal { get; set; }
+    [Id(4)] public bool MatchVictory { get; set; }
+    [Id(5)] public int MatchCompletedFrame { get; set; }
+    [Id(6)] public int DefeatedEnemies { get; set; }
+    [Id(7)] public int VictoryTargetDefeats { get; set; }
+    [Id(8)] public int TimeLimitFrames { get; set; }
+    [Id(9)] public int RemainingTimeFrames { get; set; }
 }
 
 /// <summary>

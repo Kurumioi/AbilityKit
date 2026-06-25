@@ -1,8 +1,10 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using AbilityKit.World.ECS;
 using AbilityKit.Game.EntityCreation;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.View.Modules;
 using UnityEngine;
 
 namespace AbilityKit.Game
@@ -33,6 +35,9 @@ namespace AbilityKit.Game
         public EntityWorld World { get; private set; }
         public IEntity Root { get; private set; }
 
+        private ModuleHost<GameEntryModuleContext, IGameEntryModule> _entryModules;
+        private GameEntryModuleContext _entryModuleContext;
+
         private void Awake()
         {
             if (_instance != null && _instance != this)
@@ -57,6 +62,13 @@ namespace AbilityKit.Game
             {
                 Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
             }
+
+            _entryModuleContext = new GameEntryModuleContext(this, Root);
+            _entryModules = CreateEntryModules();
+            if (_entryModules.TrySortByDependencies())
+            {
+                _entryModules.Attach(in _entryModuleContext);
+            }
         }
 
         private void Start()
@@ -71,6 +83,9 @@ namespace AbilityKit.Game
         private void Update()
         {
             if (!Root.IsValid) return;
+
+            _entryModules?.Tick(in _entryModuleContext, Time.deltaTime);
+
             if (Root.TryGetRef<GameFlowDomain>(out var flow))
             {
                 flow.Tick(Time.deltaTime);
@@ -88,7 +103,25 @@ namespace AbilityKit.Game
 
         private void OnDestroy()
         {
+            if (_entryModules != null && _entryModules.IsAttached)
+            {
+                _entryModules.Detach(in _entryModuleContext);
+            }
+
+            _entryModules = null;
+            _entryModuleContext = default;
+
             if (_instance == this) _instance = null;
+        }
+
+        private ModuleHost<GameEntryModuleContext, IGameEntryModule> CreateEntryModules()
+        {
+            return new ModuleHost<GameEntryModuleContext, IGameEntryModule>(
+                new List<IGameEntryModule>
+                {
+                    new GameEntryBootstrap()
+                },
+                message => Debug.LogError($"[GameEntry] {message}"));
         }
 
         public T Get<T>() where T : class

@@ -166,7 +166,20 @@ namespace AbilityKit.Core.Serialization
                 args[i] = v;
             }
 
-            return model.Constructor.Invoke(args);
+            var instance = model.Constructor.Invoke(args);
+            if (model.CtorParams.Length == 0)
+            {
+                for (int i = 0; i < model.Members.Length; i++)
+                {
+                    var m = model.Members[i];
+                    if (valuesByName.TryGetValue(m.Name, out var value))
+                    {
+                        m.Setter(instance, value);
+                    }
+                }
+            }
+
+            return instance;
         }
 
         private static bool TryWriteSingleValueWrapper(BinaryWriter bw, Type type, object value)
@@ -276,9 +289,11 @@ namespace AbilityKit.Core.Serialization
                 }
             }
 
-            var finalMembers = orderedMembers
-                .Where(m => paramNames.Contains(m.Name))
-                .ToArray();
+            var finalMembers = ctorParams.Length == 0
+                ? orderedMembers
+                : orderedMembers
+                    .Where(m => paramNames.Contains(m.Name))
+                    .ToArray();
 
             return new TypeModel(type, ctor, ctorParams, finalMembers);
         }
@@ -345,23 +360,25 @@ namespace AbilityKit.Core.Serialization
             public readonly Type MemberType;
             public readonly MemberInfo MemberInfo;
             public readonly Func<object, object> Getter;
+            public readonly Action<object, object> Setter;
 
-            private MemberModel(string name, Type memberType, MemberInfo memberInfo, Func<object, object> getter)
+            private MemberModel(string name, Type memberType, MemberInfo memberInfo, Func<object, object> getter, Action<object, object> setter)
             {
                 Name = name;
                 MemberType = memberType;
                 MemberInfo = memberInfo;
                 Getter = getter;
+                Setter = setter;
             }
 
             public static MemberModel FromField(FieldInfo f)
             {
-                return new MemberModel(f.Name, f.FieldType, f, obj => f.GetValue(obj));
+                return new MemberModel(f.Name, f.FieldType, f, obj => f.GetValue(obj), (obj, value) => f.SetValue(obj, value));
             }
 
             public static MemberModel FromProperty(PropertyInfo p)
             {
-                return new MemberModel(p.Name, p.PropertyType, p, obj => p.GetValue(obj));
+                return new MemberModel(p.Name, p.PropertyType, p, obj => p.GetValue(obj), (obj, value) => p.SetValue(obj, value));
             }
         }
     }

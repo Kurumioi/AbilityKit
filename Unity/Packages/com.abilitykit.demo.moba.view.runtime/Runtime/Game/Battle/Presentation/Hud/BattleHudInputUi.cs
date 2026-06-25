@@ -45,6 +45,9 @@ namespace AbilityKit.Game.Flow
 
         public void Destroy()
         {
+            MoveMapper?.Dispose();
+            SkillAimMapper?.Dispose();
+
             if (Root != null)
             {
                 UnityEngine.Object.Destroy(Root);

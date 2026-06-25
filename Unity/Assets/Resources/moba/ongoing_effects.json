@@ -25,5 +25,14 @@
     "OnApplyEffectId": 0,
     "OnTickEffectId": 10101,
     "OnRemoveEffectId": 0
+  },
+  {
+    "Id": 20020301,
+    "Name": "小乔-星华缭乱-周期落星",
+    "DurationMs": 5000,
+    "PeriodMs": 1000,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 10020311,
+    "OnRemoveEffectId": 0
   }
 ]

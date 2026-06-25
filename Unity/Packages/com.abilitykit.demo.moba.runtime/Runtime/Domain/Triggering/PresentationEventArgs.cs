@@ -1,9 +1,11 @@
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 
 namespace AbilityKit.Demo.Moba.Triggering
 {
-    public sealed class PresentationEventArgs : IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider
+    public sealed class PresentationEventArgs : IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider, ITriggerCueDataProvider
     {
         public string EventId;
 
@@ -85,6 +87,18 @@ namespace AbilityKit.Demo.Moba.Triggering
 
             source = default;
             return false;
+        }
+        public bool TryGetCueData(
+            ECueLevel cueLevel,
+            ECueLifecycleStage cueStage,
+            int actionIndex,
+            in TriggerCueDescriptor cueDescriptor,
+            out object cueData,
+            out string cuePayload)
+        {
+            cueData = this;
+            cuePayload = RequestKey;
+            return true;
         }
     }
 }

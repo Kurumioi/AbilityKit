@@ -16,6 +16,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterEnemyWaveOptions(bool enabled, ShooterSveltoGameplayBattleFlowConfig battleFlow)
+            : this(enabled, battleFlow, battleFlow.EnemyAttackIntervalFrames, battleFlow.EnemyAttackDamage)
+        {
+        }
+
+        public ShooterEnemyWaveOptions(
+            bool enabled,
+            ShooterSveltoGameplayBattleFlowConfig battleFlow,
+            int enemyAttackIntervalFrames,
+            int enemyAttackDamage)
         {
             Enabled = enabled;
             BattleFlow = battleFlow.DurationFrames <= 0
@@ -24,6 +33,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             Waves = BattleFlow.Waves is { Length: > 0 }
                 ? (ShooterSveltoGameplayWaveConfig[])BattleFlow.Waves.Clone()
                 : Array.Empty<ShooterSveltoGameplayWaveConfig>();
+            EnemyAttackIntervalFrames = enemyAttackIntervalFrames < 1 ? 1 : enemyAttackIntervalFrames;
+            EnemyAttackDamage = enemyAttackDamage < 1 ? 1 : enemyAttackDamage;
         }
 
         public bool Enabled { get; }
@@ -37,5 +48,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int MaxActiveEnemies => BattleFlow.MaxActiveEnemies;
 
         public ShooterSveltoGameplayWaveConfig[] Waves { get; }
+
+        public int EnemyAttackIntervalFrames { get; }
+
+        public int EnemyAttackDamage { get; }
     }
 }

@@ -345,6 +345,24 @@ export interface AdminSkillAcceptanceCase {
   serverNowTicks: number;
 }
 
+export interface AdminSkillAcceptanceDeleteRequest {
+  sessionToken?: string | null;
+  artifactDirectory?: string | null;
+  caseIds: string[];
+  operatorReason?: string | null;
+}
+
+export interface AdminSkillAcceptanceDeleteResponse {
+  success: boolean;
+  artifactDirectory: string;
+  deletedCaseIds: string[];
+  deletedPaths: string[];
+  missingCaseIds: string[];
+  warnings: string[];
+  batch: AdminSkillAcceptanceBatch;
+  serverNowTicks: number;
+}
+
 export interface AdminSkillAcceptanceExecutionStrategy {
   id: string;
   displayName: string;

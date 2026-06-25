@@ -22,8 +22,9 @@
 - 支持 actor alias 到 actorId/playerId 的映射。
 - 支持时间轴按 `atMs` 驱动技能输入与等待。
 - 输入模型支持 actor、target、position、direction、phase、slot。
+- `setupActions` 已接入测试工程内命令执行器，支持第一阶段环境准备命令：`spawn_actor`、`set_attr`、`move_to`、`add_buff`、`remove_buff`、`wait` / `tick`。
 - trace exporter 会输出 scenario 相关字段，便于后续报告工具读取。
-- assertion 支持 trace/state/context 三类断言。
+- assertion 支持 trace/state/context 三类断言，并支持基础 buff 状态断言。
 - `AbilityKit.Game.UnitTests.csproj` 已通过编译验证。
 
 ## 3. 推荐测试文件组织
@@ -40,6 +41,7 @@ Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/
   UnitTest/
     MobaAcceptanceModels.cs
     MobaAcceptanceRunner.cs
+    MobaAcceptanceSetupActionExecutor.cs
     MobaAcceptanceExpectationAssert.cs
     MobaAcceptanceTraceExporter.cs
     MobaSkillConfigTestHarness.cs
@@ -118,12 +120,18 @@ Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/
 
 ## 6. SetupActions 约定
 
-`setupActions` 用于进入游戏后、timeline 执行前做一次性准备。
+`setupActions` 用于进入游戏后、timeline 执行前做一次性准备。第一阶段命令只放在测试工程内执行：runner 负责识别 setup action，`MobaAcceptanceSetupActionExecutor` 负责分发命令，实际运行时变更继续委托 `MobaSkillConfigTestHarness` 与正式 runtime service。
 
-当前建议先保持轻量，主要用于：
+当前支持命令：
 
-- 等待若干 tick/ms。
-- 未来扩展：加 buff、改属性、移动 actor、生成召唤物、设置 CD、设置资源。
+| action | 语义 | 常用字段 |
+|---|---|---|
+| `wait` / `tick` | 推进测试世界时间 | `durationMs` |
+| `spawn_actor` | 生成测试场景 actor / 召唤物 / 特殊实体，并注册 alias | `alias`、`kind`、`teamId`、`heroId`、`attributeTemplateId`、`unitSubType`、`mainType`、`sourceAlias`、`sourceKind`、`position` |
+| `set_attr` | 修改 actor 属性 | `actorAlias`、`actorId`、`targetActorId`、`property`、`value` / `intValue` |
+| `move_to` | 移动 actor 到指定位置 | `actorAlias`、`actorId`、`targetActorId`、`position` |
+| `add_buff` | 对 actor 应用 buff | `targetAlias`、`actorAlias`、`sourceAlias`、`buffId`、`durationOverrideMs` |
+| `remove_buff` | 从 actor 移除 buff | `targetAlias`、`actorAlias`、`sourceAlias`、`buffId`、`removeAll` |
 
 示例：
 
@@ -131,19 +139,28 @@ Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/
 {
   "scenario": {
     "setupActions": [
-      { "action": "wait", "durationMs": 100 }
+      { "action": "wait", "durationMs": 100 },
+      { "action": "move_to", "actorAlias": "target", "position": { "x": 4, "y": 0, "z": 0 } },
+      { "action": "set_attr", "actorAlias": "target", "property": "hp", "value": 1000 },
+      { "action": "add_buff", "targetAlias": "caster", "sourceAlias": "caster", "buffId": 1, "durationOverrideMs": 5000 },
+      {
+        "action": "spawn_actor",
+        "alias": "summon_1",
+        "teamId": 1,
+        "heroId": 1,
+        "attributeTemplateId": 1001,
+        "unitSubType": 2,
+        "mainType": 1,
+        "sourceAlias": "caster",
+        "sourceKind": "Summon",
+        "position": { "x": 2, "y": 0, "z": 3 }
+      }
     ]
   }
 }
 ```
 
-后续建议把 setup action 扩展为明确命令集，而不是直接暴露 service 细节，例如：
-
-```json
-{ "action": "set_attr", "actor": "target", "property": "hp", "value": 1000 }
-{ "action": "add_buff", "actor": "caster", "buffId": 2001001 }
-{ "action": "move_to", "actor": "target", "position": { "x": 4, "y": 0, "z": 0 } }
-```
+设计边界：setup action 是验收测试 DSL，不是生产玩法脚本。不要在 JSON 中暴露 service/method 细节，也不要在 runner 中直接堆业务分支；新增命令应优先扩展测试工程内 executor/harness。
 
 ## 7. Timeline 约定
 
@@ -275,6 +292,8 @@ trace 断言用于验证技能配置链路是否执行到了关键节点。
 | `maxHp` | 最大生命值 |
 | `maxMana` | 最大法力值 |
 | `teamId` | 队伍 ID |
+| `buff` / `hasBuff` | 是否拥有指定 buff，使用 `expectedInt` 或 `expectedValue` 表示 buffId，使用 `expectedBool` 表示期望是否存在 |
+| `buffCount` | 指定 buff 数量，使用 `expectedInt` 或 `expectedValue` 表示 buffId；不传 buffId 时统计全部 active buff |
 | `position` / `transform.position` | actor 当前位置 |
 
 当前支持 comparator：
@@ -370,7 +389,7 @@ trace 断言用于验证技能配置链路是否执行到了关键节点。
 ### P0：补齐可用性
 
 - 增加一到两个真实 scenario JSON 样例。
-- 给 `setupActions` 增加 `set_attr`、`add_buff`、`move_to`。
+- `setupActions` 第一阶段命令已落地：`spawn_actor`、`set_attr`、`move_to`、`add_buff`、`remove_buff`、`wait` / `tick`。
 - trace summary 中增加失败时的 nearest records 辅助定位。
 - runner 输出更明确的 alias、actorId、timeline 当前帧日志。
 
@@ -450,8 +469,9 @@ Web 分析模型建议长期保持以下关联字段稳定：
 | 文件 | 职责 |
 |---|---|
 | `MobaAcceptanceModels.cs` | JSON DTO / scenario DSL 数据结构 |
-| `MobaSkillConfigTestHarness.cs` | headless world 创建、actor/player alias、输入提交 |
+| `MobaSkillConfigTestHarness.cs` | headless world 创建、actor/player alias、输入提交、测试环境命令底层辅助 API |
 | `MobaAcceptanceRunner.cs` | legacy/scenario 路由、setup/timeline 执行 |
+| `MobaAcceptanceSetupActionExecutor.cs` | 测试工程内 setup action 命令分发器，承载第一阶段环境准备命令 |
 | `MobaAcceptanceExpectationAssert.cs` | trace/state/context 断言 |
 | `MobaAcceptanceTraceExporter.cs` | trace 与 summary artifact 导出 |
 | `GatewaySkillAcceptanceArtifacts.cs` | Web 后台只读 artifact 扫描、case 读取、run-plan 边界描述，包含路径约束、结构化错误与常量化文件元数据 |

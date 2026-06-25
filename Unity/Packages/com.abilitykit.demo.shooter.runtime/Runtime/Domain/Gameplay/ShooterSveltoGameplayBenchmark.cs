@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -114,6 +115,77 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public long AllocatedBytes { get; }
         public long AverageFrameTicks { get; }
         public long AverageFrameAllocatedBytes { get; }
+    }
+
+    public readonly struct ShooterCollisionBenchmarkResult
+    {
+        public ShooterCollisionBenchmarkResult(
+            int projectileCount,
+            int targetCount,
+            int iterations,
+            int linearHits,
+            int spatialHits,
+            long linearElapsedTicks,
+            long spatialElapsedTicks,
+            bool sameHitCount)
+            : this(
+                projectileCount,
+                targetCount,
+                iterations,
+                linearHits,
+                spatialHits,
+                linearElapsedTicks,
+                spatialElapsedTicks,
+                sameHitCount,
+                0,
+                0,
+                0,
+                0L)
+        {
+        }
+
+        public ShooterCollisionBenchmarkResult(
+            int projectileCount,
+            int targetCount,
+            int iterations,
+            int linearHits,
+            int spatialHits,
+            long linearElapsedTicks,
+            long spatialElapsedTicks,
+            bool sameHitCount,
+            int spatialCellCount,
+            int spatialIndexedTargetCount,
+            int spatialLargestCellOccupancy,
+            long spatialCandidateChecks)
+        {
+            ProjectileCount = projectileCount;
+            TargetCount = targetCount;
+            Iterations = iterations;
+            LinearHits = linearHits;
+            SpatialHits = spatialHits;
+            LinearElapsedTicks = linearElapsedTicks;
+            SpatialElapsedTicks = spatialElapsedTicks;
+            SameHitCount = sameHitCount;
+            SpatialCellCount = spatialCellCount;
+            SpatialIndexedTargetCount = spatialIndexedTargetCount;
+            SpatialLargestCellOccupancy = spatialLargestCellOccupancy;
+            SpatialCandidateChecks = spatialCandidateChecks;
+        }
+
+        public int ProjectileCount { get; }
+        public int TargetCount { get; }
+        public int Iterations { get; }
+        public int LinearHits { get; }
+        public int SpatialHits { get; }
+        public long LinearElapsedTicks { get; }
+        public long SpatialElapsedTicks { get; }
+        public bool SameHitCount { get; }
+        public int SpatialCellCount { get; }
+        public int SpatialIndexedTargetCount { get; }
+        public int SpatialLargestCellOccupancy { get; }
+        public long SpatialCandidateChecks { get; }
+        public long AverageSpatialCandidateChecksPerProjectile => ProjectileCount <= 0 || Iterations <= 0 ? 0L : SpatialCandidateChecks / ((long)ProjectileCount * Iterations);
+        public bool SpatialFaster => SpatialElapsedTicks < LinearElapsedTicks;
     }
 
     public readonly struct ShooterSveltoGameplayBenchmarkResult
@@ -246,6 +318,132 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 entityBudget);
         }
 
+        public static ShooterCollisionBenchmarkResult RunCollisionBroadphaseComparison(
+            int projectileCount = 4096,
+            int targetCount = 4096,
+            int iterations = 8,
+            float arenaRadius = 64f,
+            float hitRadius = 0.45f)
+        {
+            projectileCount = Math.Max(1, projectileCount);
+            targetCount = Math.Max(1, targetCount);
+            iterations = Math.Max(1, iterations);
+            arenaRadius = arenaRadius <= 0f ? 64f : arenaRadius;
+            hitRadius = hitRadius <= 0f ? ShooterBattleTuning.HitRadius : hitRadius;
+
+            var projectiles = new CollisionPoint[projectileCount];
+            var targets = new CollisionPoint[targetCount];
+            FillDeterministicCollisionPoints(projectiles, arenaRadius, phase: 17f);
+            FillDeterministicCollisionPoints(targets, arenaRadius, phase: 97f);
+
+            var linearStopwatch = Stopwatch.StartNew();
+            var linearHits = 0;
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                linearHits += CountLinearHits(projectiles, targets, hitRadius);
+            }
+
+            linearStopwatch.Stop();
+
+            var spatialStopwatch = Stopwatch.StartNew();
+            var spatialHits = 0;
+            var spatialCandidateChecks = 0L;
+            var spatialCellCount = 0;
+            var spatialIndexedTargetCount = 0;
+            var spatialLargestCellOccupancy = 0;
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                spatialHits += CountSpatialHits(
+                    projectiles,
+                    targets,
+                    hitRadius,
+                    out var iterationCellCount,
+                    out var iterationIndexedTargetCount,
+                    out var iterationLargestCellOccupancy,
+                    out var iterationCandidateChecks);
+                spatialCandidateChecks += iterationCandidateChecks;
+                spatialCellCount = iterationCellCount;
+                spatialIndexedTargetCount = iterationIndexedTargetCount;
+                spatialLargestCellOccupancy = Math.Max(spatialLargestCellOccupancy, iterationLargestCellOccupancy);
+            }
+
+            spatialStopwatch.Stop();
+
+            return new ShooterCollisionBenchmarkResult(
+                projectileCount,
+                targetCount,
+                iterations,
+                linearHits,
+                spatialHits,
+                linearStopwatch.ElapsedTicks,
+                spatialStopwatch.ElapsedTicks,
+                linearHits == spatialHits,
+                spatialCellCount,
+                spatialIndexedTargetCount,
+                spatialLargestCellOccupancy,
+                spatialCandidateChecks);
+        }
+
+        private static void FillDeterministicCollisionPoints(CollisionPoint[] points, float arenaRadius, float phase)
+        {
+            for (var i = 0; i < points.Length; i++)
+            {
+                var angle = (i * 37f + phase) * MathF.PI / 180f;
+                var radius = arenaRadius * (0.15f + (i % 23) / 28f);
+                points[i] = new CollisionPoint(MathF.Cos(angle) * radius, MathF.Sin(angle) * radius);
+            }
+        }
+
+        private static int CountLinearHits(CollisionPoint[] projectiles, CollisionPoint[] targets, float hitRadius)
+        {
+            var hits = 0;
+            var hitRadiusSq = hitRadius * hitRadius;
+            for (var i = 0; i < projectiles.Length; i++)
+            {
+                for (var targetIndex = 0; targetIndex < targets.Length; targetIndex++)
+                {
+                    var dx = targets[targetIndex].X - projectiles[i].X;
+                    var dy = targets[targetIndex].Y - projectiles[i].Y;
+                    if (dx * dx + dy * dy <= hitRadiusSq)
+                    {
+                        hits++;
+                        break;
+                    }
+                }
+            }
+
+            return hits;
+        }
+
+        private static int CountSpatialHits(
+            CollisionPoint[] projectiles,
+            CollisionPoint[] targets,
+            float hitRadius,
+            out int cellCount,
+            out int indexedTargetCount,
+            out int largestCellOccupancy,
+            out long candidateChecks)
+        {
+            var index = new CollisionPointGrid(Math.Max(hitRadius * 2f, 1f));
+            index.Rebuild(targets);
+            var hits = 0;
+            candidateChecks = 0L;
+            for (var i = 0; i < projectiles.Length; i++)
+            {
+                if (index.HasHit(projectiles[i].X, projectiles[i].Y, hitRadius, targets, out var queryCandidateChecks))
+                {
+                    hits++;
+                }
+
+                candidateChecks += queryCandidateChecks;
+            }
+
+            cellCount = index.CellCount;
+            indexedTargetCount = index.IndexedTargetCount;
+            largestCellOccupancy = index.LargestCellOccupancy;
+            return hits;
+        }
+
         private static ShooterSveltoGameplayEntityBudgetDiagnostics CreateEntityBudgetDiagnostics(
             in ShooterSveltoGameplayBenchmarkProfile profile,
             int requestedInitialEntityCount,
@@ -286,6 +484,65 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 && expected.RemainingTargetHp == actual.RemainingTargetHp
                 && expected.EnemyHits == actual.EnemyHits
                 && expected.StateHash == actual.StateHash;
+        }
+
+        private readonly struct CollisionPoint
+        {
+            public CollisionPoint(float x, float y)
+            {
+                X = x;
+                Y = y;
+            }
+
+            public float X { get; }
+            public float Y { get; }
+        }
+
+        private sealed class CollisionPointGrid
+        {
+            private readonly ShooterSpatialHashGrid _grid;
+            private readonly List<int> _candidates = new(32);
+
+            public CollisionPointGrid(float cellSize)
+            {
+                _grid = new ShooterSpatialHashGrid(cellSize);
+            }
+
+            public int CellCount => _grid.CellCount;
+
+            public int IndexedTargetCount => _grid.TotalEntries;
+
+            public int LargestCellOccupancy => _grid.LargestCellOccupancy;
+
+            public void Rebuild(CollisionPoint[] targets)
+            {
+                _grid.Clear();
+                for (var i = 0; i < targets.Length; i++)
+                {
+                    _grid.Add(targets[i].X, targets[i].Y, i);
+                }
+            }
+
+            public bool HasHit(float x, float y, float hitRadius, CollisionPoint[] targets, out int candidateChecks)
+            {
+                _candidates.Clear();
+                _grid.CollectAabb(x, y, hitRadius, _candidates);
+                candidateChecks = _candidates.Count;
+
+                var hitRadiusSq = hitRadius * hitRadius;
+                for (var i = 0; i < _candidates.Count; i++)
+                {
+                    var target = targets[_candidates[i]];
+                    var dx = target.X - x;
+                    var dy = target.Y - y;
+                    if (dx * dx + dy * dy <= hitRadiusSq)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         }
     }
 }

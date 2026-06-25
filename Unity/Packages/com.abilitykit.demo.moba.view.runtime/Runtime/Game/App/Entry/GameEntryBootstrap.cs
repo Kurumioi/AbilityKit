@@ -1,19 +1,20 @@
 using System;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.EntityCreation;
-using UnityEngine;
 
 namespace AbilityKit.Game
 {
-    public sealed class GameEntryBootstrap : MonoBehaviour
+    public sealed class GameEntryBootstrap : IGameEntryModule
     {
-        private void Start()
+        public string Id => "game.entry.bootstrap";
+
+        public void OnAttach(in GameEntryModuleContext ctx)
         {
-            if (!GameEntry.IsInitialized) return;
+            if (!ctx.Root.IsValid) return;
 
             TryInstallUnityLogSink();
 
-            var entry = GameEntry.Instance;
+            var entry = ctx.Entry;
 
             if (!entry.TryGet(out GameManager gm))
             {
@@ -24,9 +25,22 @@ namespace AbilityKit.Game
             gm.EnterGame();
 
             const int SystemsNodeId = 1;
-            var systems = EntityGenerator.CreateChild(entry.Root, SystemsNodeId, "SystemsNode");
+            var systems = entry.GetNode(SystemsNodeId);
+            if (!systems.IsValid)
+            {
+                systems = EntityGenerator.CreateChild(entry.Root, SystemsNodeId, "SystemsNode");
+            }
+
             systems.WithRef(new SystemsTag());
             systems.WithRef(new SystemsInfo());
+        }
+
+        public void OnDetach(in GameEntryModuleContext ctx)
+        {
+            if (ctx.Root.IsValid && ctx.Entry.TryGet(out GameManager gm))
+            {
+                gm.LeaveGame();
+            }
         }
 
         private static void TryInstallUnityLogSink()

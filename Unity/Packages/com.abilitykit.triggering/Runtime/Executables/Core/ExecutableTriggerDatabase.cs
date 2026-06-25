@@ -7,11 +7,12 @@ using AbilityKit.Triggering.Eventing;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
-    /// Cue 工厂接口
+    /// Cue 工厂接口。
+    /// 负责将通用 Cue 描述解析为具体的 ITriggerCue 实例。
     /// </summary>
     public interface ICueFactory
     {
-        ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId);
+        ITriggerCue Create(in TriggerCueDescriptor descriptor);
     }
 
     /// <summary>
@@ -188,7 +189,8 @@ namespace AbilityKit.Triggering.Runtime.Executable
             if (dto.Executables != null && dto.Executables.Count > 0 && _converter != null)
                 executable = _converter.ConvertToSequence(dto.Executables);
 
-            var cue = CueFactory.Create(dto.CueKind, dto.CueVfxId, dto.CueSfxId);
+            var cueDescriptor = BuildCueDescriptor(dto);
+            var cue = CueFactory.Create(in cueDescriptor);
 
             var eventId = dto.EventId;
             if (eventId == 0 && !string.IsNullOrEmpty(dto.EventName))
@@ -205,6 +207,16 @@ namespace AbilityKit.Triggering.Runtime.Executable
                 dto.InterruptPriority,
                 cue ?? NullTriggerCue.Instance);
         }
+        private static TriggerCueDescriptor BuildCueDescriptor(TriggerPlanDto dto)
+        {
+            if (dto == null) return TriggerCueDescriptor.Empty;
+            return new TriggerCueDescriptor(
+                kind: dto.CueId,
+                cueId: dto.CueId,
+                primaryAssetId: dto.CuePrimaryAssetId,
+                secondaryAssetId: dto.CueSecondaryAssetId,
+                payload: dto.CuePayload);
+        }
     }
 
     /// <summary>
@@ -216,7 +228,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
 
         private NullCueFactory() { }
 
-        public ITriggerCue Create(string cueKind, string cueVfxId, string cueSfxId)
+        public ITriggerCue Create(in TriggerCueDescriptor descriptor)
             => NullTriggerCue.Instance;
     }
 }

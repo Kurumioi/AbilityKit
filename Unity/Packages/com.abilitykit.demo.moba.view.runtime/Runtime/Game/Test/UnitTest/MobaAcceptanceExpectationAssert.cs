@@ -184,6 +184,13 @@ namespace AbilityKit.Game.Test.UnitTest
                     var teamId = (int)entity.team.Value;
                     AssertComparison(teamId, state.expectedInt != 0 ? state.expectedInt : ParseExpectedInt(state.expectedValue, teamId), comparator, BuildExpectationMessage("state", state.note, state.alias, state.actorId, "team id mismatch."));
                     return;
+                case "buff":
+                case "hasbuff":
+                    AssertComparison(HasBuff(entity, state.expectedInt != 0 ? state.expectedInt : ParseExpectedInt(state.expectedValue, 0)), state.expectedBool, comparator, BuildExpectationMessage("state", state.note, state.alias, state.actorId, "buff presence mismatch."));
+                    return;
+                case "buffcount":
+                    AssertComparison(CountBuffs(entity, state.expectedInt != 0 ? state.expectedInt : ParseExpectedInt(state.expectedValue, 0)), state.expectedInt, comparator, BuildExpectationMessage("state", state.note, state.alias, state.actorId, "buff count mismatch."));
+                    return;
                 case "position":
                 case "transform.position":
                     Assert.IsTrue(entity.hasTransform, BuildExpectationMessage("state", state.note, state.alias, state.actorId, "transform component missing."));
@@ -239,6 +246,26 @@ namespace AbilityKit.Game.Test.UnitTest
         private static MobaAttrs GetAttr(global::ActorEntity entity)
         {
             return new MobaAttrs(entity);
+        }
+
+        private static bool HasBuff(global::ActorEntity entity, int buffId)
+        {
+            return CountBuffs(entity, buffId) > 0;
+        }
+
+        private static int CountBuffs(global::ActorEntity entity, int buffId)
+        {
+            if (entity == null || !entity.hasBuffs || entity.buffs.Active == null) return 0;
+            var count = 0;
+            for (var i = 0; i < entity.buffs.Active.Count; i++)
+            {
+                var runtime = entity.buffs.Active[i];
+                if (runtime == null) continue;
+                if (buffId > 0 && runtime.BuffId != buffId) continue;
+                count++;
+            }
+
+            return count;
         }
 
         private static void AssertComparison(int actual, int expected, string comparator, string message)

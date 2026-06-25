@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -60,13 +61,40 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         private void Execute(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
         {
-            if (_useNamedArgs[index])
+            var behaviorCue = !call.Cue.IsEmpty && _plan.Cue != null ? _plan.Cue : null;
+            if (behaviorCue != null)
             {
-                ExecuteNamed(in args, in call, in ctx, index);
-                return;
+                var beforeContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.BeforeAction);
+                behaviorCue.OnBeforeAction(in beforeContext, index);
             }
 
-            ExecutePositional(in args, in call, in ctx, index);
+            try
+            {
+                if (_useNamedArgs[index])
+                {
+                    ExecuteNamed(in args, in call, in ctx, index);
+                }
+                else
+                {
+                    ExecutePositional(in args, in call, in ctx, index);
+                }
+            }
+            catch
+            {
+                if (behaviorCue != null)
+                {
+                    var interruptedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Interrupted);
+                    behaviorCue.OnInterrupted(in interruptedContext);
+                }
+
+                throw;
+            }
+
+            if (behaviorCue != null)
+            {
+                var executedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Executed);
+                behaviorCue.OnExecuted(in executedContext);
+            }
         }
 
         private void ExecuteNamed(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
@@ -130,6 +158,39 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _actions1 = len > 0 ? new NamedAction1<TArgs, object, TCtx>[len] : null;
             _actions2 = len > 0 ? new NamedAction2<TArgs, object, TCtx>[len] : null;
             _useNamedArgs = len > 0 ? new bool[len] : null;
+        }
+
+        private TriggerCueContext BuildBehaviorCueContext(
+            in TArgs args,
+            in ActionCallPlan call,
+            in ExecCtx<TCtx> ctx,
+            int index,
+            ECueLifecycleStage stage)
+        {
+            object cueData = null;
+            string cuePayload = null;
+            TriggerRunnerCueDispatcher.ResolveCueData(in args, ECueLevel.Behavior, stage, index, in call.Cue, ref cueData, ref cuePayload);
+
+            return new TriggerCueContext(
+                0,
+                null,
+                args,
+                _plan.Phase,
+                _plan.Priority,
+                0,
+                _plan.TriggerId,
+                nameof(PlannedTrigger<TArgs, TCtx>),
+                ETriggerShortCircuitReason.None,
+                ctx.Control?.InterruptSourceName,
+                ctx.Control?.InterruptTriggerId ?? 0,
+                true,
+                ctx.Control,
+                ECueLevel.Behavior,
+                stage,
+                index,
+                in call.Cue,
+                cueData,
+                cuePayload);
         }
 
         private void ThrowActionSlotMissing(in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)

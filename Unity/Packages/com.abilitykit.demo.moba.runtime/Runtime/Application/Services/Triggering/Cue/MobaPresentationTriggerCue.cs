@@ -13,22 +13,21 @@ namespace AbilityKit.Demo.Moba.Triggering
         private const string StringParamColor = "color";
 
         private readonly MobaPresentationCueSnapshotService _snapshots;
-        private readonly string _cueKind;
-        private readonly string _cueVfxId;
-        private readonly string _cueSfxId;
-        private readonly int _vfxId;
-        private readonly int _sfxId;
-        private readonly int _templateId;
+        private readonly IMobaPresentationCueResolver _resolver;
+        private readonly TriggerCueDescriptor _descriptor;
+        private readonly MobaPresentationCueDefinition _definition;
 
-        public MobaPresentationTriggerCue(MobaPresentationCueSnapshotService snapshots, string cueKind, string cueVfxId, string cueSfxId)
+        public MobaPresentationTriggerCue(MobaPresentationCueSnapshotService snapshots, in TriggerCueDescriptor descriptor)
+            : this(snapshots, null, in descriptor)
+        {
+        }
+
+        public MobaPresentationTriggerCue(MobaPresentationCueSnapshotService snapshots, IMobaPresentationCueResolver resolver, in TriggerCueDescriptor descriptor)
         {
             _snapshots = snapshots;
-            _cueKind = cueKind;
-            _cueVfxId = cueVfxId;
-            _cueSfxId = cueSfxId;
-            _vfxId = ParseId(cueVfxId);
-            _sfxId = ParseId(cueSfxId);
-            _templateId = ParseId(cueKind);
+            _resolver = resolver ?? new MobaPresentationCueResolver();
+            _descriptor = descriptor;
+            _definition = _resolver.Resolve(in descriptor);
         }
 
         public void OnConditionPassed(in TriggerCueContext context)
@@ -61,10 +60,10 @@ namespace AbilityKit.Demo.Moba.Triggering
             Publish(MobaPresentationCueStage.Skipped, in context, -1);
         }
 
-        private void Publish(MobaPresentationCueStage stage, in TriggerCueContext context, int actionIndex)
+        public void Publish(MobaPresentationCueStage stage, in TriggerCueContext context, int actionIndex = -1)
         {
             if (_snapshots == null) return;
-            if (IsEmptyCue()) return;
+            if (IsEmptyCue(in context)) return;
 
             var payload = BuildPayload(stage, in context, actionIndex);
             _snapshots.Report(in payload);
@@ -72,21 +71,31 @@ namespace AbilityKit.Demo.Moba.Triggering
 
         private MobaPresentationCueSnapshotEntry BuildPayload(MobaPresentationCueStage stage, in TriggerCueContext context, int actionIndex)
         {
-            ResolveActors(context.Args, out var sourceActorId, out var targetActorId);
-            ResolveTargets(context.Args, sourceActorId, targetActorId, out var targets);
-            ResolvePositions(context.Args, out var positions);
-            ResolveLineage(context.Args, out var contextKind, out var originKind, out var sourceContextId, out var rootContextId, out var ownerContextId, out var sourceConfigId);
-            ResolvePresentationContext(context.Args, out var requestKey, out var durationMsOverride, out var contextEventId, out var numericParamKeys, out var numericParamValues, out var stringParamKeys, out var stringParamValues);
+            var cueData = context.CueData ?? context.Args;
+            ResolveActors(cueData, out var sourceActorId, out var targetActorId);
+            ResolveTargets(cueData, sourceActorId, targetActorId, out var targets);
+            ResolvePositions(cueData, out var positions);
+            ResolveLineage(cueData, out var contextKind, out var originKind, out var sourceContextId, out var rootContextId, out var ownerContextId, out var sourceConfigId);
+            ResolvePresentationContext(cueData, context.CuePayload, out var requestKey, out var durationMsOverride, out var contextEventId, out var numericParamKeys, out var numericParamValues, out var stringParamKeys, out var stringParamValues);
+
+            var descriptor = context.CueDescriptor.IsEmpty ? _descriptor : context.CueDescriptor;
+            var definition = context.CueDescriptor.IsEmpty ? _definition : _resolver.Resolve(in descriptor);
+            var primaryAssetId = definition.VfxId != 0 ? definition.VfxId : ParseId(descriptor.PrimaryAssetId);
+            var secondaryAssetId = definition.SfxId != 0 ? definition.SfxId : ParseId(descriptor.SecondaryAssetId);
+            var cueTemplateId = definition.TemplateId != 0 ? definition.TemplateId : ParseId(descriptor.CueId ?? descriptor.Kind);
+            var replicationId = !string.IsNullOrWhiteSpace(requestKey)
+                ? requestKey
+                : $"cue:{context.EventId}:{context.TriggerId}:{context.ActionIndex}:{context.Order}:{sourceActorId}:{targetActorId}";
 
             return new MobaPresentationCueSnapshotEntry
             {
                 Stage = (int)stage,
-                CueKind = _cueKind,
-                CueVfxId = _cueVfxId,
-                CueSfxId = _cueSfxId,
-                TemplateId = _templateId,
-                VfxId = _vfxId,
-                SfxId = _sfxId,
+                CueKind = string.IsNullOrWhiteSpace(definition.Kind) ? descriptor.Kind : definition.Kind,
+                CueVfxId = string.IsNullOrWhiteSpace(definition.PrimaryAssetId) ? descriptor.PrimaryAssetId : definition.PrimaryAssetId,
+                CueSfxId = string.IsNullOrWhiteSpace(definition.SecondaryAssetId) ? descriptor.SecondaryAssetId : definition.SecondaryAssetId,
+                TemplateId = cueTemplateId,
+                VfxId = primaryAssetId,
+                SfxId = secondaryAssetId,
                 RequestKey = requestKey,
                 Targets = targets,
                 Positions = FlattenPositions(positions),
@@ -98,7 +107,7 @@ namespace AbilityKit.Demo.Moba.Triggering
                 Phase = context.Phase,
                 Priority = context.Priority,
                 Order = unchecked((int)context.Order),
-                ActionIndex = actionIndex,
+                ActionIndex = context.ActionIndex >= 0 ? context.ActionIndex : actionIndex,
                 InterruptReason = (int)context.InterruptReason,
                 InterruptSourceName = context.InterruptSourceName,
                 InterruptTriggerId = context.InterruptTriggerId,
@@ -119,13 +128,19 @@ namespace AbilityKit.Demo.Moba.Triggering
                 ColorR = 1f,
                 ColorG = 1f,
                 ColorB = 1f,
-                ColorA = 1f
+                ColorA = 1f,
+                CueLevel = (int)context.CueLevel,
+                CueStage = context.CueStage != 0 ? (int)context.CueStage : (int)stage,
+                ReplicationMode = (int)MobaPresentationCueReplicationMode.ReliableForLifecycle,
+                ReplicationId = replicationId,
+                PredictionKey = MobaPresentationCueKeys.StableHash(replicationId),
+                PredictionState = (int)MobaPresentationCuePredictionState.ServerConfirmed
             };
         }
 
-        private bool IsEmptyCue()
+        private bool IsEmptyCue(in TriggerCueContext context)
         {
-            return string.IsNullOrWhiteSpace(_cueKind) && string.IsNullOrWhiteSpace(_cueVfxId) && string.IsNullOrWhiteSpace(_cueSfxId);
+            return _descriptor.IsEmpty && context.CueDescriptor.IsEmpty;
         }
 
         private static int ParseId(string value)
@@ -198,6 +213,7 @@ namespace AbilityKit.Demo.Moba.Triggering
 
         private static void ResolvePresentationContext(
             object args,
+            string cuePayload,
             out string requestKey,
             out int durationMsOverride,
             out string contextEventId,
@@ -206,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Triggering
             out string[] stringParamKeys,
             out string[] stringParamValues)
         {
-            requestKey = null;
+            requestKey = cuePayload;
             durationMsOverride = 0;
             contextEventId = null;
             numericParamKeys = null;
@@ -216,7 +232,7 @@ namespace AbilityKit.Demo.Moba.Triggering
 
             if (args is PresentationEventArgs presentation)
             {
-                requestKey = presentation.RequestKey;
+                requestKey = string.IsNullOrWhiteSpace(presentation.RequestKey) ? requestKey : presentation.RequestKey;
                 durationMsOverride = presentation.DurationMsOverride;
                 contextEventId = presentation.EventId;
                 BuildPresentationParams(presentation, out numericParamKeys, out numericParamValues, out stringParamKeys, out stringParamValues);

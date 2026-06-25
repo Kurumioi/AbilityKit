@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private static IEnumerable<IShooterBattleSystem> CreateSystems(IShooterBattleServiceResolver services)
         {
             yield return new ShooterFrameBeginBattleSystem(services);
-            yield return new ShooterPlayerBotAiBattleSystem(services);
+            yield return new ShooterBotAiServiceBattleSystem(services);
             yield return new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Spawn);
             yield return new ShooterSimulationBattleSystem(services);
             yield return new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Attack);

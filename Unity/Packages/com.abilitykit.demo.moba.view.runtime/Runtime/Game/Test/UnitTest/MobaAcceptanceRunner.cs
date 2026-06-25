@@ -375,7 +375,16 @@ namespace AbilityKit.Game.Test.UnitTest
             if (actions == null) return;
             for (var i = 0; i < actions.Length; i++)
             {
-                ExecuteAction(harness, actions[i]);
+                var action = actions[i];
+                if (action == null) continue;
+                if (MobaAcceptanceSetupActionExecutor.IsEnvironmentCommand(action.action)
+                    || MobaAcceptanceSetupActionExecutor.IsWaitAction(action.action))
+                {
+                    MobaAcceptanceSetupActionExecutor.Execute(harness, action);
+                    continue;
+                }
+
+                ExecuteAction(harness, action);
             }
         }
 

@@ -1,19 +1,32 @@
 [
   {
-    "Id": 300001,
-    "Name": "TestAoeDelayBurst",
-    "ModelId": 10001,
-    "VfxId": 200001,
+    "Id": 1,
+    "Name": "AOE-圆形",
+    "ModelId": 0,
+    "VfxId": 0,
     "AttachMode": 0,
     "OffsetX": 0,
     "OffsetY": 0,
     "OffsetZ": 0,
-    "Radius": 2.5,
-    "DelayMs": 600,
-    "CollisionLayerMask": -1,
-    "MaxTargets": 0,
-    "OnDelayTriggerIds": [
-      21001
-    ]
+    "Radius": 5.0,
+    "DelayMs": 0,
+    "CollisionLayerMask": 1,
+    "MaxTargets": 10,
+    "OnDelayTriggerIds": []
+  },
+  {
+    "Id": 40020201,
+    "Name": "小乔-甜蜜恋风-目标点击飞区域-配置先行",
+    "ModelId": 0,
+    "VfxId": 0,
+    "AttachMode": 0,
+    "OffsetX": 0,
+    "OffsetY": 0,
+    "OffsetZ": 0,
+    "Radius": 4.0,
+    "DelayMs": 300,
+    "CollisionLayerMask": 1,
+    "MaxTargets": 10,
+    "OnDelayTriggerIds": [10020211]
   }
 ]

@@ -125,6 +125,8 @@ internal static class ShooterSmokeRunner
             playerCount,
             TimeSpan.FromSeconds(10));
 
+        var gameplayLoop = await RunCompleteGameplayLoopAsync(clusterClient, launched.Flow.BattleId, launched.Flow.WorldId, TimeSpan.FromSeconds(15));
+
         var lastInput = inputResults[inputResults.Count - 1];
         var result = new ShooterSmokeResult(
             login.AccountId,
@@ -179,7 +181,20 @@ internal static class ShooterSmokeRunner
             reconnect.ProjectionComponentUpdates,
             reconnect.ProjectionFinalEntityCount,
             reconnect.ProjectionFinalPlayerCount,
-            reconnect.ProjectionFinalBulletCount);
+            reconnect.ProjectionFinalBulletCount,
+            gameplayLoop.StartFrame,
+            gameplayLoop.FinalFrame,
+            gameplayLoop.FinalMatchState,
+            gameplayLoop.MatchFinal,
+            gameplayLoop.MatchVictory,
+            gameplayLoop.MatchCompletedFrame,
+            gameplayLoop.DefeatedEnemies,
+            gameplayLoop.VictoryTargetDefeats,
+            gameplayLoop.TimeLimitFrames,
+            gameplayLoop.RemainingTimeFrames,
+            gameplayLoop.Moved,
+            gameplayLoop.Fired,
+            gameplayLoop.DefeatedEnemy);
 
         ValidateSmokeResult(result);
 
@@ -192,6 +207,116 @@ internal static class ShooterSmokeRunner
 
     private static Task<ShooterSmokeLogin> LoginGuestAsync(AbilityKit.Network.Abstractions.IConnection connection) =>
         ShooterSmokeScenarioBase.LoginGuestAsync(connection);
+
+    private sealed record ShooterCompleteGameplayLoopSmokeResult(
+        int StartFrame,
+        int FinalFrame,
+        ShooterBattleMatchState FinalMatchState,
+        bool MatchFinal,
+        bool MatchVictory,
+        int MatchCompletedFrame,
+        int DefeatedEnemies,
+        int VictoryTargetDefeats,
+        int TimeLimitFrames,
+        int RemainingTimeFrames,
+        bool Moved,
+        bool Fired,
+        bool DefeatedEnemy);
+
+    private static async Task<ShooterCompleteGameplayLoopSmokeResult> RunCompleteGameplayLoopAsync(
+        IClusterClient clusterClient,
+        string battleId,
+        ulong worldId,
+        TimeSpan timeout)
+    {
+        var battle = clusterClient.GetGrain<IBattleLogicHostGrain>(battleId);
+        var initialSnapshot = await battle.GetSnapshotAsync();
+        if (initialSnapshot == null)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop could not read initial battle snapshot.");
+        }
+
+        var startFrame = initialSnapshot.Frame;
+        var initialPlayer = initialSnapshot.Actors.FirstOrDefault(actor => actor.ActorId == 1);
+        if (initialPlayer == null)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop could not find player actor 1 in initial battle snapshot.");
+        }
+
+        var moved = false;
+        var fired = false;
+        var deadline = DateTime.UtcNow + timeout;
+        BattleSnapshot? finalSnapshot = initialSnapshot;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var currentFrame = await battle.GetCurrentFrameAsync();
+            var command = CreateGameplayLoopCommand(currentFrame);
+            var submit = await battle.SubmitInputAsync(
+                worldId,
+                currentFrame,
+                new BattleInputItem
+                {
+                    PlayerId = 1,
+                    OpCode = ShooterOpCodes.Input.PlayerCommand,
+                    Payload = ShooterInputCodec.Serialize(new[] { command })
+                });
+
+            if (!submit.Accepted)
+            {
+                throw new InvalidOperationException($"Shooter gameplay loop input was rejected. RequestedFrame={submit.RequestedFrame}, Status={submit.Status}, Message={submit.Message}");
+            }
+
+            fired |= command.Fire;
+            await Task.Delay(35);
+            finalSnapshot = await battle.GetSnapshotAsync();
+            if (finalSnapshot == null)
+            {
+                continue;
+            }
+
+            var currentPlayer = finalSnapshot.Actors.FirstOrDefault(actor => actor.ActorId == 1);
+            if (currentPlayer == null)
+            {
+                throw new InvalidOperationException($"Shooter gameplay loop could not find player actor 1 in battle snapshot. Frame={finalSnapshot.Frame}");
+            }
+
+            moved |= Math.Abs(currentPlayer.X - initialPlayer.X) > 0.01f || Math.Abs(currentPlayer.Z - initialPlayer.Z) > 0.01f;
+            if (finalSnapshot.MatchFinal)
+            {
+                break;
+            }
+        }
+
+        if (finalSnapshot == null)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop did not produce a final battle snapshot.");
+        }
+
+        return new ShooterCompleteGameplayLoopSmokeResult(
+            startFrame,
+            finalSnapshot.Frame,
+            (ShooterBattleMatchState)finalSnapshot.MatchState,
+            finalSnapshot.MatchFinal,
+            finalSnapshot.MatchVictory,
+            finalSnapshot.MatchCompletedFrame,
+            finalSnapshot.DefeatedEnemies,
+            finalSnapshot.VictoryTargetDefeats,
+            finalSnapshot.TimeLimitFrames,
+            finalSnapshot.RemainingTimeFrames,
+            moved,
+            fired,
+            finalSnapshot.DefeatedEnemies > 0);
+    }
+
+    private static ShooterPlayerCommand CreateGameplayLoopCommand(int frame)
+    {
+        const float firstEnemyX = -0.12186934f;
+        const float firstEnemyY = 0.99254614f;
+        var moveX = frame % 20 < 10 ? 0.35f : -0.2f;
+        var moveY = frame % 30 < 15 ? 0.15f : -0.1f;
+        return new ShooterPlayerCommand(1, moveX, moveY, firstEnemyX, firstEnemyY, fire: true);
+    }
 
     private static async Task<List<ShooterClientGatewayInputSubmitResult>> SubmitSmokeInputsAsync(
         ShooterClientNetworkLaunchResult launched,

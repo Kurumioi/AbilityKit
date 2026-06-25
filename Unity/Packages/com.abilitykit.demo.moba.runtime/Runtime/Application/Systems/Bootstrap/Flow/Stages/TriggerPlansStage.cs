@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.Config;
 using AbilityKit.Ability.Triggering.Json;
-using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Triggering;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Demo.Moba.Systems.Bootstrap;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 
@@ -61,7 +61,17 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             if (resolver == null) throw new ArgumentNullException(nameof(resolver));
 
             var db = new TriggerPlanJsonDatabase();
-            db.CueFactory = new MobaPresentationCueFactory(resolver.Resolve<MobaPresentationCueSnapshotService>());
+            IMobaPresentationCueResolver cueResolver = null;
+            try
+            {
+                cueResolver = resolver.Resolve<IMobaPresentationCueResolver>();
+            }
+            catch
+            {
+                cueResolver = new MobaPresentationCueResolver();
+            }
+
+            db.CueFactory = new MobaPresentationCueFactory(resolver.Resolve<MobaPresentationCueSnapshotService>(), cueResolver);
             var textAssetLoader = resolver.Resolve<ITextAssetLoader>();
             var fsAdapter = new EtFileSystemAdapter(textAssetLoader);
             var directoryLoader = new TriggerPlanDirectoryLoader(fsAdapter);

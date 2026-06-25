@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Config.Cue;
 using AbilityKit.Triggering.Runtime.Config.Values;
 
 namespace AbilityKit.Triggering.Runtime.Config.Actions
@@ -14,9 +15,12 @@ namespace AbilityKit.Triggering.Runtime.Config.Actions
         public ActionId ActionId { get; set; }
         public int Arity { get; set; }
         public List<ValueRefConfig> Args { get; set; }
+        public CueConfig Cue { get; set; }
 
-        IReadOnlyList<IValueRefConfig> IActionCallConfig.Args => 
+        IReadOnlyList<IValueRefConfig> IActionCallConfig.Args =>
             Args?.ConvertAll<IValueRefConfig>(v => v);
+
+        ICueConfig IActionCallConfig.Cue => Cue;
 
         public static ActionCallConfig Create(ActionId actionId) => new ActionCallConfig
         {

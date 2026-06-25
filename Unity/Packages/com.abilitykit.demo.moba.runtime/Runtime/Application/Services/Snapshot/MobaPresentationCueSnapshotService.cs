@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -13,6 +15,10 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaSnapshotBuffer<MobaPresentationCueSnapshotEntry> _events = new MobaSnapshotBuffer<MobaPresentationCueSnapshotEntry>(32, 512);
+        private readonly MobaActivePresentationCueStore _active = new MobaActivePresentationCueStore();
+        private readonly MobaPresentationCueEntryPool _pool = new MobaPresentationCueEntryPool();
+        private readonly MobaPresentationCueReplicationPolicy _replication = new MobaPresentationCueReplicationPolicy();
+        private readonly MobaPresentationCuePredictionService _prediction = new MobaPresentationCuePredictionService();
         private FrameIndex _lastFrame;
 
         public MobaPresentationCueSnapshotService(MobaLogicWorldRunGateService phase)
@@ -21,9 +27,74 @@ namespace AbilityKit.Demo.Moba.Services
             _lastFrame = new FrameIndex(-999999);
         }
 
+        public IReadOnlyDictionary<string, MobaActivePresentationCue> ActiveCues => _active.Active;
+        public int ActiveCueCount => _active.Count;
+
+        public bool TryGetActiveCue(string key, out MobaActivePresentationCue active)
+        {
+            return _active.TryGet(key, out active);
+        }
+
+        public bool TryGetActiveCue(in MobaPresentationCueSnapshotEntry entry, out MobaActivePresentationCue active)
+        {
+            return _active.TryGet(in entry, out active);
+        }
+
         public void Report(in MobaPresentationCueSnapshotEntry entry)
         {
-            _events.Add(entry);
+            var normalized = entry;
+            _replication.ApplyDefaults(ref normalized);
+            _prediction.ApplyServerAuthoritativeDefaults(ref normalized);
+            _active.Observe(in normalized);
+
+            if (_replication.ShouldReplicate(in normalized))
+            {
+                _events.Add(normalized);
+            }
+        }
+
+        public void Execute(in MobaPresentationCueSnapshotEntry entry)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Executed;
+            Report(in normalized);
+        }
+
+        public void Start(in MobaPresentationCueSnapshotEntry entry)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Started;
+            Report(in normalized);
+        }
+
+        public void Tick(in MobaPresentationCueSnapshotEntry entry, float elapsedSeconds, float remainingSeconds = 0f)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Ticked;
+            normalized.ElapsedSeconds = elapsedSeconds;
+            normalized.RemainingSeconds = remainingSeconds;
+            Report(in normalized);
+        }
+
+        public void Refresh(in MobaPresentationCueSnapshotEntry entry)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Refreshed;
+            Report(in normalized);
+        }
+
+        public void Remove(in MobaPresentationCueSnapshotEntry entry)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Removed;
+            Report(in normalized);
+        }
+
+        public void Complete(in MobaPresentationCueSnapshotEntry entry)
+        {
+            var normalized = entry;
+            normalized.Stage = (int)MobaPresentationCueStage.Completed;
+            Report(in normalized);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -42,13 +113,17 @@ namespace AbilityKit.Demo.Moba.Services
 
             _lastFrame = frame;
 
-            if (_events.Count == 0)
+            var count = _events.Count;
+            if (count == 0)
             {
                 snapshot = default;
                 return false;
             }
 
-            var payload = MobaPresentationCueSnapshotCodec.Serialize(_events.ToArrayClearAndTrim());
+            var payloadEntries = _pool.RentExact(count);
+            _events.DrainTo(payloadEntries);
+            var payload = MobaPresentationCueSnapshotCodec.Serialize(payloadEntries);
+            _pool.Return(payloadEntries);
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue, payload);
             return true;
         }
@@ -56,6 +131,8 @@ namespace AbilityKit.Demo.Moba.Services
         public void Dispose()
         {
             _events.ClearAndTrim();
+            _active.Clear();
+            _pool.Clear();
             _lastFrame = new FrameIndex(-999999);
         }
     }

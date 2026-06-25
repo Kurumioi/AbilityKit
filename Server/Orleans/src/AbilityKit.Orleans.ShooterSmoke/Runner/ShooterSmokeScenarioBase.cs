@@ -244,6 +244,48 @@ internal abstract class ShooterSmokeScenarioBase
             "reconnect client",
             requireFullSync: false,
             exactPlayerCount: false);
+
+        if (result.GameplayFinalFrame <= result.GameplayStartFrame)
+        {
+            throw new InvalidOperationException($"Shooter gameplay loop did not advance to a final frame. Start={result.GameplayStartFrame}, Final={result.GameplayFinalFrame}");
+        }
+
+        if (!result.GameplayMoved)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop did not observe player movement.");
+        }
+
+        if (!result.GameplayFired)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop did not submit firing input.");
+        }
+
+        if (!result.GameplayDefeatedEnemy)
+        {
+            throw new InvalidOperationException($"Shooter gameplay loop did not defeat any enemy. Defeated={result.GameplayDefeatedEnemies}");
+        }
+
+        if (!result.GameplayMatchFinal)
+        {
+            throw new InvalidOperationException($"Shooter gameplay loop did not reach final match state. State={result.GameplayFinalMatchState}, Frame={result.GameplayFinalFrame}, Time={result.GameplayRemainingTimeFrames}/{result.GameplayTimeLimitFrames}");
+        }
+
+        if (result.GameplayFinalMatchState != ShooterBattleMatchState.Victory &&
+            result.GameplayFinalMatchState != ShooterBattleMatchState.Defeat &&
+            result.GameplayFinalMatchState != ShooterBattleMatchState.Ended)
+        {
+            throw new InvalidOperationException($"Shooter gameplay loop reached unexpected final match state. State={result.GameplayFinalMatchState}");
+        }
+
+        if (result.GameplayTimeLimitFrames <= 0)
+        {
+            throw new InvalidOperationException("Shooter gameplay loop did not expose a time-limited battle flow.");
+        }
+
+        if (result.GameplayMatchCompletedFrame <= 0)
+        {
+            throw new InvalidOperationException($"Shooter gameplay loop returned invalid completion frame. CompletedFrame={result.GameplayMatchCompletedFrame}");
+        }
     }
 
     internal static void ValidateProjectionResult(

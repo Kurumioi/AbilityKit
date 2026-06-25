@@ -72,10 +72,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
         }
 
         /// <summary>
-        /// 设置表现层 Cue（VFX / SFX / UI 反馈）
-        /// Cue 与触发器生命周期绑定，在条件通过/失败/执行/打断/跳过时触发对应回调
+        /// 设置 Cue 回调处理器。
+        /// Cue 与触发器生命周期绑定，在条件通过/失败/执行/打断/跳过时触发对应回调。
         /// </summary>
-        /// <param name="cue">表现层实现，不传则使用 NullTriggerCue（无任何表现）</param>
+        /// <param name="cue">业务侧 Cue 实现，不传则使用 NullTriggerCue。</param>
         public TriggerPlanBuilder<TArgs> WithCue(ITriggerCue cue)
         {
             _cue = cue;

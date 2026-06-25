@@ -48,5 +48,65 @@
     "AttackRatio": 0,
     "TargetPolicy": 1,
     "Radius": 0
+  },
+  {
+    "Id": 10020101,
+    "Name": "小乔-绽放之舞-发射扇子",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 0
+  },
+  {
+    "Id": 10020111,
+    "Name": "小乔-绽放之舞-命中伤害",
+    "EffectType": 1,
+    "BaseDamage": 120,
+    "DamageType": 2,
+    "AttackRatio": 0.5,
+    "TargetPolicy": 1,
+    "Radius": 0
+  },
+  {
+    "Id": 10020201,
+    "Name": "小乔-甜蜜恋风-区域生成",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 4
+  },
+  {
+    "Id": 10020211,
+    "Name": "小乔-甜蜜恋风-区域命中伤害",
+    "EffectType": 1,
+    "BaseDamage": 100,
+    "DamageType": 2,
+    "AttackRatio": 0.45,
+    "TargetPolicy": 2,
+    "Radius": 4
+  },
+  {
+    "Id": 10020301,
+    "Name": "小乔-星华缭乱-添加持续状态",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 8
+  },
+  {
+    "Id": 10020311,
+    "Name": "小乔-星华缭乱-周期落星伤害",
+    "EffectType": 1,
+    "BaseDamage": 80,
+    "DamageType": 2,
+    "AttackRatio": 0.35,
+    "TargetPolicy": 2,
+    "Radius": 8
   }
 ]

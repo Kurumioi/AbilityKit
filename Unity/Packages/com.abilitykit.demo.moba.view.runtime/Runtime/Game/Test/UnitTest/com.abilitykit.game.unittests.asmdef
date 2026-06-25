@@ -34,6 +34,7 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
+        "Entitas.dll",
         "nunit.framework.dll"
     ],
     "autoReferenced": false,

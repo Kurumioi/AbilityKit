@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime.Config;
+using AbilityKit.Triggering.Runtime.Config.Cue;
 using AbilityKit.Triggering.Variables.Numeric;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -114,6 +115,11 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public readonly float RetryDelayMs;
 
         /// <summary>
+        /// 行为级 Cue 描述。为空时该 Action 不产生行为级 cue。
+        /// </summary>
+        public readonly TriggerCueDescriptor Cue;
+
+        /// <summary>
         /// 创建无参数的动作调用（默认 Immediate）
         /// </summary>
         public ActionCallPlan(ActionId id)
@@ -130,6 +136,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
             RetryMaxRetries = 3;
             RetryDelayMs = 0f;
+            Cue = TriggerCueDescriptor.Empty;
         }
 
         /// <summary>
@@ -173,6 +180,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
             RetryMaxRetries = 3;
             RetryDelayMs = 0f;
+            Cue = TriggerCueDescriptor.Empty;
         }
 
         /// <summary>
@@ -217,6 +225,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
             RetryMaxRetries = 3;
             RetryDelayMs = 0f;
+            Cue = TriggerCueDescriptor.Empty;
         }
 
         /// <summary>
@@ -241,6 +250,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionPolicy = Config.EActionExecutionPolicy.Immediate;
             RetryMaxRetries = 3;
             RetryDelayMs = 0f;
+            Cue = TriggerCueDescriptor.Empty;
         }
 
         /// <summary>
@@ -269,7 +279,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
             bool canBeInterrupted,
             Config.EActionExecutionPolicy executionPolicy,
             int retryMaxRetries = 3,
-            float retryDelayMs = 0f)
+            float retryDelayMs = 0f,
+            in TriggerCueDescriptor cue = default)
         {
             if (retryMaxRetries < 0) throw new ArgumentOutOfRangeException(nameof(retryMaxRetries));
             if (retryDelayMs < 0f) throw new ArgumentOutOfRangeException(nameof(retryDelayMs));
@@ -286,6 +297,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             ExecutionPolicy = executionPolicy;
             RetryMaxRetries = retryMaxRetries;
             RetryDelayMs = retryDelayMs;
+            Cue = cue.IsEmpty ? TriggerCueDescriptor.Empty : cue;
         }
     }
 }

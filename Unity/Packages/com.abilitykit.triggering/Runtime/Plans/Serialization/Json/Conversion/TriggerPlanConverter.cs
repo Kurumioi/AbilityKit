@@ -133,6 +133,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 throw new InvalidOperationException($"RetryDelayMs cannot be negative: {dto.RetryDelayMs} actionId={dto.ActionId}");
             }
 
+            var cueDescriptor = BuildActionCueDescriptor(dto);
+
             if (dto.Args != null && dto.Args.Count > 0)
             {
                 if (dto.Arity > 2)
@@ -161,7 +163,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     dto.CanBeInterrupted,
                     executionPolicy,
                     retryMaxRetries,
-                    dto.RetryDelayMs);
+                    dto.RetryDelayMs,
+                    in cueDescriptor);
             }
 
             ActionCallPlan plan;
@@ -192,7 +195,21 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 dto.CanBeInterrupted,
                 executionPolicy,
                 retryMaxRetries,
-                dto.RetryDelayMs);
+                dto.RetryDelayMs,
+                in cueDescriptor);
+        }
+
+        private static TriggerCueDescriptor BuildActionCueDescriptor(TriggerPlanJsonDatabase.ActionCallPlanDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.CueId)) return TriggerCueDescriptor.Empty;
+
+            return new TriggerCueDescriptor(
+                kind: dto.CueId,
+                cueId: dto.CueId,
+                primaryAssetId: dto.CuePrimaryAssetId,
+                secondaryAssetId: dto.CueSecondaryAssetId,
+                payload: dto.CuePayload,
+                level: ECueLevel.Behavior);
         }
 
         private static EActionScheduleMode ParseActionScheduleMode(string value)

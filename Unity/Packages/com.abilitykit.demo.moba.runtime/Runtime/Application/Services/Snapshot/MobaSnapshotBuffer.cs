@@ -56,9 +56,28 @@ namespace AbilityKit.Demo.Moba.Services
             return _items.Count;
         }
 
+        public int CopyTo(T[] destination, int destinationIndex = 0)
+        {
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
+            if (destinationIndex < 0 || destinationIndex > destination.Length) throw new ArgumentOutOfRangeException(nameof(destinationIndex));
+            if (_items.Count == 0) return 0;
+            if (destination.Length - destinationIndex < _items.Count) throw new ArgumentException("Destination array is too small.", nameof(destination));
+
+            _items.CopyTo(destination, destinationIndex);
+            return _items.Count;
+        }
+
         public int DrainTo(IList<T> destination)
         {
             var count = CopyTo(destination);
+            _items.Clear();
+            TrimIfNeeded();
+            return count;
+        }
+
+        public int DrainTo(T[] destination, int destinationIndex = 0)
+        {
+            var count = CopyTo(destination, destinationIndex);
             _items.Clear();
             TrimIfNeeded();
             return count;

@@ -13,9 +13,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         int ProjectileCount { get; }
 
+        int EnemyCount { get; }
+
         IReadOnlyCollection<int> PlayerIds { get; }
 
         IReadOnlyCollection<int> ProjectileIds { get; }
+
+        IReadOnlyCollection<int> EnemyIds { get; }
 
         void Clear();
 
@@ -44,5 +48,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
         void SetProjectile(in ShooterSveltoProjectileComponent projectile);
 
         void RemoveProjectile(int bulletId);
+
+        bool HasEnemy(int enemyId);
+
+        bool TryGetEnemy(int enemyId, out ShooterSveltoTransformComponent transform, out ShooterSveltoHealthComponent health);
+
+        void AddEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health);
+
+        void SetEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health);
+
+        void RemoveEnemy(int enemyId);
     }
 }

@@ -1,0 +1,79 @@
+{
+  "caseId": "skill_10020201_xiao_qiao_area_spawn",
+  "description": "Xiao Qiao skill 2 casts skill 10020201 and spawns configured target-point area 40020201 through trigger 10020201.",
+  "worldId": "skill_10020201_xiao_qiao_acceptance_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "category": "contract",
+  "tags": ["xiao-qiao", "skill-2", "area", "smoke"],
+  "generatedFrom": "manual",
+  "lastReviewedAt": "2026-06-25",
+  "input": {
+    "playerId": "p1",
+    "slot": 1,
+    "phase": "Press",
+    "position": { "x": 4.0, "y": 0.0, "z": 0.0 }
+  },
+  "config": {
+    "skillId": 10020201,
+    "castFlowId": 10020201,
+    "effectId": 10020201,
+    "triggerId": 10020201,
+    "expectedActions": [
+      {
+        "actionId": 1822191218,
+        "type": "spawn_area"
+      },
+      {
+        "actionId": 589451731,
+        "type": "debug_log"
+      }
+    ]
+  },
+  "mustContain": [
+    {
+      "kind": "SkillCast",
+      "configId": 10020201
+    },
+    {
+      "kind": "EffectExecution",
+      "configId": 10020201
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 1822191218,
+      "underEffectId": 10020201
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 589451731,
+      "underEffectId": 10020201
+    },
+    {
+      "kind": "AreaSpawn",
+      "configId": 40020201,
+      "underEffectId": 10020201
+    }
+  ],
+  "mustNotContain": [],
+  "relationships": [
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020201,
+      "childKind": "EffectAction",
+      "childConfigId": 1822191218
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020201,
+      "childKind": "EffectAction",
+      "childConfigId": 589451731
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10020201,
+      "childKind": "AreaSpawn",
+      "childConfigId": 40020201
+    }
+  ]
+}

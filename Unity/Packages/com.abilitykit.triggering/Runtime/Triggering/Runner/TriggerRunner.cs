@@ -300,7 +300,9 @@ namespace AbilityKit.Triggering.Runtime
                 null,
                 0,
                 false,
-                control);
+                control,
+                Config.ECueLevel.Trigger,
+                Config.ECueLifecycleStage.ConditionFailed);
             entry.Trigger.Cue.OnConditionFailed(in failCtx);
         }
 
@@ -325,7 +327,9 @@ namespace AbilityKit.Triggering.Runtime
                 null,
                 0,
                 true,
-                control);
+                control,
+                Config.ECueLevel.Trigger,
+                Config.ECueLifecycleStage.ConditionPassed);
             entry.Trigger.Cue.OnConditionPassed(in passCtx);
         }
 
@@ -350,7 +354,9 @@ namespace AbilityKit.Triggering.Runtime
                 null,
                 0,
                 false,
-                control);
+                control,
+                Config.ECueLevel.Trigger,
+                Config.ECueLifecycleStage.ConditionFailed);
             entry.Trigger.Cue.OnConditionFailed(in failCtx);
         }
 
@@ -408,7 +414,10 @@ namespace AbilityKit.Triggering.Runtime
                 null,
                 0,
                 true,
-                control);
+                control,
+                Config.ECueLevel.Trigger,
+                Config.ECueLifecycleStage.BeforeAction,
+                0);
             entry.Trigger.Cue.OnBeforeAction(in executeCtx, 0);
 
             var actionExecuted = TryExecuteTrigger(key, in args, in entry, in execCtx);
@@ -426,7 +435,21 @@ namespace AbilityKit.Triggering.Runtime
                 return false;
             }
 
-            entry.Trigger.Cue.OnExecuted(in executeCtx);
+            var executedCtx = BuildCueContext(
+                key,
+                in args,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                entry.Trigger,
+                ShortCircuitReason.None,
+                null,
+                0,
+                true,
+                control,
+                Config.ECueLevel.Trigger,
+                Config.ECueLifecycleStage.Executed);
+            entry.Trigger.Cue.OnExecuted(in executedCtx);
             return true;
         }
 
@@ -497,7 +520,9 @@ namespace AbilityKit.Triggering.Runtime
                 interruptSourceName,
                 interruptTriggerId,
                 interruptConditionPassed,
-                control);
+                control,
+                Config.ECueLevel.Trigger,
+                cueKind == ShortCircuitCueKind.Skipped ? Config.ECueLifecycleStage.Skipped : Config.ECueLifecycleStage.Interrupted);
             TriggerRunnerCueDispatcher.DispatchShortCircuitCue(entry.Trigger, in cueContext, (TriggerRunnerShortCircuitCueKind)cueKind);
         }
 
@@ -547,7 +572,11 @@ namespace AbilityKit.Triggering.Runtime
             string interruptSourceName,
             int interruptTriggerId,
             bool interruptConditionPassed,
-            ExecutionControl control)
+            ExecutionControl control,
+            Config.ECueLevel cueLevel = Config.ECueLevel.Trigger,
+            Config.ECueLifecycleStage cueStage = Config.ECueLifecycleStage.None,
+            int actionIndex = -1,
+            in TriggerCueDescriptor cueDescriptor = default)
         {
             return TriggerRunnerCueDispatcher.BuildCueContext(
                 key,
@@ -560,7 +589,11 @@ namespace AbilityKit.Triggering.Runtime
                 interruptSourceName,
                 interruptTriggerId,
                 interruptConditionPassed,
-                control);
+                control,
+                cueLevel,
+                cueStage,
+                actionIndex,
+                in cueDescriptor);
         }
 
         private static ETriggerShortCircuitReason MapReason(ShortCircuitReason reason)

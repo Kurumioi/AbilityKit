@@ -71,14 +71,34 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class MobaAcceptanceSetupActionExpectation
     {
         public string action;
+        public string alias;
         public string actorAlias;
         public string targetAlias;
+        public string sourceAlias;
         public string playerId;
+        public string actorId;
+        public int sourceActorId;
         public int slot;
         public int skillId;
         public int targetActorId;
         public int durationMs;
         public bool enabled;
+        public int teamId;
+        public int heroId;
+        public int attributeTemplateId;
+        public int level;
+        public int unitSubType;
+        public int mainType;
+        public string kind;
+        public string sourceKind;
+        public int sourceId;
+        public int ownerActorId;
+        public string property;
+        public float value;
+        public int intValue;
+        public int buffId;
+        public int durationOverrideMs;
+        public bool removeAll;
         public MobaAcceptanceVector3Expectation position;
         public MobaAcceptanceVector3Expectation direction;
         public string payload;
