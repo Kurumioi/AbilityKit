@@ -284,6 +284,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public bool effectExecutionTraceFound;
         public bool allExpectedActionsExecuted;
         public bool projectileLaunched;
+        public bool areaSpawned;
         public bool buffApplied;
         public long effectRootId;
         public int finalFrame;

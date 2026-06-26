@@ -1,4 +1,5 @@
 using AbilityKit.Core.Recording.Lockstep;
+using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
@@ -19,9 +20,23 @@ namespace AbilityKit.Game.Flow
             return _hudInput.TryConsumeSkillClick(out slot);
         }
 
-        internal bool TryConsumeHudSkillAimSubmit(out int slot, out float dx, out float dz)
+        internal bool TryConsumeHudSkillAimSubmit(
+            out int slot,
+            out float aimPosX,
+            out float aimPosY,
+            out float aimPosZ,
+            out float aimDirX,
+            out float aimDirY,
+            out float aimDirZ)
         {
-            return _hudInput.TryConsumeSkillAimSubmit(out slot, out dx, out dz);
+            return _hudInput.TryConsumeSkillAimSubmit(
+                out slot,
+                out aimPosX,
+                out aimPosY,
+                out aimPosZ,
+                out aimDirX,
+                out aimDirY,
+                out aimDirZ);
         }
 
         public void BeginHudMove()
@@ -49,14 +64,43 @@ namespace AbilityKit.Game.Flow
             _hudInput.SetSkillAim(slot, dx, dz, aiming);
         }
 
-        public void SubmitHudSkillAim(int slot, float dx, float dz)
+        public void SubmitHudSkillAim(int slot, float aimDx, float aimDz)
         {
-            _hudInput.SubmitSkillAim(slot, dx, dz);
+            var aimDir = new Vector3(aimDx, 0f, aimDz);
+            var aimPos = aimDir;
+
+            if (TryResolveLocalActorWorldPos(out var casterPos))
+            {
+                aimPos = casterPos + aimDir;
+            }
+
+            _hudInput.SubmitSkillAim(
+                slot,
+                aimDx,
+                aimDz,
+                aimPos.x,
+                aimPos.y,
+                aimPos.z,
+                aimDir.x,
+                aimDir.y,
+                aimDir.z);
         }
 
         internal bool TryReadHudSkillAim(out int slot, out float dx, out float dz)
         {
             return _hudInput.TryReadSkillAim(out slot, out dx, out dz);
+        }
+
+        private bool TryResolveLocalActorWorldPos(out Vector3 pos)
+        {
+            pos = default;
+            if (EntityQuery == null) return false;
+            if (LocalActorId <= 0) return false;
+            if (!EntityQuery.TryResolve(new AbilityKit.Game.Battle.Entity.BattleNetId(LocalActorId), out var caster)) return false;
+            if (!caster.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent transform) || transform == null) return false;
+
+            pos = transform.Position;
+            return true;
         }
 
         private void ResetHudInput()

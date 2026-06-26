@@ -1,0 +1,96 @@
+{
+  "caseId": "skill_10020301_scenario_interval_damage",
+  "description": "小乔三技能应给自身附加持续效果并在首个间隔内对附近目标造成伤害",
+  "worldId": "skill_10020301_scenario_interval_damage_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "category": "contract",
+  "tags": ["xiao-qiao", "skill-3", "buff", "scenario", "interval-damage"],
+  "config": {
+    "skillId": 10020301,
+    "effectId": 10020301,
+    "expectedActions": [
+      { "actionId": 473610666, "type": "add_buff" },
+      { "actionId": 1645290459, "type": "play_audio" }
+    ]
+  },
+  "scenario": {
+    "scenarioId": "skill_10020301_scenario_interval_damage",
+    "name": "小乔三技能持续伤害",
+    "description": "校验三技能加 Buff 后，在首个间隔内对范围内目标造成实际伤害。",
+    "worldId": "skill_10020301_scenario_interval_damage_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "category": "contract",
+    "tags": ["xiao-qiao", "skill-3", "buff", "scenario", "interval-damage"],
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "skillIds": [10020101, 10020201, 10020301],
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 4.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_3",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 3,
+        "note": "释放三技能给自身附加持续落星 Buff"
+      },
+      {
+        "stepId": "wait_for_first_interval",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 1200,
+        "note": "等待首个 1000ms 间隔伤害触发"
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "caster",
+        "property": "hasBuff",
+        "comparator": "eq",
+        "expectedInt": 10020301,
+        "expectedBool": true,
+        "note": "施法者应持有持续落星 Buff"
+      },
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 100.0,
+        "note": "范围内目标应在首个间隔后承受 80 点伤害并剩余 100 点生命值"
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10020301, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10020301, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 473610666, "underEffectId": 10020301, "minCount": 1 },
+    { "kind": "BuffApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1 },
+    { "kind": "DamageApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1 }
+  ],
+  "relationships": [
+    { "parentKind": "SkillCast", "parentConfigId": 10020301, "childKind": "EffectExecution", "childConfigId": 10020301 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020301, "childKind": "BuffApply", "childConfigId": 10020301 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020301, "childKind": "DamageApply", "childConfigId": 10020301 }
+  ]
+}

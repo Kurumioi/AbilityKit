@@ -1,0 +1,26 @@
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.Triggering;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Protocol.Moba;
+using AbilityKit.Protocol.Moba.StateSync;
+
+namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
+{
+    public interface IBattleViewEventSink
+    {
+        void OnTriggerEvent(in TriggerEvent evt);
+
+        void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
+
+        void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries);
+
+        void OnProjectileEventSnapshot(ISnapshotEnvelope packet, MobaProjectileEventSnapshotEntry[] entries);
+
+        void OnAreaEventSnapshot(ISnapshotEnvelope packet, MobaAreaEventSnapshotEntry[] entries);
+
+        void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
+
+        void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
+    }
+}

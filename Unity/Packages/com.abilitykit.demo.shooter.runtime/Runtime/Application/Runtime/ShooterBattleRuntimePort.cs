@@ -193,9 +193,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return _packedSnapshotExporter.Export(worldId, isFullSnapshot, authorityOverride);
         }
 
+        public byte[] ExportPackedSnapshotBytes(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
+        {
+            return _bytesCodec.Export(this, worldId, isFullSnapshot, authorityOverride);
+        }
+
         public bool ImportPackedSnapshot(in ShooterPackedSnapshotPayload snapshot)
         {
             return _packedSnapshotImporter.Import(in snapshot);
+        }
+
+        public bool ImportPackedSnapshotBytes(byte[] payload)
+        {
+            return _bytesCodec.Import(this, payload);
         }
 
         public ShooterPureStateSnapshotPayload ExportPureStateSnapshot(
@@ -236,46 +246,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _botAiService.ClearBotAi();
         }
 
-        public byte[] ExportPackedSnapshotBytes(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
+        private static ShooterBattleState CreateState(IShooterEntityManager entities)
         {
-            return _bytesCodec.Export(this, worldId, isFullSnapshot, authorityOverride);
-        }
-
-        public bool ImportPackedSnapshotBytes(byte[] payload)
-        {
-            return _bytesCodec.Import(this, payload);
-        }
-
-        private ShooterBattleServiceContext CreateServiceContext(ShooterEnemyWaveOptions enemyWaveOptions)
-        {
-            return new ShooterBattleServiceContext(_entities.SveltoContext)
-                .Add(_state)
-                .Add(_entities)
-                .Add(_rules)
-                .Add(_simulation)
-                .Add(_botAiRuntime)
-                .Add(_botAiService)
-                .Add(enemyWaveOptions)
-                .Add<IShooterSveltoWorld>(new ShooterSveltoWorld(_entities.SveltoContext))
-                .Add<IShooterBotAiPort>(_botAiService)
-                .Add<IShooterBattleRuntimePort>(this)
-                .Add<IShooterGameStartPort>(this)
-                .Add<IShooterInputPort>(this)
-                .Add<IShooterSimulationClock>(this)
-                .Add<IShooterSnapshotReadPort>(this)
-                .Add<IShooterStateHashProvider>(this)
-                .Add<IShooterPackedSnapshotPort>(this)
-                .Add<IShooterPureStateSnapshotPort>(this);
+            return new ShooterBattleState(entities);
         }
 
         private static IShooterEntityManager CreateDefaultEntityManager(ShooterEntityLimitOptions entityLimits)
         {
-            return new ShooterEntityManager(new SveltoWorldContext(), entityLimits);
+            return new ShooterEntityManager(null, entityLimits);
         }
 
-        private static ShooterBattleState CreateState(IShooterEntityManager entities)
+        private ShooterBattleServiceContext CreateServiceContext(ShooterEnemyWaveOptions enemyWaveOptions)
         {
-            return new ShooterBattleState(entities);
+            return new ShooterBattleServiceContext(_entities.SveltoContext);
         }
     }
 }

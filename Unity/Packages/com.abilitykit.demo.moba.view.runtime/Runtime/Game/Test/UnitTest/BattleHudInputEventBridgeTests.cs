@@ -205,11 +205,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 ActiveAimAiming = aiming;
             }
 
-            public void SubmitHudSkillAim(int slot, float dx, float dz)
+            public void SubmitHudSkillAim(int slot, float aimDx, float aimDz)
             {
                 SubmittedAimSlot = slot;
-                SubmittedAimDx = dx;
-                SubmittedAimDz = dz;
+                SubmittedAimDx = aimDx;
+                SubmittedAimDz = aimDz;
             }
         }
     }

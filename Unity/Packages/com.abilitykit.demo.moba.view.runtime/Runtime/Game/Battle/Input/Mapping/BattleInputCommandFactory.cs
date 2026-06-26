@@ -21,10 +21,19 @@ namespace AbilityKit.Game.Flow
             return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }
 
-        public static PlayerInputCommand CreateSkillAimRelease(int frame, PlayerId playerId, int slot, float dx, float dz)
+        public static PlayerInputCommand CreateSkillAimRelease(
+            int frame,
+            PlayerId playerId,
+            int slot,
+            float aimPosX,
+            float aimPosY,
+            float aimPosZ,
+            float aimDirX,
+            float aimDirY,
+            float aimDirZ)
         {
-            var aimPos = new Vec3(dx, 0f, dz);
-            var aimDir = new Vec3(dx, 0f, dz);
+            var aimPos = new Vec3(aimPosX, aimPosY, aimPosZ);
+            var aimDir = new Vec3(aimDirX, aimDirY, aimDirZ);
             var evt = new SkillInputEvent(slot: slot, phase: SkillInputPhase.Release, aimPos: in aimPos, aimDir: in aimDir);
             return Create(frame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in evt));
         }

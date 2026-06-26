@@ -318,6 +318,16 @@ namespace AbilityKit.Demo.Moba.Services
                 var path = $"aoe.{area.Id}";
 
                 OptionalRef(Ref<ModelMO>(config.TryGetModel), area.ModelId, report, path + ".modelId", "model", area.Id);
+                if (area.VfxId < 0)
+                {
+                    report.Warning(Source, path + ".vfxId", "area vfx id is negative.", area.Id.ToString());
+                }
+
+                if (area.AttachMode < 0)
+                {
+                    report.Warning(Source, path + ".attachMode", "area attach mode is negative.", area.Id.ToString());
+                }
+
                 ValidateTriggerRefs(triggers, area.OnDelayTriggerIds, report, path + ".onDelayTriggerIds", area.Id);
                 ValidateTriggerRefs(triggers, area.OnEnterTriggerIds, report, path + ".onEnterTriggerIds", area.Id);
                 ValidateTriggerRefs(triggers, area.OnExitTriggerIds, report, path + ".onExitTriggerIds", area.Id);
@@ -331,6 +341,11 @@ namespace AbilityKit.Demo.Moba.Services
                 if (area.DelayMs < 0)
                 {
                     report.Warning(Source, path + ".delayMs", "area delay is negative.", area.Id.ToString());
+                }
+
+                if (area.DurationMs <= 0)
+                {
+                    report.Error(Source, path + ".durationMs", "area duration must be positive.", area.Id.ToString());
                 }
 
                 if (area.MaxTargets < 0)

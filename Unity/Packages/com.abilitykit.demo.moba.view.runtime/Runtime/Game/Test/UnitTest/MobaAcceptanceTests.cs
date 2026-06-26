@@ -9,6 +9,12 @@ namespace AbilityKit.Game.Test.UnitTest
     {
         private const string Skill10010101ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010101.expected.json";
         private const string Skill10010401ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10010401.expected.json";
+        private const string Skill10020101ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020101.expected.json";
+        private const string Skill10020101ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020101_scenario.expected.json";
+        private const string Skill10020201ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020201.expected.json";
+        private const string Skill10020201ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020201_scenario.expected.json";
+        private const string Skill10020301ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020301.expected.json";
+        private const string Skill10020301ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020301_scenario.expected.json";
         private const string ExpectationDirectory = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations";
         private const string SkillFlowsPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json";
         private const string SkillTriggerDirectory = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills";
@@ -43,6 +49,123 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
             Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
             Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        [Test]
+        public void Skill10020101_ExportsTraceAndMatchesXiaoQiaoProjectileExpectation()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020101ExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.skillCastTraceFound);
+            Assert.IsTrue(summary.result.effectExecutionTraceFound);
+            Assert.IsTrue(summary.result.allExpectedActionsExecuted);
+            Assert.IsTrue(summary.result.projectileLaunched);
+            Assert.Greater(summary.result.effectRootId, 0);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        [Test]
+        public void Skill10020101_ScenarioExportsTraceAndConfirmsProjectileDamage()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020101ScenarioExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.projectileLaunched);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        [Test]
+        public void Skill10020201_ExportsTraceAndMatchesXiaoQiaoAreaExpectation()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020201ExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.skillCastTraceFound);
+            Assert.IsTrue(summary.result.effectExecutionTraceFound);
+            Assert.IsTrue(summary.result.allExpectedActionsExecuted);
+            Assert.IsTrue(summary.result.areaSpawned);
+            Assert.Greater(summary.result.effectRootId, 0);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        [Test]
+        public void Skill10020201_ScenarioExportsTraceAndConfirmsAreaDamage()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020201ScenarioExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.areaSpawned);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+
+            var records = MobaAcceptanceRunner.LoadTraceRecords(summary.traceJsonlPath);
+            var expectation = MobaAcceptanceRunner.LoadExpectation(Skill10020201ScenarioExpectationPath);
+            Assert.IsTrue(MobaAcceptanceExpectationAssert.TryGetEffectRootId(records, expectation.config.effectId, out var effectRootId), "Missing effect root trace for area scenario.");
+            MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
+
+            AssertTraceNodeKindInRoot(records, effectRootId, "AreaSpawn", 40020201, "area spawn should remain under the Xiao Qiao skill 2 effect root.");
+            AssertTraceNodeKindInRoot(records, effectRootId, "AreaEnter", 40020201, "the spawned area should emit an enter trace when the target is inside the area.");
+            AssertTraceNodeKindInRoot(records, effectRootId, "DamageApply", expectation.config.effectId, "the area scenario should drive a damage application trace under the same effect root.");
+        }
+
+        private static void AssertTraceNodeKindInRoot(MobaAcceptanceTraceRecord[] records, long rootId, string kind, int configId, string message)
+        {
+            Assert.IsNotNull(records, "Trace records are required for strict area validation.");
+
+            for (var i = 0; i < records.Length; i++)
+            {
+                var record = records[i];
+                if (!string.Equals(record.kind, kind, StringComparison.OrdinalIgnoreCase)) continue;
+                if (record.configId != configId) continue;
+                if (rootId > 0 && record.rootId != rootId) continue;
+                return;
+            }
+
+            Assert.Fail(message + $" kind={kind}, configId={configId}, rootId={rootId}.");
+        }
+
+        [Test]
+        public void Skill10020301_ExportsTraceAndMatchesXiaoQiaoUltimateExpectation()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020301ExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.skillCastTraceFound);
+            Assert.IsTrue(summary.result.effectExecutionTraceFound);
+            Assert.IsTrue(summary.result.allExpectedActionsExecuted);
+            Assert.IsTrue(summary.result.buffApplied);
+            Assert.Greater(summary.result.effectRootId, 0);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+        }
+
+        [Test]
+        public void Skill10020301_ScenarioExportsTraceAndConfirmsIntervalDamage()
+        {
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(Skill10020301ScenarioExpectationPath, ArtifactDirectory, exportArtifacts: true);
+
+            Assert.IsTrue(summary.result.passed);
+            Assert.IsTrue(summary.result.buffApplied);
+            Assert.AreEqual(0, summary.result.missingExpectedTraceNodeCount, summary.coverage != null ? summary.coverage.missingTraceNodes : string.Empty);
+            Assert.IsTrue(File.Exists(summary.traceJsonlPath), $"Trace jsonl artifact missing: {summary.traceJsonlPath}");
+            Assert.IsTrue(File.Exists(summary.summaryJsonPath), $"Summary json artifact missing: {summary.summaryJsonPath}");
+
+            var records = MobaAcceptanceRunner.LoadTraceRecords(summary.traceJsonlPath);
+            var expectation = MobaAcceptanceRunner.LoadExpectation(Skill10020301ScenarioExpectationPath);
+            Assert.IsTrue(MobaAcceptanceExpectationAssert.TryGetEffectRootId(records, expectation.config.effectId, out var effectRootId), "Missing effect root trace for interval damage scenario.");
+            MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
+
+            AssertTraceNodeKindInRoot(records, effectRootId, "BuffApply", 10020301, "the ultimate should apply its persistent buff under the same effect root.");
+            AssertTraceNodeKindInRoot(records, effectRootId, "DamageApply", 10020301, "the interval tick should apply damage under the same effect root.");
         }
 
         [Test]

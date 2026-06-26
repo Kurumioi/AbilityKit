@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Testing;
+using AbilityKit.Demo.Moba.View.Abstractions.Battle.View;
 
 namespace AbilityKit.Game.Flow
 {
@@ -13,7 +14,6 @@ namespace AbilityKit.Game.Flow
         public const int DefaultTickRate = 30;
 
         private readonly BattleContext _ctx;
-        private readonly BattleViewSampleTimeResolver _sampleTimeResolver = new();
         private readonly BattleViewInterpolationClock _clock = new();
         private readonly int _tickRate;
         private readonly float _backTimeTicks;
@@ -98,7 +98,7 @@ namespace AbilityKit.Game.Flow
                 maxLagTicks: _maxLagTicks,
                 out _);
 
-            SampleTime = _sampleTimeResolver.Resolve(_ctx);
+            SampleTime = BattleViewSampleTimeResolver.Resolve(_ctx.LastFrame, _tickRate);
             TickCount++;
         }
 

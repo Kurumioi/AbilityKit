@@ -1,0 +1,156 @@
+{
+  "$schema": "abilitykit-trigger-source-v1",
+  "version": 1,
+  "description": "MOBA demo readable trigger source. Human-authored actions use readable type names and are compiled to runtime ActionId values by the trigger source exporter.",
+  "actions": {
+    "debug_log": {
+      "type": "debug_log",
+      "displayName": "调试日志",
+      "category": "Debug",
+      "params": [
+        { "name": "message", "type": "string", "required": true },
+        { "name": "dump_args", "type": "bool", "required": false, "defaultValue": false }
+      ]
+    },
+    "shoot_projectile": {
+      "type": "shoot_projectile",
+      "displayName": "发射弹道",
+      "category": "Combat",
+      "params": [
+        { "name": "launcher_id", "type": "int", "required": true },
+        { "name": "projectile_id", "type": "int", "required": true },
+        { "name": "targetCode", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "directionSource", "type": "string", "required": false, "defaultValue": "cast_context" }
+      ]
+    },
+    "spawn_area": {
+      "type": "spawn_area",
+      "displayName": "生成区域",
+      "category": "Combat",
+      "params": [
+        { "name": "area_id", "type": "int", "required": true },
+        { "name": "target_query_id", "type": "int", "required": false, "defaultValue": 0 }
+      ]
+    },
+    "give_damage": {
+      "type": "give_damage",
+      "displayName": "造成伤害",
+      "category": "Combat",
+      "params": [
+        { "name": "damage_value", "type": "float", "required": true },
+        { "name": "damage_type", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "reason_param", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "target_query_id", "type": "int", "required": false, "defaultValue": 0 }
+      ]
+    },
+    "add_buff": {
+      "type": "add_buff",
+      "displayName": "添加Buff",
+      "category": "Buff",
+      "params": [
+        { "name": "buffIds", "type": "int[]", "required": true },
+        { "name": "targetCode", "type": "int", "required": true }
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": 10020000,
+      "name": "小乔-治愈微笑-命中后移速占位",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10020001], "targetCode": 1 },
+        { "type": "debug_log", "message": "小乔被动触发：添加短暂移速状态（配置先行占位）", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020101,
+      "name": "小乔-绽放之舞-发射扇子",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "shoot_projectile", "launcher_id": 31020101, "projectile_id": 30020101, "directionSource": "cast_context" },
+        { "type": "debug_log", "message": "小乔一技能：发射扇子投射物", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020111,
+      "name": "小乔-绽放之舞-扇子命中",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 120, "damage_type": 2, "reason_param": 10020101 },
+        { "type": "debug_log", "message": "小乔一技能：扇子命中造成法术伤害", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020201,
+      "name": "小乔-甜蜜恋风-生成区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "spawn_area", "area_id": 40020201, "target_query_id": 50020201 },
+        { "type": "debug_log", "message": "小乔二技能：生成击飞区域（控制行为后续实现）", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020211,
+      "name": "小乔-甜蜜恋风-区域命中",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 100, "damage_type": 2, "reason_param": 10020201, "target_query_id": 50020201 },
+        { "type": "debug_log", "message": "小乔二技能：区域命中造成法术伤害（击飞后续实现）", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020301,
+      "name": "小乔-星华缭乱-添加持续状态",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10020301], "targetCode": 1 },
+        { "type": "debug_log", "message": "小乔三技能：添加持续落星状态", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10020311,
+      "name": "小乔-星华缭乱-周期落星命中",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 80, "damage_type": 2, "reason_param": 10020301, "target_query_id": 50020301 },
+        { "type": "debug_log", "message": "小乔三技能：周期落星造成法术伤害", "dump_args": false }
+      ]
+    }
+  ]
+}

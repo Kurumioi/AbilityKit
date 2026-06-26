@@ -1,3 +1,4 @@
+using AbilityKit.Demo.Moba.View.Abstractions.Battle.View;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
@@ -8,19 +9,16 @@ namespace AbilityKit.Game.Flow
     internal sealed class BattleViewPositionSampler
     {
         private readonly BattleViewHandleStore _handles;
-        private readonly BattleViewSampleTimeResolver _sampleTimes;
 
-        public BattleViewPositionSampler(
-            BattleViewHandleStore handles,
-            BattleViewSampleTimeResolver sampleTimes = null)
+        public BattleViewPositionSampler(BattleViewHandleStore handles)
         {
             _handles = handles;
-            _sampleTimes = sampleTimes ?? new BattleViewSampleTimeResolver();
         }
 
         public void SampleEntity(in EC.IEntity entity, in Vector3 pos, BattleContext ctx)
         {
-            SampleEntity(entity, in pos, _sampleTimes.Resolve(ctx));
+            var sampleTime = ResolveSampleTime(ctx);
+            SampleEntity(entity, in pos, sampleTime);
         }
 
         public void SampleAliveEntityPositions(IBattleEntityContext ctx, double sampleTime)
@@ -55,17 +53,11 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-    }
-
-    internal sealed class BattleViewSampleTimeResolver
-    {
-        public double Resolve(IBattleRuntimeContext ctx)
+        private static double ResolveSampleTime(IBattleRuntimeContext ctx)
         {
             if (ctx == null) return 0d;
- 
-            var tickRate = ctx.Plan.World.TickRate;
-            if (tickRate <= 0) tickRate = 30;
-            return (double)ctx.LastFrame / tickRate;
+
+            return BattleViewSampleTimeResolver.Resolve(ctx.LastFrame, ctx.Plan.World.TickRate);
         }
     }
 }

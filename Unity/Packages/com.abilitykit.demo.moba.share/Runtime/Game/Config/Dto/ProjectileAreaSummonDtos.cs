@@ -62,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public float Radius;
         public int DelayMs;
+        public int DurationMs;
         public int CollisionLayerMask;
         public int MaxTargets;
 

@@ -97,6 +97,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     effectExecutionTraceFound = Contains(records, "EffectExecution", expectation.config != null ? expectation.config.effectId : 0, 0),
                     allExpectedActionsExecuted = coverage.allExpectedActionsExecuted,
                     projectileLaunched = expectation.config == null || expectation.config.expectedProjectile == null || Contains(records, "ProjectileLaunch", expectation.config.expectedProjectile.projectileId, effectRootId),
+                    areaSpawned = ContainsKind(records, "AreaSpawn"),
                     buffApplied = ContainsKind(records, "BuffApply"),
                     effectRootId = effectRootId,
                     finalFrame = harness.FrameTime.Frame.Value,

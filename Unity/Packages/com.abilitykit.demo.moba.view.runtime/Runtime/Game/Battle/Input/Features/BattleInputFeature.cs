@@ -67,8 +67,12 @@ namespace AbilityKit.Game.Flow
                     nextFrame,
                     playerId,
                     aimInput.Slot,
-                    aimInput.Dx,
-                    aimInput.Dz);
+                    aimInput.AimPosX,
+                    aimInput.AimPosY,
+                    aimInput.AimPosZ,
+                    aimInput.AimDirX,
+                    aimInput.AimDirY,
+                    aimInput.AimDirZ);
                 submitter.Submit(in aimCmd);
             }
 

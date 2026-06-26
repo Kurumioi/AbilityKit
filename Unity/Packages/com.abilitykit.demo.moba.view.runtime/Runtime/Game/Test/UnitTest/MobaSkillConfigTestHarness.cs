@@ -218,6 +218,52 @@ namespace AbilityKit.Game.Test.UnitTest
             return AssertActorEntity(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
         }
 
+        public float GetActorHp(int actorId, string message = null)
+        {
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            var attrs = new MobaAttrs(entity);
+            return attrs.Hp;
+        }
+
+        public float GetActorHp(string alias, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return GetActorHp(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public void AssertActorHp(int actorId, float expectedHp, float tolerance = 0.01f, string comparator = "eq", string message = null)
+        {
+            var actualHp = GetActorHp(actorId, message);
+            if (string.Equals(comparator, "ne", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(comparator, "neq", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(comparator, "not_eq", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.IsTrue(System.Math.Abs(actualHp - expectedHp) > tolerance, message ?? $"Actor hp should differ from {expectedHp}, actual={actualHp}, tolerance={tolerance}");
+                return;
+            }
+
+            switch (comparator?.Trim().ToLowerInvariant())
+            {
+                case "gt":
+                    Assert.Greater(actualHp, expectedHp, message ?? $"Actor hp should be greater than {expectedHp}, actual={actualHp}");
+                    return;
+                case "gte":
+                case "ge":
+                    Assert.GreaterOrEqual(actualHp, expectedHp, message ?? $"Actor hp should be greater or equal to {expectedHp}, actual={actualHp}");
+                    return;
+                case "lt":
+                    Assert.Less(actualHp, expectedHp, message ?? $"Actor hp should be less than {expectedHp}, actual={actualHp}");
+                    return;
+                case "lte":
+                case "le":
+                    Assert.LessOrEqual(actualHp, expectedHp, message ?? $"Actor hp should be less or equal to {expectedHp}, actual={actualHp}");
+                    return;
+                default:
+                    Assert.LessOrEqual(System.Math.Abs(actualHp - expectedHp), tolerance, message ?? $"Actor hp mismatch: actual={actualHp}, expected={expectedHp}, tolerance={tolerance}");
+                    return;
+            }
+        }
+
         public int SpawnScenarioActor(
             string alias,
             int actorId,
@@ -522,6 +568,11 @@ namespace AbilityKit.Game.Test.UnitTest
         public TraceSnapshot<MobaTraceMetadata> AssertProjectileLaunchedUnderEffect(long effectRootId, int launcherId, int projectileId)
         {
             return AssertTraceNodeInRoot(effectRootId, MobaTraceKind.ProjectileLaunch, projectileId, $"shoot_projectile did not launch configured projectile {projectileId} from launcher {launcherId}.");
+        }
+
+        public TraceSnapshot<MobaTraceMetadata> AssertAreaSpawnedUnderEffect(long effectRootId, int areaTemplateId)
+        {
+            return AssertTraceNodeInRoot(effectRootId, MobaTraceKind.AreaSpawn, areaTemplateId, $"spawn_area did not spawn configured area template {areaTemplateId} under effect root {effectRootId}.");
         }
 
         public TraceSnapshot<MobaTraceMetadata> AssertTraceNode(MobaTraceKind kind, int configId, string message)

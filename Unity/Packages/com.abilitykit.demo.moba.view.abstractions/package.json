@@ -1,0 +1,13 @@
+{
+  "name": "com.abilitykit.demo.moba.view.abstractions",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Demo Moba View Abstractions",
+  "description": "Shared abstractions for AbilityKit Demo Moba view and logic layers.",
+  "unity": "2021.3",
+  "dependencies": {
+    "com.abilitykit.world.networkfragments": "0.0.1"
+  },
+  "author": {
+    "name": "AbilityKit"
+  }
+}

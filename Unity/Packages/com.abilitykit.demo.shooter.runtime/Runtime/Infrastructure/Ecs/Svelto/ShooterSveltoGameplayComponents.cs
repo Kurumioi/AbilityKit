@@ -42,6 +42,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         public int Damage;
         public uint OwnerEntityId;
+        public ShooterSveltoGameplayFaction TargetFaction;
         public uint TargetEntityId;
+    }
+
+    public enum ShooterSveltoGameplayFaction
+    {
+        Unknown = 0,
+        Shooter = 1,
+        Target = 2
     }
 }

@@ -1,3 +1,4 @@
+using AbilityKit.Demo.Moba.View.Abstractions.Battle.View;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;
 
@@ -16,9 +17,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     .ForWorld("world", "type", "client", "player", tickRate: 30, inputDelayFrames: 0)
                     .Build();
 
-                var resolver = new BattleViewSampleTimeResolver();
-
-                var sampleTime = resolver.Resolve(ctx);
+                var sampleTime = BattleViewSampleTimeResolver.Resolve(ctx.LastFrame, ctx.Plan.World.TickRate);
 
                 Assert.AreEqual(3d, sampleTime, 0.0001d);
             }
@@ -39,9 +38,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     .ForWorld("world", "type", "client", "player", tickRate: 0, inputDelayFrames: 0)
                     .Build();
 
-                var resolver = new BattleViewSampleTimeResolver();
-
-                var sampleTime = resolver.Resolve(ctx);
+                var sampleTime = BattleViewSampleTimeResolver.Resolve(ctx.LastFrame, ctx.Plan.World.TickRate);
 
                 Assert.AreEqual(0.5d, sampleTime, 0.0001d);
             }

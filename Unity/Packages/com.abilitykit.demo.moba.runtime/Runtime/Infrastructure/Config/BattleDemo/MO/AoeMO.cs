@@ -17,6 +17,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
         public float Radius { get; }
         public int DelayMs { get; }
+        public int DurationMs { get; }
         public int CollisionLayerMask { get; }
         public int MaxTargets { get; }
 
@@ -41,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             Radius = dto.Radius;
             DelayMs = dto.DelayMs;
+            DurationMs = dto.DurationMs;
             CollisionLayerMask = dto.CollisionLayerMask;
             MaxTargets = dto.MaxTargets;
 

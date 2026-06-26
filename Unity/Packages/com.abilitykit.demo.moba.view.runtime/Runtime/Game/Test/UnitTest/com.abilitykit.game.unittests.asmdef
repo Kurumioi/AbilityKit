@@ -16,6 +16,7 @@
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.Network.Runtime",
         "AbilityKit.World.NetworkFragments",
+        "AbilityKit.Demo.Moba.View.Abstractions",
         "AbilityKit.Game.View.Runtime",
         "AbilityKit.World.ECS",
         "AbilityKit.Protocol.Moba",

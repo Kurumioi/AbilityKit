@@ -3,14 +3,29 @@ namespace AbilityKit.Game.Flow
     internal readonly struct BattleSkillAimSubmitInput
     {
         public readonly int Slot;
-        public readonly float Dx;
-        public readonly float Dz;
+        public readonly float AimPosX;
+        public readonly float AimPosY;
+        public readonly float AimPosZ;
+        public readonly float AimDirX;
+        public readonly float AimDirY;
+        public readonly float AimDirZ;
 
-        public BattleSkillAimSubmitInput(int slot, float dx, float dz)
+        public BattleSkillAimSubmitInput(
+            int slot,
+            float aimPosX,
+            float aimPosY,
+            float aimPosZ,
+            float aimDirX,
+            float aimDirY,
+            float aimDirZ)
         {
             Slot = slot;
-            Dx = dx;
-            Dz = dz;
+            AimPosX = aimPosX;
+            AimPosY = aimPosY;
+            AimPosZ = aimPosZ;
+            AimDirX = aimDirX;
+            AimDirY = aimDirY;
+            AimDirZ = aimDirZ;
         }
     }
 
@@ -35,9 +50,23 @@ namespace AbilityKit.Game.Flow
 
         public static bool TryConsumeSkillAimSubmit(BattleContext ctx, out BattleSkillAimSubmitInput input)
         {
-            if (ctx != null && ctx.TryConsumeHudSkillAimSubmit(out var slot, out var dx, out var dz))
+            if (ctx != null && ctx.TryConsumeHudSkillAimSubmit(
+                out var slot,
+                out var aimPosX,
+                out var aimPosY,
+                out var aimPosZ,
+                out var aimDirX,
+                out var aimDirY,
+                out var aimDirZ))
             {
-                input = new BattleSkillAimSubmitInput(slot, dx, dz);
+                input = new BattleSkillAimSubmitInput(
+                    slot,
+                    aimPosX,
+                    aimPosY,
+                    aimPosZ,
+                    aimDirX,
+                    aimDirY,
+                    aimDirZ);
                 return true;
             }
 

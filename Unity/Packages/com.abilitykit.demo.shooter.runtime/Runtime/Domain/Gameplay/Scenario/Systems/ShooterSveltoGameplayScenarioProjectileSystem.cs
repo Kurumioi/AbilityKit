@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Demo.Shooter.Runtime.Infrastructure.Ecs;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;
@@ -45,8 +46,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public bool FireBurst(
             in ShooterSveltoTransformComponent shooter,
             in ShooterSveltoWeaponComponent weapon,
+            uint ownerEntityId,
             uint targetEntityId,
-            ExclusiveGroupStruct targetGroup,
+            ShooterSveltoGameplayFaction targetFaction,
             int targetCount)
         {
             var baseX = shooter.DirectionX;
@@ -83,7 +85,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 initializer.Init(new ShooterSveltoProjectileDamageComponent
                 {
                     Damage = weapon.Damage,
-                    OwnerEntityId = targetGroup == ShooterSveltoGroups.GameplayTargets ? 0u : targetId,
+                    OwnerEntityId = ownerEntityId,
+                    TargetFaction = targetFaction,
                     TargetEntityId = targetId
                 });
                 _projectilesSpawned++;
@@ -114,9 +117,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 projectile.Y = transform.Y;
                 projectile.RemainingFrames--;
 
-                var hit = damage.OwnerEntityId == 0u
-                    ? TryApplyHit(in transform, in damage, ShooterSveltoGroups.GameplayTargets, targetTransforms, targetHealths, _targetIndexByEntityId)
-                    : TryApplyHit(in transform, in damage, ShooterSveltoGroups.GameplayShooters, shooterTransforms, shooterHealths, _shooterIndexByEntityId);
+                var hit = damage.TargetFaction == ShooterSveltoGameplayFaction.Target
+                    ? TryApplyHit(in transform, in damage, ShooterSveltoGameplayFaction.Target, targetTransforms, targetHealths, _targetIndexByEntityId)
+                    : TryApplyHit(in transform, in damage, ShooterSveltoGameplayFaction.Shooter, shooterTransforms, shooterHealths, _shooterIndexByEntityId);
                 if (hit)
                 {
                     _projectileRemovalBuffer.Add(ids[i]);
@@ -147,7 +150,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private bool TryApplyHit(
             in ShooterSveltoTransformComponent projectile,
             in ShooterSveltoProjectileDamageComponent damage,
-            ExclusiveGroupStruct targetGroup,
+            ShooterSveltoGameplayFaction targetFaction,
             NB<ShooterSveltoTransformComponent> targetTransforms,
             NB<ShooterSveltoHealthComponent> targetHealths,
             Dictionary<uint, int> targetIndexByEntityId)
@@ -168,13 +171,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (targetHealths[targetIndex].Current == 0)
             {
                 targetHealths[targetIndex].Alive = 0;
-                if (targetGroup == ShooterSveltoGroups.GameplayTargets)
+                if (targetFaction == ShooterSveltoGameplayFaction.Target)
                 {
                     _defeatedTargets++;
                 }
             }
 
-            if (targetGroup == ShooterSveltoGroups.GameplayShooters)
+            if (targetFaction == ShooterSveltoGameplayFaction.Shooter)
             {
                 _enemyHits++;
             }

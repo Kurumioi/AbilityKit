@@ -101,6 +101,26 @@ namespace AbilityKit.Game.Test.UnitTest
             return expectation;
         }
 
+        public static MobaAcceptanceTraceRecord[] LoadTraceRecords(string traceJsonlPath)
+        {
+            Assert.IsFalse(string.IsNullOrEmpty(traceJsonlPath), "Trace jsonl path must not be empty.");
+            var resolvedPath = ResolveProjectRelativePath(traceJsonlPath);
+            Assert.IsTrue(File.Exists(resolvedPath), $"Acceptance trace jsonl file missing: {traceJsonlPath}");
+
+            var lines = File.ReadAllLines(resolvedPath);
+            var records = new List<MobaAcceptanceTraceRecord>(lines.Length);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var record = JsonUtility.FromJson<MobaAcceptanceTraceRecord>(line);
+                Assert.IsNotNull(record, $"Failed to parse acceptance trace record at line {i + 1}: {traceJsonlPath}");
+                records.Add(record);
+            }
+
+            return records.ToArray();
+        }
+
         public static string ResolveProjectRelativePath(string path)
         {
             if (string.IsNullOrEmpty(path)) return path;

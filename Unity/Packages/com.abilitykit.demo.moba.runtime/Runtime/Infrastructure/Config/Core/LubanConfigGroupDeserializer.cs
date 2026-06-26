@@ -404,7 +404,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
 
         private static AoeDTO DeserializeAoe(JObject obj)
         {
-            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds, OnEnterTriggerIds, OnExitTriggerIds, OnIntervalTriggerIds, IntervalMs
+            // 妗嗘灦 DTO: Id, Name, ModelId, VfxId, AttachMode, OffsetX, OffsetY, OffsetZ, Radius, DelayMs, DurationMs, CollisionLayerMask, MaxTargets, OnDelayTriggerIds, OnEnterTriggerIds, OnExitTriggerIds, OnIntervalTriggerIds, IntervalMs
             var dto = new AoeDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
@@ -417,6 +417,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 OffsetZ = obj["OffsetZ"]?.Value<float>() ?? 0,
                 Radius = obj["Radius"]?.Value<float>() ?? 0,
                 DelayMs = obj["DelayMs"]?.Value<int>() ?? 0,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
                 CollisionLayerMask = obj["CollisionLayerMask"]?.Value<int>() ?? 0,
                 MaxTargets = obj["MaxTargets"]?.Value<int>() ?? 0,
                 OnDelayTriggerIds = obj["OnDelayTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),

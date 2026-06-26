@@ -1,0 +1,91 @@
+{
+  "caseId": "skill_10020201_scenario_damage",
+  "description": "小乔二技能应在目标点生成延迟区域并命中区域内目标",
+  "worldId": "skill_10020201_scenario_damage_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "category": "contract",
+  "tags": ["xiao-qiao", "skill-2", "area", "scenario", "damage"],
+  "config": {
+    "skillId": 10020201,
+    "effectId": 10020201,
+    "expectedActions": [
+      { "actionId": 1985620354, "type": "spawn_area" },
+      { "actionId": 2012148690, "type": "play_audio" }
+    ]
+  },
+  "scenario": {
+    "scenarioId": "skill_10020201_scenario_damage",
+    "name": "小乔二技能区域命中",
+    "description": "校验二技能目标点区域在延迟后对区域内目标造成伤害。",
+    "worldId": "skill_10020201_scenario_damage_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "category": "contract",
+    "tags": ["xiao-qiao", "skill-2", "area", "scenario", "damage"],
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "skillIds": [10020101, 10020201, 10020301],
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 4.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_2",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 2,
+        "position": { "x": 4.0, "y": 0.0, "z": 0.0 },
+        "note": "向目标点释放二技能"
+      },
+      {
+        "stepId": "wait_for_area_delay",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 450,
+        "note": "等待区域延迟触发命中"
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 80.0,
+        "note": "目标应在区域触发后承受 100 点伤害并剩余 80 点生命值"
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10020201, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10020201, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1985620354, "underEffectId": 10020201, "minCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40020201, "underEffectId": 10020201, "minCount": 1 },
+    { "kind": "AreaEnter", "configId": 40020201, "underEffectId": 10020201, "minCount": 1 },
+    { "kind": "DamageApply", "configId": 10020201, "underEffectId": 10020201, "minCount": 1 }
+  ],
+  "relationships": [
+    { "parentKind": "SkillCast", "parentConfigId": 10020201, "childKind": "EffectExecution", "childConfigId": 10020201 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "AreaSpawn", "childConfigId": 40020201 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "AreaEnter", "childConfigId": 40020201 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "DamageApply", "childConfigId": 10020201 }
+  ]
+}

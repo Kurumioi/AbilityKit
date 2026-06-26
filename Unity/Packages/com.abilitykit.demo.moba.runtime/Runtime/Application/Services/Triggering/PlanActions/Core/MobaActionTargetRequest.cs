@@ -184,11 +184,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var rules = BuildRules(in request);
             var scorer = BuildScorer(in request);
             var selector = new SearchTargetSelectorConfig(0, (int)request.SelectCode);
+            var explicitTargetPolicy = request.TargetActorId > 0 || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
+                ? SearchQueryExplicitTargetPolicy.PreferExplicitTarget
+                : SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget;
+
             return new SearchQueryTemplateMO(
                 id: 0,
                 name: "inline_action_target_query",
                 maxCount: request.MaxCount > 0 ? request.MaxCount : 1,
-                explicitTargetPolicy: (int)SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget,
+                explicitTargetPolicy: (int)explicitTargetPolicy,
                 provider: provider,
                 rules: rules,
                 scorer: scorer,

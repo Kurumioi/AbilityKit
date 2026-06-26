@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             center = center + new Vec3(aoe.OffsetX + args.OffsetX, aoe.OffsetY + args.OffsetY, aoe.OffsetZ + args.OffsetZ);
             var radius = args.RadiusOverride > 0f ? args.RadiusOverride : aoe.Radius;
-            var lifetimeFrames = ResolveLifetimeFrames(args, aoe.DelayMs, ctx.Context);
+            var lifetimeFrames = ResolveLifetimeFrames(args, aoe.DurationMs, ctx.Context);
             var collisionLayerMask = args.CollisionLayerMaskOverride != 0 ? args.CollisionLayerMaskOverride : aoe.CollisionLayerMask;
             var stayIntervalFrames = ResolveStayIntervalFrames(args, aoe.IntervalMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);

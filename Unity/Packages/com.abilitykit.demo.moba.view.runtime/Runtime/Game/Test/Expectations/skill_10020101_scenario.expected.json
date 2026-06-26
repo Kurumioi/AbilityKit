@@ -1,0 +1,91 @@
+{
+  "caseId": "skill_10020101_scenario_damage",
+  "description": "小乔一技能应沿施法方向发射投射物并命中前方目标",
+  "worldId": "skill_10020101_scenario_damage_world",
+  "tickRate": 30,
+  "accelerated": true,
+  "category": "contract",
+  "tags": ["xiao-qiao", "skill-1", "projectile", "scenario", "damage"],
+  "config": {
+    "skillId": 10020101,
+    "effectId": 10020101,
+    "expectedActions": [
+      { "actionId": 508656420, "type": "shoot_projectile" },
+      { "actionId": 589451731, "type": "play_audio" }
+    ],
+    "expectedProjectile": {
+      "launcherId": 31020101,
+      "projectileId": 30020101
+    }
+  },
+  "scenario": {
+    "scenarioId": "skill_10020101_scenario_damage",
+    "name": "小乔一技能命中目标",
+    "description": "校验一技能不仅完成施法链路，还能对前方目标造成实际伤害。",
+    "worldId": "skill_10020101_scenario_damage_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "category": "contract",
+    "tags": ["xiao-qiao", "skill-1", "projectile", "scenario", "damage"],
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "skillIds": [10020101, 10020201, 10020301],
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1002,
+        "attributeTemplateId": 1002,
+        "hasSpawnPosition": true,
+        "spawnPosition": { "x": 6.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_1",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 1,
+        "direction": { "x": 1.0, "y": 0.0, "z": 0.0 },
+        "note": "沿 X 正方向释放一技能"
+      },
+      {
+        "stepId": "wait_for_projectile_hit",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 500,
+        "note": "等待投射物飞行并命中目标"
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 60.0,
+        "note": "目标应在命中后承受 120 点伤害并剩余 60 点生命值"
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10020101, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10020101, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 508656420, "underEffectId": 10020101, "minCount": 1 },
+    { "kind": "ProjectileLaunch", "configId": 30020101, "underEffectId": 10020101, "minCount": 1 }
+  ],
+  "relationships": [
+    { "parentKind": "SkillCast", "parentConfigId": 10020101, "childKind": "EffectExecution", "childConfigId": 10020101 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020101, "childKind": "ProjectileLaunch", "childConfigId": 30020101 }
+  ]
+}
