@@ -442,8 +442,46 @@ namespace AbilityKit.ExcelSync.Editor
                 EditorApplication.delayCall += TryContinue;
             }
 
+            private static bool IsBatchTestProcess()
+            {
+                if (!Application.isBatchMode)
+                {
+                    return false;
+                }
+
+                var args = Environment.GetCommandLineArgs();
+                for (int i = 0; i < args.Length; i++)
+                {
+                    if (string.Equals(args[i], "-runTests", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(args[i], "-testResults", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(args[i], "-testPlatform", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(args[i], "-testFilter", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             private static void TryContinue()
             {
+                var templateGuids = AssetDatabase.FindAssets("t:ExcelSoSyncTemplate");
+                if (templateGuids == null || templateGuids.Length == 0)
+                {
+                    return;
+                }
+
+                if (IsBatchTestProcess())
+                {
+                    for (int i = 0; i < templateGuids.Length; i++)
+                    {
+                        OneClickState.Clear(templateGuids[i]);
+                    }
+
+                    return;
+                }
+
                 if (EditorApplication.isCompiling)
                 {
                     EditorApplication.delayCall += TryContinue;
@@ -453,12 +491,6 @@ namespace AbilityKit.ExcelSync.Editor
                 if (EditorApplication.isUpdating)
                 {
                     EditorApplication.delayCall += TryContinue;
-                    return;
-                }
-
-                var templateGuids = AssetDatabase.FindAssets("t:ExcelSoSyncTemplate");
-                if (templateGuids == null || templateGuids.Length == 0)
-                {
                     return;
                 }
 

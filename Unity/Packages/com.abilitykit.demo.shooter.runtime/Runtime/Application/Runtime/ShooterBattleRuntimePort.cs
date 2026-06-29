@@ -39,7 +39,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits)
-            : this(entityLimits, ShooterEnemyWaveOptions.DefaultEnabled)
+            : this(entityLimits, ShooterEnemyWaveOptions.Disabled)
         {
         }
 
@@ -69,7 +69,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules)
-            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.DefaultEnabled)
+            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled)
         {
         }
 
@@ -253,12 +253,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private static IShooterEntityManager CreateDefaultEntityManager(ShooterEntityLimitOptions entityLimits)
         {
-            return new ShooterEntityManager(null, entityLimits);
+            return new ShooterEntityManager(new SveltoWorldContext(), entityLimits);
         }
 
         private ShooterBattleServiceContext CreateServiceContext(ShooterEnemyWaveOptions enemyWaveOptions)
         {
-            return new ShooterBattleServiceContext(_entities.SveltoContext);
+            return new ShooterBattleServiceContext(_entities.SveltoContext)
+                .Add(_state)
+                .Add<IShooterBattleSimulation>(_simulation)
+                .Add<IShooterEntityManager>(_entities)
+                .Add<IShooterBattleRules>(_rules)
+                .Add<IShooterBotAiRuntime>(_botAiRuntime)
+                .Add(enemyWaveOptions);
         }
     }
 }

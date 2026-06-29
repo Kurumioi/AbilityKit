@@ -38,6 +38,7 @@ namespace AbilityKit.Protocol.Shooter
         public const int Health = 3;
         public const int Score = 4;
         public const int ProjectileLifetime = 5;
+        public const int RuntimeMetadata = 6;
     }
 
     [MemoryPackable]

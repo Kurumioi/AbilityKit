@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "owner": "AbilityKit Engineering",
   "defaultGate": "precheck",
   "documentation": "Docs/AbilityKit测试门禁与批量回归规范.md",
@@ -178,6 +178,58 @@
           "name": "Runtime contracts",
           "kind": "gate",
           "gate": "runtime-contracts"
+        }
+      ]
+    },
+    {
+      "name": "moba-xiaoqiao-unity",
+      "level": "P1",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the four authoritative Xiao Qiao Unity EditMode tests and persist matching command, log, and NUnit XML artifacts.",
+      "scope": [
+        "unity-editmode",
+        "moba-xiaoqiao",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "claim-latest-xiaoqiao-unity-result",
+        "close-xiaoqiao-skill-contract-regression"
+      ],
+      "failurePolicy": "Do not claim the latest Xiao Qiao Unity result until the executed four-test batch has a matching XML result file in the gate output directory.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Xiao Qiao Unity Skill10020101 authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020101_ScenarioExportsTraceAndConfirmsProjectileDamage"
+        },
+        {
+          "name": "Xiao Qiao Unity Skill10020201 authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020201_ScenarioExportsTraceAndConfirmsAreaDamage"
+        },
+        {
+          "name": "Xiao Qiao Unity Skill10020301 authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020301_ScenarioExportsTraceAndConfirmsIntervalDamage"
+        },
+        {
+          "name": "Xiao Qiao Unity Skill10020000 passive authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020000_PassiveCastBuff_ShouldIncreaseMoveSpeedTemporarily"
         }
       ]
     }

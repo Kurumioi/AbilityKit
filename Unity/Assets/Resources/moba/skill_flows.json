@@ -76,15 +76,6 @@
     "Name": "小乔-绽放之舞-配置先行版",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
-      {
         "Type": 2,
         "Timeline": {
           "DurationMs": 600,
@@ -100,15 +91,6 @@
     "Name": "小乔-甜蜜恋风-配置先行版",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
-      {
         "Type": 2,
         "Timeline": {
           "DurationMs": 700,
@@ -123,15 +105,6 @@
     "Id": 10020301,
     "Name": "小乔-星华缭乱-配置先行版",
     "Phases": [
-      {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
       {
         "Type": 2,
         "Timeline": {

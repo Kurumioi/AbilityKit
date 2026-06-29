@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using AbilityKit.Demo.Moba.Services;
 using UnityEngine;
 
@@ -72,6 +73,11 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var effectRootId = FindRootId(records, "EffectExecution", expectation.config != null ? expectation.config.effectId : 0);
             var coverage = BuildCoverage(expectation, records, effectRootId);
+            var diagnostics = BuildDiagnosticsSummary(harness);
+            var passed = coverage.allRequiredTraceNodesMatched
+                && coverage.allForbiddenTraceNodesAbsent
+                && coverage.allExpectedActionsExecuted
+                && coverage.allRelationshipsSatisfied;
             return new MobaAcceptanceSummary
             {
                 caseId = expectation.caseId,
@@ -92,7 +98,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 config = expectation.config,
                 result = new MobaAcceptanceResult
                 {
-                    passed = true,
+                    passed = passed,
                     skillCastTraceFound = Contains(records, "SkillCast", expectation.config != null ? expectation.config.skillId : 0, 0),
                     effectExecutionTraceFound = Contains(records, "EffectExecution", expectation.config != null ? expectation.config.effectId : 0, 0),
                     allExpectedActionsExecuted = coverage.allExpectedActionsExecuted,
@@ -113,6 +119,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 },
                 coverage = coverage,
                 traceCounts = CountByKind(records),
+                diagnostics = diagnostics,
                 traceJsonlPath = NormalizePath(traceJsonlPath),
                 summaryJsonPath = NormalizePath(summaryJsonPath)
             };
@@ -274,6 +281,56 @@ namespace AbilityKit.Game.Test.UnitTest
             var count = expectation.stateExpectations != null ? expectation.stateExpectations.Length : 0;
             if (expectation.scenario != null && expectation.scenario.stateExpectations != null) count += expectation.scenario.stateExpectations.Length;
             return count;
+        }
+
+        private static MobaAcceptanceDiagnosticsSummary BuildDiagnosticsSummary(MobaSkillConfigTestHarness harness)
+        {
+            if (harness == null || harness.World == null || harness.World.Services == null) return null;
+            if (!harness.World.Services.TryResolve<IMobaBattleDiagnosticsService>(out var diagnostics) || diagnostics == null) return null;
+
+            var warnings = diagnostics.GetWarningsSnapshot();
+            if (warnings == null || warnings.Count == 0)
+            {
+                return new MobaAcceptanceDiagnosticsSummary
+                {
+                    warningCount = 0,
+                    warnings = Array.Empty<MobaAcceptanceDiagnosticWarning>(),
+                    planActionRejections = string.Empty
+                };
+            }
+
+            var exportedWarnings = new MobaAcceptanceDiagnosticWarning[warnings.Count];
+            var rejectionSummary = new StringBuilder();
+            var rejectionCount = 0;
+            for (var i = 0; i < warnings.Count; i++)
+            {
+                var warning = warnings[i];
+                exportedWarnings[i] = new MobaAcceptanceDiagnosticWarning
+                {
+                    key = warning.Key,
+                    message = warning.Message,
+                    count = warning.Count,
+                    suppressedAtLimit = warning.SuppressedAtLimit
+                };
+
+                if (string.IsNullOrEmpty(warning.Key)
+                    || warning.Key.IndexOf("plan.action.rejected.", StringComparison.OrdinalIgnoreCase) < 0
+                    || string.IsNullOrEmpty(warning.Message))
+                {
+                    continue;
+                }
+
+                if (rejectionCount > 0) rejectionSummary.Append(" | ");
+                rejectionSummary.Append(warning.Message);
+                rejectionCount++;
+            }
+
+            return new MobaAcceptanceDiagnosticsSummary
+            {
+                warningCount = exportedWarnings.Length,
+                warnings = exportedWarnings,
+                planActionRejections = rejectionSummary.ToString()
+            };
         }
 
         private static int CountContextExpectations(MobaAcceptanceExpectation expectation)

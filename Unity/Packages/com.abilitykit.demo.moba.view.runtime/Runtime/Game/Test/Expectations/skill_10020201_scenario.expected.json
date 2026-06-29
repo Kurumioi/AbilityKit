@@ -8,10 +8,11 @@
   "tags": ["xiao-qiao", "skill-2", "area", "scenario", "damage"],
   "config": {
     "skillId": 10020201,
+    "castFlowId": 10020201,
     "effectId": 10020201,
+    "triggerId": 10020201,
     "expectedActions": [
-      { "actionId": 1985620354, "type": "spawn_area" },
-      { "actionId": 2012148690, "type": "play_audio" }
+      { "actionId": 589451731, "type": "debug_log" }
     ]
   },
   "scenario": {
@@ -77,10 +78,9 @@
   "mustContain": [
     { "kind": "SkillCast", "configId": 10020201, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10020201, "minCount": 1 },
-    { "kind": "EffectAction", "configId": 1985620354, "underEffectId": 10020201, "minCount": 1 },
-    { "kind": "AreaSpawn", "configId": 40020201, "underEffectId": 10020201, "minCount": 1 },
-    { "kind": "AreaEnter", "configId": 40020201, "underEffectId": 10020201, "minCount": 1 },
-    { "kind": "DamageApply", "configId": 10020201, "underEffectId": 10020201, "minCount": 1 }
+    { "kind": "AreaSpawn", "configId": 40020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaEnter", "configId": 40020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 },
+    { "kind": "DamageApply", "configId": 10020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 }
   ],
   "relationships": [
     { "parentKind": "SkillCast", "parentConfigId": 10020201, "childKind": "EffectExecution", "childConfigId": 10020201 },

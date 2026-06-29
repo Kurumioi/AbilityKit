@@ -4,6 +4,11 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 {
     public readonly struct MobaColor32 : IEquatable<MobaColor32>
     {
+        public readonly byte R;
+        public readonly byte G;
+        public readonly byte B;
+        public readonly byte A;
+
         public MobaColor32(byte r, byte g, byte b, byte a)
         {
             R = r;
@@ -11,15 +16,6 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
             B = b;
             A = a;
         }
-
-        public byte R { get; }
-        public byte G { get; }
-        public byte B { get; }
-        public byte A { get; }
-
-        public static MobaColor32 Transparent => new MobaColor32(0, 0, 0, 0);
-        public static MobaColor32 White => new MobaColor32(255, 255, 255, 255);
-        public static MobaColor32 Black => new MobaColor32(0, 0, 0, 255);
 
         public bool Equals(MobaColor32 other)
         {
@@ -33,12 +29,14 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(R, G, B, A);
-        }
-
-        public override string ToString()
-        {
-            return $"({R}, {G}, {B}, {A})";
+            unchecked
+            {
+                var hashCode = (int)R;
+                hashCode = (hashCode * 397) ^ G;
+                hashCode = (hashCode * 397) ^ B;
+                hashCode = (hashCode * 397) ^ A;
+                return hashCode;
+            }
         }
     }
 }

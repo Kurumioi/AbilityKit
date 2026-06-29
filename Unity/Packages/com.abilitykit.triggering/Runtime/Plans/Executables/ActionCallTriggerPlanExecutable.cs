@@ -1,3 +1,4 @@
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -21,8 +22,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         protected override TriggerPlanExecutionResult ExecuteCore<TCtx>(object args, in ExecCtx<TCtx> ctx)
         {
+            Log.Warning($"[ActionCallTriggerPlanExecutable] executing actionId={_action.Id.Value} arity={_action.Arguments.Arity} hasNamedArgs={_action.Arguments.HasNamedArgs} triggerArgsType={args?.GetType().Name ?? "<null>"} ctxType={typeof(TCtx).Name}");
             var trigger = new PlannedTrigger<object, TCtx>(_plan);
             trigger.Execute(args, in ctx);
+            Log.Warning($"[ActionCallTriggerPlanExecutable] executed actionId={_action.Id.Value} arity={_action.Arguments.Arity}");
             return TriggerPlanExecutionResult.Success(_plan.Actions?.Length ?? 0);
         }
     }

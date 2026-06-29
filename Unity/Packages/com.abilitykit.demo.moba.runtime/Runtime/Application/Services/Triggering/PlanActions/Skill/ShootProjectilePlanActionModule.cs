@@ -1,16 +1,17 @@
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Projectile;
-using AbilityKit.Core.Mathematics;
-using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
-using AbilityKit.Demo.Moba.Systems;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -25,6 +26,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, ShootProjectileArgs args, ExecCtx<IWorldResolver> ctx)
         {
+            Log.Warning($"[ShootProjectilePlanActionModule] entered triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId}");
+            LogInvestigation(ctx, $"entered. triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId}");
+
             if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null)
             {
                 LogRejected(ctx, "cannot resolve MobaProjectileService.");
@@ -53,8 +57,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             if (paramResolver != null)
             {
-                launcherId = paramResolver.Projectile.ResolveLauncherId(casterActorId, launcherId);
-                projectileId = paramResolver.Projectile.ResolveProjectileId(casterActorId, projectileId);
+                var resolvedLauncherId = paramResolver.Projectile.ResolveLauncherId(casterActorId, launcherId);
+                var resolvedProjectileId = paramResolver.Projectile.ResolveProjectileId(casterActorId, projectileId);
+                Log.Warning($"[ShootProjectilePlanActionModule] resolved projectile params casterActorId={casterActorId} rawLauncherId={launcherId} resolvedLauncherId={resolvedLauncherId} rawProjectileId={projectileId} resolvedProjectileId={resolvedProjectileId}");
+                LogInvestigation(ctx, $"resolved projectile params. casterActorId={casterActorId} rawLauncherId={launcherId} resolvedLauncherId={resolvedLauncherId} rawProjectileId={projectileId} resolvedProjectileId={resolvedProjectileId}");
+                launcherId = resolvedLauncherId;
+                projectileId = resolvedProjectileId;
+            }
+            else
+            {
+                Log.Warning($"[ShootProjectilePlanActionModule] no param resolver. casterActorId={casterActorId} rawLauncherId={launcherId} rawProjectileId={projectileId}");
+                LogInvestigation(ctx, $"no param resolver. casterActorId={casterActorId} rawLauncherId={launcherId} rawProjectileId={projectileId}");
             }
 
             if (launcherId <= 0 || projectileId <= 0)
@@ -122,11 +135,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!aimPos.Equals(Vec3.Zero)) aimPos = casterPos + aimPos;
             if (!aimDir.Equals(Vec3.Zero)) aimDir = aimDir.Normalized;
 
+            Log.Warning($"[ShootProjectilePlanActionModule] launching casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection} aimPos={aimPos} aimDir={aimDir}");
             var sourceContext = input.CreateSourceContext(casterActorId, 0, projectile.Id);
             if (!projectileSvc.Launch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, in aimPos, in aimDir, in sourceContext))
             {
+                Log.Warning($"[ShootProjectilePlanActionModule] launch failed casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
                 LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
+                return;
             }
+
+            Log.Warning($"[ShootProjectilePlanActionModule] launch succeeded casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
+            LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
         }
     }
 }

@@ -14,7 +14,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     public sealed class TriggerPlanSourceConverter
     {
         private readonly TriggerPlanSourceConditionWriter _conditionWriter = new TriggerPlanSourceConditionWriter();
-        private readonly TriggerPlanSourceActionWriter _actionWriter = new TriggerPlanSourceActionWriter();
+        private readonly Dictionary<int, string> _strings = new Dictionary<int, string>();
+        private readonly TriggerPlanSourceActionWriter _actionWriter;
         private readonly TriggerPlanSourceBehaviorResolver _behaviorResolver = new TriggerPlanSourceBehaviorResolver();
         private readonly TriggerPlanSourceExecutionControlWriter _executionControlWriter = new TriggerPlanSourceExecutionControlWriter();
         private readonly TriggerPlanSourceExecutionNodeOptionWriter _executionNodeOptionWriter;
@@ -25,6 +26,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
         public TriggerPlanSourceConverter()
         {
+            _actionWriter = new TriggerPlanSourceActionWriter(_strings);
             _executionNodeOptionWriter = new TriggerPlanSourceExecutionNodeOptionWriter(_conditionWriter, _actionWriter.WriteParamValue);
             _executionNodeWriter = new TriggerPlanSourceExecutionNodeWriter(_conditionWriter, _actionWriter, _behaviorResolver, _executionNodeOptionWriter, _executionNodeShape);
         }
@@ -59,6 +61,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     {
                         foreach (var trigger in source.triggers)
                         {
+                            if (trigger == null) continue;
+                            if (trigger.enabled == false) continue;
                             WriteTrigger(writer, trigger, source.actions, conditionCatalog, actionCatalog, behaviorCatalog);
                         }
                     }
@@ -66,6 +70,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     writer.WriteEndArray();
                     writer.WritePropertyName("Strings");
                     writer.WriteStartObject();
+                    foreach (var kv in _strings)
+                    {
+                        writer.WritePropertyName(kv.Key.ToString());
+                        writer.WriteValue(kv.Value);
+                    }
                     writer.WriteEndObject();
                     writer.WriteEndObject();
                 }

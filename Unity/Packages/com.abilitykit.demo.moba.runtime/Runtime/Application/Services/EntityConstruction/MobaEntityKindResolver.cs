@@ -6,7 +6,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
     {
         public static MobaEntityKind Resolve(EntityMainType mainType, UnitSubType unitSubType)
         {
-            if (mainType != EntityMainType.Unit) return MobaEntityKind.Hero;
+            if (mainType != EntityMainType.Unit)
+            {
+                return MobaEntityKind.Hero;
+            }
 
             switch (unitSubType)
             {

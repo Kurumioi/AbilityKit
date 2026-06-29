@@ -1,7 +1,7 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -21,6 +21,6 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 
         void OnDamageEventSnapshot(ISnapshotEnvelope packet, MobaDamageEventSnapshotEntry[] entries);
 
-        void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
+        void OnPresentationCueSnapshot(ISnapshotEnvelope packet, BattlePresentationCueData[] entries);
     }
 }

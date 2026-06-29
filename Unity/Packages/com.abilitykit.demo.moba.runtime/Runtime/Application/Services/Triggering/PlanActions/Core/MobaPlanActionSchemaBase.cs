@@ -200,11 +200,38 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             for (int i = 0; i < aliases.Length; i++)
             {
-                if (string.Equals(key, aliases[i], StringComparison.OrdinalIgnoreCase))
+                var alias = aliases[i];
+                if (string.Equals(key, alias, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (HasIndexedAliasSuffix(key, alias))
                     return true;
             }
 
             return false;
+        }
+
+        private static bool HasIndexedAliasSuffix(string key, string alias)
+        {
+            if (string.IsNullOrEmpty(alias) || key.Length <= alias.Length + 1)
+            {
+                return false;
+            }
+
+            if (!key.StartsWith(alias, StringComparison.OrdinalIgnoreCase) || key[alias.Length] != '_')
+            {
+                return false;
+            }
+
+            for (int i = alias.Length + 1; i < key.Length; i++)
+            {
+                if (!char.IsDigit(key[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

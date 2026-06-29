@@ -574,7 +574,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                     break;
 
                 case "add_buff":
-                    RenameArg(action.Args, "target_id", "target");
+                    RenameArg(action.Args, "target_actor_id", "target");
+                    CollapsePrefixedArgs(action.Args, "buffids", "buffIds");
+                    RenameArg(action.Args, "buff_id", "buffIds");
                     break;
             }
         }
@@ -588,6 +590,69 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 args[newKey] = value;
                 args.Remove(oldKey);
+            }
+        }
+
+        private static void CollapsePrefixedArgs(Dictionary<string, object> args, string prefix, string targetKey)
+        {
+            var values = new List<int>();
+            var keysToRemove = new List<string>();
+            foreach (var kv in args)
+            {
+                if (!kv.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (TryConvertToInt(kv.Value, out var value) && value > 0)
+                {
+                    values.Add(value);
+                    keysToRemove.Add(kv.Key);
+                }
+            }
+
+            if (values.Count == 0)
+            {
+                return;
+            }
+
+            args[targetKey] = values;
+            for (int i = 0; i < keysToRemove.Count; i++)
+            {
+                args.Remove(keysToRemove[i]);
+            }
+        }
+
+        private static bool TryConvertToInt(object value, out int intValue)
+        {
+            switch (value)
+            {
+                case null:
+                    intValue = 0;
+                    return false;
+                case int i:
+                    intValue = i;
+                    return true;
+                case long l:
+                    intValue = (int)l;
+                    return true;
+                case double d:
+                    intValue = (int)Math.Round(d);
+                    return true;
+                case float f:
+                    intValue = (int)Math.Round(f);
+                    return true;
+                default:
+                    try
+                    {
+                        intValue = System.Convert.ToInt32(value);
+                        return true;
+                    }
+                    catch
+                    {
+                        intValue = 0;
+                        return false;
+                    }
             }
         }
 
@@ -675,8 +740,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Category = "Buff",
                 Params = new List<ParameterDefinition>
                 {
-                    new ParameterDefinition("target", "entity", true),
-                    new ParameterDefinition("buff_id", "int", true),
+                    new ParameterDefinition("target", "entity", false),
+                    new ParameterDefinition("target_self", "bool", false) { DefaultValue = false },
+                    new ParameterDefinition("buffIds", "int[]", true),
+                    new ParameterDefinition("buff_id", "int", false),
                     new ParameterDefinition("duration", "float", false) { DefaultValue = -1.0 }
                 }
             };

@@ -61,7 +61,15 @@
     "MaxStacks": 1,
     "TriggerIds": [],
     "Tags": [],
-    "Modifiers": []
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 17,
+        "Op": 0,
+        "Value": 2,
+        "Priority": 10
+      }
+    ]
   },
   {
     "Id": 10020301,

@@ -25,6 +25,23 @@ namespace AbilityKit.Demo.Moba.Services
         void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit);
         void Warning(string key, Func<string> messageFactory, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit);
         void Exception(string key, Exception exception, string context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit);
+        IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot();
+    }
+
+    public readonly struct MobaBattleDiagnosticWarningRecord
+    {
+        public MobaBattleDiagnosticWarningRecord(string key, string message, int count, bool suppressedAtLimit)
+        {
+            Key = key ?? string.Empty;
+            Message = message ?? string.Empty;
+            Count = count;
+            SuppressedAtLimit = suppressedAtLimit;
+        }
+
+        public string Key { get; }
+        public string Message { get; }
+        public int Count { get; }
+        public bool SuppressedAtLimit { get; }
     }
 
     public static class MobaBattleDiagnosticsDefaults
@@ -142,6 +159,7 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaBattleDiagnosticsService : IMobaBattleDiagnosticsService, IService
     {
         private readonly Dictionary<string, int> _warningCounts = new Dictionary<string, int>(64);
+        private readonly List<MobaBattleDiagnosticWarningRecord> _warnings = new List<MobaBattleDiagnosticWarningRecord>(32);
 
         public long GetTimestamp()
         {
@@ -201,34 +219,40 @@ namespace AbilityKit.Demo.Moba.Services
         public void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit)
         {
             if (string.IsNullOrEmpty(message)) return;
-            if (!ShouldLog(key, maxCount, out var suppressedAtLimit)) return;
+            if (!ShouldLog(key, maxCount, out var count, out var suppressedAtLimit)) return;
 
+            RecordWarningSnapshot(key, message, count, suppressedAtLimit);
             AbilityKit.Core.Logging.Log.Warning(message);
             if (suppressedAtLimit)
             {
-                AbilityKit.Core.Logging.Log.Warning($"[MobaDiagnostics] Further diagnostics suppressed for key={key}.");
+                var suppressionMessage = $"[MobaDiagnostics] Further diagnostics suppressed for key={key}.";
+                RecordWarningSnapshot(key, suppressionMessage, count, true);
+                AbilityKit.Core.Logging.Log.Warning(suppressionMessage);
             }
         }
 
         public void Warning(string key, Func<string> messageFactory, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit)
         {
             if (messageFactory == null) return;
-            if (!ShouldLog(key, maxCount, out var suppressedAtLimit)) return;
+            if (!ShouldLog(key, maxCount, out var count, out var suppressedAtLimit)) return;
 
             var message = messageFactory();
             if (string.IsNullOrEmpty(message)) return;
 
+            RecordWarningSnapshot(key, message, count, suppressedAtLimit);
             AbilityKit.Core.Logging.Log.Warning(message);
             if (suppressedAtLimit)
             {
-                AbilityKit.Core.Logging.Log.Warning($"[MobaDiagnostics] Further diagnostics suppressed for key={key}.");
+                var suppressionMessage = $"[MobaDiagnostics] Further diagnostics suppressed for key={key}.";
+                RecordWarningSnapshot(key, suppressionMessage, count, true);
+                AbilityKit.Core.Logging.Log.Warning(suppressionMessage);
             }
         }
 
         public void Exception(string key, Exception exception, string context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit)
         {
             if (exception == null) return;
-            if (!ShouldLog(key, maxCount, out var suppressedAtLimit)) return;
+            if (!ShouldLog(key, maxCount, out _, out var suppressedAtLimit)) return;
 
             var message = string.IsNullOrEmpty(context) ? exception.Message : context;
             AbilityKit.Core.Logging.Log.Exception(exception, $"[MobaDiagnostics] {message}");
@@ -238,18 +262,35 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot()
+        {
+            return _warnings.ToArray();
+        }
+
         public void Dispose()
         {
             _warningCounts.Clear();
+            _warnings.Clear();
         }
 
-        private bool ShouldLog(string key, int maxCount, out bool suppressedAtLimit)
+        private void RecordWarningSnapshot(string key, string message, int count, bool suppressedAtLimit)
         {
+            _warnings.Add(new MobaBattleDiagnosticWarningRecord(key, message, count, suppressedAtLimit));
+        }
+
+        private bool ShouldLog(string key, int maxCount, out int count, out bool suppressedAtLimit)
+        {
+            count = 0;
             suppressedAtLimit = false;
-            if (maxCount <= 0) return true;
+            if (maxCount <= 0)
+            {
+                count = 1;
+                return true;
+            }
+
             if (string.IsNullOrEmpty(key)) key = "default";
 
-            _warningCounts.TryGetValue(key, out var count);
+            _warningCounts.TryGetValue(key, out count);
             if (count >= maxCount) return false;
 
             count++;

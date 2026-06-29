@@ -1,16 +1,8 @@
 using System;
-using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 
 namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 {
-    public enum BattlePresentationCueDecisionKind
-    {
-        None = 0,
-        Play = 1,
-        Stop = 2,
-    }
-
     public readonly struct BattlePresentationCueRequestKey : IEquatable<BattlePresentationCueRequestKey>
     {
         private readonly string _externalKey;
@@ -57,7 +49,7 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 
         public bool IsEmpty => !_hasValue;
 
-        public static BattlePresentationCueRequestKey From(in PresentationCueData data)
+        public static BattlePresentationCueRequestKey From(in BattlePresentationCueData data)
         {
             if (!string.IsNullOrWhiteSpace(data.InstanceKey)) return FromExternal(data.InstanceKey);
             if (!string.IsNullOrWhiteSpace(data.RequestKey)) return FromExternal(data.RequestKey);
@@ -139,6 +131,13 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
                 return hashCode;
             }
         }
+    }
+
+    public enum BattlePresentationCueDecisionKind
+    {
+        None = 0,
+        Play = 1,
+        Stop = 2,
     }
 
     public readonly struct BattlePresentationCueSpawnRequest

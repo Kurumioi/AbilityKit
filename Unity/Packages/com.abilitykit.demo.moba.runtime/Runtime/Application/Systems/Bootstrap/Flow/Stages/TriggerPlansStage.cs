@@ -128,8 +128,9 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 var loadedDb = directoryLoader.LoadDirectory(entry.Path, pattern, options);
                 if (loadedDb != null && loadedDb.Records != null)
                 {
+                    // Directory trigger files are the actively maintained source of truth and must override stale compiled records.
                     db.MergeFrom(loadedDb, replaceExisting: true);
-                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged. total records={db.Records?.Count ?? 0}");
+                    MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged with override enabled. total records={db.Records?.Count ?? 0}");
                 }
             }
             catch (Exception ex)

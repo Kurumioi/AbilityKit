@@ -10,6 +10,9 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId;
         public int TargetActorId;
         public bool IsRoot;
+        public int CurrentActionIndex = -1;
+        public long CurrentActionContextId;
+        public long CurrentActionId;
         public readonly List<long> ActionContextIds = new List<long>();
     }
 }

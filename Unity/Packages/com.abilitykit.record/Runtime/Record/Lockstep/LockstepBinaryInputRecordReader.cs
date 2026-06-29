@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 
 namespace AbilityKit.Core.Recording.Lockstep
 {
@@ -124,8 +123,12 @@ namespace AbilityKit.Core.Recording.Lockstep
             if (string.IsNullOrEmpty(path)) return path;
             if (Path.IsPathRooted(path)) return path;
 
-            var baseDir = Application.persistentDataPath;
-            if (string.IsNullOrEmpty(baseDir)) baseDir = Application.dataPath;
+#if UNITY_2020_3_OR_NEWER
+            var baseDir = UnityEngine.Application.persistentDataPath;
+            if (string.IsNullOrEmpty(baseDir)) baseDir = UnityEngine.Application.dataPath;
+#else
+            var baseDir = Environment.CurrentDirectory;
+#endif
             return Path.Combine(baseDir, path);
         }
     }

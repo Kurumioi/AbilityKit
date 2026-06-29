@@ -8,7 +8,10 @@ using GameFramework.Network;
 internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDisposable
 {
     private readonly object _syncRoot = new();
+    private readonly object _conditionSyncRoot = new();
     private readonly Dictionary<int, IPacketHandler> _handlers = new();
+    private readonly SmokeNetworkConditionOptions _networkCondition;
+    private readonly Random _conditionRandom;
     private TcpClient? _client;
     private NetworkStream? _stream;
     private EventHandler<Packet>? _defaultHandler;
@@ -16,10 +19,20 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
     private Task? _readTask;
     private int _sentPacketCount;
     private int _receivedPacketCount;
+    private int _conditionInboundReceived;
+    private int _conditionInboundDelayed;
+    private int _conditionInboundDropped;
 
     public SmokeTcpGameFrameworkNetworkChannel(string name)
+        : this(name, SmokeNetworkConditionOptions.Ideal)
+    {
+    }
+
+    public SmokeTcpGameFrameworkNetworkChannel(string name, SmokeNetworkConditionOptions networkCondition)
     {
         Name = string.IsNullOrWhiteSpace(name) ? "ShooterSmokeGateway" : name;
+        _networkCondition = networkCondition;
+        _conditionRandom = new Random(networkCondition.Seed);
     }
 
     public string Name { get; }
@@ -39,6 +52,14 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
     public int ReceivePacketCount => 0;
 
     public int ReceivedPacketCount => Volatile.Read(ref _receivedPacketCount);
+
+    public int ConditionInboundReceived => Volatile.Read(ref _conditionInboundReceived);
+
+    public int ConditionInboundDelayed => Volatile.Read(ref _conditionInboundDelayed);
+
+    public int ConditionInboundDropped => Volatile.Read(ref _conditionInboundDropped);
+
+    public SmokeNetworkConditionOptions NetworkCondition => _networkCondition;
 
     public bool ResetHeartBeatElapseSecondsWhenReceivePacket { get; set; }
 
@@ -149,6 +170,11 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
                 }
 
                 var payload = payloadSpan.ToArray();
+                if (!await ApplyInboundConditionAsync(header, cancellationToken))
+                {
+                    continue;
+                }
+
                 var packet = new AbilityKitGatewayPacket(header, new ArraySegment<byte>(payload));
                 Interlocked.Increment(ref _receivedPacketCount);
                 Dispatch(packet);
@@ -185,6 +211,48 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
         }
     }
 
+    private async Task<bool> ApplyInboundConditionAsync(NetworkPacketHeader header, CancellationToken cancellationToken)
+    {
+        if ((header.Flags & NetworkPacketFlags.ServerPush) == 0 || !_networkCondition.Enabled)
+        {
+            return true;
+        }
+
+        Interlocked.Increment(ref _conditionInboundReceived);
+        var drop = false;
+        var delayMs = _networkCondition.InboundLatencyMs;
+        lock (_conditionSyncRoot)
+        {
+            if (_networkCondition.InboundPacketLossRate > 0d && _conditionRandom.NextDouble() < _networkCondition.InboundPacketLossRate)
+            {
+                drop = true;
+            }
+
+            if (!drop && _networkCondition.InboundJitterMs > 0)
+            {
+                delayMs += _conditionRandom.Next(-_networkCondition.InboundJitterMs, _networkCondition.InboundJitterMs + 1);
+                if (delayMs < 0)
+                {
+                    delayMs = 0;
+                }
+            }
+        }
+
+        if (drop)
+        {
+            Interlocked.Increment(ref _conditionInboundDropped);
+            return false;
+        }
+
+        if (delayMs > 0)
+        {
+            Interlocked.Increment(ref _conditionInboundDelayed);
+            await Task.Delay(delayMs, cancellationToken);
+        }
+
+        return true;
+    }
+
     private void Dispatch(AbilityKitGatewayPacket packet)
     {
         EventHandler<Packet>? defaultHandler;
@@ -202,5 +270,25 @@ internal sealed class SmokeTcpGameFrameworkNetworkChannel : INetworkChannel, IDi
         }
 
         defaultHandler?.Invoke(this, packet);
+    }
+}
+
+internal readonly record struct SmokeNetworkConditionOptions(
+    int InboundLatencyMs,
+    int InboundJitterMs,
+    double InboundPacketLossRate,
+    int Seed)
+{
+    public static SmokeNetworkConditionOptions Ideal => new(0, 0, 0d, 0);
+
+    public bool Enabled => InboundLatencyMs > 0 || InboundJitterMs > 0 || InboundPacketLossRate > 0d;
+
+    public SmokeNetworkConditionOptions Normalize()
+    {
+        return new SmokeNetworkConditionOptions(
+            Math.Max(0, InboundLatencyMs),
+            Math.Max(0, InboundJitterMs),
+            Math.Max(0d, Math.Min(1d, InboundPacketLossRate)),
+            Seed);
     }
 }

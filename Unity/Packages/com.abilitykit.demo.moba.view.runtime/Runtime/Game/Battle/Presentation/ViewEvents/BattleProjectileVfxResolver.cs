@@ -2,8 +2,12 @@ using AbilityKit.Ability.Share.Effect;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
+using AbstractBattleProjectileTriggerHitInput = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileTriggerHitInput;
+using AbstractBattleProjectileVfxIds = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileVfxIds;
+using AbstractBattleProjectileVfxResolver = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileVfxResolver;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
@@ -12,15 +16,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleViewResourceProvider _resources;
         private readonly BattleProjectileTriggerHitInputResolver _triggerInputs;
         private readonly BattleProjectileSnapshotVfxIdResolver _snapshotVfxIds;
+        private readonly AbstractBattleProjectileVfxResolver _resolver;
 
         public BattleProjectileVfxResolver(
             BattleViewResourceProvider resources = null,
             BattleProjectileTriggerHitInputResolver triggerInputs = null,
-            BattleProjectileSnapshotVfxIdResolver snapshotVfxIds = null)
+            BattleProjectileSnapshotVfxIdResolver snapshotVfxIds = null,
+            AbstractBattleProjectileVfxResolver resolver = null)
         {
             _resources = BattleViewResourceProvider.OrDefault(resources);
             _triggerInputs = triggerInputs ?? new BattleProjectileTriggerHitInputResolver();
-            _snapshotVfxIds = snapshotVfxIds ?? new BattleProjectileSnapshotVfxIdResolver();
+            _resolver = resolver ?? new AbstractBattleProjectileVfxResolver();
+            _snapshotVfxIds = snapshotVfxIds ?? new BattleProjectileSnapshotVfxIdResolver(_resolver);
         }
 
         public bool TryResolveTriggerHit(in TriggerEvent evt, out int vfxId, out Vector3 position)
@@ -31,10 +38,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (!_triggerInputs.TryResolve(in evt, out var input)) return false;
 
             var projectile = _resources.TryGetProjectile(input.TemplateId);
-            if (projectile == null || projectile.OnHitVfxId <= 0) return false;
+            if (projectile == null) return false;
 
-            vfxId = projectile.OnHitVfxId;
-            position = input.HitPoint;
+            var abstractInput = new AbstractBattleProjectileTriggerHitInput(input.TemplateId, ToMobaFloat3(input.HitPoint));
+            var vfxIds = ToVfxIds(projectile);
+            if (!_resolver.TryResolveTriggerHit(in abstractInput, in vfxIds, out var abstractSpec)) return false;
+
+            vfxId = abstractSpec.VfxId;
+            position = ToUnityVector3(abstractSpec.Position);
             return true;
         }
 
@@ -44,6 +55,30 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
             var projectile = _resources.TryGetProjectile(templateId);
             return _snapshotVfxIds.Resolve(projectile, kind);
+        }
+
+        public Vector3 ResolveSnapshotPosition(float x, float y, float z)
+        {
+            return ToUnityVector3(_resolver.ResolveSnapshotPosition(x, y, z));
+        }
+
+        private static AbstractBattleProjectileVfxIds ToVfxIds(ProjectileMO projectile)
+        {
+            if (projectile == null) return default;
+            return new AbstractBattleProjectileVfxIds(
+                projectile.OnSpawnVfxId,
+                projectile.OnHitVfxId,
+                projectile.OnExpireVfxId);
+        }
+
+        private static MobaFloat3 ToMobaFloat3(Vector3 value)
+        {
+            return new MobaFloat3(value.x, value.y, value.z);
+        }
+
+        private static Vector3 ToUnityVector3(MobaFloat3 value)
+        {
+            return new Vector3(value.X, value.Y, value.Z);
         }
     }
 
@@ -88,14 +123,22 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
     internal sealed class BattleProjectileSnapshotVfxIdResolver
     {
+        private readonly AbstractBattleProjectileVfxResolver _resolver;
+
+        public BattleProjectileSnapshotVfxIdResolver(AbstractBattleProjectileVfxResolver resolver = null)
+        {
+            _resolver = resolver ?? new AbstractBattleProjectileVfxResolver();
+        }
+
         public int Resolve(ProjectileMO projectile, int kind)
         {
             if (projectile == null) return 0;
 
-            if (kind == (int)ProjectileEventKind.Spawn) return projectile.OnSpawnVfxId;
-            if (kind == (int)ProjectileEventKind.Hit) return projectile.OnHitVfxId;
-            if (kind == (int)ProjectileEventKind.Exit) return projectile.OnExpireVfxId;
-            return 0;
+            var vfxIds = new AbstractBattleProjectileVfxIds(
+                projectile.OnSpawnVfxId,
+                projectile.OnHitVfxId,
+                projectile.OnExpireVfxId);
+            return _resolver.ResolveSnapshotVfxId(in vfxIds, kind);
         }
     }
 }

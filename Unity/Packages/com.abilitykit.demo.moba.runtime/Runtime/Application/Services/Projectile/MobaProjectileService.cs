@@ -245,6 +245,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
         {
+            Log.Warning(
+                $"[MobaProjectileService] launch request. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} countPerShot={countPerShot} fanAngleDeg={fanAngleDeg:0.###} durationMs={durationMs} spawnPos={spawnPos} dir={dir} incomingSourceContextId={sourceContext.SourceContextId} incomingRootContextId={sourceContext.RootContextId} incomingOwnerContextId={sourceContext.OwnerContextId}");
+
             var request = new MobaProjectileLaunchRequest(
                 casterActorId,
                 launcher,
@@ -261,39 +264,55 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             {
                 if (!_continuous.TryActivate(continuous))
                 {
-                    Log.Warning($"[MobaProjectileService] projectile launch continuous rejected. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0}");
+                    var rejectReason = (_continuous as DefaultContinuousManager)?.LastRejectReason;
+                    var activationError = continuous.Result.Error;
+                    Log.Warning($"[MobaProjectileService] projectile launch continuous rejected. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} rejectReason={rejectReason ?? "<none>"} activationError={activationError ?? "<none>"}");
                     return false;
                 }
 
+                Log.Warning($"[MobaProjectileService] projectile launch continuous activated. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0}");
                 return true;
             }
 
-            return TryStartLaunch(in request, out var directResult) && directResult.Success;
+            var startedDirectly = TryStartLaunch(in request, out var directResult);
+            if (!startedDirectly || !directResult.Success)
+            {
+                Log.Warning($"[MobaProjectileService] projectile launch direct start failed. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} error={directResult.Error ?? "<none>"}");
+            }
+            else
+            {
+                Log.Warning($"[MobaProjectileService] projectile launch direct start succeeded. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} launcherActorId={directResult.LauncherActorId}");
+            }
+
+            return startedDirectly && directResult.Success;
         }
 
         public bool TryStartLaunch(in MobaProjectileLaunchRequest request, out MobaProjectileLaunchResult result)
         {
             result = default;
-            if (_projectiles == null) { result = MobaProjectileLaunchResult.Failed("Projectile service is null"); return false; }
-            if (_actorIds == null) { result = MobaProjectileLaunchResult.Failed("Actor id allocator is null"); return false; }
-            if (_registry == null) { result = MobaProjectileLaunchResult.Failed("Actor registry is null"); return false; }
-            if (_entities == null) { result = MobaProjectileLaunchResult.Failed("Entity manager is null"); return false; }
-            if (_actorSpawn == null) { result = MobaProjectileLaunchResult.Failed("Actor spawn service is null"); return false; }
-            if (request.CasterActorId <= 0) { result = MobaProjectileLaunchResult.Failed("Caster actor id is invalid"); return false; }
-            if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); return false; }
-            if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); return false; }
-            if (request.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Projectile count per shot is invalid. countPerShot={request.CountPerShot}"); return false; }
-            if (request.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Projectile fan angle is invalid. fanAngleDeg={request.FanAngleDeg}"); return false; }
-            if (request.DurationMs < 0) { result = MobaProjectileLaunchResult.Failed($"Projectile duration is invalid. durationMs={request.DurationMs}"); return false; }
+            Log.Warning(
+                $"[MobaProjectileService] TryStartLaunch begin. casterActorId={request.CasterActorId} launcherId={request.Launcher?.Id ?? 0} projectileId={request.Projectile?.Id ?? 0} countPerShot={request.CountPerShot} fanAngleDeg={request.FanAngleDeg:0.###} durationMs={request.DurationMs} hasProjectiles={(_projectiles != null)} hasActorIds={(_actorIds != null)} hasRegistry={(_registry != null)} hasEntities={(_entities != null)} hasActorSpawn={(_actorSpawn != null)} hasFrameTime={(_frameTime != null)}");
+            if (_projectiles == null) { result = MobaProjectileLaunchResult.Failed("Projectile service is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (_actorIds == null) { result = MobaProjectileLaunchResult.Failed("Actor id allocator is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (_registry == null) { result = MobaProjectileLaunchResult.Failed("Actor registry is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (_entities == null) { result = MobaProjectileLaunchResult.Failed("Entity manager is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (_actorSpawn == null) { result = MobaProjectileLaunchResult.Failed("Actor spawn service is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.CasterActorId <= 0) { result = MobaProjectileLaunchResult.Failed("Caster actor id is invalid"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.Launcher == null) { result = MobaProjectileLaunchResult.Failed("Launcher config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.Projectile == null) { result = MobaProjectileLaunchResult.Failed("Projectile config is null"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Projectile count per shot is invalid. countPerShot={request.CountPerShot}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Projectile fan angle is invalid. fanAngleDeg={request.FanAngleDeg}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (request.DurationMs < 0) { result = MobaProjectileLaunchResult.Failed($"Projectile duration is invalid. durationMs={request.DurationMs}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
  
             var casterActorId = request.CasterActorId;
             var launcher = request.Launcher;
             var projectile = request.Projectile;
-            if (launcher.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Launcher count per shot is invalid. launcherId={launcher.Id} countPerShot={launcher.CountPerShot}"); return false; }
-            if (launcher.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Launcher fan angle is invalid. launcherId={launcher.Id} fanAngleDeg={launcher.FanAngleDeg}"); return false; }
+            if (launcher.CountPerShot <= 0) { result = MobaProjectileLaunchResult.Failed($"Launcher count per shot is invalid. launcherId={launcher.Id} countPerShot={launcher.CountPerShot}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
+            if (launcher.FanAngleDeg < 0f) { result = MobaProjectileLaunchResult.Failed($"Launcher fan angle is invalid. launcherId={launcher.Id} fanAngleDeg={launcher.FanAngleDeg}"); Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}"); return false; }
             if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform)
             {
                 result = MobaProjectileLaunchResult.Failed("Caster entity is missing transform");
+                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}");
                 return false;
             }
 
@@ -305,6 +324,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (frameTime == null || frameTime.DeltaTime <= 0f)
             {
                 result = MobaProjectileLaunchResult.Failed("Projectile launch requires valid frame time.");
+                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error}");
                 return false;
             }
 
@@ -340,6 +360,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (launcherEntity == null)
             {
                 result = MobaProjectileLaunchResult.Failed("Launcher actor spawn returned null entity");
+                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error} launcherId={launcher.Id} actorId={launcherActorId} casterActorId={casterActorId}");
                 return false;
             }
 
@@ -395,6 +416,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             {
                 RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
                 result = MobaProjectileLaunchResult.Failed(sequenceError);
+                Log.Warning($"[MobaProjectileService] TryStartLaunch rejected. error={result.Error} launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId}");
                 return false;
             }
 
@@ -420,7 +442,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var started = sequence.TryStart(in context, out result);
             if (!started || !result.Success)
             {
+                Log.Warning($"[MobaProjectileService] TryStartLaunch sequence start failed. launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId} started={started} error={result.Error ?? "<none>"}");
                 RequestLauncherDespawn(launcherEntity, ActorDespawnReason.ProjectileLauncherCompleted);
+            }
+            else
+            {
+                Log.Warning($"[MobaProjectileService] TryStartLaunch sequence started. launcherId={launcher.Id} projectileId={projectile.Id} launcherActorId={launcherActorId} startFrame={startFrame} repeatCount={count} bulletsPerShot={bulletsPerShot} intervalFrames={intervalFrames}");
             }
 
             return started;
@@ -541,6 +568,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     default);
 
             var parentContextId = origin.EffectiveParentContextId;
+            Log.Warning(
+                $"[AK_TRACE_DIAG] projectile launch create begin projectileConfigId={projectileConfigId} sourceActorId={sourceActorId} targetActorId={targetActorId} incomingSourceContextId={sourceContext.SourceContextId} incomingRootContextId={sourceContext.RootContextId} incomingOwnerContextId={sourceContext.OwnerContextId} originImmediateContextId={origin.ImmediateContextId} parentContextId={parentContextId} rootContextId={origin.EffectiveRootContextId} ownerContextId={origin.OwnerContextId} traceAvailable={(_trace != null)}");
             var launchContextId = 0L;
             if (_trace != null)
             {
@@ -549,17 +578,23 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     : _trace.CreateRootContext(MobaTraceKind.ProjectileLaunch, projectileConfigId, sourceActorId, targetActorId);
             }
 
+            Log.Warning(
+                $"[AK_TRACE_DIAG] projectile launch create end projectileConfigId={projectileConfigId} parentContextId={parentContextId} launchContextId={launchContextId}");
+
             if (launchContextId == 0L)
             {
                 throw new InvalidOperationException($"Projectile launch requires trace context. sourceActorId={sourceActorId} targetActorId={targetActorId} projectileConfigId={projectileConfigId} parentContextId={parentContextId}");
             }
 
+            var rootContextId = origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId;
+            var ownerContextId = origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId;
             origin = MobaGameplayOriginBuilder.Create()
                 .FromOrigin(in origin)
                 .WithActors(sourceActorId, targetActorId)
                 .WithImmediate(MobaTraceKind.ProjectileLaunch, projectileConfigId, launchContextId)
-                .WithRootContext(origin.EffectiveRootContextId != 0L ? origin.EffectiveRootContextId : launchContextId)
-                .WithOwnerContext(origin.OwnerContextId != 0L ? origin.OwnerContextId : launchContextId)
+                .WithParentContext(parentContextId)
+                .WithRootContext(rootContextId)
+                .WithOwnerContext(ownerContextId)
                 .Build();
 
             return ProjectileSourceContextBuilder.Create()

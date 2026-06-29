@@ -342,15 +342,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                     break;
 
                 case "shoot_projectile":
-                    ValidateRequiredArg(path, action, "projectile_id", result);
+                    ValidateRequiredArgAny(path, action, result, "projectile_id", "projectileId", "projectile");
                     break;
 
                 case "give_damage":
-                    ValidateRequiredArg(path, action, "amount", result);
+                    ValidateRequiredArgAny(path, action, result, "amount", "damage_value", "value", "damageValue");
                     break;
 
                 case "add_buff":
-                    ValidateRequiredArg(path, action, "buff_id", result);
+                    ValidateRequiredArgAny(path, action, result, "buffIds", "buff_id", "buffId");
                     break;
             }
         }
@@ -364,6 +364,28 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 result.AddWarning($"{path}.args", $"'{action.Type}' action should have '{argName}' argument");
             }
+        }
+
+        /// <summary>
+        /// 验证多个参数别名中至少存在一个。
+        /// </summary>
+        private static void ValidateRequiredArgAny(string path, SourceActionConfig action, ValidationResult result, params string[] argNames)
+        {
+            if (action.Args == null)
+            {
+                result.AddWarning($"{path}.args", $"'{action.Type}' action should have one of: {string.Join(", ", argNames)}");
+                return;
+            }
+
+            for (int i = 0; i < argNames.Length; i++)
+            {
+                if (action.Args.ContainsKey(argNames[i]))
+                {
+                    return;
+                }
+            }
+
+            result.AddWarning($"{path}.args", $"'{action.Type}' action should have one of: {string.Join(", ", argNames)}");
         }
 
         /// <summary>

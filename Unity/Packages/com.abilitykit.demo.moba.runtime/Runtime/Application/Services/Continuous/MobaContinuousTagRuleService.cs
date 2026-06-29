@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Continuous;
@@ -148,15 +149,21 @@ namespace AbilityKit.Demo.Moba.Services
         public bool CanActivate(IContinuous continuous, IContinuousManager manager, out string reason)
         {
             reason = null;
+            var ownerActorId = ResolveOwnerActorId(continuous);
+            var continuousType = continuous?.GetType().Name ?? "<null>";
             if (_evaluator == null)
             {
                 reason = "Tag rule evaluator is unavailable";
-                SetResult(continuous, new MobaContinuousTagRuleResult(ResolveOwnerActorId(continuous), MobaContinuousTagRuleAction.BlockActivate, false, reason, null, null));
+                var unavailableResult = new MobaContinuousTagRuleResult(ownerActorId, MobaContinuousTagRuleAction.BlockActivate, false, reason, null, null);
+                SetResult(continuous, unavailableResult);
+                Log.Warning($"[MobaContinuousTagRuleService] CanActivate rejected. ownerActorId={ownerActorId} continuousType={continuousType} reason={reason}");
                 return false;
             }
 
             var allowed = _evaluator.CanActivate(continuous, out reason);
-            SetResult(continuous, _evaluator.Evaluate(continuous));
+            var evaluation = _evaluator.Evaluate(continuous);
+            SetResult(continuous, evaluation);
+            Log.Warning($"[MobaContinuousTagRuleService] CanActivate evaluated. ownerActorId={ownerActorId} continuousType={continuousType} allowed={allowed} reason={reason ?? "<none>"} action={evaluation.Action} resultAllowed={evaluation.Allowed} resultReason={evaluation.Reason ?? "<none>"}");
             return allowed;
         }
 

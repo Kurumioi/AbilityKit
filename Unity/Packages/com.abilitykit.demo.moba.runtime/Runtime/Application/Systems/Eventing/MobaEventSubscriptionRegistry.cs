@@ -15,6 +15,11 @@ namespace AbilityKit.Demo.Moba.Systems
         private readonly Dictionary<string, Type> _exact = new Dictionary<string, Type>(StringComparer.Ordinal);
         private readonly List<PrefixEntry> _prefixes = new List<PrefixEntry>(8);
 
+        public MobaEventSubscriptionRegistry()
+        {
+            DiscoverAndRegister();
+        }
+
         private readonly struct PrefixEntry
         {
             public readonly string Prefix;
@@ -64,10 +69,39 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public void DiscoverAndRegister(Assembly assembly = null)
         {
-            assembly ??= typeof(MobaEventSubscriptionRegistry).Assembly;
-
-            foreach (var type in assembly.GetTypes())
+            if (assembly != null)
             {
+                RegisterAssemblyMappings(assembly);
+                return;
+            }
+
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            for (var i = 0; i < assemblies.Length; i++)
+            {
+                RegisterAssemblyMappings(assemblies[i]);
+            }
+        }
+        private void RegisterAssemblyMappings(Assembly assembly)
+        {
+            if (assembly == null) return;
+
+            Type[] types;
+            try
+            {
+                types = assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                types = ex.Types;
+            }
+
+            if (types == null) return;
+
+            for (var i = 0; i < types.Length; i++)
+            {
+                var type = types[i];
+                if (type == null) continue;
+
                 var attrs = type.GetCustomAttributes<MobaTriggerEventAttribute>(inherit: false);
                 foreach (var attr in attrs)
                 {

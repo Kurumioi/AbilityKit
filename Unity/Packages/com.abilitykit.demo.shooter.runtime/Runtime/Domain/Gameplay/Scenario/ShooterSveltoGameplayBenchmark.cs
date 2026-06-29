@@ -291,7 +291,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 {
                     first = result;
                 }
-                else if (!HasSameDeterministicOutcome(in first, in result))
+                else if (!HasSameDeterministicOutcome(in first, in result) || !HasSameDeterministicOutcome(in last, in result))
                 {
                     deterministic = false;
                 }

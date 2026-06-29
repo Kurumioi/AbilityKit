@@ -118,6 +118,9 @@ namespace AbilityKit.Game.Test.UnitTest
         public int skillId;
         public int targetActorId;
         public int durationMs;
+        public string property;
+        public float value;
+        public int intValue;
         public MobaAcceptanceVector3Expectation position;
         public MobaAcceptanceVector3Expectation direction;
         public string payload;
@@ -272,6 +275,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public MobaAcceptanceResult result;
         public MobaAcceptanceCoverageSummary coverage;
         public MobaAcceptanceTraceCount[] traceCounts;
+        public MobaAcceptanceDiagnosticsSummary diagnostics;
         public string traceJsonlPath;
         public string summaryJsonPath;
     }
@@ -328,6 +332,23 @@ namespace AbilityKit.Game.Test.UnitTest
     {
         public string kind;
         public int count;
+    }
+
+    [Serializable]
+    public sealed class MobaAcceptanceDiagnosticsSummary
+    {
+        public int warningCount;
+        public MobaAcceptanceDiagnosticWarning[] warnings;
+        public string planActionRejections;
+    }
+
+    [Serializable]
+    public sealed class MobaAcceptanceDiagnosticWarning
+    {
+        public string key;
+        public string message;
+        public int count;
+        public bool suppressedAtLimit;
     }
 
     [Serializable]

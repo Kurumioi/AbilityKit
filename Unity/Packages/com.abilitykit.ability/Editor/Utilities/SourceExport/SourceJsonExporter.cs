@@ -52,6 +52,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             ImportPlanToSourceFile(planPath);
         }
 
+        public static void ExportDefaultSourceToPlanForBatchMode()
+        {
+            var sourcePath = Path.Combine(
+                Application.dataPath,
+                "..",
+                "Packages",
+                "com.abilitykit.demo.moba.view.runtime",
+                "Resources",
+                "ability",
+                SourceOutputFileName);
+            ExportSourceToPlan(Path.GetFullPath(sourcePath));
+        }
+
         [MenuItem("AbilityKit/Ability/Source/Export from SO to Source JSON")]
         public static void ExportSoToSource()
         {
@@ -146,9 +159,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                     {
                         ExportLog.Error($"Source conversion error: {err}");
                     }
-                    EditorUtility.DisplayDialog("Conversion Failed",
-                        $"Errors:\n{string.Join("\n", result.Errors)}",
-                        "OK");
+
+                    HandleBatchModeFailure("Conversion Failed",
+                        $"Errors:\n{string.Join("\n", result.Errors)}");
                     return;
                 }
 
@@ -178,30 +191,49 @@ namespace AbilityKit.Ability.Editor.Utilities
                 ExportLog.Info($"Plan JSON exported to: {outputPath}");
                 ExportLog.Info($"Converted {result.PlanDatabase.Triggers.Count} triggers");
 
-                EditorUtility.DisplayDialog("Export Complete",
-                    $"Conversion successful!\n\nPlan JSON: {outputPath}\nTriggers: {result.PlanDatabase.Triggers.Count}\nWarnings: {result.Warnings.Count}",
-                    "OK");
-
-                // 显示警告对话框
-                if (result.Warnings.Count > 0)
+                if (!Application.isBatchMode)
                 {
-                    var warningMsg = string.Join("\n", result.Warnings.GetRange(0, Math.Min(5, result.Warnings.Count)));
-                    if (result.Warnings.Count > 5)
-                    {
-                        warningMsg += $"\n... and {result.Warnings.Count - 5} more";
-                    }
-                    EditorUtility.DisplayDialog("Warnings",
-                        $"Warnings:\n{warningMsg}",
+                    EditorUtility.DisplayDialog("Export Complete",
+                        $"Conversion successful!\n\nPlan JSON: {outputPath}\nTriggers: {result.PlanDatabase.Triggers.Count}\nWarnings: {result.Warnings.Count}",
                         "OK");
+
+                    // 显示警告对话框
+                    if (result.Warnings.Count > 0)
+                    {
+                        var warningMsg = string.Join("\n", result.Warnings.GetRange(0, Math.Min(5, result.Warnings.Count)));
+                        if (result.Warnings.Count > 5)
+                        {
+                            warningMsg += $"\n... and {result.Warnings.Count - 5} more";
+                        }
+
+                        EditorUtility.DisplayDialog("Warnings",
+                            $"Warnings:\n{warningMsg}",
+                            "OK");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 ExportLog.Exception(ex, "Failed to export Source to Plan");
+                if (Application.isBatchMode)
+                {
+                    throw;
+                }
+
                 EditorUtility.DisplayDialog("Export Failed",
                     $"Error: {ex.Message}",
                     "OK");
             }
+        }
+
+        private static void HandleBatchModeFailure(string title, string message)
+        {
+            if (Application.isBatchMode)
+            {
+                throw new InvalidOperationException(title + ": " + message);
+            }
+
+            EditorUtility.DisplayDialog(title, message, "OK");
         }
 
         /// <summary>
@@ -402,8 +434,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Category = "Buff",
                 Params = new System.Collections.Generic.List<ParameterDefinition>
                 {
-                    new ParameterDefinition("target", "entity", true),
-                    new ParameterDefinition("buff_id", "int", true),
+                    new ParameterDefinition("target", "entity", false),
+                    new ParameterDefinition("target_self", "bool", false) { DefaultValue = false },
+                    new ParameterDefinition("buffIds", "int[]", true),
+                    new ParameterDefinition("buff_id", "int", false),
                     new ParameterDefinition("duration", "float", false) { DefaultValue = -1.0 }
                 }
             };

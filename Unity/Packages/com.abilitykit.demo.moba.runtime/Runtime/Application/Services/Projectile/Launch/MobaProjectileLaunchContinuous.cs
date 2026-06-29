@@ -36,7 +36,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
             _started = true;
             var request = Request;
-            return _executor.TryStartLaunch(in request, out _result) && _result.Success;
+            var started = _executor.TryStartLaunch(in request, out _result);
+            if (!started || !_result.Success)
+            {
+                AbilityKit.Core.Logging.Log.Warning($"[MobaProjectileLaunchContinuous] activation failed. casterActorId={Request.CasterActorId} launcherId={Request.LauncherId} projectileId={Request.ProjectileId} started={started} error={_result.Error ?? "<none>"}");
+            }
+
+            return started && _result.Success;
         }
 
         public void TickManaged(float deltaTimeSeconds)

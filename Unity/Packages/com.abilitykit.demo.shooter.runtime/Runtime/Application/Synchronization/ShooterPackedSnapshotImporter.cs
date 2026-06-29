@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (!isDelta)
             {
                 _state.Reset(default);
-                ClearImportedEnemies();
+                ClearImportedEntities();
             }
 
             _state.CurrentFrame = snapshot.Frame;
@@ -55,6 +55,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var chunk = componentChunks[i];
                 switch (chunk.ComponentKind)
                 {
+                    case ShooterPackedComponentKinds.RuntimeMetadata:
+                        ImportRuntimeMetadataChunk(in chunk);
+                        break;
                     case ShooterPackedComponentKinds.EntityLifecycle:
                         ImportLifecycleComponentChunk(in chunk, players, projectiles, enemies);
                         break;
@@ -105,6 +108,22 @@ namespace AbilityKit.Demo.Shooter.Runtime
             {
                 UpsertEnemy(in enemy);
             }
+        }
+
+        private void ImportRuntimeMetadataChunk(in ShooterPackedComponentChunk chunk)
+        {
+            var values = chunk.IntValues;
+            if (values == null || values.Length < 5)
+            {
+                return;
+            }
+
+            _state.RestoreSnapshotMetadata(
+                (ShooterBattleMatchState)values[0],
+                values[1],
+                values[2],
+                values[3],
+                values[4]);
         }
 
         private static void ImportLifecycleComponentChunk(
@@ -259,15 +278,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private void ClearImportedEnemies()
+        private void ClearImportedEntities()
         {
-            if (!_entities.SveltoContext.EntitiesDB.ExistsAndIsNotEmpty(ShooterSveltoGroups.GameplayTargets))
-            {
-                return;
-            }
-
-            _entities.SveltoContext.EntityFunctions.RemoveEntitiesFromGroup(ShooterSveltoGroups.GameplayTargets);
-            _entities.SveltoContext.SubmitEntities();
+            _entities.Clear();
         }
 
         private void UpsertEnemy(in ImportedEnemy enemy)
@@ -277,17 +290,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            var context = _entities.SveltoContext;
-            var entityId = (uint)enemy.EntityId;
-            if (context.EntitiesDB.Exists<ShooterSveltoHealthComponent>(entityId, ShooterSveltoGroups.GameplayTargets))
+            if (_entities.HasEnemy(enemy.EntityId))
             {
-                context.EntitiesDB.QueryEntity<ShooterSveltoTransformComponent>(entityId, ShooterSveltoGroups.GameplayTargets) = enemy.Transform;
-                context.EntitiesDB.QueryEntity<ShooterSveltoHealthComponent>(entityId, ShooterSveltoGroups.GameplayTargets) = enemy.Health;
+                _entities.SetEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
                 return;
             }
 
-            ShooterSveltoEntityLayout.BuildGameplayTarget(context, entityId, in enemy.Transform, in enemy.Health);
-            context.SubmitEntities();
+            _entities.AddEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
         }
 
         private struct ImportedEnemy

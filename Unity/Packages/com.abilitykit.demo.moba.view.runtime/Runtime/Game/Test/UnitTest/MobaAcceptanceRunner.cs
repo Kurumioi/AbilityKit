@@ -278,8 +278,6 @@ namespace AbilityKit.Game.Test.UnitTest
                 AssertRuntimeEffects(harness, expectation, effectTrace.RootId);
 
                 var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
-                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
-
                 var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, summaryPath);
                 summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
 
@@ -288,6 +286,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records);
                 }
 
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
                 return summary;
             }
         }
@@ -308,9 +307,6 @@ namespace AbilityKit.Game.Test.UnitTest
                 TickScenarioTail(harness, expectation);
 
                 var records = MobaAcceptanceTraceExporter.CaptureTraceRecords(harness, expectation.caseId);
-                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
-                MobaAcceptanceExpectationAssert.AssertStateMatches(expectation, records, harness);
-
                 var summary = MobaAcceptanceTraceExporter.BuildSummary(harness, expectation, records, tracePath, summaryPath);
                 summary.expectationPath = NormalizePath(string.IsNullOrEmpty(expectationPath) ? string.Empty : ResolveProjectRelativePath(expectationPath));
 
@@ -319,6 +315,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     MobaAcceptanceTraceExporter.Export(artifactDirectory, summary, records);
                 }
 
+                MobaAcceptanceExpectationAssert.AssertMatches(expectation, records, harness);
+                MobaAcceptanceExpectationAssert.AssertStateMatches(expectation, records, harness);
                 return summary;
             }
         }
@@ -380,7 +378,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 if (actor == null || string.IsNullOrEmpty(actor.alias) || string.IsNullOrEmpty(actor.playerId)) continue;
                 if (actor.skillIds == null || actor.skillIds.Length == 0) continue;
 
-                var actorId = harness.AssertActorId(actor.alias);
+                Assert.IsTrue(harness.TryGetPlayerId(actor.alias, out var playerId), $"Actor alias {actor.alias} is not bound to a player input source.");
+                var actorId = harness.AssertPlayerActorBound(playerId, $"Player actor binding missing for scenario actor {actor.alias}({playerId.Value}).");
                 var loadout = harness.World.Services.Resolve<AbilityKit.Demo.Moba.Services.MobaSkillLoadoutService>();
                 for (var slot = 1; slot <= actor.skillIds.Length; slot++)
                 {
@@ -450,7 +449,17 @@ namespace AbilityKit.Game.Test.UnitTest
             if (IsSkillAction(action.action))
             {
                 var actorAlias = ResolveActorAlias(harness, action.actorAlias);
-                harness.SubmitSkillInput(actorAlias, action.slot, ResolveSkillInputPhase(action.action), action.targetAlias, action.targetActorId, action.position, action.direction);
+                AssertSkillInputHandled(
+                    harness,
+                    actorAlias,
+                    action.slot,
+                    ResolveSkillInputPhase(action.action),
+                    action.targetAlias,
+                    action.targetActorId,
+                    action.position,
+                    action.direction,
+                    $"setup action={action.action}");
+                AdvanceAcceptedSkillInput(harness);
             }
         }
 
@@ -463,11 +472,77 @@ namespace AbilityKit.Game.Test.UnitTest
                 return;
             }
 
+            if (MobaAcceptanceSetupActionExecutor.IsEnvironmentCommand(step.action))
+            {
+                MobaAcceptanceSetupActionExecutor.Execute(harness, ConvertTimelineStepToSetupAction(step));
+                return;
+            }
+
             if (IsSkillAction(step.action))
             {
                 var actorAlias = ResolveActorAlias(harness, step.actorAlias);
-                harness.SubmitSkillInput(actorAlias, step.slot, ResolveSkillInputPhase(step.action), step.targetAlias, step.targetActorId, step.position, step.direction);
+                AssertSkillInputHandled(
+                    harness,
+                    actorAlias,
+                    step.slot,
+                    ResolveSkillInputPhase(step.action),
+                    step.targetAlias,
+                    step.targetActorId,
+                    step.position,
+                    step.direction,
+                    $"timeline action={step.action} atMs={Math.Max(0, step.atMs)}");
+                AdvanceAcceptedSkillInput(harness);
             }
+        }
+
+        private static void AssertSkillInputHandled(
+            MobaSkillConfigTestHarness harness,
+            string actorAlias,
+            int slot,
+            string phase,
+            string targetAlias,
+            int targetActorId,
+            MobaAcceptanceVector3Expectation position,
+            MobaAcceptanceVector3Expectation direction,
+            string context)
+        {
+            var result = harness.SubmitSkillInputAndGetResult(actorAlias, slot, phase, out var castFrame, targetAlias, targetActorId, position, direction);
+            Assert.IsTrue(
+                result.Succeeded,
+                $"Scenario skill input rejected. {context}, actorAlias={actorAlias}, slot={slot}, phase={phase}, castFrame={castFrame.Value}, result={result}");
+            Assert.Greater(
+                result.HandledCount,
+                0,
+                $"Scenario skill input accepted but not handled. {context}, actorAlias={actorAlias}, slot={slot}, phase={phase}, castFrame={castFrame.Value}, result={result}");
+        }
+
+        private static void AdvanceAcceptedSkillInput(MobaSkillConfigTestHarness harness)
+        {
+            // Scenario input is submitted for Frame + 1. Advance one fixed step so the
+            // runtime consumes the command before any larger accelerated wait is applied.
+            harness.Tick(1);
+        }
+
+        private static MobaAcceptanceSetupActionExpectation ConvertTimelineStepToSetupAction(MobaAcceptanceTimelineStepExpectation step)
+        {
+            return new MobaAcceptanceSetupActionExpectation
+            {
+                action = step.action,
+                actorAlias = step.actorAlias,
+                targetAlias = step.targetAlias,
+                playerId = step.playerId,
+                slot = step.slot,
+                skillId = step.skillId,
+                targetActorId = step.targetActorId,
+                durationMs = step.durationMs,
+                property = step.property,
+                value = step.value,
+                intValue = step.intValue,
+                position = step.position,
+                direction = step.direction,
+                payload = step.payload,
+                note = step.note
+            };
         }
 
         private static string ResolveActorAlias(MobaSkillConfigTestHarness harness, string actorAlias)

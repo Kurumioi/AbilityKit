@@ -34,6 +34,18 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
 
     public ShooterGatewayWorldStartAnchor JoinWorldStartAnchor { get; set; } = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 12, 1d / 30d);
 
+    public Task<ShooterGatewayGuestLoginResult> GuestLoginAsync(ShooterGatewayGuestLoginRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("guest-login:" + request.GuestId);
+        return Task.FromResult(new ShooterGatewayGuestLoginResult(true, "session-token", "account-1", "guest-login-ok"));
+    }
+
+    public Task<ShooterGatewayListRoomsResult> ListRoomsAsync(ShooterGatewayListRoomsRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("list-rooms:" + request.Region + ":" + request.ServerId + ":" + request.RoomType);
+        return Task.FromResult(new ShooterGatewayListRoomsResult(true, Array.Empty<ShooterGatewayRoomSummary>(), 0, "list-rooms-ok"));
+    }
+
     public Task<ShooterGatewayCreateRoomResult> CreateRoomAsync(ShooterGatewayCreateRoomRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         LastCreateRequest = request;

@@ -10,6 +10,7 @@
     <ProjectReference Include="..\AbilityKit.Orleans.Grains\AbilityKit.Orleans.Grains.csproj" />
     <ProjectReference Include="..\AbilityKit.Orleans.Gateway\AbilityKit.Orleans.Gateway.csproj" Aliases="Gateway" />
     <ProjectReference Include="..\AbilityKit.Orleans.Hosting\AbilityKit.Orleans.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Record\AbilityKit.Record.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Runtime\AbilityKit.Demo.Shooter.Runtime.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.Share\AbilityKit.Demo.Shooter.Share.csproj" />
     <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Shooter.View.Runtime\AbilityKit.Demo.Shooter.View.Runtime.csproj" />

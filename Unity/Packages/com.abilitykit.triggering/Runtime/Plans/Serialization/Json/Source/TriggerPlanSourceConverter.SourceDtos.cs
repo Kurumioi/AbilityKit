@@ -102,7 +102,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         public int priority;
         public string phase;
         public string scope;
-        public bool enabled;
+        public bool? enabled;
         public bool allowExternal;
         public string comment;
         public List<JObject> conditions;

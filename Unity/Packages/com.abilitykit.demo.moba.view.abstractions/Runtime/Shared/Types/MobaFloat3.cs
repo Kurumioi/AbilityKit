@@ -4,18 +4,16 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 {
     public readonly struct MobaFloat3 : IEquatable<MobaFloat3>
     {
+        public readonly float X;
+        public readonly float Y;
+        public readonly float Z;
+
         public MobaFloat3(float x, float y, float z)
         {
             X = x;
             Y = y;
             Z = z;
         }
-
-        public float X { get; }
-        public float Y { get; }
-        public float Z { get; }
-
-        public static MobaFloat3 Zero => new MobaFloat3(0f, 0f, 0f);
 
         public bool Equals(MobaFloat3 other)
         {
@@ -29,12 +27,13 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(X, Y, Z);
-        }
-
-        public override string ToString()
-        {
-            return $"({X}, {Y}, {Z})";
+            unchecked
+            {
+                var hashCode = X.GetHashCode();
+                hashCode = (hashCode * 397) ^ Y.GetHashCode();
+                hashCode = (hashCode * 397) ^ Z.GetHashCode();
+                return hashCode;
+            }
         }
     }
 }

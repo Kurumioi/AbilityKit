@@ -459,7 +459,15 @@ internal static class ShooterSmokeRunner
             packed.Frame,
             packed.ServerTick,
             packed.StateHash,
-            packed.EntityCount);
+            packed.EntityCount,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0,
+            0,
+            0);
         return true;
     }
 

@@ -95,6 +95,7 @@ namespace AbilityKit.Demo.Shooter.View
                 return false;
             }
 
+            _predictionReconciliation.Clear();
             _accumulator = 0f;
             PublishRuntimeSnapshot();
             return true;
@@ -242,16 +243,7 @@ namespace AbilityKit.Demo.Shooter.View
                 if (reconciliation.AuthoritativeHashMatched)
                 {
                     var frameDelta = replayTargetFrame - authoritativeFrame;
-                    if (wasAwaitingFullSnapshot && !isStrongRecoverySnapshot)
-                    {
-                        MarkFullSnapshotResyncNeeded(
-                            LastResyncReason == ShooterClientResyncReason.None ? ShooterClientResyncReason.AuthoritativeHashMismatch : LastResyncReason,
-                            replayTargetFrame,
-                            authoritativeFrame,
-                            predictedHashBeforeCorrection,
-                            authoritativeStateHash);
-                    }
-                    else if (Math.Abs(frameDelta) > _recoveryPolicy.ReplayThreshold)
+                    if (Math.Abs(frameDelta) > _recoveryPolicy.ReplayThreshold)
                     {
                         MarkFullSnapshotResyncNeeded(
                             frameDelta > 0 ? ShooterClientResyncReason.FrameTooFarAhead : ShooterClientResyncReason.FrameTooFarBehind,

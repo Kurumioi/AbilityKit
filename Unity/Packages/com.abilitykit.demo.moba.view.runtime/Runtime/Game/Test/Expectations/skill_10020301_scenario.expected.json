@@ -1,6 +1,6 @@
 {
   "caseId": "skill_10020301_scenario_interval_damage",
-  "description": "小乔三技能应给自身附加持续效果并在首个间隔内对附近目标造成伤害",
+  "description": "小乔三技能应给自身附加持续效果，并在同一 skill runtime 内对重复命中的同一目标触发减伤",
   "worldId": "skill_10020301_scenario_interval_damage_world",
   "tickRate": 30,
   "accelerated": true,
@@ -8,16 +8,17 @@
   "tags": ["xiao-qiao", "skill-3", "buff", "scenario", "interval-damage"],
   "config": {
     "skillId": 10020301,
+    "castFlowId": 10020301,
     "effectId": 10020301,
+    "triggerId": 10020301,
     "expectedActions": [
-      { "actionId": 473610666, "type": "add_buff" },
-      { "actionId": 1645290459, "type": "play_audio" }
+      { "actionId": 589451731, "type": "debug_log" }
     ]
   },
   "scenario": {
     "scenarioId": "skill_10020301_scenario_interval_damage",
-    "name": "小乔三技能持续伤害",
-    "description": "校验三技能加 Buff 后，在首个间隔内对范围内目标造成实际伤害。",
+    "name": "小乔三技能持续伤害与重复命中减伤",
+    "description": "校验三技能加 Buff 后，在前两个间隔内对同一目标造成伤害，且第二次命中发生减伤。",
     "worldId": "skill_10020301_scenario_interval_damage_world",
     "tickRate": 30,
     "accelerated": true,
@@ -56,11 +57,11 @@
         "note": "释放三技能给自身附加持续落星 Buff"
       },
       {
-        "stepId": "wait_for_first_interval",
+        "stepId": "wait_for_two_intervals",
         "atMs": 1,
         "action": "wait",
-        "durationMs": 1200,
-        "note": "等待首个 1000ms 间隔伤害触发"
+        "durationMs": 2200,
+        "note": "等待前两个 1000ms 间隔伤害触发，验证第二次命中减伤"
       }
     ],
     "stateExpectations": [
@@ -76,17 +77,17 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 100.0,
-        "note": "范围内目标应在首个间隔后承受 80 点伤害并剩余 100 点生命值"
+        "expectedFloat": 60.0,
+        "note": "范围内目标应先承受 80 点伤害，再承受一次减伤后的 40 点伤害，最终剩余 60 点生命值"
       }
     ]
   },
   "mustContain": [
     { "kind": "SkillCast", "configId": 10020301, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10020301, "minCount": 1 },
-    { "kind": "EffectAction", "configId": 473610666, "underEffectId": 10020301, "minCount": 1 },
-    { "kind": "BuffApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1 },
-    { "kind": "DamageApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1 }
+    { "kind": "EffectAction", "configId": 589451731, "underEffectId": 10020301, "minCount": 1 },
+    { "kind": "BuffApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1, "maxCount": 1 },
+    { "kind": "DamageApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 2, "maxCount": 2 }
   ],
   "relationships": [
     { "parentKind": "SkillCast", "parentConfigId": 10020301, "childKind": "EffectExecution", "childConfigId": 10020301 },

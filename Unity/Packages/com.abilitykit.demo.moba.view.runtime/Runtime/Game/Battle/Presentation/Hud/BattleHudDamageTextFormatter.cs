@@ -1,21 +1,19 @@
+using AbstractBattleDamageTextFormatter = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleDamageTextFormatter;
+
 namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudDamageTextFormatter
     {
-        private readonly BattleDamageTextFormatter _formatter;
+        private readonly AbstractBattleDamageTextFormatter _formatter;
 
-        public BattleHudDamageTextFormatter(BattleDamageTextFormatter formatter = null)
+        public BattleHudDamageTextFormatter(AbstractBattleDamageTextFormatter formatter = null)
         {
-            _formatter = formatter ?? new BattleDamageTextFormatter();
+            _formatter = formatter ?? new AbstractBattleDamageTextFormatter();
         }
 
         public bool TryFormat(float value, bool isHeal, out string text)
         {
-            text = null;
-            if (!_formatter.TryFormat(value, isHeal, out var spec)) return false;
-
-            text = spec.Text;
-            return true;
+            return _formatter.TryFormat(value, isHeal, out text);
         }
     }
 }

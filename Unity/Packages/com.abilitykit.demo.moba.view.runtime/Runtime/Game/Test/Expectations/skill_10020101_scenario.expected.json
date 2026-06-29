@@ -8,10 +8,12 @@
   "tags": ["xiao-qiao", "skill-1", "projectile", "scenario", "damage"],
   "config": {
     "skillId": 10020101,
+    "castFlowId": 10020101,
     "effectId": 10020101,
+    "triggerId": 10020101,
     "expectedActions": [
       { "actionId": 508656420, "type": "shoot_projectile" },
-      { "actionId": 589451731, "type": "play_audio" }
+      { "actionId": 589451731, "type": "debug_log" }
     ],
     "expectedProjectile": {
       "launcherId": 31020101,
@@ -54,7 +56,7 @@
       {
         "stepId": "press_skill_1",
         "atMs": 0,
-        "action": "press",
+        "action": "release",
         "actorAlias": "caster",
         "slot": 1,
         "direction": { "x": 1.0, "y": 0.0, "z": 0.0 },
@@ -82,10 +84,12 @@
     { "kind": "SkillCast", "configId": 10020101, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10020101, "minCount": 1 },
     { "kind": "EffectAction", "configId": 508656420, "underEffectId": 10020101, "minCount": 1 },
-    { "kind": "ProjectileLaunch", "configId": 30020101, "underEffectId": 10020101, "minCount": 1 }
+    { "kind": "ProjectileLaunch", "configId": 30020101, "underEffectId": 10020101, "minCount": 1 },
+    { "kind": "DamageApply", "configId": 10020101, "underEffectId": 10020101, "minCount": 1, "maxCount": 1 }
   ],
   "relationships": [
     { "parentKind": "SkillCast", "parentConfigId": 10020101, "childKind": "EffectExecution", "childConfigId": 10020101 },
-    { "parentKind": "EffectExecution", "parentConfigId": 10020101, "childKind": "ProjectileLaunch", "childConfigId": 30020101 }
+    { "parentKind": "EffectExecution", "parentConfigId": 10020101, "childKind": "ProjectileLaunch", "childConfigId": 30020101 },
+    { "parentKind": "EffectExecution", "parentConfigId": 10020101, "childKind": "DamageApply", "childConfigId": 10020101 }
   ]
 }

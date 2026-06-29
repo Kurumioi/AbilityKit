@@ -42,10 +42,25 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
         private void BindProjectileSource(in ProjectileSpawnEvent evt)
         {
-            if (_sys.Links.TryGetActorId(evt.Projectile, out var actorId) && actorId > 0)
+            var links = _sys.Links;
+            if (links == null) return;
+
+            if (links.TryGetSource(evt.Projectile, out _))
             {
                 return;
             }
+
+            if (evt.LauncherActorId <= 0)
+            {
+                return;
+            }
+
+            if (!links.TryGetLauncherSource(evt.LauncherActorId, out var launcherSource))
+            {
+                return;
+            }
+
+            links.BindSource(evt.Projectile, in launcherSource);
         }
     }
 }

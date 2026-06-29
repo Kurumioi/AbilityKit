@@ -22,6 +22,7 @@
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Triggering",
         "AbilityKit.Trace",
+        "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
         "AbilityKit.World.FrameSync",

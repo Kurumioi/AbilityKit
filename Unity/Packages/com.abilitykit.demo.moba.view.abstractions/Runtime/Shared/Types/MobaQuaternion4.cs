@@ -4,6 +4,11 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 {
     public readonly struct MobaQuaternion4 : IEquatable<MobaQuaternion4>
     {
+        public readonly float X;
+        public readonly float Y;
+        public readonly float Z;
+        public readonly float W;
+
         public MobaQuaternion4(float x, float y, float z, float w)
         {
             X = x;
@@ -11,13 +16,6 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
             Z = z;
             W = w;
         }
-
-        public float X { get; }
-        public float Y { get; }
-        public float Z { get; }
-        public float W { get; }
-
-        public static MobaQuaternion4 Identity => new MobaQuaternion4(0f, 0f, 0f, 1f);
 
         public bool Equals(MobaQuaternion4 other)
         {
@@ -31,12 +29,14 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Shared.Types
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(X, Y, Z, W);
-        }
-
-        public override string ToString()
-        {
-            return $"({X}, {Y}, {Z}, {W})";
+            unchecked
+            {
+                var hashCode = X.GetHashCode();
+                hashCode = (hashCode * 397) ^ Y.GetHashCode();
+                hashCode = (hashCode * 397) ^ Z.GetHashCode();
+                hashCode = (hashCode * 397) ^ W.GetHashCode();
+                return hashCode;
+            }
         }
     }
 }

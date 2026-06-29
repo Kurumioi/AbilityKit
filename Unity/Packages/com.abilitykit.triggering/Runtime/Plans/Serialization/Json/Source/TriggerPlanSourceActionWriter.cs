@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using AbilityKit.Triggering.Eventing;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -11,6 +12,13 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     /// </summary>
     internal sealed class TriggerPlanSourceActionWriter
     {
+        private readonly Dictionary<int, string> _strings;
+
+        public TriggerPlanSourceActionWriter(Dictionary<int, string> strings = null)
+        {
+            _strings = strings;
+        }
+
         public void WriteAction(
             JsonTextWriter writer,
             JObject action,
@@ -31,20 +39,29 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             writer.WritePropertyName("ActionId");
             writer.WriteValue(actionId);
 
-            var positionalCount = Math.Min(orderedArgs.Count, 2);
+            var positionalCount = 0;
+            for (var i = 0; i < orderedArgs.Count && positionalCount < 2; i++)
+            {
+                if (IsScalarValue(orderedArgs[i].Value))
+                {
+                    positionalCount++;
+                }
+            }
+
             writer.WritePropertyName("Arity");
             writer.WriteValue(positionalCount);
 
-            if (positionalCount > 0)
+            var writtenPositionalCount = 0;
+            for (var i = 0; i < orderedArgs.Count && writtenPositionalCount < 2; i++)
             {
-                writer.WritePropertyName("Arg0");
-                WriteParamValue(writer, orderedArgs[0].Value);
-            }
+                if (!IsScalarValue(orderedArgs[i].Value))
+                {
+                    continue;
+                }
 
-            if (positionalCount > 1)
-            {
-                writer.WritePropertyName("Arg1");
-                WriteParamValue(writer, orderedArgs[1].Value);
+                writer.WritePropertyName(writtenPositionalCount == 0 ? "Arg0" : "Arg1");
+                WriteParamValue(writer, orderedArgs[i].Name, orderedArgs[i].Value);
+                writtenPositionalCount++;
             }
 
             if (orderedArgs.Count > 0)
@@ -53,8 +70,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 writer.WriteStartObject();
                 for (int i = 0; i < orderedArgs.Count; i++)
                 {
-                    writer.WritePropertyName(orderedArgs[i].Name);
-                    WriteParamValue(writer, orderedArgs[i].Value);
+                    WriteNamedArg(writer, orderedArgs[i].Name, orderedArgs[i].Value);
                 }
                 writer.WriteEndObject();
             }
@@ -63,6 +79,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         }
 
         public void WriteParamValue(JsonTextWriter writer, JToken value)
+        {
+            WriteParamValue(writer, null, value);
+        }
+
+        private void WriteParamValue(JsonTextWriter writer, string argName, JToken value)
         {
             if (value == null || value.Type == JTokenType.Null)
             {
@@ -77,7 +98,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     break;
 
                 case JTokenType.String:
-                    WriteStringValue(writer, value.ToString());
+                    WriteStringValue(writer, argName, value.ToString());
                     break;
 
                 case JTokenType.Boolean:
@@ -85,12 +106,54 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     break;
 
                 case JTokenType.Object:
-                    WriteObjectValue(writer, (JObject)value);
+                    WriteObjectValue(writer, value as JObject);
                     break;
 
                 default:
                     throw new InvalidOperationException($"Unsupported action parameter token type: {value.Type}");
             }
+        }
+
+        private void WriteNamedArg(JsonTextWriter writer, string argName, JToken value)
+        {
+            if (value == null || value.Type == JTokenType.Null)
+            {
+                return;
+            }
+
+            if (value.Type == JTokenType.Array)
+            {
+                WriteArrayArgs(writer, argName, value as JArray);
+                return;
+            }
+
+            writer.WritePropertyName(argName);
+            WriteParamValue(writer, argName, value);
+        }
+
+        private void WriteArrayArgs(JsonTextWriter writer, string argName, JArray values)
+        {
+            if (values == null)
+            {
+                return;
+            }
+
+            for (var i = 0; i < values.Count; i++)
+            {
+                var item = values[i];
+                if (item == null || item.Type == JTokenType.Null)
+                {
+                    continue;
+                }
+
+                writer.WritePropertyName(i == 0 ? argName : argName + i);
+                WriteParamValue(writer, argName, item);
+            }
+        }
+
+        private static bool IsScalarValue(JToken value)
+        {
+            return value != null && value.Type != JTokenType.Array;
         }
 
         private static List<ActionArgSource> BuildOrderedActionArgs(JObject action, string type, Dictionary<string, ActionSourceDefJson> actionSchemas)
@@ -235,7 +298,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             throw new InvalidOperationException("Unsupported action parameter value object. Expected const/value, payload, var or expr.");
         }
 
-        private void WriteStringValue(JsonTextWriter writer, string value)
+        private void WriteStringValue(JsonTextWriter writer, string argName, string value)
         {
             if (string.IsNullOrEmpty(value))
             {
@@ -267,9 +330,10 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
-            if (double.TryParse(value, out var numValue))
+            if (double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var invariantNumValue) ||
+                double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out invariantNumValue))
             {
-                TriggerPlanSourceValueWriter.WriteConstValue(writer, numValue);
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, invariantNumValue);
                 return;
             }
 
@@ -279,7 +343,70 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
+            if (TryMapLegacyEnumLiteral(argName, value, out var enumValue))
+            {
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, enumValue);
+                return;
+            }
+
+            if (CanEncodeAsStringId(argName))
+            {
+                var stringId = StableStringId.Get("str:" + value);
+                if (_strings != null)
+                {
+                    _strings[stringId] = value;
+                }
+
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, stringId);
+                return;
+            }
+
             throw new InvalidOperationException($"Unsupported action parameter string value: {value}");
+        }
+
+        private static bool TryMapLegacyEnumLiteral(string argName, string value, out int enumValue)
+        {
+            enumValue = 0;
+            if (string.IsNullOrEmpty(argName) || string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
+            if (string.Equals(argName, "targetMode", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(argName, "target_mode", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(value, "Explicit", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(value, "ExplicitTarget", StringComparison.OrdinalIgnoreCase))
+                {
+                    enumValue = 0;
+                    return true;
+                }
+            }
+
+            if (string.Equals(argName, "directionMode", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(argName, "direction_mode", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(value, "FromAreaCenterToTarget", StringComparison.OrdinalIgnoreCase))
+                {
+                    enumValue = 2;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool CanEncodeAsStringId(string argName)
+        {
+            if (string.IsNullOrEmpty(argName))
+            {
+                return false;
+            }
+
+            return string.Equals(argName, "message", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "msg", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "msg_id", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "reason", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

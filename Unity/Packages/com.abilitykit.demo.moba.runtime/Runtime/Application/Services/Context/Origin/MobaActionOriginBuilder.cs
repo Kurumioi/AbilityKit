@@ -31,12 +31,27 @@ namespace AbilityKit.Demo.Moba.Services
             if (traceScope.EffectContextId != 0)
             {
                 var handle = executionContext.SkillRuntimeHandle;
+                var parentContextId = traceScope.CurrentActionContextId != 0
+                    ? traceScope.CurrentActionContextId
+                    : traceScope.EffectContextId;
+                var immediateKind = traceScope.CurrentActionContextId != 0
+                    ? MobaTraceKind.EffectAction
+                    : MobaTraceKind.EffectExecution;
+                var immediateConfigId = traceScope.CurrentActionContextId != 0
+                    ? (int)traceScope.CurrentActionId
+                    : traceScope.EffectConfigId;
+                var rootContextId = origin.EffectiveRootContextId != 0
+                    ? origin.EffectiveRootContextId
+                    : traceScope.EffectContextId;
+                var ownerContextId = origin.OwnerContextId != 0
+                    ? origin.OwnerContextId
+                    : parentContextId;
                 return MobaGameplayOriginBuilder.Create()
                     .FromOrigin(in origin)
                     .WithActors(sourceActorId, targetActorId)
-                    .WithImmediate(MobaTraceKind.EffectExecution, traceScope.EffectConfigId, traceScope.EffectContextId)
-                    .WithRootContext(origin.EffectiveRootContextId)
-                    .WithOwnerContext(origin.OwnerContextId)
+                    .WithImmediate(immediateKind, immediateConfigId, parentContextId)
+                    .WithRootContext(rootContextId)
+                    .WithOwnerContext(ownerContextId)
                     .WithSkillRuntimeIfMissing(in handle)
                     .Build();
             }

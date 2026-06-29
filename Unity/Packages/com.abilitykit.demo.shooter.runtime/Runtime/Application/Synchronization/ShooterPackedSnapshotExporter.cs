@@ -48,6 +48,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             return new[]
             {
+                ExportRuntimeMetadataChunk(),
                 ExportPlayerLifecycleChunk(),
                 ExportProjectileLifecycleChunk(),
                 ExportEnemyLifecycleChunk(),
@@ -59,6 +60,30 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ExportPlayerScoreChunk(),
                 ExportProjectileLifetimeChunk()
             };
+        }
+
+        private ShooterPackedComponentChunk ExportRuntimeMetadataChunk()
+        {
+            return new ShooterPackedComponentChunk(
+                ShooterPackedComponentKinds.RuntimeMetadata,
+                0,
+                1,
+                Array.Empty<int>(),
+                Array.Empty<float>(),
+                Array.Empty<float>(),
+                Array.Empty<float>(),
+                Array.Empty<float>(),
+                new[]
+                {
+                    (int)_state.MatchState,
+                    _state.MatchCompletedFrame,
+                    _state.DefeatedEnemies,
+                    _state.VictoryTargetDefeats,
+                    _state.TimeLimitFrames
+                },
+                Array.Empty<byte>(),
+                Array.Empty<int>(),
+                Array.Empty<int>());
         }
 
         private ShooterPackedComponentChunk ExportPlayerLifecycleChunk()

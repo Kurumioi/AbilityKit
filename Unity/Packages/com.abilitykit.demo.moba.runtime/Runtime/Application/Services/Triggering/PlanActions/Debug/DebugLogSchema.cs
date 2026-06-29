@@ -21,8 +21,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public override DebugLogArgs ParseArgs(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
-            var msgId = ReadInt(namedArgs, ctx, 0, "msg_id", "msgid", "id");
-            var dump = ReadBool(namedArgs, ctx, false, "dump", "is_dump");
+            var msgId = ReadInt(namedArgs, ctx, 0, "msg_id", "msgid", "message", "msg", "id");
+            var dump = ReadBool(namedArgs, ctx, false, "dump", "dump_args", "is_dump");
 
             return new DebugLogArgs(msgId, dump);
         }

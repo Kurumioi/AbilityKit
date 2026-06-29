@@ -435,7 +435,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return null;
             }
 
-            // 解析参数
+            // 先保留源参数，再做 runtime 参数映射；
+            // 对已知 action，Arity 必须代表“可执行参数个数”而不是 Args 字典总数。
             plan.Args = new Dictionary<string, NumericValueRefDto>();
             plan.Arity = 0;
 
@@ -454,6 +455,11 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             // 处理特殊动作类型的参数映射
             MapActionParams(action.Type, action.Args, plan, stringTable, result);
+            var explicitArity = TryGetExecutableArity(action.Type);
+            if (explicitArity >= 0)
+            {
+                plan.Arity = (byte)explicitArity;
+            }
 
             return plan;
         }
@@ -697,6 +703,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             return resolved;
         }
 
+        private static int TryGetExecutableArity(string actionType)
+        {
+            switch (actionType)
+            {
+                case "debug_log":
+                case "shoot_projectile":
+                case "give_damage":
+                    return 2;
+                default:
+                    return -1;
+            }
+        }
+
         /// <summary>
         /// 特殊动作类型的参数映射
         /// </summary>
@@ -741,23 +760,32 @@ namespace AbilityKit.Ability.Editor.Utilities
                     break;
 
                 case "shoot_projectile":
-                    // 映射到运行时参数名
+                    // Support both source-style entity args and Unity-authored runtime-style ids.
                     MapEntityArg(args, "launcher", "launcher_id", plan);
                     MapEntityArg(args, "target", "target_id", plan);
-                    MapIntArg(args, "projectile_id", plan);
-                    MapFloatArg(args, "speed", plan);
+                    MapIntArgAlias(args, plan, "launcher_id", "launcher_id", "launcherId", "launcher");
+                    MapIntArgAlias(args, plan, "target_id", "target_id", "targetId", "target");
+                    MapIntArgAlias(args, plan, "projectile_id", "projectile_id", "projectileId", "projectile");
+                    MapFloatArgAlias(args, plan, "speed", "speed");
                     break;
 
                 case "give_damage":
                     MapEntityArg(args, "from", "from_id", plan);
                     MapEntityArg(args, "to", "to_id", plan);
                     MapExprArg(args, "amount", "damage_amount", plan);
-                    MapIntArg(args, "reason", plan);
+                    MapIntArgAlias(args, plan, "from_id", "fromId", "from");
+                    MapIntArgAlias(args, plan, "to_id", "toId", "to");
+                    MapFloatArgAlias(args, plan, "damage_amount", "amount", "damage_value", "value", "damageValue");
+                    MapIntArgAlias(args, plan, "damage_type", "damageType");
+                    MapIntArgAlias(args, plan, "reason_param", "reasonParam", "reason");
+                    MapIntArgAlias(args, plan, "target_query_id", "targetQueryId", "queryTemplateId");
                     break;
 
                 case "add_buff":
-                    MapEntityArg(args, "target", "target_id", plan);
-                    MapIntArg(args, "buff_id", plan);
+                    MapEntityArg(args, "target", "target_actor_id", plan);
+                    MapIntArgAlias(args, plan, "target_actor_id", "target_actor_id", "targetActorId", "target_id", "targetId", "target");
+                    MapBoolArgAlias(args, plan, "target_self", "target_self", "targetSelf", "self");
+                    MapIntListArgAliases(args, plan, new[] { "buff_id", "buffIds" }, "buffids", "buff_ids", "buffid", "buff_id", "id", "ids");
                     MapFloatArg(args, "duration", plan);
                     break;
             }
@@ -786,11 +814,88 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
 
         /// <summary>
+        /// 映射整数参数别名，命中首个值后写入目标 key。
+        /// </summary>
+        private static void MapIntArgAlias(Dictionary<string, object> args, ActionCallPlanDto plan, string targetKey, params string[] candidateKeys)
+        {
+            for (int i = 0; i < candidateKeys.Length; i++)
+            {
+                var sourceKey = candidateKeys[i];
+                if (args.TryGetValue(sourceKey, out var obj) && obj != null)
+                {
+                    plan.Args[targetKey] = ConvertValue(sourceKey, obj, null, null);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 映射布尔参数别名，命中首个值后写入目标 key。
+        /// </summary>
+        private static void MapBoolArgAlias(Dictionary<string, object> args, ActionCallPlanDto plan, string targetKey, params string[] candidateKeys)
+        {
+            MapIntArgAlias(args, plan, targetKey, candidateKeys);
+        }
+
+        /// <summary>
+        /// 将整型列表展开为 runtime schema 可读取的具名参数集合。
+        /// </summary>
+        private static void MapIntListArgAliases(Dictionary<string, object> args, ActionCallPlanDto plan, string[] sourceKeys, params string[] aliasKeys)
+        {
+            if (args == null || sourceKeys == null || aliasKeys == null || aliasKeys.Length == 0)
+            {
+                return;
+            }
+
+            for (int sourceIndex = 0; sourceIndex < sourceKeys.Length; sourceIndex++)
+            {
+                var sourceKey = sourceKeys[sourceIndex];
+                if (!args.TryGetValue(sourceKey, out var obj) || obj == null)
+                {
+                    continue;
+                }
+
+                if (TryGetNumberList(obj, out var values) && values.Count > 0)
+                {
+                    for (int i = 0; i < values.Count; i++)
+                    {
+                        var aliasBase = aliasKeys[Math.Min(i, aliasKeys.Length - 1)];
+                        var targetKey = i == 0 ? aliasBase : aliasBase + "_" + i;
+                        plan.Args[targetKey] = new NumericValueRefDto
+                        {
+                            Kind = "Const",
+                            ConstValue = values[i]
+                        };
+                    }
+                    return;
+                }
+
+                if (TryGetSingleNumber(obj, out var singleValue) && singleValue > 0)
+                {
+                    plan.Args[aliasKeys[0]] = new NumericValueRefDto
+                    {
+                        Kind = "Const",
+                        ConstValue = singleValue
+                    };
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
         /// 映射浮点数参数
         /// </summary>
         private static void MapFloatArg(Dictionary<string, object> args, string key, ActionCallPlanDto plan)
         {
             MapIntArg(args, key, plan); // 使用相同逻辑，double 可表示 float
+        }
+
+        /// <summary>
+        /// 映射浮点数参数别名，命中首个值后写入目标 key。
+        /// </summary>
+        private static void MapFloatArgAlias(Dictionary<string, object> args, ActionCallPlanDto plan, string targetKey, params string[] candidateKeys)
+        {
+            MapIntArgAlias(args, plan, targetKey, candidateKeys);
         }
 
         /// <summary>
@@ -849,6 +954,97 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             // 其他类型转字符串处理
             return ConvertStringValue(value.ToString());
+        }
+
+        private static bool TryGetNumberList(object value, out List<double> values)
+        {
+            values = null;
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value is JArray jArray)
+            {
+                var list = new List<double>(jArray.Count);
+                for (int i = 0; i < jArray.Count; i++)
+                {
+                    var item = jArray[i];
+                    if (item == null || (item.Type != JTokenType.Integer && item.Type != JTokenType.Float))
+                    {
+                        continue;
+                    }
+
+                    list.Add(item.Value<double>());
+                }
+
+                values = list;
+                return list.Count > 0;
+            }
+
+            if (value is IEnumerable<int> intValues)
+            {
+                values = intValues.Select(static v => (double)v).ToList();
+                return values.Count > 0;
+            }
+
+            if (value is IEnumerable<long> longValues)
+            {
+                values = longValues.Select(static v => (double)v).ToList();
+                return values.Count > 0;
+            }
+
+            if (value is IEnumerable<double> doubleValues)
+            {
+                values = doubleValues.ToList();
+                return values.Count > 0;
+            }
+
+            if (value is IEnumerable<float> floatValues)
+            {
+                values = floatValues.Select(static v => (double)v).ToList();
+                return values.Count > 0;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetSingleNumber(object value, out double number)
+        {
+            number = 0;
+            if (value == null)
+            {
+                return false;
+            }
+
+            if (value is JValue jValue)
+            {
+                if (jValue.Type == JTokenType.Integer || jValue.Type == JTokenType.Float)
+                {
+                    number = jValue.Value<double>();
+                    return true;
+                }
+
+                return false;
+            }
+
+            switch (value)
+            {
+                case int i:
+                    number = i;
+                    return true;
+                case long l:
+                    number = l;
+                    return true;
+                case float f:
+                    number = f;
+                    return true;
+                case double d:
+                    number = d;
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static NumericValueRefDto ConvertJTokenValue(JToken token, ConvertResult result)

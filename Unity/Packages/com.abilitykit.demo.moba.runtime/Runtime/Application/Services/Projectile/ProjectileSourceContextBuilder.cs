@@ -103,10 +103,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             if (_origin.IsValid)
             {
+                var parentContextId = _origin.EffectiveParentContextId;
                 _origin = MobaGameplayOriginBuilder.Create()
                     .FromOrigin(in _origin)
                     .WithActors(_sourceActorId, _initialTargetActorId)
                     .WithImmediate(MobaTraceKind.ProjectileLaunch, _projectileConfigId, sourceContextId)
+                    .WithParentContext(parentContextId)
                     .WithRootContext(_rootContextId)
                     .WithOwnerContext(_ownerContextId)
                     .WithSkillRuntimeIfMissing(in _skillRuntimeHandle)

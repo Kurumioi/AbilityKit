@@ -21,6 +21,15 @@ namespace AbilityKit.Triggering.Runtime.Context
     }
 
     /// <summary>
+    /// 允许宿主在 Trigger Action 执行前后建立额外的作用域语义。
+    /// </summary>
+    public interface ITriggerActionExecutionScopeObserver
+    {
+        void EnterActionExecution(int actionIndex, long actionId);
+        void ExitActionExecution(int actionIndex, long actionId);
+    }
+
+    /// <summary>
     /// 服务提供器基类（简易实现）
     /// </summary>
     public abstract class ServiceProviderBase : IServiceProvider

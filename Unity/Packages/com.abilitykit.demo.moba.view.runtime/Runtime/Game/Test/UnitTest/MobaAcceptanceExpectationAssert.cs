@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public static class MobaAcceptanceExpectationAssert
     {
-        public static void AssertMatches(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records)
+        public static void AssertMatches(MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, MobaSkillConfigTestHarness harness = null)
         {
             if (expectation == null) throw new ArgumentNullException(nameof(expectation));
             if (records == null) throw new ArgumentNullException(nameof(records));
@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var effectRootId = FindFirstTraceRootId(records, "EffectExecution", expectation.config != null ? expectation.config.effectId : 0);
             if (expectation.config != null && expectation.config.effectId > 0)
             {
-                Assert.IsTrue(effectRootId > 0, $"Missing effect root trace for effect {expectation.config.effectId}.");
+                Assert.IsTrue(effectRootId > 0, BuildMissingEffectRootMessage(expectation, harness));
             }
 
             AssertContainsAll(records, expectation.mustContain, effectRootId);
@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private static void AssertContainsAll(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation[] expectations, long effectRootId)
         {
             if (expectations == null) return;
-
+ 
             for (var i = 0; i < expectations.Length; i++)
             {
                 var expectation = expectations[i];
@@ -53,8 +53,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.GreaterOrEqual(
                     count,
                     minCount,
-                    $"Missing required trace node: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, minCount={minCount}, actualCount={count}.");
-
+                    BuildMissingTraceNodeMessage(records, expectation, effectRootId, minCount, count));
+ 
                 if (expectation.maxCount > 0)
                 {
                     Assert.LessOrEqual(
@@ -63,6 +63,84 @@ namespace AbilityKit.Game.Test.UnitTest
                         $"Required trace node exceeds max count: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, maxCount={expectation.maxCount}, actualCount={count}.");
                 }
             }
+        }
+        private static string BuildMissingTraceNodeMessage(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation expectation, long effectRootId, int minCount, int actualCount)
+        {
+            return $"Missing required trace node: kind={expectation.kind}, configId={expectation.configId}, underEffectId={expectation.underEffectId}, minCount={minCount}, actualCount={actualCount}. {BuildTraceDebugSnapshot(records, expectation, effectRootId)}";
+        }
+
+        private static string BuildTraceDebugSnapshot(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation expectation, long effectRootId)
+        {
+            if (records == null || records.Length == 0)
+            {
+                return "TraceDebug: no records captured.";
+            }
+
+            var expectedRootId = expectation != null && expectation.underEffectId > 0 ? effectRootId : 0;
+            var matchingKindCount = 0;
+            var matchingConfigCount = 0;
+            var matchingRootCount = 0;
+            var sample = new System.Text.StringBuilder();
+            var sampleCount = 0;
+            var rootChildren = new System.Text.StringBuilder();
+            var rootChildCount = 0;
+
+            for (var i = 0; i < records.Length; i++)
+            {
+                var record = records[i];
+                if (record == null) continue;
+
+                if (string.Equals(record.kind, expectation.kind, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchingKindCount++;
+                    if (record.configId == expectation.configId)
+                    {
+                        matchingConfigCount++;
+                        if (expectedRootId <= 0 || record.rootId == expectedRootId)
+                        {
+                            matchingRootCount++;
+                        }
+
+                        if (sampleCount < 6)
+                        {
+                            if (sampleCount > 0) sample.Append(" | ");
+                            sample.Append(FormatTraceRecord(record));
+                            sampleCount++;
+                        }
+                    }
+                }
+
+                if (expectedRootId > 0 && record.rootId == expectedRootId && rootChildCount < 12)
+                {
+                    if (rootChildCount > 0) rootChildren.Append(" | ");
+                    rootChildren.Append(record.kind);
+                    rootChildren.Append('(');
+                    rootChildren.Append(record.configId);
+                    rootChildren.Append(")#");
+                    rootChildren.Append(record.nodeId);
+                    if (record.parentId != 0)
+                    {
+                        rootChildren.Append("<-p");
+                        rootChildren.Append(record.parentId);
+                    }
+
+                    rootChildCount++;
+                }
+            }
+
+            var sampleText = sampleCount > 0 ? sample.ToString() : "<none>";
+            var rootText = rootChildCount > 0 ? rootChildren.ToString() : "<none>";
+            return $"TraceDebug: expectedRootId={expectedRootId}, totalRecords={records.Length}, matchingKindCount={matchingKindCount}, matchingConfigCount={matchingConfigCount}, matchingRootCount={matchingRootCount}, matchingSamples={sampleText}, rootRecords={rootText}";
+        }
+
+        private static string FormatTraceRecord(MobaAcceptanceTraceRecord record)
+        {
+            if (record == null)
+            {
+                return "<null>";
+            }
+
+            return $"{record.kind}({record.configId})#node={record.nodeId},root={record.rootId},parent={record.parentId},src={record.sourceActorId},dst={record.targetActorId}";
         }
 
         private static void AssertContainsNone(MobaAcceptanceTraceRecord[] records, MobaAcceptanceTraceExpectation[] expectations, long effectRootId)
@@ -241,6 +319,117 @@ namespace AbilityKit.Game.Test.UnitTest
             var record = FindFirstRecord(records, kind, actorId);
             Assert.IsNotNull(record, BuildExpectationMessage("context", context.note, context.alias, context.actorId, $"missing trace node kind={kind}."));
             AssertComparison(selector(record), context.expectedInt != 0 ? context.expectedInt : ParseExpectedInt(context.expectedValue, selector(record)), comparator, message);
+        }
+
+        private static string BuildMissingEffectRootMessage(MobaAcceptanceExpectation expectation, MobaSkillConfigTestHarness harness)
+        {
+            var effectId = expectation != null && expectation.config != null ? expectation.config.effectId : 0;
+            var message = $"Missing effect root trace for effect {effectId}.";
+            if (harness == null)
+            {
+                return message;
+            }
+
+            if (TryGetPrimarySkillDiagnostic(expectation, harness, out var diagnostic))
+            {
+                return message + " " + diagnostic;
+            }
+
+            return message + " SkillRuntimeDiagnostic: unavailable.";
+        }
+
+        private static bool TryGetPrimarySkillDiagnostic(MobaAcceptanceExpectation expectation, MobaSkillConfigTestHarness harness, out string diagnostic)
+        {
+            diagnostic = null;
+            if (expectation == null || harness == null) return false;
+
+            if (TryGetPrimarySkillActorAndSlot(expectation, harness, out var actorId, out var slot, out var actorAlias))
+            {
+                diagnostic = $"SkillRuntimeDiagnostic: alias={actorAlias}, {harness.DescribeSkillRuntimeState(actorId, slot)}";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetPrimarySkillActorAndSlot(MobaAcceptanceExpectation expectation, MobaSkillConfigTestHarness harness, out int actorId, out int slot, out string actorAlias)
+        {
+            actorId = 0;
+            slot = 0;
+            actorAlias = null;
+            if (expectation == null || harness == null) return false;
+
+            if (TryGetPrimaryScenarioSkillStep(expectation, out var step))
+            {
+                actorAlias = ResolvePrimaryActorAlias(harness, step.actorAlias);
+                slot = step.slot;
+            }
+            else if (expectation.input != null)
+            {
+                actorAlias = ResolvePrimaryActorAlias(harness, expectation.input.actorAlias);
+                slot = expectation.input.slot;
+            }
+
+            if (string.IsNullOrEmpty(actorAlias) || slot <= 0) return false;
+
+            actorId = ResolveActorId(harness, actorAlias, null);
+            return actorId > 0;
+        }
+
+        private static bool TryGetPrimaryScenarioSkillStep(MobaAcceptanceExpectation expectation, out MobaAcceptanceTimelineStepExpectation step)
+        {
+            step = null;
+            var timeline = expectation != null && expectation.scenario != null && expectation.scenario.timeline != null && expectation.scenario.timeline.Length > 0
+                ? expectation.scenario.timeline
+                : expectation != null ? expectation.timeline : null;
+            if (timeline == null) return false;
+
+            MobaAcceptanceTimelineStepExpectation best = null;
+            var bestAtMs = int.MaxValue;
+            for (var i = 0; i < timeline.Length; i++)
+            {
+                var candidate = timeline[i];
+                if (candidate == null || !IsSkillActionName(candidate.action) || candidate.slot <= 0) continue;
+                var atMs = Math.Max(0, candidate.atMs);
+                if (best == null || atMs < bestAtMs)
+                {
+                    best = candidate;
+                    bestAtMs = atMs;
+                }
+            }
+
+            step = best;
+            return step != null;
+        }
+
+        private static bool IsSkillActionName(string action)
+        {
+            if (string.IsNullOrEmpty(action)) return false;
+            return string.Equals(action, "skill", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "press", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "hold", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "release", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "cancel", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "skillpress", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "skillhold", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "skillrelease", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(action, "skillcancel", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ResolvePrimaryActorAlias(MobaSkillConfigTestHarness harness, string actorAlias)
+        {
+            if (!string.IsNullOrEmpty(actorAlias)) return actorAlias;
+            if (harness != null && harness.ScenarioActors != null)
+            {
+                for (var i = 0; i < harness.ScenarioActors.Length; i++)
+                {
+                    var actor = harness.ScenarioActors[i];
+                    if (actor == null || string.IsNullOrEmpty(actor.alias)) continue;
+                    if (!string.IsNullOrEmpty(actor.playerId)) return actor.alias;
+                }
+            }
+
+            return null;
         }
 
         private static MobaAttrs GetAttr(global::ActorEntity entity)

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.CreateWorld;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -13,11 +15,13 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.View.Config;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.LogicWorld;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Battle.Moba.Config;
 using AbilityKit.Protocol.Moba;
@@ -44,13 +48,15 @@ namespace AbilityKit.Game.Test.UnitTest
         private readonly Dictionary<string, PlayerId> _aliasToPlayerId = new Dictionary<string, PlayerId>(StringComparer.Ordinal);
         private readonly MobaAcceptanceScenarioExpectation _scenario;
         private readonly MobaAcceptanceActorExpectation[] _scenarioActors;
+        private readonly MobaGameStartSpec _gameStartSpec;
 
-        private MobaSkillConfigTestHarness(IWorld world, PlayerId playerId, float fixedDelta, int tickRate, MobaAcceptanceScenarioExpectation scenario = null, MobaAcceptanceActorExpectation[] scenarioActors = null)
+        private MobaSkillConfigTestHarness(IWorld world, PlayerId playerId, float fixedDelta, int tickRate, MobaGameStartSpec gameStartSpec, MobaAcceptanceScenarioExpectation scenario = null, MobaAcceptanceActorExpectation[] scenarioActors = null)
         {
             World = world ?? throw new ArgumentNullException(nameof(world));
             PlayerId = playerId;
             FixedDelta = fixedDelta;
             TickRate = tickRate;
+            _gameStartSpec = gameStartSpec;
             _scenario = scenario;
             _scenarioActors = scenarioActors ?? Array.Empty<MobaAcceptanceActorExpectation>();
             _aliasToPlayerId[playerId.Value] = playerId;
@@ -85,7 +91,7 @@ namespace AbilityKit.Game.Test.UnitTest
             if (skillIds == null) throw new ArgumentNullException(nameof(skillIds));
 
             var typedPlayerId = new PlayerId(playerId);
-            var world = CreateHeadlessMobaWorld(
+            var launchSpec = BuildLaunchSpec(
                 worldId: new WorldId(worldId),
                 worldType: worldType,
                 playerId: typedPlayerId,
@@ -109,8 +115,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 },
                 tickRate: tickRate,
                 inputDelayFrames: inputDelayFrames);
+            var world = CreateHeadlessMobaWorld(new WorldId(worldId), worldType, in launchSpec);
 
-            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, tickRate);
+            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, tickRate, launchSpec.ToGameStartSpec());
         }
 
         public static MobaSkillConfigTestHarness CreateForScenario(
@@ -145,22 +152,29 @@ namespace AbilityKit.Game.Test.UnitTest
                 : ResolvePrimaryPlayerId(expectation, scenarioActors);
             var typedPlayerId = new PlayerId(resolvedPlayerId);
             var players = BuildPlayerLoadouts(expectation, scenarioActors, typedPlayerId, inputDelayFrames);
-            var world = CreateHeadlessMobaWorld(
+            var launchSpec = BuildLaunchSpec(
                 worldId: new WorldId(resolvedWorldId),
                 worldType: worldType,
                 playerId: typedPlayerId,
                 players: players,
                 tickRate: resolvedTickRate,
                 inputDelayFrames: inputDelayFrames);
+            var world = CreateHeadlessMobaWorld(new WorldId(resolvedWorldId), worldType, in launchSpec);
 
-            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, resolvedTickRate, scenario, scenarioActors);
+            return new MobaSkillConfigTestHarness(world, typedPlayerId, fixedDelta, resolvedTickRate, launchSpec.ToGameStartSpec(), scenario, scenarioActors);
         }
 
         public void EnterGameAndWarmup(int warmupTicks = 3, string reason = "editmode skill config test")
         {
+            var startPort = World.Services.Resolve<IMobaGameStartPort>();
+            var startResult = startPort.TryStartGame(in _gameStartSpec);
+            var alreadyStarted = !startResult.Succeeded && startResult.FailureCode == MobaGameStartFailureCode.AlreadyStarted;
+            Assert.IsTrue(startResult.Succeeded || alreadyStarted, $"Formal game start failed: {startResult}");
             var phase = World.Services.Resolve<MobaLogicWorldRunGateService>();
             phase.SetInGame(reason);
             Tick(warmupTicks);
+            RefreshScenarioActorAliases();
+            RepairScenarioPlayerActorBindings();
             RefreshScenarioActorAliases();
         }
 
@@ -229,6 +243,147 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
             return GetActorHp(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public float GetActorMoveSpeed(int actorId, string message = null)
+        {
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            var attrs = new MobaAttrs(entity);
+            return attrs.MoveSpeed;
+        }
+
+        public float GetActorMoveSpeed(string alias, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return GetActorMoveSpeed(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public bool HasActorBuff(int actorId, int buffId, string message = null)
+        {
+            Assert.Greater(buffId, 0, message ?? "buffId must be positive.");
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            if (!entity.hasBuffs || entity.buffs.Active == null) return false;
+
+            for (var i = 0; i < entity.buffs.Active.Count; i++)
+            {
+                var runtime = entity.buffs.Active[i];
+                if (runtime == null) continue;
+                if (runtime.BuffId == buffId) return true;
+            }
+
+            return false;
+        }
+
+        public bool HasActorBuff(string alias, int buffId, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return HasActorBuff(actorId, buffId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public bool TryGetRunningSkillSnapshot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
+        {
+            snapshot = default;
+            if (actorId <= 0 || slot <= 0) return false;
+            if (!World.Services.TryResolve<SkillCastCoordinator>(out var skills) || skills == null) return false;
+            return skills.TryGetRunningBySlot(actorId, slot, out snapshot);
+        }
+
+        public string DescribeSkillRuntimeState(int actorId, int slot)
+        {
+            var frame = FrameTime;
+            World.Services.TryResolve<IWorldClock>(out var clock);
+            var traceCount = 0;
+            foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
+            {
+                if (kind == MobaTraceKind.None) continue;
+                foreach (var node in Trace.GetNodesByKind((int)kind))
+                {
+                    if (node.IsValid) traceCount++;
+                }
+            }
+
+            var timeSummary = $"frame={frame.Frame.Value}, timeMs={(int)Math.Round(frame.Time * 1000d)}, deltaMs={(int)Math.Round(frame.DeltaTime * 1000d)}, clockTimeMs={(int)Math.Round((clock != null ? clock.Time : 0f) * 1000d)}, clockDeltaMs={(int)Math.Round((clock != null ? clock.DeltaTime : 0f) * 1000d)}";
+            var worldSummary = DescribeWorldComposition();
+            if (!TryGetRunningSkillSnapshot(actorId, slot, out var snapshot))
+            {
+                return $"actor={actorId}, slot={slot}, {timeSummary}, running=false, traceNodes={traceCount}, world={worldSummary}";
+            }
+
+            var runtimeSummary = DescribeRunnerRuntimeState(actorId, slot);
+            return $"actor={actorId}, slot={slot}, {timeSummary}, running=true, skillId={snapshot.SkillId}, stage={snapshot.Stage}, elapsedMs={snapshot.ElapsedMs}, nextEventIndex={snapshot.NextEventIndex}, targetActorId={snapshot.TargetActorId}, traceNodes={traceCount}, runner={runtimeSummary}, world={worldSummary}";
+        }
+
+        private string DescribeRunnerRuntimeState(int actorId, int slot)
+        {
+            if (actorId <= 0 || slot <= 0) return "invalid";
+            if (!World.Services.TryResolve<SkillCastCoordinator>(out var coordinator) || coordinator == null) return "coordinatorMissing";
+
+            var coordinatorType = typeof(SkillCastCoordinator);
+            var registryField = coordinatorType.GetField("_runnerRegistry", BindingFlags.Instance | BindingFlags.NonPublic);
+            var registry = registryField?.GetValue(coordinator);
+            if (registry == null) return "registryMissing";
+
+            var registryType = registry.GetType();
+            var runnersField = registryType.GetField("_runners", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (runnersField?.GetValue(registry) is not System.Collections.IDictionary runners) return "runnersMissing";
+            if (!runners.Contains(actorId)) return "runnerNotFound";
+            if (runners[actorId] is not SkillPipelineRunner runner) return "runnerTypeMismatch";
+
+            var runnerType = typeof(SkillPipelineRunner);
+            var runningField = runnerType.GetField("_running", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (runningField?.GetValue(runner) is not System.Collections.IEnumerable entries) return "entriesMissing";
+
+            foreach (var entryObject in entries)
+            {
+                var entryType = entryObject.GetType();
+                var contextField = entryType.GetField("Context", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var runField = entryType.GetField("Run", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var stageField = entryType.GetField("Stage", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var entryContext = contextField?.GetValue(entryObject) as SkillPipelineContext;
+                if (entryContext == null || entryContext.SkillSlot != slot) continue;
+
+                var runObject = runField?.GetValue(entryObject);
+                var runType = runObject?.GetType();
+                var runContext = runType?.GetProperty("Context", BindingFlags.Instance | BindingFlags.Public)?.GetValue(runObject) as SkillPipelineContext;
+                var runState = runType?.GetProperty("State", BindingFlags.Instance | BindingFlags.Public)?.GetValue(runObject)?.ToString() ?? "null";
+                var sameContext = ReferenceEquals(entryContext, runContext);
+                var stage = stageField?.GetValue(entryObject)?.ToString() ?? "unknown";
+                var entryElapsedMs = (int)Math.Round(entryContext.ElapsedTime * 1000d);
+                var runElapsedMs = runContext != null ? (int)Math.Round(runContext.ElapsedTime * 1000d) : -1;
+                var entryNextEventIndex = entryContext.TimelineNextEventIndex;
+                var runNextEventIndex = runContext != null ? runContext.TimelineNextEventIndex : -1;
+                var phaseId = string.Empty;
+                if (runContext != null)
+                {
+                    var currentPhaseId = runContext.GetType().GetProperty("CurrentPhaseId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(runContext);
+                    phaseId = currentPhaseId?.GetType().GetProperty("Value", BindingFlags.Instance | BindingFlags.Public)?.GetValue(currentPhaseId)?.ToString() ?? string.Empty;
+                }
+
+                return $"stage={stage}, runState={runState}, sameContext={sameContext}, entryElapsedMs={entryElapsedMs}, runElapsedMs={runElapsedMs}, entryNextEventIndex={entryNextEventIndex}, runNextEventIndex={runNextEventIndex}, phase={phaseId}";
+            }
+
+            return "entryNotFound";
+        }
+
+        private string DescribeWorldComposition()
+        {
+            var worldId = World.Id.Value;
+            if (string.IsNullOrEmpty(worldId)) return "worldIdMissing";
+            if (!AbilityKit.Ability.World.Diagnostics.WorldDebugRegistry.TryGet(worldId, out var report) || report == null)
+            {
+                return $"reportMissing:{worldId}";
+            }
+
+            var hasBootstrap = false;
+            var hasSkillPipelineInstaller = false;
+            for (var i = 0; i < report.Installers.Count; i++)
+            {
+                var installer = report.Installers[i] ?? string.Empty;
+                if (installer.IndexOf("MobaWorldBootstrapModule", StringComparison.Ordinal) >= 0) hasBootstrap = true;
+                if (installer.IndexOf("ConfirmedAuthorityWorldInstaller", StringComparison.Ordinal) >= 0) hasSkillPipelineInstaller = true;
+            }
+
+            return $"id={worldId}, type={report.WorldType}, modules={report.Modules.Count}, installers={report.Installers.Count}, services={report.RegisteredServices.Count}, hasMobaBootstrap={hasBootstrap}, hasConfirmedAuthorityInstaller={hasSkillPipelineInstaller}";
         }
 
         public void AssertActorHp(int actorId, float expectedHp, float tolerance = 0.01f, string comparator = "eq", string message = null)
@@ -363,7 +518,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             for (var i = 0; i < ticks; i++)
             {
-                World.Tick(FixedDelta);
+                TickWorld(FixedDelta);
             }
         }
 
@@ -375,13 +530,35 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             if (deltaTime <= 0f) return;
-            World.Tick(deltaTime);
+            TickWorld(deltaTime);
         }
 
         public void TickMilliseconds(int milliseconds)
         {
             if (milliseconds <= 0) return;
-            TickSeconds(milliseconds / 1000f);
+
+            var wholeTicks = MillisecondsToTicks(milliseconds);
+            if (wholeTicks > 0)
+            {
+                Tick(wholeTicks);
+            }
+
+            var consumedMs = (int)Math.Round(wholeTicks * FixedDelta * 1000f);
+            var remainingMs = milliseconds - consumedMs;
+            if (remainingMs > 0)
+            {
+                TickSeconds(remainingMs / 1000f);
+            }
+        }
+
+        private void TickWorld(float deltaTime)
+        {
+            if (World.Services.TryResolve<IFrameTime>(out var time) && time is FrameTime frameTime)
+            {
+                frameTime.StepTo(new FrameIndex(frameTime.Frame.Value + 1), deltaTime);
+            }
+
+            World.Tick(deltaTime);
         }
 
         public int AssertPlayerActorBound(string message = null)
@@ -442,17 +619,22 @@ namespace AbilityKit.Game.Test.UnitTest
             return SubmitSkillInput(PlayerId, slot, SkillInputPhase.Press, targetActorId: 0, aimPos: default, aimDir: default);
         }
 
-        public FrameIndex SubmitSkillInput(PlayerId playerId, int slot, SkillInputPhase phase, int targetActorId = 0, Vec3 aimPos = default, Vec3 aimDir = default)
+        public LogicWorldInputSubmitResult SubmitSkillInputAndGetResult(PlayerId playerId, int slot, SkillInputPhase phase, out FrameIndex castFrame, int targetActorId = 0, Vec3 aimPos = default, Vec3 aimDir = default)
         {
-            var input = World.Services.Resolve<IWorldInputSink>();
-            var castFrame = new FrameIndex(FrameTime.Frame.Value + 1);
+            var input = World.Services.Resolve<IMobaInputCoordinator>();
+            castFrame = new FrameIndex(FrameTime.Frame.Value + 1);
             var skillInput = new SkillInputEvent(slot: slot, phase: phase, targetActorId: targetActorId, aimPos: in aimPos, aimDir: in aimDir);
             var command = new PlayerInputCommand(castFrame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in skillInput));
-            input.Submit(castFrame, new[] { command });
+            return input.TrySubmit(castFrame, new[] { command });
+        }
+
+        public FrameIndex SubmitSkillInput(PlayerId playerId, int slot, SkillInputPhase phase, int targetActorId = 0, Vec3 aimPos = default, Vec3 aimDir = default)
+        {
+            SubmitSkillInputAndGetResult(playerId, slot, phase, out var castFrame, targetActorId, aimPos, aimDir);
             return castFrame;
         }
 
-        public FrameIndex SubmitSkillInput(string actorAlias, int slot, string phase, string targetAlias = null, int targetActorId = 0, MobaAcceptanceVector3Expectation position = null, MobaAcceptanceVector3Expectation direction = null)
+        public LogicWorldInputSubmitResult SubmitSkillInputAndGetResult(string actorAlias, int slot, string phase, out FrameIndex castFrame, string targetAlias = null, int targetActorId = 0, MobaAcceptanceVector3Expectation position = null, MobaAcceptanceVector3Expectation direction = null)
         {
             Assert.IsTrue(TryGetPlayerId(actorAlias, out var playerId), $"Actor alias {actorAlias} is not bound to a player input source.");
             var resolvedTargetActorId = targetActorId;
@@ -461,9 +643,22 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.IsTrue(TryGetActorId(targetAlias, out resolvedTargetActorId), $"Target actor alias missing: {targetAlias}");
             }
 
-            var aimPos = ToVec3(position);
-            var aimDir = ToVec3(direction);
-            return SubmitSkillInput(playerId, slot, ParseSkillInputPhase(phase), resolvedTargetActorId, aimPos, aimDir);
+            var inputPhase = ParseSkillInputPhase(phase);
+            // Formal HUD input sends aim data on release/targeted submission, not on a plain press.
+            // Normalize directional-only press steps so acceptance scenarios match runtime input semantics.
+            var shouldIgnorePressAim = inputPhase == SkillInputPhase.Press
+                && resolvedTargetActorId <= 0
+                && IsZeroVectorExpectation(position)
+                && !IsZeroVectorExpectation(direction);
+            var aimPos = shouldIgnorePressAim ? default : ToVec3(position);
+            var aimDir = shouldIgnorePressAim ? default : ToVec3(direction);
+            return SubmitSkillInputAndGetResult(playerId, slot, inputPhase, out castFrame, resolvedTargetActorId, aimPos, aimDir);
+        }
+
+        public FrameIndex SubmitSkillInput(string actorAlias, int slot, string phase, string targetAlias = null, int targetActorId = 0, MobaAcceptanceVector3Expectation position = null, MobaAcceptanceVector3Expectation direction = null)
+        {
+            SubmitSkillInputAndGetResult(actorAlias, slot, phase, out var castFrame, targetAlias, targetActorId, position, direction);
+            return castFrame;
         }
 
         public void CastSkillSlotAndTick(int slot, int postCastTicks = 25)
@@ -601,14 +796,45 @@ namespace AbilityKit.Game.Test.UnitTest
         private static IWorld CreateHeadlessMobaWorld(
             WorldId worldId,
             string worldType,
+            in MobaBattleLaunchSpec launchSpec)
+        {
+            var registry = new WorldTypeRegistry().RegisterEntitasWorld(worldType);
+            var manager = new WorldManager(new RegistryWorldFactory(registry));
+
+            var builder = WorldServiceContainerFactory.CreateWithAttributes(
+                WorldServiceProfile.All,
+                new[]
+                {
+                    typeof(WorldServiceContainerFactory).Assembly,
+                    typeof(MobaWorldBootstrapModule).Assembly,
+                    typeof(MobaSkillConfigTestHarness).Assembly,
+                    typeof(ResourcesTextAssetLoader).Assembly
+                },
+                new[] { "AbilityKit" });
+
+            builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
+            builder.RegisterInstance<AbilityKit.Ability.Config.ITextAssetLoader>((AbilityKit.Ability.Config.ITextAssetLoader)Activator.CreateInstance(typeof(ResourcesTextAssetLoader), new object[] { null }));
+            builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+
+            var options = new WorldCreateOptions(worldId, worldType)
+            {
+                ServiceBuilder = builder,
+            };
+            options.Modules.Add(new MobaWorldBootstrapModule());
+            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
+            return manager.Create(options);
+        }
+
+        private static MobaBattleLaunchSpec BuildLaunchSpec(
+            WorldId worldId,
+            string worldType,
             PlayerId playerId,
             MobaPlayerLoadout[] players,
             int tickRate,
             int inputDelayFrames)
         {
-            var registry = new WorldTypeRegistry().RegisterEntitasWorld(worldType);
-            var manager = new WorldManager(new RegistryWorldFactory(registry));
-            var launchSpec = new MobaBattleLaunchSpec(
+            return new MobaBattleLaunchSpec(
                 battleId: worldId.Value,
                 matchId: worldId.Value,
                 worldId: worldId.Value,
@@ -616,7 +842,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 clientId: "editmode_skill_config_test",
                 localPlayerId: playerId,
                 mapId: 1,
-                gameplayId: 0,
+                gameplayId: 1,
                 ruleSetId: 0,
                 configVersion: 0,
                 protocolVersion: 0,
@@ -628,27 +854,6 @@ namespace AbilityKit.Game.Test.UnitTest
                 authorityMode: MobaBattleLaunchAuthorityMode.LocalAuthority,
                 players: players,
                 enterGamePayload: Array.Empty<byte>());
-
-            var builder = WorldServiceContainerFactory.CreateWithAttributes(
-                WorldServiceProfile.All,
-                new[]
-                {
-                    typeof(WorldServiceContainerFactory).Assembly,
-                    typeof(MobaWorldBootstrapModule).Assembly,
-                    typeof(MobaSkillConfigTestHarness).Assembly
-                },
-                new[] { "AbilityKit" });
-
-            builder.AddModule(new MobaConfigWorldModule());
-            builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
-            builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
-
-            var options = new WorldCreateOptions(worldId, worldType)
-            {
-                ServiceBuilder = builder,
-            };
-            options.SetEntitasContextsFactory(new MobaEntitasContextsFactory());
-            return manager.Create(options);
         }
 
         private bool TryFindTraceNode(MobaTraceKind kind, int configId, out TraceSnapshot<MobaTraceMetadata> match)
@@ -880,6 +1085,60 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        private void RepairScenarioPlayerActorBindings()
+        {
+            if (_scenarioActors == null || _scenarioActors.Length == 0) return;
+            if (!World.Services.TryResolve<MobaPlayerActorMapService>(out var playerActorMap) || playerActorMap == null) return;
+
+            for (var i = 0; i < _scenarioActors.Length; i++)
+            {
+                var actor = _scenarioActors[i];
+                if (actor == null || string.IsNullOrEmpty(actor.playerId)) continue;
+
+                var typedPlayerId = new PlayerId(actor.playerId);
+                if (playerActorMap.TryGetActorId(typedPlayerId, out var mappedActorId) && mappedActorId > 0) continue;
+
+                if (!TryResolveScenarioActorId(actor, out var actorId)) continue;
+                playerActorMap.Bind(typedPlayerId, actorId);
+            }
+        }
+
+        private bool TryResolveScenarioActorId(MobaAcceptanceActorExpectation actor, out int actorId)
+        {
+            actorId = 0;
+            if (actor == null) return false;
+
+            if (!string.IsNullOrEmpty(actor.alias) && _aliasToActorId.TryGetValue(actor.alias, out actorId) && actorId > 0)
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(actor.playerId) && _aliasToActorId.TryGetValue(actor.playerId, out actorId) && actorId > 0)
+            {
+                return true;
+            }
+
+            if (TryParseActorId(actor.actorId, out actorId) && actorId > 0)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrEmpty(actor.playerId)) return false;
+
+            var registry = World.Services.Resolve<MobaActorRegistry>();
+            foreach (var entry in registry.Entries)
+            {
+                var candidateActorId = entry.Key;
+                var entity = entry.Value;
+                if (entity == null || !entity.hasOwnerPlayerId) continue;
+                if (!entity.ownerPlayerId.Value.Equals(new PlayerId(actor.playerId))) continue;
+                actorId = candidateActorId;
+                return actorId > 0;
+            }
+
+            return false;
+        }
+
         private static string ResolvePrimaryPlayerId(MobaAcceptanceExpectation expectation, MobaAcceptanceActorExpectation[] scenarioActors)
         {
             if (expectation != null && expectation.input != null && !string.IsNullOrEmpty(expectation.input.playerId)) return expectation.input.playerId;
@@ -907,13 +1166,20 @@ namespace AbilityKit.Game.Test.UnitTest
                     if (actor == null || string.IsNullOrEmpty(actor.playerId)) continue;
 
                     var skillIds = ResolveActorSkillIds(expectation, actor);
+                    var heroId = actor.heroId > 0 ? actor.heroId : 1;
+                    var attributeTemplateId = actor.attributeTemplateId > 0 ? actor.attributeTemplateId : 1001;
+                    if (skillIds.Length == 0)
+                    {
+                        skillIds = ResolveDefaultSkillIds(heroId, attributeTemplateId);
+                    }
+
                     var spawnPosition = actor.spawnPosition;
                     var hasSpawnPosition = actor.hasSpawnPosition || spawnPosition != null ? 1 : 0;
                     players.Add(new MobaPlayerLoadout(
                         new PlayerId(actor.playerId),
                         teamId: actor.teamId > 0 ? actor.teamId : 1,
-                        heroId: actor.heroId > 0 ? actor.heroId : 1,
-                        attributeTemplateId: actor.attributeTemplateId > 0 ? actor.attributeTemplateId : 1001,
+                        heroId: heroId,
+                        attributeTemplateId: attributeTemplateId,
                         level: actor.level > 0 ? actor.level : 1,
                         basicAttackSkillId: actor.basicAttackSkillId > 0 ? actor.basicAttackSkillId : 1,
                         skillIds: skillIds,
@@ -952,9 +1218,24 @@ namespace AbilityKit.Game.Test.UnitTest
             return players.ToArray();
         }
 
+        private static int[] ResolveDefaultSkillIds(int heroId, int attributeTemplateId)
+        {
+            if (heroId == 1002 || attributeTemplateId == 1002)
+            {
+                return new[] { 10020101, 10020201, 10020301 };
+            }
+
+            return Array.Empty<int>();
+        }
+
         private static Vec3 ToVec3(MobaAcceptanceVector3Expectation value)
         {
             return value == null ? Vec3.Zero : new Vec3(value.x, value.y, value.z);
+        }
+
+        private static bool IsZeroVectorExpectation(MobaAcceptanceVector3Expectation value)
+        {
+            return value == null || (Math.Abs(value.x) <= float.Epsilon && Math.Abs(value.y) <= float.Epsilon && Math.Abs(value.z) <= float.Epsilon);
         }
 
         private static MobaEntityKind ResolveEntityKind(string kind, EntityMainType mainType, UnitSubType unitSubType)

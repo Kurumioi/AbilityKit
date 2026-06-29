@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Systems
 
     [MobaTriggerEvent("skill.", typeof(SkillCastContext), isPrefix: true)]
     [MobaTriggerEvent(MobaBuffTriggering.Prefixes.Buff, typeof(BuffEventArgs), isPrefix: true)]
+    [MobaTriggerEvent(TriggeringConstants.Events.OnBuffAdded, typeof(BuffEventArgs))]
     [MobaTriggerEvent("area.", typeof(AreaEventArgs), isPrefix: true)]
     [MobaTriggerEvent("presentation.", typeof(AbilityKit.Demo.Moba.Triggering.PresentationEventArgs), isPrefix: true)]
     [MobaTriggerEvent("gameplay.", typeof(GameplayLifecycleEventArgs), isPrefix: true)]

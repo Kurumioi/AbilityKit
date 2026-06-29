@@ -2,8 +2,8 @@
   "triggers": [
     {
       "id": 10020000,
-      "name": "小乔-治愈微笑-命中后移速占位",
-      "event": "",
+      "name": "小乔-治愈微笑-释放技能后短暂移速",
+      "event": "skill.cast.complete",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",

@@ -173,19 +173,165 @@ function Invoke-DotNetStep {
     $endedAt = Get-Date
 
     $record = [ordered]@{
-        name           = $DisplayName
-        kind           = $Kind
-        project        = $ProjectPath
-        filter         = $Filter
-        command        = ('dotnet {0}' -f ($Arguments -join ' '))
-        status         = $(if ($exitCode -eq 0) { 'Passed' } else { 'Failed' })
-        exitCode       = $exitCode
-        startedAt      = $startedAt.ToString('o')
-        endedAt        = $endedAt.ToString('o')
-        elapsedSeconds = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
-        logFile        = $LogFilePath
+        name             = $DisplayName
+        kind             = $Kind
+        project          = $ProjectPath
+        filter           = $Filter
+        command          = ('dotnet {0}' -f ($Arguments -join ' '))
+        status           = $(if ($exitCode -eq 0) { 'Passed' } else { 'Failed' })
+        exitCode         = $exitCode
+        startedAt        = $startedAt.ToString('o')
+        endedAt          = $endedAt.ToString('o')
+        elapsedSeconds   = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
+        logFile          = $LogFilePath
         resultsDirectory = $ResultsDirectory
-        trxFile        = $TrxFilePath
+        trxFile          = $TrxFilePath
+    }
+
+    return [pscustomobject]$record
+}
+
+function Get-UnityEditorPath {
+    param([object]$Step)
+
+    if ($Step.PSObject.Properties['editorPath'] -and -not [string]::IsNullOrWhiteSpace([string]$step.editorPath)) {
+        return [string]$step.editorPath
+    }
+
+    $defaultEditorPath = 'C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Unity.exe'
+    return $defaultEditorPath
+}
+
+function Invoke-UnityEditModeStep {
+    param(
+        [string]$DisplayName,
+        [object]$Step,
+        [string]$GateOutputDirectory
+    )
+
+    $editorPath = Get-UnityEditorPath -Step $Step
+    if (-not (Test-Path $editorPath)) {
+        throw "Unity editor not found: $editorPath"
+    }
+
+    $projectPath = Resolve-RepoPath ([string]$Step.projectPath)
+    if (-not (Test-Path $projectPath)) {
+        throw "Unity project path not found: $projectPath"
+    }
+
+    $testPlatform = if ($Step.PSObject.Properties['testPlatform'] -and -not [string]::IsNullOrWhiteSpace([string]$Step.testPlatform)) { [string]$Step.testPlatform } else { 'EditMode' }
+    $testFilter = if ($Step.PSObject.Properties['testFilter']) { [string]$Step.testFilter } else { '' }
+    $includeNoGraphics = -not ($Step.PSObject.Properties['noGraphics'] -and (-not [bool]$Step.noGraphics))
+    # Unity command-line test runs already terminate on their own. Appending -quit can
+    # preempt the Test Runner after domain reload and cause a false-success/no-results exit.
+    $includeQuit = ($Step.PSObject.Properties['quit'] -and [bool]$Step.quit)
+
+    $unityArtifactsDirectory = Join-Path $GateOutputDirectory 'unity-results'
+    $null = New-Item -ItemType Directory -Force -Path $unityArtifactsDirectory
+
+    $safeName = ConvertTo-SafeName $DisplayName
+    $logFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.log')
+    $xmlFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.xml')
+    $commandFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.command.txt')
+
+    $arguments = @(
+        '-batchmode'
+        '-projectPath'
+        $projectPath
+        '-runTests'
+        '-testPlatform'
+        $testPlatform
+    )
+    if ($includeNoGraphics) { $arguments += '-nographics' }
+    if (-not [string]::IsNullOrWhiteSpace($testFilter)) {
+        $arguments += @('-testFilter', $testFilter)
+    }
+    $arguments += @(
+        '-testResults'
+        $xmlFilePath
+        '-logFile'
+        $logFilePath
+    )
+    if ($includeQuit) { $arguments += '-quit' }
+    if ($Step.PSObject.Properties['extraArgs']) {
+        $extraArgs = @($Step.extraArgs) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
+        if ($extraArgs.Count -gt 0) {
+            $arguments += $extraArgs
+        }
+    }
+
+    $commandText = '"{0}" {1}' -f $editorPath, (($arguments | ForEach-Object {
+        if ([string]$_ -match '\s') { '"{0}"' -f $_ } else { [string]$_ }
+    }) -join ' ')
+    Set-Content -Path $commandFilePath -Value $commandText -Encoding UTF8
+
+    $startedAt = Get-Date
+    Write-Host ("=== {0} ===" -f $DisplayName) -ForegroundColor Cyan
+    Write-Host $commandText -ForegroundColor DarkGray
+
+    $process = Start-Process -FilePath $editorPath -ArgumentList $arguments -Wait -PassThru
+
+    $exitCode = $process.ExitCode
+    $endedAt = Get-Date
+    $recoveredResultsFrom = $null
+    $hasResultsFile = Test-Path $xmlFilePath
+    $testRunnerStarted = $false
+    $savedResultsPathFromLog = $null
+    $batchmodeQuitInvoked = $false
+    if (Test-Path $logFilePath) {
+        $testRunnerStarted = $null -ne (Select-String -Path $logFilePath -Pattern '^Running tests for\s+' | Select-Object -First 1)
+        $saveLine = Select-String -Path $logFilePath -Pattern '^Saving results to:\s*(.+)$' | Select-Object -First 1
+        if ($null -ne $saveLine) {
+            $savedResultsPathFromLog = $saveLine.Matches[0].Groups[1].Value.Trim()
+        }
+        $batchmodeQuitInvoked = $null -ne (Select-String -Path $logFilePath -Pattern '^Batchmode quit successfully invoked - shutting down!$' | Select-Object -First 1)
+    }
+
+    if (-not $hasResultsFile -and -not [string]::IsNullOrWhiteSpace($savedResultsPathFromLog) -and (Test-Path $savedResultsPathFromLog)) {
+        Copy-Item -Path $savedResultsPathFromLog -Destination $xmlFilePath -Force
+        $recoveredResultsFrom = $savedResultsPathFromLog
+        $hasResultsFile = Test-Path $xmlFilePath
+    }
+
+    $failureReason = $null
+    if ($exitCode -ne 0) {
+        $failureReason = "Unity exited with code $exitCode."
+    }
+    elseif (-not $hasResultsFile) {
+        if (-not $testRunnerStarted -and $batchmodeQuitInvoked) {
+            $failureReason = "Unity exited with code 0 before the command-line Test Runner started. Log contains 'Batchmode quit successfully invoked - shutting down!' but no 'Running tests for ...' marker. This commonly indicates the requested -testFilter batch did not survive domain reload or was not accepted by the Unity Test Framework command-line runner."
+        }
+        elseif ($testRunnerStarted) {
+            $failureReason = "Unity started the command-line Test Runner but did not produce a recoverable results file for '$xmlFilePath'."
+        }
+        else {
+            $failureReason = "Unity exited with code 0 but did not create test results file '$xmlFilePath'."
+        }
+    }
+
+    $record = [ordered]@{
+        name                   = $DisplayName
+        kind                   = 'unity-editmode-test'
+        project                = $projectPath
+        filter                 = $testFilter
+        command                = $commandText
+        status                 = $(if ($null -eq $failureReason) { 'Passed' } else { 'Failed' })
+        exitCode               = $exitCode
+        startedAt              = $startedAt.ToString('o')
+        endedAt                = $endedAt.ToString('o')
+        elapsedSeconds         = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
+        logFile                = $logFilePath
+        resultsFile            = $xmlFilePath
+        commandFile            = $commandFilePath
+        unityEditorPath        = $editorPath
+        testPlatform           = $testPlatform
+        resultsDirectory       = $unityArtifactsDirectory
+        resultsFileExists      = $hasResultsFile
+        testRunnerStarted      = $testRunnerStarted
+        batchmodeQuitInvoked   = $batchmodeQuitInvoked
+        savedResultsPathFromLog = $savedResultsPathFromLog
+        recoveredResultsFrom   = $recoveredResultsFrom
+        failureReason          = $failureReason
     }
 
     return [pscustomobject]$record
@@ -276,6 +422,13 @@ function Invoke-Gate {
                         $arguments += @('--filter', [string]$step.filter)
                     }
                     $record = Invoke-DotNetStep -DisplayName $stepName -Kind 'dotnet-test' -Arguments $arguments -LogFilePath $logFile -ProjectPath $project -Filter ([string]$step.filter) -ResultsDirectory $testResultsDirectory -TrxFilePath $trxFilePath
+                    $stepResults.Add($record)
+                    if ($record.status -ne 'Passed') {
+                        throw "Step '$stepName' failed with exit code $($record.exitCode)."
+                    }
+                }
+                'unity-editmode-test' {
+                    $record = Invoke-UnityEditModeStep -DisplayName $stepName -Step $step -GateOutputDirectory $gateOutputDirectory
                     $stepResults.Add($record)
                     if ($record.status -ne 'Passed') {
                         throw "Step '$stepName' failed with exit code $($record.exitCode)."

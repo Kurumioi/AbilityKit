@@ -314,14 +314,14 @@ namespace AbilityKit.Trace
             RegistryEvent?.Invoke(registryEvent);
         }
 
-        protected virtual object GetMetadataObject(long rootId) => null;
-
+        protected virtual object GetMetadataObject(long contextId) => null;
+ 
         private TraceNodeSnapshot CreateNodeSnapshot(in TraceContextRecord record)
         {
             var childCount = 0;
             if (_childrenByParent.TryGetValue(record.ContextId, out var children) && children != null)
                 childCount = children.Count;
-
+ 
             return new TraceNodeSnapshot(
                 contextId: record.ContextId,
                 rootId: record.RootId,
@@ -330,7 +330,7 @@ namespace AbilityKit.Trace
                 endedFrame: record.EndedFrame,
                 endReason: record.EndReason,
                 childCount: childCount,
-                metadata: GetMetadataObject(record.RootId));
+                metadata: GetMetadataObject(record.ContextId));
         }
     }
 
@@ -358,9 +358,9 @@ namespace AbilityKit.Trace
         /// </summary>
         public ITraceMetadataStore<T> MetadataStore => _metadataStore;
 
-        protected override object GetMetadataObject(long rootId)
+        protected override object GetMetadataObject(long contextId)
         {
-            return _metadataStore.TryGetMetadata(rootId, out var metadata) ? metadata : null;
+            return _metadataStore.TryGetMetadata(contextId, out var metadata) ? metadata : null;
         }
 
         /// <summary>
@@ -458,20 +458,33 @@ namespace AbilityKit.Trace
                 endReason: 0);
 
             _contexts[contextId] = record;
-
+            _childrenByParent[contextId] = new List<long>();
+ 
+            var metadata = CreateMetadata(
+                contextId,
+                kind,
+                sourceActorId,
+                targetActorId,
+                originId,
+                originDisplay,
+                targetId,
+                targetDisplay,
+                configId);
+            _metadataStore.SetMetadata(contextId, metadata);
+ 
             if (!_childrenByParent.TryGetValue(parentContextId, out var children))
             {
                 children = new List<long>();
                 _childrenByParent[parentContextId] = children;
             }
             children.Add(contextId);
-
+ 
             if (_roots.TryGetValue(rootId, out var rootRec))
             {
                 _roots[rootId] = rootRec.WithActiveCount(rootRec.ActiveCount + 1)
                     .WithLastTouchedFrame(Frame);
             }
-
+ 
             Publish(new TraceRegistryEvent(TraceRegistryEventKind.ChildCreated, contextId, rootId, parentContextId, kind, Frame));
             return contextId;
         }
@@ -725,7 +738,7 @@ namespace AbilityKit.Trace
             var childCount = 0;
             if (_childrenByParent.TryGetValue(record.ContextId, out var children) && children != null)
                 childCount = children.Count;
-            _metadataStore.TryGetMetadata(record.RootId, out var metadata);
+            _metadataStore.TryGetMetadata(record.ContextId, out var metadata);
             return new TraceSnapshot<T>(
                 contextId: record.ContextId,
                 rootId: record.RootId,

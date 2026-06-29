@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
+using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 
 namespace AbilityKit.Triggering.Runtime.Plan
@@ -62,38 +63,47 @@ namespace AbilityKit.Triggering.Runtime.Plan
         private void Execute(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
         {
             var behaviorCue = !call.Cue.IsEmpty && _plan.Cue != null ? _plan.Cue : null;
-            if (behaviorCue != null)
-            {
-                var beforeContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.BeforeAction);
-                behaviorCue.OnBeforeAction(in beforeContext, index);
-            }
-
+            ExecCtxContextAccessorExtensions.TryGetService<TCtx, ITriggerActionExecutionScopeObserver>(in ctx, out var actionScopeObserver);
+            actionScopeObserver?.EnterActionExecution(index, call.Id.Value);
             try
-            {
-                if (_useNamedArgs[index])
-                {
-                    ExecuteNamed(in args, in call, in ctx, index);
-                }
-                else
-                {
-                    ExecutePositional(in args, in call, in ctx, index);
-                }
-            }
-            catch
             {
                 if (behaviorCue != null)
                 {
-                    var interruptedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Interrupted);
-                    behaviorCue.OnInterrupted(in interruptedContext);
+                    var beforeContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.BeforeAction);
+                    behaviorCue.OnBeforeAction(in beforeContext, index);
                 }
 
-                throw;
-            }
+                try
+                {
+                    if (_useNamedArgs[index])
+                    {
+                        ExecuteNamed(in args, in call, in ctx, index);
+                    }
+                    else
+                    {
+                        ExecutePositional(in args, in call, in ctx, index);
+                    }
+                }
+                catch
+                {
+                    if (behaviorCue != null)
+                    {
+                        var interruptedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Interrupted);
+                        behaviorCue.OnInterrupted(in interruptedContext);
+                    }
 
-            if (behaviorCue != null)
+                    throw;
+                }
+
+                if (behaviorCue != null)
+                {
+                    var executedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Executed);
+                    behaviorCue.OnExecuted(in executedContext);
+                }
+            }
+            finally
             {
-                var executedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Executed);
-                behaviorCue.OnExecuted(in executedContext);
+                actionScopeObserver?.ExitActionExecution(index, call.Id.Value);
             }
         }
 

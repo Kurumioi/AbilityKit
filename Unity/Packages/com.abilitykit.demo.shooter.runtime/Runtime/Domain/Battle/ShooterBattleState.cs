@@ -71,6 +71,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
             TimeLimitFrames = frames < 0 ? 0 : frames;
         }
 
+        public void RestoreSnapshotMetadata(
+            ShooterBattleMatchState matchState,
+            int matchCompletedFrame,
+            int defeatedEnemies,
+            int victoryTargetDefeats,
+            int timeLimitFrames)
+        {
+            MatchState = matchState;
+            MatchCompletedFrame = matchCompletedFrame < 0 ? 0 : matchCompletedFrame;
+            DefeatedEnemies = defeatedEnemies < 0 ? 0 : defeatedEnemies;
+            VictoryTargetDefeats = victoryTargetDefeats < 1 ? 1 : victoryTargetDefeats;
+            SetTimeLimitFrames(timeLimitFrames);
+        }
+
         public void SetMatchRunning()
         {
             MatchState = ShooterBattleMatchState.Running;
@@ -139,7 +153,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 bulletId: 0,
                 x: 0f,
                 y: 0f,
-                value: resultState == ShooterBattleMatchState.Victory ? DefeatedEnemies : RemainingTimeFrames);
+                value: CreateMatchResultEventValue(resultState));
+        }
+
+        private int CreateMatchResultEventValue(ShooterBattleMatchState resultState)
+        {
+            return resultState switch
+            {
+                ShooterBattleMatchState.Victory => DefeatedEnemies,
+                ShooterBattleMatchState.Defeat => 0,
+                ShooterBattleMatchState.Ended => RemainingTimeFrames,
+                _ => throw new ArgumentOutOfRangeException(nameof(resultState), resultState, "Unsupported match result state.")
+            };
         }
 
         private static ShooterEventType CreateMatchResultEventType(ShooterBattleMatchState resultState)

@@ -12,6 +12,7 @@ using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
@@ -21,7 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
 {
     using AbilityKit.Ability;
     [WorldService(typeof(MobaEffectExecutionService))]
-    public sealed class MobaEffectExecutionService : IService
+    public sealed class MobaEffectExecutionService : IService, ITriggerActionExecutionScopeObserver
     {
         [WorldInject] private IWorldResolver _services = null;
         [WorldInject] private TriggerPlanJsonDatabase _planDb = null;
@@ -79,8 +80,38 @@ namespace AbilityKit.Demo.Moba.Services
                 scope.TriggerId,
                 scope.SourceActorId,
                 scope.TargetActorId,
-                scope.IsRoot);
+                scope.IsRoot,
+                scope.CurrentActionIndex,
+                scope.CurrentActionContextId,
+                scope.CurrentActionId);
             return true;
+        }
+
+        public void EnterActionExecution(int actionIndex, long actionId)
+        {
+            if (_traceScopes.Count == 0) return;
+
+            var scope = _traceScopes.Peek();
+            scope.CurrentActionIndex = actionIndex;
+            scope.CurrentActionId = actionId;
+            scope.CurrentActionContextId = actionIndex >= 0 && actionIndex < scope.ActionContextIds.Count
+                ? scope.ActionContextIds[actionIndex]
+                : 0L;
+        }
+
+        public void ExitActionExecution(int actionIndex, long actionId)
+        {
+            if (_traceScopes.Count == 0) return;
+
+            var scope = _traceScopes.Peek();
+            if (scope.CurrentActionIndex != actionIndex || scope.CurrentActionId != actionId)
+            {
+                return;
+            }
+
+            scope.CurrentActionIndex = -1;
+            scope.CurrentActionContextId = 0L;
+            scope.CurrentActionId = 0L;
         }
 
         /// <summary>
@@ -156,7 +187,11 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var actionCall in plan.Actions)
             {
                 var actionId = (int)actionCall.Id.Value;
-                if (actionId == 0) continue;
+                if (actionId == 0)
+                {
+                    currentScope.ActionContextIds.Add(0L);
+                    continue;
+                }
 
                 var childScope = Trace.CreateActionChild(
                     parentRootId: currentScope.EffectContextId,
@@ -181,6 +216,9 @@ namespace AbilityKit.Demo.Moba.Services
                 Trace.End(childId, reason);
             }
             scope.ActionContextIds.Clear();
+            scope.CurrentActionIndex = -1;
+            scope.CurrentActionContextId = 0L;
+            scope.CurrentActionId = 0L;
 
             if (scope.IsRoot)
             {

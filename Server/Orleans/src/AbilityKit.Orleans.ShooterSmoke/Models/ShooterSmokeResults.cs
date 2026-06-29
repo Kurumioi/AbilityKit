@@ -40,7 +40,15 @@ internal readonly record struct ShooterSnapshotPushSmokeResult(
     int PackedFrame,
     long PackedServerTick,
     uint PackedStateHash,
-    int PackedEntityCount);
+    int PackedEntityCount,
+    int MatchState,
+    bool MatchFinal,
+    bool MatchVictory,
+    int MatchCompletedFrame,
+    int DefeatedEnemies,
+    int VictoryTargetDefeats,
+    int TimeLimitFrames,
+    int RemainingTimeFrames);
 
 internal readonly record struct ShooterSmokeResult(
     string AccountId,

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -15,6 +17,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaDamageService _damage;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly List<IMobaDamagePipelineStage> _standardStages;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
+
         private readonly IMobaBattleDiagnosticsService _diagnostics;
 
         public DamagePipelineService(
@@ -94,6 +98,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (attack.TryGetOrigin(out var origin))
                 {
                     result.SetOrigin(in origin);
+                    TryTraceDamageApply(in origin, result);
                 }
 
                 Publish(DamagePipelineEvents.AfterApply, result);
@@ -189,6 +194,31 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 object boxed = payload;
                 eventBus.Publish(objectKey, in boxed);
+            }
+        }
+
+        private void TryTraceDamageApply(in MobaGameplayOrigin origin, DamageResult result)
+        {
+            if (result == null) return;
+            var trace = _trace;
+            if (trace == null) return;
+
+            var parentContextId = origin.EffectiveParentContextId;
+            if (parentContextId == 0L) return;
+
+            var configId = result.ReasonParam != 0 ? result.ReasonParam : origin.ImmediateConfigId;
+            if (configId == 0) return;
+
+            var contextId = trace.CreateChildContext(
+                parentContextId,
+                MobaTraceKind.DamageApply,
+                configId,
+                result.AttackerActorId,
+                result.TargetActorId);
+
+            if (contextId != 0L)
+            {
+                trace.EndContext(contextId, TraceLifecycleReason.Completed);
             }
         }
 

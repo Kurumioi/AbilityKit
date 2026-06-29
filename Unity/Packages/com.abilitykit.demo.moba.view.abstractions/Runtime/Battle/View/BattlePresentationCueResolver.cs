@@ -1,11 +1,10 @@
-using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 
 namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 {
     public static class BattlePresentationCueResolver
     {
-        public static BattlePresentationCueDecision Resolve(in PresentationCueData data)
+        public static BattlePresentationCueDecision Resolve(in BattlePresentationCueData data)
         {
             var requestKey = BattlePresentationCueRequestKey.From(in data);
             if (requestKey.IsEmpty) return BattlePresentationCueDecision.None;
@@ -26,32 +25,32 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
             return BattlePresentationCueDecision.None;
         }
 
-        public static bool ShouldStart(PresentationCueStage stage)
+        public static bool ShouldStart(BattlePresentationCueStage stage)
         {
-            return stage == PresentationCueStage.ConditionPassed
-                || stage == PresentationCueStage.BeforeAction
-                || stage == PresentationCueStage.Executed
-                || stage == PresentationCueStage.Started;
+            return stage == BattlePresentationCueStage.ConditionPassed
+                || stage == BattlePresentationCueStage.BeforeAction
+                || stage == BattlePresentationCueStage.Executed
+                || stage == BattlePresentationCueStage.Started;
         }
 
-        public static bool ShouldKeepActive(PresentationCueStage stage)
+        public static bool ShouldKeepActive(BattlePresentationCueStage stage)
         {
-            return stage == PresentationCueStage.Ticked
-                || stage == PresentationCueStage.Refreshed
-                || stage == PresentationCueStage.StackChanged;
+            return stage == BattlePresentationCueStage.Ticked
+                || stage == BattlePresentationCueStage.Refreshed
+                || stage == BattlePresentationCueStage.StackChanged;
         }
 
-        public static bool ShouldStop(PresentationCueStage stage)
+        public static bool ShouldStop(BattlePresentationCueStage stage)
         {
-            return stage == PresentationCueStage.ConditionFailed
-                || stage == PresentationCueStage.Interrupted
-                || stage == PresentationCueStage.Skipped
-                || stage == PresentationCueStage.Expired
-                || stage == PresentationCueStage.Removed
-                || stage == PresentationCueStage.Completed;
+            return stage == BattlePresentationCueStage.ConditionFailed
+                || stage == BattlePresentationCueStage.Interrupted
+                || stage == BattlePresentationCueStage.Skipped
+                || stage == BattlePresentationCueStage.Expired
+                || stage == BattlePresentationCueStage.Removed
+                || stage == BattlePresentationCueStage.Completed;
         }
 
-        public static int ResolveVfxId(in PresentationCueData data)
+        public static int ResolveVfxId(in BattlePresentationCueData data)
         {
             if (data.VfxId > 0) return data.VfxId;
             if (data.TemplateId > 0) return data.TemplateId;
@@ -60,10 +59,12 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 
         public static BattlePresentationCueSpawnRequest CreateSpawnRequest(
             BattlePresentationCueRequestKey requestKey,
-            in PresentationCueData data)
+            in BattlePresentationCueData data)
         {
             var vfxId = ResolveVfxId(in data);
             if (requestKey.IsEmpty || vfxId <= 0) return default;
+
+            var hasExplicitPosition = data.Positions != null && data.Positions.Count > 0;
 
             return new BattlePresentationCueSpawnRequest(
                 requestKey,
@@ -71,12 +72,12 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
                 data.SourceActorId,
                 data.TargetActorId,
                 ResolveFirstTargetActorId(in data),
-                data.Positions != null && data.Positions.Count > 0,
-                data.Positions != null && data.Positions.Count > 0 ? new MobaFloat3(data.Positions[0].X, data.Positions[0].Y, data.Positions[0].Z) : default,
-                new MobaFloat3(data.OffsetX, data.OffsetY, data.OffsetZ));
+                hasExplicitPosition,
+                hasExplicitPosition ? data.Positions[0] : default,
+                data.Offset);
         }
 
-        public static int ResolveFirstTargetActorId(in PresentationCueData data)
+        public static int ResolveFirstTargetActorId(in BattlePresentationCueData data)
         {
             if (data.Targets != null && data.Targets.Count > 0) return data.Targets[0];
             return 0;

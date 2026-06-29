@@ -32,6 +32,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void Prepare(in ShooterSveltoGameplayScenarioConfig config)
         {
+            _context.EntityFunctions.RemoveEntitiesFromGroup(ShooterSveltoGroups.GameplayShooters);
+            _context.EntityFunctions.RemoveEntitiesFromGroup(ShooterSveltoGroups.GameplayTargets);
+            _context.EntityFunctions.RemoveEntitiesFromGroup(ShooterSveltoGroups.GameplayProjectiles);
+            _context.SubmitEntities();
             _waveSpawnSystem.Reset(in config);
             _projectileSystem.Reset();
             _shooterDecisionSystem.Reset();

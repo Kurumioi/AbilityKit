@@ -45,7 +45,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         public Vector3 Resolve(in MobaProjectileEventSnapshotEntry entry)
         {
-            return new Vector3(entry.X, entry.Y, entry.Z);
+            return new BattleProjectileVfxResolver().ResolveSnapshotPosition(entry.X, entry.Y, entry.Z);
         }
     }
 

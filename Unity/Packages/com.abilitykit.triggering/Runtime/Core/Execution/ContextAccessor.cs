@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 namespace AbilityKit.Triggering.Runtime
 {
@@ -38,20 +39,71 @@ namespace AbilityKit.Triggering.Runtime
             if (_context is IServiceProvider provider)
             {
                 service = provider.GetService(typeof(TService)) as TService;
-                return service != null;
+                if (service != null)
+                {
+                    return true;
+                }
+            }
+
+            if (TryResolveViaMethod(typeof(TService), out var resolved) && resolved is TService typedService)
+            {
+                service = typedService;
+                return true;
             }
 
             var type = typeof(TCtx);
-
             var servicesProperty = type.GetProperty("Services");
             if (servicesProperty != null)
             {
-                var services = servicesProperty.GetValue(_context) as IServiceProvider;
-                if (services != null)
+                var servicesValue = servicesProperty.GetValue(_context);
+                if (servicesValue is IServiceProvider services)
                 {
                     service = services.GetService(typeof(TService)) as TService;
-                    return service != null;
+                    if (service != null)
+                    {
+                        return true;
+                    }
                 }
+
+                if (servicesValue != null && TryResolveViaMethod(servicesValue, typeof(TService), out resolved) && resolved is TService propertyService)
+                {
+                    service = propertyService;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryResolveViaMethod(Type serviceType, out object instance)
+        {
+            return TryResolveViaMethod(_context, serviceType, out instance);
+        }
+
+        private static bool TryResolveViaMethod(object target, Type serviceType, out object instance)
+        {
+            instance = null;
+            if (target == null || serviceType == null)
+            {
+                return false;
+            }
+
+            var method = target.GetType().GetMethod(
+                "TryResolve",
+                BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: new[] { typeof(Type), typeof(object).MakeByRefType() },
+                modifiers: null);
+            if (method == null)
+            {
+                return false;
+            }
+
+            var args = new object[] { serviceType, null };
+            if (method.Invoke(target, args) is bool success && success)
+            {
+                instance = args[1];
+                return instance != null;
             }
 
             return false;

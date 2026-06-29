@@ -66,12 +66,13 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             _dependencies.ValidateForExecution(nameof(MobaTriggerPlanExecutor), triggerId);
- 
+
             var ctrl = new ExecutionControl();
             ctrl.Reset();
- 
+
             var execCtx = _contextFactory.Create(ctrl);
             var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
+            Log.Warning($"[MobaTriggerPlanExecutor] execute triggerId={triggerId} hasExecutionRoot={hasExecutionRoot} executionRootType={executionRoot?.GetType().Name ?? "<null>"} actionCount={plan.Actions?.Length ?? 0} predicateMissIsSuccess={predicateMissIsSuccess} argsType={args?.GetType().Name ?? "<null>"}");
 
             try
             {
