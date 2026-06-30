@@ -6,6 +6,7 @@
 **/.nuget
 **/.log
 **/node_modules
+**/artifacts
 
 .vs/
 
