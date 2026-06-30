@@ -587,6 +587,24 @@ namespace AbilityKit.Demo.Shooter.View
         public double MaxDistance { get; }
     }
 
+    internal readonly struct ShooterAuthoritySnapshotPublishOptions
+    {
+        public ShooterAuthoritySnapshotPublishOptions(ShooterSyncTemplateSendPolicy sendPolicy, ShooterSyncTemplateConvergenceKind convergenceKind)
+        {
+            SendPolicy = sendPolicy;
+            ConvergenceKind = convergenceKind;
+        }
+
+        public ShooterSyncTemplateSendPolicy SendPolicy { get; }
+        public ShooterSyncTemplateConvergenceKind ConvergenceKind { get; }
+        public bool UsesPureStatePayload => ConvergenceKind == ShooterSyncTemplateConvergenceKind.BatchedPresentation || ConvergenceKind == ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation;
+        public bool UsesAoiScope => UsesPureStatePayload && SendPolicy.AoiRadius > 0f;
+
+        public static ShooterAuthoritySnapshotPublishOptions RealtimePacked { get; } = new ShooterAuthoritySnapshotPublishOptions(
+            ShooterSyncTemplateSendPolicy.Realtime,
+            ShooterSyncTemplateConvergenceKind.RuntimeSnapshot);
+    }
+
     /// <summary>
     /// 已完整装配、可运行的 Shooter 验收会话：包含 runtime port、表现门面、已选择同步控制器与 demo-harness carrier。
     /// 并已启动到可推进状态。同一个对象既可由 xUnit 无头驱动，也可由 Unity 外壳可视化驱动；
@@ -615,6 +633,7 @@ namespace AbilityKit.Demo.Shooter.View
             string networkName,
             ShooterBattleWorldSession? authoritativeWorldSession,
             ShooterPresentationFacade? authoritativePresentation,
+            ShooterAuthoritySnapshotPublishOptions authoritySnapshotPublishOptions,
             int networkSeed = 0)
         {
             _runtimeWorld = runtimeWorld ?? throw new ArgumentNullException(nameof(runtimeWorld));
@@ -635,6 +654,7 @@ namespace AbilityKit.Demo.Shooter.View
                     AuthoritativeWorld,
                     AuthoritativePresentation,
                     _networkProfile,
+                    authoritySnapshotPublishOptions,
                     networkSeed);
             }
         }
@@ -873,6 +893,132 @@ namespace AbilityKit.Demo.Shooter.View
             Func<long>? acceptedHits = null,
             Func<long>? rejectedHits = null)
         {
+            return Create(
+                syncModel,
+                networkProfile,
+                networkName,
+                tickRate,
+                players,
+                matchId,
+                randomSeed,
+                interpolationConfig,
+                enableAuthoritativeWorld,
+                networkStats,
+                remoteJitter,
+                acceptedHits,
+                rejectedHits,
+                ShooterAuthoritySnapshotPublishOptions.RealtimePacked);
+        }
+
+        public static ShooterAcceptanceSession Create(in ShooterSyncTemplate template)
+        {
+            if (!template.IsRunnable)
+            {
+                throw new NotSupportedException(
+                    $"Shooter sync template '{template.DisplayName}' ({template.Id}) is {template.Status} and cannot be run.");
+            }
+
+            var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId);
+            return Create(
+                template.SyncModel,
+                network.Profile,
+                template.DisplayName,
+                DefaultTickRate,
+                BuildTemplatePlayers(template.RecommendedPlayerCount),
+                matchId: null,
+                randomSeed: 0,
+                template.InterpolationConfig,
+                template.EnableAuthoritativeWorld,
+                networkStats: null,
+                remoteJitter: null,
+                acceptedHits: null,
+                rejectedHits: null,
+                new ShooterAuthoritySnapshotPublishOptions(template.SendPolicy, template.ConvergenceKind));
+        }
+
+        /// <summary>
+        /// 由目录菜单选项直接构建会话的重载。
+        /// </summary>
+        public static ShooterAcceptanceSession Create(
+            in ShooterAcceptanceSyncOption sync,
+            in ShooterAcceptanceNetworkOption network,
+            int tickRate = DefaultTickRate,
+            InterpolationConfig? interpolationConfig = null,
+            bool enableAuthoritativeWorld = false)
+        {
+            if (!sync.Implemented)
+            {
+                throw new NotSupportedException(
+                    $"Sync mode '{sync.DisplayName}' ({sync.Model}) is not implemented yet and cannot be run.");
+            }
+
+            return Create(
+                sync.Model,
+                network.Profile,
+                network.DisplayName,
+                tickRate,
+                interpolationConfig: interpolationConfig,
+                enableAuthoritativeWorld: enableAuthoritativeWorld);
+        }
+
+        /// <summary>
+        /// 将每个 capability matrix 行运行在每个目录化网络环境上，并返回包含聚合摘要的四态批量结果。
+        /// 这是逐个点击完整 Unity 验收矩阵的无头等价路径，展开依据是 <see cref="NetworkSyncProfile"/>
+        /// 与 carrier capability，而不是同步模式名称匹配。
+        /// </summary>
+        public static DemoHarnessBatchResult RunCatalogMatrix(
+            int stepCount = ShooterAcceptanceSession.DefaultStepCount,
+            float deltaSeconds = 1f / 30f,
+            int seed = 0)
+        {
+            var results = new List<DemoHarnessRunResult>();
+            foreach (var row in ShooterAcceptanceCatalog.SyncModeMatrix.Rows)
+            {
+                if (!row.IsRunnable)
+                {
+                    continue;
+                }
+
+                foreach (var network in ShooterAcceptanceCatalog.NetworkEnvironments)
+                {
+                    using var session = Create(
+                        row.SyncModel,
+                        network.Profile,
+                        network.DisplayName,
+                        DefaultTickRate,
+                        BuildTemplatePlayers(row.Template.RecommendedPlayerCount),
+                        matchId: null,
+                        seed,
+                        row.Template.InterpolationConfig,
+                        row.Template.EnableAuthoritativeWorld,
+                        networkStats: null,
+                        remoteJitter: null,
+                        acceptedHits: null,
+                        rejectedHits: null,
+                        new ShooterAuthoritySnapshotPublishOptions(row.Template.SendPolicy, row.Template.ConvergenceKind));
+                    results.Add(session.Run(stepCount, deltaSeconds, seed));
+                }
+            }
+
+            return new DemoHarnessBatchResult(results.AsReadOnly());
+        }
+
+        private static ShooterAcceptanceSession Create(
+            NetworkSyncModel syncModel,
+            NetworkConditionProfile networkProfile,
+            string? networkName,
+            int tickRate,
+            IReadOnlyList<ShooterStartPlayer>? players,
+            string? matchId,
+            int randomSeed,
+            InterpolationConfig? interpolationConfig,
+            bool enableAuthoritativeWorld,
+            Func<NetworkConditioningStats>? networkStats,
+            Func<double>? remoteJitter,
+            Func<long>? acceptedHits,
+            Func<long>? rejectedHits,
+            ShooterAuthoritySnapshotPublishOptions authoritySnapshotPublishOptions)
+        {
             if (tickRate <= 0) throw new ArgumentOutOfRangeException(nameof(tickRate));
 
             var start = BuildStartPayload(matchId, tickRate, randomSeed, players, syncModel);
@@ -928,6 +1074,7 @@ namespace AbilityKit.Demo.Shooter.View
                     string.IsNullOrWhiteSpace(networkName) ? DescribeNetwork(networkProfile) : networkName!,
                     authoritativeWorldSession,
                     authoritativePresentation,
+                    authoritySnapshotPublishOptions,
                     randomSeed);
             }
             catch
@@ -936,83 +1083,6 @@ namespace AbilityKit.Demo.Shooter.View
                 runtimeWorld.Dispose();
                 throw;
             }
-        }
-
-        public static ShooterAcceptanceSession Create(in ShooterSyncTemplate template)
-        {
-            if (!template.IsRunnable)
-            {
-                throw new NotSupportedException(
-                    $"Shooter sync template '{template.DisplayName}' ({template.Id}) is {template.Status} and cannot be run.");
-            }
-
-            var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId);
-            return Create(
-                template.SyncModel,
-                network.Profile,
-                template.DisplayName,
-                players: BuildTemplatePlayers(template.RecommendedPlayerCount),
-                interpolationConfig: template.InterpolationConfig,
-                enableAuthoritativeWorld: template.EnableAuthoritativeWorld);
-        }
-
-        /// <summary>
-        /// 由目录菜单选项直接构建会话的重载。
-        /// </summary>
-        public static ShooterAcceptanceSession Create(
-            in ShooterAcceptanceSyncOption sync,
-            in ShooterAcceptanceNetworkOption network,
-            int tickRate = DefaultTickRate,
-            InterpolationConfig? interpolationConfig = null,
-            bool enableAuthoritativeWorld = false)
-        {
-            if (!sync.Implemented)
-            {
-                throw new NotSupportedException(
-                    $"Sync mode '{sync.DisplayName}' ({sync.Model}) is not implemented yet and cannot be run.");
-            }
-
-            return Create(
-                sync.Model,
-                network.Profile,
-                network.DisplayName,
-                tickRate,
-                interpolationConfig: interpolationConfig,
-                enableAuthoritativeWorld: enableAuthoritativeWorld);
-        }
-
-        /// <summary>
-        /// 将每个 capability matrix 行运行在每个目录化网络环境上，并返回包含聚合摘要的四态批量结果。
-        /// 这是逐个点击完整 Unity 验收矩阵的无头等价路径，展开依据是 <see cref="NetworkSyncProfile"/>
-        /// 与 carrier capability，而不是同步模式名称匹配。
-        /// </summary>
-        public static DemoHarnessBatchResult RunCatalogMatrix(
-            int stepCount = ShooterAcceptanceSession.DefaultStepCount,
-            float deltaSeconds = 1f / 30f,
-            int seed = 0)
-        {
-            var results = new List<DemoHarnessRunResult>();
-            foreach (var row in ShooterAcceptanceCatalog.SyncModeMatrix.Rows)
-            {
-                if (!row.IsRunnable)
-                {
-                    continue;
-                }
-
-                foreach (var network in ShooterAcceptanceCatalog.NetworkEnvironments)
-                {
-                    using var session = Create(
-                        row.SyncModel,
-                        network.Profile,
-                        network.DisplayName,
-                        players: BuildTemplatePlayers(row.Template.RecommendedPlayerCount),
-                        interpolationConfig: row.Template.InterpolationConfig,
-                        enableAuthoritativeWorld: row.Template.EnableAuthoritativeWorld);
-                    results.Add(session.Run(stepCount, deltaSeconds, seed));
-                }
-            }
-
-            return new DemoHarnessBatchResult(results.AsReadOnly());
         }
 
         private static ISyncDemoCarrier CreateCarrier(

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
@@ -17,6 +18,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext? _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
+        private ShooterPureStateCandidate[] _candidateBuffer = Array.Empty<ShooterPureStateCandidate>();
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -51,18 +53,22 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var isLowFrequencyFrame = !isFullBaseline && activeSettings.LowFrequencyIntervalFrames > 0 && frame % activeSettings.LowFrequencyIntervalFrames == 0;
             var entityBudget = isFullBaseline ? activeSettings.MaxEntityCount : activeSettings.ActiveSyncBudget;
             var maxEntities = ResolveMaxEntities(activeSettings, entityBudget, interestScope);
-            var candidates = _context != null
+            var candidateCount = _context != null
                 ? BuildCandidates(_context, isFullBaseline, isLowFrequencyFrame, interestScope)
                 : BuildCandidatesFromSnapshot(isFullBaseline, isLowFrequencyFrame, interestScope, out frame);
-            Array.Sort(candidates, CompareCandidates);
-            var selectedCount = Math.Min(maxEntities, candidates.Length);
+            if (candidateCount > 1)
+            {
+                Array.Sort(_candidateBuffer, 0, candidateCount, ShooterPureStateCandidateComparer.Instance);
+            }
+
+            var selectedCount = Math.Min(maxEntities, candidateCount);
             var entities = new ShooterPureStateEntityDelta[selectedCount];
             var visibilityHints = new ShooterPureStateVisibilityHint[selectedCount];
-
+ 
             for (var i = 0; i < selectedCount; i++)
             {
-                entities[i] = candidates[i].Entity;
-                visibilityHints[i] = candidates[i].VisibilityHint;
+                entities[i] = _candidateBuffer[i].Entity;
+                visibilityHints[i] = _candidateBuffer[i].VisibilityHint;
             }
 
             var stateHash = _stateHashProvider.ComputeStateHash();
@@ -80,7 +86,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 visibilityHints);
         }
 
-        private ShooterPureStateCandidate[] BuildCandidatesFromSnapshot(
+        private int BuildCandidatesFromSnapshot(
             bool isFullBaseline,
             bool isLowFrequencyFrame,
             ShooterPureStateInterestScope? interestScope,
@@ -92,15 +98,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
             frame = snapshot.Frame <= 0 ? _state.CurrentFrame : snapshot.Frame;
             return BuildCandidates(players, bullets, isFullBaseline, isLowFrequencyFrame, interestScope);
         }
-
-        private ShooterPureStateCandidate[] BuildCandidates(
+ 
+        private int BuildCandidates(
             ShooterPlayerSnapshot[] players,
             ShooterBulletSnapshot[] bullets,
             bool isFullBaseline,
             bool isLowFrequencyFrame,
             ShooterPureStateInterestScope? interestScope)
         {
-            var candidates = new ShooterPureStateCandidate[players.Length + bullets.Length];
+            var candidates = EnsureCandidateCapacity(players.Length + bullets.Length);
             var index = 0;
             for (var i = 0; i < players.Length; i++)
             {
@@ -173,10 +179,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
             }
 
-            return candidates;
+            return index;
         }
-
-        private ShooterPureStateCandidate[] BuildCandidates(
+ 
+        private int BuildCandidates(
             ISveltoWorldContext context,
             bool isFullBaseline,
             bool isLowFrequencyFrame,
@@ -188,7 +194,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var bulletCount);
             var enemyCollection = context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
             enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
-            var candidates = new ShooterPureStateCandidate[playerCount + bulletCount + enemyCount];
+            var candidates = EnsureCandidateCapacity(playerCount + bulletCount + enemyCount);
             var index = 0;
 
             var playerOrder = _orderBuffer.CreateSortedPlayerOrder(players, playerCount);
@@ -311,9 +317,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(transform.X, transform.Y, interestScope), entityId);
             }
 
-            return candidates;
+            return index;
         }
 
+        private ShooterPureStateCandidate[] EnsureCandidateCapacity(int count)
+        {
+            if (_candidateBuffer.Length >= count)
+            {
+                return _candidateBuffer;
+            }
+
+            var newCapacity = _candidateBuffer.Length == 0 ? 16 : _candidateBuffer.Length;
+            while (newCapacity < count)
+            {
+                newCapacity = checked(newCapacity * 2);
+            }
+
+            _candidateBuffer = new ShooterPureStateCandidate[newCapacity];
+            return _candidateBuffer;
+        }
+ 
         private static int ResolveMaxEntities(ShooterPureStateSyncSettings settings, int entityBudget, ShooterPureStateInterestScope? interestScope)
         {
             var maxEntities = Math.Min(settings.MaxEntityCount, Math.Max(0, entityBudget));
@@ -325,16 +348,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return maxEntities;
         }
 
-        private static int CompareCandidates(ShooterPureStateCandidate left, ShooterPureStateCandidate right)
+        private sealed class ShooterPureStateCandidateComparer : IComparer<ShooterPureStateCandidate>
         {
-            var priority = right.Priority.CompareTo(left.Priority);
-            if (priority != 0)
-            {
-                return priority;
-            }
+            public static readonly ShooterPureStateCandidateComparer Instance = new();
 
-            var distance = left.DistanceSquared.CompareTo(right.DistanceSquared);
-            return distance != 0 ? distance : left.TieBreaker.CompareTo(right.TieBreaker);
+            public int Compare(ShooterPureStateCandidate left, ShooterPureStateCandidate right)
+            {
+                var priority = right.Priority.CompareTo(left.Priority);
+                if (priority != 0)
+                {
+                    return priority;
+                }
+ 
+                var distance = left.DistanceSquared.CompareTo(right.DistanceSquared);
+                return distance != 0 ? distance : left.TieBreaker.CompareTo(right.TieBreaker);
+            }
         }
 
         private static int CreatePlayerPriority(in ShooterPlayerSnapshot player, ShooterPureStateInterestScope? interestScope)

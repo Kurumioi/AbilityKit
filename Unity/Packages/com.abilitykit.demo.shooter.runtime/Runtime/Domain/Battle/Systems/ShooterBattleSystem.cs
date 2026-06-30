@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
+using Svelto.ECS.Internal;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
@@ -19,6 +21,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public const int EnemyWaveSpawn = 150;
 
         public const int Simulation = 200;
+
+        public const int EnemyLifecycleCleanup = 250;
 
         public const int EnemyWaveAttack = 300;
 
@@ -126,6 +130,58 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
     }
 
+    internal sealed class ShooterEnemyLifecycleCleanupBattleSystem : IShooterBattleSystem
+    {
+        private readonly IShooterEntityManager _entities;
+        private readonly ISveltoWorldContext _context;
+        private readonly List<int> _removalBuffer = new List<int>();
+
+        public ShooterEnemyLifecycleCleanupBattleSystem(IShooterBattleServiceResolver services)
+        {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
+            _entities = services.Resolve<IShooterEntityManager>();
+            _context = services.Resolve<ISveltoWorldContext>();
+        }
+
+        public int Order => ShooterBattleSystemOrder.EnemyLifecycleCleanup;
+
+        public string name => nameof(ShooterEnemyLifecycleCleanupBattleSystem);
+
+        public void Step(in float deltaTime)
+        {
+            _removalBuffer.Clear();
+
+            var healthCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            healthCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> healths, out NativeEntityIDs ids, out var count);
+            for (int i = 0; i < count; i++)
+            {
+                if (healths[i].Alive == 0 || healths[i].Current <= 0)
+                {
+                    _removalBuffer.Add(checked((int)ids[i]));
+                }
+            }
+
+            if (_removalBuffer.Count == 0)
+            {
+                return;
+            }
+
+            _entities.BeginStructuralChanges();
+            try
+            {
+                for (int i = 0; i < _removalBuffer.Count; i++)
+                {
+                    _entities.RemoveEnemy(_removalBuffer[i]);
+                }
+            }
+            finally
+            {
+                _entities.EndStructuralChanges();
+            }
+        }
+    }
+
     internal sealed class ShooterMatchStateBattleSystem : IShooterBattleSystem
     {
         private readonly ShooterBattleState _state;
@@ -170,7 +226,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private bool AreAllPlayersDefeated()
         {
-            var (players, _, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
             if (count == 0)
             {
                 return true;

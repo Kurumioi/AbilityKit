@@ -1,9 +1,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
-import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree } from '../services/skillAcceptanceAnalysis';
+import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree, toText as acceptanceToText } from '../services/skillAcceptanceAnalysis';
 import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, SkillAnalysisFlatNodeProjection } from '../types';
+import type { AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -29,7 +29,10 @@ const acceptanceRunPlan = ref<AdminSkillAcceptanceRunPlan | null>(null);
 const acceptanceArtifactDirectories = ref<AdminSkillAcceptanceArtifactDirectoryList | null>(null);
 const acceptanceTemplates = ref<AdminSkillAcceptanceTemplateList | null>(null);
 const acceptanceLastRun = ref<AdminSkillAcceptanceRunResponse | null>(null);
+const shooterWorldDiagnostics = ref<ShooterWorldDiagnostics | null>(null);
 const lastResponse = ref('');
+const apiCallLog = ref<AdminApiCallLogItem[]>([]);
+let apiCallLogId = 0;
 
 const account = reactive({ accountId: adminStorage.get('accountId', ''), expireSeconds: 86400, kickExisting: true });
 const create = reactive({ roomType: 'shooter', title: 'Shooter 后台房间', isPublic: true, maxPlayers: 4, tagsJson: '{\n  "source": "admin-console"\n}' });
@@ -43,6 +46,8 @@ const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const selectedAcceptanceAnalysisNodeKey = ref('');
 const selectedRuntimeAnalysisNodeKey = ref('');
+const selectedShooterInspectorRoomId = ref(adminStorage.get('selectedShooterInspectorRoomId', ''));
+const selectedShooterWorldEntityKey = ref('');
 
 const selectedGameplay = computed(() => gameplays.value.find(x => x.roomType === selectedRoomType.value) || null);
 const selectedRoomSummary = computed(() => roomId.value ? rooms.value.find(room => room.roomId === roomId.value) || null : null);
@@ -79,7 +84,7 @@ const acceptanceAnalysisFilterOptions = computed(() => buildSkillAnalysisFilterO
 const acceptanceAnalysisFilteredFlat = computed(() => filterSkillAnalysisNodes(acceptanceAnalysisFlat.value, acceptanceAnalysisFilter));
 const acceptanceAnalysisTimeline = computed(() => buildTimelineFromAnalysisNodes(acceptanceAnalysisFilteredFlat.value));
 const acceptanceAnalysisEntityRelations = computed(() => buildSkillAnalysisEntityRelations(acceptanceAnalysisFilteredFlat.value));
-const runtimeAnalysisFlat = computed<SkillAnalysisFlatNodeProjection[]>(() => []);
+const runtimeAnalysisFlat = computed<SkillAnalysisFlatNodeProjection[]>(() => flattenSkillAnalysisTree(buildSkillAnalysisTree(buildRuntimeAnalysisRecords(skillEvents.value), 'runtime-diagnostics', skillBattleId.value)));
 const runtimeAnalysisFilterOptions = computed(() => buildSkillAnalysisFilterOptions(runtimeAnalysisFlat.value));
 const runtimeAnalysisFilteredFlat = computed(() => filterSkillAnalysisNodes(runtimeAnalysisFlat.value, runtimeAnalysisFilter));
 const runtimeAnalysisTimeline = computed(() => runtimeAnalysisFilteredFlat.value.length > 0 ? buildTimelineFromAnalysisNodes(runtimeAnalysisFilteredFlat.value) : buildTimelineFromRuntimeEvents(skillEvents.value));
@@ -88,22 +93,87 @@ const selectedAcceptanceAnalysisNode = computed(() => findSelectedAnalysisNode(a
 const selectedRuntimeAnalysisNode = computed(() => findSelectedAnalysisNode(runtimeAnalysisFilteredFlat.value, selectedRuntimeAnalysisNodeKey.value));
 const skillDiagnosticsWarnings = computed(() => [...(skillSummary.value?.warnings || []), ...(skillEvents.value?.warnings || [])]);
 const skillAnalysisModelNotes = computed(() => skillAnalysisModel.value?.notes || []);
+const apiFailureCount = computed(() => apiCallLog.value.filter(item => !item.ok).length);
+const shooterInspectorRooms = computed(() => rooms.value.filter(room => room.roomType === 'shooter'));
+const selectedShooterWorldEntity = computed(() => shooterWorldDiagnostics.value?.entities?.find(entity => entity.key === selectedShooterWorldEntityKey.value) || shooterWorldDiagnostics.value?.entities?.[0] || null);
 
 watch(sessionToken, value => adminStorage.set('sessionToken', value));
 watch(() => account.accountId, value => adminStorage.set('accountId', value));
 watch(region, value => adminStorage.set('region', value));
 watch(serverId, value => adminStorage.set('serverId', value));
 watch(roomId, value => adminStorage.set('roomId', value));
+watch(selectedShooterInspectorRoomId, value => adminStorage.set('selectedShooterInspectorRoomId', value));
 
-async function call<T>(operation: Promise<{ ok: boolean; status: number; body: T | string | null }>): Promise<T | null> {
+function summarizeApiBody(body: unknown): string {
+  if (body === null || body === undefined) return '';
+  if (typeof body === 'string') return body.slice(0, 180);
+  if (typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+    const message = record.message || record.error || record.title || record.operation || record.diagnosticsStatus;
+    if (message) return String(message).slice(0, 180);
+  }
+  try {
+    return JSON.stringify(body).slice(0, 180);
+  } catch {
+    return String(body).slice(0, 180);
+  }
+}
+
+function pushApiCallLog(result: ApiResult<unknown>): void {
+  apiCallLog.value = [{
+    id: ++apiCallLogId,
+    ok: result.ok,
+    status: result.status,
+    statusText: result.statusText || (result.ok ? 'OK' : 'Request failed'),
+    method: result.method || 'HTTP',
+    url: result.url || 'unknown',
+    durationMs: result.durationMs ?? 0,
+    occurredAt: new Date().toLocaleTimeString(),
+    summary: summarizeApiBody(result.body)
+  }, ...apiCallLog.value].slice(0, 24);
+}
+
+function pushApiErrorLog(error: unknown): void {
+  apiCallLog.value = [{
+    id: ++apiCallLogId,
+    ok: false,
+    status: 0,
+    statusText: 'Network error',
+    method: 'HTTP',
+    url: 'network',
+    durationMs: 0,
+    occurredAt: new Date().toLocaleTimeString(),
+    summary: String(error).slice(0, 180)
+  }, ...apiCallLog.value].slice(0, 24);
+}
+
+async function call<T>(operation: Promise<ApiResult<T>>): Promise<T | null> {
   busy.value = true;
   try {
     const result = await operation;
+    pushApiCallLog(result as ApiResult<unknown>);
     lastResponse.value = JSON.stringify(result, null, 2);
     return result.ok ? result.body as T : null;
   } catch (error) {
+    pushApiErrorLog(error);
     lastResponse.value = String(error);
     return null;
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function command(operation: Promise<ApiResult<unknown>>): Promise<boolean> {
+  busy.value = true;
+  try {
+    const result = await operation;
+    pushApiCallLog(result);
+    lastResponse.value = JSON.stringify(result, null, 2);
+    return result.ok;
+  } catch (error) {
+    pushApiErrorLog(error);
+    lastResponse.value = String(error);
+    return false;
   } finally {
     busy.value = false;
   }
@@ -151,6 +221,7 @@ function applyGameplayDefaults(): void {
 }
 
 async function refreshDashboard(): Promise<void> {
+  const requestedRoomId = roomId.value;
   const data = await call<AdminDashboardResponse>(apis.dashboard.dashboard({ sessionToken: sessionToken.value || null, region: region.value, serverId: serverId.value, roomType: selectedRoomType.value, limit: 50, sandboxId: sandbox.sandboxId || 'default' }));
   if (!data) return;
   dashboard.value = data;
@@ -161,9 +232,25 @@ async function refreshDashboard(): Promise<void> {
   runtimeState.value = data.runtimeState || runtimeState.value;
   if (data.currentRoomId) roomId.value = data.currentRoomId;
   if (data.currentRoom?.snapshot) snapshot.value = data.currentRoom.snapshot;
+  reconcileSelectedRoomAfterDashboard(requestedRoomId, data.currentRoomId || '');
   if (!gameplays.value.some(x => x.roomType === selectedRoomType.value) && gameplays.value.length > 0) selectedRoomType.value = gameplays.value[0].roomType;
   applyGameplayDefaults();
   if (!skillEventFilter.battleId && data.runtimeState?.battleId) skillEventFilter.battleId = data.runtimeState.battleId;
+}
+
+function reconcileSelectedRoomAfterDashboard(previousRoomId: string, currentRoomId: string): void {
+  if (!roomId.value && !previousRoomId) return;
+  const selectedStillExists = roomId.value ? rooms.value.some(room => room.roomId === roomId.value) : false;
+  if (selectedStillExists) return;
+
+  if (currentRoomId && rooms.value.some(room => room.roomId === currentRoomId)) {
+    roomId.value = currentRoomId;
+    return;
+  }
+
+  snapshot.value = null;
+  runtimeState.value = null;
+  roomId.value = '';
 }
 
 async function refreshServerStatus(): Promise<void> {
@@ -252,6 +339,56 @@ function toText(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function buildRuntimeAnalysisRecords(events: AdminSkillDiagnosticsEvents | null): Record<string, unknown>[] {
+  const runtimeEvents = events?.events || [];
+  const lastNodeByInstance = new Map<number, number>();
+  const rootNodeByInstance = new Map<number, number>();
+
+  return runtimeEvents.map((event, index) => {
+    const instanceId = Number(event.skillInstanceId || 0);
+    const nodeId = instanceId > 0 ? instanceId * 1000 + index + 1 : index + 1;
+    const rootId = rootNodeByInstance.get(instanceId) || nodeId;
+    if (!rootNodeByInstance.has(instanceId)) rootNodeByInstance.set(instanceId, nodeId);
+
+    const parentId = lastNodeByInstance.get(instanceId) || 0;
+    lastNodeByInstance.set(instanceId, nodeId);
+
+    const severity = event.severity || (acceptanceToText(event.eventType).toLowerCase().includes('fail') ? 'error' : 'info');
+    const label = `${event.stage || 'runtime'} · ${event.eventType}`;
+
+    return {
+      nodeId,
+      rootId,
+      parentId,
+      kind: event.eventType || 'runtime-event',
+      eventType: event.eventType,
+      stage: event.stage || 'runtime-event',
+      status: severity,
+      severity,
+      frame: Number(event.frame || 0),
+      timeMs: index * 33,
+      actorId: event.actorId,
+      sourceActorId: event.actorId,
+      targetActorId: event.targetActorId,
+      skillId: event.skillId,
+      sourceContextId: String(nodeId),
+      rootContextId: String(rootId),
+      ownerContextId: parentId > 0 ? String(parentId) : String(rootId),
+      entityKind: 'runtime-event',
+      runtimeKind: event.eventType || 'runtime-event',
+      entityId: instanceId || nodeId,
+      displayName: label,
+      name: label,
+      debugName: label,
+      message: event.message || label,
+      result: event.value ?? event.message ?? label,
+      eventId: event.skillInstanceId,
+      instanceId: event.skillInstanceId,
+      value: event.value
+    };
+  });
 }
 
 function getAnalysisNodeKey(node: SkillAnalysisFlatNodeProjection): string {
@@ -479,8 +616,8 @@ async function leaveRoom(targetRoomId = effectiveRoomId.value): Promise<void> {
   if (!targetRoomId) return;
   roomId.value = targetRoomId;
   const leavingRoomId = targetRoomId;
-  const result = await call(apis.rooms.leave({ sessionToken: sessionToken.value, roomId: leavingRoomId }));
-  if (!result) return;
+  const ok = await command(apis.rooms.leave({ sessionToken: sessionToken.value, roomId: leavingRoomId }));
+  if (!ok) return;
   snapshot.value = null;
   runtimeState.value = null;
   roomId.value = '';
@@ -497,21 +634,42 @@ async function markOffline(targetRoomId = effectiveRoomId.value): Promise<void> 
 
 async function closeRoom(targetRoomId = effectiveRoomId.value): Promise<void> {
   if (!targetRoomId) return;
-  const result = await call(apis.rooms.close({ sessionToken: sessionToken.value, roomId: targetRoomId }));
-  if (!result) return;
-  if (roomId.value === targetRoomId) {
+  const closingCurrentRoom = roomId.value === targetRoomId || snapshot.value?.summary?.roomId === targetRoomId;
+  const ok = await command(apis.rooms.close({ sessionToken: sessionToken.value, roomId: targetRoomId }));
+  if (!ok) return;
+  rooms.value = rooms.value.filter(room => room.roomId !== targetRoomId);
+  if (closingCurrentRoom) {
     snapshot.value = null;
     runtimeState.value = null;
     roomId.value = '';
   }
   await refreshDashboard();
-  if (!roomId.value || roomId.value === targetRoomId) await selectNextAvailableRoom(targetRoomId);
+  if (!roomId.value || roomId.value === targetRoomId) selectNextAvailableRoom(targetRoomId);
 }
 
-async function selectNextAvailableRoom(excludedRoomId: string): Promise<void> {
+async function refreshShooterWorldDiagnostics(targetRoomId = selectedShooterInspectorRoomId.value || effectiveRoomId.value): Promise<void> {
+  if (!targetRoomId) return;
+  selectedShooterInspectorRoomId.value = targetRoomId;
+  const data = await call<ShooterWorldDiagnostics>(apis.rooms.shooterWorld(buildQuery({ roomId: targetRoomId })));
+  if (!data) return;
+  shooterWorldDiagnostics.value = data;
+  if (!selectedShooterWorldEntityKey.value || !data.entities.some(entity => entity.key === selectedShooterWorldEntityKey.value)) {
+    selectedShooterWorldEntityKey.value = data.entities[0]?.key || '';
+  }
+}
+
+function selectShooterWorldEntity(key: string): void {
+  selectedShooterWorldEntityKey.value = key;
+}
+
+function selectNextAvailableRoom(excludedRoomId: string): void {
   const next = rooms.value.find(room => room.roomId !== excludedRoomId);
   if (!next) return;
-  await selectRoom(next.roomId);
+  roomId.value = next.roomId;
+  selectedRoomType.value = next.roomType || selectedRoomType.value;
+  create.roomType = next.roomType || create.roomType;
+  snapshot.value = { summary: next, members: [], canStart: false };
+  runtimeState.value = null;
 }
 
 async function startShooterRoomQuick(): Promise<void> {
@@ -525,6 +683,12 @@ async function startShooterRoomQuick(): Promise<void> {
   await startBattle();
 }
 
+async function setRoomReady(ready: boolean): Promise<void> {
+  if (!effectiveRoomId.value) return;
+  await call(apis.rooms.ready({ sessionToken: sessionToken.value, roomId: effectiveRoomId.value, ready }));
+  await refreshDashboard();
+}
+
 async function startBattle(): Promise<void> {
   await call(apis.rooms.startBattle({ sessionToken: sessionToken.value, roomId: roomId.value, gameplayId: Number(battle.gameplayId || 0), ruleSetId: Number(battle.ruleSetId || 0), configVersion: Number(battle.configVersion || 1), protocolVersion: Number(battle.protocolVersion || 1), worldType: battle.worldType || null, clientId: 'admin-console', syncTemplateId: battle.syncTemplateId || null, syncModel: null, networkEnvironmentId: 'admin-console', carrierName: 'admin', enableAuthoritativeWorld: true, interpolationEnabled: true, inputDelayFrames: 0 }));
   await refreshDashboard();
@@ -534,6 +698,11 @@ async function startBattle(): Promise<void> {
 async function startShooterSandbox(): Promise<void> {
   await call(apis.sandbox.start({ sandboxId: sandbox.sandboxId || 'default', region: region.value, serverId: serverId.value, botCount: Number(sandbox.botCount || 3), maxPlayers: Number(sandbox.maxPlayers || 4), tickRate: Number(sandbox.tickRate || 30), title: 'Shooter 后台沙盒', tags: { source: 'admin-console' } }));
   await refreshDashboard();
+}
+
+async function refreshShooterSandboxState(): Promise<void> {
+  const data = await call<ShooterSandboxState>(apis.sandbox.state(sandbox.sandboxId || 'default'));
+  if (data) sandbox.state = data;
 }
 
 async function stopShooterSandbox(): Promise<void> {
@@ -571,7 +740,9 @@ export function useAdminConsoleStore() {
     acceptanceArtifactDirectories,
     acceptanceTemplates,
     acceptanceLastRun,
+    shooterWorldDiagnostics,
     lastResponse,
+    apiCallLog,
     account,
     create,
     battle,
@@ -584,6 +755,8 @@ export function useAdminConsoleStore() {
     runtimeAnalysisFilter,
     selectedAcceptanceAnalysisNodeKey,
     selectedRuntimeAnalysisNodeKey,
+    selectedShooterInspectorRoomId,
+    selectedShooterWorldEntityKey,
     selectedGameplay,
     selectedRoomSummary,
     effectiveRoomId,
@@ -621,6 +794,9 @@ export function useAdminConsoleStore() {
     selectedRuntimeAnalysisNode,
     skillDiagnosticsWarnings,
     skillAnalysisModelNotes,
+    apiFailureCount,
+    shooterInspectorRooms,
+    selectedShooterWorldEntity,
     selectAcceptanceAnalysisNode,
     selectRuntimeAnalysisNode,
     isAcceptanceCaseSelected,
@@ -662,10 +838,14 @@ export function useAdminConsoleStore() {
     restoreCurrentRoom,
     leaveRoom,
     markOffline,
+    refreshShooterWorldDiagnostics,
+    selectShooterWorldEntity,
     closeRoom,
+    setRoomReady,
     startShooterRoomQuick,
     startBattle,
     startShooterSandbox,
+    refreshShooterSandboxState,
     stopShooterSandbox,
     refreshAdminWorkspace
   };

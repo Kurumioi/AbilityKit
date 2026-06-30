@@ -46,21 +46,57 @@ namespace AbilityKit.Demo.Shooter.View
             var payloadOpCode = isDelta
                 ? ShooterOpCodes.Snapshot.PackedStateDelta
                 : ShooterOpCodes.Snapshot.PackedState;
+            var packedBytes = ShooterPackedSnapshotCodec.Serialize(in snapshot);
+            PublishPayload(
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.ServerTick,
+                timestamp,
+                isDelta,
+                payloadOpCode,
+                packedBytes);
+        }
+
+        public void PublishSnapshot(in ShooterPureStateSnapshotPayload snapshot, double timestamp)
+        {
+            var isDelta = snapshot.SnapshotKind != ShooterPureStateSnapshotKinds.FullBaseline;
+            var payloadOpCode = isDelta
+                ? ShooterOpCodes.Snapshot.PureStateDelta
+                : ShooterOpCodes.Snapshot.PureState;
+            var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+            PublishPayload(
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.ServerTick,
+                timestamp,
+                isDelta,
+                payloadOpCode,
+                payload);
+        }
+
+        private void PublishPayload(
+            ulong worldId,
+            int frame,
+            long serverTick,
+            double timestamp,
+            bool isDelta,
+            int payloadOpCode,
+            byte[] payload)
+        {
             var pushOpCode = isDelta
                 ? RoomGatewayOpCodes.DeltaSnapshotPushed
                 : RoomGatewayOpCodes.SnapshotPushed;
 
-            var packedBytes = ShooterPackedSnapshotCodec.Serialize(in snapshot);
             var wire = new WireStateSyncSnapshotPush
             {
-                WorldId = snapshot.WorldId,
-                Frame = snapshot.Frame,
+                WorldId = worldId,
+                Frame = frame,
                 Timestamp = timestamp,
                 IsFullSnapshot = !isDelta,
                 Actors = null,
                 PayloadOpCode = payloadOpCode,
-                Payload = packedBytes,
-                ServerTicks = snapshot.ServerTick
+                Payload = payload,
+                ServerTicks = serverTick
             };
 
             var pushPayload = WireRoomGatewayBinary.Serialize(in wire);

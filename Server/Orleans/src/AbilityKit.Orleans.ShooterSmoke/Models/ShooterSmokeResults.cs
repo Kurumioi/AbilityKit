@@ -116,4 +116,7 @@ internal readonly record struct ShooterSmokeResult(
     int GameplayRemainingTimeFrames,
     bool GameplayMoved,
     bool GameplayFired,
-    bool GameplayDefeatedEnemy);
+    bool GameplayDefeatedEnemy,
+    string InputLogicReplayPath,
+    string MinimizedInputLogicReplayPath,
+    ShooterSmokeReplayValidationResult InputLogicReplayValidation);

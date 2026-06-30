@@ -1,0 +1,18 @@
+{
+  "triggers": [
+    {
+      "id": 10020211,
+      "name": "小乔-甜蜜恋风-区域伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 100, "damage_type": 2, "reason_param": 10020201, "target_query_id": 50020201, "target_max_count": 10 },
+        { "type": "debug_log", "message": "小乔二技能：区域命中造成法术伤害（击飞后续实现）", "dump_args": false }
+      ]
+    }
+  ]
+}

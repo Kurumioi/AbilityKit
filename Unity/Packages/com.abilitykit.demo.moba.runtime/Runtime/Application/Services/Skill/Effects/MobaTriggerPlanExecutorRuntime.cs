@@ -5,6 +5,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -133,19 +134,19 @@ namespace AbilityKit.Demo.Moba.Services
 
             public object Resolve(Type serviceType)
             {
-                if (serviceType == typeof(MobaEffectExecutionService)) return _effects;
+                if (IsCurrentEffectServiceType(serviceType)) return _effects;
                 return _inner.Resolve(serviceType);
             }
 
             public T Resolve<T>()
             {
-                if (typeof(T) == typeof(MobaEffectExecutionService)) return (T)(object)_effects;
+                if (IsCurrentEffectServiceType(typeof(T))) return (T)(object)_effects;
                 return _inner.Resolve<T>();
             }
 
             public bool TryResolve(Type serviceType, out object instance)
             {
-                if (serviceType == typeof(MobaEffectExecutionService))
+                if (IsCurrentEffectServiceType(serviceType))
                 {
                     instance = _effects;
                     return instance != null;
@@ -156,13 +157,19 @@ namespace AbilityKit.Demo.Moba.Services
 
             public bool TryResolve<T>(out T instance)
             {
-                if (typeof(T) == typeof(MobaEffectExecutionService))
+                if (IsCurrentEffectServiceType(typeof(T)))
                 {
                     instance = _effects != null ? (T)(object)_effects : default;
                     return _effects != null;
                 }
 
                 return _inner.TryResolve(out instance);
+            }
+
+            private static bool IsCurrentEffectServiceType(Type serviceType)
+            {
+                return serviceType == typeof(MobaEffectExecutionService)
+                    || serviceType == typeof(ITriggerActionExecutionScopeObserver);
             }
         }
     }

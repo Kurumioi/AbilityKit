@@ -2,6 +2,7 @@ param(
     [switch]$NoBuild,
     [string]$Configuration = 'Debug',
     [int]$TcpPort = 41001,
+    [string]$ReplayExtension = '.record.bin',
     [int]$JoinClients = 1,
     [int]$Inputs = 3,
     [int]$Seed = 20260610,
@@ -269,7 +270,7 @@ function New-ClientArguments {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($ReplayOutputPath)) {
-        $arguments += @('--replay-output', $ReplayOutputPath)
+        $arguments += @('--input-state-replay-output', $ReplayOutputPath)
     }
 
     if ($ClientMode -eq 'join') {
@@ -451,19 +452,45 @@ function Assert-ClientResult {
         }
     }
 
-    $replayPath = Read-ResultValue -Fields $fields -Name 'replayPath'
+    $replayPath = Read-ResultValue -Fields $fields -Name 'inputStateReplayPath'
+    $minimizedReplayPath = Read-ResultValue -Fields $fields -Name 'minimizedInputStateReplayPath'
     if (-not $NoReplay) {
         if ([string]::IsNullOrWhiteSpace($replayPath)) {
             throw "Client did not report replay path: $line"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($minimizedReplayPath)) {
+            throw "Client did not report minimized replay path: $line"
         }
 
         if (-not (Test-Path $replayPath)) {
             throw "Client replay record file was not created: $replayPath"
         }
 
+        if (-not (Test-Path $minimizedReplayPath)) {
+            throw "Client minimized replay record file was not created: $minimizedReplayPath"
+        }
+
         $replayFile = Get-Item -LiteralPath $replayPath
         if ($replayFile.Length -le 0) {
             throw "Client replay record file is empty: $replayPath"
+        }
+
+        $minimizedReplayFile = Get-Item -LiteralPath $minimizedReplayPath
+        if ($minimizedReplayFile.Length -le 0) {
+            throw "Client minimized replay record file is empty: $minimizedReplayPath"
+        }
+
+        if (-not (Read-ResultBool -Fields $fields -Name 'inputStateReplayConsumed')) {
+            throw "Input-state replay record was not consumed by validation: $line"
+        }
+
+        if ((Read-ResultInt -Fields $fields -Name 'inputStateReplaySnapshots') -le 0) {
+            throw "Input-state replay record did not include snapshots: $line"
+        }
+
+        if ((Read-ResultInt -Fields $fields -Name 'inputStateReplayHashes') -ne 0) {
+            throw "Minimized input-state replay record should not include state hashes: $line"
         }
     }
 
@@ -582,6 +609,7 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 New-Item -ItemType Directory -Force -Path $replayDir | Out-Null
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $logDir '*.log')
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $replayDir '*.record.json')
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $replayDir '*.record.bin')
 
 $commonArgs = @(
     '-p:UseSharedCompilation=false',
@@ -611,7 +639,7 @@ try {
     Wait-ForPort -Port $TcpPort -TimeoutSeconds $TimeoutSeconds
 
     Write-Host 'Starting primary create client...' -ForegroundColor Cyan
-    $createReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir 'client-create.record.json' }
+    $createReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir "input-state-create$ReplayExtension" }
     $createClient = Start-SmokeClient `
         -ClientMode 'create' `
         -ClientId 'shooter-mp-create' `
@@ -631,7 +659,7 @@ try {
     for ($i = 1; $i -le $JoinClients; $i++) {
         $playerId = $i + 1
         Write-Host "Starting join client $i as player $playerId..." -ForegroundColor Cyan
-        $joinReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir "client-join-$i.record.json" }
+        $joinReplayPath = if ($NoReplay) { '' } else { Join-Path $replayDir "input-state-join-$i$ReplayExtension" }
         $joinClient = Start-SmokeClient `
             -ClientMode 'join' `
             -ClientId "shooter-mp-join-$i" `

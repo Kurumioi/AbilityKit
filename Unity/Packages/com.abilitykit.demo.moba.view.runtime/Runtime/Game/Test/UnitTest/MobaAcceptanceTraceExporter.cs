@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
 using UnityEngine;
 
@@ -28,7 +30,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     if (!node.IsValid || !seen.Add(node.ContextId)) continue;
                     var metadata = node.Metadata;
-                    records.Add(new MobaAcceptanceTraceRecord
+                    var record = new MobaAcceptanceTraceRecord
                     {
                         caseId = caseId,
                         frame = frame,
@@ -52,7 +54,9 @@ namespace AbilityKit.Game.Test.UnitTest
                         endedFrame = node.EndedFrame,
                         endReason = node.EndReason,
                         childCount = node.ChildCount
-                    });
+                    };
+                    ApplyTraceSemantics(harness, record);
+                    records.Add(record);
                 }
             }
 
@@ -119,6 +123,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 },
                 coverage = coverage,
                 traceCounts = CountByKind(records),
+                traceDictionary = BuildTraceDictionary(harness, records),
+                traceDictionaryVersion = BuildTraceDictionaryVersion(harness),
                 diagnostics = diagnostics,
                 traceJsonlPath = NormalizePath(traceJsonlPath),
                 summaryJsonPath = NormalizePath(summaryJsonPath)
@@ -166,6 +172,166 @@ namespace AbilityKit.Game.Test.UnitTest
             var rootCompare = x.rootId.CompareTo(y.rootId);
             if (rootCompare != 0) return rootCompare;
             return x.nodeId.CompareTo(y.nodeId);
+        }
+
+        private static void ApplyTraceSemantics(MobaSkillConfigTestHarness harness, MobaAcceptanceTraceRecord record)
+        {
+            if (record == null) return;
+            var configSource = string.Empty;
+            var configName = ResolveConfigName(harness != null ? harness.Config : null, record.kind, record.configId, out configSource);
+            record.configSource = configSource;
+            record.semanticVersion = BuildTraceDictionaryVersion(harness);
+            record.configLabel = BuildConfigLabel(record.kind, record.configId, configName);
+            record.runtimeLabel = BuildRuntimeLabel(record);
+            record.sourceActorLabel = ResolveActorLabel(harness, record.sourceActorId, "source");
+            record.targetActorLabel = ResolveActorLabel(harness, record.targetActorId, "target");
+            record.actorLabel = !string.IsNullOrEmpty(record.sourceActorLabel) ? record.sourceActorLabel : record.targetActorLabel;
+            record.displayName = BuildTraceDisplayName(record.kind, record.configLabel, record.runtimeLabel);
+        }
+
+        private static MobaAcceptanceTraceDictionaryEntry[] BuildTraceDictionary(MobaSkillConfigTestHarness harness, MobaAcceptanceTraceRecord[] records)
+        {
+            var entries = new Dictionary<string, MobaAcceptanceTraceDictionaryEntry>(StringComparer.Ordinal);
+            var sourceVersion = BuildTraceDictionaryVersion(harness);
+            if (records == null) return Array.Empty<MobaAcceptanceTraceDictionaryEntry>();
+
+            for (var i = 0; i < records.Length; i++)
+            {
+                var record = records[i];
+                if (record == null) continue;
+                AddDictionaryEntry(entries, "trace-kind", record.kindValue.ToString(), record.kind, record.kind, "MobaTraceKind", sourceVersion);
+                if (record.configId > 0) AddDictionaryEntry(entries, "config", record.configId.ToString(), record.configLabel, record.configLabel, record.configSource, sourceVersion);
+                if (record.sourceActorId > 0) AddDictionaryEntry(entries, "actor", record.sourceActorId.ToString(), record.sourceActorLabel, record.sourceActorLabel, "scenario/runtime", sourceVersion);
+                if (record.targetActorId > 0) AddDictionaryEntry(entries, "actor", record.targetActorId.ToString(), record.targetActorLabel, record.targetActorLabel, "scenario/runtime", sourceVersion);
+            }
+
+            var result = new List<MobaAcceptanceTraceDictionaryEntry>(entries.Values);
+            result.Sort((a, b) => string.CompareOrdinal(a.key, b.key));
+            return result.ToArray();
+        }
+
+        private static void AddDictionaryEntry(Dictionary<string, MobaAcceptanceTraceDictionaryEntry> entries, string kind, string id, string name, string label, string source, string sourceVersion)
+        {
+            if (string.IsNullOrEmpty(id) || id == "0") return;
+            var key = kind + ":" + id;
+            if (entries.ContainsKey(key)) return;
+            entries[key] = new MobaAcceptanceTraceDictionaryEntry
+            {
+                key = key,
+                kind = kind,
+                id = id,
+                name = string.IsNullOrEmpty(name) ? id : name,
+                label = string.IsNullOrEmpty(label) ? kind + " #" + id : label,
+                source = string.IsNullOrEmpty(source) ? "trace" : source,
+                sourceVersion = sourceVersion
+            };
+        }
+
+        private static string BuildTraceDictionaryVersion(MobaSkillConfigTestHarness harness)
+        {
+            var version = harness != null && harness.Config != null ? harness.Config.Version : 0;
+            return "moba-trace-dictionary/v1 config=" + version;
+        }
+
+        private static string ResolveConfigName(MobaConfigDatabase config, string kind, int configId, out string source)
+        {
+            source = string.Empty;
+            if (config == null || configId <= 0) return string.Empty;
+            var normalizedKind = kind ?? string.Empty;
+
+            if ((normalizedKind.IndexOf("Skill", StringComparison.OrdinalIgnoreCase) >= 0 || normalizedKind.IndexOf("Cast", StringComparison.OrdinalIgnoreCase) >= 0)
+                && config.TryGetSkill(configId, out var skill))
+            {
+                source = "SkillMO";
+                return ReadName(skill);
+            }
+
+            if (normalizedKind.IndexOf("Buff", StringComparison.OrdinalIgnoreCase) >= 0 && config.TryGetBuff(configId, out var buff))
+            {
+                source = "BuffMO";
+                return ReadName(buff);
+            }
+
+            if (normalizedKind.IndexOf("Projectile", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                if (config.TryGetProjectile(configId, out var projectile))
+                {
+                    source = "ProjectileMO";
+                    return ReadName(projectile);
+                }
+
+                if (config.TryGetProjectileLauncher(configId, out var launcher))
+                {
+                    source = "ProjectileLauncherMO";
+                    return ReadName(launcher);
+                }
+            }
+
+            if (normalizedKind.IndexOf("Area", StringComparison.OrdinalIgnoreCase) >= 0 && config.TryGetAoe(configId, out var area))
+            {
+                source = "AoeMO";
+                return ReadName(area);
+            }
+
+            if (normalizedKind.IndexOf("Summon", StringComparison.OrdinalIgnoreCase) >= 0 && config.TryGetSummon(configId, out var summon))
+            {
+                source = "SummonMO";
+                return ReadName(summon);
+            }
+
+            source = "trace-metadata";
+            return string.Empty;
+        }
+
+        private static string BuildConfigLabel(string kind, int configId, string configName)
+        {
+            if (configId <= 0) return string.Empty;
+            var prefix = string.IsNullOrEmpty(kind) ? "配置" : kind;
+            return string.IsNullOrEmpty(configName) ? prefix + " #" + configId : prefix + " " + configName + " (#" + configId + ")";
+        }
+
+        private static string BuildRuntimeLabel(MobaAcceptanceTraceRecord record)
+        {
+            if (record == null) return string.Empty;
+            if (!string.IsNullOrEmpty(record.originSource) || !string.IsNullOrEmpty(record.originTarget))
+            {
+                return (record.originSource ?? string.Empty) + " -> " + (record.originTarget ?? string.Empty);
+            }
+
+            return (record.kind ?? "trace") + " context #" + record.nodeId;
+        }
+
+        private static string BuildTraceDisplayName(string kind, string configLabel, string runtimeLabel)
+        {
+            if (!string.IsNullOrEmpty(configLabel)) return configLabel;
+            if (!string.IsNullOrEmpty(runtimeLabel)) return runtimeLabel;
+            return string.IsNullOrEmpty(kind) ? "Trace Node" : kind;
+        }
+
+        private static string ResolveActorLabel(MobaSkillConfigTestHarness harness, long actorId, string role)
+        {
+            if (actorId <= 0) return string.Empty;
+            var alias = FindActorAlias(harness, actorId);
+            var prefix = string.Equals(role, "target", StringComparison.OrdinalIgnoreCase) ? "目标" : "来源";
+            return string.IsNullOrEmpty(alias) ? prefix + "角色 #" + actorId : prefix + "角色 " + alias + " (#" + actorId + ")";
+        }
+
+        private static string FindActorAlias(MobaSkillConfigTestHarness harness, long actorId)
+        {
+            if (harness == null || harness.ActorAliases == null || actorId <= 0) return string.Empty;
+            foreach (var pair in harness.ActorAliases)
+            {
+                if (pair.Value == actorId) return pair.Key;
+            }
+
+            return string.Empty;
+        }
+
+        private static string ReadName(object value)
+        {
+            if (value == null) return string.Empty;
+            var property = value.GetType().GetProperty("Name", BindingFlags.Instance | BindingFlags.Public);
+            return property != null ? property.GetValue(value, null) as string ?? string.Empty : string.Empty;
         }
 
         private static bool Contains(MobaAcceptanceTraceRecord[] records, string kind, int configId, long rootId)

@@ -1,4 +1,4 @@
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleHudInputState _hudInput = new BattleHudInputState();
 
-        public ILockstepInputRecordWriter InputRecordWriter;
+        public IFrameRecordWriter InputRecordWriter;
         public BattleLocalInputQueue LocalInputQueue;
 
         internal bool TryReadHudMove(out float dx, out float dz)

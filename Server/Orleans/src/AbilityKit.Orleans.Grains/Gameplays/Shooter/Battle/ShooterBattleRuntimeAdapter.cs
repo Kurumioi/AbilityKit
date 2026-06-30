@@ -14,7 +14,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
     private readonly ShooterStateSyncPushOptions _stateSyncPushOptions;
 
     public ShooterBattleRuntimeAdapter(ServerBattleWorldManager worldManager)
-        : this(worldManager, ShooterStateSyncPushOptions.PackedDefault)
+        : this(worldManager, ShooterStateSyncPushOptions.FromEnvironmentDefault())
     {
     }
 
@@ -214,6 +214,209 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 RemainingTimeFrames = snapshot.RemainingTimeFrames
             };
         }
+
+        public BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame)
+        {
+            if (_runtime == null)
+            {
+                return null;
+            }
+
+            var resolvedWorldId = worldId == 0 ? _worldId : worldId;
+            var packed = _runtime.ExportPackedSnapshot(resolvedWorldId, isFullSnapshot: true, authorityOverride: true);
+            var entities = new Dictionary<string, BattleWorldEntityDiagnostics>(StringComparer.Ordinal);
+            var chunks = new List<BattleWorldComponentChunkDiagnostics>();
+            foreach (var chunk in packed.ComponentChunks ?? Array.Empty<ShooterPackedComponentChunk>())
+            {
+                chunks.Add(new BattleWorldComponentChunkDiagnostics
+                {
+                    ComponentKind = DescribeComponentKind(chunk.ComponentKind),
+                    EntityKind = DescribeEntityKind(chunk.EntityKind),
+                    Count = chunk.Count
+                });
+
+                ApplyChunk(chunk, entities);
+            }
+
+            return new BattleWorldDiagnostics
+            {
+                BattleId = _battleId,
+                WorldType = ShooterGameplay.WorldType,
+                WorldId = packed.WorldId,
+                Frame = packed.Frame,
+                StateHash = packed.StateHash,
+                EntityCount = packed.EntityCount,
+                Entities = entities.Values
+                    .OrderBy(entity => entity.EntityKind, StringComparer.Ordinal)
+                    .ThenBy(entity => entity.EntityId)
+                    .ToList(),
+                ComponentChunks = chunks,
+                ServerNowTicks = DateTime.UtcNow.Ticks
+            };
+        }
+
+        private static void ApplyChunk(in ShooterPackedComponentChunk chunk, Dictionary<string, BattleWorldEntityDiagnostics> entities)
+        {
+            if (chunk.ComponentKind == ShooterPackedComponentKinds.RuntimeMetadata)
+            {
+                return;
+            }
+
+            var count = Math.Max(0, chunk.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var entityId = GetInt(chunk.EntityIds, i);
+                if (entityId <= 0)
+                {
+                    continue;
+                }
+
+                var entity = GetOrCreateEntity(entities, chunk.EntityKind, entityId);
+                var fields = BuildComponentFields(chunk, i);
+                if (chunk.ComponentKind == ShooterPackedComponentKinds.EntityLifecycle)
+                {
+                    entity.Alive = IsAlive(GetByte(chunk.Flags, i));
+                    if (fields.TryGetValue("ownerId", out var ownerId) && !string.IsNullOrWhiteSpace(ownerId))
+                    {
+                        entity.Label = $"{entity.EntityKind} {entity.EntityId} / owner {ownerId}";
+                    }
+                }
+
+                entity.Components.Add(new BattleWorldComponentDiagnostics
+                {
+                    Name = DescribeComponentName(chunk.ComponentKind, chunk.EntityKind),
+                    ComponentKind = DescribeComponentKind(chunk.ComponentKind),
+                    Fields = fields
+                });
+            }
+        }
+
+        private static BattleWorldEntityDiagnostics GetOrCreateEntity(Dictionary<string, BattleWorldEntityDiagnostics> entities, int entityKind, int entityId)
+        {
+            var kind = DescribeEntityKind(entityKind);
+            var key = $"{kind}:{entityId}";
+            if (entities.TryGetValue(key, out var entity))
+            {
+                return entity;
+            }
+
+            entity = new BattleWorldEntityDiagnostics
+            {
+                Key = key,
+                EntityId = entityId,
+                EntityKind = kind,
+                Group = ResolveEntityGroup(entityKind),
+                Label = $"{kind} {entityId}"
+            };
+            entities[key] = entity;
+            return entity;
+        }
+
+        private static Dictionary<string, string> BuildComponentFields(in ShooterPackedComponentChunk chunk, int index)
+        {
+            var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+            switch (chunk.ComponentKind)
+            {
+                case ShooterPackedComponentKinds.EntityLifecycle:
+                    fields["alive"] = IsAlive(GetByte(chunk.Flags, index)).ToString();
+                    fields["flags"] = GetByte(chunk.Flags, index).ToString();
+                    AddIfPresent(fields, "ownerId", chunk.OwnerIds, index);
+                    break;
+                case ShooterPackedComponentKinds.Transform:
+                    fields["x"] = FormatFloat(GetFloat(chunk.ValueX, index));
+                    fields["y"] = FormatFloat(GetFloat(chunk.ValueY, index));
+                    fields["directionX"] = FormatFloat(GetFloat(chunk.ValueZ, index));
+                    fields["directionY"] = FormatFloat(GetFloat(chunk.ValueW, index));
+                    if (chunk.Aux != null && chunk.Aux.Length >= (index + 1) * 2)
+                    {
+                        fields["velocityX"] = FormatFloat(BitConverter.Int32BitsToSingle(chunk.Aux[index * 2]));
+                        fields["velocityY"] = FormatFloat(BitConverter.Int32BitsToSingle(chunk.Aux[index * 2 + 1]));
+                    }
+                    break;
+                case ShooterPackedComponentKinds.Health:
+                    fields["current"] = GetInt(chunk.IntValues, index).ToString();
+                    AddIfPresent(fields, "max", chunk.Aux, index);
+                    break;
+                case ShooterPackedComponentKinds.Score:
+                    fields["score"] = GetInt(chunk.IntValues, index).ToString();
+                    break;
+                case ShooterPackedComponentKinds.ProjectileLifetime:
+                    fields["remainingFrames"] = GetInt(chunk.IntValues, index).ToString();
+                    break;
+                default:
+                    fields["componentKind"] = chunk.ComponentKind.ToString();
+                    break;
+            }
+
+            return fields;
+        }
+
+        private static void AddIfPresent(Dictionary<string, string> fields, string key, int[]? values, int index)
+        {
+            if (values != null && index >= 0 && index < values.Length)
+            {
+                fields[key] = values[index].ToString();
+            }
+        }
+
+        private static string DescribeComponentName(int componentKind, int entityKind)
+        {
+            return componentKind switch
+            {
+                ShooterPackedComponentKinds.EntityLifecycle => $"{DescribeEntityKind(entityKind)}LifecycleComponent",
+                ShooterPackedComponentKinds.Transform => "ShooterSveltoTransformComponent",
+                ShooterPackedComponentKinds.Health => "ShooterSveltoHealthComponent",
+                ShooterPackedComponentKinds.Score => "ShooterSveltoScoreComponent",
+                ShooterPackedComponentKinds.ProjectileLifetime => "ShooterSveltoProjectileLifetimeComponent",
+                _ => $"Component{componentKind}"
+            };
+        }
+
+        private static string DescribeComponentKind(int componentKind)
+        {
+            return componentKind switch
+            {
+                ShooterPackedComponentKinds.EntityLifecycle => "EntityLifecycle",
+                ShooterPackedComponentKinds.Transform => "Transform",
+                ShooterPackedComponentKinds.Health => "Health",
+                ShooterPackedComponentKinds.Score => "Score",
+                ShooterPackedComponentKinds.ProjectileLifetime => "ProjectileLifetime",
+                ShooterPackedComponentKinds.RuntimeMetadata => "RuntimeMetadata",
+                _ => $"Component{componentKind}"
+            };
+        }
+
+        private static string DescribeEntityKind(int entityKind)
+        {
+            return entityKind switch
+            {
+                ShooterPackedEntityKinds.Player => "Player",
+                ShooterPackedEntityKinds.Projectile => "Projectile",
+                ShooterPackedEntityKinds.Enemy => "Enemy",
+                _ => entityKind == 0 ? "World" : $"Entity{entityKind}"
+            };
+        }
+
+        private static string ResolveEntityGroup(int entityKind)
+        {
+            return entityKind switch
+            {
+                ShooterPackedEntityKinds.Player => "ShooterSveltoGroups.Players",
+                ShooterPackedEntityKinds.Projectile => "ShooterSveltoGroups.Projectiles",
+                ShooterPackedEntityKinds.Enemy => "ShooterSveltoGroups.GameplayTargets",
+                _ => "Unknown"
+            };
+        }
+
+        private static int GetInt(int[]? values, int index) => values != null && index >= 0 && index < values.Length ? values[index] : 0;
+
+        private static float GetFloat(float[]? values, int index) => values != null && index >= 0 && index < values.Length ? values[index] : 0f;
+
+        private static byte GetByte(byte[]? values, int index) => values != null && index >= 0 && index < values.Length ? values[index] : (byte)0;
+
+        private static bool IsAlive(byte flags) => (flags & ShooterPackedEntityFlags.Alive) != 0;
+
+        private static string FormatFloat(float value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {

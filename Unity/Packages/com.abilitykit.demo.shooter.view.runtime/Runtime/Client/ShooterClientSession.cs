@@ -69,10 +69,20 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterRoomGatewayClient? gateway,
             NetworkSyncModel syncModel,
             InterpolationConfig? interpolationConfig)
+            : this(runtime, presentationSession, tickRate, new ShooterClientSyncAssemblyOptions(syncModel, decoder, interpolationConfig), gateway)
+        {
+        }
+
+        public ShooterClientSession(
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            int tickRate,
+            in ShooterClientSyncAssemblyOptions assemblyOptions,
+            IShooterRoomGatewayClient? gateway)
         {
             _presentationSession = presentationSession ?? throw new ArgumentNullException(nameof(presentationSession));
             _presentation = _presentationSession.Presentation;
-            _syncController = ShooterClientSyncControllerFactory.Create(syncModel, runtime, _presentation, tickRate, decoder, gateway, interpolationConfig);
+            _syncController = ShooterClientSyncControllerFactory.Create(in assemblyOptions, runtime, _presentation, tickRate, gateway);
         }
 
         public NetworkSyncModel SyncModel => _syncController.SyncModel;

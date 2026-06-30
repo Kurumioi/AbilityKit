@@ -234,8 +234,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 else if (chunk.EntityKind == ShooterPackedEntityKinds.Enemy && enemies.TryGetValue(entityId, out var enemy))
                 {
                     var hp = ShooterPackedSnapshotChunkCodec.GetInt(chunk.IntValues, i, enemy.Health.Current);
+                    var maxHp = ShooterPackedSnapshotChunkCodec.GetInt(chunk.Aux, i, Math.Max(enemy.Health.Max, hp));
                     enemy.Health.Current = hp;
-                    enemy.Health.Max = Math.Max(enemy.Health.Max, hp);
+                    enemy.Health.Max = Math.Max(maxHp, hp);
                     enemy.Health.Alive = (byte)(hp > 0 ? 1 : 0);
                     enemies[entityId] = enemy;
                 }

@@ -87,6 +87,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
             if (launcherEntity == null || !launcherEntity.hasProjectileLauncher) return true;
 
+            var projectiles = result.ProjectileService;
+            if (projectiles != null && result.ScheduleId.Value > 0 && projectiles.HasSchedule(result.ScheduleId)) return false;
+
             var plc = launcherEntity.projectileLauncher;
             var nowMs = runtime != null ? runtime.NowMs : result.EndTimeMs;
             if (plc.EndTimeMs > 0 && nowMs < plc.EndTimeMs) return false;

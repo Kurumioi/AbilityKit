@@ -17,7 +17,7 @@ internal static class ShooterSmokeClientProcessRunner
 
         await ShooterSmokeScenarioBase.WaitForTcpAsync(options.Host, options.Port, options.Timeout);
 
-        using var replay = ShooterSmokeReplayRecordScope.Create(options.ReplayOutputPath, in options);
+        using var replay = ShooterSmokeReplayRecordScope.CreateInputStateReplay(options.InputStateReplayOutputPath, in options);
         using var channel = new SmokeTcpGameFrameworkNetworkChannel($"ShooterSmokeGateway-{options.ClientId}", options.NetworkCondition.Normalize());
         using var connection = GameFrameworkGatewayConnectionFactory.Wrap(channel);
         using var launcher = new ShooterClientNetworkLauncher(connection);
@@ -85,8 +85,14 @@ internal static class ShooterSmokeClientProcessRunner
         Console.WriteLine(FormatReady(options, login.AccountId, launched));
 
         var resultTimeout = CreateResultTimeout(options.Timeout);
-        var push = await pushWait.Task.WaitAsync(resultTimeout);
-        var snapshotHashMatched = ValidateAppliedSnapshot(push, runtime, presentation, launched.Session);
+        if (ShouldRequestInitialFullStateSync(launched.Flow.EntryKind))
+        {
+            await RequestInitialFullStateSyncWhileTickingAsync(launched, launcher, resultTimeout);
+        }
+
+        var push = await WaitForPushWhileTickingAsync(pushWait.Task, launcher, resultTimeout);
+        ValidateAppliedSnapshot(push, runtime, presentation);
+        var appliedSnapshotHashMatched = ValidateAppliedSnapshotHash(push, runtime);
 
         var inputResults = await SubmitInputsAsync(launched, options.InputCount, resultTimeout, replay);
         var reconnectResult = default(ShooterSmokeReconnectProcessResult);
@@ -119,6 +125,8 @@ internal static class ShooterSmokeClientProcessRunner
         var matchResult = lastPush;
 
         connection.Tick(0f);
+        var reconciliation = launched.Session.LastReconciliationResult;
+        var snapshotHashMatched = ValidateLatestAuthoritativeSnapshot(push, reconciliation, appliedSnapshotHashMatched);
 
         var result = new ShooterSmokeClientProcessResult(
             options.Mode,
@@ -138,6 +146,18 @@ internal static class ShooterSmokeClientProcessRunner
             push.PackedStateHash,
             push.PackedEntityCount,
             snapshotHashMatched,
+            reconciliation.PredictedFrameBeforeCorrection,
+            reconciliation.PredictedHashBeforeCorrection,
+            reconciliation.AuthoritativeFrame,
+            reconciliation.AuthoritativeStateHash,
+            reconciliation.ImportedStateHash,
+            reconciliation.AuthoritativeHashMatched,
+            reconciliation.ReplayTicks,
+            reconciliation.FinalFrame,
+            reconciliation.FinalStateHash,
+            reconciliation.PendingInputFramesBeforeCorrection,
+            reconciliation.PendingInputFramesAfterTrim,
+            reconciliation.PendingInputFramesAfterReplay,
             inputResults.Count,
             !hasInput || lastInput.Remote.Success,
             hasInput ? lastInput.Local.RequestedFrame : 0,
@@ -167,10 +187,19 @@ internal static class ShooterSmokeClientProcessRunner
             channel.ConditionInboundReceived,
             channel.ConditionInboundDelayed,
             channel.ConditionInboundDropped,
-            string.Empty);
+            string.Empty,
+            string.Empty,
+            default);
         replay?.RecordResult(in result);
         var replayPath = replay?.Save() ?? string.Empty;
-        return result with { ReplayPath = replayPath };
+        var minimizedReplayPath = replay?.MinimizedOutputPath ?? string.Empty;
+        var replayValidation = ShooterSmokeReplayValidation.ValidateReplay(minimizedReplayPath);
+        return result with
+        {
+            InputStateReplayPath = replayPath,
+            MinimizedInputStateReplayPath = minimizedReplayPath,
+            InputStateReplayValidation = replayValidation,
+        };
     }
 
     public static string FormatReady(
@@ -209,6 +238,18 @@ internal static class ShooterSmokeClientProcessRunner
             $"snapshotHash=0x{result.SnapshotStateHash:X8} " +
             $"snapshotHashMatched={result.SnapshotHashMatched} " +
             $"entities={result.SnapshotEntityCount} " +
+            $"reconcilePredictedFrame={result.ReconcilePredictedFrame} " +
+            $"reconcilePredictedHash=0x{result.ReconcilePredictedHash:X8} " +
+            $"reconcileAuthoritativeFrame={result.ReconcileAuthoritativeFrame} " +
+            $"reconcileAuthoritativeHash=0x{result.ReconcileAuthoritativeHash:X8} " +
+            $"reconcileImportedHash=0x{result.ReconcileImportedHash:X8} " +
+            $"reconcileAuthoritativeHashMatched={result.ReconcileAuthoritativeHashMatched} " +
+            $"reconcileReplayTicks={result.ReconcileReplayTicks} " +
+            $"reconcileFinalFrame={result.ReconcileFinalFrame} " +
+            $"reconcileFinalHash=0x{result.ReconcileFinalHash:X8} " +
+            $"reconcilePendingBefore={result.ReconcilePendingBefore} " +
+            $"reconcilePendingAfterTrim={result.ReconcilePendingAfterTrim} " +
+            $"reconcilePendingAfterReplay={result.ReconcilePendingAfterReplay} " +
             $"inputs={result.InputCount} " +
             $"lastInputSuccess={result.LastInputSuccess} " +
             $"lastRequestedFrame={result.LastRequestedFrame} " +
@@ -238,7 +279,18 @@ internal static class ShooterSmokeClientProcessRunner
             $"conditionInboundReceived={result.ConditionInboundReceived} " +
             $"conditionInboundDelayed={result.ConditionInboundDelayed} " +
             $"conditionInboundDropped={result.ConditionInboundDropped} " +
-            $"replayPath=\"{Escape(result.ReplayPath)}\"";
+            $"inputStateReplayPath=\"{Escape(result.InputStateReplayPath)}\" " +
+            $"minimizedInputStateReplayPath=\"{Escape(result.MinimizedInputStateReplayPath)}\" " +
+            $"inputStateReplayConsumed={result.InputStateReplayValidation.Consumed} " +
+            $"inputStateReplayInputs={result.InputStateReplayValidation.InputCount} " +
+            $"inputStateReplaySnapshots={result.InputStateReplayValidation.SnapshotCount} " +
+            $"inputStateReplayHashes={result.InputStateReplayValidation.StateHashCount} " +
+            $"clientStateReplayPath=\"{Escape(result.InputStateReplayPath)}\" " +
+            $"minimizedClientStateReplayPath=\"{Escape(result.MinimizedInputStateReplayPath)}\" " +
+            $"clientStateReplayConsumed={result.InputStateReplayValidation.Consumed} " +
+            $"clientStateReplayInputs={result.InputStateReplayValidation.InputCount} " +
+            $"clientStateReplaySnapshots={result.InputStateReplayValidation.SnapshotCount} " +
+            $"clientStateReplayHashes={result.InputStateReplayValidation.StateHashCount}";
     }
 
     public static string FormatFailure(in ShooterSmokeClientProcessOptions options, Exception exception)
@@ -320,6 +372,57 @@ internal static class ShooterSmokeClientProcessRunner
         return timeout > safetyMargin + minimum ? timeout - safetyMargin : minimum;
     }
 
+    private static bool ShouldRequestInitialFullStateSync(ShooterRoomGatewayEntryKind entryKind)
+    {
+        return entryKind == ShooterRoomGatewayEntryKind.LateJoin
+            || entryKind == ShooterRoomGatewayEntryKind.Reconnect;
+    }
+
+    private static async Task RequestInitialFullStateSyncWhileTickingAsync(
+        ShooterClientNetworkLaunchResult launched,
+        ShooterClientNetworkLauncher launcher,
+        TimeSpan timeout)
+    {
+        var request = launched.Battle.RequestFullSnapshotBaselineAsync(timeout);
+        var deadline = DateTime.UtcNow + timeout;
+        while (!request.IsCompleted)
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException("Timed out requesting initial Shooter full-state sync.");
+            }
+
+            launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
+            await Task.Delay(10).ConfigureAwait(false);
+        }
+
+        var result = await request.ConfigureAwait(false);
+        if (!result.Success || !result.Accepted)
+        {
+            throw new InvalidOperationException($"Initial Shooter full-state sync request was rejected. Success={result.Success}, Accepted={result.Accepted}, Message={result.Message}");
+        }
+    }
+
+    private static async Task<ShooterSnapshotPushSmokeResult> WaitForPushWhileTickingAsync(
+        Task<ShooterSnapshotPushSmokeResult> task,
+        ShooterClientNetworkLauncher launcher,
+        TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!task.IsCompleted)
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException("Timed out waiting for Shooter snapshot push.");
+            }
+
+            launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
+            await Task.Delay(10).ConfigureAwait(false);
+        }
+
+        return await task.ConfigureAwait(false);
+    }
+
     private static ShooterPlayerCommand CreateGameplayLoopCommand(int frame)
     {
         const float firstEnemyX = -0.12186934f;
@@ -398,7 +501,7 @@ internal static class ShooterSmokeClientProcessRunner
             throw new InvalidOperationException($"Shooter multiprocess reconnect expected reconnect entry kind. Actual={reconnected.Flow.EntryKind}");
         }
 
-        var reconnectPush = await reconnectPushWait.Task.WaitAsync(timeout);
+        var reconnectPush = await WaitForPushWhileTickingAsync(reconnectPushWait.Task, launcher, timeout);
         if (!IsAppliedSnapshotResult(reconnectPush.ApplyResult))
         {
             throw new InvalidOperationException($"Shooter multiprocess reconnect snapshot was not applied. Result={reconnectPush.ApplyResult}");
@@ -563,11 +666,10 @@ internal static class ShooterSmokeClientProcessRunner
         }
     }
 
-    private static bool ValidateAppliedSnapshot(
+    private static void ValidateAppliedSnapshot(
         in ShooterSnapshotPushSmokeResult push,
         ShooterBattleRuntimePort runtime,
-        ShooterPresentationFacade presentation,
-        ShooterClientSession session)
+        ShooterPresentationFacade presentation)
     {
         if (push.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot && push.ApplyResult != ShooterSnapshotApplyResult.AppliedActorSnapshot)
         {
@@ -578,17 +680,35 @@ internal static class ShooterSmokeClientProcessRunner
         {
             throw new InvalidOperationException("Shooter multiprocess client runtime/presentation did not advance after snapshot push.");
         }
+    }
 
-        if (push.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot || push.PackedStateHash == 0u)
+    private static bool ValidateAppliedSnapshotHash(
+        in ShooterSnapshotPushSmokeResult push,
+        ShooterBattleRuntimePort runtime)
+    {
+        return push.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot
+            || push.PackedStateHash == 0u
+            || runtime.ComputeStateHash() == push.PackedStateHash;
+    }
+
+    private static bool ValidateLatestAuthoritativeSnapshot(
+        in ShooterSnapshotPushSmokeResult firstAppliedPush,
+        in ShooterClientReconciliationResult reconciliation,
+        bool appliedSnapshotHashMatched)
+    {
+        if (firstAppliedPush.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot || firstAppliedPush.PackedStateHash == 0u)
         {
             return true;
         }
 
-        var reconciliation = session.LastReconciliationResult;
-        return reconciliation.ApplyResult == ShooterSnapshotApplyResult.AppliedPackedSnapshot
-            && reconciliation.AuthoritativeHashMatched
-            && reconciliation.AuthoritativeStateHash == push.PackedStateHash
-            && reconciliation.ImportedStateHash == push.PackedStateHash;
+        if (reconciliation.ApplyResult == ShooterSnapshotApplyResult.AppliedPackedSnapshot)
+        {
+            return reconciliation.AuthoritativeHashMatched
+                && reconciliation.AuthoritativeStateHash != 0u
+                && reconciliation.ImportedStateHash == reconciliation.AuthoritativeStateHash;
+        }
+
+        return appliedSnapshotHashMatched;
     }
 
     private static void ValidateInput(in ShooterClientGatewayInputSubmitResult submit)
@@ -644,7 +764,7 @@ internal readonly record struct ShooterSmokeClientProcessOptions(
     bool ReconnectOnce,
     int ReconnectDelayMs,
     SmokeNetworkConditionOptions NetworkCondition,
-    string ReplayOutputPath);
+    string InputStateReplayOutputPath);
 
 internal readonly record struct ShooterSmokeReconnectProcessResult(
     ShooterClientNetworkLaunchResult Launched,
@@ -672,6 +792,18 @@ internal readonly record struct ShooterSmokeClientProcessResult(
     uint SnapshotStateHash,
     int SnapshotEntityCount,
     bool SnapshotHashMatched,
+    int ReconcilePredictedFrame,
+    uint ReconcilePredictedHash,
+    int ReconcileAuthoritativeFrame,
+    uint ReconcileAuthoritativeHash,
+    uint ReconcileImportedHash,
+    bool ReconcileAuthoritativeHashMatched,
+    int ReconcileReplayTicks,
+    int ReconcileFinalFrame,
+    uint ReconcileFinalHash,
+    int ReconcilePendingBefore,
+    int ReconcilePendingAfterTrim,
+    int ReconcilePendingAfterReplay,
     int InputCount,
     bool LastInputSuccess,
     int LastRequestedFrame,
@@ -701,4 +833,6 @@ internal readonly record struct ShooterSmokeClientProcessResult(
     int ConditionInboundReceived,
     int ConditionInboundDelayed,
     int ConditionInboundDropped,
-    string ReplayPath);
+    string InputStateReplayPath,
+    string MinimizedInputStateReplayPath,
+    ShooterSmokeReplayValidationResult InputStateReplayValidation);

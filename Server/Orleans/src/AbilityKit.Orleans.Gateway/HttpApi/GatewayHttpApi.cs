@@ -307,6 +307,12 @@ internal static class GatewayHttpApi
             .WithName("Gateway.AdminSkillAcceptanceRunPlan")
             .Produces<AdminSkillAcceptanceRunPlanHttpResponse>(StatusCodes.Status200OK);
 
+        group.MapGet("/shooter/world", async (string? roomId, string? battleId, IClusterClient client) =>
+            await GetAdminShooterWorldDiagnosticsAsync(roomId, battleId, client))
+            .WithName("Gateway.AdminShooterWorldDiagnostics")
+            .Produces<BattleWorldDiagnostics>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         group.MapPost("/server/maintenance", async (AdminServerOperationHttpRequest request, IClusterClient client, IWebHostEnvironment environment) =>
             await ExecuteAdminServerOperationAsync(request, client, environment, GatewayAdminOperations.SetMaintenanceMode))
             .WithName("Gateway.AdminSetMaintenanceMode")
@@ -718,6 +724,31 @@ internal static class GatewayHttpApi
             sandboxState,
             DateTime.UtcNow.Ticks,
             GatewayAdminOperations.GetStatus(environment)));
+    }
+
+    private static async Task<IResult> GetAdminShooterWorldDiagnosticsAsync(string? roomId, string? battleId, IClusterClient client)
+    {
+        var resolvedBattleId = battleId;
+        if (string.IsNullOrWhiteSpace(resolvedBattleId) && !string.IsNullOrWhiteSpace(roomId))
+        {
+            var room = client.GetGrain<IRoomGrain>(roomId);
+            var runtimeState = await room.GetRuntimeStateAsync();
+            resolvedBattleId = runtimeState.BattleId;
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedBattleId))
+        {
+            return Results.NotFound("Room has no running Shooter battleId.");
+        }
+
+        var battle = client.GetGrain<IBattleLogicHostGrain>(resolvedBattleId);
+        var diagnostics = await battle.GetWorldDiagnosticsAsync();
+        if (diagnostics is null)
+        {
+            return Results.NotFound("Shooter world diagnostics are not available for this battle.");
+        }
+
+        return Results.Ok(diagnostics);
     }
 
     private static async Task<IResult> ExecuteAdminServerOperationAsync(

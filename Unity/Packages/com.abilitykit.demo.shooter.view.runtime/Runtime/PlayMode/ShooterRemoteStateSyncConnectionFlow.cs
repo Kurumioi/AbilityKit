@@ -147,6 +147,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 launchOptions.ServerId,
                 launchSpec,
                 playerId,
+                launchOptions.CreateClientSyncAssemblyOptions(),
                 launchOptions.SessionOptions.TickRate,
                 launchOptions.Timeout);
         }
@@ -169,6 +170,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 launchOptions.RoomId,
                 launchSpec,
                 playerId,
+                launchOptions.CreateClientSyncAssemblyOptions(),
                 launchOptions.SessionOptions.TickRate,
                 launchOptions.Timeout);
         }
@@ -190,6 +192,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 launchOptions.SessionToken,
                 launchSpec,
                 playerId,
+                launchOptions.CreateClientSyncAssemblyOptions(),
                 launchOptions.SessionOptions.TickRate,
                 launchOptions.Timeout);
         }

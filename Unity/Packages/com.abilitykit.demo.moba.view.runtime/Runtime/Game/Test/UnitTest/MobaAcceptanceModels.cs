@@ -250,6 +250,14 @@ namespace AbilityKit.Game.Test.UnitTest
         public int endedFrame;
         public int endReason;
         public int childCount;
+        public string displayName;
+        public string configLabel;
+        public string runtimeLabel;
+        public string actorLabel;
+        public string sourceActorLabel;
+        public string targetActorLabel;
+        public string configSource;
+        public string semanticVersion;
     }
 
     [Serializable]
@@ -275,9 +283,23 @@ namespace AbilityKit.Game.Test.UnitTest
         public MobaAcceptanceResult result;
         public MobaAcceptanceCoverageSummary coverage;
         public MobaAcceptanceTraceCount[] traceCounts;
+        public MobaAcceptanceTraceDictionaryEntry[] traceDictionary;
+        public string traceDictionaryVersion;
         public MobaAcceptanceDiagnosticsSummary diagnostics;
         public string traceJsonlPath;
         public string summaryJsonPath;
+    }
+
+    [Serializable]
+    public sealed class MobaAcceptanceTraceDictionaryEntry
+    {
+        public string key;
+        public string kind;
+        public string id;
+        public string name;
+        public string label;
+        public string source;
+        public string sourceVersion;
     }
 
     [Serializable]

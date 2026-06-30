@@ -9,6 +9,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly float _cellSize;
         private readonly Dictionary<int, ShooterSpatialHashCell> _cells = new();
+        private readonly List<int> _activeCellKeys = new(128);
         private readonly List<ShooterSpatialSearchOffset> _ringOffsets = new(128);
         private int _largestCellOccupancy;
         private int _totalEntries;
@@ -20,7 +21,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public float CellSize => _cellSize;
 
-        public int CellCount => _cells.Count;
+        public int CellCount => _activeCellKeys.Count;
 
         public int TotalEntries => _totalEntries;
 
@@ -28,7 +29,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void Clear()
         {
-            _cells.Clear();
+            for (var i = 0; i < _activeCellKeys.Count; i++)
+            {
+                _cells[_activeCellKeys[i]].Reset();
+            }
+
+            _activeCellKeys.Clear();
             _largestCellOccupancy = 0;
             _totalEntries = 0;
         }
@@ -42,6 +48,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _cells[key] = cell;
             }
 
+            if (cell.Count == 0)
+            {
+                _activeCellKeys.Add(key);
+            }
+ 
             cell.Add(value);
             _totalEntries++;
             if (cell.Count > _largestCellOccupancy)
@@ -169,6 +180,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public int Id6;
             public int Id7;
             public List<int>? Overflow;
+
+            public void Reset()
+            {
+                Count = 0;
+                Overflow?.Clear();
+            }
 
             public void Add(int value)
             {

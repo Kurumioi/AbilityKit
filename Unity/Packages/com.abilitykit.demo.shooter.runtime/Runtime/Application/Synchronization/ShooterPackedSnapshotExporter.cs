@@ -79,7 +79,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     _state.MatchCompletedFrame,
                     _state.DefeatedEnemies,
                     _state.VictoryTargetDefeats,
-                    _state.TimeLimitFrames
+                    _state.TimeLimitFrames,
+                    _state.RemainingTimeFrames
                 },
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
@@ -214,10 +215,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var entityIds = new int[count];
             var posX = new float[count];
             var posY = new float[count];
-            var velX = new float[count];
-            var velY = new float[count];
             var facingX = new float[count];
             var facingY = new float[count];
+            var packedVelocity = new int[count * 2];
             for (int i = 0; i < count; i++)
             {
                 var player = players[order[i]];
@@ -227,16 +227,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 facingX[i] = player.AimX;
                 facingY[i] = player.AimY;
 
+                var velocityX = 0f;
+                var velocityY = 0f;
                 if (_state.InputBuffer.TryGetLatestCommand(player.PlayerId, out var command))
                 {
                     var moveX = command.MoveX;
                     var moveY = command.MoveY;
                     if (ShooterBattleMath.Normalize(ref moveX, ref moveY) > 0f)
                     {
-                        velX[i] = moveX * _rules.PlayerSpeed;
-                        velY[i] = moveY * _rules.PlayerSpeed;
+                        velocityX = moveX * _rules.PlayerSpeed;
+                        velocityY = moveY * _rules.PlayerSpeed;
                     }
                 }
+
+                ShooterPackedSnapshotChunkCodec.SetPackedPairValue(packedVelocity, i, velocityX, velocityY);
             }
 
             return new ShooterPackedComponentChunk(
@@ -251,7 +255,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Empty<int>(),
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
-                ShooterPackedSnapshotChunkCodec.PackPairValues(velX, velY));
+                packedVelocity);
         }
 
         private ShooterPackedComponentChunk ExportProjectileTransformChunk()
@@ -267,18 +271,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var entityIds = new int[count];
             var posX = new float[count];
             var posY = new float[count];
-            var velX = new float[count];
-            var velY = new float[count];
             var facingX = new float[count];
             var facingY = new float[count];
+            var packedVelocity = new int[count * 2];
             for (int i = 0; i < count; i++)
             {
                 var bullet = bullets[order[i]];
                 entityIds[i] = bullet.BulletId;
                 posX[i] = bullet.X;
                 posY[i] = bullet.Y;
-                velX[i] = bullet.VelocityX;
-                velY[i] = bullet.VelocityY;
+                ShooterPackedSnapshotChunkCodec.SetPackedPairValue(packedVelocity, i, bullet.VelocityX, bullet.VelocityY);
                 var dirX = bullet.VelocityX;
                 var dirY = bullet.VelocityY;
                 ShooterBattleMath.Normalize(ref dirX, ref dirY);
@@ -298,7 +300,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Empty<int>(),
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
-                ShooterPackedSnapshotChunkCodec.PackPairValues(velX, velY));
+                packedVelocity);
         }
 
         private ShooterPackedComponentChunk ExportEnemyTransformChunk()
@@ -387,11 +389,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var order = _orderBuffer.CreateSortedEnemyOrder(ids, count);
             var entityIds = new int[count];
             var hp = new int[count];
+            var maxHp = new int[count];
             for (int i = 0; i < count; i++)
             {
                 var sourceIndex = order[i];
                 entityIds[i] = (int)ids[sourceIndex];
                 hp[i] = healths[sourceIndex].Current;
+                maxHp[i] = healths[sourceIndex].Max;
             }
 
             return new ShooterPackedComponentChunk(
@@ -406,7 +410,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 hp,
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
-                Array.Empty<int>());
+                maxHp);
         }
 
         private ShooterPackedComponentChunk ExportPlayerScoreChunk()

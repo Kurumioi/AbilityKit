@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 new ShooterBotAiServiceBattleSystem(services),
                 new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Spawn),
                 new ShooterSimulationBattleSystem(services),
+                new ShooterEnemyLifecycleCleanupBattleSystem(services),
                 new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Attack),
                 new ShooterMatchStateBattleSystem(services)
             });

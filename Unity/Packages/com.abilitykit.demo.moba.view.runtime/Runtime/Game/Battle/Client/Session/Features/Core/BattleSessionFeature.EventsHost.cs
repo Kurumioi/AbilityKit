@@ -1,6 +1,6 @@
 using System;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Flow.Battle.Modules;
 

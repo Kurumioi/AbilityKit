@@ -33,6 +33,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
     {
         [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
         [WorldInject(required: false)] private MobaTriggerExecutionGateway _triggers = null;
+        [WorldInject(required: false)] private MobaProjectileLinkService _projectileLinks = null;
 
         public void ExecuteAreaStage(string eventId, int areaId, int templateId, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
@@ -89,7 +90,30 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 
         public void ExecuteProjectileHit(in ProjectileHitEvent evt, int hitActorId)
         {
-            // omitted
+            if (_triggers == null || _configs == null || _projectileLinks == null) return;
+            if (evt.TemplateId <= 0 || hitActorId <= 0) return;
+            if (!_configs.TryGetProjectile(evt.TemplateId, out var projectile) || projectile == null) return;
+            if (projectile.OnHitEffectId <= 0) return;
+            if (!_projectileLinks.TryGetSource(evt.Projectile, out var sourceContext)) return;
+
+            var payload = new ProjectileHitArgs
+            {
+                SourceActorId = sourceContext.SourceActorId > 0 ? sourceContext.SourceActorId : evt.OwnerId,
+                TargetActorId = hitActorId,
+                SourceConfigId = projectile.Id,
+                Frame = evt.Frame,
+                Raw = evt,
+                SourceContext = sourceContext,
+                CasterActorId = sourceContext.SourceActorId > 0 ? sourceContext.SourceActorId : evt.OwnerId,
+                ProjectileTemplateId = projectile.Id,
+                ProjectileId = evt.Projectile,
+                Point = evt.Point,
+                Normal = evt.Normal,
+                HitCollider = evt.HitCollider,
+            };
+
+            var request = MobaTriggerExecutionRequest<ProjectileHitArgs>.Create(projectile.OnHitEffectId, payload, "projectile.hit");
+            _triggers.ExecuteDirectTrigger(in request);
         }
 
         public void Dispose()

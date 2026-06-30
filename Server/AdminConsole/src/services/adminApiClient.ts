@@ -7,8 +7,10 @@ export class AdminApiClient {
   }
 
   public async request<T>(url: string, body?: unknown, method?: string): Promise<ApiResult<T>> {
+    const requestMethod = method || (body === undefined ? 'GET' : 'POST');
+    const startedAt = performance.now();
     const options: RequestInit = {
-      method: method || (body === undefined ? 'GET' : 'POST'),
+      method: requestMethod,
       headers: {}
     };
 
@@ -29,6 +31,10 @@ export class AdminApiClient {
     return {
       ok: response.ok,
       status: response.status,
+      statusText: response.statusText,
+      method: requestMethod,
+      url,
+      durationMs: Math.round(performance.now() - startedAt),
       body: data
     };
   }

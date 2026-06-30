@@ -50,6 +50,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
                 var plc = e.projectileLauncher;
                 if (plc.ActiveBullets > 0) continue;
+                if (plc.ScheduleId > 0 && _projectiles != null && _projectiles.HasSchedule(new ProjectileScheduleId(plc.ScheduleId))) continue;
                 if (plc.EndTimeMs > 0 && nowMs < plc.EndTimeMs) continue;
 
                 if (_projectiles != null && plc.ScheduleId > 0)

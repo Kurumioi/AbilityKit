@@ -53,6 +53,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public TimeSpan Timeout { get; }
         public string RoomId { get; }
 
+        public ShooterClientSyncAssemblyOptions CreateClientSyncAssemblyOptions()
+        {
+            return ShooterClientSyncAssemblyOptions.ForModel(SessionOptions.SyncModel);
+        }
+
         public static ShooterRemoteStateSyncLaunchOptions RestoreFirst(
             ShooterPlayModeSessionOptions sessionOptions,
             ShooterClientNetworkEndpoint endpoint,

@@ -1,5 +1,5 @@
 import { AdminApiClient } from './adminApiClient';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState } from '../types';
+import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics } from '../types';
 
 export class AdminDashboardApi {
   public constructor(private readonly client: AdminApiClient) {}
@@ -119,6 +119,10 @@ export class RoomApi {
   public pickHero(request: unknown) {
     return this.client.request<RoomSnapshot>('/api/admin/rooms/pick-hero', request);
   }
+
+  public shooterWorld(query: string) {
+    return this.client.request<ShooterWorldDiagnostics>(`/api/admin/shooter/world${query}`, undefined, 'GET');
+  }
 }
 
 export class SandboxApi {
@@ -126,6 +130,11 @@ export class SandboxApi {
 
   public start(request: unknown) {
     return this.client.request<ShooterSandboxState>('/api/shooter-sandbox/start', request);
+  }
+
+  public state(sandboxId: string) {
+    const suffix = sandboxId ? `/${encodeURIComponent(sandboxId)}` : '';
+    return this.client.request<ShooterSandboxState>(`/api/shooter-sandbox${suffix}`, undefined, 'GET');
   }
 
   public stop(request: unknown) {

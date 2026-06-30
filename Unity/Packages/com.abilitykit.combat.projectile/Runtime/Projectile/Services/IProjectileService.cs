@@ -17,12 +17,17 @@ namespace AbilityKit.Combat.Projectile
         void DrainHitEvents(List<ProjectileHitEvent> results);
         void DrainExitEvents(List<ProjectileExitEvent> results);
         void DrainTickEvents(List<ProjectileTickEvent> results);
+        void PeekSpawnEvents(List<ProjectileSpawnEvent> results);
+        void PeekHitEvents(List<ProjectileHitEvent> results);
+        void PeekExitEvents(List<ProjectileExitEvent> results);
+        void PeekTickEvents(List<ProjectileTickEvent> results);
 
         byte[] ExportRollback(FrameIndex frame);
         void ImportRollback(FrameIndex frame, byte[] payload);
 
         ProjectileScheduleId ScheduleEmit(IProjectileSpawnPattern pattern, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule);
         ProjectileScheduleId ScheduleEmit(IProjectileSpawnPatternProvider patternProvider, in ProjectileSpawnParams baseSpawn, in ProjectileScheduleParams schedule);
+        bool HasSchedule(ProjectileScheduleId id);
         bool CancelSchedule(ProjectileScheduleId id);
 
         AreaId SpawnArea(in AreaSpawnParams p, int frame);

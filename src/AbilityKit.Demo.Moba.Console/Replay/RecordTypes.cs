@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     }
 
     /// <summary>
-    /// 帧状态快照（用于校验）
+    /// 帧状态快照（用于校验�?
     /// </summary>
     [MemoryPackable]
     public readonly partial struct FrameSnapshot
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     }
 
     /// <summary>
-    /// 录像文件头
+    /// 录像文件�?
     /// </summary>
     public sealed class RecordFileHeader
     {
@@ -126,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     /// <summary>
     /// 录像文件格式
     /// </summary>
-    public sealed class LockstepInputRecordFile
+    public sealed class FrameRecordFile
     {
         public RecordFileHeader Header { get; set; } = new();
         public System.Collections.Generic.List<PlayerInputCommand> Commands { get; } = new();
@@ -156,12 +156,12 @@ namespace AbilityKit.Demo.Moba.Console.Replay
             }
         }
 
-        public static LockstepInputRecordFile ReadFromStream(Stream stream)
+        public static FrameRecordFile ReadFromStream(Stream stream)
         {
             using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
             var header = RecordFileHeader.Read(reader);
 
-            var file = new LockstepInputRecordFile { Header = header };
+            var file = new FrameRecordFile { Header = header };
 
             var cmdCount = reader.ReadInt32();
             for (int i = 0; i < cmdCount; i++)
@@ -199,7 +199,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         None,
         Recording,
         Replaying,
-        SkillTest  // 技能测试模式
+        SkillTest  // 技能测试模�?
     }
 
     /// <summary>
@@ -211,6 +211,6 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         public string OutputPath { get; set; } = "Records";
         public string InputFilePath { get; set; } = "";
         public bool AutoRecord { get; set; } = false;
-        public int SnapshotIntervalFrames { get; set; } = 300; // 每300帧保存一次状态快照
+        public int SnapshotIntervalFrames { get; set; } = 300; // �?00帧保存一次状态快�?
     }
 }

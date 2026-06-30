@@ -474,6 +474,9 @@ function resolveTraceDisplayName(record: Record<string, unknown>, kind: string, 
 }
 
 function resolveConfigLabel(record: Record<string, unknown>, kind: string, entityKind: string, configId: number, skillId: number): string {
+  const exported = firstText(record, ['configLabel']);
+  if (exported) return exported;
+
   const explicit = firstText(record, ['configDisplayName', 'configName', 'skillName', 'effectName', 'actionName', 'projectileName', 'buffName', 'triggerName']);
   const configType = configKindName(kind, entityKind);
   if (explicit && configId > 0) return `${configType} ${explicit} (#${configId})`;
@@ -484,7 +487,7 @@ function resolveConfigLabel(record: Record<string, unknown>, kind: string, entit
 }
 
 function resolveRuntimeLabel(record: Record<string, unknown>, entityKind: string, nodeId: number, sourceContextId: string): string {
-  const explicit = firstText(record, ['runtimeDisplayName', 'runtimeName', 'debugName', 'entityName', 'objectName', 'viewName']);
+  const explicit = firstText(record, ['runtimeLabel', 'runtimeDisplayName', 'runtimeName', 'debugName', 'entityName', 'objectName', 'viewName']);
   const runtimeKind = toText(record.runtimeKind) || entityKind;
   const runtimeId = toNumber(record.runtimeId || record.instanceId || record.entityId || record.projectileRuntimeId || record.buffRuntimeId || record.contextId || record.sourceContextId);
   if (explicit && runtimeId > 0) return `${explicit} (${runtimeKind}#${runtimeId})`;
@@ -496,9 +499,9 @@ function resolveRuntimeLabel(record: Record<string, unknown>, entityKind: string
 
 function resolveActorLabel(record: Record<string, unknown>, role: 'actor' | 'source' | 'target', actorId: number): string {
   const fieldMap: Record<typeof role, string[]> = {
-    actor: ['actorName', 'actorDisplayName', 'entityName'],
-    source: ['sourceActorName', 'sourceName', 'casterName', 'ownerName'],
-    target: ['targetActorName', 'targetName']
+    actor: ['actorLabel', 'actorName', 'actorDisplayName', 'entityName'],
+    source: ['sourceActorLabel', 'sourceActorName', 'sourceName', 'casterName', 'ownerName'],
+    target: ['targetActorLabel', 'targetActorName', 'targetName']
   };
   const explicit = firstText(record, fieldMap[role]);
   const roleName = role === 'source' ? '施法者' : role === 'target' ? '目标' : '角色';

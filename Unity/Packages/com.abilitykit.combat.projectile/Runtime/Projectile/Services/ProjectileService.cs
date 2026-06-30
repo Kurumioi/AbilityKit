@@ -125,6 +125,16 @@ namespace AbilityKit.Combat.Projectile
             return id;
         }
 
+        public bool HasSchedule(ProjectileScheduleId id)
+        {
+            for (int i = 0; i < _schedules.Count; i++)
+            {
+                if (_schedules[i].Id.Value == id.Value) return true;
+            }
+
+            return false;
+        }
+
         public bool CancelSchedule(ProjectileScheduleId id)
         {
             for (int i = 0; i < _schedules.Count; i++)
@@ -166,7 +176,6 @@ namespace AbilityKit.Combat.Projectile
                     s_spawnListPool.Release(list);
                 }
 
-                // Update schedule state.
                 if (s.Remaining > 0) s.Remaining--;
 
                 if (s.Remaining == 0)

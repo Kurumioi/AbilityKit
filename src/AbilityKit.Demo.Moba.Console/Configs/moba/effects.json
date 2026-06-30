@@ -48,5 +48,165 @@
     "AttackRatio": 0,
     "TargetPolicy": 1,
     "Radius": 0
+  },
+  {
+    "Id": 10010000,
+    "Name": "廉颇-勇士之魂-添加霸体战意状态",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 0
+  },
+  {
+    "Id": 10010101,
+    "Name": "廉颇-爆裂冲撞-冲锋位移与碰撞判定",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 0
+  },
+  {
+    "Id": 10010111,
+    "Name": "廉颇-爆裂冲撞-命中伤害",
+    "EffectType": 1,
+    "BaseDamage": 160,
+    "DamageType": 1,
+    "AttackRatio": 0.6,
+    "TargetPolicy": 1,
+    "Radius": 0
+  },
+  {
+    "Id": 10010201,
+    "Name": "廉颇-熔岩重击-护盾与蓄力区域",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 3.5
+  },
+  {
+    "Id": 10010211,
+    "Name": "廉颇-熔岩重击-区域伤害",
+    "EffectType": 1,
+    "BaseDamage": 180,
+    "DamageType": 1,
+    "AttackRatio": 0.7,
+    "TargetPolicy": 2,
+    "Radius": 3.5
+  },
+  {
+    "Id": 10010301,
+    "Name": "廉颇-天崩地裂-第一段区域",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 4.5
+  },
+  {
+    "Id": 10010311,
+    "Name": "廉颇-天崩地裂-第二段区域",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 4.5
+  },
+  {
+    "Id": 10010321,
+    "Name": "廉颇-天崩地裂-第三段区域",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 4.5
+  },
+  {
+    "Id": 10010331,
+    "Name": "廉颇-天崩地裂-段落伤害",
+    "EffectType": 1,
+    "BaseDamage": 150,
+    "DamageType": 1,
+    "AttackRatio": 0.55,
+    "TargetPolicy": 2,
+    "Radius": 4.5
+  },
+  {
+    "Id": 10010341,
+    "Name": "廉颇-天崩地裂-第三段击飞",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 1,
+    "AttackRatio": 0,
+    "TargetPolicy": 2,
+    "Radius": 4.5
+  },
+  {
+    "Id": 10020101,
+    "Name": "小乔-绽放之舞-发射扇子",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 0
+  },
+  {
+    "Id": 10020111,
+    "Name": "小乔-绽放之舞-命中伤害",
+    "EffectType": 1,
+    "BaseDamage": 120,
+    "DamageType": 2,
+    "AttackRatio": 0.5,
+    "TargetPolicy": 1,
+    "Radius": 0
+  },
+  {
+    "Id": 10020201,
+    "Name": "小乔-甜蜜恋风-区域生成",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 4
+  },
+  {
+    "Id": 10020211,
+    "Name": "小乔-甜蜜恋风-区域命中伤害",
+    "EffectType": 1,
+    "BaseDamage": 100,
+    "DamageType": 2,
+    "AttackRatio": 0.45,
+    "TargetPolicy": 2,
+    "Radius": 4
+  },
+  {
+    "Id": 10020301,
+    "Name": "小乔-星华缭乱-添加持续状态",
+    "EffectType": 0,
+    "BaseDamage": 0,
+    "DamageType": 2,
+    "AttackRatio": 0,
+    "TargetPolicy": 0,
+    "Radius": 8
+  },
+  {
+    "Id": 10020311,
+    "Name": "小乔-星华缭乱-周期落星伤害",
+    "EffectType": 1,
+    "BaseDamage": 80,
+    "DamageType": 2,
+    "AttackRatio": 0.35,
+    "TargetPolicy": 2,
+    "Radius": 8
   }
 ]

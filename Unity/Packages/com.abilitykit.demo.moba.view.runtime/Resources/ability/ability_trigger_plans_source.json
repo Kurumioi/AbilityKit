@@ -51,9 +51,192 @@
         { "name": "buffIds", "type": "int[]", "required": true },
         { "name": "targetCode", "type": "int", "required": true }
       ]
+    },
+    "dash": {
+      "type": "dash",
+      "displayName": "冲刺位移",
+      "category": "Motion",
+      "params": [
+        { "name": "speed", "type": "float", "required": true },
+        { "name": "duration_ms", "type": "int", "required": true },
+        { "name": "direction_mode", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "apply_to_caster", "type": "bool", "required": false, "defaultValue": true },
+        { "name": "priority", "type": "int", "required": false, "defaultValue": 10 }
+      ]
+    },
+    "pull": {
+      "type": "pull",
+      "displayName": "牵引/击飞位移",
+      "category": "Motion",
+      "params": [
+        { "name": "speed", "type": "float", "required": true },
+        { "name": "duration_ms", "type": "int", "required": true },
+        { "name": "direction_mode", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "target_distance", "type": "float", "required": false, "defaultValue": 0 },
+        { "name": "priority", "type": "int", "required": false, "defaultValue": 12 }
+      ]
+    },
+    "add_shield": {
+      "type": "add_shield",
+      "displayName": "添加护盾",
+      "category": "Buff",
+      "params": [
+        { "name": "shield_id", "type": "int", "required": true },
+        { "name": "shield_value", "type": "float", "required": true },
+        { "name": "duration_ms", "type": "int", "required": true },
+        { "name": "absorb_ratio", "type": "float", "required": false, "defaultValue": 1 },
+        { "name": "target_self", "type": "bool", "required": false, "defaultValue": false }
+      ]
     }
   },
   "triggers": [
+    {
+      "id": 10010000,
+      "name": "廉颇-勇士之魂-释放技能时霸体战意",
+      "event": "skill.cast.complete",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10010000], "targetCode": 1, "duration_ms": 1500 },
+        { "type": "debug_log", "message": "廉颇被动触发：添加霸体战意与防御韧性状态", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010101,
+      "name": "廉颇-爆裂冲撞-发起冲锋",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10010000], "targetCode": 1, "duration_ms": 1500 },
+        { "type": "dash", "speed": 12.3, "duration_ms": 650, "direction_mode": 0, "apply_to_caster": true, "priority": 20 },
+        { "type": "shoot_projectile", "launcher_id": 31010101, "projectile_id": 30010101, "directionSource": "cast_context" },
+        { "type": "debug_log", "message": "廉颇一技能：霸体并向指向方向冲锋，生成碰撞判定", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010111,
+      "name": "廉颇-爆裂冲撞-命中伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 160, "damage_type": 1, "reason_param": 10010101, "target_max_count": 1 },
+        { "type": "pull", "speed": 7.0, "duration_ms": 300, "direction_mode": 2, "target_distance": 0, "priority": 100 },
+        { "type": "debug_log", "message": "廉颇一技能：冲撞命中造成物理伤害并击飞目标", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010201,
+      "name": "廉颇-熔岩重击-生成蓄力区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10010000], "targetCode": 1, "duration_ms": 1500 },
+        { "type": "add_shield", "shield_id": 10010201, "shield_value": 350, "absorb_ratio": 1.0, "duration_ms": 2500, "priority": 20, "target_self": true, "stacking_policy": 1, "consume_policy": 0 },
+        { "type": "spawn_area", "area_id": 40010201, "target_query_id": 50010201 },
+        { "type": "debug_log", "message": "廉颇二技能：获得护盾并生成延迟范围伤害区域", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010211,
+      "name": "廉颇-熔岩重击-区域伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 180, "damage_type": 1, "reason_param": 10010201, "target_query_id": 50010201 },
+        { "type": "add_buff", "buffIds": [10010212], "target_query_id": 50010201, "target_max_count": 10, "duration_ms": 1500 },
+        { "type": "debug_log", "message": "廉颇二技能：蓄力区域造成物理伤害并降低目标移速", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010301,
+      "name": "廉颇-天崩地裂-第一段区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "add_buff", "buffIds": [10010000], "targetCode": 1, "duration_ms": 1800 },
+        { "type": "spawn_area", "area_id": 40010301, "target_query_id": 50010301 },
+        { "type": "debug_log", "message": "廉颇三技能：第一段砸地区域", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010311,
+      "name": "廉颇-天崩地裂-第二段区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "spawn_area", "area_id": 40010311, "target_query_id": 50010301 },
+        { "type": "debug_log", "message": "廉颇三技能：第二段砸地区域", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010321,
+      "name": "廉颇-天崩地裂-第三段区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "spawn_area", "area_id": 40010321, "target_query_id": 50010301 },
+        { "type": "debug_log", "message": "廉颇三技能：第三段砸地区域，命中目标触发击飞", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010331,
+      "name": "廉颇-天崩地裂-段落伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "give_damage", "damage_value": 150, "damage_type": 1, "reason_param": 10010301, "target_query_id": 50010301 },
+        { "type": "debug_log", "message": "廉颇三技能：段落范围造成物理伤害", "dump_args": false }
+      ]
+    },
+    {
+      "id": 10010341,
+      "name": "廉颇-天崩地裂-第三段击飞",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        { "type": "pull", "speed": 8.0, "duration_ms": 500, "direction_mode": 2, "target_distance": 0, "priority": 110 },
+        { "type": "debug_log", "message": "廉颇三技能：第三段命中击飞目标", "dump_args": false }
+      ]
+    },
     {
       "id": 10020000,
       "name": "小乔-治愈微笑-释放技能后短暂移速",

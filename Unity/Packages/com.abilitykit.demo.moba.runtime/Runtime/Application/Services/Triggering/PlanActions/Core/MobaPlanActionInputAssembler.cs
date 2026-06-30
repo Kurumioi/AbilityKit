@@ -1,5 +1,6 @@
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -25,6 +26,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var hasAimPosition = false;
             var hasAimDirection = false;
 
+            if (TryResolveAim(triggerArgs, out var payloadAimPosition, out var payloadAimDirection))
+            {
+                aimPosition = payloadAimPosition;
+                aimDirection = payloadAimDirection;
+                hasAimPosition = aimPosition.SqrMagnitude > 0f;
+                hasAimDirection = aimDirection.SqrMagnitude > 0f;
+            }
+            else if (TryResolveAim(executionContext.Payload, out payloadAimPosition, out payloadAimDirection))
+            {
+                aimPosition = payloadAimPosition;
+                aimDirection = payloadAimDirection;
+                hasAimPosition = aimPosition.SqrMagnitude > 0f;
+                hasAimDirection = aimDirection.SqrMagnitude > 0f;
+            }
+
             return new MobaPlanActionInput(
                 executionContext,
                 traceScope,
@@ -34,6 +50,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 aimDirection,
                 hasAimPosition,
                 hasAimDirection);
+        }
+
+        private static bool TryResolveAim(object payload, out Vec3 aimPosition, out Vec3 aimDirection)
+        {
+            aimPosition = Vec3.Zero;
+            aimDirection = Vec3.Zero;
+
+            if (payload is SkillPipelineContext skillContext)
+            {
+                aimPosition = skillContext.AimPos;
+                aimDirection = skillContext.AimDir;
+                return aimPosition.SqrMagnitude > 0f || aimDirection.SqrMagnitude > 0f;
+            }
+
+            return false;
         }
 
         public static MobaEffectActionInput AssembleEffect(in MobaPlanActionInput core)

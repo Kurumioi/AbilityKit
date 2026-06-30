@@ -94,29 +94,20 @@ namespace AbilityKit.Demo.Shooter.View
             return result;
         }
 
-        public async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotResyncIfNeededAsync(
+        public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotResyncIfNeededAsync(
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            if (_roomClient == null || !ShouldRequestFullStateSync())
-            {
-                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
-            }
+            return ShouldRequestFullStateSync()
+                ? RequestFullSnapshotAsync(CreateFullStateSyncRequest(), timeout, cancellationToken)
+                : Task.FromResult(ShooterGatewayFullStateSyncRequestResult.NotRequested);
+        }
 
-            var request = CreateFullStateSyncRequest();
-            var requestKey = ShooterClientFullStateSyncRequestKey.FromRequest(in request);
-            if (requestKey.Equals(_lastFullStateSyncRequestKey))
-            {
-                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
-            }
-
-            var result = await _session.RequestFullSnapshotResyncAsync(_roomClient, request, timeout, cancellationToken).ConfigureAwait(false);
-            if (result.Accepted)
-            {
-                _lastFullStateSyncRequestKey = requestKey;
-            }
-
-            return result;
+        public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotBaselineAsync(
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RequestFullSnapshotAsync(CreateBaselineFullStateSyncRequest(), timeout, cancellationToken);
         }
 
         public ShooterGatewayFullStateSyncRequest CreateFullStateSyncRequest()
@@ -150,6 +141,11 @@ namespace AbilityKit.Demo.Shooter.View
                     reason);
             }
 
+            return CreateBaselineFullStateSyncRequest();
+        }
+
+        private ShooterGatewayFullStateSyncRequest CreateBaselineFullStateSyncRequest()
+        {
             return new ShooterGatewayFullStateSyncRequest(
                 _flow.SessionToken,
                 _flow.BattleId,
@@ -160,6 +156,31 @@ namespace AbilityKit.Demo.Shooter.View
                 0u,
                 0u,
                 ShooterClientResyncReason.None.ToString());
+        }
+
+        private async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotAsync(
+            ShooterGatewayFullStateSyncRequest request,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            if (_roomClient == null)
+            {
+                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
+            }
+
+            var requestKey = ShooterClientFullStateSyncRequestKey.FromRequest(in request);
+            if (requestKey.Equals(_lastFullStateSyncRequestKey))
+            {
+                return ShooterGatewayFullStateSyncRequestResult.NotRequested;
+            }
+
+            var result = await _session.RequestFullSnapshotResyncAsync(_roomClient, request, timeout, cancellationToken).ConfigureAwait(false);
+            if (result.Accepted)
+            {
+                _lastFullStateSyncRequestKey = requestKey;
+            }
+
+            return result;
         }
 
         private bool ShouldRequestFullStateSync()

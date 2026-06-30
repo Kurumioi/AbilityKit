@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Network.Abstractions;

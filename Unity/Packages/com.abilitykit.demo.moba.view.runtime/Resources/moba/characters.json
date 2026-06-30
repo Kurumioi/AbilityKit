@@ -5,7 +5,7 @@
     "ModelId": 1001,
     "AttributeTemplateId": 1001,
     "SkillIds": [10010101, 10010201, 10010301],
-    "PassiveSkillIds": []
+    "PassiveSkillIds": [10010000]
   },
   {
     "Id": 1002,

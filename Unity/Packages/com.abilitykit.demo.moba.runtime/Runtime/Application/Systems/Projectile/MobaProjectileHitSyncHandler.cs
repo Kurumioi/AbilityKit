@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
@@ -28,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                     continue;
                 }
 
+                DecrementLauncherActiveBullets(hit.LauncherActorId);
                 var hitActorId = _sys.ResolveActorIdByCollider(hit.HitCollider);
                 if (hitActorId <= 0) continue;
 
@@ -35,6 +37,27 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             }
 
             hits.Clear();
+        }
+
+        private void DecrementLauncherActiveBullets(int launcherActorId)
+        {
+            if (launcherActorId <= 0) return;
+            if (_sys.Registry == null || !_sys.Registry.TryGet(launcherActorId, out var launcherEntity) || launcherEntity == null) return;
+            if (!launcherEntity.hasProjectileLauncher) return;
+
+            var plc = launcherEntity.projectileLauncher;
+            var nextActiveBullets = Math.Max(0, plc.ActiveBullets - 1);
+            if (nextActiveBullets == plc.ActiveBullets) return;
+
+            launcherEntity.ReplaceProjectileLauncher(
+                newLauncherId: plc.LauncherId,
+                newProjectileId: plc.ProjectileId,
+                newRootActorId: plc.RootActorId,
+                newEndTimeMs: plc.EndTimeMs,
+                newActiveBullets: nextActiveBullets,
+                newScheduleId: plc.ScheduleId,
+                newIntervalFrames: plc.IntervalFrames,
+                newTotalCount: plc.TotalCount);
         }
 
         public void HandleSpawns(List<ProjectileSpawnEvent> spawns)

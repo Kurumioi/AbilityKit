@@ -107,15 +107,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public int ResolveInt(MobaModifierOwnerRef owner, ModifierKey key, int baseValue, IModifierContext context = null)
         {
-            var value = ResolveFloat(owner, key, baseValue, context);
-            if (value <= int.MinValue) return int.MinValue;
-            if (value >= int.MaxValue) return int.MaxValue;
-            return (int)Math.Round(value);
+            if (!owner.IsValid) return baseValue;
+            return ResolveInt(new[] { owner }, key, baseValue, context);
         }
 
         public int ResolveInt(MobaModifierOwnerRef[] ownerChain, ModifierKey key, int baseValue, IModifierContext context = null)
         {
-            var value = ResolveFloat(ownerChain, key, baseValue, context);
+            var filtered = CollectMatchingModifiers(ownerChain, key);
+            if (filtered.Count == 0) return baseValue;
+
+            var value = _calculator.Calculate(filtered.ToArray(), baseValue, context).FinalValue;
             if (value <= int.MinValue) return int.MinValue;
             if (value >= int.MaxValue) return int.MaxValue;
             return (int)Math.Round(value);
@@ -134,9 +135,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public float ResolveFloat(MobaModifierOwnerRef[] ownerChain, ModifierKey key, float baseValue, IModifierContext context = null)
         {
-            if (ownerChain == null || ownerChain.Length == 0) return baseValue;
+            var filtered = CollectMatchingModifiers(ownerChain, key);
+            if (filtered.Count == 0) return baseValue;
+            return _calculator.Calculate(filtered.ToArray(), baseValue, context).FinalValue;
+        }
 
+        private List<ModifierData> CollectMatchingModifiers(MobaModifierOwnerRef[] ownerChain, ModifierKey key)
+        {
             var filtered = new List<ModifierData>();
+            if (ownerChain == null || ownerChain.Length == 0) return filtered;
+
             for (int i = 0; i < ownerChain.Length; i++)
             {
                 var owner = ownerChain[i];
@@ -155,8 +163,7 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            if (filtered.Count == 0) return baseValue;
-            return _calculator.Calculate(filtered.ToArray(), baseValue, context).FinalValue;
+            return filtered;
         }
 
         public void Dispose()

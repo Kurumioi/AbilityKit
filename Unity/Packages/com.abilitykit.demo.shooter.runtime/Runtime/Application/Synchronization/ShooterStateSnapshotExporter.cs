@@ -42,11 +42,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 bullets[i] = new ShooterBulletSnapshot(bullet.BulletId, bullet.OwnerPlayerId, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.RemainingFrames);
             }
 
+            var events = _state.Events.Count == 0
+                ? Array.Empty<ShooterEventSnapshot>()
+                : _state.Events.ToArray();
+
             return new ShooterStateSnapshotPayload(
                 _state.CurrentFrame,
                 players,
                 bullets,
-                _state.Events.ToArray(),
+                events,
                 (int)_state.MatchState,
                 _state.TimeLimitFrames,
                 _state.RemainingTimeFrames);

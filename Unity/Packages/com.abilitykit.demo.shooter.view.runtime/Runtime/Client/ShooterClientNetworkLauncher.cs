@@ -135,6 +135,37 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             return RestoreRoomAsync(
+                endpoint,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            ShooterClientNetworkEndpoint endpoint,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
                 endpoint.Host,
                 endpoint.Port,
                 runtime,
@@ -145,6 +176,7 @@ namespace AbilityKit.Demo.Shooter.View
                 serverId,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken);
@@ -196,6 +228,39 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            return await RestoreRoomAsync(
+                host,
+                port,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(
+            string host,
+            int port,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             ThrowIfDisposed();
             OpenIfNeeded(host, port);
 
@@ -209,6 +274,7 @@ namespace AbilityKit.Demo.Shooter.View
                 serverId,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken).ConfigureAwait(false);
@@ -230,6 +296,33 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             return CreateReadyStartAndSubscribeAsync(
+                endpoint,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientNetworkLaunchResult> CreateReadyStartAndSubscribeAsync(
+            ShooterClientNetworkEndpoint endpoint,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return CreateReadyStartAndSubscribeAsync(
                 endpoint.Host,
                 endpoint.Port,
                 runtime,
@@ -238,6 +331,7 @@ namespace AbilityKit.Demo.Shooter.View
                 sessionToken,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken);
@@ -283,6 +377,35 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            return await CreateReadyStartAndSubscribeAsync(
+                host,
+                port,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ShooterClientNetworkLaunchResult> CreateReadyStartAndSubscribeAsync(
+            string host,
+            int port,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             ThrowIfDisposed();
             OpenIfNeeded(host, port);
 
@@ -294,6 +417,7 @@ namespace AbilityKit.Demo.Shooter.View
                 sessionToken,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken).ConfigureAwait(false);
@@ -344,6 +468,35 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             return JoinReadyStartAndSubscribeAsync(
+                endpoint,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                roomId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientNetworkLaunchResult> JoinReadyStartAndSubscribeAsync(
+            ShooterClientNetworkEndpoint endpoint,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string roomId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return JoinReadyStartAndSubscribeAsync(
                 endpoint.Host,
                 endpoint.Port,
                 runtime,
@@ -353,6 +506,7 @@ namespace AbilityKit.Demo.Shooter.View
                 roomId,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken);
@@ -401,6 +555,37 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            return await JoinReadyStartAndSubscribeAsync(
+                host,
+                port,
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                roomId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ShooterClientNetworkLaunchResult> JoinReadyStartAndSubscribeAsync(
+            string host,
+            int port,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string roomId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             ThrowIfDisposed();
             OpenIfNeeded(host, port);
 
@@ -413,6 +598,7 @@ namespace AbilityKit.Demo.Shooter.View
                 roomId,
                 launchSpec,
                 playerId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken).ConfigureAwait(false);

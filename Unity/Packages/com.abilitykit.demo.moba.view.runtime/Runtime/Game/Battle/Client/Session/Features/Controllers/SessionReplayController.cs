@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Flow.Battle.Replay;
 using AbilityKit.World.ECS;
@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow
 
     internal interface IBattleReplayDriverProvider
     {
-        bool TryCreate(in BattleStartPlan plan, out LockstepReplayDriver driver);
+        bool TryCreate(in BattleStartPlan plan, out FrameReplayDriver driver);
     }
 
     internal sealed partial class SessionReplayController
@@ -93,7 +93,7 @@ namespace AbilityKit.Game.Flow
             EnsureOutputDirectory(outPath);
 
             var meta = CreateRecordMeta(plan);
-            ctx.InputRecordWriter = LockstepInputRecordCodecs.Current.CreateWriter(outPath, meta);
+            ctx.InputRecordWriter = FrameRecordCodecs.Current.CreateWriter(outPath, meta);
         }
 
         private static void EnsureOutputDirectory(string outPath)
@@ -102,10 +102,10 @@ namespace AbilityKit.Game.Flow
             if (!string.IsNullOrEmpty(outDir)) Directory.CreateDirectory(outDir);
         }
 
-        private static LockstepInputRecordMeta CreateRecordMeta(BattleStartPlan plan)
+        private static FrameRecordMeta CreateRecordMeta(BattleStartPlan plan)
         {
             var world = plan.World;
-            return new LockstepInputRecordMeta
+            return new FrameRecordMeta
             {
                 WorldId = world.WorldId,
                 WorldType = world.WorldType,

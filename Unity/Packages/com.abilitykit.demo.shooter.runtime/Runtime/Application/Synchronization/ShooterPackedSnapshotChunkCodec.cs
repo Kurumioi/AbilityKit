@@ -30,11 +30,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var values = new int[count * 2];
             for (int i = 0; i < count; i++)
             {
-                values[i * 2] = ShooterRuntimeSnapshotUtility.Quantize(GetFloat(left, i));
-                values[(i * 2) + 1] = ShooterRuntimeSnapshotUtility.Quantize(GetFloat(right, i));
+                SetPackedPairValue(values, i, GetFloat(left, i), GetFloat(right, i));
             }
 
             return values;
+        }
+
+        public static void SetPackedPairValue(int[] values, int index, float left, float right)
+        {
+            values[index * 2] = ShooterRuntimeSnapshotUtility.Quantize(left);
+            values[(index * 2) + 1] = ShooterRuntimeSnapshotUtility.Quantize(right);
         }
 
         public static float GetPackedPairValue(int[] values, int index, int slot)

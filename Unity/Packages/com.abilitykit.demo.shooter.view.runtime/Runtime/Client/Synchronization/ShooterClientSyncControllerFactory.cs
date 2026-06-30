@@ -70,13 +70,11 @@ namespace AbilityKit.Demo.Shooter.View
             InterpolationConfig? interpolationConfig)
         {
             return Create(
-                NetworkSyncProfileRegistry.Resolve(syncModel),
+                new ShooterClientSyncAssemblyOptions(syncModel, decoder, interpolationConfig),
                 runtime,
                 presentation,
                 tickRate,
-                decoder,
-                gateway,
-                interpolationConfig);
+                gateway);
         }
 
         public static IShooterClientSyncController Create(
@@ -88,18 +86,33 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterRoomGatewayClient? gateway,
             InterpolationConfig? interpolationConfig = null)
         {
+            return Create(
+                new ShooterClientSyncAssemblyOptions(in syncProfile, decoder, interpolationConfig),
+                runtime,
+                presentation,
+                tickRate,
+                gateway);
+        }
+
+        public static IShooterClientSyncController Create(
+            in ShooterClientSyncAssemblyOptions assemblyOptions,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationFacade presentation,
+            int tickRate,
+            IShooterRoomGatewayClient? gateway)
+        {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
             if (presentation == null) throw new ArgumentNullException(nameof(presentation));
 
             var context = new ShooterClientSyncControllerFactoryContext(
-                syncProfile,
+                assemblyOptions.SyncProfile,
                 runtime,
                 presentation,
                 tickRate,
-                decoder,
+                assemblyOptions.Decoder,
                 gateway,
-                interpolationConfig);
-            return Registry.Create(syncProfile, in context, "Shooter client sync controller");
+                assemblyOptions.InterpolationConfig);
+            return Registry.Create(assemblyOptions.SyncProfile, in context, "Shooter client sync controller");
         }
 
         private static IReadOnlyDictionary<NetworkSyncProfile, NetworkSyncProfileControllerBuilder<IShooterClientSyncController, ShooterClientSyncControllerFactoryContext>> CreateDefaultBuilders()

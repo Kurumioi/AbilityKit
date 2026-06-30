@@ -1,0 +1,76 @@
+.shooter-world-panel { border-color: rgba(14, 165, 233, .28); background: linear-gradient(180deg, rgba(8, 47, 73, .2), rgba(16, 24, 39, .88)); }
+.shooter-world-toolbar { margin-top: 4px; }
+.shooter-visual-stage { margin-top: 16px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 18px; background: radial-gradient(circle at 20% 10%, rgba(14, 165, 233, .16), transparent 34%), rgba(7, 13, 24, .52); }
+.world-canvas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 220px; }
+.world-lane { position: relative; border: 1px solid rgba(14, 165, 233, .18); border-radius: 18px; padding: 12px; background: linear-gradient(180deg, rgba(8, 47, 73, .24), rgba(15, 23, 42, .62)); overflow: hidden; }
+.world-lane::before { content: ''; position: absolute; inset: 43px 18px 18px; border-left: 1px dashed rgba(14, 165, 233, .22); pointer-events: none; }
+.world-lane-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 12px; }
+.world-lane-head strong, .world-lane-head small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-lane-head small { color: var(--muted); }
+.world-lane-body { display: grid; gap: 10px; position: relative; }
+.world-entity-node { position: relative; display: grid; justify-items: start; gap: 4px; min-height: 58px; padding: 11px 12px 11px 18px; color: var(--text); background: rgba(16, 24, 39, .84); border: 1px solid var(--line-soft); box-shadow: none; }
+.world-entity-node::before { content: ''; position: absolute; left: 7px; top: 50%; width: 6px; height: 6px; border-radius: 999px; background: var(--accent); transform: translateY(-50%); box-shadow: 0 0 0 4px rgba(14, 165, 233, .12); }
+.world-entity-node.player::before { background: #60a5fa; }
+.world-entity-node.projectile::before { background: #fbbf24; }
+.world-entity-node.enemy::before { background: #fb7185; }
+.world-entity-node.active { border-color: rgba(14, 165, 233, .78); background: rgba(8, 47, 73, .68); box-shadow: 0 0 0 1px rgba(14, 165, 233, .2) inset; }
+.world-entity-node.dead { opacity: .58; }
+.world-entity-node strong, .world-entity-node span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-entity-node span { color: var(--muted); font-size: 12px; }
+.component-map { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.component-map-card { border: 1px solid var(--line-soft); border-radius: 14px; padding: 11px; background: rgba(7, 13, 24, .62); min-width: 0; }
+.component-map-card span, .component-map-card small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.component-map-card strong { display: block; margin: 5px 0; font-size: 20px; color: var(--text); }
+.shooter-world-layout { display: grid; grid-template-columns: minmax(300px, .76fr) minmax(0, 1.24fr); gap: 14px; margin-top: 16px; }
+.shooter-world-layout.enhanced { align-items: start; }
+.shooter-entity-list, .shooter-component-detail, .shooter-entity-tree { min-width: 0; }
+.shooter-entity-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; border: 1px solid var(--line-soft); border-radius: 15px; padding: 12px; background: rgba(7, 13, 24, .68); margin-bottom: 10px; cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.shooter-entity-item:hover, .shooter-entity-item.active { transform: translateY(-1px); border-color: rgba(14, 165, 233, .58); background: rgba(8, 47, 73, .32); }
+.shooter-entity-item.dead { border-color: rgba(148, 163, 184, .16); opacity: .72; }
+.shooter-entity-item strong, .shooter-entity-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shooter-entity-item small { color: var(--muted); margin-top: 4px; }
+.entity-tree-group { border: 1px solid var(--line-soft); border-radius: 16px; background: rgba(7, 13, 24, .46); margin-bottom: 10px; overflow: hidden; }
+.entity-tree-group summary { display: flex; justify-content: space-between; gap: 10px; align-items: center; cursor: pointer; padding: 12px; color: var(--text); font-weight: 900; }
+.entity-tree-group summary span, .entity-tree-group summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entity-tree-group summary strong { flex: 0 0 auto; color: var(--accent); }
+.tree-entity-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 11px 12px; border-top: 1px solid var(--line-soft); cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+.tree-entity-row:hover, .tree-entity-row.active { background: rgba(14, 165, 233, .12); }
+.tree-entity-row.dead { opacity: .62; }
+.tree-entity-row strong, .tree-entity-row small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-entity-row small { color: var(--muted); margin-top: 4px; }
+.tree-branch { width: 14px; height: 24px; border-left: 1px solid rgba(14, 165, 233, .35); border-bottom: 1px solid rgba(14, 165, 233, .35); border-bottom-left-radius: 8px; }
+.selected-entity-hero { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 16px; border: 1px solid rgba(14, 165, 233, .28); border-radius: 18px; background: linear-gradient(135deg, rgba(8, 47, 73, .54), rgba(16, 24, 39, .72)); }
+.selected-entity-hero span, .selected-entity-hero small { display: block; color: var(--muted); }
+.selected-entity-hero span { margin-bottom: 6px; font-size: 12px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.selected-entity-hero strong { display: block; font-size: 22px; }
+.selected-entity-hero small { margin-top: 6px; }
+.entity-pulse { flex: 0 0 auto; width: 62px; height: 62px; border-radius: 22px; display: grid; place-items: center; color: #06111f; font-weight: 900; background: linear-gradient(135deg, #60a5fa, #bae6fd); box-shadow: 0 0 0 8px rgba(14, 165, 233, .12); }
+.entity-pulse.projectile { background: linear-gradient(135deg, #fbbf24, #fde68a); }
+.entity-pulse.enemy { background: linear-gradient(135deg, #fb7185, #fecdd3); }
+.component-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.component-node-card { position: relative; border: 1px solid var(--line-soft); border-radius: 16px; padding: 13px; background: rgba(7, 13, 24, .68); min-width: 0; }
+.component-node-card::before { content: ''; position: absolute; top: -13px; left: 26px; width: 1px; height: 13px; background: rgba(14, 165, 233, .32); }
+.component-node-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.component-node-head strong, .component-node-head span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.component-node-head span { flex: 0 0 auto; color: var(--accent); font-size: 12px; font-weight: 900; }
+.component-chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.field-chip { display: inline-flex; gap: 6px; align-items: center; max-width: 100%; padding: 5px 8px; border: 1px solid var(--line-soft); border-radius: 999px; background: rgba(16, 24, 39, .72); color: var(--text); font-size: 12px; font-weight: 800; }
+.field-chip em { color: var(--muted); font-style: normal; }
+.shooter-component-card { border: 1px solid var(--line-soft); border-radius: 15px; padding: 12px; background: rgba(7, 13, 24, .68); margin-top: 10px; }
+.component-field-grid { display: grid; grid-template-columns: minmax(120px, auto) minmax(0, 1fr); gap: 7px 12px; color: var(--muted); }
+.component-field-grid span { font-size: 12px; font-weight: 800; }
+.component-field-grid code { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chunk-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.chunk-card { border: 1px solid var(--line-soft); border-radius: 14px; padding: 11px; background: rgba(7, 13, 24, .58); min-width: 0; }
+.chunk-card strong, .chunk-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chunk-card small { color: var(--muted); margin-top: 5px; }
+
+@media (max-width: 1280px) {
+  .world-canvas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .component-map { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .component-flow { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 980px) {
+  .shooter-world-layout, .chunk-strip, .world-canvas, .component-map, .component-flow { grid-template-columns: 1fr; }
+}

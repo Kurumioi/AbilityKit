@@ -52,18 +52,9 @@ namespace AbilityKit.Demo.Moba.Services
             _hits.Clear();
             _exits.Clear();
 
-            if (_projectiles is AbilityKit.Combat.Projectile.ProjectileService ps)
-            {
-                ps.PeekSpawnEvents(_spawns);
-                ps.PeekHitEvents(_hits);
-                ps.PeekExitEvents(_exits);
-            }
-            else
-            {
-                _projectiles.DrainSpawnEvents(_spawns);
-                _projectiles.DrainHitEvents(_hits);
-                _projectiles.DrainExitEvents(_exits);
-            }
+            _projectiles.PeekSpawnEvents(_spawns);
+            _projectiles.PeekHitEvents(_hits);
+            _projectiles.PeekExitEvents(_exits);
 
             if (_spawns.Count == 0 && _hits.Count == 0 && _exits.Count == 0)
             {

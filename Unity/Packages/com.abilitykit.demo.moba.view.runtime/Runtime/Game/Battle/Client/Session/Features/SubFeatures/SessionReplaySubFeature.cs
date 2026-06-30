@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Moba.Config;

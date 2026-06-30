@@ -15,7 +15,6 @@
     <!-- 排除有 UnityEngine 引用的文件及依赖它们的文件 -->
     <Compile Include="../../Unity/Packages/com.abilitykit.record/Runtime/**/*.cs"
              Exclude="
-               ../../Unity/Packages/com.abilitykit.record/Runtime/Record/Lockstep/LockstepOptimizedBinaryRecordCodec.cs;
                ../../Unity/Packages/com.abilitykit.record/Runtime/Record/Core/Session/RecordFileStore.cs;
                ../../Unity/Packages/com.abilitykit.record/Runtime/Record/Core/Session/RecordSessionFactory.cs
              " />

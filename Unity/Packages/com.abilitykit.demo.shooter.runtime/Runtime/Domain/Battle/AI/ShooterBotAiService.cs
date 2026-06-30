@@ -121,7 +121,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             _blackboard.Frame = _state.CurrentFrame;
             _blackboard.TargetPlayerId = 0;
-            _blackboard.TargetDistance = float.MaxValue;
+            _blackboard.TargetDistanceSq = float.MaxValue;
             _blackboard.HasTarget = false;
             _blackboard.InAttackRange = false;
 
@@ -139,10 +139,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _blackboard.TargetPlayerId = targetPlayerId;
                 _blackboard.TargetX = targetX;
                 _blackboard.TargetY = targetY;
-                _blackboard.TargetDistance = MathF.Sqrt(targetDistanceSq);
+                _blackboard.TargetDistanceSq = targetDistanceSq;
             }
 
-            _blackboard.InAttackRange = _blackboard.HasTarget && _blackboard.TargetDistance <= _config.AttackRange;
+            var attackRangeSq = _config.AttackRange * _config.AttackRange;
+            _blackboard.InAttackRange = _blackboard.HasTarget && _blackboard.TargetDistanceSq <= attackRangeSq;
         }
     }
 
@@ -423,7 +424,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public float TargetY { get; set; }
 
-        public float TargetDistance { get; set; }
+        public float TargetDistanceSq { get; set; }
 
         public ShooterPlayerCommand Command { get; set; }
     }

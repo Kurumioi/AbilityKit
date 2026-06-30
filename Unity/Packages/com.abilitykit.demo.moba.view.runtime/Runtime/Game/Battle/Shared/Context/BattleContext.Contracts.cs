@@ -1,5 +1,5 @@
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Entity;
@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Flow
         BattleEntityFactory IBattleEntityContext.EntityFactory => EntityFactory;
         IBattleEntityQuery IBattleEntityContext.EntityQuery => EntityQuery;
 
-        ILockstepInputRecordWriter IBattleInputContext.InputRecordWriter => InputRecordWriter;
+        IFrameRecordWriter IBattleInputContext.InputRecordWriter => InputRecordWriter;
         BattleLocalInputQueue IBattleInputContext.LocalInputQueue => LocalInputQueue;
 
         FrameSnapshotDispatcher IBattleSnapshotRoutingContext.FrameSnapshots => FrameSnapshots;

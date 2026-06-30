@@ -39,6 +39,11 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     Task<BattleSnapshot?> GetSnapshotAsync();
 
     /// <summary>
+    /// 获取战斗世界实体/组件诊断视图（用于后台检查）。
+    /// </summary>
+    Task<BattleWorldDiagnostics?> GetWorldDiagnosticsAsync();
+
+    /// <summary>
     /// 获取战斗世界开始时间锚点。
     /// </summary>
     Task<WorldStartAnchor?> GetWorldStartAnchorAsync();
@@ -180,6 +185,49 @@ public class BattleSnapshot
     [Id(7)] public int VictoryTargetDefeats { get; set; }
     [Id(8)] public int TimeLimitFrames { get; set; }
     [Id(9)] public int RemainingTimeFrames { get; set; }
+}
+
+[GenerateSerializer]
+public sealed class BattleWorldDiagnostics
+{
+    [Id(0)] public string BattleId { get; set; } = string.Empty;
+    [Id(1)] public string WorldType { get; set; } = string.Empty;
+    [Id(2)] public ulong WorldId { get; set; }
+    [Id(3)] public int Frame { get; set; }
+    [Id(4)] public uint StateHash { get; set; }
+    [Id(5)] public int EntityCount { get; set; }
+    [Id(6)] public List<BattleWorldEntityDiagnostics> Entities { get; set; } = new();
+    [Id(7)] public List<BattleWorldComponentChunkDiagnostics> ComponentChunks { get; set; } = new();
+    [Id(8)] public List<string> Warnings { get; set; } = new();
+    [Id(9)] public long ServerNowTicks { get; set; }
+}
+
+[GenerateSerializer]
+public sealed class BattleWorldEntityDiagnostics
+{
+    [Id(0)] public string Key { get; set; } = string.Empty;
+    [Id(1)] public int EntityId { get; set; }
+    [Id(2)] public string EntityKind { get; set; } = string.Empty;
+    [Id(3)] public string Group { get; set; } = string.Empty;
+    [Id(4)] public string Label { get; set; } = string.Empty;
+    [Id(5)] public bool Alive { get; set; }
+    [Id(6)] public List<BattleWorldComponentDiagnostics> Components { get; set; } = new();
+}
+
+[GenerateSerializer]
+public sealed class BattleWorldComponentDiagnostics
+{
+    [Id(0)] public string Name { get; set; } = string.Empty;
+    [Id(1)] public string ComponentKind { get; set; } = string.Empty;
+    [Id(2)] public Dictionary<string, string> Fields { get; set; } = new();
+}
+
+[GenerateSerializer]
+public sealed class BattleWorldComponentChunkDiagnostics
+{
+    [Id(0)] public string ComponentKind { get; set; } = string.Empty;
+    [Id(1)] public string EntityKind { get; set; } = string.Empty;
+    [Id(2)] public int Count { get; set; }
 }
 
 /// <summary>

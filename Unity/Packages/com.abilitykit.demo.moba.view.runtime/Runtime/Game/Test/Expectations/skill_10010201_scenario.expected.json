@@ -1,0 +1,107 @@
+{
+  "caseId": "skill_10010201_scenario_shield_area_damage_slow",
+  "description": "Lian Po skill 2 should apply self armor/shield, spawn the delayed impact area, damage the target, and apply the slow buff.",
+  "category": "contract",
+  "tags": ["lian-po", "skill-2", "shield", "area", "scenario", "damage", "slow"],
+  "config": {
+    "skillId": 10010201,
+    "castFlowId": 10010201,
+    "effectId": 10010201,
+    "triggerId": 10010201,
+    "expectedActions": [
+      { "actionId": -906340766, "type": "add_buff" },
+      { "actionId": 951534590, "type": "add_shield" },
+      { "actionId": 1822191218, "type": "spawn_area" },
+      { "actionId": 589451731, "type": "debug_log" }
+    ]
+  },
+  "scenario": {
+    "scenarioId": "skill_10010201_scenario_shield_area_damage_slow",
+    "worldId": "skill_10010201_scenario_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "skillIds": [10010101, 10010201, 10010301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "spawnPosition": { "x": 3.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "setupActions": [
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "max_hp",
+        "value": 1000.0
+      },
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "hp",
+        "value": 1000.0
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_2",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 2,
+        "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "stepId": "wait_for_delayed_area_hit",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 800
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "caster",
+        "property": "hasBuff",
+        "expectedInt": 10010000,
+        "expectedBool": true
+      },
+      {
+        "alias": "target",
+        "property": "hasBuff",
+        "expectedInt": 10010212,
+        "expectedBool": true
+      },
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 820.0
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10010201, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10010201, "minCount": 1 },
+    { "kind": "EffectAction", "configId": -906340766, "underEffectId": 10010201, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 951534590, "underEffectId": 10010201, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010201, "minCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40010201, "underEffectId": 10010201, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaEnter", "configId": 40010201, "underEffectId": 10010201, "minCount": 1, "maxCount": 1 },
+    { "kind": "DamageApply", "configId": 10010201, "minCount": 1, "maxCount": 1 },
+    { "kind": "BuffApply", "configId": 10010000, "minCount": 1 },
+    { "kind": "BuffApply", "configId": 10010212, "minCount": 1 }
+  ]
+}

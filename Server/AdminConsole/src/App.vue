@@ -11,138 +11,21 @@
     <div class="workspace">
       <AdminTopbar :title="currentRoute.label" :description="currentRoute.description" :busy="admin.busy.value" @refresh="admin.refreshDashboard" />
 
-      <section v-if="routeKey === 'overview'" id="overview" class="metrics dashboard-strip">
-        <article class="metric"><span>账号</span><strong>{{ admin.accountLabel.value }}</strong><small>会话身份</small></article>
-        <article class="metric"><span>玩法数</span><strong>{{ admin.gameplays.value.length }}</strong><small>玩法目录</small></article>
-        <article class="metric"><span>房间数</span><strong>{{ admin.rooms.value.length }}</strong><small>房间目录</small></article>
-        <article class="metric"><span>沙盒</span><strong>{{ admin.sandboxLabel.value }}</strong><small>Shooter 运行态</small></article>
-        <article class="metric"><span>服务器</span><strong>{{ admin.serverModeLabel.value }}</strong><small>运维模式</small></article>
-        <article class="metric"><span>集群</span><strong>{{ admin.clusterLabel.value }}</strong><small>集群 / 服务</small></article>
-      </section>
+      <AdminWorkspaceSummary :current-route-label="currentRoute.label" :current-route-description="currentRoute.description" />
+
+      <AdminOverviewMetrics v-if="routeKey === 'overview'" />
 
       <main class="content-grid grid">
         <template v-if="routeKey === 'overview'">
+          <AdminOperationsCenter />
           <AdminApiBoundaryPanel />
         </template>
 
-        <section v-if="routeKey === 'session'" id="session" class="card span-6">
-          <div class="card-head"><div><p class="section-kicker">访问入口</p><h2>会话</h2></div><span class="badge">认证</span></div>
-          <label>账号 ID</label>
-          <input v-model="admin.account.accountId" placeholder="admin 或测试账号" />
-          <div class="row">
-            <div><label>过期秒数</label><input v-model.number="admin.account.expireSeconds" type="number" /></div>
-            <div><label>踢掉已有会话</label><select v-model="admin.account.kickExisting"><option :value="true">是</option><option :value="false">否</option></select></div>
-          </div>
-          <label>会话令牌</label>
-          <input v-model="admin.sessionToken.value" placeholder="登录后自动保存" />
-          <div class="actions action-bar">
-            <button :disabled="admin.busy.value" @click="admin.guestLogin">游客登录</button>
-            <button :disabled="admin.busy.value || !admin.account.accountId" @click="admin.accountLogin">账号登录</button>
-            <button class="secondary" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.validateSession">校验</button>
-            <button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.logout">登出</button>
-          </div>
-        </section>
-
-        <section v-if="routeKey === 'ops'" id="ops" class="card span-8 featured-card">
-          <div class="card-head"><div><p class="section-kicker">运维操作</p><h2>服务器运维</h2></div><span class="badge danger" v-if="admin.serverStatus.value?.restartRequested">已请求重启</span><span v-else class="badge">运维</span></div>
-          <div v-if="admin.serverStatus.value" class="ops-status">
-            <div><span>环境</span><strong>{{ admin.serverStatus.value.environmentName }}</strong></div>
-            <div><span>进程</span><strong>{{ admin.serverStatus.value.processName }} #{{ admin.serverStatus.value.processId }}</strong></div>
-            <div><span>机器</span><strong>{{ admin.serverStatus.value.machineName }}</strong></div>
-            <div><span>运行</span><strong>{{ admin.formatDuration(admin.serverStatus.value.uptimeSeconds) }}</strong></div>
-            <div><span>内存</span><strong>{{ admin.formatBytes(admin.serverStatus.value.workingSetBytes) }}</strong></div>
-            <div><span>GC</span><strong>{{ admin.formatBytes(admin.serverStatus.value.gcTotalMemoryBytes) }}</strong></div>
-            <div><span>线程</span><strong>{{ admin.serverStatus.value.threadCount }}</strong></div>
-            <div><span>状态</span><strong>{{ admin.serverModeLabel.value }}</strong></div>
-          </div>
-          <p v-else class="muted">等待服务器状态。</p>
-          <label>操作原因</label>
-          <input v-model="admin.serverOperation.reason" placeholder="例如：版本发布、压测维护" />
-          <div class="actions action-bar">
-            <button class="secondary" :disabled="admin.busy.value" @click="admin.refreshServerStatus">刷新状态</button>
-            <button :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.setMaintenanceMode(!admin.serverStatus.value?.maintenanceMode)">{{ admin.serverStatus.value?.maintenanceMode ? '关闭维护' : '开启维护' }}</button>
-            <button :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.setDrainMode(!admin.serverStatus.value?.drainMode)">{{ admin.serverStatus.value?.drainMode ? '关闭排空' : '开启排空' }}</button>
-            <button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.requestRestart">请求重启</button>
-          </div>
-        </section>
-
-        <section v-if="routeKey === 'cluster'" id="cluster" class="card span-12 cluster-panel">
-          <div class="card-head"><div><p class="section-kicker">集群状态</p><h2>集群诊断</h2></div><span class="badge">{{ admin.clusterDiagnostics.value?.clientStatus || '等待数据' }}</span></div>
-          <div v-if="admin.clusterDiagnostics.value" class="ops-status cluster-summary">
-            <div><span>集群 ID</span><strong>{{ admin.clusterDiagnostics.value.clusterId }}</strong></div>
-            <div><span>服务 ID</span><strong>{{ admin.clusterDiagnostics.value.serviceId }}</strong></div>
-            <div><span>Silo 端口</span><strong>{{ admin.clusterDiagnostics.value.siloPort ?? '默认' }}</strong></div>
-            <div><span>网关端口</span><strong>{{ admin.clusterDiagnostics.value.orleansGatewayPort ?? '默认' }}</strong></div>
-            <div><span>客户端</span><strong>{{ admin.clusterDiagnostics.value.clientConnected ? '已连接' : '未知' }}</strong></div>
-            <div><span>网关进程</span><strong>{{ admin.clusterDiagnostics.value.gatewayProcess.processName }} #{{ admin.clusterDiagnostics.value.gatewayProcess.processId }}</strong></div>
-          </div>
-          <p v-else class="muted">等待集群诊断数据。</p>
-          <div class="diagnostic-grid">
-            <div>
-              <h3>节点探针</h3>
-              <article v-for="node in admin.clusterDiagnostics.value?.nodes || []" :key="node.nodeId" class="probe-item">
-                <div><strong>{{ node.nodeId }}</strong><small>{{ node.role }} / {{ node.endpoint }}</small></div>
-                <span class="badge">{{ node.status }}</span>
-                <p>{{ node.diagnostics }}</p>
-              </article>
-            </div>
-            <div>
-              <h3>运行态指标</h3>
-              <ul class="diagnostic-list"><li v-for="metric in admin.clusterDiagnostics.value?.runtimeMetrics || []" :key="metric">{{ metric }}</li></ul>
-              <h3>告警</h3>
-              <ul class="diagnostic-list warnings">
-                <li v-for="warning in admin.clusterDiagnostics.value?.warnings || []" :key="warning">{{ warning }}</li>
-                <li v-if="!admin.clusterDiagnostics.value?.warnings?.length">暂无配置告警。</li>
-              </ul>
-            </div>
-          </div>
-          <div class="actions action-bar"><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshClusterDiagnostics">刷新集群诊断</button></div>
-        </section>
-
-        <template v-if="routeKey === 'rooms'">
-          <section class="card span-4">
-            <div class="card-head"><div><p class="section-kicker">运行环境</p><h2>环境</h2></div><span class="badge">作用域</span></div>
-            <div class="row"><div><label>区域</label><input v-model="admin.region.value" /></div><div><label>服务器 ID</label><input v-model="admin.serverId.value" /></div></div>
-            <label>玩法</label>
-            <select v-model="admin.selectedRoomType.value" @change="admin.applyGameplayDefaults">
-              <option v-for="gameplay in admin.gameplays.value" :key="gameplay.roomType" :value="gameplay.roomType">{{ gameplay.displayName }} / {{ gameplay.roomType }}</option>
-            </select>
-            <p v-if="admin.selectedGameplay.value" class="muted helper-text">默认 {{ admin.selectedGameplay.value.defaultMaxPlayers }} 人，{{ admin.selectedGameplay.value.defaultWorldType }}，{{ admin.selectedGameplay.value.defaultSyncTemplateId }}</p>
-          </section>
-          <section class="card span-4">
-            <div class="card-head"><div><p class="section-kicker">模拟运行</p><h2>Shooter 沙盒</h2></div><span class="badge">沙盒</span></div>
-            <div class="row"><div><label>沙盒 ID</label><input v-model="admin.sandbox.sandboxId" /></div><div><label>机器人数量</label><input v-model.number="admin.sandbox.botCount" type="number" /></div></div>
-            <div class="row"><div><label>最大人数</label><input v-model.number="admin.sandbox.maxPlayers" type="number" /></div><div><label>帧率</label><input v-model.number="admin.sandbox.tickRate" type="number" /></div></div>
-            <div class="actions action-bar"><button class="success" :disabled="admin.busy.value" @click="admin.startShooterSandbox">启动</button><button class="secondary" :disabled="admin.busy.value" @click="admin.refreshDashboard">刷新</button><button class="warn" :disabled="admin.busy.value" @click="admin.stopShooterSandbox">停止</button></div>
-          </section>
-          <section id="rooms" class="card span-4">
-            <div class="card-head"><div><p class="section-kicker">房间流程</p><h2>创建房间</h2></div><span class="badge">创建</span></div>
-            <div class="row"><div><label>标题</label><input v-model="admin.create.title" /></div><div><label>最大人数</label><input v-model.number="admin.create.maxPlayers" type="number" /></div></div>
-            <div class="row"><div><label>房间类型</label><input v-model="admin.create.roomType" /></div><div><label>公开房间</label><select v-model="admin.create.isPublic"><option :value="true">是</option><option :value="false">否</option></select></div></div>
-            <label>标签 JSON</label><textarea v-model="admin.create.tagsJson"></textarea>
-            <div class="actions action-bar"><button :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.createRoom">创建并绑定</button><button class="secondary" @click="admin.applyGameplayDefaults">套用玩法默认值</button></div>
-          </section>
-          <section class="card span-5">
-            <div class="card-head"><div><p class="section-kicker">房间流程</p><h2>当前房间</h2></div><span class="badge">当前</span></div>
-            <label>房间 ID</label><input v-model="admin.roomId.value" placeholder="创建、选择或恢复后填充" />
-            <div class="actions action-bar"><button :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value" @click="admin.joinRoom()">加入/绑定当前房间</button><button class="secondary" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.restoreCurrentRoom">恢复</button><button class="secondary" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value" @click="admin.markOffline()">标记离线</button><button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value" @click="admin.leaveRoom()">离开</button><button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value" @click="admin.closeRoom()">关闭当前房间</button></div>
-            <div v-if="admin.snapshot.value?.summary" class="status-box"><strong>{{ admin.snapshot.value.summary.title || admin.snapshot.value.summary.roomId }}</strong><span>{{ admin.snapshot.value.summary.roomType }} / {{ admin.snapshot.value.members?.length || 0 }}人 / 可开战 {{ admin.snapshot.value.canStart ? '是' : '否' }}</span></div>
-          </section>
-          <section class="card span-7">
-            <div class="card-head"><div><p class="section-kicker">房间目录</p><h2>房间列表</h2></div><span class="badge">{{ admin.rooms.value.length }} 个房间</span></div>
-            <div class="list"><article v-for="room in admin.rooms.value" :key="room.roomId" class="room-item" :class="{ active: admin.effectiveRoomId.value === room.roomId }"><div><strong>{{ room.title || room.roomId }}</strong><small>{{ room.roomId }}</small></div><div class="room-meta"><span>{{ room.roomType }}</span><span>{{ room.playerCount }}/{{ room.maxPlayers }}</span><span>{{ room.isPublic ? '公开' : '私有' }}</span><span v-if="admin.effectiveRoomId.value === room.roomId">当前</span></div><button class="secondary" :disabled="admin.busy.value" @click="admin.selectRoom(room.roomId)">选择并绑定</button><button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.closeRoom(room.roomId)">关闭</button></article><p v-if="admin.rooms.value.length === 0" class="muted">暂无房间。</p></div>
-          </section>
-        </template>
-
-        <section v-if="routeKey === 'battle'" id="battle" class="card span-6">
-          <div class="card-head"><div><p class="section-kicker">战斗流程</p><h2>启动战斗</h2></div><span class="badge">启动</span></div>
-          <div class="row"><div><label>玩法 ID</label><input v-model.number="admin.battle.gameplayId" type="number" /></div><div><label>规则集 ID</label><input v-model.number="admin.battle.ruleSetId" type="number" /></div></div>
-          <label>世界类型</label><input v-model="admin.battle.worldType" />
-          <label>同步模板 ID</label>
-          <select v-if="admin.selectedGameplay.value && admin.selectedGameplay.value.supportedSyncTemplateIds?.length" v-model="admin.battle.syncTemplateId"><option v-for="syncTemplateId in admin.selectedGameplay.value.supportedSyncTemplateIds" :key="syncTemplateId" :value="syncTemplateId">{{ syncTemplateId }}</option></select>
-          <input v-else v-model="admin.battle.syncTemplateId" />
-          <div class="actions action-bar"><button class="success" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value" @click="admin.startBattle">启动</button><button class="secondary" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value || admin.selectedRoomType.value !== 'shooter'" @click="admin.startShooterRoomQuick">Shooter 快速开战</button></div>
-        </section>
+        <AdminSessionPage :route-key="routeKey" />
+        <AdminOpsPage :route-key="routeKey" />
+        <AdminClusterPage :route-key="routeKey" />
+        <AdminRoomsPage :route-key="routeKey" />
+        <AdminBattlePage :route-key="routeKey" />
 
         <template v-if="routeKey === 'skills'">
           <SkillDiagnosticsPanel />
@@ -160,12 +43,20 @@
 
 <script setup lang="ts">
 import { onMounted, watch } from 'vue';
-import AdminApiBoundaryPanel from './components/AdminApiBoundaryPanel.vue';
-import AdminSidebar from './components/AdminSidebar.vue';
-import AdminTopbar from './components/AdminTopbar.vue';
-import SkillAcceptancePanel from './components/SkillAcceptancePanel.vue';
-import SkillDiagnosticsPanel from './components/SkillDiagnosticsPanel.vue';
+import AdminSidebar from './components/layout/AdminSidebar.vue';
+import AdminTopbar from './components/layout/AdminTopbar.vue';
+import AdminWorkspaceSummary from './components/layout/AdminWorkspaceSummary.vue';
+import AdminApiBoundaryPanel from './components/overview/AdminApiBoundaryPanel.vue';
+import AdminOperationsCenter from './components/overview/AdminOperationsCenter.vue';
+import AdminOverviewMetrics from './components/overview/AdminOverviewMetrics.vue';
+import SkillAcceptancePanel from './components/skills/SkillAcceptancePanel.vue';
+import SkillDiagnosticsPanel from './components/skills/SkillDiagnosticsPanel.vue';
 import { adminNavigationItems } from './navigation/adminNavigation';
+import AdminBattlePage from './pages/AdminBattlePage.vue';
+import AdminClusterPage from './pages/AdminClusterPage.vue';
+import AdminOpsPage from './pages/AdminOpsPage.vue';
+import AdminRoomsPage from './pages/AdminRoomsPage.vue';
+import AdminSessionPage from './pages/AdminSessionPage.vue';
 import { useAdminRouter } from './router/adminRouter';
 import { useAdminConsoleStore } from './stores/adminConsoleStore';
 

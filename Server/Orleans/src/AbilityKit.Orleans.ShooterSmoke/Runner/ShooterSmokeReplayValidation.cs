@@ -1,0 +1,289 @@
+using System.Text.Json;
+using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Protocol.Room;
+using AbilityKit.Protocol.Shooter;
+
+internal static class ShooterSmokeReplayValidation
+{
+    private const float ReplayFixedDeltaSeconds = 1f / 30f;
+
+    public static ShooterSmokeReplayValidationResult Skipped => default;
+
+    public static ShooterSmokeReplayValidationResult ValidateReplay(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return Skipped;
+        }
+
+        var record = FrameRecordCodecs.Current.Load(path);
+        return ShooterSmokeReplayTypes.ResolveKind(record.Meta) switch
+        {
+            ShooterSmokeReplayKind.InputState => ValidateInputStateReplay(path, record),
+            ShooterSmokeReplayKind.InputLogic => ValidateInputLogicReplay(path, record),
+            _ => throw new InvalidOperationException($"Shooter replay world type is not supported. Path={path}, WorldType={record.Meta?.WorldType ?? string.Empty}"),
+        };
+    }
+
+    public static ShooterSmokeReplayValidationResult ValidateInputStateReplay(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return Skipped;
+        }
+
+        return ValidateInputStateReplay(path, FrameRecordCodecs.Current.Load(path));
+    }
+
+    public static ShooterSmokeReplayValidationResult ValidateInputLogicReplay(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return Skipped;
+        }
+
+        return ValidateInputLogicReplay(path, FrameRecordCodecs.Current.Load(path));
+    }
+
+    private static ShooterSmokeReplayValidationResult ValidateInputStateReplay(string path, FrameRecordFile record)
+    {
+        var snapshots = record.Snapshots ?? new List<FrameRecordSnapshotFrame>();
+        if (snapshots.Count == 0)
+        {
+            throw new InvalidOperationException($"Shooter input-state replay has no snapshots. Path={path}");
+        }
+
+        var runtime = new ShooterBattleRuntimePort();
+        var bytesCodec = new ShooterPackedSnapshotBytesCodec();
+        var consumedSnapshots = 0;
+        var importedPackedSnapshots = 0;
+        var lastFrame = -1;
+
+        for (var i = 0; i < snapshots.Count; i++)
+        {
+            var snapshot = snapshots[i];
+            var payload = DecodeBase64(snapshot.PayloadBase64);
+            if (payload.Length == 0)
+            {
+                throw new InvalidOperationException($"Shooter input-state replay snapshot has empty payload. Path={path}, Frame={snapshot.Frame}");
+            }
+
+            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(new ArraySegment<byte>(payload));
+            if (wire.Payload == null || wire.Payload.Length == 0)
+            {
+                throw new InvalidOperationException($"Shooter input-state replay wire snapshot has empty payload. Path={path}, Frame={snapshot.Frame}");
+            }
+
+            if (wire.Frame < lastFrame)
+            {
+                throw new InvalidOperationException($"Shooter input-state replay frame regressed. Path={path}, Previous={lastFrame}, Current={wire.Frame}");
+            }
+
+            consumedSnapshots++;
+            lastFrame = wire.Frame;
+
+            if (wire.PayloadOpCode == ShooterOpCodes.Snapshot.PackedState || wire.PayloadOpCode == ShooterOpCodes.Snapshot.PackedStateDelta)
+            {
+                if (bytesCodec.Import(runtime, wire.Payload))
+                {
+                    importedPackedSnapshots++;
+                }
+            }
+        }
+
+        if (importedPackedSnapshots == 0)
+        {
+            throw new InvalidOperationException($"Shooter input-state replay did not contain an importable packed snapshot. Path={path}");
+        }
+
+        return new ShooterSmokeReplayValidationResult(
+            path,
+            true,
+            record.Inputs?.Count ?? 0,
+            consumedSnapshots,
+            record.StateHashes?.Count ?? 0,
+            runtime.CurrentFrame,
+            runtime.ComputeStateHash(),
+            true);
+    }
+
+    private static ShooterSmokeReplayValidationResult ValidateInputLogicReplay(string path, FrameRecordFile record)
+    {
+        var inputs = record.Inputs ?? new List<FrameRecordInputFrame>();
+        if (inputs.Count == 0)
+        {
+            throw new InvalidOperationException($"Shooter input-logic replay has no inputs. Path={path}");
+        }
+
+        var replaySpec = BuildInputLogicReplaySpec(path, inputs);
+        var replayResult = new ShooterDeterminismSpecRunner().Run(in replaySpec);
+
+        var consumedInputs = 0;
+        var lastFrame = -1;
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            var input = inputs[i];
+            if (input.Frame < lastFrame)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay input frame regressed. Path={path}, Previous={lastFrame}, Current={input.Frame}");
+            }
+
+            if (input.OpCode != ShooterOpCodes.Input.PlayerCommand)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay has unexpected input opCode. Path={path}, Frame={input.Frame}, OpCode={input.OpCode}");
+            }
+
+            var commands = ShooterInputCodec.Deserialize(DecodeBase64(input.PayloadBase64));
+            if (commands.Length == 0)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay input has no commands. Path={path}, Frame={input.Frame}");
+            }
+
+            consumedInputs++;
+            lastFrame = input.Frame;
+        }
+
+        var snapshots = record.Snapshots ?? new List<FrameRecordSnapshotFrame>();
+        ValidateInputLogicSnapshots(path, snapshots, replayResult);
+
+        return new ShooterSmokeReplayValidationResult(
+            path,
+            true,
+            consumedInputs,
+            snapshots.Count,
+            record.StateHashes?.Count ?? 0,
+            replayResult.Frame,
+            replayResult.StateHash,
+            replayResult.RoundTripMatched);
+    }
+
+    private static ShooterDeterminismSpec BuildInputLogicReplaySpec(string path, List<FrameRecordInputFrame> inputs)
+    {
+        var groupedFrames = new Dictionary<int, List<ShooterPlayerCommand>>();
+        var playerIds = new HashSet<int>();
+        var maxFrame = 0;
+
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            var input = inputs[i];
+            if (input.OpCode != ShooterOpCodes.Input.PlayerCommand)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay has unexpected input opCode. Path={path}, Frame={input.Frame}, OpCode={input.OpCode}");
+            }
+
+            var commands = ShooterInputCodec.Deserialize(DecodeBase64(input.PayloadBase64));
+            if (commands.Length == 0)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay input has no commands. Path={path}, Frame={input.Frame}");
+            }
+
+            if (!groupedFrames.TryGetValue(input.Frame, out var frameCommands))
+            {
+                frameCommands = new List<ShooterPlayerCommand>();
+                groupedFrames[input.Frame] = frameCommands;
+            }
+
+            for (var j = 0; j < commands.Length; j++)
+            {
+                var command = commands[j];
+                frameCommands.Add(command);
+                playerIds.Add(command.PlayerId);
+            }
+
+            if (input.Frame > maxFrame)
+            {
+                maxFrame = input.Frame;
+            }
+        }
+
+        if (playerIds.Count == 0)
+        {
+            throw new InvalidOperationException($"Shooter input-logic replay did not resolve any player ids. Path={path}");
+        }
+
+        var startPlayers = CreateStartPlayers(playerIds);
+        var frames = new ShooterDeterminismFrameInput[maxFrame + 1];
+        for (var frame = 0; frame <= maxFrame; frame++)
+        {
+            groupedFrames.TryGetValue(frame, out var commands);
+            frames[frame] = new ShooterDeterminismFrameInput(frame, commands?.ToArray() ?? Array.Empty<ShooterPlayerCommand>());
+        }
+
+        var start = new ShooterStartGamePayload(
+            "input-logic-replay",
+            30,
+            0,
+            startPlayers);
+        return new ShooterDeterminismSpec(start, frames, ReplayFixedDeltaSeconds);
+    }
+
+    private static ShooterStartPlayer[] CreateStartPlayers(HashSet<int> playerIds)
+    {
+        var ordered = playerIds.ToList();
+        ordered.Sort();
+        var result = new ShooterStartPlayer[ordered.Count];
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var playerId = ordered[i];
+            var offset = i * 1.5f;
+            result[i] = new ShooterStartPlayer(playerId, $"player-{playerId}", offset, 0f);
+        }
+
+        return result;
+    }
+
+    private static void ValidateInputLogicSnapshots(string path, List<FrameRecordSnapshotFrame> snapshots, ShooterDeterminismResult replayResult)
+    {
+        BattleSnapshot? lastSnapshot = null;
+        for (var i = 0; i < snapshots.Count; i++)
+        {
+            var snapshot = snapshots[i];
+            var payload = DecodeBase64(snapshot.PayloadBase64);
+            var battleSnapshot = JsonSerializer.Deserialize<BattleSnapshot>(payload);
+            if (battleSnapshot == null)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay snapshot cannot be consumed. Path={path}, Frame={snapshot.Frame}");
+            }
+
+            if (battleSnapshot.Frame != snapshot.Frame)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay snapshot frame mismatch. Path={path}, Record={snapshot.Frame}, Payload={battleSnapshot.Frame}");
+            }
+
+            if (lastSnapshot != null && battleSnapshot.Frame < lastSnapshot.Frame)
+            {
+                throw new InvalidOperationException($"Shooter input-logic replay snapshot frame regressed. Path={path}, Previous={lastSnapshot.Frame}, Current={battleSnapshot.Frame}");
+            }
+
+            lastSnapshot = battleSnapshot;
+        }
+
+        if (lastSnapshot == null)
+        {
+            return;
+        }
+
+        var replaySnapshot = replayResult.Snapshot;
+        if (replaySnapshot.Frame < lastSnapshot.Frame - 1 || replaySnapshot.Frame > lastSnapshot.Frame)
+        {
+            throw new InvalidOperationException($"Shooter input-logic replay final frame mismatch after local playback. Path={path}, Replay={replaySnapshot.Frame}, Record={lastSnapshot.Frame}");
+        }
+    }
+
+    private static byte[] DecodeBase64(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? Array.Empty<byte>() : Convert.FromBase64String(value);
+    }
+}
+
+internal readonly record struct ShooterSmokeReplayValidationResult(
+    string Path,
+    bool Consumed,
+    int InputCount,
+    int SnapshotCount,
+    int StateHashCount,
+    int ReplayFrame,
+    uint ReplayStateHash,
+    bool ReplayRoundTripMatched);

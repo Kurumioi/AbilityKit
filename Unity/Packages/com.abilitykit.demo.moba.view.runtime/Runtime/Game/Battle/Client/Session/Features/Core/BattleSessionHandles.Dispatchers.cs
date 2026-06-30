@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow
 
         internal sealed class ReplayHandles
         {
-            internal LockstepReplayDriver Driver;
+            internal FrameReplayDriver Driver;
 
             public void Reset()
             {

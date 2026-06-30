@@ -51,9 +51,9 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _hits.Clear();
             _exits.Clear();
 
-            _projectiles.DrainSpawnEvents(_spawns);
-            _projectiles.DrainHitEvents(_hits);
-            _projectiles.DrainExitEvents(_exits);
+            _projectiles.PeekSpawnEvents(_spawns);
+            _projectiles.PeekHitEvents(_hits);
+            _projectiles.PeekExitEvents(_exits);
 
             if (_spawns.Count == 0 && _hits.Count == 0 && _exits.Count == 0)
             {

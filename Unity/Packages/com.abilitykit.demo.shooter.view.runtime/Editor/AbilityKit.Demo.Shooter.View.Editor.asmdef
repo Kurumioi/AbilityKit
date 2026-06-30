@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.Demo.Shooter.View.Editor",
+  "rootNamespace": "AbilityKit.Demo.Shooter.View.Editor",
+  "references": [
+    "AbilityKit.Demo.Shooter.View.Runtime",
+    "AbilityKit.Network.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

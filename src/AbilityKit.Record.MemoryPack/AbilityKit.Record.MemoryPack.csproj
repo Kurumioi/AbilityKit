@@ -12,10 +12,8 @@
 
   <!-- 排除 Unity 相关文件 -->
   <ItemGroup>
-    <Compile Include="../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/**/*.cs" 
-             Exclude="../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/**/*.asmdef;
-                     ../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/Lockstep/LockstepMemoryPackInputRecordCodec.cs;
-                     ../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/Lockstep/LockstepMemoryPackInputRecordCodecInstaller.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/**/*.cs"
+             Exclude="../../Unity/Packages/com.abilitykit.record.memorypack/Runtime/**/*.asmdef" />
   </ItemGroup>
 
   <ItemGroup>

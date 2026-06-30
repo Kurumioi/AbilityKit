@@ -3,7 +3,7 @@ using System.IO;
 using System.Reflection;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Configuration;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Core.Reflection;
 using UnityEngine;
 
@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
 {
     internal static class BattleRecordCodecBootstrap
     {
-        private const string ModuleKey = "record.lockstep.codec";
+        private const string ModuleKey = "record.framerecord.codec";
         private const string ConfigFileName = "abilitykit.features.json";
         private static bool s_tried;
         private static bool s_installed;
@@ -34,7 +34,7 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                     return false;
                 }
 
-                var impl = LockstepInputRecordCodecs.Current != null ? LockstepInputRecordCodecs.Current.GetType().FullName : "<null>";
+                var impl = FrameRecordCodecs.Current != null ? FrameRecordCodecs.Current.GetType().FullName : "<null>";
                 Log.Info($"[BattleRecordCodecBootstrap] MemoryPack record codec installed. current={impl}");
                 s_installed = true;
                 return true;

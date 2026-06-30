@@ -146,6 +146,11 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             return null;
         }
 
+        public BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame)
+        {
+            return null;
+        }
+
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
             var frameIndex = new FrameIndex(frame);

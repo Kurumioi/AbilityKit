@@ -22,23 +22,28 @@ namespace AbilityKit.Demo.Shooter.View
 
         private readonly Queue<PendingAuthoritativeInput> _pendingInputs = new Queue<PendingAuthoritativeInput>();
         private readonly Random _inputRandom;
+        private readonly ShooterAuthoritySnapshotPublishOptions _publishOptions;
         private ShooterCarrierNetworkLink _carrierNetworkLink;
         private NetworkConditionProfile _networkProfile;
         private SyncTimeAnchor _lastCarrierTimeAnchor;
         private double _networkElapsedSeconds;
         private int _lastDeliveredInputCount;
+        private int _lastPureStateBaselineFrame;
+        private uint _lastPureStateBaselineHash;
 
         public ShooterAuthoritativeComparisonDriver(
             IShooterClientSyncController controller,
             ShooterBattleRuntimePort authoritativeWorld,
             ShooterPresentationFacade? authoritativePresentation,
             NetworkConditionProfile networkProfile,
+            ShooterAuthoritySnapshotPublishOptions publishOptions,
             int networkSeed)
         {
             _controller = controller ?? throw new ArgumentNullException(nameof(controller));
             _authoritativeWorld = authoritativeWorld ?? throw new ArgumentNullException(nameof(authoritativeWorld));
             _authoritativePresentation = authoritativePresentation;
             _networkProfile = networkProfile;
+            _publishOptions = publishOptions;
             _inputRandom = new Random(networkSeed);
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, networkProfile, networkSeed);
         }
@@ -73,6 +78,8 @@ namespace AbilityKit.Demo.Shooter.View
             _networkProfile = profile;
             _pendingInputs.Clear();
             _lastDeliveredInputCount = 0;
+            _lastPureStateBaselineFrame = 0;
+            _lastPureStateBaselineHash = 0u;
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, profile);
             _lagCompensation.Clear();
             _lastCarrierTimeAnchor = default;
@@ -131,9 +138,86 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _lastCarrierTimeAnchor = anchor;
             var clockMs = (long)Math.Round(anchor.ElapsedSeconds * 1000d);
-            var packed = _authoritativeWorld.ExportPackedSnapshot(worldId: 1UL, isFullSnapshot: true, authorityOverride: true);
-            _carrierNetworkLink.PublishSnapshot(in packed, anchor.ElapsedSeconds);
+
+            if (_publishOptions.UsesPureStatePayload)
+            {
+                PublishPureStateSnapshot(in anchor);
+            }
+            else
+            {
+                var packed = _authoritativeWorld.ExportPackedSnapshot(worldId: 1UL, isFullSnapshot: true, authorityOverride: true);
+                _carrierNetworkLink.PublishSnapshot(in packed, anchor.ElapsedSeconds);
+            }
+
             _carrierNetworkLink.Advance(clockMs);
+        }
+
+        private void PublishPureStateSnapshot(in SyncTimeAnchor anchor)
+        {
+            var sendPolicy = _publishOptions.SendPolicy;
+            var snapshotInterval = Math.Max(1, sendPolicy.SnapshotIntervalFrames);
+            var currentFrame = _authoritativeWorld.CurrentFrame;
+            var isFullBaseline = ShouldPublishFullBaseline(currentFrame, sendPolicy.KeyFrameIntervalFrames);
+            if (!isFullBaseline && currentFrame % snapshotInterval != 0)
+            {
+                return;
+            }
+
+            var settings = sendPolicy.ToPureStateSettings();
+            var interestScope = CreateInterestScope(sendPolicy);
+            var pureState = _authoritativeWorld.ExportPureStateSnapshot(
+                worldId: 1UL,
+                isFullBaseline: isFullBaseline,
+                settings: settings,
+                baselineFrame: _lastPureStateBaselineFrame,
+                baselineHash: _lastPureStateBaselineHash,
+                interestScope: interestScope);
+
+            if (isFullBaseline)
+            {
+                _lastPureStateBaselineFrame = pureState.Frame;
+                _lastPureStateBaselineHash = pureState.StateHash;
+            }
+
+            _carrierNetworkLink.PublishSnapshot(in pureState, anchor.ElapsedSeconds);
+        }
+
+        private bool ShouldPublishFullBaseline(int currentFrame, int keyFrameIntervalFrames)
+        {
+            if (_lastPureStateBaselineFrame <= 0 || _lastPureStateBaselineHash == 0u)
+            {
+                return true;
+            }
+
+            return keyFrameIntervalFrames > 0 && currentFrame - _lastPureStateBaselineFrame >= keyFrameIntervalFrames;
+        }
+
+        private ShooterPureStateInterestScope? CreateInterestScope(ShooterSyncTemplateSendPolicy sendPolicy)
+        {
+            if (!_publishOptions.UsesAoiScope)
+            {
+                return null;
+            }
+
+            var snapshot = _authoritativeWorld.GetSnapshot();
+            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            if (players.Length > 0)
+            {
+                var observer = players[0];
+                return new ShooterPureStateInterestScope(
+                    observer.PlayerId,
+                    observer.X,
+                    observer.Y,
+                    sendPolicy.AoiRadius,
+                    sendPolicy.ActiveEntityBudget);
+            }
+
+            return new ShooterPureStateInterestScope(
+                observerPlayerId: 0,
+                centerX: 0f,
+                centerY: 0f,
+                radius: sendPolicy.AoiRadius,
+                maxEntities: sendPolicy.ActiveEntityBudget);
         }
 
         private readonly struct PendingAuthoritativeInput

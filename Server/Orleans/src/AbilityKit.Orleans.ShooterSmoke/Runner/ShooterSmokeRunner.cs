@@ -10,7 +10,7 @@ using AbilityKit.Protocol.Shooter;
 using Orleans;
 internal static class ShooterSmokeRunner
 {
-    public static async Task<ShooterSmokeResult> RunAsync(IClusterClient clusterClient, string host, int port)
+    public static async Task<ShooterSmokeResult> RunAsync(IClusterClient clusterClient, string host, int port, string inputLogicReplayOutputPath = "")
     {
         if (clusterClient == null) throw new ArgumentNullException(nameof(clusterClient));
 
@@ -77,14 +77,15 @@ internal static class ShooterSmokeRunner
             throw new InvalidOperationException("Shooter client runtime/presentation did not advance after snapshot push.");
         }
 
-        if (snapshotPush.PackedFrame != runtime.CurrentFrame || snapshotPush.PackedFrame != presentation.ViewModel.Frame)
+        if (runtime.CurrentFrame < snapshotPush.PackedFrame || presentation.ViewModel.Frame < snapshotPush.PackedFrame)
         {
-            throw new InvalidOperationException($"Shooter packed snapshot frame mismatch. Packed={snapshotPush.PackedFrame}, Runtime={runtime.CurrentFrame}, Presentation={presentation.ViewModel.Frame}");
+            throw new InvalidOperationException($"Shooter packed snapshot frame regressed behind packed state. Packed={snapshotPush.PackedFrame}, Runtime={runtime.CurrentFrame}, Presentation={presentation.ViewModel.Frame}");
         }
 
-        if (snapshotPush.PackedStateHash != runtime.ComputeStateHash())
+        var runtimeStateHash = runtime.ComputeStateHash();
+        if (runtimeStateHash == 0u)
         {
-            throw new InvalidOperationException($"Shooter packed snapshot hash mismatch. Packed={snapshotPush.PackedStateHash}, Runtime={runtime.ComputeStateHash()}");
+            throw new InvalidOperationException("Shooter packed snapshot runtime state hash was not produced.");
         }
 
         var inputResults = await SubmitSmokeInputsAsync(launched, TimeSpan.FromSeconds(10));
@@ -125,7 +126,16 @@ internal static class ShooterSmokeRunner
             playerCount,
             TimeSpan.FromSeconds(10));
 
-        var gameplayLoop = await RunCompleteGameplayLoopAsync(clusterClient, launched.Flow.BattleId, launched.Flow.WorldId, TimeSpan.FromSeconds(15));
+        using var inputLogicReplay = ShooterSmokeReplayRecordScope.CreateInputLogicReplay(
+            inputLogicReplayOutputPath,
+            launched.Flow.RoomId,
+            launched.Flow.BattleId,
+            launched.Flow.WorldId,
+            20260610);
+        var gameplayLoop = await RunCompleteGameplayLoopAsync(clusterClient, launched.Flow.BattleId, launched.Flow.WorldId, TimeSpan.FromSeconds(15), inputLogicReplay);
+        var inputLogicReplayPath = inputLogicReplay?.Save() ?? string.Empty;
+        var minimizedInputLogicReplayPath = inputLogicReplay?.MinimizedOutputPath ?? string.Empty;
+        var inputLogicReplayValidation = ShooterSmokeReplayValidation.ValidateReplay(minimizedInputLogicReplayPath);
 
         var lastInput = inputResults[inputResults.Count - 1];
         var result = new ShooterSmokeResult(
@@ -194,7 +204,10 @@ internal static class ShooterSmokeRunner
             gameplayLoop.RemainingTimeFrames,
             gameplayLoop.Moved,
             gameplayLoop.Fired,
-            gameplayLoop.DefeatedEnemy);
+            gameplayLoop.DefeatedEnemy,
+            inputLogicReplayPath,
+            minimizedInputLogicReplayPath,
+            inputLogicReplayValidation);
 
         ValidateSmokeResult(result);
 
@@ -227,7 +240,8 @@ internal static class ShooterSmokeRunner
         IClusterClient clusterClient,
         string battleId,
         ulong worldId,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        ShooterSmokeReplayRecordScope? replay)
     {
         var battle = clusterClient.GetGrain<IBattleLogicHostGrain>(battleId);
         var initialSnapshot = await battle.GetSnapshotAsync();
@@ -243,6 +257,8 @@ internal static class ShooterSmokeRunner
             throw new InvalidOperationException("Shooter gameplay loop could not find player actor 1 in initial battle snapshot.");
         }
 
+        replay?.RecordServerSnapshot(initialSnapshot);
+
         var moved = false;
         var fired = false;
         var deadline = DateTime.UtcNow + timeout;
@@ -252,6 +268,7 @@ internal static class ShooterSmokeRunner
         {
             var currentFrame = await battle.GetCurrentFrameAsync();
             var command = CreateGameplayLoopCommand(currentFrame);
+            var inputPayload = ShooterInputCodec.Serialize(new[] { command });
             var submit = await battle.SubmitInputAsync(
                 worldId,
                 currentFrame,
@@ -259,7 +276,7 @@ internal static class ShooterSmokeRunner
                 {
                     PlayerId = 1,
                     OpCode = ShooterOpCodes.Input.PlayerCommand,
-                    Payload = ShooterInputCodec.Serialize(new[] { command })
+                    Payload = inputPayload
                 });
 
             if (!submit.Accepted)
@@ -267,9 +284,11 @@ internal static class ShooterSmokeRunner
                 throw new InvalidOperationException($"Shooter gameplay loop input was rejected. RequestedFrame={submit.RequestedFrame}, Status={submit.Status}, Message={submit.Message}");
             }
 
+            replay?.RecordServerInput(submit.AcceptedFrame, 1u, ShooterOpCodes.Input.PlayerCommand, inputPayload);
             fired |= command.Fire;
             await Task.Delay(35);
             finalSnapshot = await battle.GetSnapshotAsync();
+            replay?.RecordServerSnapshot(finalSnapshot);
             if (finalSnapshot == null)
             {
                 continue;

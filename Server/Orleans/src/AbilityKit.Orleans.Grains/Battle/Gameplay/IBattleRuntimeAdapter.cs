@@ -23,6 +23,8 @@ internal interface IBattleRuntimeSession : IDisposable
 
     BattleSnapshot? GetSnapshot(int frame);
 
+    BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame);
+
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot);
 }
 

@@ -51,6 +51,31 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            return CreateReadyStartAndSubscribeAsync(
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientGatewayLaunchResult> CreateReadyStartAndSubscribeAsync(
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             return LaunchAsync(
                 runtime,
                 presentationSession,
@@ -61,6 +86,7 @@ namespace AbilityKit.Demo.Shooter.View
                 joinRoomId: null,
                 restoreRegion: null,
                 restoreServerId: null,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken);
@@ -131,6 +157,42 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            var launched = await RestoreRoomAsync(
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+
+            return new ShooterClientGatewayRestoreResult(
+                launched.RoomClient,
+                launched.GatewayClient,
+                launched.Session,
+                launched.Battle,
+                launched.Flow);
+        }
+
+        public async Task<ShooterClientGatewayRestoreResult> RestoreRoomAsync(
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
             var launched = await LaunchAsync(
                 runtime,
                 presentationSession,
@@ -141,6 +203,7 @@ namespace AbilityKit.Demo.Shooter.View
                 joinRoomId: null,
                 restoreRegion: region,
                 restoreServerId: serverId,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken).ConfigureAwait(false);
@@ -170,6 +233,38 @@ namespace AbilityKit.Demo.Shooter.View
                 throw new ArgumentException("roomId is required.", nameof(roomId));
             }
 
+            return JoinReadyStartAndSubscribeAsync(
+                runtime,
+                presentationSession,
+                startGame,
+                sessionToken,
+                roomId,
+                launchSpec,
+                playerId,
+                ShooterClientSyncAssemblyOptions.Default,
+                tickRate,
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterClientGatewayLaunchResult> JoinReadyStartAndSubscribeAsync(
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterStartGamePayload startGame,
+            string sessionToken,
+            string roomId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
+            int tickRate = ShooterGameplay.DefaultTickRate,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                throw new ArgumentException("roomId is required.", nameof(roomId));
+            }
+
             return LaunchAsync(
                 runtime,
                 presentationSession,
@@ -180,6 +275,7 @@ namespace AbilityKit.Demo.Shooter.View
                 joinRoomId: roomId,
                 restoreRegion: null,
                 restoreServerId: null,
+                syncAssemblyOptions,
                 tickRate,
                 timeout,
                 cancellationToken);
@@ -195,6 +291,7 @@ namespace AbilityKit.Demo.Shooter.View
             string? joinRoomId,
             string? restoreRegion,
             string? restoreServerId,
+            ShooterClientSyncAssemblyOptions syncAssemblyOptions,
             int tickRate,
             TimeSpan? timeout,
             CancellationToken cancellationToken)
@@ -223,7 +320,7 @@ namespace AbilityKit.Demo.Shooter.View
                 : await flow.RestoreRoomAsync(sessionToken, restoreRegion, restoreServerId ?? string.Empty, launchSpec, playerId, timeout, cancellationToken).ConfigureAwait(false);
 
             var gatewayClient = new ShooterRoomGatewayClient(_transport);
-            var session = new ShooterClientSession(runtime, presentationSession, tickRate, decoder: null, gatewayClient);
+            var session = new ShooterClientSession(runtime, presentationSession, tickRate, syncAssemblyOptions, gatewayClient);
             var alignedStartGame = startGame.WithWorldStartAnchor(
                 flowResult.WorldId,
                 flowResult.WorldStartAnchor.StartServerTicks,
@@ -245,6 +342,7 @@ namespace AbilityKit.Demo.Shooter.View
                 battle,
                 flowResult);
         }
+
     }
 
     public sealed class ShooterClientGatewayRestoreResult : ShooterClientGatewayLaunchResult

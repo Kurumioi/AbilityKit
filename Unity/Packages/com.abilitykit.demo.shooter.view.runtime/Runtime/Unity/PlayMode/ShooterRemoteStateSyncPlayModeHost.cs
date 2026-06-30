@@ -195,6 +195,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     launchSpec,
                     (uint)launchOptions.SessionOptions.ControlledPlayerId).ConfigureAwait(false);
 
+                await RequestInitialFullStateSyncIfNeededAsync(
+                    connectionResult,
+                    launcher,
+                    launchOptions.Timeout,
+                    launchOptions.SessionOptions.TickRate).ConfigureAwait(false);
+
                 _lastConnectionResult = connectionResult;
                 connectionResult.Launch.Session.Presentation.ControlledPlayerId = launchOptions.SessionOptions.ControlledPlayerId;
 
@@ -301,6 +307,45 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastRemoteTimeAnchor = default;
             _lastRemoteLatencyCompensationDiagnostics = default;
             _isStarting = false;
+        }
+
+        private static async Task RequestInitialFullStateSyncIfNeededAsync(
+            ShooterRemoteStateSyncConnectionResult connectionResult,
+            ShooterClientNetworkLauncher launcher,
+            TimeSpan timeout,
+            int tickRate)
+        {
+            if (!ShouldRequestInitialFullStateSync(connectionResult.EntryKind))
+            {
+                return;
+            }
+
+            var request = connectionResult.Launch.Battle.RequestFullSnapshotBaselineAsync(timeout);
+            var deadline = DateTime.UtcNow + timeout;
+            var fixedDeltaTime = 1f / Math.Max(1, tickRate);
+
+            while (!request.IsCompleted)
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    throw new TimeoutException("Timed out requesting initial Shooter full-state sync.");
+                }
+
+                launcher.Tick(fixedDeltaTime);
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+
+            var result = await request.ConfigureAwait(false);
+            if (!result.Success || !result.Accepted)
+            {
+                throw new InvalidOperationException($"Initial Shooter full-state sync request was rejected. Success={result.Success}, Accepted={result.Accepted}, Message={result.Message}");
+            }
+        }
+
+        private static bool ShouldRequestInitialFullStateSync(ShooterRoomGatewayEntryKind entryKind)
+        {
+            return entryKind == ShooterRoomGatewayEntryKind.LateJoin
+                || entryKind == ShooterRoomGatewayEntryKind.Reconnect;
         }
 
         private static ShooterStartGamePayload BuildStartPayload(ShooterPlayModeSessionOptions options)

@@ -342,6 +342,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.FromResult(_runtimeSession?.GetSnapshot(_battleHostState.Frame));
     }
 
+    public Task<BattleWorldDiagnostics?> GetWorldDiagnosticsAsync()
+    {
+        return Task.FromResult(_runtimeSession?.GetWorldDiagnostics(_worldId, _battleHostState.Frame));
+    }
+
     public Task<WorldStartAnchor?> GetWorldStartAnchorAsync()
     {
         return Task.FromResult(_worldStartAnchor);

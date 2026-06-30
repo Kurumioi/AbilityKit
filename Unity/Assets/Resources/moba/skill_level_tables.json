@@ -1,12 +1,33 @@
 [
   {
     "Id": 10010101,
+    "ParamNames": ["damage", "dashDistance", "dashDurationMs", "dashSpeed", "knockUpDurationMs", "knockUpSpeed", "armorBuffDurationMs"],
     "Levels": [
-      { "CooldownMs": 5000, "Cost": 0, "Params": [100.0] },
-      { "CooldownMs": 4500, "Cost": 0, "Params": [150.0] },
-      { "CooldownMs": 4000, "Cost": 0, "Params": [200.0] },
-      { "CooldownMs": 3500, "Cost": 0, "Params": [250.0] },
-      { "CooldownMs": 3000, "Cost": 0, "Params": [300.0] }
+      { "CooldownMs": 9000, "Cost": 40, "Params": [160.0, 8.0, 650.0, 12.3, 300.0, 7.0, 1500.0] },
+      { "CooldownMs": 8600, "Cost": 45, "Params": [200.0, 8.0, 650.0, 12.3, 320.0, 7.5, 1500.0] },
+      { "CooldownMs": 8200, "Cost": 50, "Params": [240.0, 8.0, 650.0, 12.3, 340.0, 8.0, 1500.0] },
+      { "CooldownMs": 7800, "Cost": 55, "Params": [280.0, 8.0, 650.0, 12.3, 360.0, 8.5, 1500.0] },
+      { "CooldownMs": 7400, "Cost": 60, "Params": [320.0, 8.0, 650.0, 12.3, 380.0, 9.0, 1500.0] }
+    ]
+  },
+  {
+    "Id": 10010201,
+    "ParamNames": ["damage", "radius", "delayMs", "shieldValue", "shieldDurationMs", "slowPercent", "slowDurationMs", "armorBuffDurationMs"],
+    "Levels": [
+      { "CooldownMs": 11000, "Cost": 50, "Params": [180.0, 3.5, 450.0, 350.0, 2500.0, 0.30, 1500.0, 1500.0] },
+      { "CooldownMs": 10600, "Cost": 55, "Params": [230.0, 3.5, 450.0, 450.0, 2500.0, 0.35, 1500.0, 1500.0] },
+      { "CooldownMs": 10200, "Cost": 60, "Params": [280.0, 3.5, 450.0, 550.0, 2500.0, 0.40, 1500.0, 1500.0] },
+      { "CooldownMs": 9800, "Cost": 65, "Params": [330.0, 3.5, 450.0, 650.0, 2500.0, 0.45, 1500.0, 1500.0] },
+      { "CooldownMs": 9400, "Cost": 70, "Params": [380.0, 3.5, 450.0, 750.0, 2500.0, 0.50, 1500.0, 1500.0] }
+    ]
+  },
+  {
+    "Id": 10010301,
+    "ParamNames": ["stageDamage", "radius", "stageIntervalMs", "areaDurationMs", "thirdKnockUpDurationMs", "thirdKnockUpSpeed", "armorBuffDurationMs"],
+    "Levels": [
+      { "CooldownMs": 40000, "Cost": 100, "Params": [150.0, 4.5, 650.0, 300.0, 500.0, 8.0, 1800.0] },
+      { "CooldownMs": 37000, "Cost": 110, "Params": [225.0, 4.5, 650.0, 300.0, 550.0, 8.5, 1800.0] },
+      { "CooldownMs": 34000, "Cost": 120, "Params": [300.0, 4.5, 650.0, 300.0, 600.0, 9.0, 1800.0] }
     ]
   },
   {

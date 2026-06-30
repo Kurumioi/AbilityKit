@@ -35,6 +35,46 @@
                     {
                         "trigger_id":  22001,
                         "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10010000,
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10010101,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010111,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010201,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010211,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010301,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010311,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010321,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010331,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10010341,
+                        "category":  "skills"
                     }
                 ]
 }

@@ -13,7 +13,8 @@
     "AbilityKit.GameFramework.Network",
     "AbilityKit.Game.View.Runtime",
     "AbilityKit.Host.Extensions.Client",
-    "AbilityKit.World.FrameSync"
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.Record"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

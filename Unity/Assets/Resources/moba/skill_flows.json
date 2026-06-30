@@ -1,7 +1,7 @@
 [
   {
     "Id": 10010101,
-    "Name": "廉颇-技能1",
+    "Name": "廉颇-爆裂冲撞-配置先行版",
     "Phases": [
       {
         "Type": 1,
@@ -15,9 +15,10 @@
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 500,
+          "DurationMs": 650,
           "Events": [
-            { "AtMs": 0, "EffectId": 10001, "ExecuteMode": 0, "EventTag": "" }
+            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
+            { "AtMs": 0, "EffectId": 10010101, "ExecuteMode": 0, "EventTag": "lp_skill_1_cast" }
           ]
         }
       }
@@ -25,7 +26,7 @@
   },
   {
     "Id": 10010201,
-    "Name": "廉颇-技能2",
+    "Name": "廉颇-熔岩重击-配置先行版",
     "Phases": [
       {
         "Type": 1,
@@ -39,9 +40,10 @@
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 800,
+          "DurationMs": 700,
           "Events": [
-            { "AtMs": 0, "EffectId": 10002, "ExecuteMode": 0, "EventTag": "" }
+            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
+            { "AtMs": 0, "EffectId": 10010201, "ExecuteMode": 0, "EventTag": "lp_skill_2_cast" }
           ]
         }
       }
@@ -49,7 +51,7 @@
   },
   {
     "Id": 10010301,
-    "Name": "廉颇-技能3",
+    "Name": "廉颇-天崩地裂-配置先行版",
     "Phases": [
       {
         "Type": 1,
@@ -63,9 +65,12 @@
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 1000,
+          "DurationMs": 1600,
           "Events": [
-            { "AtMs": 0, "EffectId": 10003, "ExecuteMode": 0, "EventTag": "" }
+            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
+            { "AtMs": 0, "EffectId": 10010301, "ExecuteMode": 0, "EventTag": "lp_skill_3_start" },
+            { "AtMs": 650, "EffectId": 10010311, "ExecuteMode": 0, "EventTag": "lp_skill_3_second" },
+            { "AtMs": 1300, "EffectId": 10010321, "ExecuteMode": 0, "EventTag": "lp_skill_3_third" }
           ]
         }
       }

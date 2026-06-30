@@ -11,6 +11,8 @@ internal enum ShooterStateSyncPushPayloadMode
 
 internal sealed class ShooterStateSyncPushOptions
 {
+    public const string PayloadModeEnvironmentVariable = "ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE";
+
     private const int LimitedBandwidthKbps = 256;
     private const int HighLatencyMs = 120;
     private const double LossyLinkRate = 0.02d;
@@ -39,6 +41,35 @@ internal sealed class ShooterStateSyncPushOptions
     public static ShooterStateSyncPushOptions PureState(NetworkConditionProfile networkCondition, ShooterPureStateSyncSettings? settings = null)
     {
         return new ShooterStateSyncPushOptions(ShooterStateSyncPushPayloadMode.PureState, networkCondition, settings);
+    }
+
+    public static ShooterStateSyncPushOptions FromEnvironmentDefault()
+    {
+        var value = Environment.GetEnvironmentVariable(PayloadModeEnvironmentVariable);
+        return TryParsePayloadMode(value, out var payloadMode) && payloadMode == ShooterStateSyncPushPayloadMode.PureState
+            ? PureState(NetworkConditionProfile.Ideal)
+            : PackedDefault;
+    }
+
+    public static bool TryParsePayloadMode(string? value, out ShooterStateSyncPushPayloadMode payloadMode)
+    {
+        if (string.Equals(value, "pure-state", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "purestate", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "pure_state", StringComparison.OrdinalIgnoreCase))
+        {
+            payloadMode = ShooterStateSyncPushPayloadMode.PureState;
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "packed", StringComparison.OrdinalIgnoreCase))
+        {
+            payloadMode = ShooterStateSyncPushPayloadMode.Packed;
+            return true;
+        }
+
+        payloadMode = ShooterStateSyncPushPayloadMode.Packed;
+        return false;
     }
 
     public ShooterPureStateSyncSettings ResolvePureStateSettings()

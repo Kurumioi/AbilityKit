@@ -129,8 +129,8 @@ internal static class GatewaySkillAcceptanceArtifacts
         var now = DateTime.UtcNow;
         var summaryPath = Path.Combine(directory.FullPath, caseId + SummaryFileSuffix);
         var tracePath = Path.Combine(directory.FullPath, caseId + TraceFileSuffix);
-        var summary = BuildGeneratedSummary(request, caseId, operationId, summaryPath, tracePath, now);
         var traceRecords = BuildGeneratedTraceRecords(request, caseId, operationId);
+        var summary = BuildGeneratedSummary(request, caseId, operationId, summaryPath, tracePath, now, traceRecords);
         File.WriteAllText(summaryPath, summary.ToJsonString());
         File.WriteAllLines(tracePath, traceRecords.Select(record => record.ToJsonString()));
         WriteOrUpdateGeneratedBatch(directory.FullPath);
@@ -478,7 +478,7 @@ internal static class GatewaySkillAcceptanceArtifacts
             lastWrite);
     }
 
-    private static JsonObject BuildGeneratedSummary(AdminSkillAcceptanceRunRequest request, string caseId, string operationId, string summaryPath, string tracePath, DateTime now)
+    private static JsonObject BuildGeneratedSummary(AdminSkillAcceptanceRunRequest request, string caseId, string operationId, string summaryPath, string tracePath, DateTime now, JsonObject[] traceRecords)
     {
         var description = string.IsNullOrWhiteSpace(request.Description) ? "AdminConsole 参数化战斗分析导出" : request.Description!;
         return new JsonObject
@@ -514,7 +514,7 @@ internal static class GatewaySkillAcceptanceArtifacts
                 ["passed"] = true,
                 ["finalFrame"] = Math.Max(8, request.DurationFrames),
                 ["finalTimeMs"] = Math.Max(8, request.DurationFrames) * 1000 / NormalizePositive(request.TickRate, 30),
-                ["traceNodeCount"] = BuildGeneratedTraceRecords(request, caseId, operationId).Length,
+                ["traceNodeCount"] = traceRecords.Length,
                 ["skillCastTraceFound"] = true,
                 ["effectExecutionTraceFound"] = true,
                 ["damagePipelineTraceFound"] = true,
@@ -522,7 +522,9 @@ internal static class GatewaySkillAcceptanceArtifacts
                 ["areaCreated"] = request.AreaId > 0,
                 ["buffApplied"] = request.BuffId > 0,
                 ["shieldObserved"] = request.ShieldId > 0 || request.ShieldAbsorb > 0
-            }
+            },
+            ["traceDictionaryVersion"] = "moba-trace-dictionary/v1 source=admin-built-in-export",
+            ["traceDictionary"] = BuildGeneratedTraceDictionary(traceRecords)
         };
     }
 
@@ -539,54 +541,68 @@ internal static class GatewaySkillAcceptanceArtifacts
         var durationFrames = Math.Max(8, request.DurationFrames);
         var records = new List<JsonObject>
         {
-            TraceRecord(1001, 0, 1001, "SkillCast", "skill-cast", 1, "info", "主动技能进入 SkillPipelineRunner", actorId, targetActorId, skillId, null, null, operationId, caseId),
-            TraceRecord(1002, 1001, 1001, "TriggerCondition", "trigger-condition", 2, "info", "预算、距离、目标与释放条件通过", actorId, targetActorId, skillId, null, null, operationId, caseId),
-            TraceRecord(1003, 1001, 1001, "EffectExecution", "effect-execution", 3, "info", "MobaEffectExecutionService 执行效果计划", actorId, targetActorId, skillId, effectId, 1001, operationId, caseId)
+            TraceRecord(1001, 0, 1001, "SkillCast", "skill-cast", 1, "info", "主动技能进入 SkillPipelineRunner", actorId, targetActorId, skillId, null, null, operationId, caseId, configKind: "skill"),
+            TraceRecord(1002, 1001, 1001, "TriggerCondition", "trigger-condition", 2, "info", "预算、距离、目标与释放条件通过", actorId, targetActorId, skillId, null, null, operationId, caseId, configKind: "skill"),
+            TraceRecord(1003, 1001, 1001, "EffectExecution", "effect-execution", 3, "info", "MobaEffectExecutionService 执行效果计划", actorId, targetActorId, skillId, effectId, 1001, operationId, caseId, configKind: "effect")
         };
 
         var parent = 1003;
         if (request.ProjectileId > 0)
         {
-            records.Add(TraceRecord(1004, parent, 1001, "ProjectileLaunch", "projectile", 4, "info", "MobaProjectileSyncSystem 创建并推进投射物", actorId, targetActorId, skillId, request.ProjectileId, parent, operationId, caseId));
+            records.Add(TraceRecord(1004, parent, 1001, "ProjectileLaunch", "projectile", 4, "info", "MobaProjectileSyncSystem 创建并推进投射物", actorId, targetActorId, skillId, request.ProjectileId, parent, operationId, caseId, configKind: "projectile"));
             parent = 1004;
         }
 
         if (request.AreaId > 0)
         {
-            records.Add(TraceRecord(1005, parent, 1001, "AreaLifecycle", "area", 5, "info", "MobaAreaSyncSystem 创建区域并完成命中查询", actorId, targetActorId, skillId, request.AreaId, parent, operationId, caseId));
+            records.Add(TraceRecord(1005, parent, 1001, "AreaLifecycle", "area", 5, "info", "MobaAreaSyncSystem 创建区域并完成命中查询", actorId, targetActorId, skillId, request.AreaId, parent, operationId, caseId, configKind: "area"));
             parent = 1005;
         }
 
         if (request.BuffId > 0)
         {
-            records.Add(TraceRecord(1006, parent, 1001, "BuffLifecycle", "buff", 6, "info", "MobaBuffLifecycleReconcileSystem 应用 Buff 并建立持续行为", actorId, targetActorId, skillId, request.BuffId, parent, operationId, caseId));
-            records.Add(TraceRecord(1007, 1006, 1001, "ContinuousTick", "continuous", Math.Min(durationFrames, 12), "info", "MobaContinuousTickSystem 触发持续 Tick", actorId, targetActorId, skillId, request.BuffId, 1006, operationId, caseId));
+            records.Add(TraceRecord(1006, parent, 1001, "BuffLifecycle", "buff", 6, "info", "MobaBuffLifecycleReconcileSystem 应用 Buff 并建立持续行为", actorId, targetActorId, skillId, request.BuffId, parent, operationId, caseId, configKind: "buff"));
+            records.Add(TraceRecord(1007, 1006, 1001, "ContinuousTick", "continuous", Math.Min(durationFrames, 12), "info", "MobaContinuousTickSystem 触发持续 Tick", actorId, targetActorId, skillId, request.BuffId, 1006, operationId, caseId, configKind: "buff"));
         }
 
         if (request.ShieldId > 0 || shieldAbsorb > 0)
         {
-            records.Add(TraceRecord(1008, 1003, 1001, "ShieldLifecycle", "shield", 7, "info", "MobaShieldService 参与护盾吸收", actorId, targetActorId, skillId, request.ShieldId, 1003, operationId, caseId));
+            records.Add(TraceRecord(1008, 1003, 1001, "ShieldLifecycle", "shield", 7, "info", "MobaShieldService 参与护盾吸收", actorId, targetActorId, skillId, request.ShieldId, 1003, operationId, caseId, configKind: "shield"));
         }
 
-        records.Add(TraceRecord(1009, 1003, 1001, "DamagePipeline", "damage", Math.Max(8, durationFrames - 2), "info", "DamagePipelineService 完成基础、减免、护盾与生命扣减", actorId, targetActorId, skillId, effectId, 1003, operationId, caseId, baseDamage, mitigatedDamage, shieldAbsorb, hpDamage));
-        records.Add(TraceRecord(1010, 1009, 1001, "PresentationCue", "presentation", Math.Max(9, durationFrames - 1), "info", "表现层接收伤害、命中和生命周期提示", actorId, targetActorId, skillId, effectId, 1009, operationId, caseId));
-        records.Add(TraceRecord(1011, 1009, 1001, "Assertion", "assertion", durationFrames, "info", "后台导出断言通过", actorId, targetActorId, skillId, effectId, 1009, operationId, caseId));
+        records.Add(TraceRecord(1009, 1003, 1001, "DamagePipeline", "damage", Math.Max(8, durationFrames - 2), "info", "DamagePipelineService 完成基础、减免、护盾与生命扣减", actorId, targetActorId, skillId, effectId, 1003, operationId, caseId, baseDamage, mitigatedDamage, shieldAbsorb, hpDamage, "effect"));
+        records.Add(TraceRecord(1010, 1009, 1001, "PresentationCue", "presentation", Math.Max(9, durationFrames - 1), "info", "表现层接收伤害、命中和生命周期提示", actorId, targetActorId, skillId, effectId, 1009, operationId, caseId, configKind: "presentation"));
+        records.Add(TraceRecord(1011, 1009, 1001, "Assertion", "assertion", durationFrames, "info", "后台导出断言通过", actorId, targetActorId, skillId, effectId, 1009, operationId, caseId, configKind: "assertion"));
         return records.ToArray();
     }
 
-    private static JsonObject TraceRecord(int contextId, int parentContextId, int rootContextId, string kind, string stage, int frame, string severity, string message, int actorId, int targetActorId, int skillId, int? configId, int? ownerContextId, string operationId, string caseId, int? baseDamage = null, int? mitigatedDamage = null, int? shieldAbsorb = null, int? hpDamage = null)
+    private static JsonObject TraceRecord(int contextId, int parentContextId, int rootContextId, string kind, string stage, int frame, string severity, string message, int actorId, int targetActorId, int skillId, int? configId, int? ownerContextId, string operationId, string caseId, int? baseDamage = null, int? mitigatedDamage = null, int? shieldAbsorb = null, int? hpDamage = null, string configKind = "config")
     {
+        var effectiveConfigId = configId ?? skillId;
+        var configLabel = BuildGeneratedConfigLabel(configKind, effectiveConfigId);
+        var runtimeLabel = $"{kind} context #{contextId}";
         var node = new JsonObject
         {
             ["contextId"] = contextId,
+            ["nodeId"] = contextId,
             ["parentContextId"] = parentContextId,
+            ["parentId"] = parentContextId,
             ["rootContextId"] = rootContextId,
+            ["rootId"] = rootContextId,
             ["kind"] = kind,
             ["stage"] = stage,
             ["actorId"] = actorId,
             ["sourceActorId"] = actorId,
             ["targetActorId"] = targetActorId,
             ["skillId"] = skillId,
+            ["displayName"] = configLabel,
+            ["configLabel"] = configLabel,
+            ["runtimeLabel"] = runtimeLabel,
+            ["actorLabel"] = $"来源角色 #{actorId}",
+            ["sourceActorLabel"] = $"来源角色 #{actorId}",
+            ["targetActorLabel"] = $"目标角色 #{targetActorId}",
+            ["configSource"] = "admin-built-in-template",
+            ["semanticVersion"] = "moba-trace-dictionary/v1 source=admin-built-in-export",
             ["frame"] = frame,
             ["timeMs"] = frame * 33,
             ["severity"] = severity,
@@ -594,7 +610,7 @@ internal static class GatewaySkillAcceptanceArtifacts
             ["operationId"] = operationId,
             ["caseId"] = caseId
         };
-        if (configId.HasValue) node["configId"] = configId.Value;
+        node["configId"] = effectiveConfigId;
         if (ownerContextId.HasValue) node["ownerContextId"] = ownerContextId.Value;
         if (baseDamage.HasValue) node["baseDamage"] = baseDamage.Value;
         if (mitigatedDamage.HasValue) node["mitigatedDamage"] = mitigatedDamage.Value;
@@ -602,6 +618,49 @@ internal static class GatewaySkillAcceptanceArtifacts
         if (hpDamage.HasValue) node["hpDamage"] = hpDamage.Value;
         if (hpDamage.HasValue) node["finalDamage"] = hpDamage.Value;
         return node;
+    }
+
+    private static JsonArray BuildGeneratedTraceDictionary(JsonObject[] traceRecords)
+    {
+        var entries = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+        foreach (var record in traceRecords)
+        {
+            AddGeneratedDictionaryEntry(entries, "trace-kind", ReadString(record, "kind") ?? string.Empty, ReadString(record, "kind") ?? string.Empty, "MobaTraceKind");
+            AddGeneratedDictionaryEntry(entries, "config", ReadInt(record, "configId").ToString(), ReadString(record, "configLabel") ?? string.Empty, ReadString(record, "configSource") ?? "admin-built-in-template");
+            AddGeneratedDictionaryEntry(entries, "actor", ReadInt(record, "sourceActorId").ToString(), ReadString(record, "sourceActorLabel") ?? string.Empty, "admin-built-in-template");
+            AddGeneratedDictionaryEntry(entries, "actor", ReadInt(record, "targetActorId").ToString(), ReadString(record, "targetActorLabel") ?? string.Empty, "admin-built-in-template");
+        }
+
+        var array = new JsonArray();
+        foreach (var entry in entries.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => pair.Value))
+        {
+            array.Add(entry);
+        }
+
+        return array;
+    }
+
+    private static void AddGeneratedDictionaryEntry(Dictionary<string, JsonObject> entries, string kind, string id, string label, string source)
+    {
+        if (string.IsNullOrWhiteSpace(id) || string.Equals(id, "0", StringComparison.Ordinal)) return;
+        var key = kind + ":" + id;
+        if (entries.ContainsKey(key)) return;
+        entries[key] = new JsonObject
+        {
+            ["key"] = key,
+            ["kind"] = kind,
+            ["id"] = id,
+            ["name"] = string.IsNullOrWhiteSpace(label) ? id : label,
+            ["label"] = string.IsNullOrWhiteSpace(label) ? kind + " #" + id : label,
+            ["source"] = source,
+            ["sourceVersion"] = "moba-trace-dictionary/v1 source=admin-built-in-export"
+        };
+    }
+
+    private static string BuildGeneratedConfigLabel(string configKind, int configId)
+    {
+        var kind = string.IsNullOrWhiteSpace(configKind) ? "config" : configKind;
+        return configId > 0 ? kind + " #" + configId : kind;
     }
 
     private static void DeleteArtifactFile(string path, List<string> deletedPaths, List<string> warnings, ref bool deleted)

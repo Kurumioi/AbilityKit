@@ -1,7 +1,23 @@
 export interface ApiResult<T> {
   ok: boolean;
   status: number;
+  statusText?: string;
+  method?: string;
+  url?: string;
+  durationMs?: number;
   body: T | string | null;
+}
+
+export interface AdminApiCallLogItem {
+  id: number;
+  ok: boolean;
+  status: number;
+  statusText: string;
+  method: string;
+  url: string;
+  durationMs: number;
+  occurredAt: string;
+  summary: string;
 }
 
 export interface GameplayDescriptor {
@@ -63,6 +79,41 @@ export interface ShooterSandboxState {
   currentFrame: number;
   serverNowTicks: number;
   snapshot?: RoomSnapshot | null;
+}
+
+export interface ShooterWorldDiagnostics {
+  battleId: string;
+  worldType: string;
+  worldId: number;
+  frame: number;
+  stateHash: number;
+  entityCount: number;
+  entities: ShooterWorldEntityDiagnostics[];
+  componentChunks: ShooterWorldComponentChunkDiagnostics[];
+  warnings: string[];
+  serverNowTicks: number;
+}
+
+export interface ShooterWorldEntityDiagnostics {
+  key: string;
+  entityId: number;
+  entityKind: string;
+  group: string;
+  label: string;
+  alive: boolean;
+  components: ShooterWorldComponentDiagnostics[];
+}
+
+export interface ShooterWorldComponentDiagnostics {
+  name: string;
+  componentKind: string;
+  fields: Record<string, string>;
+}
+
+export interface ShooterWorldComponentChunkDiagnostics {
+  componentKind: string;
+  entityKind: string;
+  count: number;
 }
 
 export interface AdminServerStatus {

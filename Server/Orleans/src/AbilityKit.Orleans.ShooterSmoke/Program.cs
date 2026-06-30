@@ -9,8 +9,15 @@ using Microsoft.Extensions.Logging;
 using Orleans;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
+const string ShooterStateSyncPayloadModeEnvironmentVariable = "ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE";
+
 var options = ShooterSmokeProgramOptions.Parse(args);
 var tcpGatewayHost = options.Host;
+
+if (!options.ClientMode)
+{
+    Environment.SetEnvironmentVariable(ShooterStateSyncPayloadModeEnvironmentVariable, options.StateSyncPayloadMode);
+}
 
 if (options.ClientMode)
 {
@@ -64,7 +71,7 @@ try
     else
     {
         var clusterClient = host.Services.GetRequiredService<IClusterClient>();
-        var result = await ShooterSmokeRunner.RunAsync(clusterClient, tcpGatewayHost, options.TcpGatewayPort);
+        var result = await ShooterSmokeRunner.RunAsync(clusterClient, tcpGatewayHost, options.TcpGatewayPort, options.InputLogicReplayOutputPath);
         Console.WriteLine(ShooterSmokeResultFormatter.FormatPassed(result));
     }
 }
@@ -116,7 +123,9 @@ readonly record struct ShooterSmokeProgramOptions(
     bool ReconnectOnce,
     int ReconnectDelayMs,
     SmokeNetworkConditionOptions NetworkCondition,
-    string ReplayOutputPath)
+    string StateSyncPayloadMode,
+    string InputStateReplayOutputPath,
+    string InputLogicReplayOutputPath)
 {
     public ShooterSmokeClientProcessOptions ToClientProcessOptions()
     {
@@ -134,7 +143,8 @@ readonly record struct ShooterSmokeProgramOptions(
             ReconnectOnce,
             ReconnectDelayMs,
             NetworkCondition,
-            ReplayOutputPath);
+            StateSyncPayloadMode,
+            InputStateReplayOutputPath);
     }
 
     public static ShooterSmokeProgramOptions Parse(string[] args)
@@ -157,7 +167,9 @@ readonly record struct ShooterSmokeProgramOptions(
         var conditionJitterMs = 0;
         var conditionPacketLossRate = 0d;
         var conditionSeed = 20260610;
-        var replayOutputPath = string.Empty;
+        var inputStateReplayOutputPath = string.Empty;
+        var inputLogicReplayOutputPath = string.Empty;
+        var stateSyncPayloadMode = "packed";
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -280,9 +292,28 @@ readonly record struct ShooterSmokeProgramOptions(
                     timeout = TimeSpan.FromSeconds(parsedSeconds);
                 }
             }
+            else if ((string.Equals(arg, "--state-sync-payload-mode", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--payload-mode", StringComparison.OrdinalIgnoreCase)) && i + 1 < args.Length)
+            {
+                var value = NormalizeStateSyncPayloadMode(args[++i]);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    stateSyncPayloadMode = value;
+                }
+            }
             else if (string.Equals(arg, "--replay-output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                replayOutputPath = args[++i];
+                inputStateReplayOutputPath = args[++i];
+            }
+            else if ((string.Equals(arg, "--client-state-replay-output", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--input-state-replay-output", StringComparison.OrdinalIgnoreCase)) && i + 1 < args.Length)
+            {
+                inputStateReplayOutputPath = args[++i];
+            }
+            else if ((string.Equals(arg, "--server-frame-replay-output", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--input-logic-replay-output", StringComparison.OrdinalIgnoreCase)) && i + 1 < args.Length)
+            {
+                inputLogicReplayOutputPath = args[++i];
             }
         }
 
@@ -306,7 +337,27 @@ readonly record struct ShooterSmokeProgramOptions(
                 conditionJitterMs,
                 conditionPacketLossRate,
                 conditionSeed).Normalize(),
-            replayOutputPath);
+            stateSyncPayloadMode,
+            inputStateReplayOutputPath,
+            inputLogicReplayOutputPath);
+    }
+
+    private static string NormalizeStateSyncPayloadMode(string? value)
+    {
+        if (string.Equals(value, "pure-state", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "purestate", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "pure_state", StringComparison.OrdinalIgnoreCase))
+        {
+            return "pure-state";
+        }
+
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "packed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "packed";
+        }
+
+        throw new ArgumentException($"Unsupported Shooter state-sync payload mode: {value}");
     }
 }
 

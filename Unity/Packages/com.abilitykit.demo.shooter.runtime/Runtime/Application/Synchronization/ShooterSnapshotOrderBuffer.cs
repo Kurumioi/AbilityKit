@@ -47,7 +47,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            _order = new int[count];
+            var newCapacity = _order.Length == 0 ? 16 : _order.Length;
+            while (newCapacity < count)
+            {
+                newCapacity = checked(newCapacity * 2);
+            }
+
+            _order = new int[newCapacity];
         }
 
         private static void SortPlayers(int[] order, NB<ShooterSveltoPlayerComponent> players, int count)

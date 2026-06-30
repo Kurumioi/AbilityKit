@@ -1,14 +1,14 @@
 using System;
 using System.IO;
 using AbilityKit.Core.Logging;
-using AbilityKit.Core.Recording.Lockstep;
+using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Ability.World.Abstractions;
 
 namespace AbilityKit.Game.Flow.Battle.Replay
 {
     internal sealed class DefaultBattleReplayDriverProvider : IBattleReplayDriverProvider
     {
-        public bool TryCreate(in BattleStartPlan plan, out LockstepReplayDriver driver)
+        public bool TryCreate(in BattleStartPlan plan, out FrameReplayDriver driver)
         {
             driver = null;
 
@@ -20,11 +20,11 @@ namespace AbilityKit.Game.Flow.Battle.Replay
                 var path = plan.RunModeOptions.InputReplayPath;
                 if (string.IsNullOrEmpty(path)) return false;
 
-                LockstepInputRecordFile file;
-                file = LockstepInputRecordCodecs.Current.Load(path);
+                FrameRecordFile file;
+                file = FrameRecordCodecs.Current.Load(path);
                 if (file == null) return false;
 
-                driver = new LockstepReplayDriver(new WorldId(world.WorldId), file);
+                driver = new FrameReplayDriver(new WorldId(world.WorldId), file);
                 return true;
             }
             catch (Exception ex)
