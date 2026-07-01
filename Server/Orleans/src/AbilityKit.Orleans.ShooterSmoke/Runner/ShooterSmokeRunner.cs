@@ -21,7 +21,8 @@ internal static class ShooterSmokeRunner
         connection.Open(host, port);
         connection.Tick(0f);
 
-        var login = await LoginGuestAsync(connection);
+        var primaryAccountId = $"shooter-smoke-account-{Guid.NewGuid():N}";
+        var login = await LoginAccountAsync(connection, primaryAccountId, kickExisting: true);
         var presentationContext = ShooterSmokeScenarioBase.CreatePresentationContext();
         var runtime = presentationContext.Runtime;
         var presentation = presentationContext.Presentation;
@@ -220,6 +221,9 @@ internal static class ShooterSmokeRunner
 
     private static Task<ShooterSmokeLogin> LoginGuestAsync(AbilityKit.Network.Abstractions.IConnection connection) =>
         ShooterSmokeScenarioBase.LoginGuestAsync(connection);
+
+    private static Task<ShooterSmokeLogin> LoginAccountAsync(AbilityKit.Network.Abstractions.IConnection connection, string accountId, bool kickExisting = true, int expireSeconds = 0) =>
+        ShooterSmokeScenarioBase.LoginAccountAsync(connection, accountId, kickExisting, expireSeconds);
 
     private sealed record ShooterCompleteGameplayLoopSmokeResult(
         int StartFrame,
@@ -625,23 +629,18 @@ internal static class ShooterSmokeRunner
             }
         };
 
-        var launched = await launcher.JoinReadyStartAndSubscribeAsync(
+        var launched = await ReloginAndRestoreRoomAsync(
+            launcher,
+            connection,
             host,
             port,
             runtime,
             presentationSession,
             start,
+            accountId,
             sessionToken,
             roomId,
-            ShooterRoomLaunchSpec.CreateDefault("shooter-smoke-reconnect-client"),
-            playerId: 1u,
-            timeout: timeout);
-
-        ValidateLaunch(launched);
-        if (launched.Flow.EntryKind != ShooterRoomGatewayEntryKind.Reconnect)
-        {
-            throw new InvalidOperationException($"Shooter reconnect expected reconnect entry kind. Actual={launched.Flow.EntryKind}");
-        }
+            timeout);
 
         var applyResult = await pushWait.Task.WaitAsync(timeout);
         if (applyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot && applyResult != ShooterSnapshotApplyResult.AppliedActorSnapshot)
@@ -667,6 +666,53 @@ internal static class ShooterSmokeRunner
             projectionResult.FinalEntityCount,
             projectionResult.FinalPlayerCount,
             projectionResult.FinalBulletCount);
+    }
+
+    private static async Task<ShooterClientNetworkRestoreResult> ReloginAndRestoreRoomAsync(
+        ShooterClientNetworkLauncher launcher,
+        AbilityKit.Network.Abstractions.IConnection connection,
+        string host,
+        int port,
+        IShooterBattleRuntimePort runtime,
+        ShooterPresentationSessionContext presentationSession,
+        ShooterStartGamePayload start,
+        string accountId,
+        string previousSessionToken,
+        string expectedRoomId,
+        TimeSpan timeout)
+    {
+        var relogin = await LoginAccountAsync(connection, accountId, kickExisting: true);
+        if (string.Equals(relogin.SessionToken, previousSessionToken, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Shooter reconnect account login did not rotate session token.");
+        }
+
+        var launchSpec = ShooterRoomLaunchSpec.CreateDefault("shooter-smoke-reconnect-client");
+        var launched = await launcher.RestoreRoomAsync(
+            host,
+            port,
+            runtime,
+            presentationSession,
+            start,
+            relogin.SessionToken,
+            launchSpec.Region,
+            launchSpec.ServerId,
+            launchSpec,
+            playerId: 1u,
+            timeout: timeout);
+
+        ValidateLaunch(launched);
+        if (launched.Flow.EntryKind != ShooterRoomGatewayEntryKind.Reconnect)
+        {
+            throw new InvalidOperationException($"Shooter reconnect expected reconnect entry kind. Actual={launched.Flow.EntryKind}");
+        }
+
+        if (!string.Equals(launched.Flow.RoomId, expectedRoomId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Shooter reconnect restored unexpected room. Expected={expectedRoomId}, Actual={launched.Flow.RoomId}");
+        }
+
+        return launched;
     }
 
     private static void ValidateSmokeResult(ShooterSmokeResult result) =>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Host.Builder;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Shooter.Runtime;
@@ -199,29 +200,45 @@ public sealed class ShooterSveltoGameplayScenarioRunnerTests
     }
 
     [Fact]
-    public void LargeScaleEntityBudgetProfileRunsWithExplicitBudgetDiagnostics()
+    public void EntityBudgetProfilesRunSmallMediumAndMassAcceptanceMatrix()
     {
         var container = new WorldContainerBuilder()
             .AddModule(new ShooterWorldModule())
             .Build();
 
         var runner = container.Resolve<IShooterSveltoGameplayScenarioRunner>();
-        var profile = ShooterSveltoGameplayBenchmarkProfiles.LargeScaleEntityBudget;
-        var result = ShooterSveltoGameplayBenchmark.Run(runner, in profile);
+        var profiles = new[]
+        {
+            (Profile: ShooterSveltoGameplayBenchmarkProfiles.SmallScaleEntityBudget, InitialEntities: 68, ActiveSyncBudget: 128),
+            (Profile: ShooterSveltoGameplayBenchmarkProfiles.MediumScaleEntityBudget, InitialEntities: 544, ActiveSyncBudget: 512),
+            (Profile: ShooterSveltoGameplayBenchmarkProfiles.MassScaleEntityBudget, InitialEntities: 4352, ActiveSyncBudget: 2048)
+        };
 
-        Assert.Equal("svelto-large-scale-entity-budget", result.ProfileId);
-        Assert.Equal(profile.Scenario.Id, result.ScenarioId);
-        Assert.Equal(2, result.Iterations);
-        Assert.Equal(4352, result.InitialEntityCount);
-        Assert.Equal(ShooterEntityLimitOptions.DefaultMaxEntityCount, result.EntityBudget.MaxEntityCount);
-        Assert.Equal(2048, result.EntityBudget.ActiveSyncBudget);
-        Assert.Equal(result.InitialEntityCount, result.EntityBudget.RequestedInitialEntityCount);
-        Assert.Equal(result.InitialEntityCount, result.EntityBudget.ClampedInitialEntityCount);
-        Assert.Equal(5648, result.EntityBudget.InitialEntityBudgetHeadroom);
-        Assert.True(result.EntityBudget.InitialEntitiesWithinBudget);
-        Assert.Equal(result.TotalFrames * 2048, result.EntityBudget.TotalActiveSyncBudgetFrames);
-        Assert.True(result.Deterministic);
-        Assert.Equal(result.FirstResult.StateHash, result.LastResult.StateHash);
-        Assert.True(result.LastResult.ProjectilesSpawned > 0);
+        var stateHashes = new HashSet<uint>();
+        foreach (var item in profiles)
+        {
+            var profile = item.Profile;
+            var result = ShooterSveltoGameplayBenchmark.Run(runner, in profile);
+
+            Assert.Equal(profile.Id, result.ProfileId);
+            Assert.Equal(profile.Scenario.Id, result.ScenarioId);
+            Assert.Equal(2, result.Iterations);
+            Assert.Equal(item.InitialEntities, result.InitialEntityCount);
+            Assert.Equal(ShooterEntityLimitOptions.DefaultMaxEntityCount, result.EntityBudget.MaxEntityCount);
+            Assert.Equal(item.ActiveSyncBudget, result.EntityBudget.ActiveSyncBudget);
+            Assert.Equal(result.InitialEntityCount, result.EntityBudget.RequestedInitialEntityCount);
+            Assert.Equal(result.InitialEntityCount, result.EntityBudget.ClampedInitialEntityCount);
+            Assert.Equal(result.EntityBudget.MaxEntityCount - result.InitialEntityCount, result.EntityBudget.InitialEntityBudgetHeadroom);
+            Assert.True(result.EntityBudget.InitialEntitiesWithinBudget);
+            Assert.Equal(result.TotalFrames * item.ActiveSyncBudget, result.EntityBudget.TotalActiveSyncBudgetFrames);
+            Assert.True(result.Deterministic);
+            Assert.Equal(result.FirstResult.StateHash, result.LastResult.StateHash);
+            Assert.True(result.LastResult.ProjectilesSpawned > 0);
+            Assert.True(result.EntityBudget.ElapsedTicks > 0);
+            Assert.True(result.EntityBudget.AllocatedBytes >= 0);
+            Assert.True(result.EntityBudget.AverageFrameTicks >= 0);
+            Assert.True(result.EntityBudget.AverageFrameAllocatedBytes >= 0);
+            Assert.True(stateHashes.Add(result.LastResult.StateHash));
+        }
     }
 }

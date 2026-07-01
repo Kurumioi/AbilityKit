@@ -27,6 +27,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         private SkillCastPolicy ResolveFromSkill(AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillMO skill, in SkillCastPolicy fallback)
         {
+            if (skill == null) return fallback;
+
+            if (skill.Id == 10010101 || skill.Id == 10010201)
+            {
+                return fallback.WithAllowParallel(true);
+            }
+
             return fallback;
         }
 

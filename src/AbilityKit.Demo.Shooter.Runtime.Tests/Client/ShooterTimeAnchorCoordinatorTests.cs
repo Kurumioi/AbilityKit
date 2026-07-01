@@ -47,9 +47,13 @@ public sealed class ShooterTimeAnchorCoordinatorTests
 
         Assert.True(projection.AnchorValid);
         Assert.Equal(1200000L, projection.ServerNowTicks);
+        Assert.True(projection.ServerNowTicks > 0);
         Assert.Equal(33, projection.TargetFrame);
+        Assert.True(projection.TargetFrame >= 0);
         Assert.Equal(3, projection.CatchUpFrames);
+        Assert.True(projection.CatchUpFrames >= 0);
         Assert.Equal(0.1d, projection.ElapsedSeconds, precision: 6);
+        Assert.True(projection.ElapsedSeconds >= 0d);
         Assert.Equal(33, projection.TimeAnchor.LocalFrame);
         Assert.Equal(3L, projection.TimeAnchor.TimelineTicks);
         Assert.True(projection.TimeAnchor.HasAuthoritativeFrame);
@@ -64,7 +68,24 @@ public sealed class ShooterTimeAnchorCoordinatorTests
         var projection = ShooterTimeAnchorCoordinator.ProjectRemote(default, 1200000L);
 
         Assert.False(projection.AnchorValid);
+        Assert.Equal(0L, projection.ServerNowTicks);
         Assert.Equal(0, projection.TargetFrame);
+        Assert.Equal(0, projection.CatchUpFrames);
+        Assert.Equal(0d, projection.ElapsedSeconds);
+        Assert.False(projection.TimeAnchor.HasServerTicks);
+    }
+
+    [Fact]
+    public void ProjectRemoteReturnsDefaultForInvalidServerTicks()
+    {
+        var worldStartAnchor = new ShooterGatewayWorldStartAnchor(200000L, 10000000L, 30, 1d / 30d);
+
+        var projection = ShooterTimeAnchorCoordinator.ProjectRemote(in worldStartAnchor, 0L);
+
+        Assert.False(projection.AnchorValid);
+        Assert.Equal(0L, projection.ServerNowTicks);
+        Assert.Equal(0, projection.TargetFrame);
+        Assert.Equal(0, projection.CatchUpFrames);
         Assert.False(projection.TimeAnchor.HasServerTicks);
     }
 }

@@ -1,4 +1,5 @@
 using AbilityKit.Orleans.Grains.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace AbilityKit.Orleans.Grains.Tests.Persistence;
@@ -29,6 +30,29 @@ public sealed class AbilityKitStateStorageProviderPlanTests : GrainTestBase
         AssertEqualSnapshot(AbilityKitStateStorageProviderKind.External, plan.Kind);
         Assert.True(plan.RequiresConnectionString);
         Assert.True(plan.IsExternal);
+    }
+
+    [Fact]
+    public void AddAbilityKitGrainStateStorage_WhenExternalProviderFallbackAllowed_RegistersInMemoryStores()
+    {
+        var services = new ServiceCollection();
+
+        services.AddAbilityKitGrainStateStorage("External", "External");
+
+        using var provider = services.BuildServiceProvider();
+        Assert.IsType<InMemorySessionStateStore>(provider.GetRequiredService<ISessionStateStore>());
+        Assert.IsType<InMemoryRoomStateStore>(provider.GetRequiredService<IRoomStateStore>());
+    }
+
+    [Fact]
+    public void AddAbilityKitGrainStateStorage_WhenExternalProviderFallbackDisabled_ThrowsNotSupported()
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            services.AddAbilityKitGrainStateStorage("External", "External", allowInMemoryFallbackForUnsupportedProviders: false));
+
+        Assert.Contains("External", exception.Message);
     }
 
     [Fact]

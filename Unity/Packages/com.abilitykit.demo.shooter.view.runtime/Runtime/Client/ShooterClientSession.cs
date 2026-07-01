@@ -105,6 +105,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientReconciliationResult LastReconciliationResult => _syncController.LastReconciliationResult;
 
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _syncController.FrameSyncCoordinator.FrameworkSnapshotPipelineDiagnostics;
+
         public bool NeedsFullSnapshotResync => _syncController.NeedsFullSnapshotResync;
 
         public ShooterClientRecoveryState RecoveryState => _syncController.RecoveryState;

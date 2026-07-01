@@ -1203,6 +1203,236 @@
       ]
     },
     {
+      "id": "starter/foundation",
+      "type": "AbilityKit.Samples.Logic.Samples.Starter.FoundationStarter",
+      "order": 20,
+      "title": "Foundation Starter",
+      "status": "Stable",
+      "level": "Beginner",
+      "modules": [
+        "AbilityKit.Core",
+        "AbilityKit.World.DI",
+        "Samples.Abstractions"
+      ],
+      "tags": [
+        "starter",
+        "foundation",
+        "core",
+        "world-di",
+        "package-api",
+        "web",
+        "deterministic",
+        "beginner"
+      ],
+      "next": [
+        "tags/basic-tags",
+        "world/di-basics"
+      ],
+      "guide": {
+        "purpose": "验证 Foundation 组合可以离开 Demo 独立运行：Core 提供事件和对象池，World.DI 提供服务装配，宿主提供时间推进。",
+        "observe": "重点观察 EventCount、PoolReleaseTotal、WorldTime、TransientDifferent 和 SampleTickCount 是否共同证明基础包闭环成立，并通过 Next.* 字段跳转到已有 SkillCore 示例。",
+        "takeaway": "真实项目可以先按 Foundation 组合接入基础设施，再沿现有 Pipeline、Triggering、Modifiers 示例进入 SkillCore，而不是重新复制一套示例。",
+        "visualKind": "stack",
+        "visualSteps": [
+          "Package Boundary",
+          "Core Event",
+          "Core Pool",
+          "World DI",
+          "Host Tick",
+          "Starter Result"
+        ]
+      },
+      "visualTemplate": "layerStack",
+      "visualModel": {
+        "laneLabels": [
+          "Foundation Packages",
+          "Runtime",
+          "Host Output"
+        ],
+        "highlightMetric": "FoundationStarter.Result",
+        "outputHints": [
+          "FoundationStarter.Modules",
+          "FoundationStarter.EventCount",
+          "FoundationStarter.PoolReleaseTotal",
+          "FoundationStarter.WorldTime",
+          "FoundationStarter.SampleTickCount",
+          "FoundationStarter.Next.Pipeline",
+          "FoundationStarter.Next.Triggering",
+          "FoundationStarter.Next.Attributes",
+          "FoundationStarter.Result"
+        ]
+      },
+      "learningContract": {
+        "audience": "准备把 AbilityKit 基础包接入干净项目的框架或战斗开发者。",
+        "prerequisites": [
+          "foundation/environment-tick"
+        ],
+        "outcomes": [
+          "能说明 Foundation 只包含 Core、World.DI 和宿主抽象",
+          "能识别事件、对象池、服务容器和宿主 Tick 的最小职责",
+          "能把 Starter 的验证边界迁移到真实项目启动模板"
+        ],
+        "pitfalls": [
+          "不要把 demo.moba 或 demo.shooter 当成 Foundation 必选依赖",
+          "不要在 Foundation 阶段引入技能、同步或服务端复杂链路",
+          "不要解析自由文本日志判断 Starter 是否通过"
+        ]
+      },
+      "learningCheckpoints": [
+        {
+          "id": "foundation-starter-boundary",
+          "title": "理解 Foundation 包边界",
+          "goal": "能说明 Foundation 为什么只验证 Core、World.DI 和宿主 Tick。",
+          "relatedVisualStep": "Package Boundary",
+          "relatedOutputHint": "FoundationStarter.Modules",
+          "relatedApis": [
+            "EventDispatcher",
+            "ObjectPool<T>",
+            "WorldContainerBuilder"
+          ],
+          "question": "为什么 starter/foundation 不直接演示技能释放？",
+          "expectedAnswer": "因为它的目标是先证明基础设施能独立运行；技能释放、触发和属性变化已由现有 Pipeline、Triggering、Modifiers 示例覆盖。"
+        },
+        {
+          "id": "foundation-starter-result",
+          "title": "读取结构化验收结果",
+          "goal": "能根据稳定 KeyValue 判断 Starter 是否通过。",
+          "relatedVisualStep": "Starter Result",
+          "relatedOutputHint": "FoundationStarter.Result",
+          "relatedApis": [
+            "KeyValue",
+            "SampleBase"
+          ],
+          "question": "哪些输出字段最适合被 CI 或可视化宿主读取？",
+          "expectedAnswer": "优先读取 FoundationStarter.* 的稳定 KeyValue 字段，例如 Result、EventCount、PoolReleaseTotal、WorldTime 和 SampleTickCount。"
+        }
+      ],
+      "visualFrames": [
+        {
+          "index": 0,
+          "title": "确认包边界",
+          "visualStep": "Package Boundary",
+          "description": "先输出 Foundation 组合的模块范围，确认不依赖 Demo 包。",
+          "outputHint": "FoundationStarter.Modules",
+          "stateChanges": [
+            "Core + World.DI",
+            "DemoDependency=false"
+          ],
+          "highlights": [
+            "Foundation",
+            "P0"
+          ]
+        },
+        {
+          "index": 1,
+          "title": "发布基础事件",
+          "visualStep": "Core Event",
+          "description": "通过 EventDispatcher 发布一次 starter.ready，验证 Core 事件基础设施。",
+          "outputHint": "FoundationStarter.EventCount",
+          "stateChanges": [
+            "Subscribe",
+            "Publish",
+            "Unsubscribe"
+          ],
+          "highlights": [
+            "EventDispatcher"
+          ]
+        },
+        {
+          "index": 2,
+          "title": "租还短生命周期对象",
+          "visualStep": "Core Pool",
+          "description": "用 ObjectPool 租还一个 StarterCommand，并输出池统计。",
+          "outputHint": "FoundationStarter.PoolReleaseTotal",
+          "stateChanges": [
+            "Get command",
+            "Release command",
+            "Read stats"
+          ],
+          "highlights": [
+            "ObjectPool<T>",
+            "PoolStats"
+          ]
+        },
+        {
+          "index": 3,
+          "title": "解析 World 服务",
+          "visualStep": "World DI",
+          "description": "通过 WorldContainerBuilder 注册并解析 WorldClock、规则服务和 transient trace。",
+          "outputHint": "FoundationStarter.WorldTime",
+          "stateChanges": [
+            "Register services",
+            "Resolve singleton",
+            "Resolve transient"
+          ],
+          "highlights": [
+            "WorldContainerBuilder",
+            "WorldClock"
+          ]
+        },
+        {
+          "index": 4,
+          "title": "宿主推进 Tick",
+          "visualStep": "Host Tick",
+          "description": "由 sample 宿主推进三帧，验证 Starter 不拥有主循环。",
+          "outputHint": "FoundationStarter.SampleTickCount",
+          "stateChanges": [
+            "Subscribe OnTick",
+            "SimulateFrames",
+            "Unsubscribe OnTick"
+          ],
+          "highlights": [
+            "Environment.OnTick",
+            "SimulateFrames"
+          ]
+        },
+        {
+          "index": 5,
+          "title": "输出验收结果",
+          "visualStep": "Starter Result",
+          "description": "聚合事件、池、DI 和 Tick 结果，输出 FoundationStarter.Result。",
+          "outputHint": "FoundationStarter.Result",
+          "stateChanges": [
+            "Aggregate checks",
+            "Emit next sample ids",
+            "Emit Result"
+          ],
+          "highlights": [
+            "FoundationStarter.Result"
+          ]
+        }
+      ],
+      "codeWalkthrough": [
+        {
+          "title": "声明 Foundation 边界",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "startLine": 16,
+          "endLine": 27,
+          "explanation": "示例开头输出 Foundation 只包含 Core、World.DI 和宿主抽象，避免把 Demo 或复杂战斗链路混进第一阶段 Starter。",
+          "outputHint": "FoundationStarter.Modules",
+          "visualStep": "Package Boundary"
+        },
+        {
+          "title": "验证 Core 事件与对象池",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "startLine": 29,
+          "endLine": 61,
+          "explanation": "这里使用 EventDispatcher 发布事件，并用 ObjectPool 租还短生命周期命令对象，证明 Core 基础设施可以独立运行。",
+          "outputHint": "FoundationStarter.PoolReleaseTotal",
+          "visualStep": "Core Pool"
+        },
+        {
+          "title": "验证 World.DI 与宿主 Tick",
+          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "startLine": 63,
+          "endLine": 108,
+          "explanation": "这里构建 World 容器、解析服务、推进 WorldClock，再由 sample 宿主模拟三帧 Tick，并输出已有 SkillCore 示例入口。",
+          "outputHint": "FoundationStarter.Result",
+          "visualStep": "Starter Result"
+        }
+      ]
+    },
+    {
       "id": "onboarding/web-timeline-snapshot",
       "type": "AbilityKit.Samples.Logic.Samples.Onboarding.WebTimelineSnapshot",
       "order": 13,

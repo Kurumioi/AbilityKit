@@ -260,6 +260,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 null,
                 null,
                 _lastRemoteLatencyCompensationDiagnostics,
+                ShooterCrossLayerDiagnostics.From(
+                    state.Launch.Session.FrameworkSnapshotPipelineDiagnostics,
+                    state.Launch.GatewayConnection.LastPushResult,
+                    _lastRemoteLatencyCompensationDiagnostics,
+                    state.Launch.Session.Presentation.NeedsPureStateFullBaselineResync,
+                    state.Launch.Session.Presentation.LastPureStateAppliedFrame,
+                    state.Launch.Session.Presentation.LastPureStateResyncFrame),
                 state.Launch.Session.Presentation.LastPureStateSyncDiagnostics,
                 state.Launch.Session.Presentation.NeedsPureStateFullBaselineResync,
                 state.Launch.Session.Presentation.LastPureStateResyncReason,

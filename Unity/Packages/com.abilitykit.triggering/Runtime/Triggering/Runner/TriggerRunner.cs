@@ -22,6 +22,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly ITriggerContextSource<TCtx> _contextSource;
         private readonly ITriggerObserver<TCtx> _observer;
         private readonly ITriggerLifecycle<TCtx> _lifecycle;
+        private readonly ITriggerTracer<TCtx> _tracer;
 
         private readonly TriggerRunnerRuntimeServices<TCtx> _runtimeServices;
         private readonly EInterruptPolicy _interruptPolicy;
@@ -29,6 +30,7 @@ namespace AbilityKit.Triggering.Runtime
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _subscriptionsByArgsType = new Dictionary<Type, object>();
+        private TraceScope _currentTraceScope;
         private long _registrationOrder;
 
         public TriggerRunner(
@@ -45,7 +47,8 @@ namespace AbilityKit.Triggering.Runtime
             INumericRpnFunctionRegistry numericFunctions = null,
             ExecPolicy policy = default,
             EInterruptPolicy interruptPolicy = EInterruptPolicy.None,
-            ActionSchedulerManager actionSchedulerManager = null)
+            ActionSchedulerManager actionSchedulerManager = null,
+            ITriggerTracer<TCtx> tracer = null)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             if (functions == null) throw new ArgumentNullException(nameof(functions));
@@ -53,6 +56,7 @@ namespace AbilityKit.Triggering.Runtime
             _contextSource = contextSource;
             _observer = observer ?? NullTriggerObserver<TCtx>.Instance;
             _lifecycle = lifecycle ?? NullTriggerLifecycle<TCtx>.Instance;
+            _tracer = tracer ?? NullTriggerTracer<TCtx>.Instance;
             _runtimeServices = new TriggerRunnerRuntimeServices<TCtx>(
                 _eventBus,
                 functions,
@@ -147,47 +151,56 @@ namespace AbilityKit.Triggering.Runtime
 
             control = PrepareDispatchControl(control);
             var execCtx = CreateExecCtx(control);
+            _currentTraceScope = _tracer.BeginTrace(key, in args);
 
             int executedCount = 0;
             int shortCircuitedCount = 0;
 
-            for (int i = 0; i < triggers.Count; i++)
+            try
             {
-                var entry = triggers[i];
-
-                if (TryHandlePriorityBlock(key, in args, in entry, control, in execCtx))
+                for (int i = 0; i < triggers.Count; i++)
                 {
-                    shortCircuitedCount++;
-                    continue;
-                }
+                    var entry = triggers[i];
 
-                var evaluation = EvaluateEntry(key, in args, in entry, control, in execCtx);
-                if (evaluation == DispatchEvaluationResult.FailedByException)
-                {
-                    break;
-                }
+                    if (TryHandlePriorityBlock(key, in args, in entry, control, in execCtx))
+                    {
+                        shortCircuitedCount++;
+                        continue;
+                    }
 
-                if (evaluation == DispatchEvaluationResult.ConditionFailed)
-                {
-                    shortCircuitedCount++;
-                    if (HandleConditionRejected(key, in args, in entry, control, in execCtx))
+                    var evaluation = EvaluateEntry(key, in args, in entry, control, in execCtx);
+                    if (evaluation == DispatchEvaluationResult.FailedByException)
                     {
                         break;
                     }
 
-                    continue;
-                }
+                    if (evaluation == DispatchEvaluationResult.ConditionFailed)
+                    {
+                        shortCircuitedCount++;
+                        if (HandleConditionRejected(key, in args, in entry, control, in execCtx))
+                        {
+                            break;
+                        }
 
-                if (ExecuteEntry(key, in args, in entry, control, in execCtx, out var wasInterrupted))
-                {
-                    executedCount++;
-                }
+                        continue;
+                    }
 
-                if (wasInterrupted)
-                {
-                    shortCircuitedCount++;
-                    break;
+                    if (ExecuteEntry(key, in args, in entry, control, in execCtx, out var wasInterrupted))
+                    {
+                        executedCount++;
+                    }
+
+                    if (wasInterrupted)
+                    {
+                        shortCircuitedCount++;
+                        break;
+                    }
                 }
+            }
+            finally
+            {
+                _tracer.EndTrace(_currentTraceScope);
+                _currentTraceScope = default;
             }
 
             _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
@@ -253,18 +266,22 @@ namespace AbilityKit.Triggering.Runtime
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, false, in execCtx);
 
             bool ok;
+            var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
             try
             {
                 ok = entry.Trigger.Evaluate(in args, in execCtx);
             }
             catch (Exception ex)
             {
+                RecordTrace(key, in entry, TriggerRecordKind.Evaluated, false, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
                 NotifyEvaluationException(key, in args, in entry, control, in execCtx, ex);
                 return DispatchEvaluationResult.FailedByException;
             }
 
+            var elapsedTicks = System.Diagnostics.Stopwatch.GetTimestamp() - startTicks;
             _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
             _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
+            RecordTrace(key, in entry, TriggerRecordKind.Evaluated, ok, null, elapsedTicks);
 
             if (!ok)
             {
@@ -403,6 +420,8 @@ namespace AbilityKit.Triggering.Runtime
             wasInterrupted = false;
 
             _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+            _lifecycle.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1);
+            _observer.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, in execCtx);
             var executeCtx = BuildCueContext(
                 key,
                 in args,
@@ -424,11 +443,18 @@ namespace AbilityKit.Triggering.Runtime
             if (TryHandleHardStop(key, in args, in entry, control, in execCtx))
             {
                 wasInterrupted = true;
+                _lifecycle.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, true);
+                _observer.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, true, in execCtx);
                 return false;
             }
 
             _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
             _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
+            if (actionExecuted)
+            {
+                _lifecycle.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, false);
+                _observer.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, false, in execCtx);
+            }
 
             if (!actionExecuted)
             {
@@ -455,13 +481,16 @@ namespace AbilityKit.Triggering.Runtime
 
         private bool TryExecuteTrigger<TArgs>(EventKey<TArgs> key, in TArgs args, in TriggerRunnerEntry<TArgs, TCtx> entry, in ExecCtx<TCtx> execCtx)
         {
+            var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
             try
             {
                 entry.Trigger.Execute(in args, in execCtx);
+                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
                 return true;
             }
             catch (Exception ex)
             {
+                RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
                 NotifyActionFailed(key, in args, in entry, in execCtx, entry.Trigger.GetType().Name, 0, 1, ex.Message);
                 return false;
             }
@@ -508,6 +537,7 @@ namespace AbilityKit.Triggering.Runtime
         {
             _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
             _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, TriggerRunnerCueDispatcher.MapReason(reason), in execCtx);
+            RecordTrace(key, in entry, TriggerRecordKind.ShortCircuited, null, reason, 0L);
 
             var cueContext = TriggerRunnerCueDispatcher.BuildCueContext(
                 key,
@@ -532,6 +562,28 @@ namespace AbilityKit.Triggering.Runtime
             ShortCircuitCueKind cueKind)
         {
             TriggerRunnerCueDispatcher.DispatchShortCircuitCue(trigger, in cueContext, (TriggerRunnerShortCircuitCueKind)cueKind);
+        }
+
+        private void RecordTrace<TArgs>(
+            EventKey<TArgs> key,
+            in TriggerRunnerEntry<TArgs, TCtx> entry,
+            TriggerRecordKind kind,
+            bool? predicateResult,
+            ShortCircuitReason? reason,
+            long elapsedTicks)
+        {
+            var record = new TriggerTraceRecord(
+                (int)entry.Order,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                kind,
+                predicateResult,
+                reason,
+                System.Diagnostics.Stopwatch.GetTimestamp(),
+                elapsedTicks,
+                string.Empty);
+            _tracer.RecordTrigger<TArgs>(_currentTraceScope, record);
         }
 
         private void NotifyActionFailed<TArgs>(

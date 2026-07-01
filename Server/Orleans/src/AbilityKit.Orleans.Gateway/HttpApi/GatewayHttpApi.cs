@@ -234,6 +234,13 @@ internal static class GatewayHttpApi
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status500InternalServerError);
 
+        group.MapPost("/rooms/add-robots", AddAdminRoomRobotsAsync)
+            .WithName("Gateway.AdminAddRoomRobots")
+            .Accepts<WebAddRoomRobotsRequest>("application/json")
+            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status500InternalServerError);
+
         group.MapPost("/rooms/start-battle", StartAdminRoomBattleAsync)
             .WithName("Gateway.AdminStartRoomBattle")
             .Accepts<WebStartRoomBattleRequest>("application/json")
@@ -604,6 +611,34 @@ internal static class GatewayHttpApi
         });
     }
 
+    private static Task<IResult> AddAdminRoomRobotsAsync(WebAddRoomRobotsRequest request, IClusterClient client)
+    {
+        return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
+        {
+            var accountId = await ValidateAccountAsync(client, request.SessionToken);
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                return InvalidAdminRoomSession();
+            }
+
+            if (string.IsNullOrWhiteSpace(request.RoomId))
+            {
+                return AdminRoomBadRequest("RoomId is required.");
+            }
+
+            var manager = client.GetGrain<IRoomRobotManagerGrain>(request.RoomId);
+            var response = await manager.AddRobotsAsync(new AddRoomRobotsRequest(
+                request.RoomId,
+                accountId,
+                request.Count,
+                request.AccountPrefix,
+                request.AutoReady,
+                request.MountBattleAi,
+                request.BattleAiProfileId));
+            return Results.Ok(response);
+        });
+    }
+
     private static Task<IResult> StartAdminRoomBattleAsync(WebStartRoomBattleRequest request, IClusterClient client)
     {
         return GatewayEndpointHelpers.ExecuteRoomOperationAsync(async () =>
@@ -636,6 +671,13 @@ internal static class GatewayHttpApi
                     request.EnableAuthoritativeWorld,
                     request.InterpolationEnabled,
                     request.InputDelayFrames)));
+
+            if (response.Started)
+            {
+                var manager = client.GetGrain<IRoomRobotManagerGrain>(request.RoomId);
+                await manager.MountBattleAiAsync(new MountRoomRobotBattleAiRequest(request.RoomId));
+            }
+
             return Results.Ok(response);
         });
     }

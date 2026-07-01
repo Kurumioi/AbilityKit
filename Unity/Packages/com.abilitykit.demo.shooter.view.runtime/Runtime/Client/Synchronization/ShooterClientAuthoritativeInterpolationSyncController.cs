@@ -201,7 +201,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (snapshot.PureStateSnapshot.HasValue)
             {
                 var pureStateResult = _presentation.ApplyPureStateGatewaySnapshot(in snapshot);
-                return ShooterPackedSnapshotSyncController.ToSnapshotApplyResult(pureStateResult);
+                return ShooterSnapshotApplyResults.FromPureStateResult(pureStateResult);
             }
 
             return BufferRemoteSnapshot(in snapshot);

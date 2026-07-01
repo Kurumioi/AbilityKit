@@ -7,12 +7,17 @@ using Microsoft.Extensions.Logging;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAbilityKitServerOptions(builder.Configuration);
+builder.Services.AddAbilityKitDeploymentOptions(builder.Configuration);
+builder.Services.AddAbilityKitSiloRoleOptions(builder.Configuration);
+builder.Services.AddAbilityKitSiloRuntimeProfileOptions(builder.Configuration);
+builder.Services.AddAbilityKitDeploymentModeOptions(builder.Configuration);
 builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Orleans.Host");
 
 var storageOptions = builder.Configuration.GetAbilityKitStorageOptions();
 builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.SessionStateProvider,
-    storageOptions.RoomStateProvider);
+    storageOptions.RoomStateProvider,
+    storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
 
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>()));

@@ -19,7 +19,10 @@
     <ProjectReference Include="../AbilityKit.GameFramework/AbilityKit.GameFramework.csproj" />
     <ProjectReference Include="../AbilityKit.GameFramework.Network/AbilityKit.GameFramework.Network.csproj" />
     <ProjectReference Include="../AbilityKit.Host.Extension/AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="../AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="../AbilityKit.World.NetworkFragments/AbilityKit.World.NetworkFragments.csproj" />
+    <ProjectReference Include="../AbilityKit.World.Snapshot/AbilityKit.World.Snapshot.csproj" />
     <ProjectReference Include="../AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
     <ProjectReference Include="../AbilityKit.Protocol.Shooter/AbilityKit.Protocol.Shooter.csproj" />
   </ItemGroup>

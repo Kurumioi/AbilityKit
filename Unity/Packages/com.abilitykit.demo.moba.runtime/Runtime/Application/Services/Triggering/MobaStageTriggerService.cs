@@ -15,6 +15,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Trace;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
@@ -34,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
         [WorldInject(required: false)] private MobaTriggerExecutionGateway _triggers = null;
         [WorldInject(required: false)] private MobaProjectileLinkService _projectileLinks = null;
+        [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
 
         public void ExecuteAreaStage(string eventId, int areaId, int templateId, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
@@ -44,32 +46,63 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             var triggerIds = ResolveAreaTriggerIds(eventId, aoe);
             if (triggerIds == null || triggerIds.Length == 0) return;
 
-            var payload = new AreaEventArgs
+            var traceKind = ResolveAreaTraceKind(eventId);
+            var sourceContextId = info.SourceContextId;
+            var rootContextId = info.RootContextId != 0L ? info.RootContextId : sourceContextId;
+            var ownerContextId = info.OwnerContextId != 0L ? info.OwnerContextId : sourceContextId;
+            var createdContextId = 0L;
+            if (_trace != null && sourceContextId != 0L && traceKind == MobaTraceKind.AreaEnter)
             {
-                EventId = eventId,
-                AreaId = areaId,
-                TemplateId = templateId,
-                OwnerActorId = ownerActorId,
-                TargetActorId = targetActorId,
-                Frame = frame,
-                SourceContextId = info.SourceContextId,
-                RootContextId = info.RootContextId,
-                OwnerContextId = info.OwnerContextId,
-                TraceKind = ResolveAreaTraceKind(eventId),
-                Center = center,
-                Radius = radius,
-                Collider = collider,
-                CollisionLayerMask = collisionLayerMask,
-                MaxTargets = maxTargets,
-                Raw = raw,
-            };
+                createdContextId = _trace.CreateChildContext(
+                    sourceContextId,
+                    traceKind,
+                    templateId,
+                    ownerActorId,
+                    targetActorId,
+                    TraceEndpoint.Config(MobaRuntimeKindNames.AreaEnter, templateId),
+                    TraceEndpoint.Actor(targetActorId));
+                if (createdContextId != 0L)
+                {
+                    sourceContextId = createdContextId;
+                }
+            }
 
-            for (var i = 0; i < triggerIds.Length; i++)
+            try
             {
-                var triggerId = triggerIds[i];
-                if (triggerId <= 0) continue;
-                var request = MobaTriggerExecutionRequest<AreaEventArgs>.Create(triggerId, payload, eventId);
-                _triggers.ExecuteDirectTrigger(in request);
+                var payload = new AreaEventArgs
+                {
+                    EventId = eventId,
+                    AreaId = areaId,
+                    TemplateId = templateId,
+                    OwnerActorId = ownerActorId,
+                    TargetActorId = targetActorId,
+                    Frame = frame,
+                    SourceContextId = sourceContextId,
+                    RootContextId = rootContextId,
+                    OwnerContextId = ownerContextId,
+                    TraceKind = traceKind,
+                    Center = center,
+                    Radius = radius,
+                    Collider = collider,
+                    CollisionLayerMask = collisionLayerMask,
+                    MaxTargets = maxTargets,
+                    Raw = raw,
+                };
+
+                for (var i = 0; i < triggerIds.Length; i++)
+                {
+                    var triggerId = triggerIds[i];
+                    if (triggerId <= 0) continue;
+                    var request = MobaTriggerExecutionRequest<AreaEventArgs>.Create(triggerId, payload, eventId);
+                    _triggers.ExecuteDirectTrigger(in request);
+                }
+            }
+            finally
+            {
+                if (createdContextId != 0L)
+                {
+                    _trace.EndContext(createdContextId, TraceLifecycleReason.Completed);
+                }
             }
         }
 

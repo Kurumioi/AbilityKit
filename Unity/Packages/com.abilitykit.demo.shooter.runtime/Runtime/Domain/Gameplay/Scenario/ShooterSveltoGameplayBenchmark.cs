@@ -243,12 +243,65 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterSveltoGameplayScenarioCatalog.WaveSurvival,
             iterations: 3);
 
-        public static ShooterSveltoGameplayBenchmarkProfile LargeScaleEntityBudget { get; } = new ShooterSveltoGameplayBenchmarkProfile(
-            "svelto-large-scale-entity-budget",
-            "Svelto Large Scale Entity Budget",
+        public static ShooterSveltoGameplayBenchmarkProfile SmallScaleEntityBudget { get; } = new ShooterSveltoGameplayBenchmarkProfile(
+            "svelto-small-scale-entity-budget",
+            "Svelto Small Scale Entity Budget",
             new ShooterSveltoGameplayScenarioConfig(
-                "svelto-large-scale-entity-budget",
-                "Svelto Large Scale Entity Budget",
+                "svelto-small-scale-entity-budget",
+                "Svelto Small Scale Entity Budget",
+                "小规模 Shooter 实体预算回归入口，快速验证预算诊断与确定性。",
+                shooterCount: 4,
+                targetCount: 64,
+                tickCount: 30,
+                tickDeltaTime: 1f / 30f,
+                arenaRadius: 18f,
+                loadout: ShooterSveltoGameplayScenarioCatalog.DefaultLoadout,
+                battleFlow: new ShooterSveltoGameplayBattleFlowConfig(
+                    durationFrames: 30,
+                    victoryTargetDefeats: 64,
+                    maxActiveEnemies: 32,
+                    waves: new[]
+                    {
+                        new ShooterSveltoGameplayWaveConfig(1, 0, 2, 32, 2, 14f)
+                    })),
+            iterations: 2,
+            entityBudget: new ShooterSveltoGameplayEntityBudgetProfile(
+                ShooterEntityLimitOptions.DefaultMaxEntityCount,
+                activeSyncBudget: 128));
+
+        public static ShooterSveltoGameplayBenchmarkProfile MediumScaleEntityBudget { get; } = new ShooterSveltoGameplayBenchmarkProfile(
+            "svelto-medium-scale-entity-budget",
+            "Svelto Medium Scale Entity Budget",
+            new ShooterSveltoGameplayScenarioConfig(
+                "svelto-medium-scale-entity-budget",
+                "Svelto Medium Scale Entity Budget",
+                "中规模 Shooter 实体预算回归入口，覆盖更多玩家、敌人与同步预算。",
+                shooterCount: 32,
+                targetCount: 512,
+                tickCount: 45,
+                tickDeltaTime: 1f / 30f,
+                arenaRadius: 36f,
+                loadout: ShooterSveltoGameplayScenarioCatalog.DefaultLoadout,
+                battleFlow: new ShooterSveltoGameplayBattleFlowConfig(
+                    durationFrames: 45,
+                    victoryTargetDefeats: 512,
+                    maxActiveEnemies: 128,
+                    waves: new[]
+                    {
+                        new ShooterSveltoGameplayWaveConfig(1, 0, 1, 128, 2, 24f),
+                        new ShooterSveltoGameplayWaveConfig(2, 15, 2, 128, 3, 30f)
+                    })),
+            iterations: 2,
+            entityBudget: new ShooterSveltoGameplayEntityBudgetProfile(
+                ShooterEntityLimitOptions.DefaultMaxEntityCount,
+                activeSyncBudget: 512));
+
+        public static ShooterSveltoGameplayBenchmarkProfile MassScaleEntityBudget { get; } = new ShooterSveltoGameplayBenchmarkProfile(
+            "svelto-mass-scale-entity-budget",
+            "Svelto Mass Scale Entity Budget",
+            new ShooterSveltoGameplayScenarioConfig(
+                "svelto-mass-scale-entity-budget",
+                "Svelto Mass Scale Entity Budget",
                 "大规模 Shooter 实体预算压测入口，复用 Svelto gameplay runner 输出预算诊断。",
                 shooterCount: 256,
                 targetCount: 4096,
@@ -269,6 +322,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             entityBudget: new ShooterSveltoGameplayEntityBudgetProfile(
                 ShooterEntityLimitOptions.DefaultMaxEntityCount,
                 activeSyncBudget: 2048));
+
+        public static ShooterSveltoGameplayBenchmarkProfile LargeScaleEntityBudget => MassScaleEntityBudget;
     }
 
     public static class ShooterSveltoGameplayBenchmark

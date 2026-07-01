@@ -40,6 +40,12 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
         return Task.FromResult(new ShooterGatewayGuestLoginResult(true, "session-token", "account-1", "guest-login-ok"));
     }
 
+    public Task<ShooterGatewayAccountLoginResult> AccountLoginAsync(ShooterGatewayAccountLoginRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("account-login:" + request.AccountId);
+        return Task.FromResult(new ShooterGatewayAccountLoginResult(true, "session-token", request.AccountId, 3600000L, string.Empty, "account-login-ok"));
+    }
+
     public Task<ShooterGatewayListRoomsResult> ListRoomsAsync(ShooterGatewayListRoomsRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         Calls.Add("list-rooms:" + request.Region + ":" + request.ServerId + ":" + request.RoomType);

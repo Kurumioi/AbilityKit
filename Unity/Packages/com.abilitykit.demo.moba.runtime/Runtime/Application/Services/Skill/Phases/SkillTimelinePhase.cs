@@ -13,6 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly int _durationMs;
         private readonly SkillTimelineEventDTO[] _events;
         private readonly MobaEffectInvokerService _effects;
+        private float _elapsedSeconds;
+        private int _nextEventIndex;
 
         public SkillTimelinePhase(AbilityPipelinePhaseId phaseId, int durationMs, SkillTimelineEventDTO[] events, MobaEffectInvokerService effects)
             : base(phaseId)
@@ -24,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override void OnEnter(SkillPipelineContext context)
         {
+            _elapsedSeconds = 0f;
+            _nextEventIndex = 0;
             context?.SetTimelineNextEventIndex(0);
         }
 
@@ -36,8 +40,13 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (IsComplete) return;
 
-            var nextIndex = context.TimelineNextEventIndex;
-            var elapsedMs = (int)(context.ElapsedTime * 1000f);
+            if (deltaTime > 0f)
+            {
+                _elapsedSeconds += deltaTime;
+            }
+
+            var nextIndex = _nextEventIndex;
+            var elapsedMs = (int)(_elapsedSeconds * 1000f);
 
             if (_events != null)
             {
@@ -73,6 +82,7 @@ namespace AbilityKit.Demo.Moba.Services
                     effects.Execute(e.EffectId, context);
 
                     nextIndex++;
+                    _nextEventIndex = nextIndex;
                     context.SetTimelineNextEventIndex(nextIndex);
                 }
             }
@@ -96,6 +106,8 @@ namespace AbilityKit.Demo.Moba.Services
         public override void Reset()
         {
             base.Reset();
+            _elapsedSeconds = 0f;
+            _nextEventIndex = 0;
         }
 
         private MobaEffectInvokerService ResolveEffects(SkillPipelineContext context)

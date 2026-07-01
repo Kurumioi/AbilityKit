@@ -19,7 +19,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (action.Equals(default(ActionCallPlan)))
                 throw new ArgumentException("ActionCallPlan cannot be empty.", nameof(action));
 
-            return new ActionCallTriggerPlanExecutable(action, condition, weight);
+            return new ActionCallTriggerPlanExecutable(action, condition: condition, weight: weight);
         }
 
         public static ActionCallTriggerPlanExecutable Action(ActionId actionId, ITriggerPlanCondition condition = null, float weight = 1f)

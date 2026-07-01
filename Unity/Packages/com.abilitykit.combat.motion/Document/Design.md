@@ -1,214 +1,269 @@
-# Motion 模块设计文档（com.abilitykit.world.motion）
+﻿# Motion 模块设计文档（com.abilitykit.combat.motion）
 
-## 目标与定位
+> 本文描述 `com.abilitykit.combat.motion` 的目标、核心抽象、tick 数据流、碰撞求解、快照恢复和对象池设计。
 
-`com.abilitykit.world.motion` 提供一套**框架层的纯逻辑运动系统**（MotionSystem），用于在不依赖 Unity/Entitas 的情况下计算“期望移动/最终应用移动”，并通过外部接口对接：
+## 1. 目标与定位
 
-- 角色移动（输入驱动）
-- 技能位移（冲刺、击退、牵引等）
-- 路径跟随（waypoints / path follower）
-- 子弹/轨迹运动（按时间采样轨迹）
+Motion 模块负责把战斗中的多种移动来源统一组合为一个最终位移，并交给碰撞/约束层求解。
 
-核心约束：
+核心目标：
 
-- 不依赖 Unity Transform；外部负责把 `MotionState.Position/Forward` 写回 ECS/Transform。
-- 不内置物理；碰撞/阻挡通过 `IMotionSolver` 由外部实现。
-- 不负责网络同步/回滚；但应满足固定步长推进、可重演的使用方式（由上层 FrameSync/Rollback 管理）。
+- 支持多来源移动：输入、技能位移、击退、路径跟随、控制效果。
+- 支持分组、优先级、叠加和跨组抑制。
+- 支持可插拔碰撞世界和运动约束。
+- 支持预测、回滚和重放需要的快照/恢复。
+- 高频路径尽量复用对象和集合，降低 GC 压力。
+- 保持纯逻辑层可测试，不强绑定 Unity 组件生命周期。
 
-## 模块边界
+## 2. 目录结构与核心类型
 
-- 本模块负责：
-  - 组合多个运动源（`IMotionSource`）
-  - 计算每 tick 的 `DesiredDelta`
-  - 通过 `IMotionSolver` 得到 `AppliedDelta`（可包含命中信息）
-  - 更新 `MotionState`（Position/Time）并可选发出事件（`IMotionEventSink`）
-
-- 上层（游戏实现/World Host）负责：
-  - 维护实体 id -> MotionPipeline / MotionState 的映射
-  - 将输入、技能效果转换为 MotionSource 的创建/更新/取消
-  - 将 `MotionState` 的结果写回 ECS（位置/朝向/速度等）
-  - 碰撞求解 `IMotionSolver` 的具体实现（例如基于地图 NavMesh、格子、AABB、Capsule 等）
-  - 在帧同步/预测回滚场景中：
-    - 固定步长驱动 tick
-    - 快照/回滚/重演（本模块只提供纯计算能力）
-
-## 目录结构与核心类型
-
-- `Runtime/MotionSystem/Core/`
-  - `MotionState`：运动状态（Position/Velocity/Forward/Time）
-  - `MotionOutput`：本 tick 输出（DesiredDelta/AppliedDelta/NewVelocity/NewForward）
-  - `IMotionSource`：运动源接口（每 tick 贡献位移）
-  - `MotionPipeline`：组合多个 source，计算 desired delta 并交给 solver
-  - `MotionGroups`：默认分组（Locomotion/Ability/Control/Path）
-  - `MotionStacking`：同组叠加策略（Additive/ExclusiveHighestPriority/OverrideLowerPriority）
-  - `MotionPipelinePolicy`：跨组抑制规则（例如 Control 抑制 Locomotion/Ability/Path）
-
-- `Runtime/MotionSystem/Constraints/`
-  - `MotionConstraints`：约束聚合入口（按域拆分，避免“参数含义混杂”）
-  - `MotionCollisionConstraints`：碰撞域约束（碰撞开关/过滤/半径等）
-  - `MotionLeashConstraints`：活动范围域约束（中心点 + 半径 + 策略）
-
-- `Runtime/MotionSystem/Collision/`
-  - `IMotionSolver`：碰撞/阻挡求解器接口
-  - `MotionSolveResult/MotionHit`：求解结果
-  - `IMotionCollisionWorld`：外部碰撞查询接口（Sweep/Overlap/Project）
-  - `ConfigurableMotionSolver`：基础 solver 外壳（通过 provider 获取 MotionConstraints，并按约束顺序处理）
-
-- `Runtime/MotionSystem/Events/`
-  - `IMotionEventSink`：事件回调（OnHit/OnArrive/OnExpired）
-
-- `Runtime/MotionSystem/Trajectory/` 与 `Generic/`
-  - `ITrajectory3D` 等：轨迹与路径跟随实现
-
-## 数据流（每 tick）
-
-### 总览
-
-MotionPipeline 的 tick 可以视为三段：
-
-1. 选择“本 tick 生效”的 motion sources（基于 group/stacking/priority/policy）
-2. 汇总得到 `DesiredDelta`
-3. 交给 `IMotionSolver` 得到 `AppliedDelta` 并更新 state
-
-```mermaid
-flowchart LR
-  subgraph Inputs[输入/效果]
-    A1[玩家输入] --> S1[LocomotionMotionSource]
-    A2[技能位移] --> S2[Ability MotionSource]
-    A3[控制效果] --> S3[Control MotionSource]
-    A4[路径跟随] --> S4[PathFollower/TrajectoryMotionSource]
-  end
-
-  subgraph Pipeline[MotionPipeline]
-    P1["筛选生效 source<br/>(group/stacking/priority)"] --> P2["跨组抑制<br/>(policy)"] --> P3["Tick sources<br/>累加 DesiredDelta"]
-    P3 --> OUT[MotionOutput.DesiredDelta]
-  end
-
-  OUT --> SOLVER[IMotionSolver.Solve]
-
-  SOLVER --> RES["MotionSolveResult<br/>AppliedDelta + Hit"]
-  RES --> STATE["更新 MotionState<br/>Position/Time"]
-  RES --> EVT{Hit?}
-  EVT -->|yes| E1[IMotionEventSink.OnHit]
-  P3 --> FIN{source 结束?}
-  FIN -->|Arrive/Expired| E2[IMotionEventSink.OnArrive/OnExpired]
+```text
+com.abilitykit.combat.motion/
+├── Runtime/
+│   └── MotionSystem/
+│       ├── Core/
+│       │   ├── IMotionSource.cs
+│       │   ├── IMotionSnapshotSource.cs
+│       │   ├── MotionSourceSnapshot.cs
+│       │   ├── MotionPipeline.cs
+│       │   ├── MotionPipelinePool.cs
+│       │   ├── MotionPipelinePolicy.cs
+│       │   ├── MotionGroups.cs
+│       │   ├── MotionStacking.cs
+│       │   ├── MotionState.cs
+│       │   └── MotionOutput.cs
+│       ├── Collision/
+│       │   ├── IMotionSolver.cs
+│       │   ├── IMotionSolverDiagnostics.cs
+│       │   ├── IMotionCollisionWorld.cs
+│       │   ├── ConfigurableMotionSolver.cs
+│       │   └── NoMotionSolver.cs
+│       ├── Constraints/
+│       │   ├── MotionConstraints.cs
+│       │   ├── MotionCollisionConstraints.cs
+│       │   └── MotionLeashConstraints.cs
+│       ├── Trajectory/
+│       │   ├── ITrajectory3D.cs
+│       │   ├── LinearTrajectory3D.cs
+│       │   └── TrajectoryMotionSource.cs
+│       └── Generic/
+│           ├── FixedDeltaMotionSource.cs
+│           ├── PathFollowerMotionSource.cs
+│           ├── ScaledMotionSource.cs
+│           └── WaypointTrajectory3D.cs
+└── Tests/
+    └── Editor/
+        ├── com.abilitykit.combat.motion.tests.asmdef
+        └── MotionSystemTests.cs
 ```
 
-### 关键点：分组/优先级/叠加
+## 3. 核心抽象
 
-- `IMotionSource.GroupId`：用于把 motion 分成逻辑组（如输入移动、技能位移、控制、路径）
-- `IMotionSource.Priority`：数值越大优先级越高（Pipeline 会排序）
-- `IMotionSource.Stacking`：
-  - `Additive`：同组所有 source 都 tick 并叠加
-  - `ExclusiveHighestPriority`：同组只 tick 优先级最高的那个
-  - `OverrideLowerPriority`：同组表现同 Exclusive，但语义用于“覆盖/压制”，可触发跨组抑制
-- `MotionPipelinePolicy`：配置跨组抑制。例如默认：Control 组在 OverrideLowerPriority 时抑制 Locomotion/Ability/Path。
+### 3.1 `IMotionSource`
 
-## MotionPipeline 运行时行为（更贴近代码）
+`IMotionSource` 是移动来源接口。每个 source 在 tick 中向 `outDesiredDelta` 累加或覆盖期望位移。
 
-`MotionPipeline.Tick(id, ref state, dt, ref output)` 的关键流程（与代码结构一致）：
+典型实现：
 
-1. 清理无效 source（`null` 或 `!IsActive`）
-2. Pass1：找出所有非 Additive 的 group 的“最佳 source index”（优先级最高）
-3. Pass1.5：如果最佳 source 的 stacking 是 `OverrideLowerPriority`，根据 `Policy` 把被抑制 group 加入 suppressed 列表
-4. Pass2：遍历 sources，跳过 suppressed group；对非 Additive 的 group 只 tick 最佳 source；累加 desired
-5. `solver.Solve(...)` 得到 `AppliedDelta`，更新 `state.Position/state.Time`
-6. 如果命中则 `Events.OnHit(...)`；如果某 source 在 tick 后 `IsActive` 变 false，则根据 `IMotionFinishEventSource` 触发 `OnArrive/OnExpired`
+- `LocomotionMotionSource`：输入移动。
+- `TrajectoryMotionSource`：轨迹位移。
+- `FixedDeltaMotionSource`：持续击退/拉拽。
+- `PathFollowerMotionSource`：路径跟随。
+- `ScaledMotionSource`：包装并缩放另一个 source 的输出。
 
-## 固定步长与可重演（FrameSync / Rollback 友好性）
+### 3.2 `MotionPipeline`
 
-本模块本身不实现回滚，但为了便于上层回滚/重演，建议按以下方式使用：
+`MotionPipeline` 负责：
 
-- 使用固定 dt（例如 `1 / tickRate`）驱动 `MotionPipeline.Tick`。
-- `MotionState.Time` 仅使用固定 dt 累加，不读取真实时间。
-- 运动源不要读取“真实时间/随机”；如需随机，使用上层提供的确定性随机源并把必要输入记录在指令/快照里。
+1. 移除 inactive source。
+2. 按组选择有效 source。
+3. 应用同组叠加策略。
+4. 应用跨组抑制策略。
+5. 调用有效 source 生成 `DesiredDelta`。
+6. 调用 `IMotionSolver` 求解最终 `AppliedDelta`。
+7. 写回 `MotionState` 并触发事件。
 
-在回滚体系中，上层通常会：
+### 3.3 `IMotionSolver`
 
-- 对每个实体存储可回滚的 `MotionState`（以及 motion sources 的必要参数/进度）
-- 回滚到目标帧后，按帧重演 `MotionPipeline.Tick`
+`IMotionSolver` 根据当前状态、期望位移和约束输出最终位移。默认 `NoMotionSolver` 直接接受期望位移。
 
-下面是一个推荐的时序（上层 Host）：
+`ConfigurableMotionSolver` 用于项目集成：
 
-```mermaid
-sequenceDiagram
-  participant Host as WorldHost/FrameSync
-  participant Store as RollbackSnapshotStore
-  participant Motion as MotionPipeline
-  participant Solver as IMotionSolver
+- `ConstraintsProvider` 决定每个 mover 的碰撞、穿透、leash 等规则。
+- `IMotionCollisionWorld` 对接物理世界或自定义空间查询。
+- `IMotionSolverDiagnostics` 用于记录异常、投影失败等诊断信息。
 
-  Host->>Host: 固定步长 tick(frame)
-  Host->>Motion: Tick(id, state, dt, output)
-  Motion->>Solver: Solve(id, state, output, dt)
-  Solver-->>Motion: MotionSolveResult
-  Motion-->>Host: AppliedDelta/Hit/Events
-  Host->>Store: Capture(frame, motionState + sources)
+### 3.4 `IMotionSnapshotSource`
 
-  Note over Host,Store: 收到权威/确认帧推进
-  Host->>Store: Prune(beforeFrame)
+`IMotionSnapshotSource` 为预测/回滚提供 source 内部状态导出和恢复。
 
-  Note over Host,Store: 若需要回滚
-  Host->>Store: Restore(targetFrame)
-  Store-->>Host: motionState + sources
-  Host->>Host: 重演 targetFrame..current
+```csharp
+public interface IMotionSnapshotSource
+{
+    bool ExportSnapshot(out MotionSourceSnapshot snapshot);
+    bool ImportSnapshot(in MotionSourceSnapshot snapshot);
+}
 ```
 
-## 扩展点与实现建议
+`MotionSourceSnapshot` 保存 group、priority、stacking、active、time、timeLeft、index、向量和标量扩展字段。它只保存运行时进度，不替代技能配置或轨迹资源。
 
-### 1) 新的运动源（IMotionSource）
+## 4. Tick 数据流
 
-适用于：
+单帧数据流：
 
-- 技能冲刺/击退/牵引（按持续时间、按曲线、按目标点）
-- 子弹（轨迹采样）
-- 受控移动（眩晕/定身期间强制速度为 0 或强制方向）
+```text
+MotionState + Sources + dt
+        │
+        ▼
+MotionPipeline.Tick
+        │
+        ├─ cleanup inactive sources
+        ├─ select effective sources by group/priority/stacking
+        ├─ apply cross-group suppression policy
+        ├─ source.Tick => DesiredDelta
+        ├─ IMotionSolver.Solve
+        ├─ write AppliedDelta/NewVelocity/NewForward
+        └─ update MotionState.Position/Velocity/Time
+```
 
-建议：
+关键输出：
 
-- 把 source 的“状态”（剩余时间、当前进度、目标点等）放在 source 自身或上层 state 中，并确保可序列化/可回滚。
-- `IsActive` 为 false 表示 source 自动移除（Pipeline 会清理）。
+- `DesiredDelta`：所有有效 source 生成的期望位移。
+- `AppliedDelta`：solver 处理后的最终位移。
+- `NewVelocity`：由 `AppliedDelta / dt` 计算得到。
+- `NewForward`：当前朝向，供上层动画或表现层使用。
 
-### 2) 碰撞求解（IMotionSolver）
+## 5. 分组、优先级与叠加策略
 
-职责：
+`MotionGroups` 提供常用分组：
 
-- 输入：当前 state + desired delta + dt
-- 输出：applied delta（可能缩短/偏转），以及命中信息（`MotionHit`）
+- `Locomotion`：常规输入移动。
+- `Ability`：技能位移。
+- `Control`：控制效果。
+- `Path`：寻路/路径移动。
 
-常见实现策略：
+`MotionStacking` 决定同组策略：
 
-- 纯逻辑格子/导航网格约束
-- AABB/圆柱体碰撞
-- “滑墙”/“停止”策略
+- `Additive`：同组多个 source 可叠加。
+- `ExclusiveHighestPriority`：同组只保留最高优先级 source。
+- `OverrideLowerPriority`：作为强控制 source，并通过 `MotionPipelinePolicy` 抑制其他组。
 
-#### 推荐接入方式（约束 + 碰撞查询拆分）
+`MotionPipelinePolicy` 描述跨组抑制关系。例如控制组抑制输入、技能和路径：
 
-为了让上层（技能/控制/区域限制等）能以统一方式表达运动限制，本模块提供一套“约束聚合 + 可插拔查询”的骨架：
+```csharp
+policy.SetSuppressedGroups(
+    MotionGroups.Control,
+    MotionGroups.Locomotion,
+    MotionGroups.Ability,
+    MotionGroups.Path);
+```
 
-- `MotionConstraints`：由上层在每 tick 通过 provider 返回，描述本帧约束（例如活动范围限制、碰撞过滤等）
-- `IMotionCollisionWorld`：由上层实现，负责提供 sweep/overlap/project 等几何查询
-- `ConfigurableMotionSolver`：本模块提供的基础实现
-  - 先应用 `Leash`（活动范围）裁剪
-  - 再根据 `Collision` 域决定是否执行 sweep（允许穿越则 passthrough）
+## 6. 碰撞与约束设计
 
-这样做的好处是：
+### 6.1 约束拆分
 
-- 上层不需要把“约束逻辑”散落在各个 `IMotionSource` 中
-- 同一套 `MotionPipeline` 能同时承载 Locomotion / Ability / Control 等多个来源的位移，并统一受约束影响
-- 后续新增约束类型时，只需扩展 `Constraints/` 目录与 provider，不需要改动 `MotionPipeline` 主体
+`MotionConstraints` 由两部分组成：
 
-### 3) 事件（IMotionEventSink）
+- `MotionCollisionConstraints`：碰撞开关、穿透、半径、skin、mask、结束重叠策略。
+- `MotionLeashConstraints`：限制 mover 不能离开锚点太远。
 
-- `OnHit`：用于命中反馈（例如停止/反弹/触发效果）
-- `OnArrive/OnExpired`：用于处理“移动完成”（到达/过期）
+这样可以让战斗逻辑按状态动态决定移动规则，例如：
 
-建议：事件只作为逻辑信号，不直接驱动 Unity 表现；表现层应订阅并在 View 层执行。
+- 普通移动启用碰撞。
+- 瞬移或特殊技能允许穿透。
+- Boss 技能限制在战斗区域半径内。
 
-## 常见坑与约束
+### 6.2 碰撞世界接口
 
-- `MotionPipeline` 内部会移除 `null` source、以及 tick 前 `!IsActive` 的 source；所以外部要注意引用生命周期。
-- 若 `IMotionSource.IsActive` 在 tick 后变为 false，本 tick 会发出完成事件（Arrive/Expired），但 source 是否立即移除取决于下一次 tick 清理。
-- 若需要跨组抑制，必须同时满足：
-  - suppressor source stacking = `OverrideLowerPriority`
-  - `MotionPipeline.Policy` 中配置了 suppression 关系
+`IMotionCollisionWorld` 不绑定 Unity Physics，调用方可用 Unity `Physics`、自定义定点碰撞、导航网格或服务器空间索引实现。
 
+核心能力：
+
+- `Sweep`：沿期望位移检测并返回可用位移。
+- `Overlap`：检测结束位置是否重叠。
+- `TryProjectToFree`：尝试把重叠位置投影到最近可用点。
+
+### 6.3 结束重叠策略
+
+`MotionEndOverlapPolicy` 处理 sweep 后结束点仍重叠的情况：
+
+- `AllowInside`：接受结束点，适合幽灵、穿模、无碰撞状态。
+- `ProjectToNearestFree`：投影到最近可用点，适合角色胶囊体被轻微挤入障碍。
+- `ClampToLastValid`：保留 sweep 提供的可用位移，适合保守移动。
+- `Reject`：拒绝本帧位移，适合严格阻挡。
+
+## 7. 快照与恢复设计
+
+快照目标不是复制完整对象图，而是保存可确定恢复的运行进度。
+
+各 source 的快照策略：
+
+- `LocomotionMotionSource`：保存输入、速度和输入空间。
+- `TrajectoryMotionSource`：保存轨迹时间 `_time` 和 active 状态。
+- `FixedDeltaMotionSource`：保存剩余时间 `_timeLeft` 和每秒位移。
+- `PathFollowerMotionSource`：保存当前路径点索引、速度、到达阈值和 active 状态。
+- `ScaledMotionSource`：保存缩放系数和包装状态；内部 source 如需恢复应单独快照。
+
+恢复顺序建议：
+
+1. 根据技能/配置重建或租借 source。
+2. 注入相同轨迹或路径配置。
+3. 调用 `ImportSnapshot`。
+4. 加入 `MotionPipeline`。
+
+## 8. 对象池设计
+
+模块依赖 `com.abilitykit.core` 的 `AbilityKit.Core.Pooling`。
+
+已池化对象：
+
+- `MotionPipeline`
+- `LocomotionMotionSource`
+- `TrajectoryMotionSource`
+- `FixedDeltaMotionSource`
+- `PathFollowerMotionSource`
+- `ScaledMotionSource`
+- `MotionPipeline` 内部临时集合：source list、best-index dictionary、suppressed-group list
+
+池化约定：
+
+- `Rent(...)` 负责配置对象到可用状态。
+- `Release(...)` 负责归还对象，并通过 pool 的 `onRelease` 调用 `Reset()`。
+- public 构造函数保留兼容性，但新代码推荐使用池化入口。
+- `MotionPipeline.Dispose()` 会释放内部集合，业务侧通常应使用 `MotionPipelinePool.Release()`，不要重复 dispose 同一个对象。
+
+仍可能分配的区域：
+
+- 路径点防御性拷贝数组。
+- waypoint 轨迹的累计长度数组。
+- 外部业务创建轨迹/路径配置时的数组。
+
+这些分配是为了避免外部可变数据导致非确定性。如果项目要求严格零 GC，可进一步接入数组池或把路径/轨迹预构建为不可变资源。
+
+## 9. 测试策略
+
+当前 Editor 测试覆盖重点：
+
+- pipeline additive 合成。
+- control 组对 locomotion 的默认抑制。
+- trajectory snapshot 导出/恢复。
+- path follower 和 waypoint trajectory 防御性拷贝。
+- solver `ProjectToNearestFree` 策略。
+
+后续建议补充：
+
+- source 自动移除和 finish event。
+- exclusive highest priority 选择。
+- custom `MotionPipelinePolicy` 抑制矩阵。
+- solver 的 `Reject`、`AllowInside`、`ClampToLastValid`。
+- constraints provider 异常诊断。
+- pool rent/release 生命周期。
+
+## 10. 稳定性边界
+
+该模块已经具备较完整的抽象和基础实现，但生产接入时仍建议：
+
+- 在项目自己的碰撞世界中补齐 sweep/overlap/project 的确定性测试。
+- 对所有技能位移配置建立回放用例。
+- 明确 source 所有权和归还时机。
+- 在帧同步项目中固定 tick dt，并避免 solver 读取非确定性外部状态。

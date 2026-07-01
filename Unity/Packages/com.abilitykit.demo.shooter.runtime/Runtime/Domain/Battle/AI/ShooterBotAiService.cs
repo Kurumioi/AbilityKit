@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _targetIndex = targetIndex;
             _config = config;
             _blackboard = new ShooterBotAiBlackboard(playerId, config);
-            _fsm = ShooterBotAiRuntimeBuilder.Build(this, _blackboard, config);
+            _fsm = new ShooterBotAiRuntimeBuilder().Build(this, _blackboard, config);
         }
 
         public int PlayerId { get; }
@@ -313,85 +313,99 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
     }
 
-    internal static class ShooterBotAiRuntimeBuilder
+    internal delegate IActionBehaviour ShooterBotAiActionFactory(ShooterBotAiBlackboard blackboard, ShooterBotAiActionConfig action);
+
+    internal delegate bool ShooterBotAiConditionEvaluator(ShooterBotAiBlackboard blackboard);
+
+    internal sealed class ShooterBotAiActionRegistry
     {
-        public static StateMachine<string> Build(IActionTimeSource timeSource, ShooterBotAiBlackboard blackboard, ShooterBotAiConfig config)
+        private readonly Dictionary<string, ShooterBotAiActionFactory> _factories;
+
+        public ShooterBotAiActionRegistry(IEnumerable<KeyValuePair<string, ShooterBotAiActionFactory>> factories)
         {
-            var fsm = new StateMachine<string>(needsExitTime: false);
-            var stateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (int i = 0; i < config.States.Count; i++)
+            _factories = new Dictionary<string, ShooterBotAiActionFactory>(StringComparer.OrdinalIgnoreCase);
+            foreach (var factory in factories)
             {
-                var state = config.States[i];
-                stateIds.Add(state.Id);
-                fsm.AddState(state.Id, CreateState(timeSource, blackboard, state));
-            }
-
-            for (int i = 0; i < config.Transitions.Count; i++)
-            {
-                var transition = config.Transitions[i];
-                if (!stateIds.Contains(transition.From) || !stateIds.Contains(transition.To))
+                if (!string.IsNullOrWhiteSpace(factory.Key) && factory.Value != null)
                 {
-                    continue;
+                    _factories[factory.Key] = factory.Value;
                 }
-
-                fsm.AddTransition(new Transition<string>(transition.From, transition.To, t => EvaluateCondition(blackboard, transition.Condition)));
-            }
-
-            fsm.SetStartState(config.StartState);
-            fsm.Init();
-            return fsm;
-        }
-
-        private static CompositeActionState<string, string> CreateState(IActionTimeSource timeSource, ShooterBotAiBlackboard blackboard, ShooterBotAiStateConfig state)
-        {
-            var sequence = new SequenceBehaviour();
-            for (int i = 0; i < state.Actions.Count; i++)
-            {
-                sequence.Add(CreateAction(blackboard, state.Actions[i]));
-            }
-
-            if (state.Interval > 0f)
-            {
-                sequence.Add(new DelayBehaviour(state.Interval));
-            }
-
-            return new CompositeActionState<string>(needsExitTime: false)
-                .SetTimeSource(timeSource)
-                .SetLoop(true)
-                .SetRoot(sequence);
-        }
-
-        private static IActionBehaviour CreateAction(ShooterBotAiBlackboard blackboard, ShooterBotAiActionConfig action)
-        {
-            switch (action.Type)
-            {
-                case ShooterBotAiActionTypes.Wander:
-                    return new ShooterBotWanderBehaviour(blackboard, action);
-                case ShooterBotAiActionTypes.ChaseTarget:
-                    return new ShooterBotChaseBehaviour(blackboard, action);
-                case ShooterBotAiActionTypes.AttackTarget:
-                    return new ShooterBotAttackBehaviour(blackboard, action);
-                default:
-                    return new ShooterBotIdleBehaviour(blackboard);
             }
         }
 
-        private static bool EvaluateCondition(ShooterBotAiBlackboard blackboard, string condition)
+        public IActionBehaviour Create(ShooterBotAiBlackboard blackboard, ShooterBotAiActionConfig action)
         {
-            switch (condition)
+            if (action != null && _factories.TryGetValue(action.Type, out var factory))
             {
-                case ShooterBotAiConditions.HasTarget:
-                    return blackboard.HasTarget;
-                case ShooterBotAiConditions.NoTarget:
-                    return !blackboard.HasTarget;
-                case ShooterBotAiConditions.InAttackRange:
-                    return blackboard.InAttackRange;
-                case ShooterBotAiConditions.OutOfAttackRange:
-                    return blackboard.HasTarget && !blackboard.InAttackRange;
-                default:
-                    return false;
+                return factory(blackboard, action);
             }
+
+            return new ShooterBotIdleBehaviour(blackboard);
+        }
+
+        public static ShooterBotAiActionRegistry Default { get; } = new ShooterBotAiActionRegistry(new[]
+        {
+            new KeyValuePair<string, ShooterBotAiActionFactory>(ShooterBotAiActionTypes.Idle, (blackboard, _) => new ShooterBotIdleBehaviour(blackboard)),
+            new KeyValuePair<string, ShooterBotAiActionFactory>(ShooterBotAiActionTypes.Wander, (blackboard, action) => new ShooterBotWanderBehaviour(blackboard, action)),
+            new KeyValuePair<string, ShooterBotAiActionFactory>(ShooterBotAiActionTypes.ChaseTarget, (blackboard, action) => new ShooterBotChaseBehaviour(blackboard, action)),
+            new KeyValuePair<string, ShooterBotAiActionFactory>(ShooterBotAiActionTypes.AttackTarget, (blackboard, action) => new ShooterBotAttackBehaviour(blackboard, action))
+        });
+    }
+
+    internal sealed class ShooterBotAiConditionRegistry
+    {
+        private readonly Dictionary<string, ShooterBotAiConditionEvaluator> _evaluators;
+
+        public ShooterBotAiConditionRegistry(IEnumerable<KeyValuePair<string, ShooterBotAiConditionEvaluator>> evaluators)
+        {
+            _evaluators = new Dictionary<string, ShooterBotAiConditionEvaluator>(StringComparer.OrdinalIgnoreCase);
+            foreach (var evaluator in evaluators)
+            {
+                if (!string.IsNullOrWhiteSpace(evaluator.Key) && evaluator.Value != null)
+                {
+                    _evaluators[evaluator.Key] = evaluator.Value;
+                }
+            }
+        }
+
+        public bool Evaluate(ShooterBotAiBlackboard blackboard, string condition)
+        {
+            return !string.IsNullOrWhiteSpace(condition)
+                && _evaluators.TryGetValue(condition, out var evaluator)
+                && evaluator(blackboard);
+        }
+
+        public static ShooterBotAiConditionRegistry Default { get; } = new ShooterBotAiConditionRegistry(new[]
+        {
+            new KeyValuePair<string, ShooterBotAiConditionEvaluator>(ShooterBotAiConditions.HasTarget, blackboard => blackboard.HasTarget),
+            new KeyValuePair<string, ShooterBotAiConditionEvaluator>(ShooterBotAiConditions.NoTarget, blackboard => !blackboard.HasTarget),
+            new KeyValuePair<string, ShooterBotAiConditionEvaluator>(ShooterBotAiConditions.InAttackRange, blackboard => blackboard.InAttackRange),
+            new KeyValuePair<string, ShooterBotAiConditionEvaluator>(ShooterBotAiConditions.OutOfAttackRange, blackboard => blackboard.HasTarget && !blackboard.InAttackRange)
+        });
+    }
+
+    internal sealed class ShooterBotAiRuntimeBuilder
+    {
+        private readonly HfsmRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig> _builder;
+
+        public ShooterBotAiRuntimeBuilder()
+            : this(ShooterBotAiActionRegistry.Default, ShooterBotAiConditionRegistry.Default)
+        {
+        }
+
+        public ShooterBotAiRuntimeBuilder(ShooterBotAiActionRegistry actions, ShooterBotAiConditionRegistry conditions)
+        {
+            if (actions == null) throw new ArgumentNullException(nameof(actions));
+            if (conditions == null) throw new ArgumentNullException(nameof(conditions));
+
+            _builder = new HfsmRuntimeProfileBuilder<ShooterBotAiBlackboard, ShooterBotAiActionConfig>(
+                actions.Create,
+                conditions.Evaluate);
+        }
+
+        public StateMachine<string> Build(IActionTimeSource timeSource, ShooterBotAiBlackboard blackboard, ShooterBotAiConfig config)
+        {
+            return _builder.Build(timeSource, blackboard, config.ToHfsmRuntimeProfile());
         }
     }
 
@@ -579,6 +593,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public IReadOnlyList<ShooterBotAiStateConfig> States { get; }
 
         public IReadOnlyList<ShooterBotAiTransitionConfig> Transitions { get; }
+
+        public HfsmRuntimeProfile<ShooterBotAiActionConfig> ToHfsmRuntimeProfile()
+        {
+            var states = new HfsmRuntimeActionStateSpec<ShooterBotAiActionConfig>[States.Count];
+            for (var i = 0; i < States.Count; i++)
+            {
+                var state = States[i];
+                states[i] = new HfsmRuntimeActionStateSpec<ShooterBotAiActionConfig>(state.Id, state.Interval, state.Actions);
+            }
+
+            var transitions = new HfsmRuntimeTransitionSpec[Transitions.Count];
+            for (var i = 0; i < Transitions.Count; i++)
+            {
+                var transition = Transitions[i];
+                transitions[i] = new HfsmRuntimeTransitionSpec(transition.From, transition.To, transition.Condition);
+            }
+
+            return new HfsmRuntimeProfile<ShooterBotAiActionConfig>(StartState, states, transitions);
+        }
     }
 
     internal sealed class ShooterBotAiStateConfig

@@ -68,11 +68,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 if (!IsAlias(kv.Key, aliases))
                     continue;
 
-                value = ResolveNumber(kv.Value, ctx);
+                if (!TryResolveNumber(kv.Value, ctx, out value))
+                {
+                    value = default;
+                    return false;
+                }
+
                 return true;
             }
 
             return false;
+        }
+
+        private static bool TryResolveNumber(ActionArgValue arg, ExecCtx<IWorldResolver> ctx, out double value)
+        {
+            if (arg.Ref.Kind == ENumericValueRefKind.Const)
+            {
+                value = arg.Ref.ConstValue;
+                return true;
+            }
+
+            return NumericValueRefResolver.TryResolve(arg.Ref, default(object), ctx, out value);
         }
 
         protected static int[] ReadPositiveInts(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx, params string[] aliases)

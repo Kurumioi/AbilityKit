@@ -61,6 +61,22 @@ namespace AbilityKit.Demo.Moba.Attributes
             set => SetResourceCurrent(RequireResources(), ResourceType.Mana, value);
         }
 
+        public float Rage
+        {
+            get => GetResourceCurrent(RequireResources(), ResourceType.Rage);
+            set => SetResourceCurrent(RequireResources(), ResourceType.Rage, value);
+        }
+
+        public float GetResource(ResourceType type)
+        {
+            return GetResourceCurrent(RequireResources(), type);
+        }
+
+        public void SetResource(ResourceType type, float value)
+        {
+            SetResourceCurrent(RequireResources(), type, value);
+        }
+
         public float MaxHp => RequireGroup().GetValue(MobaAttributeIds.MAX_HP);
         public float ExtraHp => RequireGroup().GetValue(MobaAttributeIds.EXTRA_HP);
         public float PhysicsAttack => RequireGroup().GetValue(MobaAttributeIds.PHYSICS_ATTACK);
@@ -117,6 +133,11 @@ namespace AbilityKit.Demo.Moba.Attributes
         public bool RemoveModifier(BattleAttributeType type, int handle)
         {
             return RequireGroup().RemoveModifier(MobaAttributeIds.Get(type), handle);
+        }
+
+        public void ClearModifiers(int sourceId)
+        {
+            RequireGroup().ClearModifiers(sourceId);
         }
     }
 }

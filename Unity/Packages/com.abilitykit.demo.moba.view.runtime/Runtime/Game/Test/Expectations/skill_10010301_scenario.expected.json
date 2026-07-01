@@ -1,0 +1,96 @@
+{
+  "caseId": "skill_10010301_scenario_three_stage_damage_knockup",
+  "description": "Lian Po skill 3 should spawn all three slam areas, apply three damage hits, and trigger the third-stage knock-up action from area enter.",
+  "category": "contract",
+  "tags": ["lian-po", "skill-3", "area", "scenario", "damage", "knockup"],
+  "config": {
+    "skillId": 10010301,
+    "castFlowId": 10010301,
+    "effectId": 10010321,
+    "triggerId": 10010321,
+    "expectedActions": [
+      { "actionId": 1822191218, "type": "spawn_area" },
+      { "actionId": 589451731, "type": "debug_log" }
+    ]
+  },
+  "scenario": {
+    "scenarioId": "skill_10010301_scenario_three_stage_damage_knockup",
+    "worldId": "skill_10010301_scenario_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "skillIds": [10010101, 10010201, 10010301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "spawnPosition": { "x": 3.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "setupActions": [
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "max_hp",
+        "value": 1000.0
+      },
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "hp",
+        "value": 1000.0
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_3",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "slot": 3,
+        "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "stepId": "wait_for_third_stage_knockup",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 1900
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 550.0
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10010301, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10010301, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10010311, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10010321, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010321, "minCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40010301, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40010311, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40010321, "underEffectId": 10010321, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaEnter", "configId": 40010301, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaEnter", "configId": 40010311, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaEnter", "configId": 40010321, "underEffectId": 10010321, "minCount": 1, "maxCount": 1 },
+    { "kind": "DamageApply", "configId": 10010301, "minCount": 3, "maxCount": 3 },
+    { "kind": "EffectAction", "configId": -13684592, "minCount": 1 }
+  ]
+}

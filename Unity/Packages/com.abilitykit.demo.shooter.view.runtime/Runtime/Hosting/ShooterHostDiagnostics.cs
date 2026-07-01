@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
             ShooterLagCompensationTelemetry? lagCompensationTelemetry,
             ShooterLagCompensationEvaluation? lagCompensationEvaluation,
             ShooterRemoteLatencyCompensationDiagnostics remoteLatencyCompensationDiagnostics,
+            ShooterCrossLayerDiagnostics crossLayerDiagnostics,
             ShooterPureStateSyncDiagnostics pureStateSyncDiagnostics,
             bool needsPureStateBaselineResync,
             ShooterPureStateResyncReason lastPureStateResyncReason,
@@ -54,6 +55,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
             LagCompensationTelemetry = lagCompensationTelemetry;
             LagCompensationEvaluation = lagCompensationEvaluation;
             RemoteLatencyCompensationDiagnostics = remoteLatencyCompensationDiagnostics;
+            CrossLayerDiagnostics = crossLayerDiagnostics;
             PureStateSyncDiagnostics = pureStateSyncDiagnostics;
             NeedsPureStateBaselineResync = needsPureStateBaselineResync;
             LastPureStateResyncReason = lastPureStateResyncReason;
@@ -92,7 +94,9 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
         public ShooterLagCompensationEvaluation? LagCompensationEvaluation { get; }
 
         public ShooterRemoteLatencyCompensationDiagnostics RemoteLatencyCompensationDiagnostics { get; }
-
+ 
+        public ShooterCrossLayerDiagnostics CrossLayerDiagnostics { get; }
+ 
         public ShooterPureStateSyncDiagnostics PureStateSyncDiagnostics { get; }
 
         public bool NeedsPureStateBaselineResync { get; }
@@ -138,6 +142,13 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
                 session.LagCompensationTelemetry,
                 session.LastLagCompensationEvaluation,
                 default,
+                ShooterCrossLayerDiagnostics.From(
+                    session.FrameworkSnapshotPipelineDiagnostics,
+                    session.LastCarrierSnapshotApplyResult,
+                    default,
+                    session.Presentation.NeedsPureStateFullBaselineResync,
+                    session.Presentation.LastPureStateAppliedFrame,
+                    session.Presentation.LastPureStateResyncFrame),
                 session.Presentation.LastPureStateSyncDiagnostics,
                 session.Presentation.NeedsPureStateFullBaselineResync,
                 session.Presentation.LastPureStateResyncReason,
@@ -170,6 +181,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
                 frame.LagCompensationTelemetry,
                 frame.LagCompensationEvaluation,
                 frame.RemoteLatencyCompensationDiagnostics,
+                frame.CrossLayerDiagnostics,
                 frame.PureStateSyncDiagnostics,
                 frame.NeedsPureStateBaselineResync,
                 frame.LastPureStateResyncReason,

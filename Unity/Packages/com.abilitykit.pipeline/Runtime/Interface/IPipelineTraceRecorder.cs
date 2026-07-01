@@ -22,6 +22,11 @@ namespace AbilityKit.Pipeline
         /// 获取指定拥有者的追踪记录；未记录时返回空。
         /// </summary>
         IPipelineRunTrace? GetTrace(int ownerId);
+
+        /// <summary>
+        /// 获取指定拥有者的追踪快照；未记录时返回空集合。
+        /// </summary>
+        IReadOnlyList<PipelineTraceEvent> GetSnapshot(int ownerId);
     }
 
     /// <summary>
@@ -43,5 +48,10 @@ namespace AbilityKit.Pipeline
         /// 添加追踪事件
         /// </summary>
         void Add(EPipelineTraceEventType type, AbilityPipelinePhaseId phaseId, EAbilityPipelineState state, string message);
+
+        /// <summary>
+        /// 获取当前追踪记录快照。
+        /// </summary>
+        IReadOnlyList<PipelineTraceEvent> GetSnapshot();
     }
 }

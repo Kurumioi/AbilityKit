@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Pooling;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;
 
@@ -20,9 +21,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
     /// </summary>
     public sealed class GroupedScheduleManager : IGroupedScheduleManager
     {
-        private readonly GroupedScheduleStore _store = new GroupedScheduleStore();
-        private readonly GroupedScheduleIndex _groupIndex = new GroupedScheduleIndex();
+        private static readonly TriggeringRuntimePools SharedPools = TriggeringRuntimePools.CreateDefault("triggering-grouped-schedule-temporary");
+
+        private readonly GroupedScheduleStore _store;
+        private readonly GroupedScheduleIndex _groupIndex;
         private readonly IScheduleStrategy _strategy;
+        private readonly TriggeringRuntimePools _pools;
 
         public int ActiveCount { get; private set; }
         public int TotalCount => _store.Count;
@@ -31,9 +35,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         /// 创建调度管理器
         /// </summary>
         /// <param name="strategy">调度策略（可选，默认使用 DefaultScheduleStrategy）</param>
-        public GroupedScheduleManager(IScheduleStrategy strategy = null)
+        public GroupedScheduleManager(IScheduleStrategy strategy = null, TriggeringRuntimePools pools = null)
         {
             _strategy = strategy ?? new DefaultScheduleStrategy();
+            _pools = pools ?? SharedPools;
+            _store = new GroupedScheduleStore(_pools);
+            _groupIndex = new GroupedScheduleIndex(_pools);
         }
 
         #region 注册
@@ -301,35 +308,41 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void Update(float deltaTimeMs)
         {
-            var indicesToRemove = new List<int>();
-
-            for (int i = 0; i < _store.Count; i++)
+            var indicesToRemove = _pools.RentIntList();
+            try
             {
-                var item = _store[i];
-
-                if (item.IsTerminated)
+                for (int i = 0; i < _store.Count; i++)
                 {
-                    indicesToRemove.Add(i);
-                    continue;
-                }
+                    var item = _store[i];
 
-                var executor = new EffectExecutor(_store.GetEffect(i));
-                bool shouldRemove = _strategy.OnUpdate(ref item, deltaTimeMs, executor);
-                _store[i] = item;
+                    if (item.IsTerminated)
+                    {
+                        indicesToRemove.Add(i);
+                        continue;
+                    }
 
-                if (shouldRemove)
-                {
-                    item.State = item.State == EScheduleItemState.Interrupted
-                        ? EScheduleItemState.Interrupted
-                        : EScheduleItemState.Completed;
+                    var executor = new EffectExecutor(_store.GetEffect(i));
+                    bool shouldRemove = _strategy.OnUpdate(ref item, deltaTimeMs, executor);
                     _store[i] = item;
 
-                    NotifyCompleted(i, item);
-                    indicesToRemove.Add(i);
-                }
-            }
+                    if (shouldRemove)
+                    {
+                        item.State = item.State == EScheduleItemState.Interrupted
+                            ? EScheduleItemState.Interrupted
+                            : EScheduleItemState.Completed;
+                        _store[i] = item;
 
-            CleanupItems(indicesToRemove);
+                        NotifyCompleted(i, item);
+                        indicesToRemove.Add(i);
+                    }
+                }
+
+                CleanupItems(indicesToRemove);
+            }
+            finally
+            {
+                _pools.ReleaseIntList(indicesToRemove);
+            }
         }
 
         #endregion
@@ -397,12 +410,19 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             var result = new List<ScheduleItemData>();
             if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in indices)
+                try
                 {
-                    if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
+                    foreach (var index in indices)
                     {
-                        result.Add(_store[index]);
+                        if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
+                        {
+                            result.Add(_store[index]);
+                        }
                     }
+                }
+                finally
+                {
+                    _pools.ReleaseIntList(indices);
                 }
             }
             return result;
@@ -413,12 +433,19 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             var result = new List<ScheduleHandle>();
             if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in indices)
+                try
                 {
-                    if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
+                    foreach (var index in indices)
                     {
-                        result.Add(_store[index].Handle);
+                        if (_store.IsValidIndex(index) && !_store[index].IsTerminated)
+                        {
+                            result.Add(_store[index].Handle);
+                        }
                     }
+                }
+                finally
+                {
+                    _pools.ReleaseIntList(indices);
                 }
             }
             return result;
@@ -432,15 +459,22 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         {
             if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in indices)
+                try
                 {
-                    if (!_store.IsValidIndex(index)) continue;
-                    var item = _store[index];
-                    if (!item.IsTerminated && item.State != EScheduleItemState.Paused)
+                    foreach (var index in indices)
                     {
-                        item.State = EScheduleItemState.Paused;
-                        _store[index] = item;
+                        if (!_store.IsValidIndex(index)) continue;
+                        var item = _store[index];
+                        if (!item.IsTerminated && item.State != EScheduleItemState.Paused)
+                        {
+                            item.State = EScheduleItemState.Paused;
+                            _store[index] = item;
+                        }
                     }
+                }
+                finally
+                {
+                    _pools.ReleaseIntList(indices);
                 }
             }
         }
@@ -449,15 +483,22 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         {
             if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in indices)
+                try
                 {
-                    if (!_store.IsValidIndex(index)) continue;
-                    var item = _store[index];
-                    if (!item.IsTerminated && item.State == EScheduleItemState.Paused)
+                    foreach (var index in indices)
                     {
-                        item.State = GetResumedState(item);
-                        _store[index] = item;
+                        if (!_store.IsValidIndex(index)) continue;
+                        var item = _store[index];
+                        if (!item.IsTerminated && item.State == EScheduleItemState.Paused)
+                        {
+                            item.State = GetResumedState(item);
+                            _store[index] = item;
+                        }
                     }
+                }
+                finally
+                {
+                    _pools.ReleaseIntList(indices);
                 }
             }
         }
@@ -467,19 +508,26 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             int count = 0;
             if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
             {
-                foreach (var index in indices)
+                try
                 {
-                    if (!_store.IsValidIndex(index)) continue;
-                    var item = _store[index];
-                    if (!item.IsTerminated && item.CanBeInterrupted)
+                    foreach (var index in indices)
                     {
-                        item.State = EScheduleItemState.Interrupted;
-                        item.InterruptReason = reason;
-                        _store[index] = item;
+                        if (!_store.IsValidIndex(index)) continue;
+                        var item = _store[index];
+                        if (!item.IsTerminated && item.CanBeInterrupted)
+                        {
+                            item.State = EScheduleItemState.Interrupted;
+                            item.InterruptReason = reason;
+                            _store[index] = item;
 
-                        NotifyInterrupted(index, item, reason);
-                        count++;
+                            NotifyInterrupted(index, item, reason);
+                            count++;
+                        }
                     }
+                }
+                finally
+                {
+                    _pools.ReleaseIntList(indices);
                 }
             }
             ActiveCount -= count;
@@ -488,7 +536,13 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public int RemoveGroup(int groupId)
         {
-            var count = _groupIndex.TryGetIndicesSnapshot(groupId, out var indices) ? indices.Count : 0;
+            var count = 0;
+            if (_groupIndex.TryGetIndicesSnapshot(groupId, out var indices))
+            {
+                count = indices.Count;
+                _pools.ReleaseIntList(indices);
+            }
+
             _groupIndex.RemoveGroup(groupId);
             ActiveCount -= count;
             return count;
@@ -515,13 +569,25 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             if (indices.Count == 0)
                 return;
 
-            var indicesToCleanup = new HashSet<int>(indices);
-            _groupIndex.RemoveIndices(indicesToCleanup);
+            var indicesToCleanup = _pools.RentIntHashSet();
+            try
+            {
+                foreach (var index in indices)
+                {
+                    indicesToCleanup.Add(index);
+                }
 
-            var indexMapping = BuildCompactedIndexMapping(indicesToCleanup);
-            _store.RebuildWithout(indicesToCleanup);
-            _groupIndex.RebuildIndices(indexMapping);
-            ActiveCount -= indices.Count;
+                _groupIndex.RemoveIndices(indicesToCleanup);
+
+                var indexMapping = BuildCompactedIndexMapping(indicesToCleanup);
+                _store.RebuildWithout(indicesToCleanup);
+                _groupIndex.RebuildIndices(indexMapping);
+                ActiveCount -= indices.Count;
+            }
+            finally
+            {
+                _pools.ReleaseIntHashSet(indicesToCleanup);
+            }
         }
 
         private int[] BuildCompactedIndexMapping(HashSet<int> indicesToCleanup)

@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
@@ -39,12 +40,20 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 _actions2,
                 _useNamedArgs);
             _resolved = true;
+
+            Log.Warning($"[PlannedTriggerActionExecutor] resolved triggerId={_plan.TriggerId} actionCount={_plan.Actions?.Length ?? 0} bindings0={CountBound(_actions0)} bindings1={CountBound(_actions1)} bindings2={CountBound(_actions2)}");
         }
 
         public void Execute(in TArgs args, in ExecCtx<TCtx> ctx, int index)
         {
             var call = _plan.Actions[index];
-            Execute(in args, in call, in ctx, index);
+            Execute(in args, in call, in ctx, index, index);
+        }
+
+        public void ExecuteWithScopeIndex(in TArgs args, in ExecCtx<TCtx> ctx, int index, int scopeIndex)
+        {
+            var call = _plan.Actions[index];
+            Execute(in args, in call, in ctx, index, scopeIndex);
         }
 
         public Action<object, ITriggerDispatcherContext> CreateActionDelegate(int index, Func<ExecCtx<TCtx>> execCtxAccessor)
@@ -56,15 +65,15 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 var args = (TArgs)argsObj;
                 var ctx = execCtxAccessor();
-                Execute(in args, in call, in ctx, index);
+                Execute(in args, in call, in ctx, index, index);
             };
         }
 
-        private void Execute(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index)
+        private void Execute(in TArgs args, in ActionCallPlan call, in ExecCtx<TCtx> ctx, int index, int scopeIndex)
         {
             var behaviorCue = !call.Cue.IsEmpty && _plan.Cue != null ? _plan.Cue : null;
             ExecCtxContextAccessorExtensions.TryGetService<TCtx, ITriggerActionExecutionScopeObserver>(in ctx, out var actionScopeObserver);
-            actionScopeObserver?.EnterActionExecution(index, call.Id.Value);
+            actionScopeObserver?.EnterActionExecution(scopeIndex, call.Id.Value);
             try
             {
                 if (behaviorCue != null)
@@ -103,7 +112,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
             finally
             {
-                actionScopeObserver?.ExitActionExecution(index, call.Id.Value);
+                actionScopeObserver?.ExitActionExecution(scopeIndex, call.Id.Value);
             }
         }
 
@@ -168,6 +177,25 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _actions1 = len > 0 ? new NamedAction1<TArgs, object, TCtx>[len] : null;
             _actions2 = len > 0 ? new NamedAction2<TArgs, object, TCtx>[len] : null;
             _useNamedArgs = len > 0 ? new bool[len] : null;
+        }
+
+        private static int CountBound(Array bindings)
+        {
+            if (bindings == null)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            for (int i = 0; i < bindings.Length; i++)
+            {
+                if (bindings.GetValue(i) != null)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private TriggerCueContext BuildBehaviorCueContext(

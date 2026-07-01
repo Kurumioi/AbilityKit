@@ -29,7 +29,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_nodes[i] == null) throw new InvalidOperationException("ParallelAllNode contains null node");
                 _status[i] = FlowStatus.Running;
-                _nodes[i].Enter(ctx);
+                FlowDiagnostics.Enter(ctx, _nodes[i]);
             }
             _entered = true;
         }
@@ -45,7 +45,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] != FlowStatus.Running) continue;
 
-                var s = _nodes[i].Tick(ctx, deltaTime);
+                var s = FlowDiagnostics.Tick(ctx, _nodes[i], deltaTime);
                 if (s == FlowStatus.Running)
                 {
                     allDone = false;
@@ -53,7 +53,7 @@ namespace AbilityKit.Ability.Flow.Blocks
                 }
 
                 _status[i] = s;
-                _nodes[i].Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _nodes[i], s);
 
                 if (s != FlowStatus.Succeeded) anyFailed = true;
             }
@@ -70,7 +70,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] == FlowStatus.Running)
                 {
-                    _nodes[i].Exit(ctx);
+                    FlowDiagnostics.Exit(ctx, _nodes[i]);
                     _status[i] = FlowStatus.Succeeded;
                 }
             }
@@ -86,7 +86,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] == FlowStatus.Running)
                 {
-                    _nodes[i].Interrupt(ctx);
+                    FlowDiagnostics.Interrupt(ctx, _nodes[i]);
                     _status[i] = FlowStatus.Canceled;
                 }
             }

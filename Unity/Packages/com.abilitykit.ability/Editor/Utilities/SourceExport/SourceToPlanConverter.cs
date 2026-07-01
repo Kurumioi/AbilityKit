@@ -710,6 +710,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "debug_log":
                 case "shoot_projectile":
                 case "give_damage":
+                case "spawn_area":
+                case "remove_area":
+                case "play_effect":
+                case "add_buff":
+                case "remove_buff":
+                case "set_move_input_blocked":
+                case "set_skill_input_blocked":
+                case "set_move_direction_lock":
+                case "set_move_direction_forward_only":
+                case "set_move_direction_8dir":
+                case "set_move_direction_free":
+                case "clear_move_direction_mode":
                     return 2;
                 default:
                     return -1;
@@ -787,6 +799,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                     MapBoolArgAlias(args, plan, "target_self", "target_self", "targetSelf", "self");
                     MapIntListArgAliases(args, plan, new[] { "buff_id", "buffIds" }, "buffids", "buff_ids", "buffid", "buff_id", "id", "ids");
                     MapFloatArg(args, "duration", plan);
+                    break;
+
+                case "spawn_area":
+                    MapIntArgAlias(args, plan, "area_id", "area_id", "areaId", "aoe_id", "aoeId", "id");
+                    MapIntArgAlias(args, plan, "position_mode", "position_mode", "positionMode", "position");
+                    MapFloatArgAlias(args, plan, "radius", "radius", "radius_override", "radiusOverride");
+                    MapIntArgAlias(args, plan, "duration_frames", "duration_frames", "durationFrames", "lifetime_frames", "lifetimeFrames");
+                    MapIntArgAlias(args, plan, "duration_ms", "duration_ms", "durationMs", "lifetime_ms", "lifetimeMs");
+                    MapIntArgAlias(args, plan, "stay_interval_frames", "stay_interval_frames", "stayIntervalFrames", "stay_frames", "stayFrames");
+                    MapIntArgAlias(args, plan, "collision_layer_mask", "collision_layer_mask", "collisionLayerMask", "layer_mask", "layerMask");
+                    MapFloatArgAlias(args, plan, "offset_x", "offset_x", "offsetX", "x");
+                    MapFloatArgAlias(args, plan, "offset_y", "offset_y", "offsetY", "y");
+                    MapFloatArgAlias(args, plan, "offset_z", "offset_z", "offsetZ", "z");
                     break;
             }
         }

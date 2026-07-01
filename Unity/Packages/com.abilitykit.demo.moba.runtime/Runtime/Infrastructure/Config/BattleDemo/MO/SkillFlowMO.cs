@@ -8,6 +8,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
     {
         public int Id { get; }
         public string Name { get; }
+        public int PipelineContinuousTagTemplateId { get; }
         public IReadOnlyList<SkillPhaseDTO> Phases { get; }
 
         public SkillFlowMO(SkillFlowDTO dto)
@@ -15,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             Id = dto.Id;
             Name = dto.Name;
+            PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId;
             Phases = dto.Phases ?? Array.Empty<SkillPhaseDTO>();
         }
     }

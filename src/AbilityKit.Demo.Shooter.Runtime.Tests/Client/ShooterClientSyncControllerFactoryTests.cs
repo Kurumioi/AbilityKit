@@ -6,6 +6,7 @@ using Xunit;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
+[Collection(ShooterClientSyncControllerFactoryTestCollection.Name)]
 public sealed class ShooterClientSyncControllerFactoryTests
 {
     [Theory]

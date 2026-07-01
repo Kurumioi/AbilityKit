@@ -50,6 +50,37 @@ internal abstract class ShooterSmokeScenarioBase
         return new ShooterSmokeLogin(response.AccountId, response.SessionToken);
     }
 
+    internal static async Task<ShooterSmokeLogin> LoginAccountAsync(
+        AbilityKit.Network.Abstractions.IConnection connection,
+        string accountId,
+        bool kickExisting = true,
+        int expireSeconds = 0)
+    {
+        if (string.IsNullOrWhiteSpace(accountId)) throw new ArgumentException("accountId is required.", nameof(accountId));
+
+        using var requestClient = new RequestClient(connection);
+        var request = new WireRoomAccountLoginReq
+        {
+            AccountId = accountId,
+            ExpireSeconds = expireSeconds,
+            KickExisting = kickExisting
+        };
+        var payload = WireRoomGatewayBinary.Serialize(in request);
+        var responsePayload = await requestClient.SendRequestAsync(RoomGatewayOpCodes.AccountLogin, payload, TimeSpan.FromSeconds(10));
+        var response = WireRoomGatewayBinary.Deserialize<WireRoomAccountLoginRes>(responsePayload);
+        if (!response.Success || string.IsNullOrWhiteSpace(response.SessionToken) || string.IsNullOrWhiteSpace(response.AccountId))
+        {
+            throw new InvalidOperationException($"Shooter smoke account login failed: {response.Message}");
+        }
+
+        if (!string.Equals(response.AccountId, accountId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Shooter smoke account login returned mismatched account. Expected={accountId}, Actual={response.AccountId}");
+        }
+
+        return new ShooterSmokeLogin(response.AccountId, response.SessionToken);
+    }
+
     internal static ShooterSmokePresentationContext CreatePresentationContext()
     {
         var runtime = new ShooterBattleRuntimePort();

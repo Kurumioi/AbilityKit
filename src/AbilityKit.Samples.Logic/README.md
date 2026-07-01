@@ -26,6 +26,27 @@
 
 建议新人先运行 `Onboarding` 与 `Foundation` 分类中的入门示例。菜单里的数字只是当前宿主渲染出的临时 index，不应写死到文档或 UI 中；稳定入口应使用 `sample-manifest.json` 中配置的 `id`。
 
+## Starter 推进顺序
+
+`AbilityKit.Samples.Logic` 已经包含 Pipeline、Triggering、Modifiers/属性、Flow、World、Sync 等正式示例，并且可以通过 `--web` 导出静态 Web 界面。Starter 的作用不是重写这些示例，而是提供一条更短的官方接入路线，把已有能力按 Foundation、SkillCore、BattleRuntime、SyncRuntime 串起来。
+
+| 阶段 | 稳定 id 建议 | 目标 | 依赖边界 |
+| --- | --- | --- | --- |
+| Foundation Starter | `starter/foundation` | 展示日志、事件、对象池、World DI 和宿主驱动 Tick | 只依赖 `AbilityKit.Core`、`AbilityKit.World.DI` 和 sample 抽象 |
+| SkillCore 路线 | `pipeline/basic-phases`、`triggering/basic-event-trigger`、`triggering/condition-blackboard`、`modifiers/attribute-basic` | 复用已有示例展示技能阶段、属性变化、触发规则和结构化输出 | 在 Foundation 后按现有 manifest 路线阅读，不重复造 `starter/skill-core` |
+| BattleRuntime Starter | `starter/battle-runtime` | 展示目标选择、命中、伤害和 Trace/诊断输出 | 在 SkillCore 上增加 `Combat.Targeting`、`Combat.Projectile`、`Combat.Damage` |
+| SyncRuntime Starter | `starter/sync-runtime` | 展示输入帧、快照应用、状态校验和回放基础 | 只面向需要同步/回放的项目 |
+
+第一阶段优先补 `starter/foundation`，它用于证明基础包可以离开 Demo 独立运行。完成后不是重复实现 SkillCore 示例，而是把现有 Pipeline、Triggering、Modifiers/属性示例收编成推荐路线，并通过 Web 导出展示同一套学习路径。
+
+Starter 验收标准：
+
+- 能通过 `dotnet run --project src/AbilityKit.Samples -- --id <stable-id>` 运行。
+- 能通过 `--validate-manifest` 校验 manifest 元数据。
+- 输出使用 `Section`、`Bullet`、`KeyValue` 等结构化方法，不依赖解析自由文本。
+- 不直接引用 Unity API、Demo 包或项目业务资产。
+- README 中能说明该 Starter 对应的包组合和下一步扩展路径。
+
 - `onboarding/orientation`：项目定位、解决的问题、阅读 sample 的方法。
 - `onboarding/host-boundary`：纯逻辑与控制台、文件、游戏宿主的边界。
 - `onboarding/package-composition`：如何根据玩法需求选择模块。

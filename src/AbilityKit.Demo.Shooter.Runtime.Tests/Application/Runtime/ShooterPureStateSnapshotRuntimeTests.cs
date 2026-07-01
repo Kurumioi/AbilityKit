@@ -166,6 +166,52 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
     }
 
     [Fact]
+    public void PureStateSnapshotBudgetProfilesKeepPayloadAndVisibilityHintsAligned()
+    {
+        var profiles = new[]
+        {
+            (Name: "small", PlayerCount: 2, ActiveSyncBudget: 4, ExpectedEntities: 4),
+            (Name: "medium", PlayerCount: 4, ActiveSyncBudget: 8, ExpectedEntities: 8),
+            (Name: "mass", PlayerCount: 8, ActiveSyncBudget: 16, ExpectedEntities: 16)
+        };
+
+        foreach (var profile in profiles)
+        {
+            var runtime = new ShooterBattleRuntimePort();
+            var players = Enumerable.Range(1, profile.PlayerCount)
+                .Select(index => new ShooterStartPlayer(index, $"P{index}", index * 2f, 0f))
+                .ToArray();
+            var settings = new ShooterPureStateSyncSettings(
+                maxEntityCount: ShooterEntityLimitOptions.DefaultMaxEntityCount,
+                activeSyncBudget: profile.ActiveSyncBudget,
+                baselineIntervalFrames: 60,
+                deltaIntervalFrames: 1,
+                lowFrequencyIntervalFrames: 10,
+                interpolationDelayFrames: 3);
+            var start = new ShooterStartGamePayload(
+                $"pure-state-{profile.Name}-budget",
+                30,
+                7100 + profile.PlayerCount,
+                players);
+
+            Assert.True(runtime.StartGame(in start));
+            var commands = players
+                .Select(player => new ShooterPlayerCommand(player.PlayerId, 0f, 0f, 1f, 0f, true))
+                .ToArray();
+            runtime.SubmitInput(0, commands);
+            Assert.True(runtime.Tick(1f / 30f));
+
+            var payload = runtime.ExportPureStateSnapshot(100ul + (ulong)profile.PlayerCount, isFullBaseline: false, settings: settings);
+
+            Assert.Equal(profile.ExpectedEntities, payload.Entities.Length);
+            Assert.Equal(payload.Entities.Length, payload.VisibilityHints.Length);
+            Assert.Equal(profile.PlayerCount, payload.Entities.Count(entity => entity.EntityKind == ShooterPackedEntityKinds.Player));
+            Assert.Equal(profile.PlayerCount, payload.Entities.Count(entity => entity.EntityKind == ShooterPackedEntityKinds.Projectile));
+            Assert.All(payload.VisibilityHints, hint => Assert.True(hint.Priority > 0));
+        }
+    }
+
+    [Fact]
     public void PureStateSnapshotAppliesInterestScopeBeforeBudgetCut()
     {
         var runtime = new ShooterBattleRuntimePort();

@@ -29,7 +29,7 @@ namespace AbilityKit.Pipeline
         public static void NotifyRunStarted<TCtx>(IPipelineLifeOwner owner, object pipeline, object config, object run)
             where TCtx : IAbilityPipelineContext
         {
-            OnRunStarted?.Invoke(owner, config, run);
+            OnRunStarted?.Invoke(owner, pipeline, run);
         }
 
         /// <summary>

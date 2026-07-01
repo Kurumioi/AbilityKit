@@ -127,6 +127,50 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.Equal(fullPayload.StateHash, deltaPayload.BaselineHash);
     }
 
+    [Theory]
+    [InlineData(null, true, 0)]
+    [InlineData("", true, 0)]
+    [InlineData("packed", true, 0)]
+    [InlineData("pure-state", true, 1)]
+    [InlineData("purestate", true, 1)]
+    [InlineData("pure_state", true, 1)]
+    [InlineData("unknown", false, 0)]
+    public void TryParsePayloadMode_ParsesSupportedSmokeValues(string? value, bool expectedParsed, int expectedModeValue)
+    {
+        var expectedMode = (ShooterStateSyncPushPayloadMode)expectedModeValue;
+        var parsed = ShooterStateSyncPushOptions.TryParsePayloadMode(value, out var mode);
+
+        Assert.Equal(expectedParsed, parsed);
+        Assert.Equal(expectedMode, mode);
+    }
+
+    [Fact]
+    public void DefaultAdapter_WhenPureStateEnvironmentModeIsSet_EmitsPureStatePayload()
+    {
+        var previous = Environment.GetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable, "pure-state");
+            using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+            var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+            using var session = adapter.CreateSession("shooter-pure-state-env-adapter-test");
+            var initParams = CreateInitParams();
+            var start = session.Start(initParams);
+            Assert.True(start.Succeeded, start.Error);
+            Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
+
+            var push = session.CreateStateSyncPush(initParams.WorldId, frame: 1, isFullSnapshot: true);
+            var payload = ShooterPureStateSyncCodec.Deserialize(push.Payload!);
+
+            Assert.Equal(ShooterOpCodes.Snapshot.PureState, push.PayloadOpCode);
+            Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, payload.SnapshotKind);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable, previous);
+        }
+    }
+
     [Fact]
     public void JoinPlayer_WhenPlayerIsMissing_ReturnsSharedRejectedNullPlayerStatus()
     {

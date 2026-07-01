@@ -100,6 +100,11 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (!_descriptors.TryGetValue(command.OpCode, out MobaInputCommandHandlerDescriptor descriptor) || !TryBindHandler(command.OpCode, descriptor.HandlerType, allowFallback: true))
                 {
+                    MobaRuntimeLog.Warning(
+                        MobaRuntimeLogModule.Input,
+                        MobaRuntimeLogPurpose.Rejection,
+                        nameof(MobaInputCommandHandlerRegistry),
+                        $"Input handler missing. frame={frame.Value} op={command.OpCode} player={command.Player.Value} descriptors={_descriptors.Count} handlers={_handlers.Count}");
                     result = MobaInputCommandResult.Rejected(command, MobaInputCommandFailureCode.MissingHandler);
                     return false;
                 }
@@ -111,6 +116,15 @@ namespace AbilityKit.Demo.Moba.Services
             if (!handled && string.IsNullOrEmpty(result.Message))
             {
                 result = MobaInputCommandResult.Rejected(command, MobaInputCommandFailureCode.HandlerRejected);
+            }
+
+            if (!handled)
+            {
+                MobaRuntimeLog.Warning(
+                    MobaRuntimeLogModule.Input,
+                    MobaRuntimeLogPurpose.Rejection,
+                    nameof(MobaInputCommandHandlerRegistry),
+                    $"Input handler returned false. frame={frame.Value} op={command.OpCode} player={command.Player.Value} handler={handler?.GetType().Name ?? "<null>"} result={result}");
             }
 
             return handled;

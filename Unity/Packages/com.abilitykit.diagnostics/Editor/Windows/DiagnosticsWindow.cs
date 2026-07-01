@@ -1,22 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using UnityEngine;
 using UnityEditor;
+using UnityEngine;
 using AbilityKit.Diagnostics;
 using AbilityKit.Diagnostics.Exporters;
 
 namespace AbilityKit.Diagnostics.Editor.Windows
 {
     /// <summary>
-    /// 诊断窗口
+    /// AbilityKit diagnostics editor window.
     /// </summary>
-    public class DiagnosticsWindow : EditorWindow
+    public sealed class DiagnosticsWindow : EditorWindow
     {
         private EditorProfiler _profiler;
         private Vector2 _scrollPosition;
         private string _selectedTab = "Overview";
-        private readonly string[] _tabs = { "Overview", "Counters", "Samples", "Flame" };
+        private readonly string[] _tabs = { "Overview", "Metrics", "Options", "Sessions", "Counters", "Rates", "Gauges", "Durations", "Samples", "Events", "Flame" };
         private bool _isRecording;
         private double _lastUpdateTime;
         private string _exportPath;
@@ -25,19 +25,15 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         public static void ShowWindow()
         {
             var window = GetWindow<DiagnosticsWindow>("Diagnostics");
-            window.minSize = new Vector2(600, 400);
+            window.minSize = new Vector2(720, 460);
         }
 
         private void OnEnable()
         {
-            _profiler = new EditorProfiler();
+            _profiler = ProfilerHub.GetEditorProfiler() ?? new EditorProfiler();
             ProfilerHub.SetProfiler(_profiler);
-
-            // 默认导出路径
-            _exportPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-                "AbilityKit.Diagnostics"
-            );
+            _isRecording = _profiler.IsEnabled;
+            _exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "AbilityKit.Diagnostics");
         }
 
         private void OnDisable()
@@ -52,28 +48,49 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             DrawToolbar();
 
+            var snapshot = _profiler?.GetSnapshot();
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
             switch (_selectedTab)
             {
                 case "Overview":
-                    DrawOverview();
+                    DrawOverview(snapshot);
+                    break;
+                case "Metrics":
+                    DrawMetrics(snapshot);
+                    break;
+                case "Options":
+                    DrawOptions(snapshot);
+                    break;
+                case "Sessions":
+                    DrawSessions(snapshot);
                     break;
                 case "Counters":
-                    DrawCounters();
+                    DrawCounters(snapshot);
+                    break;
+                case "Rates":
+                    DrawRates(snapshot);
+                    break;
+                case "Gauges":
+                    DrawGauges(snapshot);
+                    break;
+                case "Durations":
+                    DrawDurations(snapshot);
                     break;
                 case "Samples":
-                    DrawSamples();
+                    DrawSamples(snapshot);
+                    break;
+                case "Events":
+                    DrawEvents(snapshot);
                     break;
                 case "Flame":
-                    DrawFlame();
+                    DrawFlame(snapshot);
                     break;
             }
 
             EditorGUILayout.EndScrollView();
 
-            // 自动刷新
-            if (_isRecording && EditorApplication.timeSinceStartup - _lastUpdateTime > 0.5)
+            if (_isRecording && EditorApplication.timeSinceStartup - _lastUpdateTime > 0.5d)
             {
                 _lastUpdateTime = EditorApplication.timeSinceStartup;
                 Repaint();
@@ -84,13 +101,10 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-            // 标签页
             foreach (var tab in _tabs)
             {
                 var isSelected = _selectedTab == tab;
-                var style = isSelected ? EditorStyles.toolbarButton : EditorStyles.toolbarButton;
-
-                if (GUILayout.Toggle(isSelected, tab, style, GUILayout.Width(80)))
+                if (GUILayout.Toggle(isSelected, tab, EditorStyles.toolbarButton, GUILayout.Width(72)))
                 {
                     _selectedTab = tab;
                 }
@@ -98,24 +112,33 @@ namespace AbilityKit.Diagnostics.Editor.Windows
 
             GUILayout.FlexibleSpace();
 
-            // 录制控制
             GUI.backgroundColor = _isRecording ? Color.red : Color.green;
-            if (GUILayout.Button(_isRecording ? "Stop" : "Record", GUILayout.Width(60)))
+            if (GUILayout.Button(_isRecording ? "Stop" : "Record", EditorStyles.toolbarButton, GUILayout.Width(70)))
             {
                 if (_isRecording)
+                {
                     StopRecording();
+                }
                 else
+                {
                     StartRecording();
+                }
             }
+
             GUI.backgroundColor = Color.white;
 
-            if (GUILayout.Button("Clear", GUILayout.Width(50)))
+            if (GUILayout.Button("Clear", EditorStyles.toolbarButton, GUILayout.Width(58)))
             {
                 _profiler?.Clear();
+                _isRecording = false;
             }
 
-            // 导出
-            if (GUILayout.Button("Export...", GUILayout.Width(60)))
+            if (GUILayout.Button("Save", EditorStyles.toolbarButton, GUILayout.Width(58)))
+            {
+                _profiler?.SaveSession("manual");
+            }
+
+            if (GUILayout.Button("Export...", EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
                 ShowExportMenu();
             }
@@ -124,63 +147,143 @@ namespace AbilityKit.Diagnostics.Editor.Windows
             EditorGUILayout.Space();
         }
 
-        private void DrawOverview()
+        private void DrawOverview(ProfilerSnapshot? snapshot)
         {
-            if (_profiler == null)
-            {
-                EditorGUILayout.HelpBox("Profiler not initialized", MessageType.Info);
-                return;
-            }
-
-            var snapshot = _profiler.GetSnapshot();
+            if (!TryGetSnapshot(snapshot, out var value)) return;
 
             EditorGUILayout.LabelField("Session", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            EditorGUILayout.LabelField($"ID: {snapshot.SessionId}");
-            EditorGUILayout.LabelField($"Timestamp: {DateTimeOffset.FromUnixTimeMilliseconds(snapshot.Timestamp):yyyy-MM-dd HH:mm:ss}");
-            EditorGUILayout.LabelField($"Duration: {(snapshot.Root.EndTimestamp - snapshot.Root.StartTimestamp) / 1000.0:F2}s");
+            EditorGUILayout.LabelField($"ID: {value.SessionId}");
+            EditorGUILayout.LabelField($"Timestamp: {DateTimeOffset.FromUnixTimeMilliseconds(value.Timestamp):yyyy-MM-dd HH:mm:ss}");
+            EditorGUILayout.LabelField($"Duration: {GetDurationSeconds(value):F2}s");
+            EditorGUILayout.LabelField($"Recording: {(_isRecording ? "Yes" : "No")}");
             EditorGUI.indentLevel--;
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Summary", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-
-            // 计数器汇总
-            EditorGUILayout.LabelField($"Counters: {snapshot.Counters.Count}");
-            EditorGUILayout.LabelField($"Samples: {snapshot.Samples.Count}");
-
-            // 火焰图节点数
-            int totalNodes = 0;
-            foreach (var root in snapshot.Root.Roots)
-            {
-                totalNodes += CountNodes(root.Value);
-            }
-            EditorGUILayout.LabelField($"Flame Nodes: {totalNodes}");
-
+            EditorGUILayout.LabelField($"Metrics: {GetCount(value.Metrics)}");
+            EditorGUILayout.LabelField($"Sessions: {GetCount(value.Sessions)}");
+            EditorGUILayout.LabelField($"Counters: {value.Counters.Count}");
+            EditorGUILayout.LabelField($"Gauges: {value.Gauges.Count}");
+            EditorGUILayout.LabelField($"Samples: {value.Samples.Count}");
+            EditorGUILayout.LabelField($"Rates: {GetCount(value.Rates)}");
+            EditorGUILayout.LabelField($"Durations: {GetCount(value.Durations)}");
+            EditorGUILayout.LabelField($"Events: {GetCount(value.Events)}");
+            EditorGUILayout.LabelField($"Flame Nodes: {CountAllNodes(value.Root)}");
             EditorGUI.indentLevel--;
 
-            // Top 5 耗时
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Top 5 Slowest", EditorStyles.boldLabel);
+            DrawTopRates(value, 5);
 
-            var topSamples = GetTopSamples(snapshot.Samples, 5);
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Top 5 Slowest Samples", EditorStyles.boldLabel);
+            var topSamples = GetTopSamples(value.Samples, 5);
+            if (topSamples.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No samples recorded", MessageType.Info);
+                return;
+            }
+
             foreach (var sample in topSamples)
             {
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(sample.name, GUILayout.Width(200));
-                EditorGUILayout.LabelField($"{sample.mean:F4}ms (avg)", GUILayout.Width(100));
-                EditorGUILayout.LabelField($"{sample.max:F4}ms (max)");
+                EditorGUILayout.LabelField(sample.name, GUILayout.Width(300));
+                EditorGUILayout.LabelField($"avg {sample.mean:F4}ms", GUILayout.Width(120));
+                EditorGUILayout.LabelField($"max {sample.max:F4}ms");
                 EditorGUILayout.EndHorizontal();
             }
         }
 
-        private void DrawCounters()
+        private void DrawMetrics(ProfilerSnapshot? snapshot)
         {
-            if (_profiler == null) return;
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Metrics == null || value.Metrics.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No metrics registered", MessageType.Info);
+                return;
+            }
 
-            var counters = _profiler.GetCounters();
+            EditorGUILayout.LabelField("Metric Registry", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
 
-            if (counters.Count == 0)
+            var sorted = new List<KeyValuePair<string, MetricDefinition>>(value.Metrics);
+            sorted.Sort((a, b) => string.Compare(a.Key, b.Key, StringComparison.Ordinal));
+            foreach (var kvp in sorted)
+            {
+                var metric = kvp.Value;
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(metric.Name, EditorStyles.boldLabel, GUILayout.Width(300));
+                EditorGUILayout.LabelField(metric.Kind.ToString(), GUILayout.Width(80));
+                EditorGUILayout.LabelField(metric.Category ?? string.Empty, GUILayout.Width(120));
+                EditorGUILayout.LabelField(metric.Unit ?? string.Empty, GUILayout.Width(80));
+                EditorGUILayout.EndHorizontal();
+                if (!string.IsNullOrEmpty(metric.Description))
+                {
+                    EditorGUILayout.LabelField(metric.Description, EditorStyles.wordWrappedMiniLabel);
+                }
+
+                if (metric.Tags != null && metric.Tags.Length > 0)
+                {
+                    EditorGUILayout.LabelField("tags " + string.Join(",", metric.Tags), EditorStyles.miniLabel);
+                }
+
+                EditorGUILayout.EndVertical();
+            }
+        }
+
+        private void DrawOptions(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            var options = value.Options;
+            if (options == null)
+            {
+                EditorGUILayout.HelpBox("No profiler options available", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Profiler Options", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            EditorGUILayout.LabelField($"Enabled: {options.Enabled}");
+            EditorGUILayout.LabelField($"Default Sample Rate: {options.DefaultSampleRate:F3}");
+            EditorGUILayout.LabelField($"Max Samples / Metric: {options.MaxSamplesPerMetric}");
+            EditorGUILayout.LabelField($"Max Diagnostic Events: {options.MaxDiagnosticEvents}");
+            EditorGUILayout.LabelField($"Disabled Categories: {GetCount(options.DisabledCategories)}");
+            EditorGUILayout.LabelField($"Category Sample Rates: {GetCount(options.CategorySampleRates)}");
+            EditorGUILayout.LabelField($"Metric Sample Rates: {GetCount(options.MetricSampleRates)}");
+            EditorGUI.indentLevel--;
+        }
+
+        private void DrawSessions(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Sessions == null || value.Sessions.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No saved sessions", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Saved Session Summaries", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
+            for (var i = value.Sessions.Count - 1; i >= 0; i--)
+            {
+                var session = value.Sessions[i];
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(string.IsNullOrEmpty(session.Label) ? session.SessionId : session.Label, EditorStyles.boldLabel, GUILayout.Width(240));
+                EditorGUILayout.LabelField($"{session.DurationMilliseconds:F1}ms", GUILayout.Width(100));
+                EditorGUILayout.LabelField(DateTimeOffset.FromUnixTimeMilliseconds(session.SavedTimestamp).ToLocalTime().ToString("HH:mm:ss"));
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.LabelField($"metrics {session.MetricCount}, counters {session.CounterCount}, gauges {session.GaugeCount}, samples {session.SampleCount}, events {session.EventCount}", EditorStyles.miniLabel);
+                EditorGUILayout.EndVertical();
+            }
+        }
+
+        private void DrawCounters(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Counters.Count == 0)
             {
                 EditorGUILayout.HelpBox("No counters recorded", MessageType.Info);
                 return;
@@ -189,29 +292,102 @@ namespace AbilityKit.Diagnostics.Editor.Windows
             EditorGUILayout.LabelField("Counters", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            foreach (var kvp in counters)
+            foreach (var kvp in value.Counters)
             {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(kvp.Key, EditorStyles.miniLabel, GUILayout.Width(250));
-
                 var record = kvp.Value;
-                var deltaColor = record.Delta > 0 ? Color.green : (record.Delta < 0 ? Color.red : Color.gray);
-                GUI.backgroundColor = deltaColor;
-                EditorGUILayout.LabelField($"+{record.Delta}", GUILayout.Width(50));
-                GUI.backgroundColor = Color.white;
-
-                EditorGUILayout.LabelField($"= {record.Value}");
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(kvp.Key, EditorStyles.miniLabel, GUILayout.Width(320));
+                EditorGUILayout.LabelField($"value {record.Value}", GUILayout.Width(120));
+                EditorGUILayout.LabelField($"delta {record.Delta}", GUILayout.Width(120));
+                EditorGUILayout.LabelField($"samples {record.SampleCount}");
                 EditorGUILayout.EndHorizontal();
             }
         }
 
-        private void DrawSamples()
+        private void DrawRates(ProfilerSnapshot? snapshot)
         {
-            if (_profiler == null) return;
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Rates == null || value.Rates.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No rate data recorded", MessageType.Info);
+                return;
+            }
 
-            var samples = _profiler.GetSamples();
+            EditorGUILayout.LabelField("Rolling Counter Rates", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
 
-            if (samples.Count == 0)
+            var sorted = new List<KeyValuePair<string, RateRecord>>(value.Rates);
+            sorted.Sort((a, b) => b.Value.Count1Second.CompareTo(a.Value.Count1Second));
+
+            foreach (var kvp in sorted)
+            {
+                var record = kvp.Value;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(kvp.Key, EditorStyles.miniLabel, GUILayout.Width(300));
+                EditorGUILayout.LabelField($"1s {record.Count1Second}", GUILayout.Width(80));
+                EditorGUILayout.LabelField($"5s {record.Count5Seconds}", GUILayout.Width(90));
+                EditorGUILayout.LabelField($"60s {record.Count60Seconds}", GUILayout.Width(100));
+                EditorGUILayout.LabelField($"peak/s {record.PeakPerSecond}", GUILayout.Width(100));
+                EditorGUILayout.LabelField($"total {record.TotalCount}");
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawGauges(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Gauges.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No gauges recorded", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Gauges", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
+
+            foreach (var kvp in value.Gauges)
+            {
+                var record = kvp.Value;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(kvp.Key, EditorStyles.miniLabel, GUILayout.Width(320));
+                EditorGUILayout.LabelField(record.Value.ToString(), GUILayout.Width(120));
+                EditorGUILayout.LabelField(DateTimeOffset.FromUnixTimeMilliseconds(record.Timestamp).ToLocalTime().ToString("HH:mm:ss.fff"));
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawDurations(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Durations == null || value.Durations.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No duration data recorded", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Duration Summaries (milliseconds)", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
+
+            var sorted = new List<KeyValuePair<string, DurationSummaryRecord>>(value.Durations);
+            sorted.Sort((a, b) => b.Value.MaxMilliseconds.CompareTo(a.Value.MaxMilliseconds));
+
+            foreach (var kvp in sorted)
+            {
+                var record = kvp.Value;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(kvp.Key, EditorStyles.miniLabel, GUILayout.Width(300));
+                EditorGUILayout.LabelField($"count {record.Count}", GUILayout.Width(90));
+                EditorGUILayout.LabelField($"avg {record.MeanMilliseconds:F4}", GUILayout.Width(110));
+                EditorGUILayout.LabelField($"max {record.MaxMilliseconds:F4}", GUILayout.Width(110));
+                EditorGUILayout.LabelField($"min {record.MinMilliseconds:F4}");
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private void DrawSamples(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Samples.Count == 0)
             {
                 EditorGUILayout.HelpBox("No samples recorded", MessageType.Info);
                 return;
@@ -220,120 +396,127 @@ namespace AbilityKit.Diagnostics.Editor.Windows
             EditorGUILayout.LabelField("Samples (milliseconds)", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            var sorted = new List<KeyValuePair<string, List<double>>>(samples);
-            sorted.Sort((a, b) =>
-            {
-                var meanA = GetMean(a.Value);
-                var meanB = GetMean(b.Value);
-                return meanB.CompareTo(meanA);
-            });
+            var sorted = new List<KeyValuePair<string, List<double>>>(value.Samples);
+            sorted.Sort((a, b) => GetMean(b.Value).CompareTo(GetMean(a.Value)));
 
             foreach (var kvp in sorted)
             {
                 var list = kvp.Value;
                 if (list.Count == 0) continue;
 
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(kvp.Key, GUILayout.Width(250));
-
                 var mean = GetMean(list);
                 var min = GetMin(list);
                 var max = GetMax(list);
 
-                // 绘制迷你柱状图
-                var barRect = GUILayoutUtility.GetRect(100, 20, GUILayout.ExpandWidth(true));
-                DrawMiniBar(barRect, list);
-
-                EditorGUILayout.LabelField($"{mean:F4}", GUILayout.Width(60));
-                EditorGUILayout.LabelField($"[{min:F4}, {max:F4}]");
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(kvp.Key, GUILayout.Width(300));
+                DrawMiniBar(GUILayoutUtility.GetRect(120, 20, GUILayout.ExpandWidth(true)), list, mean);
+                EditorGUILayout.LabelField($"avg {mean:F4}", GUILayout.Width(90));
+                EditorGUILayout.LabelField($"[{min:F4}, {max:F4}]", GUILayout.Width(150));
                 EditorGUILayout.EndHorizontal();
             }
         }
 
-        private void DrawFlame()
+        private void DrawEvents(ProfilerSnapshot? snapshot)
         {
-            if (_profiler == null || _profiler.GetSnapshot().Root == null) return;
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Events == null || value.Events.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No diagnostic events recorded", MessageType.Info);
+                return;
+            }
+
+            EditorGUILayout.LabelField("Recent Diagnostic Events", EditorStyles.boldLabel);
+            EditorGUILayout.Space();
+
+            for (var i = value.Events.Count - 1; i >= 0; i--)
+            {
+                var record = value.Events[i];
+                var style = record.Severity == DiagnosticSeverity.Error ? EditorStyles.boldLabel : EditorStyles.label;
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(record.Severity.ToString(), style, GUILayout.Width(80));
+                EditorGUILayout.LabelField(record.Name, style);
+                EditorGUILayout.LabelField(DateTimeOffset.FromUnixTimeMilliseconds(record.Timestamp).ToLocalTime().ToString("HH:mm:ss.fff"), GUILayout.Width(110));
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.LabelField(record.Message, EditorStyles.wordWrappedMiniLabel);
+                if (Math.Abs(record.Threshold) > double.Epsilon)
+                {
+                    EditorGUILayout.LabelField($"value {record.Value:F4}, threshold {record.Threshold:F4}", EditorStyles.miniLabel);
+                }
+
+                EditorGUILayout.EndVertical();
+            }
+        }
+
+        private void DrawFlame(ProfilerSnapshot? snapshot)
+        {
+            if (!TryGetSnapshot(snapshot, out var value)) return;
+            if (value.Root == null || value.Root.Roots.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No flame samples recorded", MessageType.Info);
+                return;
+            }
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Flame Graph", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
-            EditorGUILayout.LabelField($"Nodes: {CountAllNodes(_profiler.GetSnapshot().Root)}");
+            EditorGUILayout.LabelField($"Nodes: {CountAllNodes(value.Root)}", GUILayout.Width(120));
             EditorGUILayout.EndHorizontal();
-
             EditorGUILayout.Space();
 
-            // 绘制简化火焰图
-            var root = _profiler.GetSnapshot().Root;
-            foreach (var categoryKvp in root.Roots)
+            foreach (var categoryKvp in value.Root.Roots)
             {
                 DrawFlameNode(categoryKvp.Value, 0);
             }
         }
 
-        private void DrawFlameNode(FlameNode node, int depth)
+        private static void DrawFlameNode(FlameNode node, int depth)
         {
-            if (node.HitCount == 0) return;
+            if (node == null || node.HitCount == 0) return;
 
+            var previousIndent = EditorGUI.indentLevel;
             EditorGUI.indentLevel = depth;
-
-            var totalMs = node.TotalNanoseconds / 1_000_000.0;
-            var selfMs = node.SelfNanoseconds / 1_000_000.0;
+            var totalMs = node.TotalNanoseconds / 1000000.0d;
+            var selfMs = node.SelfNanoseconds / 1000000.0d;
 
             EditorGUILayout.BeginHorizontal();
-
-            // 节点名称
-            var label = string.IsNullOrEmpty(node.Category)
-                ? $"{node.Name} ({node.HitCount})"
-                : $"{node.Name} ({node.HitCount})";
-
-            var style = node.Children.Count > 0 ? EditorStyles.foldout : EditorStyles.miniLabel;
-            EditorGUILayout.LabelField(label, style);
-
+            EditorGUILayout.LabelField($"{node.Name} ({node.HitCount})", node.Children.Count > 0 ? EditorStyles.boldLabel : EditorStyles.miniLabel, GUILayout.MinWidth(260));
             GUILayout.FlexibleSpace();
-
-            // 耗时
-            if (selfMs > 0.01)
-            {
-                EditorGUILayout.LabelField($"self: {selfMs:F3}ms", GUILayout.Width(80));
-            }
-            if (totalMs > 0.01)
-            {
-                EditorGUILayout.LabelField($"total: {totalMs:F3}ms");
-            }
-
+            EditorGUILayout.LabelField($"self {selfMs:F3}ms", GUILayout.Width(110));
+            EditorGUILayout.LabelField($"total {totalMs:F3}ms", GUILayout.Width(120));
             EditorGUILayout.EndHorizontal();
 
-            // 递归绘制子节点
-            if (depth < 5) // 限制深度
+            if (depth < 8)
             {
-                foreach (var child in node.Children)
+                foreach (var child in node.Children.Values)
                 {
-                    DrawFlameNode(child.Value, depth + 1);
+                    DrawFlameNode(child, depth + 1);
                 }
             }
+
+            EditorGUI.indentLevel = previousIndent;
         }
 
-        private void DrawMiniBar(Rect rect, List<double> values)
+        private static void DrawMiniBar(Rect rect, List<double> values, double mean)
         {
             if (values.Count == 0) return;
 
             var max = GetMax(values);
-            if (max <= 0) return;
+            if (max <= 0d) return;
 
-            // 绘制背景
-            EditorGUI.DrawRect(rect, new Color(0.2f, 0.2f, 0.2f));
+            EditorGUI.DrawRect(rect, new Color(0.18f, 0.18f, 0.18f));
+            var count = Math.Min(values.Count, 100);
+            var barWidth = rect.width / count;
 
-            // 绘制柱状
-            var barWidth = rect.width / Math.Min(values.Count, 100);
-            for (int i = 0; i < Math.Min(values.Count, 100); i++)
+            for (var i = 0; i < count; i++)
             {
-                var height = (float)(values[i] / max) * rect.height;
+                var value = values[values.Count - count + i];
+                var height = (float)(value / max) * rect.height;
                 var x = rect.x + i * barWidth;
                 var y = rect.y + rect.height - height;
-
-                var color = values[i] > GetMean(values) * 2 ? Color.red :
-                           (values[i] > GetMean(values) ? Color.yellow : Color.green);
-                EditorGUI.DrawRect(new Rect(x, y, barWidth - 1, height), color);
+                var color = value > mean * 2d ? Color.red : value > mean ? Color.yellow : Color.green;
+                EditorGUI.DrawRect(new Rect(x, y, Math.Max(1f, barWidth - 1f), height), color);
             }
         }
 
@@ -355,23 +538,14 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         private void ShowExportMenu()
         {
             var menu = new GenericMenu();
-
             foreach (var format in ExporterFactory.GetSupportedFormats())
             {
-                menu.AddItem(new GUIContent($"Export as {format.ToUpper()}"), false, () => ExportSnapshot(format));
+                var capturedFormat = format;
+                menu.AddItem(new GUIContent($"Export as {format.ToUpperInvariant()}"), false, () => ExportSnapshot(capturedFormat));
             }
 
-            menu.AddSeparator("");
-
-            menu.AddItem(new GUIContent("Open Export Folder"), false, () =>
-            {
-                if (!Directory.Exists(_exportPath))
-                {
-                    Directory.CreateDirectory(_exportPath);
-                }
-                System.Diagnostics.Process.Start("explorer.exe", _exportPath);
-            });
-
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Open Export Folder"), false, OpenExportFolder);
             menu.ShowAsContext();
         }
 
@@ -379,37 +553,84 @@ namespace AbilityKit.Diagnostics.Editor.Windows
         {
             if (_profiler == null) return;
 
+            Directory.CreateDirectory(_exportPath);
             var snapshot = _profiler.GetSnapshot();
             var exporter = ExporterFactory.Get(format);
-
-            var fileName = $"abilitykit_{snapshot.SessionId}{exporter.Extension}";
+            var fileName = $"abilitykit_{SanitizeFileName(snapshot.SessionId)}{exporter.Extension}";
             var filePath = Path.Combine(_exportPath, fileName);
 
             exporter.Export(snapshot, filePath);
             Debug.Log($"[Diagnostics] Exported to {filePath}");
+            EditorUtility.RevealInFinder(filePath);
         }
 
-        private int CountNodes(FlameNode node)
+        private void OpenExportFolder()
         {
-            int count = 1;
+            Directory.CreateDirectory(_exportPath);
+            EditorUtility.RevealInFinder(_exportPath);
+        }
+
+        private static bool TryGetSnapshot(ProfilerSnapshot? snapshot, out ProfilerSnapshot value)
+        {
+            if (!snapshot.HasValue || snapshot.Value.Root == null)
+            {
+                EditorGUILayout.HelpBox("Profiler not initialized", MessageType.Info);
+                value = default;
+                return false;
+            }
+
+            value = snapshot.Value;
+            return true;
+        }
+
+        private static int CountNodes(FlameNode node)
+        {
+            if (node == null) return 0;
+            var count = 1;
             foreach (var child in node.Children.Values)
             {
                 count += CountNodes(child);
             }
+
             return count;
         }
 
-        private int CountAllNodes(FlameRoot root)
+        private static int CountAllNodes(FlameRoot root)
         {
-            int count = 0;
-            foreach (var kvp in root.Roots)
+            if (root == null) return 0;
+            var count = 0;
+            foreach (var node in root.Roots.Values)
             {
-                count += CountNodes(kvp.Value);
+                count += CountNodes(node);
             }
+
             return count;
         }
 
-        private List<(string name, double mean, double max)> GetTopSamples(Dictionary<string, List<double>> samples, int count)
+        private static void DrawTopRates(ProfilerSnapshot snapshot, int count)
+        {
+            EditorGUILayout.LabelField($"Top {count} High Frequency Counters", EditorStyles.boldLabel);
+            if (snapshot.Rates == null || snapshot.Rates.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No rate data recorded", MessageType.Info);
+                return;
+            }
+
+            var sorted = new List<KeyValuePair<string, RateRecord>>(snapshot.Rates);
+            sorted.Sort((a, b) => b.Value.Count1Second.CompareTo(a.Value.Count1Second));
+            var visible = Math.Min(count, sorted.Count);
+            for (var i = 0; i < visible; i++)
+            {
+                var record = sorted[i].Value;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField(sorted[i].Key, GUILayout.Width(300));
+                EditorGUILayout.LabelField($"{record.Count1Second}/s", GUILayout.Width(90));
+                EditorGUILayout.LabelField($"peak {record.PeakPerSecond}/s");
+                EditorGUILayout.EndHorizontal();
+            }
+        }
+
+        private static List<(string name, double mean, double max)> GetTopSamples(Dictionary<string, List<double>> samples, int count)
         {
             var result = new List<(string, double, double)>();
             foreach (var kvp in samples)
@@ -419,32 +640,76 @@ namespace AbilityKit.Diagnostics.Editor.Windows
                     result.Add((kvp.Key, GetMean(kvp.Value), GetMax(kvp.Value)));
                 }
             }
+
             result.Sort((a, b) => b.Item2.CompareTo(a.Item2));
             return result.GetRange(0, Math.Min(count, result.Count));
         }
 
-        private double GetMean(List<double> values)
+        private static double GetMean(List<double> values)
         {
-            if (values.Count == 0) return 0;
-            double sum = 0;
-            foreach (var v in values) sum += v;
+            if (values == null || values.Count == 0) return 0d;
+            double sum = 0d;
+            foreach (var value in values)
+            {
+                sum += value;
+            }
+
             return sum / values.Count;
         }
 
-        private double GetMin(List<double> values)
+        private static double GetMin(List<double> values)
         {
-            if (values.Count == 0) return 0;
-            double min = double.MaxValue;
-            foreach (var v in values) if (v < min) min = v;
+            if (values == null || values.Count == 0) return 0d;
+            var min = double.MaxValue;
+            foreach (var value in values)
+            {
+                if (value < min) min = value;
+            }
+
             return min;
         }
 
-        private double GetMax(List<double> values)
+        private static double GetMax(List<double> values)
         {
-            if (values.Count == 0) return 0;
-            double max = double.MinValue;
-            foreach (var v in values) if (v > max) max = v;
+            if (values == null || values.Count == 0) return 0d;
+            var max = double.MinValue;
+            foreach (var value in values)
+            {
+                if (value > max) max = value;
+            }
+
             return max;
+        }
+
+        private static int GetCount<T>(ICollection<T> collection)
+        {
+            return collection == null ? 0 : collection.Count;
+        }
+
+        private static int GetCount<TKey, TValue>(Dictionary<TKey, TValue> dictionary)
+        {
+            return dictionary == null ? 0 : dictionary.Count;
+        }
+
+        private static int GetCount<T>(ISet<T> set)
+        {
+            return set == null ? 0 : set.Count;
+        }
+
+        private static double GetDurationSeconds(ProfilerSnapshot snapshot)
+        {
+            return snapshot.Root == null ? 0d : Math.Max(0L, snapshot.Root.EndTimestamp - snapshot.Root.StartTimestamp) / 1000.0d;
+        }
+
+        private static string SanitizeFileName(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "snapshot";
+            foreach (var invalidChar in Path.GetInvalidFileNameChars())
+            {
+                value = value.Replace(invalidChar, '_');
+            }
+
+            return value;
         }
     }
 }

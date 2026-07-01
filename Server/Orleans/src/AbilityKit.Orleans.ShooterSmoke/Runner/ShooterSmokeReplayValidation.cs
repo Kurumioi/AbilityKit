@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Demo.Shooter.Runtime;
@@ -10,6 +12,16 @@ internal static class ShooterSmokeReplayValidation
     private const float ReplayFixedDeltaSeconds = 1f / 30f;
 
     public static ShooterSmokeReplayValidationResult Skipped => default;
+
+    public static ShooterSmokeReplaySummary SummarizeReplay(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return ShooterSmokeReplaySummary.Empty;
+        }
+
+        return SummarizeReplay(path, FrameRecordCodecs.Current.Load(path));
+    }
 
     public static ShooterSmokeReplayValidationResult ValidateReplay(string path)
     {
@@ -106,7 +118,8 @@ internal static class ShooterSmokeReplayValidation
             record.StateHashes?.Count ?? 0,
             runtime.CurrentFrame,
             runtime.ComputeStateHash(),
-            true);
+            true,
+            SummarizeReplay(path, record));
     }
 
     private static ShooterSmokeReplayValidationResult ValidateInputLogicReplay(string path, FrameRecordFile record)
@@ -156,7 +169,8 @@ internal static class ShooterSmokeReplayValidation
             record.StateHashes?.Count ?? 0,
             replayResult.Frame,
             replayResult.StateHash,
-            replayResult.RoundTripMatched);
+            replayResult.RoundTripMatched,
+            SummarizeReplay(path, record));
     }
 
     private static ShooterDeterminismSpec BuildInputLogicReplaySpec(string path, List<FrameRecordInputFrame> inputs)
@@ -272,6 +286,135 @@ internal static class ShooterSmokeReplayValidation
         }
     }
 
+    private static ShooterSmokeReplaySummary SummarizeReplay(string path, FrameRecordFile record)
+    {
+        var inputs = record.Inputs ?? new List<FrameRecordInputFrame>();
+        var snapshots = record.Snapshots ?? new List<FrameRecordSnapshotFrame>();
+        var stateHashes = record.StateHashes ?? new List<FrameRecordStateHashFrame>();
+        var inputOpCodes = CountInputOpCodes(inputs);
+        var snapshotOpCodes = CountSnapshotOpCodes(snapshots);
+        var firstFrame = MinFrame(inputs, snapshots, stateHashes);
+        var lastFrame = MaxFrame(inputs, snapshots, stateHashes);
+
+        return new ShooterSmokeReplaySummary(
+            path,
+            ShooterSmokeReplayTypes.ResolveKind(record.Meta).ToString(),
+            record.Meta?.WorldId ?? string.Empty,
+            record.Meta?.WorldType ?? string.Empty,
+            record.Meta?.TickRate ?? 0,
+            record.Meta?.RandomSeed ?? 0,
+            record.Meta?.PlayerId ?? string.Empty,
+            record.Meta?.StartedAtUnixMs ?? 0L,
+            inputs.Count,
+            snapshots.Count,
+            stateHashes.Count,
+            firstFrame,
+            lastFrame,
+            FirstFrame(inputs),
+            LastFrame(inputs),
+            FirstFrame(snapshots),
+            LastFrame(snapshots),
+            FirstFrame(stateHashes),
+            LastFrame(stateHashes),
+            GetCount(snapshotOpCodes, ShooterOpCodes.Snapshot.PackedState),
+            GetCount(snapshotOpCodes, ShooterOpCodes.Snapshot.PackedStateDelta),
+            GetCount(snapshotOpCodes, ShooterOpCodes.Snapshot.PureState),
+            GetCount(snapshotOpCodes, ShooterOpCodes.Snapshot.PureStateDelta),
+            GetCount(snapshotOpCodes, ShooterSmokeReplayOpCodes.ServerBattleSnapshot),
+            GetCount(inputOpCodes, ShooterOpCodes.Input.PlayerCommand),
+            FormatOpCodes(inputOpCodes),
+            FormatOpCodes(snapshotOpCodes));
+    }
+
+    private static Dictionary<int, int> CountInputOpCodes(List<FrameRecordInputFrame> inputs)
+    {
+        var result = new Dictionary<int, int>();
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            AddOpCode(result, inputs[i].OpCode);
+        }
+
+        return result;
+    }
+
+    private static Dictionary<int, int> CountSnapshotOpCodes(List<FrameRecordSnapshotFrame> snapshots)
+    {
+        var result = new Dictionary<int, int>();
+        for (var i = 0; i < snapshots.Count; i++)
+        {
+            AddOpCode(result, snapshots[i].OpCode);
+        }
+
+        return result;
+    }
+
+    private static void AddOpCode(Dictionary<int, int> counts, int opCode)
+    {
+        counts.TryGetValue(opCode, out var count);
+        counts[opCode] = count + 1;
+    }
+
+    private static int GetCount(Dictionary<int, int> counts, int opCode)
+    {
+        return counts.TryGetValue(opCode, out var count) ? count : 0;
+    }
+
+    private static string FormatOpCodes(Dictionary<int, int> counts)
+    {
+        if (counts.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var keys = counts.Keys.ToList();
+        keys.Sort();
+        var builder = new StringBuilder();
+        for (var i = 0; i < keys.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append('|');
+            }
+
+            var key = keys[i];
+            builder.Append(key.ToString(CultureInfo.InvariantCulture));
+            builder.Append(':');
+            builder.Append(counts[key].ToString(CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
+    }
+
+    private static int MinFrame(List<FrameRecordInputFrame> inputs, List<FrameRecordSnapshotFrame> snapshots, List<FrameRecordStateHashFrame> stateHashes)
+    {
+        var result = int.MaxValue;
+        if (inputs.Count > 0) result = Math.Min(result, FirstFrame(inputs));
+        if (snapshots.Count > 0) result = Math.Min(result, FirstFrame(snapshots));
+        if (stateHashes.Count > 0) result = Math.Min(result, FirstFrame(stateHashes));
+        return result == int.MaxValue ? -1 : result;
+    }
+
+    private static int MaxFrame(List<FrameRecordInputFrame> inputs, List<FrameRecordSnapshotFrame> snapshots, List<FrameRecordStateHashFrame> stateHashes)
+    {
+        var result = int.MinValue;
+        if (inputs.Count > 0) result = Math.Max(result, LastFrame(inputs));
+        if (snapshots.Count > 0) result = Math.Max(result, LastFrame(snapshots));
+        if (stateHashes.Count > 0) result = Math.Max(result, LastFrame(stateHashes));
+        return result == int.MinValue ? -1 : result;
+    }
+
+    private static int FirstFrame(List<FrameRecordInputFrame> frames) => frames.Count == 0 ? -1 : frames[0].Frame;
+
+    private static int LastFrame(List<FrameRecordInputFrame> frames) => frames.Count == 0 ? -1 : frames[^1].Frame;
+
+    private static int FirstFrame(List<FrameRecordSnapshotFrame> frames) => frames.Count == 0 ? -1 : frames[0].Frame;
+
+    private static int LastFrame(List<FrameRecordSnapshotFrame> frames) => frames.Count == 0 ? -1 : frames[^1].Frame;
+
+    private static int FirstFrame(List<FrameRecordStateHashFrame> frames) => frames.Count == 0 ? -1 : frames[0].Frame;
+
+    private static int LastFrame(List<FrameRecordStateHashFrame> frames) => frames.Count == 0 ? -1 : frames[^1].Frame;
+
     private static byte[] DecodeBase64(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? Array.Empty<byte>() : Convert.FromBase64String(value);
@@ -286,4 +429,43 @@ internal readonly record struct ShooterSmokeReplayValidationResult(
     int StateHashCount,
     int ReplayFrame,
     uint ReplayStateHash,
-    bool ReplayRoundTripMatched);
+    bool ReplayRoundTripMatched,
+    ShooterSmokeReplaySummary Summary);
+
+internal readonly record struct ShooterSmokeReplaySummary(
+    string Path,
+    string ReplayKind,
+    string WorldId,
+    string WorldType,
+    int TickRate,
+    int RandomSeed,
+    string PlayerId,
+    long StartedAtUnixMs,
+    int InputCount,
+    int SnapshotCount,
+    int StateHashCount,
+    int FirstFrame,
+    int LastFrame,
+    int FirstInputFrame,
+    int LastInputFrame,
+    int FirstSnapshotFrame,
+    int LastSnapshotFrame,
+    int FirstStateHashFrame,
+    int LastStateHashFrame,
+    int PackedStateSnapshotCount,
+    int PackedStateDeltaSnapshotCount,
+    int PureStateSnapshotCount,
+    int PureStateDeltaSnapshotCount,
+    int ServerBattleSnapshotCount,
+    int PlayerCommandInputCount,
+    string InputOpCodeDistribution,
+    string SnapshotOpCodeDistribution)
+{
+    public static ShooterSmokeReplaySummary Empty => default;
+
+    public int PureStateRelatedSnapshotCount => PureStateSnapshotCount + PureStateDeltaSnapshotCount;
+
+    public int PackedStateRelatedSnapshotCount => PackedStateSnapshotCount + PackedStateDeltaSnapshotCount;
+
+    public bool ContainsResyncOrPureStateDiagnostics => PureStateRelatedSnapshotCount > 0 || PackedStateRelatedSnapshotCount > 0;
+}

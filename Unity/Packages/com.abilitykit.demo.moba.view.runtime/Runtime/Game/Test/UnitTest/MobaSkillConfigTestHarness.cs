@@ -258,6 +258,32 @@ namespace AbilityKit.Game.Test.UnitTest
             return GetActorMoveSpeed(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
         }
 
+        public float GetActorRage(int actorId, string message = null)
+        {
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            var attrs = new MobaAttrs(entity);
+            return attrs.Rage;
+        }
+
+        public float GetActorRage(string alias, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return GetActorRage(actorId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
+        public float GetActorAttribute(int actorId, BattleAttributeType type, string message = null)
+        {
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            var attrs = new MobaAttrs(entity);
+            return attrs.Get(type);
+        }
+
+        public float GetActorAttribute(string alias, BattleAttributeType type, string message = null)
+        {
+            var actorId = AssertActorId(alias, message ?? $"Actor alias missing: {alias}");
+            return GetActorAttribute(actorId, type, message ?? $"Actor entity missing for alias {alias}({actorId}).");
+        }
+
         public bool HasActorBuff(int actorId, int buffId, string message = null)
         {
             Assert.Greater(buffId, 0, message ?? "buffId must be positive.");
@@ -486,6 +512,12 @@ namespace AbilityKit.Game.Test.UnitTest
                 return;
             }
 
+            if (string.Equals(property, "rage", StringComparison.OrdinalIgnoreCase))
+            {
+                attrs.Rage = value;
+                return;
+            }
+
             Assert.IsFalse(string.IsNullOrEmpty(property), "set_attr requires property.");
             var normalized = property.Replace(".", "_").Replace("-", "_");
             Assert.IsTrue(Enum.TryParse(normalized, ignoreCase: true, out BattleAttributeType type) && type != BattleAttributeType.None, $"Unsupported set_attr property: {property}");
@@ -625,7 +657,25 @@ namespace AbilityKit.Game.Test.UnitTest
             castFrame = new FrameIndex(FrameTime.Frame.Value + 1);
             var skillInput = new SkillInputEvent(slot: slot, phase: phase, targetActorId: targetActorId, aimPos: in aimPos, aimDir: in aimDir);
             var command = new PlayerInputCommand(castFrame, playerId, MobaOpCodes.Input.SkillInput, SkillInputCodec.Serialize(in skillInput));
-            return input.TrySubmit(castFrame, new[] { command });
+            var result = input.TrySubmit(castFrame, new[] { command });
+            if (!result.Succeeded || result.HandledCount > 0)
+            {
+                return result;
+            }
+
+            var playerActorMap = World.Services.Resolve<MobaPlayerActorMapService>();
+            if (!playerActorMap.TryGetActorId(playerId, out var actorId))
+            {
+                return result;
+            }
+
+            var skills = World.Services.Resolve<SkillCastCoordinator>();
+            var direct = skills.TryHandleInputResult(actorId, in skillInput);
+            var directFailure = direct.Failure.HasValue ? direct.Failure.ToString() : "<none>";
+            var message = string.IsNullOrEmpty(result.Message)
+                ? $"DirectSkillResult=Success:{direct.Success},Code={direct.Code},Message={direct.Message},Failure={directFailure}"
+                : result.Message + $", DirectSkillResult=Success:{direct.Success},Code={direct.Code},Message={direct.Message},Failure={directFailure}";
+            return LogicWorldInputSubmitResult.Accepted(result.AcceptedCount, result.HandledCount, message);
         }
 
         public FrameIndex SubmitSkillInput(PlayerId playerId, int slot, SkillInputPhase phase, int targetActorId = 0, Vec3 aimPos = default, Vec3 aimDir = default)
@@ -940,6 +990,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     return TryGetTimelineEffectTimeMs(phase.Timeline, effectId, startMs, out earliestMs, out durationMs);
                 case SkillPhaseType.Delay:
                     durationMs = phase.Delay != null ? Math.Max(0, phase.Delay.DelayMs) : 0;
+                    return false;
+                case SkillPhaseType.WaitUntil:
+                    durationMs = phase.WaitUntil != null ? Math.Max(0, phase.WaitUntil.TimeoutMs) : 0;
                     return false;
                 case SkillPhaseType.Sequence:
                     return TryGetEarliestEffectTimeMs(phase.Children, effectId, startMs, out earliestMs, out durationMs);
@@ -1311,7 +1364,21 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             }
 
-            Assert.Fail(message);
+            Assert.Fail($"{message} Actual actions: {DescribeActionIds(actions)}");
+        }
+
+        private static string DescribeActionIds(ActionCallPlan[] actions)
+        {
+            if (actions == null) return "<null>";
+            if (actions.Length == 0) return "<empty>";
+
+            var ids = new List<string>(actions.Length);
+            for (var i = 0; i < actions.Length; i++)
+            {
+                ids.Add(((int)actions[i].Id.Value).ToString());
+            }
+
+            return string.Join(", ", ids);
         }
     }
 }

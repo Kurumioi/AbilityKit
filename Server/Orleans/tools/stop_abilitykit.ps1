@@ -22,11 +22,27 @@ function Get-ProfileValue($profile, [string]$name, $fallback) {
     return $fallback
 }
 
+function Get-ProfileSilos($profileData, [int]$effectiveSiloPort, [int]$effectiveSiloGatewayPort) {
+    if ($profileData.PSObject.Properties.Name -contains 'silos' -and $null -ne $profileData.silos) {
+        return @($profileData.silos)
+    }
+
+    return @(
+        [pscustomobject]@{
+            role = Get-ProfileValue $profileData 'role' 'Shared'
+            siloPort = $effectiveSiloPort
+            siloGatewayPort = $effectiveSiloGatewayPort
+        }
+    )
+}
+
 function Get-StopTarget($profileName, $profileData) {
     $effectiveGatewayPort = if ($PSBoundParameters.ContainsKey('GatewayPort')) { $GatewayPort } else { Get-ProfileValue $profileData 'gatewayPort' 5001 }
     $effectiveSiloPort = if ($PSBoundParameters.ContainsKey('SiloPort')) { $SiloPort } else { Get-ProfileValue $profileData 'siloPort' 11111 }
     $effectiveSiloGatewayPort = if ($PSBoundParameters.ContainsKey('SiloGatewayPort')) { $SiloGatewayPort } else { Get-ProfileValue $profileData 'siloGatewayPort' 30000 }
     $effectiveTcpPort = if ($PSBoundParameters.ContainsKey('TcpPort')) { $TcpPort } else { Get-ProfileValue $profileData 'tcpPort' 4000 }
+    $profileSilos = Get-ProfileSilos $profileData $effectiveSiloPort $effectiveSiloGatewayPort
+    $siloPorts = @($profileSilos | ForEach-Object { @([int]$_.siloPort, [int]$_.siloGatewayPort) })
 
     [pscustomobject]@{
         ProfileName = $profileName
@@ -35,7 +51,8 @@ function Get-StopTarget($profileName, $profileData) {
         SiloPort = $effectiveSiloPort
         SiloGatewayPort = $effectiveSiloGatewayPort
         TcpPort = $effectiveTcpPort
-        Ports = @($effectiveGatewayPort, $effectiveSiloPort, $effectiveSiloGatewayPort, $effectiveTcpPort)
+        Roles = @($profileSilos | ForEach-Object { $_.role })
+        Ports = @(@($effectiveGatewayPort, $effectiveTcpPort) + $siloPorts | Sort-Object -Unique)
     }
 }
 
@@ -53,7 +70,7 @@ if ($ListProfiles) {
         $target = Get-StopTarget $profileName $profileData
         Write-Host "  $profileName" -ForegroundColor Green
         Write-Host "    $($profileData.description)" -ForegroundColor Gray
-        Write-Host "    HTTP: $($target.GatewayPort), TCP: $($target.TcpPort), Silo: $($target.SiloPort), Orleans Gateway: $($target.SiloGatewayPort)" -ForegroundColor Gray
+        Write-Host "    HTTP: $($target.GatewayPort), TCP: $($target.TcpPort), Silo: $($target.SiloPort), Orleans Gateway: $($target.SiloGatewayPort), Roles: $($target.Roles -join ', ')" -ForegroundColor Gray
     }
 
     return
@@ -82,7 +99,7 @@ $commandPatterns = @(
 
 Write-Host "Stopping AbilityKit profile(s): $($targets.ProfileName -join ', ')" -ForegroundColor Cyan
 foreach ($target in $targets) {
-    Write-Host "  $($target.ProfileName): HTTP $($target.GatewayPort), TCP $($target.TcpPort), Silo $($target.SiloPort), Orleans Gateway $($target.SiloGatewayPort)" -ForegroundColor Gray
+    Write-Host "  $($target.ProfileName): HTTP $($target.GatewayPort), TCP $($target.TcpPort), Silo $($target.SiloPort), Orleans Gateway $($target.SiloGatewayPort), Roles $($target.Roles -join ', ')" -ForegroundColor Gray
 }
 
 Stop-AbilityKitServices -Ports $ports -CommandPatterns $commandPatterns -GraceSeconds $GraceSeconds

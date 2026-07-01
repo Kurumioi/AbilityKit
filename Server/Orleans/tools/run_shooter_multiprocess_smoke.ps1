@@ -15,7 +15,9 @@ param(
     [double]$ConditionPacketLossRate = 0,
     [int]$ConditionSeed = 20260610,
     [switch]$NoReplay,
-    [switch]$NoCleanup
+    [switch]$NoCleanup,
+    [ValidateSet('packed', 'pure-state')]
+    [string]$PayloadMode = 'packed'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -200,6 +202,18 @@ function Read-ResultBool {
     return [bool]::Parse($value)
 }
 
+function Read-ResultDouble {
+    param(
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Fields,
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $value = Read-ResultValue -Fields $Fields -Name $Name
+    return [double]::Parse($value, [System.Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-ProcessExitCode {
     param(
         [Parameter(Mandatory = $true)]
@@ -245,6 +259,7 @@ function New-ClientArguments {
     $arguments += @(
         '--',
         '--client',
+        '--state-sync-payload-mode', $PayloadMode,
         '--client-mode', $ClientMode,
         '--tcp-port', $TcpPort,
         '--client-id', $ClientId,
@@ -383,9 +398,17 @@ function Assert-ClientResult {
         throw "Client entry kind mismatch. Expected=$expectedEntryKind, Line=$line"
     }
 
-    if (-not $WaitForMatchEnd -and -not (Read-ResultBool -Fields $fields -Name 'snapshotHashMatched')) {
+    if (-not $WaitForMatchEnd -and $PayloadMode -eq 'packed' -and -not (Read-ResultBool -Fields $fields -Name 'snapshotHashMatched')) {
         throw "Client snapshot hash validation failed: $line"
     }
+
+    if ((Read-ResultValue -Fields $fields -Name 'payloadMode') -ne $PayloadMode) {
+        throw "Client payload mode mismatch. Expected=$PayloadMode, Line=$line"
+    }
+
+    Assert-ClientPayloadResult -ClientResult $ClientResult
+    Assert-ClientTimeAnchorResult -ClientResult $ClientResult
+    Assert-ClientLagCompensationResult -ClientResult $ClientResult
 
     if (Read-ResultBool -Fields $fields -Name 'shouldResync') {
         throw "Client requested resync during multiprocess sync acceptance: $line"
@@ -393,6 +416,10 @@ function Assert-ClientResult {
 
     if ((Read-ResultInt -Fields $fields -Name 'runtimeFrame') -le 0 -or (Read-ResultInt -Fields $fields -Name 'viewFrame') -le 0) {
         throw "Client runtime/presentation did not advance: $line"
+    }
+
+    if ((Read-ResultInt -Fields $fields -Name 'localRuntimeFrame') -ne (Read-ResultInt -Fields $fields -Name 'runtimeFrame') -or (Read-ResultInt -Fields $fields -Name 'localViewFrame') -ne (Read-ResultInt -Fields $fields -Name 'viewFrame')) {
+        throw "Client local runtime/view frame aliases diverged from final frame fields: $line"
     }
 
     $actualInputs = Read-ResultInt -Fields $fields -Name 'inputs'
@@ -520,6 +547,183 @@ function Assert-ClientResult {
     Write-Host $line -ForegroundColor Green
 }
 
+function Assert-ClientPayloadResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$ClientResult
+    )
+
+    $line = $ClientResult.Line
+    $fields = $ClientResult.Fields
+    $payloadOpCode = Read-ResultInt -Fields $fields -Name 'payloadOpCode'
+    $payloadKind = Read-ResultInt -Fields $fields -Name 'payloadKind'
+    $sourceFrame = Read-ResultInt -Fields $fields -Name 'sourceFrame'
+    $baselineFrame = Read-ResultInt -Fields $fields -Name 'baselineFrame'
+    $visibilityHints = Read-ResultInt -Fields $fields -Name 'visibilityHints'
+    $entities = Read-ResultInt -Fields $fields -Name 'entities'
+    $fullBaselinesApplied = Read-ResultInt -Fields $fields -Name 'pureStateFullBaselinesApplied'
+    $deltasApplied = Read-ResultInt -Fields $fields -Name 'pureStateDeltasApplied'
+    $resyncRequests = Read-ResultInt -Fields $fields -Name 'pureStateResyncRequests'
+    $lastResyncNeeded = Read-ResultBool -Fields $fields -Name 'pureStateLastResyncNeeded'
+
+    if ($PayloadMode -eq 'pure-state') {
+        if ($payloadOpCode -ne 5207 -and $payloadOpCode -ne 5208) {
+            throw "PureState payload op code mismatch: $line"
+        }
+
+        if ($payloadKind -ne 1 -and $payloadKind -ne 2 -and $payloadKind -ne 3) {
+            throw "PureState payload kind is invalid: $line"
+        }
+
+        if ($payloadOpCode -eq 5207 -and $payloadKind -ne 1) {
+            throw "PureState full payload did not report full baseline kind: $line"
+        }
+
+        if ($payloadOpCode -eq 5208 -and $payloadKind -ne 2 -and $payloadKind -ne 3) {
+            throw "PureState delta payload did not report delta or low-frequency kind: $line"
+        }
+
+        if ($sourceFrame -le 0) {
+            throw "PureState source frame is invalid: $line"
+        }
+
+        if ($baselineFrame -lt 0) {
+            throw "PureState baseline frame is invalid: $line"
+        }
+
+        if (($payloadKind -eq 2 -or $payloadKind -eq 3) -and $baselineFrame -le 0) {
+            throw "PureState delta baseline frame was not reported: $line"
+        }
+
+        if ($visibilityHints -lt 0) {
+            throw "PureState visibility hint count is negative: $line"
+        }
+
+        if ($visibilityHints -ne $entities) {
+            throw "PureState visibility hints should match exported entity count for current payload logic: $line"
+        }
+
+        if ($fullBaselinesApplied -lt 1) {
+            throw "PureState full baseline was not applied: $line"
+        }
+
+        if (($deltasApplied + $resyncRequests) -lt 1) {
+            throw "PureState did not apply a later delta or report a baseline resync request: $line"
+        }
+
+        if ($lastResyncNeeded -and $resyncRequests -le 0) {
+            throw "PureState last resync state was reported without any resync request: $line"
+        }
+    }
+    else {
+        if ($payloadOpCode -ne 5204) {
+            throw "Packed payload op code mismatch: $line"
+        }
+
+        if ($payloadKind -ne 0 -or $visibilityHints -ne 0) {
+            throw "Packed payload should not report PureState metadata: $line"
+        }
+    }
+}
+
+function Assert-ClientTimeAnchorResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$ClientResult
+    )
+
+    $line = $ClientResult.Line
+    $fields = $ClientResult.Fields
+    $remoteAnchorValid = Read-ResultBool -Fields $fields -Name 'remoteAnchorValid'
+    $targetFrame = Read-ResultInt -Fields $fields -Name 'targetFrame'
+    $remoteTargetFrame = Read-ResultInt -Fields $fields -Name 'remoteTargetFrame'
+    $remoteCatchUpFrames = Read-ResultInt -Fields $fields -Name 'remoteCatchUpFrames'
+    $remoteElapsedSeconds = Read-ResultDouble -Fields $fields -Name 'remoteElapsedSeconds'
+    $remoteServerTicks = Read-ResultInt64 -Fields $fields -Name 'remoteServerTicks'
+    $snapshotServerTicks = Read-ResultInt64 -Fields $fields -Name 'snapshotServerTicks'
+    $lastPushServerTicks = Read-ResultInt64 -Fields $fields -Name 'lastPushServerTicks'
+    $lastPushPackedServerTick = Read-ResultInt64 -Fields $fields -Name 'lastPushPackedServerTick'
+    $runtimeFrame = Read-ResultInt -Fields $fields -Name 'runtimeFrame'
+    $viewFrame = Read-ResultInt -Fields $fields -Name 'viewFrame'
+
+    if ($remoteAnchorValid) {
+        if ($remoteServerTicks -le 0) {
+            throw "Remote time anchor did not include positive server ticks: $line"
+        }
+
+        if ($remoteTargetFrame -lt 0) {
+            throw "Remote target frame is invalid: $line"
+        }
+
+        if ($remoteCatchUpFrames -lt 0) {
+            throw "Remote catch-up frame count is invalid: $line"
+        }
+
+        if ($remoteElapsedSeconds -lt 0) {
+            throw "Remote elapsed seconds is invalid: $line"
+        }
+    }
+
+    if ($targetFrame -ne $remoteTargetFrame) {
+        throw "Remote target frame diverged from launch target frame: $line"
+    }
+
+    if ($snapshotServerTicks -le 0 -or $lastPushServerTicks -le 0) {
+        throw "Snapshot push server ticks were not reported: $line"
+    }
+
+    if ($lastPushServerTicks -lt $snapshotServerTicks) {
+        throw "Last push server ticks regressed behind first applied snapshot: $line"
+    }
+
+    if ($lastPushPackedServerTick -le 0) {
+        throw "Last push packed/server payload tick was not reported: $line"
+    }
+
+    if ($runtimeFrame -lt $remoteTargetFrame -or $viewFrame -lt $remoteTargetFrame) {
+        throw "Final runtime/view frame did not catch up to remote target frame: $line"
+    }
+}
+
+function Assert-ClientLagCompensationResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [pscustomobject]$ClientResult
+    )
+
+    $line = $ClientResult.Line
+    $fields = $ClientResult.Fields
+    $accepted = Read-ResultBool -Fields $fields -Name 'lagCompAccepted'
+    $reason = Read-ResultValue -Fields $fields -Name 'lagCompReason'
+    $requestedFrame = Read-ResultInt -Fields $fields -Name 'lagCompRequestedFrame'
+    $resolvedFrame = Read-ResultInt -Fields $fields -Name 'lagCompResolvedFrame'
+    $hitEntityId = Read-ResultInt -Fields $fields -Name 'lagCompHitEntityId'
+    $runtimeFrame = Read-ResultInt -Fields $fields -Name 'runtimeFrame'
+
+    $acceptableReasons = @('Hit', 'HistoryUnavailable')
+    if (-not $accepted -and -not ($acceptableReasons -contains $reason)) {
+        throw "Lag compensation result was not accepted and did not report an acceptable reason: $line"
+    }
+
+    if ($requestedFrame -lt 0) {
+        throw "Lag compensation requested frame is invalid: $line"
+    }
+
+    if ($accepted) {
+        if ($reason -ne 'Hit') {
+            throw "Accepted lag compensation result did not report Hit: $line"
+        }
+
+        if ($hitEntityId -le 0) {
+            throw "Accepted lag compensation result did not report a hit entity: $line"
+        }
+
+        if ($resolvedFrame -lt 0 -or $resolvedFrame -gt $runtimeFrame) {
+            throw "Accepted lag compensation resolved frame is outside the runtime window: $line"
+        }
+    }
+}
+
 function Assert-ClientResultSet {
     param(
         [Parameter(Mandatory = $true)]
@@ -631,7 +835,7 @@ try {
 
     $serverArgs = @('run', '--project', $project, '-c', $Configuration, '--no-build')
     $serverArgs += $commonArgs
-    $serverArgs += @('--', '--server', '--tcp-port', $TcpPort)
+    $serverArgs += @('--', '--server', '--tcp-port', $TcpPort, '--state-sync-payload-mode', $PayloadMode)
 
     Write-Host "Starting Shooter state-sync server on 127.0.0.1:$TcpPort..." -ForegroundColor Cyan
     $server = Start-DotnetProcess -Arguments $serverArgs -StdOut $serverLog -StdErr (Join-Path $logDir 'server.err.log')
@@ -691,7 +895,7 @@ try {
 
     $mode = if ($WaitForMatchEnd) { 'end-to-end' } elseif ($ReconnectJoinClient -or $ConditionLatencyMs -gt 0 -or $ConditionJitterMs -gt 0 -or $ConditionPacketLossRate -gt 0) { 'resilience' } else { 'sync' }
     $replaySummary = if ($NoReplay) { 'Replay=disabled' } else { "Replay=$replayDir" }
-    Write-Host "Shooter multiprocess $mode smoke passed. RoomId=$roomId, Clients=$($clients.Count), Logs=$logDir, $replaySummary" -ForegroundColor Green
+    Write-Host "Shooter multiprocess $mode smoke passed. PayloadMode=$PayloadMode, RoomId=$roomId, Clients=$($clients.Count), Logs=$logDir, $replaySummary" -ForegroundColor Green
 }
 finally {
     Stop-StartedProcesses -Processes $startedProcesses

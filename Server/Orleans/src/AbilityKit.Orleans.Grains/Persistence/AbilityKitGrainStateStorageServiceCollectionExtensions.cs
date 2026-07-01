@@ -7,19 +7,21 @@ public static class AbilityKitGrainStateStorageServiceCollectionExtensions
     public static IServiceCollection AddAbilityKitGrainStateStorage(
         this IServiceCollection services,
         string sessionStateProvider,
-        string roomStateProvider)
+        string roomStateProvider,
+        bool allowInMemoryFallbackForUnsupportedProviders = true)
     {
-        services.AddAbilityKitSessionStateStorage(sessionStateProvider);
-        services.AddAbilityKitRoomStateStorage(roomStateProvider);
+        services.AddAbilityKitSessionStateStorage(sessionStateProvider, allowInMemoryFallbackForUnsupportedProviders);
+        services.AddAbilityKitRoomStateStorage(roomStateProvider, allowInMemoryFallbackForUnsupportedProviders);
         return services;
     }
 
     public static IServiceCollection AddAbilityKitSessionStateStorage(
         this IServiceCollection services,
-        string sessionStateProvider)
+        string sessionStateProvider,
+        bool allowInMemoryFallbackForUnsupportedProviders = true)
     {
         var plan = AbilityKitStateStorageProviderPlan.Create(sessionStateProvider, "Session");
-        if (plan.IsInMemory)
+        if (plan.IsInMemory || allowInMemoryFallbackForUnsupportedProviders)
         {
             services.AddSingleton<ISessionStateStore, InMemorySessionStateStore>();
             return services;
@@ -30,10 +32,11 @@ public static class AbilityKitGrainStateStorageServiceCollectionExtensions
 
     public static IServiceCollection AddAbilityKitRoomStateStorage(
         this IServiceCollection services,
-        string roomStateProvider)
+        string roomStateProvider,
+        bool allowInMemoryFallbackForUnsupportedProviders = true)
     {
         var plan = AbilityKitStateStorageProviderPlan.Create(roomStateProvider, "Room");
-        if (plan.IsInMemory)
+        if (plan.IsInMemory || allowInMemoryFallbackForUnsupportedProviders)
         {
             services.AddSingleton<IRoomStateStore, InMemoryRoomStateStore>();
             return services;

@@ -10,7 +10,69 @@
       "gatewayPort": 5001,
       "siloPort": 11111,
       "siloGatewayPort": 30000,
-      "tcpPort": 4000
+      "primarySiloPort": 11111,
+      "tcpPort": 4000,
+      "silos": [
+        {
+          "role": "Shared",
+          "siloPort": 11111,
+          "siloGatewayPort": 30000,
+          "primarySiloPort": 11111,
+          "logicalGroups": [ "session", "room", "battle" ],
+          "maxRooms": 500,
+          "maxBattles": 200,
+          "maxSessions": 5000
+        }
+      ]
+    },
+    "dev-scaled": {
+      "description": "Expandable local development cluster with dedicated session, room, and battle silos plus one Gateway.",
+      "instanceName": "dev-scaled",
+      "clusterId": "abilitykit-dev-scaled",
+      "serviceId": "abilitykit-orleans-dev-scaled",
+      "configuration": "Debug",
+      "gatewayPort": 5031,
+      "siloPort": 11411,
+      "siloGatewayPort": 30300,
+      "primarySiloPort": 11411,
+      "tcpPort": 4030,
+      "silos": [
+        {
+          "role": "Shared",
+          "siloPort": 11411,
+          "siloGatewayPort": 30300,
+          "primarySiloPort": 11411,
+          "logicalGroups": [ "session", "room", "battle" ],
+          "maxRooms": 200,
+          "maxBattles": 100,
+          "maxSessions": 2000
+        },
+        {
+          "role": "Session",
+          "siloPort": 11412,
+          "siloGatewayPort": 30301,
+          "primarySiloPort": 11411,
+          "logicalGroups": [ "session" ],
+          "isExclusive": true,
+          "maxSessions": 5000
+        },
+        {
+          "role": "Room",
+          "siloPort": 11413,
+          "siloGatewayPort": 30302,
+          "primarySiloPort": 11411,
+          "logicalGroups": [ "room" ],
+          "maxRooms": 1000
+        },
+        {
+          "role": "Battle",
+          "siloPort": 11414,
+          "siloGatewayPort": 30303,
+          "primarySiloPort": 11411,
+          "logicalGroups": [ "battle" ],
+          "maxBattles": 500
+        }
+      ]
     },
     "ops-a": {
       "description": "First parallel operations/demo environment on alternate ports.",
@@ -21,7 +83,20 @@
       "gatewayPort": 5011,
       "siloPort": 11211,
       "siloGatewayPort": 30100,
-      "tcpPort": 4010
+      "primarySiloPort": 11211,
+      "tcpPort": 4010,
+      "silos": [
+        {
+          "role": "Shared",
+          "siloPort": 11211,
+          "siloGatewayPort": 30100,
+          "primarySiloPort": 11211,
+          "logicalGroups": [ "session", "room", "battle" ],
+          "maxRooms": 500,
+          "maxBattles": 200,
+          "maxSessions": 5000
+        }
+      ]
     },
     "ops-b": {
       "description": "Second parallel operations/demo environment on alternate ports.",
@@ -32,7 +107,20 @@
       "gatewayPort": 5021,
       "siloPort": 11311,
       "siloGatewayPort": 30200,
-      "tcpPort": 4020
+      "primarySiloPort": 11311,
+      "tcpPort": 4020,
+      "silos": [
+        {
+          "role": "Shared",
+          "siloPort": 11311,
+          "siloGatewayPort": 30200,
+          "primarySiloPort": 11311,
+          "logicalGroups": [ "session", "room", "battle" ],
+          "maxRooms": 500,
+          "maxBattles": 200,
+          "maxSessions": 5000
+        }
+      ]
     }
   }
 }

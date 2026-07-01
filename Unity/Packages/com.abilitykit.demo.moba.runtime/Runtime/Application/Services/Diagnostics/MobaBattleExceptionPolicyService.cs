@@ -38,6 +38,9 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly int ActorId;
         public readonly int SkillId;
         public readonly long RuntimeId;
+        public readonly long RootContextId;
+        public readonly long SourceContextId;
+        public readonly MobaSkillCastRuntimeHandle RuntimeHandle;
         public readonly string Detail;
 
         public MobaBattleExceptionContext(
@@ -46,13 +49,19 @@ namespace AbilityKit.Demo.Moba.Services
             int actorId = 0,
             int skillId = 0,
             long runtimeId = 0L,
-            string detail = null)
+            string detail = null,
+            long rootContextId = 0L,
+            long sourceContextId = 0L,
+            MobaSkillCastRuntimeHandle runtimeHandle = default)
         {
             Domain = domain;
             Operation = operation;
             ActorId = actorId;
             SkillId = skillId;
-            RuntimeId = runtimeId;
+            RuntimeId = runtimeId != 0L ? runtimeId : runtimeHandle.RuntimeId;
+            RootContextId = rootContextId != 0L ? rootContextId : runtimeHandle.RootTraceContextId;
+            SourceContextId = sourceContextId;
+            RuntimeHandle = runtimeHandle;
             Detail = detail;
         }
 
@@ -69,8 +78,16 @@ namespace AbilityKit.Demo.Moba.Services
             if (ActorId != 0) message += $" actor={ActorId}";
             if (SkillId != 0) message += $" skill={SkillId}";
             if (RuntimeId != 0L) message += $" runtime={RuntimeId}";
+            if (RootContextId != 0L) message += $" rootContextId={RootContextId}";
+            if (SourceContextId != 0L) message += $" sourceContextId={SourceContextId}";
+            if (RuntimeHandle.IsValid) message += $" runtimeHandle={RuntimeHandle}";
             if (!string.IsNullOrEmpty(Detail)) message += " " + Detail;
             return message;
+        }
+
+        public MobaBattleDiagnosticContext ToDiagnosticContext()
+        {
+            return new MobaBattleDiagnosticContext(RootContextId, SourceContextId, RuntimeHandle, ActorId, SkillId, Detail);
         }
     }
 
@@ -104,9 +121,10 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (_diagnostics != null)
             {
-                _diagnostics.Exception(key, exception, message, maxCount);
-                _diagnostics.Counter("moba.exception." + context.Domain);
-                _diagnostics.Counter("moba.exception." + severity);
+                var diagnosticContext = context.ToDiagnosticContext();
+                _diagnostics.Exception(key, exception, message, in diagnosticContext, maxCount);
+                _diagnostics.Counter(MobaBattleDiagnosticMetric.ExceptionPrefix + context.Domain);
+                _diagnostics.Counter(MobaBattleDiagnosticMetric.ExceptionPrefix + severity);
                 return true;
             }
 

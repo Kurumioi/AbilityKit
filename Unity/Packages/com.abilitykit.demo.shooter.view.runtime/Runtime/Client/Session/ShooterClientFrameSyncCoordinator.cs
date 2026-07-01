@@ -30,6 +30,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientFrameSyncController Controller => _controller;
 
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _controller.FrameworkSnapshotPipelineDiagnostics;
+
         public ShooterClientReconciliationResult LastReconciliationResult => _controller.LastReconciliationResult;
 
         public bool NeedsFullSnapshotResync => _controller.NeedsFullSnapshotResync;

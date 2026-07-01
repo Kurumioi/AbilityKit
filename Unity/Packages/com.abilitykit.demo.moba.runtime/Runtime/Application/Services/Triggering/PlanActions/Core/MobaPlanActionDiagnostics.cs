@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var text = $"Plan action {outcome}. action={actionName} {message}";
             if (resolver != null && resolver.TryResolve<IMobaBattleDiagnosticsService>(out var diagnostics) && diagnostics != null)
             {
-                var key = "plan.action." + outcome + "." + actionName;
+                var key = GetMetricName(outcome);
                 if (purpose == MobaRuntimeLogPurpose.Rejection)
                 {
                     diagnostics.Warning(key, text);
@@ -79,6 +79,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             else
             {
                 MobaRuntimeLog.Info(MobaRuntimeLogModule.Triggering, purpose, "PlanAction", text);
+            }
+        }
+
+        private static string GetMetricName(string outcome)
+        {
+            switch (outcome)
+            {
+                case "skipped":
+                    return MobaBattleDiagnosticMetric.PlanActionSkipped;
+                case "rejected":
+                    return MobaBattleDiagnosticMetric.PlanActionRejected;
+                case "applied":
+                    return MobaBattleDiagnosticMetric.PlanActionApplied;
+                case "trace":
+                    return MobaBattleDiagnosticMetric.PlanActionTrace;
+                default:
+                    return MobaBattleDiagnosticMetric.PlanActionTrace;
             }
         }
     }

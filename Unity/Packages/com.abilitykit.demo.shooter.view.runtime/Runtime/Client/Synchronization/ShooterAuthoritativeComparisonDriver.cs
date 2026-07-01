@@ -17,6 +17,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly IShooterClientSyncController _controller;
         private readonly ShooterBattleRuntimePort _authoritativeWorld;
+        private readonly ShooterBattleDriverHost _driverHost;
         private readonly ShooterPresentationFacade? _authoritativePresentation;
         private readonly ShooterLagCompensationService _lagCompensation = new ShooterLagCompensationService();
 
@@ -41,6 +42,8 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _controller = controller ?? throw new ArgumentNullException(nameof(controller));
             _authoritativeWorld = authoritativeWorld ?? throw new ArgumentNullException(nameof(authoritativeWorld));
+            _driverHost = new ShooterBattleDriverHost(_authoritativeWorld);
+            _driverHost.Start();
             _authoritativePresentation = authoritativePresentation;
             _networkProfile = networkProfile;
             _publishOptions = publishOptions;
@@ -106,12 +109,13 @@ namespace AbilityKit.Demo.Shooter.View
             for (var i = 0; i < stepCount; i++)
             {
                 _lastDeliveredInputCount = DeliverDueInputs();
-                _authoritativeWorld.Tick(deltaSeconds);
+                _driverHost.AdvanceFrame(deltaSeconds);
                 _lagCompensation.RecordFrame(_authoritativeWorld);
-                _networkElapsedSeconds += deltaSeconds;
+                _networkElapsedSeconds = _driverHost.LogicTimeSeconds;
+                var authorityFrame = _driverHost.CurrentFrame;
                 var anchor = SyncTimeAnchor
-                    .FromLocalFrame(_authoritativeWorld.CurrentFrame, _authoritativeWorld.CurrentFrame, _networkElapsedSeconds)
-                    .WithAuthoritativeFrame(_authoritativeWorld.CurrentFrame);
+                    .FromLocalFrame(authorityFrame, authorityFrame, _networkElapsedSeconds)
+                    .WithAuthoritativeFrame(authorityFrame);
                 PublishSnapshot(in anchor);
             }
 
@@ -128,7 +132,7 @@ namespace AbilityKit.Demo.Shooter.View
             while (_pendingInputs.Count > 0 && _pendingInputs.Peek().DeliverAtSeconds <= _networkElapsedSeconds)
             {
                 var pending = _pendingInputs.Dequeue();
-                delivered += _authoritativeWorld.SubmitInput(pending.CommandFrame, new[] { pending.Command });
+                delivered += _driverHost.SubmitCommand(pending.CommandFrame, in pending.Command);
             }
 
             return delivered;
@@ -235,4 +239,3 @@ namespace AbilityKit.Demo.Shooter.View
         }
     }
 }
-

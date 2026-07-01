@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Triggering.Runtime.Behavior;
 using AbilityKit.Triggering.Runtime.Config.Plans;
 using AbilityKit.Triggering.Runtime.Factory;
+using AbilityKit.Triggering.Runtime.Pooling;
 
 namespace AbilityKit.Triggering.Runtime.Instance
 {
@@ -12,13 +13,17 @@ namespace AbilityKit.Triggering.Runtime.Instance
     /// </summary>
     public class TriggerInstanceManager
     {
+        private static readonly TriggeringRuntimePools SharedPools = TriggeringRuntimePools.CreateDefault("triggering-instance-temporary");
+
         private readonly Dictionary<(int, int), ITriggerInstance> _instances = new Dictionary<(int, int), ITriggerInstance>();
         private readonly IBehaviorFactory _behaviorFactory;
+        private readonly TriggeringRuntimePools _pools;
         private int _nextExecutorId;
 
-        public TriggerInstanceManager(IBehaviorFactory behaviorFactory)
+        public TriggerInstanceManager(IBehaviorFactory behaviorFactory, TriggeringRuntimePools pools = null)
         {
             _behaviorFactory = behaviorFactory ?? throw new ArgumentNullException(nameof(behaviorFactory));
+            _pools = pools ?? SharedPools;
             _nextExecutorId = 0;
         }
 
@@ -83,15 +88,22 @@ namespace AbilityKit.Triggering.Runtime.Instance
         /// </summary>
         public void CleanupTerminated()
         {
-            var keysToRemove = new List<(int, int)>();
-            foreach (var kvp in _instances)
+            var keysToRemove = _pools.RentInstanceKeyList();
+            try
             {
-                if (kvp.Value.IsTerminated)
-                    keysToRemove.Add(kvp.Key);
+                foreach (var kvp in _instances)
+                {
+                    if (kvp.Value.IsTerminated)
+                        keysToRemove.Add(kvp.Key);
+                }
+                foreach (var key in keysToRemove)
+                {
+                    _instances.Remove(key);
+                }
             }
-            foreach (var key in keysToRemove)
+            finally
             {
-                _instances.Remove(key);
+                _pools.ReleaseInstanceKeyList(keysToRemove);
             }
         }
 

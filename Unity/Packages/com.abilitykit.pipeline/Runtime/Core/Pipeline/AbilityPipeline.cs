@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Pipeline.Pooling;
 
 namespace AbilityKit.Pipeline
 {
@@ -139,6 +140,7 @@ namespace AbilityKit.Pipeline
                 _owner.Events?.OnPipelineStart?.Invoke(Context);
 
                 _runtime.Registry.Register(this);
+                PipelineDebugHooks.NotifyRunStarted<TCtx>(this, _owner, _config, this);
                 _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunStart, default, State, string.Empty);
             }
 
@@ -311,6 +313,7 @@ namespace AbilityKit.Pipeline
                 if (State != EAbilityPipelineState.Executing) return;
                 State = EAbilityPipelineState.Failed;
                 Context.PipelineState = EAbilityPipelineState.Failed;
+                TrySetContextFailReason(phase, e);
 
                 if (phase != null)
                 {
@@ -318,9 +321,35 @@ namespace AbilityKit.Pipeline
                     catch { }
                     _owner.Events?.OnPhaseError?.Invoke(phase, Context, e);
                 }
+
+                _owner.Events?.OnPipelineError?.Invoke(Context, e);
+                _owner.Events?.OnPipelineFailed?.Invoke(Context, e);
                 _owner.Events?.RecordTracePhase(_runtime, this, EPipelineTraceEventType.PhaseError, phase?.PhaseId ?? default, phase?.GetType().Name ?? string.Empty, State);
+                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, e.Message);
 
                 Cleanup();
+            }
+
+            private void TrySetContextFailReason(IAbilityPipelinePhase<TCtx>? phase, Exception e)
+            {
+                if (Context == null || e == null) return;
+
+                try
+                {
+                    var phaseName = phase?.GetType().Name ?? "<unknown-phase>";
+                    var phaseId = phase?.PhaseId.ToString() ?? "<unknown-phase-id>";
+                    var message = $"{phaseName} failed (phaseId={phaseId}): {e.GetType().Name}: {e.Message}";
+                    Context.SetData("FailReason", message);
+
+                    var failReasonProperty = Context.GetType().GetProperty("FailReason");
+                    if (failReasonProperty != null && failReasonProperty.CanWrite && failReasonProperty.PropertyType == typeof(string))
+                    {
+                        failReasonProperty.SetValue(Context, message);
+                    }
+                }
+                catch
+                {
+                }
             }
 
             private void Complete()
@@ -339,9 +368,24 @@ namespace AbilityKit.Pipeline
                 if (State != EAbilityPipelineState.Executing) return;
                 State = EAbilityPipelineState.Failed;
                 Context.PipelineState = EAbilityPipelineState.Failed;
-                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, "Failed");
+
+                var failure = CreatePipelineFailureException();
+                _owner.Events?.OnPipelineError?.Invoke(Context, null);
+                _owner.Events?.OnPipelineFailed?.Invoke(Context, failure);
+                _owner.Events?.RecordTrace(_runtime, this, EPipelineTraceEventType.RunEnd, CurrentPhaseId, State, failure.Message);
 
                 Cleanup();
+            }
+
+            private Exception CreatePipelineFailureException()
+            {
+                if (Context != null && Context.TryGetData<string>("FailReason", out var failReason) && !string.IsNullOrEmpty(failReason))
+                {
+                    return new InvalidOperationException(failReason);
+                }
+
+                var phaseId = CurrentPhaseId.ToString();
+                return new InvalidOperationException($"Pipeline failed without exception (state={State}, phaseId={phaseId}).");
             }
 
             private void InterruptSubPhases(IAbilityPipelinePhase<TCtx>? phase)
@@ -370,6 +414,7 @@ namespace AbilityKit.Pipeline
                 finally
                 {
                     _runtime.Registry.Unregister(this);
+                    PipelinePools.ReleaseRunPhaseList(_phases);
                 }
             }
         }

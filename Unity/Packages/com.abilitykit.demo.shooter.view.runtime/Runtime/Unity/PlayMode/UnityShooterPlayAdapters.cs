@@ -64,6 +64,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private int _lastControlledHp = -1;
         private bool _hasHudData;
         private bool _hasAuthorityProjection;
+        private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
@@ -115,6 +116,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastBulletCount = CountEntities(frame.ClientBatch, ShooterViewEntityKind.Bullet);
             _lastEnemyCount = CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy);
             _lastControlledHp = TryGetControlledPlayerHp(frame.ClientBatch, frame.ControlledPlayerId);
+            _lastCrossLayerDiagnostics = frame.CrossLayerDiagnostics;
             _hasHudData = true;
         }
 
@@ -201,7 +203,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastBulletCount = 0;
             _lastEnemyCount = 0;
             _lastControlledHp = -1;
-
+            _lastCrossLayerDiagnostics = default;
+ 
             if (_viewRoot != null)
             {
                 Object.Destroy(_viewRoot.gameObject);
@@ -228,14 +231,27 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            GUI.Box(new Rect(12f, 12f, 320f, 196f), "Shooter HUD");
-            GUILayout.BeginArea(new Rect(24f, 40f, 296f, 164f));
+            GUI.Box(new Rect(12f, 12f, 360f, 316f), "Shooter HUD");
+            GUILayout.BeginArea(new Rect(24f, 40f, 336f, 284f));
             GUILayout.Label($"战场 玩家/子弹/怪物: {_lastPlayerCount}/{_lastBulletCount}/{_lastEnemyCount}");
             GUILayout.Label(_lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A");
             GUILayout.Label($"客户端视图 玩家/子弹/怪物: {_playerViews.Count}/{_bulletViews.Count}/{_enemyViews.Count}");
             GUILayout.Label($"权威视图 玩家/子弹/怪物: {_authorityPlayerViews.Count}/{_authorityBulletViews.Count}/{_authorityEnemyViews.Count}");
             GUILayout.Label($"池化 玩家/子弹/怪物: {_playerPool.Count}/{_bulletPool.Count}/{_enemyPool.Count}");
             GUILayout.Label($"权威投影: {(_hasAuthorityProjection ? "开启" : "关闭")}");
+            GUILayout.Space(6f);
+            GUILayout.Label($"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}");
+            GUILayout.Label($"快照 Packed/Pure: {_lastCrossLayerDiagnostics.FrameworkPackedSnapshotCount}/{_lastCrossLayerDiagnostics.FrameworkPureStateSnapshotCount}");
+            GUILayout.Label($"最近框架帧: {_lastCrossLayerDiagnostics.LastFrameworkFrame} op={_lastCrossLayerDiagnostics.LastFrameworkPayloadOpCode}");
+            GUILayout.Label($"框架世界: {(_lastCrossLayerDiagnostics.HasFrameworkSnapshot ? _lastCrossLayerDiagnostics.LastFrameworkWorldId : "N/A")}");
+            GUILayout.Label(_lastCrossLayerDiagnostics.HasSnapshotApplyResult
+                ? $"网关应用: {_lastCrossLayerDiagnostics.SnapshotApplyResult}"
+                : "网关应用: N/A");
+            GUILayout.Label(_lastCrossLayerDiagnostics.HasRemoteLatencyResult
+                ? $"远端延迟/权威差: {_lastCrossLayerDiagnostics.RemoteInputDelayFrames}/{_lastCrossLayerDiagnostics.RemoteAuthoritativeFrameGap}f"
+                : "远端延迟/权威差: N/A");
+            GUILayout.Label($"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}");
+            GUILayout.Label($"PureState 基线: {(_lastCrossLayerDiagnostics.NeedsPureStateBaselineResync ? "等待" : "正常")}");
             GUILayout.EndArea();
         }
 

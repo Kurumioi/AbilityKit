@@ -31,6 +31,8 @@ namespace AbilityKit.Ability.Flow
                     options.ExceptionHandler?.Invoke(ex);
                 };
 
+                runner.Observer = options.Observer;
+                runner.TraceRecorder = options.TraceRecorder;
                 runner.Start(root);
 
                 var steps = 0;

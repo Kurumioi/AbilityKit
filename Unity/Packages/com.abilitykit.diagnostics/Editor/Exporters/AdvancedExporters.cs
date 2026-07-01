@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Globalization;
 using System.Text;
 using AbilityKit.Diagnostics;
 
 namespace AbilityKit.Diagnostics.Exporters
 {
     /// <summary>
-    /// SpeedScope 格式导出器
-    /// https://www.speedscope.app
+    /// Speedscope import format exporter.
     /// </summary>
     public sealed class SpeedScopeExporter : IExporter
     {
@@ -16,114 +15,87 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            var json = ExportToString(snapshot);
-            File.WriteAllText(filePath, json);
+            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var sb = new StringBuilder();
-            sb.AppendLine("{");
-            sb.AppendLine("  \"$schema\": \"https://www.speedscope.app/schema/v1.json\",");
-            sb.AppendLine("  \"exporter\": \"AbilityKit.Diagnostics\",");
-            sb.AppendLine($"  \"version\": \"0.0.1\",");
-            sb.AppendLine("  \"mode\": \"flamegraph\",");
-            sb.AppendLine("  \"profile\": {");
-            sb.AppendLine("    \"type\": \"evented\",");
-            sb.AppendLine("    \"unit\": \"nanoseconds\",");
-            sb.AppendLine("    \"names\": [");
-
-            // 收集所有唯一的名称
-            var names = CollectNames(snapshot.Root);
-            for (int i = 0; i < names.Count; i++)
-            {
-                sb.AppendLine($"      \"{EscapeJson(names[i])}\"{(i < names.Count - 1 ? "," : "")}");
-            }
-            sb.AppendLine("    ],");
-            sb.AppendLine("    \"startValue\": 0,");
-            sb.AppendLine("    \"endValue\": " + GetTotalTime(snapshot.Root) + ",");
-            sb.AppendLine("    \"events\": [");
-
-            // 导出事件 - 遍历每个分类根节点
+            var frames = new List<string>();
+            var frameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
             var events = new List<string>();
-            long timeOffset = 0;
-            foreach (var rootKvp in snapshot.Root.Roots)
+            var currentValue = 0L;
+
+            foreach (var root in snapshot.Root.Roots.Values)
             {
-                ExportEvents(sb, rootKvp.Value, timeOffset, "", events);
-                timeOffset += rootKvp.Value.TotalNanoseconds;
+                AppendSpeedscopeEvents(root, currentValue, frames, frameIndex, events);
+                currentValue += Math.Max(1L, root.TotalNanoseconds);
             }
 
-            for (int i = 0; i < events.Count; i++)
+            var sb = new StringBuilder(4096);
+            sb.AppendLine("{");
+            sb.AppendLine("  \"$schema\": \"https://www.speedscope.app/file-format-schema.json\",");
+            sb.AppendLine("  \"shared\": {");
+            sb.AppendLine("    \"frames\": [");
+            for (var i = 0; i < frames.Count; i++)
             {
-                sb.AppendLine($"      {events[i]}{(i < events.Count - 1 ? "," : "")}");
+                sb.AppendLine($"      {{\"name\": \"{JsonExporter.EscapeJson(frames[i])}\"}}{(i < frames.Count - 1 ? "," : string.Empty)}");
             }
-
             sb.AppendLine("    ]");
-            sb.AppendLine("  }");
+            sb.AppendLine("  },");
+            sb.AppendLine("  \"profiles\": [");
+            sb.AppendLine("    {");
+            sb.AppendLine("      \"type\": \"evented\",");
+            sb.AppendLine("      \"name\": \"AbilityKit Diagnostics\",");
+            sb.AppendLine("      \"unit\": \"nanoseconds\",");
+            sb.AppendLine("      \"startValue\": 0,");
+            sb.AppendLine($"      \"endValue\": {Math.Max(1L, currentValue)},");
+            sb.AppendLine("      \"events\": [");
+            for (var i = 0; i < events.Count; i++)
+            {
+                sb.AppendLine($"        {events[i]}{(i < events.Count - 1 ? "," : string.Empty)}");
+            }
+            sb.AppendLine("      ]");
+            sb.AppendLine("    }");
+            sb.AppendLine("  ],");
+            sb.AppendLine($"  \"name\": \"AbilityKit Diagnostics {JsonExporter.EscapeJson(snapshot.SessionId)}\",");
+            sb.AppendLine("  \"exporter\": \"AbilityKit.Diagnostics\"");
             sb.AppendLine("}");
             return sb.ToString();
         }
 
-        private List<string> CollectNames(FlameRoot root)
+        private static long AppendSpeedscopeEvents(FlameNode node, long startValue, List<string> frames, Dictionary<string, int> frameIndex, List<string> events)
         {
-            var names = new HashSet<string>();
-            foreach (var rootNode in root.Roots.Values)
-            {
-                CollectNamesRecursive(rootNode, names);
-            }
-            return new List<string>(names);
-        }
+            var index = GetFrameIndex(node.Name, frames, frameIndex);
+            var endValue = startValue + Math.Max(1L, node.TotalNanoseconds);
+            events.Add($"{{\"type\": \"O\", \"frame\": {index}, \"at\": {startValue}}}");
 
-        private void CollectNamesRecursive(FlameNode node, HashSet<string> names)
-        {
-            names.Add(node.Name);
+            var childStart = startValue;
             foreach (var child in node.Children.Values)
             {
-                CollectNamesRecursive(child, names);
+                childStart = AppendSpeedscopeEvents(child, childStart, frames, frameIndex, events);
             }
+
+            events.Add($"{{\"type\": \"C\", \"frame\": {index}, \"at\": {endValue}}}");
+            return endValue;
         }
 
-        private long GetTotalTime(FlameRoot root)
+        private static int GetFrameIndex(string name, List<string> frames, Dictionary<string, int> frameIndex)
         {
-            long total = 0;
-            foreach (var r in root.Roots.Values)
+            name = string.IsNullOrEmpty(name) ? "unnamed" : name;
+            if (frameIndex.TryGetValue(name, out var index))
             {
-                total += r.TotalNanoseconds;
-            }
-            return total > 0 ? total : 1;
-        }
-
-        private void ExportEvents(StringBuilder sb, FlameNode node, long startTime, string path, List<string> events)
-        {
-            var newPath = string.IsNullOrEmpty(path) ? node.Name : path + ";" + node.Name;
-
-            // B 事件 (开始)
-            events.Add($"{{\"type\":\"B\",\"name\":\"{EscapeJson(node.Name)}\"}}");
-
-            long currentTime = startTime;
-            foreach (var child in node.Children.Values)
-            {
-                ExportEvents(sb, child, currentTime, newPath, events);
-                currentTime += child.TotalNanoseconds;
+                return index;
             }
 
-            // E 事件 (结束)
-            events.Add($"{{\"type\":\"E\",\"name\":\"{EscapeJson(node.Name)}\"}}");
-        }
-
-        private static string EscapeJson(string s)
-        {
-            return s.Replace("\\", "\\\\")
-                    .Replace("\"", "\\\"")
-                    .Replace("\n", "\\n")
-                    .Replace("\r", "\\r")
-                    .Replace("\t", "\\t");
+            index = frames.Count;
+            frames.Add(name);
+            frameIndex[name] = index;
+            return index;
         }
     }
 
     /// <summary>
-    /// Chrome DevTools Performance 格式导出器
-    /// https://developer.chrome.com/docs/devtools/performance/reference
+    /// Chrome trace event exporter.
     /// </summary>
     public sealed class ChromePerfExporter : IExporter
     {
@@ -131,93 +103,61 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            var json = ExportToString(snapshot);
-            File.WriteAllText(filePath, json);
+            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var sb = new StringBuilder();
+            var events = new List<string>();
+            var startMicroseconds = 0d;
+            foreach (var root in snapshot.Root.Roots.Values)
+            {
+                AppendTraceEvents(root, startMicroseconds, 0, events);
+                startMicroseconds += Math.Max(1d, root.TotalNanoseconds / 1000.0d);
+            }
+
+            var sb = new StringBuilder(4096);
             sb.AppendLine("{");
             sb.AppendLine("  \"traceEvents\": [");
-
-            var events = new List<string>();
-            var nodes = new List<(FlameNode node, double startMs, double durationMs, int depth)>();
-
-            // 收集节点
-            foreach (var rootKvp in snapshot.Root.Roots)
+            for (var i = 0; i < events.Count; i++)
             {
-                CollectNodes(rootKvp.Value, 0, 0, rootKvp.Key, nodes);
+                sb.AppendLine($"    {events[i]}{(i < events.Count - 1 ? "," : string.Empty)}");
             }
-
-            // 排序按开始时间
-            nodes.Sort((a, b) => a.startMs.CompareTo(b.startMs));
-
-            // 生成事件
-            long eventId = 0;
-            foreach (var (node, startMs, durationMs, depth) in nodes)
-            {
-                // 类别映射
-                var cat = node.Category ?? "default";
-                var color = GetCategoryColor(cat);
-
-                // 完整跟踪事件
-                events.Add($"{{\"name\":\"{EscapeJson(node.Name)}\",\"cat\":\"{cat}\",\"ph\":\"X\",\"ts\":{startMs * 1000},\"dur\":{durationMs * 1000},\"pid\":0,\"tid\":0,\"args\":{{}}}}");
-
-                // B/E 事件对
-                // events.Add($"{{\"name\":\"{EscapeJson(node.Name)}\",\"cat\":\"{cat}\",\"ph\":\"B\",\"ts\":{startMs * 1000},\"pid\":0,\"tid\":0,\"args\":{{}}}}");
-                // events.Add($"{{\"name\":\"{EscapeJson(node.Name)}\",\"cat\":\"{cat}\",\"ph\":\"E\",\"ts\":{(startMs + durationMs) * 1000},\"pid\":0,\"tid\":0,\"args\":{{}}}}");
-            }
-
-            for (int i = 0; i < events.Count; i++)
-            {
-                sb.AppendLine($"    {events[i]}{(i < events.Count - 1 ? "," : "")}");
-            }
-
             sb.AppendLine("  ],");
             sb.AppendLine("  \"metadata\": {");
-            sb.AppendLine($"    \"sessionId\": \"{snapshot.SessionId}\",");
+            sb.AppendLine($"    \"sessionId\": \"{JsonExporter.EscapeJson(snapshot.SessionId)}\",");
             sb.AppendLine($"    \"exportedAt\": \"{DateTimeOffset.UtcNow:O}\"");
             sb.AppendLine("  }");
             sb.AppendLine("}");
             return sb.ToString();
         }
 
-        private void CollectNodes(FlameNode node, double startMs, int depth, string category, List<(FlameNode, double, double, int)> nodes)
+        private static void AppendTraceEvents(FlameNode node, double startMicroseconds, int depth, List<string> events)
         {
-            var durationMs = node.TotalNanoseconds / 1_000_000.0;
-            nodes.Add((node, startMs, durationMs, depth));
+            var category = string.IsNullOrEmpty(node.Category) ? "default" : node.Category;
+            var durationMicroseconds = Math.Max(1d, node.TotalNanoseconds / 1000.0d);
+            events.Add("{"
+                + $"\"name\":\"{JsonExporter.EscapeJson(node.Name)}\","
+                + $"\"cat\":\"{JsonExporter.EscapeJson(category)}\","
+                + "\"ph\":\"X\","
+                + $"\"ts\":{startMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
+                + $"\"dur\":{durationMicroseconds.ToString("F3", CultureInfo.InvariantCulture)},"
+                + "\"pid\":1,"
+                + $"\"tid\":{depth + 1},"
+                + $"\"args\":{{\"hits\":{node.HitCount},\"selfMs\":{JsonExporter.Format(node.SelfNanoseconds / 1000000.0d)}}}"
+                + "}");
 
-            double childStart = startMs;
+            var childStart = startMicroseconds;
             foreach (var child in node.Children.Values)
             {
-                CollectNodes(child, childStart, depth + 1, category, nodes);
-                childStart += child.TotalNanoseconds / 1_000_000.0;
+                AppendTraceEvents(child, childStart, depth + 1, events);
+                childStart += Math.Max(1d, child.TotalNanoseconds / 1000.0d);
             }
-        }
-
-        private static string GetCategoryColor(string category)
-        {
-            return category switch
-            {
-                "pipeline" => "olive",
-                "trigger" => "blue",
-                "ability" => "green",
-                "context" => "purple",
-                _ => "grey"
-            };
-        }
-
-        private static string EscapeJson(string s)
-        {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
     }
 
     /// <summary>
-    /// 折叠式火焰图格式（ Brendan Gregg 格式）
-    /// 用于 flamegraph.pl 工具
-    /// https://github.com/brendangregg/FlameGraph
+    /// Brendan Gregg folded stack exporter.
     /// </summary>
     public sealed class FlameGraphExporter : IExporter
     {
@@ -225,43 +165,23 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            var folded = ExportToString(snapshot);
-            File.WriteAllText(filePath, folded);
+            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var sb = new StringBuilder();
-
-            foreach (var rootKvp in snapshot.Root.Roots)
+            var sb = new StringBuilder(2048);
+            foreach (var root in snapshot.Root.Roots.Values)
             {
-                ExportNodeStack(sb, rootKvp.Value, "");
+                FoldedExporter.AppendFolded(sb, root, string.Empty);
             }
 
             return sb.ToString();
         }
-
-        private void ExportNodeStack(StringBuilder sb, FlameNode node, string path)
-        {
-            var newPath = string.IsNullOrEmpty(path) ? node.Name : $"{path};{node.Name}";
-
-            // 每一行: func1;func2;func3 count
-            if (node.HitCount > 0)
-            {
-                sb.AppendLine($"{newPath} {node.HitCount}");
-            }
-
-            foreach (var child in node.Children.Values)
-            {
-                ExportNodeStack(sb, child, newPath);
-            }
-        }
     }
 
     /// <summary>
-    /// 0xFF 火焰图格式
-    /// 用于 0x pariatur 工具
-    /// https://github.com/daniel交收/0x
+    /// Simple tree JSON exporter for flamegraph visualizers.
     /// </summary>
     public sealed class ZeroxExporter : IExporter
     {
@@ -269,51 +189,41 @@ namespace AbilityKit.Diagnostics.Exporters
 
         public void Export(ProfilerSnapshot snapshot, string filePath)
         {
-            var json = ExportToString(snapshot);
-            File.WriteAllText(filePath, json);
+            JsonExporter.WriteAllText(filePath, ExportToString(snapshot));
         }
 
         public string ExportToString(ProfilerSnapshot snapshot)
         {
-            var sb = new StringBuilder();
+            var roots = new List<FlameNode>(snapshot.Root.Roots.Values);
+            var sb = new StringBuilder(4096);
             sb.AppendLine("{");
-            sb.AppendLine("  \"type\": \"single\",");
-            sb.AppendLine("  \"format\": \"leaf\",");
-            sb.AppendLine("  \"nodes\": [");
-
-            var nodes = new List<string>();
-            foreach (var rootKvp in snapshot.Root.Roots)
+            sb.AppendLine("  \"name\": \"AbilityKit Diagnostics\",");
+            sb.AppendLine("  \"children\": [");
+            for (var i = 0; i < roots.Count; i++)
             {
-                ExportNodes(sb, rootKvp.Value, "", nodes);
+                AppendTreeNode(sb, roots[i], 2, i < roots.Count - 1);
             }
-
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                sb.AppendLine($"  {nodes[i]}{(i < nodes.Count - 1 ? "," : "")}");
-            }
-
             sb.AppendLine("  ]");
             sb.AppendLine("}");
             return sb.ToString();
         }
 
-        private void ExportNodes(StringBuilder sb, FlameNode node, string path, List<string> nodes)
+        private static void AppendTreeNode(StringBuilder sb, FlameNode node, int indentLevel, bool comma)
         {
-            var newPath = string.IsNullOrEmpty(path) ? node.Name : $"{path};{node.Name}";
-            var selfNs = Math.Max(0, node.SelfNanoseconds);
+            var indent = new string(' ', indentLevel * 2);
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}  \"name\": \"{JsonExporter.EscapeJson(node.Name)}\",");
+            sb.AppendLine($"{indent}  \"value\": {Math.Max(1L, node.SelfNanoseconds > 0 ? node.SelfNanoseconds : node.TotalNanoseconds)},");
+            sb.AppendLine($"{indent}  \"children\": [");
 
-            var nodeJson = $"{{\"name\":\"{EscapeJson(newPath)}\",\"value\":{selfNs}}}";
-            nodes.Add(nodeJson);
-
-            foreach (var child in node.Children.Values)
+            var children = new List<FlameNode>(node.Children.Values);
+            for (var i = 0; i < children.Count; i++)
             {
-                ExportNodes(sb, child, newPath, nodes);
+                AppendTreeNode(sb, children[i], indentLevel + 2, i < children.Count - 1);
             }
-        }
 
-        private static string EscapeJson(string s)
-        {
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            sb.AppendLine($"{indent}  ]");
+            sb.AppendLine($"{indent}}}{(comma ? "," : string.Empty)}");
         }
     }
 }

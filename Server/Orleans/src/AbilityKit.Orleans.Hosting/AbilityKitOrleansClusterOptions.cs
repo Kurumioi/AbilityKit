@@ -13,5 +13,7 @@ public sealed record AbilityKitOrleansClusterOptions
 
     public int? GatewayPort { get; init; }
 
+    public int? PrimarySiloPort { get; init; }
+
     public static AbilityKitOrleansClusterOptions Development { get; } = new();
 }

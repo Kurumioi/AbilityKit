@@ -34,6 +34,15 @@
     </section>
 
     <section class="card span-7">
+      <div class="card-head"><div><p class="section-kicker">模拟玩家</p><h2>房间机器人</h2></div><span class="badge">Robot</span></div>
+      <div class="row"><div><label>添加数量</label><input v-model.number="admin.roomRobots.count" type="number" min="1" max="64" /></div><div><label>账号前缀</label><input v-model="admin.roomRobots.accountPrefix" /></div></div>
+      <div class="row"><div><label>AI Profile</label><input v-model="admin.roomRobots.battleAiProfileId" /></div><div><label>自动准备</label><select v-model="admin.roomRobots.autoReady"><option :value="true">是</option><option :value="false">否</option></select></div></div>
+      <label class="check-row"><input v-model="admin.roomRobots.mountBattleAi" type="checkbox" /> 进入战斗后挂载局内 AI</label>
+      <div class="actions action-bar"><button class="success" :disabled="admin.busy.value || !admin.sessionToken.value || !admin.effectiveRoomId.value || admin.selectedRoomType.value !== 'shooter'" @click="admin.addRoomRobots">添加到当前房间</button><button class="secondary" :disabled="admin.busy.value || !admin.effectiveRoomId.value" @click="admin.refreshDashboard">刷新</button></div>
+      <div v-if="admin.lastRobotAdd.value" class="status-box"><strong>已添加 {{ admin.lastRobotAdd.value.addedCount }} 个机器人</strong><span>{{ admin.lastRobotAdd.value.robotAccounts.join(', ') }}</span><small v-if="admin.lastRobotAdd.value.battleAiMounts.length">AI 挂载 {{ admin.lastRobotAdd.value.battleAiMounts.filter(x => x.accepted).length }}/{{ admin.lastRobotAdd.value.battleAiMounts.length }}</small></div>
+    </section>
+
+    <section class="card span-7">
       <div class="card-head"><div><p class="section-kicker">房间目录</p><h2>房间列表</h2></div><span class="badge">{{ admin.rooms.value.length }} 个房间</span></div>
       <div class="list"><article v-for="room in admin.rooms.value" :key="room.roomId" class="room-item" :class="{ active: admin.effectiveRoomId.value === room.roomId }"><div><strong>{{ room.title || room.roomId }}</strong><small>{{ room.roomId }}</small></div><div class="room-meta"><span>{{ room.roomType }}</span><span>{{ room.playerCount }}/{{ room.maxPlayers }}</span><span>{{ room.isPublic ? '公开' : '私有' }}</span><span v-if="admin.effectiveRoomId.value === room.roomId">当前</span></div><button class="secondary" :disabled="admin.busy.value" @click="admin.selectRoom(room.roomId)">选择并绑定</button><button class="warn" :disabled="admin.busy.value || !admin.sessionToken.value" @click="admin.closeRoom(room.roomId)">关闭</button></article><p v-if="admin.rooms.value.length === 0" class="muted">暂无房间。</p></div>
     </section>

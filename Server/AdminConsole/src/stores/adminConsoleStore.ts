@@ -3,7 +3,7 @@ import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
 import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree, toText as acceptanceToText } from '../services/skillAcceptanceAnalysis';
 import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
+import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -31,6 +31,7 @@ const acceptanceTemplates = ref<AdminSkillAcceptanceTemplateList | null>(null);
 const acceptanceLastRun = ref<AdminSkillAcceptanceRunResponse | null>(null);
 const shooterWorldDiagnostics = ref<ShooterWorldDiagnostics | null>(null);
 const lastResponse = ref('');
+const lastRobotAdd = ref<AddRoomRobotsResponse | null>(null);
 const apiCallLog = ref<AdminApiCallLogItem[]>([]);
 let apiCallLogId = 0;
 
@@ -40,6 +41,7 @@ const battle = reactive({ gameplayId: 2, ruleSetId: 0, configVersion: 1, protoco
 const skillLoadout = reactive({ heroId: 1, teamId: 1, spawnPointId: 1, level: 1, attributeTemplateId: 1, basicAttackSkillId: 1001, skillIdsText: '1002,1003,1004' });
 const skillEventFilter = reactive<{ battleId: string; actorId: number | null; skillId: number | null; limit: number }>({ battleId: '', actorId: null, skillId: null, limit: 100 });
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
+const roomRobots = reactive({ count: 1, accountPrefix: 'room-robot', autoReady: true, mountBattleAi: true, battleAiProfileId: 'simple-battle' });
 const serverOperation = reactive({ reason: '后台控制台操作' });
 const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', selectedCaseIds: [] as string[], traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
@@ -689,6 +691,17 @@ async function setRoomReady(ready: boolean): Promise<void> {
   await refreshDashboard();
 }
 
+async function addRoomRobots(): Promise<void> {
+  if (!effectiveRoomId.value) return;
+  const data = await call<AddRoomRobotsResponse>(apis.rooms.addRobots({ sessionToken: sessionToken.value, roomId: effectiveRoomId.value, count: Number(roomRobots.count || 1), accountPrefix: roomRobots.accountPrefix || null, autoReady: roomRobots.autoReady === true, mountBattleAi: roomRobots.mountBattleAi === true, battleAiProfileId: roomRobots.battleAiProfileId || 'simple-battle' }));
+  if (!data) return;
+  lastRobotAdd.value = data;
+  snapshot.value = data.snapshot;
+  roomId.value = data.roomId || roomId.value;
+  await refreshDashboard();
+  await refreshSkillDiagnostics();
+}
+
 async function startBattle(): Promise<void> {
   await call(apis.rooms.startBattle({ sessionToken: sessionToken.value, roomId: roomId.value, gameplayId: Number(battle.gameplayId || 0), ruleSetId: Number(battle.ruleSetId || 0), configVersion: Number(battle.configVersion || 1), protocolVersion: Number(battle.protocolVersion || 1), worldType: battle.worldType || null, clientId: 'admin-console', syncTemplateId: battle.syncTemplateId || null, syncModel: null, networkEnvironmentId: 'admin-console', carrierName: 'admin', enableAuthoritativeWorld: true, interpolationEnabled: true, inputDelayFrames: 0 }));
   await refreshDashboard();
@@ -742,6 +755,7 @@ export function useAdminConsoleStore() {
     acceptanceLastRun,
     shooterWorldDiagnostics,
     lastResponse,
+    lastRobotAdd,
     apiCallLog,
     account,
     create,
@@ -749,6 +763,7 @@ export function useAdminConsoleStore() {
     skillLoadout,
     skillEventFilter,
     sandbox,
+    roomRobots,
     serverOperation,
     acceptance,
     acceptanceAnalysisFilter,
@@ -843,6 +858,7 @@ export function useAdminConsoleStore() {
     closeRoom,
     setRoomReady,
     startShooterRoomQuick,
+    addRoomRobots,
     startBattle,
     startShooterSandbox,
     refreshShooterSandboxState,

@@ -1,5 +1,5 @@
 import { AdminApiClient } from './adminApiClient';
-import type { AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics } from '../types';
+import type { AddRoomRobotsResponse, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics } from '../types';
 
 export class AdminDashboardApi {
   public constructor(private readonly client: AdminApiClient) {}
@@ -114,6 +114,10 @@ export class RoomApi {
 
   public startBattle(request: unknown) {
     return this.client.request('/api/admin/rooms/start-battle', request);
+  }
+
+  public addRobots(request: unknown) {
+    return this.client.request<AddRoomRobotsResponse>('/api/admin/rooms/add-robots', request);
   }
 
   public pickHero(request: unknown) {

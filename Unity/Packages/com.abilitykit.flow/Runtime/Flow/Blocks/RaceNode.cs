@@ -29,7 +29,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_nodes[i] == null) throw new InvalidOperationException("RaceNode contains null node");
                 _status[i] = FlowStatus.Running;
-                _nodes[i].Enter(ctx);
+                FlowDiagnostics.Enter(ctx, _nodes[i]);
             }
             _entered = true;
         }
@@ -42,17 +42,17 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] != FlowStatus.Running) continue;
 
-                var s = _nodes[i].Tick(ctx, deltaTime);
+                var s = FlowDiagnostics.Tick(ctx, _nodes[i], deltaTime);
                 if (s == FlowStatus.Running) continue;
 
                 _status[i] = s;
-                _nodes[i].Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _nodes[i], s);
 
                 for (int k = 0; k < _nodes.Length; k++)
                 {
                     if (k == i) continue;
                     if (_status[k] != FlowStatus.Running) continue;
-                    _nodes[k].Interrupt(ctx);
+                    FlowDiagnostics.Interrupt(ctx, _nodes[k]);
                     _status[k] = FlowStatus.Canceled;
                 }
 
@@ -71,7 +71,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] == FlowStatus.Running)
                 {
-                    _nodes[i].Exit(ctx);
+                    FlowDiagnostics.Exit(ctx, _nodes[i]);
                     _status[i] = FlowStatus.Succeeded;
                 }
             }
@@ -87,7 +87,7 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (_status[i] == FlowStatus.Running)
                 {
-                    _nodes[i].Interrupt(ctx);
+                    FlowDiagnostics.Interrupt(ctx, _nodes[i]);
                     _status[i] = FlowStatus.Canceled;
                 }
             }

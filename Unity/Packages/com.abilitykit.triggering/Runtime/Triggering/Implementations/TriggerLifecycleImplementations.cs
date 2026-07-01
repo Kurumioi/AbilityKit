@@ -201,13 +201,10 @@ namespace AbilityKit.Triggering.Runtime
             if (!_statsByEventName.TryGetValue(eventName, out var stats))
             {
                 stats = new TriggerStatistics();
-                _statsByEventName[eventName] = stats;
             }
-            else
-            {
-                stats.TotalTriggered++;
-                _statsByEventName[eventName] = stats;
-            }
+
+            stats.TotalTriggered++;
+            _statsByEventName[eventName] = stats;
         }
 
         private void IncrementEvaluated(int triggerId, string eventName, long elapsedTicks)

@@ -103,15 +103,58 @@ Server\Orleans\tools\run_shooter_smoke.bat -Configuration Debug -TcpPort 41001
 - 既有阶段性文档仍保留，用于解释 Shooter 示例定位、远程闭环背景与后续专题计划。
 - 后续新增验收项应优先追加到本文，再同步到更细的专题设计文档。
 
+## 第三轮：规模预算、Replay 排障与回归入口
+
+验收目标：Shooter 示例在远程链路可观测基础上，补齐长期可回归的规模预算、FrameRecord replay 排障摘要与最小 CI/脚本入口。
+
+已完成项：
+
+- Svelto gameplay benchmark 增加 small/medium/mass 三档实体预算 profile，保留 large-scale 兼容入口。
+- Runtime 测试覆盖三档预算的 MaxEntityCount、ActiveSyncBudget、deterministic、tick/allocation diagnostics，以及 pure-state payload entity count 与 visibility hint count 对齐。
+- ShooterSmoke replay validation 增加 summary/diagnostic，汇总 meta、inputs、snapshots、state hashes、first/last frame、input/snapshot op code 分布、packed/pure-state/server snapshot 计数。
+- Smoke 文本输出追加 replay first/last frame、op code 分布、pure-state/packed snapshot 计数，便于定位 artifact 问题。
+- 新增 ShooterSmoke replay summary 单元测试工程，避免依赖完整 Orleans smoke 服务即可验证 `.record.json/.record.bin` 汇总逻辑。
+
+回归入口：
+
+```cmd
+dotnet test src\AbilityKit.Demo.Shooter.Runtime.Tests\AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter "EntityBudgetProfilesRunSmallMediumAndMassAcceptanceMatrix|PureStateSnapshotBudgetProfilesKeepPayloadAndVisibilityHintsAligned|ShooterSnapshotAllocationDiagnosticsTests"
+```
+
+```cmd
+dotnet test Server\Orleans\src\AbilityKit.Orleans.ShooterSmoke.Tests\AbilityKit.Orleans.ShooterSmoke.Tests.csproj --filter ShooterSmokeReplaySummaryTests
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_smoke.ps1 -Configuration Debug -TcpPort 41001
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -TcpPort 41001 -PayloadMode packed
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -TcpPort 41001 -PayloadMode pure-state
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -TcpPort 41001 -PayloadMode pure-state -ConditionLatencyMs 120 -ConditionJitterMs 30 -ConditionPacketLossRate 0.05
+```
+
+Replay 排障说明：
+
+- packed/pure-state multiprocess smoke 会输出 input-state replay 与 minimized replay 路径，并在 result 行暴露 `inputStateReplayFirstFrame`、`inputStateReplayLastFrame`、`inputStateReplaySnapshotOpCodes`、`inputStateReplayPureStateSnapshots`、`inputStateReplayPackedStateSnapshots`。
+- 单进程 smoke 会输出 input-logic replay 与 server-frame 兼容字段，并暴露 `InputLogicReplayFirstFrame`、`InputLogicReplayLastFrame`、`InputLogicReplayOpCodes`、`InputLogicReplaySnapshotOpCodes` 等摘要字段。
+- 若需要在测试中直接读取 artifact，可调用 ShooterSmoke replay summary 入口汇总 `.record.bin` 或 `.record.json`。
+
 ## 当前剩余缺口
 
 以下内容未在本轮 P0-P4 内完全关闭，建议作为下一轮正式化优先级：
 
-1. 时间锚点统一：将本地 PlayMode、远程 StateSync、Orleans Battle tick 的时间基准进一步收敛。
-2. 远程延迟补偿：在真实网络条件或可注入网络条件下验证输入延迟、快照延迟与回滚/校正策略。
-3. 纯状态同步运行闭环：继续补齐 pure state sync 在运行态的完整导出、传输、导入、表现层验收。
-4. 大规模实体预算：针对高玩家数、高敌人数、高弹幕密度补充性能预算与压力测试。
-5. Unity 侧自动化：补充可在 CI 或批处理环境执行的 PlayMode/Editor 验收入口。
+1. Unity 侧自动化：补充可在 CI 或批处理环境执行的 PlayMode/Editor 验收入口。
+2. 长时压测：当前 small/medium/mass 预算入口偏快速回归，仍需独立的夜间长时压测策略。
+3. Replay CLI：当前 replay summary 已可被测试和 smoke 输出复用，后续可按需补独立命令行入口。
+4. 真实网络条件：继续在更复杂网络抖动、丢包与多客户端条件下扩大 resilience smoke 覆盖。
 
 ## 最小回归清单
 
@@ -135,4 +178,20 @@ dotnet test Server\Orleans\src\AbilityKit.Orleans.Gateway.Tests\AbilityKit.Orlea
 
 ```powershell
 .\Server\Orleans\tools\run_shooter_smoke.ps1 -Configuration Debug -TcpPort 41001
+```
+
+```cmd
+dotnet test src\AbilityKit.Demo.Shooter.Runtime.Tests\AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter "EntityBudgetProfilesRunSmallMediumAndMassAcceptanceMatrix|PureStateSnapshotBudgetProfilesKeepPayloadAndVisibilityHintsAligned|ShooterSnapshotAllocationDiagnosticsTests"
+```
+
+```cmd
+dotnet test Server\Orleans\src\AbilityKit.Orleans.ShooterSmoke.Tests\AbilityKit.Orleans.ShooterSmoke.Tests.csproj --filter ShooterSmokeReplaySummaryTests
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -TcpPort 41001 -PayloadMode packed
+```
+
+```powershell
+.\Server\Orleans\tools\run_shooter_multiprocess_smoke.ps1 -Configuration Debug -TcpPort 41001 -PayloadMode pure-state
 ```

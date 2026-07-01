@@ -41,10 +41,15 @@ namespace AbilityKit.Ability.Editor.Utilities
             ExportFromFolder(DefaultAbilityConfigFolder);
         }
 
+        public static void ExportDefaultFolderPlansForBatchMode()
+        {
+            ExportPlanFromFolder("Assets");
+        }
+
         [MenuItem("AbilityKit/Ability/Export Trigger Plan Json (Configs/Ability)")]
         public static void ExportDefaultFolderPlans()
         {
-            ExportPlanFromFolder(DefaultAbilityConfigFolder);
+            ExportDefaultFolderPlansForBatchMode();
         }
 
         public static void ExportFromFolder(string assetFolder)

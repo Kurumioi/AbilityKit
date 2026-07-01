@@ -27,22 +27,22 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (!_entered)
             {
-                _child.Enter(ctx);
+                FlowDiagnostics.Enter(ctx, _child);
                 _entered = true;
             }
 
             _elapsed += deltaTime;
             if (_elapsed > _seconds)
             {
-                _child.Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _child, FlowStatus.Failed);
                 _entered = false;
                 return FlowStatus.Failed;
             }
 
-            var s = _child.Tick(ctx, deltaTime);
+            var s = FlowDiagnostics.Tick(ctx, _child, deltaTime);
             if (s == FlowStatus.Running) return FlowStatus.Running;
 
-            _child.Exit(ctx);
+            FlowDiagnostics.Exit(ctx, _child, s);
             _entered = false;
             return s;
         }
@@ -51,7 +51,7 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_entered)
             {
-                _child.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _child);
                 _entered = false;
             }
         }
@@ -60,7 +60,7 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_entered)
             {
-                _child.Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _child);
                 _entered = false;
             }
         }

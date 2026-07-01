@@ -132,7 +132,10 @@ namespace AbilityKit.Demo.Moba.Services
                             actorId: CasterActorId,
                             skillId: SkillId,
                             runtimeId: RuntimeId,
-                            detail: "kind=" + kind),
+                            detail: "kind=" + kind,
+                            rootContextId: RuntimeHandle.RootTraceContextId,
+                            sourceContextId: SourceContextId,
+                            runtimeHandle: RuntimeHandle),
                         MobaBattleExceptionSeverity.Recoverable);
                     return;
                 }

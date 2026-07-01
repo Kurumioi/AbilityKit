@@ -39,6 +39,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
             ShooterLagCompensationTelemetry? lagCompensationTelemetry,
             ShooterLagCompensationEvaluation? lagCompensationEvaluation,
             ShooterRemoteLatencyCompensationDiagnostics remoteLatencyCompensationDiagnostics,
+            ShooterCrossLayerDiagnostics crossLayerDiagnostics,
             ShooterPureStateSyncDiagnostics pureStateSyncDiagnostics,
             bool needsPureStateBaselineResync,
             ShooterPureStateResyncReason lastPureStateResyncReason,
@@ -59,6 +60,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
             LagCompensationTelemetry = lagCompensationTelemetry;
             LagCompensationEvaluation = lagCompensationEvaluation;
             RemoteLatencyCompensationDiagnostics = remoteLatencyCompensationDiagnostics;
+            CrossLayerDiagnostics = crossLayerDiagnostics;
             PureStateSyncDiagnostics = pureStateSyncDiagnostics;
             NeedsPureStateBaselineResync = needsPureStateBaselineResync;
             LastPureStateResyncReason = lastPureStateResyncReason;
@@ -80,6 +82,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
         public ShooterLagCompensationTelemetry? LagCompensationTelemetry { get; }
         public ShooterLagCompensationEvaluation? LagCompensationEvaluation { get; }
         public ShooterRemoteLatencyCompensationDiagnostics RemoteLatencyCompensationDiagnostics { get; }
+        public ShooterCrossLayerDiagnostics CrossLayerDiagnostics { get; }
         public ShooterPureStateSyncDiagnostics PureStateSyncDiagnostics { get; }
         public bool NeedsPureStateBaselineResync { get; }
         public ShooterPureStateResyncReason LastPureStateResyncReason { get; }

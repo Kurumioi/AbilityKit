@@ -14,6 +14,10 @@ public sealed class AbilityKitDeploymentOptionsTests : GatewayTestBase
         Assert.Equal("Shared", options.Role);
         Assert.Empty(options.Groups);
         Assert.Empty(options.Affinity);
+        Assert.Equal(1, options.TargetSiloCount);
+        Assert.Equal(0, options.MaxRoomsPerSilo);
+        Assert.Equal(0, options.MaxBattlesPerSilo);
+        Assert.Equal(0, options.MaxSessionsPerGateway);
     }
 
     [Fact]
@@ -37,6 +41,9 @@ public sealed class AbilityKitDeploymentOptionsTests : GatewayTestBase
         Assert.Empty(options.PreferredAffinity);
         Assert.False(options.IsExclusive);
         Assert.False(options.IsGateway);
+        Assert.Equal(0, options.MaxRooms);
+        Assert.Equal(0, options.MaxBattles);
+        Assert.Equal(0, options.MaxSessions);
         Assert.Null(options.Notes);
     }
 

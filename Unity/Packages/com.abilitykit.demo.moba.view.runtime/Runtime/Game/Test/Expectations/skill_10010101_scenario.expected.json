@@ -1,0 +1,103 @@
+{
+  "caseId": "skill_10010101_scenario_dash_hit_damage_knockup",
+  "description": "Lian Po skill 1 should apply self armor, launch the dash collision projectile, hit one enemy, deal damage, and execute the hit knock-up pull action.",
+  "category": "contract",
+  "tags": ["lian-po", "skill-1", "projectile", "dash", "scenario", "damage", "knockup"],
+  "config": {
+    "skillId": 10010101,
+    "castFlowId": 10010101,
+    "effectId": 10010101,
+    "triggerId": 10010101,
+    "expectedActions": [
+      { "actionId": 1241142882, "type": "add_buff" },
+      { "actionId": 508656420, "type": "shoot_projectile" },
+      { "actionId": 589451731, "type": "debug_log" }
+    ],
+    "expectedProjectile": {
+      "launcherId": 31010101,
+      "projectileId": 30010101
+    }
+  },
+  "scenario": {
+    "scenarioId": "skill_10010101_scenario_dash_hit_damage_knockup",
+    "worldId": "skill_10010101_scenario_world",
+    "tickRate": 30,
+    "accelerated": true,
+    "actors": [
+      {
+        "alias": "caster",
+        "playerId": "p1",
+        "teamId": 1,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "skillIds": [10010101, 10010201, 10010301],
+        "spawnPosition": { "x": 0.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": 1.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "alias": "target",
+        "playerId": "p2",
+        "teamId": 2,
+        "heroId": 1001,
+        "attributeTemplateId": 1001,
+        "spawnPosition": { "x": 3.0, "y": 0.0, "z": 0.0 },
+        "facingDirection": { "x": -1.0, "y": 0.0, "z": 0.0 }
+      }
+    ],
+    "setupActions": [
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "max_hp",
+        "value": 1000.0
+      },
+      {
+        "action": "set_attr",
+        "actorAlias": "target",
+        "property": "hp",
+        "value": 1000.0
+      }
+    ],
+    "timeline": [
+      {
+        "stepId": "press_skill_1",
+        "atMs": 0,
+        "action": "press",
+        "actorAlias": "caster",
+        "targetAlias": "target",
+        "slot": 1,
+        "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
+      },
+      {
+        "stepId": "wait_for_dash_projectile_hit",
+        "atMs": 1,
+        "action": "wait",
+        "durationMs": 900
+      }
+    ],
+    "stateExpectations": [
+      {
+        "alias": "caster",
+        "property": "hasBuff",
+        "expectedInt": 10010000,
+        "expectedBool": true
+      },
+      {
+        "alias": "target",
+        "property": "hp",
+        "comparator": "eq",
+        "expectedFloat": 840.0
+      }
+    ]
+  },
+  "mustContain": [
+    { "kind": "SkillCast", "configId": 10010101, "minCount": 1 },
+    { "kind": "EffectExecution", "configId": 10010101, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1241142882, "underEffectId": 10010101, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 508656420, "underEffectId": 10010101, "minCount": 1 },
+    { "kind": "ProjectileLaunch", "configId": 30010101, "underEffectId": 10010101, "minCount": 1 },
+    { "kind": "BuffApply", "configId": 10010000, "minCount": 1 },
+    { "kind": "DamageApply", "configId": 10010101, "minCount": 1, "maxCount": 1 },
+    { "kind": "EffectAction", "configId": -13684592, "minCount": 1 }
+  ]
+}

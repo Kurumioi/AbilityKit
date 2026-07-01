@@ -1,13 +1,13 @@
 {
   "caseId": "skill_10010101_basic",
-  "description": "Skill slot 1 casts skill 10010101 and executes configured effect 10001 down to concrete trigger actions and projectile launch.",
+  "description": "Lian Po skill 1 casts skill 10010101 and executes the current dash/projectile effect chain down to concrete trigger actions and projectile launch.",
   "worldId": "skill_10010101_acceptance_world",
   "tickRate": 30,
   "accelerated": true,
   "category": "golden",
-  "tags": ["golden", "core", "projectile", "representative"],
+  "tags": ["golden", "core", "projectile", "lian-po", "skill-1", "representative"],
   "generatedFrom": "manual",
-  "lastReviewedAt": "2026-06-24",
+  "lastReviewedAt": "2026-07-01",
   "input": {
     "playerId": "p1",
     "slot": 1,
@@ -16,67 +16,93 @@
   "config": {
     "skillId": 10010101,
     "castFlowId": 10010101,
-    "effectId": 10001,
-    "triggerId": 10001,
+    "effectId": 10010101,
+    "triggerId": 10010101,
     "expectedActions": [
       {
-        "actionId": 589451731,
-        "type": "debug_log"
+        "actionId": 1241142882,
+        "type": "add_buff"
       },
       {
         "actionId": 508656420,
         "type": "shoot_projectile"
+      },
+      {
+        "actionId": 589451731,
+        "type": "debug_log"
       }
     ],
     "expectedProjectile": {
-      "launcherId": 100001,
-      "projectileId": 200001
+      "launcherId": 31010101,
+      "projectileId": 30010101
     }
   },
   "mustContain": [
     {
       "kind": "SkillCast",
-      "configId": 10010101
+      "configId": 10010101,
+      "minCount": 1
     },
     {
       "kind": "EffectExecution",
-      "configId": 10001
+      "configId": 10010101,
+      "minCount": 1
     },
     {
       "kind": "EffectAction",
-      "configId": 589451731,
-      "underEffectId": 10001
+      "configId": 1241142882,
+      "underEffectId": 10010101,
+      "minCount": 1
     },
     {
       "kind": "EffectAction",
       "configId": 508656420,
-      "underEffectId": 10001
+      "underEffectId": 10010101,
+      "minCount": 1
+    },
+    {
+      "kind": "EffectAction",
+      "configId": 589451731,
+      "underEffectId": 10010101,
+      "minCount": 1
     },
     {
       "kind": "ProjectileLaunch",
-      "configId": 200001,
-      "underEffectId": 10001
+      "configId": 30010101,
+      "underEffectId": 10010101,
+      "minCount": 1
+    },
+    {
+      "kind": "BuffApply",
+      "configId": 10010000,
+      "minCount": 1
     }
   ],
   "mustNotContain": [],
   "relationships": [
     {
       "parentKind": "EffectExecution",
-      "parentConfigId": 10001,
+      "parentConfigId": 10010101,
       "childKind": "EffectAction",
-      "childConfigId": 589451731
+      "childConfigId": 1241142882
     },
     {
       "parentKind": "EffectExecution",
-      "parentConfigId": 10001,
+      "parentConfigId": 10010101,
       "childKind": "EffectAction",
       "childConfigId": 508656420
     },
     {
       "parentKind": "EffectExecution",
-      "parentConfigId": 10001,
+      "parentConfigId": 10010101,
+      "childKind": "EffectAction",
+      "childConfigId": 589451731
+    },
+    {
+      "parentKind": "EffectExecution",
+      "parentConfigId": 10010101,
       "childKind": "ProjectileLaunch",
-      "childConfigId": 200001
+      "childConfigId": 30010101
     }
   ]
 }

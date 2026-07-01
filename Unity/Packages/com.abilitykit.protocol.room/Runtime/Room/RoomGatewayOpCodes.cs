@@ -6,6 +6,7 @@ namespace AbilityKit.Protocol.Room
     public static class RoomGatewayOpCodes
     {
         public const uint GuestLogin = 100;
+        public const uint AccountLogin = 111;
         public const uint CreateRoom = 101;
         public const uint JoinRoom = 102;
         public const uint SubscribeStateSync = 103;

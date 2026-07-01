@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private MobaAreaRuntimeService _areaRuntime;
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private IMobaStageTriggerService _stageTriggers;
+        private IMobaBattleDiagnosticsService _diagnostics;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaEnterEvent> _enters = new List<AreaEnterEvent>(64);
@@ -49,6 +50,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _areaRuntime);
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _stageTriggers);
+            Services.TryResolve(out _diagnostics);
         }
 
         protected override void OnExecute()
@@ -57,21 +59,31 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
             _spawns.Clear();
             _projectiles.DrainAreaSpawnEvents(_spawns);
+            if (_spawns.Count > 0)
+            {
+                WarnAreaSync("drain.spawn", $"count={_spawns.Count}");
+            }
             for (int i = 0; i < _spawns.Count; i++)
             {
                 var evt = _spawns[i];
                 var info = RequireAreaInfo(evt.Area);
+                WarnAreaSync("publish.spawn", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} frame={evt.Frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
                 PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
             }
 
             _enters.Clear();
             _projectiles.DrainAreaEnterEvents(_enters);
-            if (_enters.Count > 0) _lifecycle?.RecordEnterEvents(MobaTemporaryEntityKind.Area, _enters.Count);
+            if (_enters.Count > 0)
+            {
+                WarnAreaSync("drain.enter", $"count={_enters.Count}");
+                _lifecycle?.RecordEnterEvents(MobaTemporaryEntityKind.Area, _enters.Count);
+            }
             for (int i = 0; i < _enters.Count; i++)
             {
                 var evt = _enters[i];
                 var hitActorId = ResolveActorIdByCollider(evt.Collider);
                 var info = RequireAreaInfo(evt.Area);
+                WarnAreaSync("publish.enter", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} target={hitActorId} frame={evt.Frame} sourceContextId={info.SourceContextId}");
                 PublishAreaEvent("area.enter", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaEnter, evt, in info, ownerActorId: evt.OwnerId, targetActorId: hitActorId, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: evt.Collider, info.CollisionLayerMask, info.MaxTargets);
             }
 
@@ -150,20 +162,29 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         {
             if (_areaRuntime == null)
             {
+                WarnAreaSync("metadata.service_missing", $"areaId={areaId.Value}");
                 throw new InvalidOperationException("MobaAreaSyncSystem requires MobaAreaRuntimeService for area event metadata.");
             }
 
             if (!_areaRuntime.TryGetArea(areaId.Value, out var info))
             {
+                WarnAreaSync("metadata.missing", $"areaId={areaId.Value}");
                 throw new InvalidOperationException($"Area event missing runtime metadata. areaId={areaId.Value}");
             }
 
             if (info.TemplateId <= 0)
             {
+                WarnAreaSync("metadata.template_missing", $"areaId={areaId.Value} sourceContextId={info.SourceContextId}");
                 throw new InvalidOperationException($"Area event missing template id. areaId={areaId.Value}");
             }
 
             return info;
+        }
+
+        private void WarnAreaSync(string suffix, string message)
+        {
+            if (_diagnostics == null) return;
+            _diagnostics.Warning("moba.area.sync." + suffix, message);
         }
 
         private int ResolveActorIdByCollider(ColliderId id)

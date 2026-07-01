@@ -1,8 +1,10 @@
+using System.Globalization;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.GameFramework.Network;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.LagCompensation;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 
@@ -35,6 +37,9 @@ internal static class ShooterSmokeClientProcessRunner
         var pushWait = new TaskCompletionSource<ShooterSnapshotPushSmokeResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var pushCount = 0;
         var lastPush = default(ShooterSnapshotPushSmokeResult);
+        var pureStateFullBaselinesApplied = 0;
+        var pureStateDeltasApplied = 0;
+        var pureStateResyncRequests = 0;
         launcher.GatewayConnection.SnapshotPushDispatched += (opCode, payload, result) =>
         {
             try
@@ -44,6 +49,23 @@ internal static class ShooterSmokeClientProcessRunner
                     replay?.RecordSnapshot(in pushResult, payload);
                     pushCount++;
                     lastPush = pushResult;
+                    if (pushResult.ApplyResult == ShooterSnapshotApplyResult.AppliedActorSnapshot)
+                    {
+                        if (pushResult.PureStateSnapshotKind == ShooterPureStateSnapshotKinds.FullBaseline)
+                        {
+                            pureStateFullBaselinesApplied++;
+                        }
+                        else if (pushResult.PureStateSnapshotKind == ShooterPureStateSnapshotKinds.Delta
+                            || pushResult.PureStateSnapshotKind == ShooterPureStateSnapshotKinds.LowFrequency)
+                        {
+                            pureStateDeltasApplied++;
+                        }
+                    }
+                    else if (pushResult.ApplyResult == ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded)
+                    {
+                        pureStateResyncRequests++;
+                    }
+
                     if (IsAppliedSnapshotResult(result))
                     {
                         pushWait.TrySetResult(pushResult);
@@ -127,9 +149,12 @@ internal static class ShooterSmokeClientProcessRunner
         connection.Tick(0f);
         var reconciliation = launched.Session.LastReconciliationResult;
         var snapshotHashMatched = ValidateLatestAuthoritativeSnapshot(push, reconciliation, appliedSnapshotHashMatched);
+        var remoteAnchor = launched.Flow.RemoteTimeAnchorProjection;
+        var lagCompensation = EvaluateLagCompensationSmoke(runtime, launched.Flow.PlayerId);
 
         var result = new ShooterSmokeClientProcessResult(
             options.Mode,
+            options.StateSyncPayloadMode,
             options.ClientId,
             login.AccountId,
             launched.Flow.RoomId,
@@ -143,8 +168,17 @@ internal static class ShooterSmokeClientProcessRunner
             runtime.ComputeStateHash(),
             push.ApplyResult,
             push.PackedFrame,
+            push.PayloadOpCode,
+            push.PureStateSnapshotKind,
+            push.PureStateBaselineFrame,
+            push.PureStateBaselineHash,
             push.PackedStateHash,
             push.PackedEntityCount,
+            push.PureStateVisibilityHintCount,
+            pureStateFullBaselinesApplied,
+            pureStateDeltasApplied,
+            pureStateResyncRequests,
+            lastPush.ApplyResult == ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded,
             snapshotHashMatched,
             reconciliation.PredictedFrameBeforeCorrection,
             reconciliation.PredictedHashBeforeCorrection,
@@ -187,6 +221,22 @@ internal static class ShooterSmokeClientProcessRunner
             channel.ConditionInboundReceived,
             channel.ConditionInboundDelayed,
             channel.ConditionInboundDropped,
+            remoteAnchor.AnchorValid,
+            remoteAnchor.TargetFrame,
+            remoteAnchor.CatchUpFrames,
+            remoteAnchor.ElapsedSeconds,
+            remoteAnchor.ServerNowTicks,
+            push.WireServerTicks,
+            lastPush.WireServerTicks,
+            lastPush.PackedServerTick,
+            runtime.CurrentFrame,
+            presentation.ViewModel.Frame,
+            lagCompensation.Accepted,
+            lagCompensation.Reason,
+            lagCompensation.RequestedFrame,
+            lagCompensation.ResolvedFrame,
+            lagCompensation.HitEntityId,
+            lagCompensation.Distance,
             string.Empty,
             string.Empty,
             default);
@@ -209,6 +259,7 @@ internal static class ShooterSmokeClientProcessRunner
     {
         return "SHOOTER_MP_CLIENT_READY " +
             $"mode={options.Mode.ToString().ToLowerInvariant()} " +
+            $"payloadMode={options.StateSyncPayloadMode} " +
             $"clientId=\"{Escape(options.ClientId)}\" " +
             $"accountId=\"{Escape(accountId)}\" " +
             $"roomId=\"{Escape(launched.Flow.RoomId)}\" " +
@@ -223,6 +274,7 @@ internal static class ShooterSmokeClientProcessRunner
     {
         return "SHOOTER_MP_CLIENT_RESULT " +
             $"status=pass mode={result.Mode.ToString().ToLowerInvariant()} " +
+            $"payloadMode={result.StateSyncPayloadMode} " +
             $"clientId=\"{Escape(result.ClientId)}\" " +
             $"accountId=\"{Escape(result.AccountId)}\" " +
             $"roomId=\"{Escape(result.RoomId)}\" " +
@@ -231,13 +283,30 @@ internal static class ShooterSmokeClientProcessRunner
             $"playerId={result.PlayerId} " +
             $"entryKind={result.EntryKind} " +
             $"targetFrame={result.TargetFrame} " +
+            $"remoteAnchorValid={result.RemoteAnchorValid} " +
+            $"remoteTargetFrame={result.RemoteTargetFrame} " +
+            $"remoteCatchUpFrames={result.RemoteCatchUpFrames} " +
+            $"remoteElapsedSeconds={result.RemoteElapsedSeconds.ToString(CultureInfo.InvariantCulture)} " +
+            $"remoteServerTicks={result.RemoteServerTicks} " +
             $"runtimeFrame={result.RuntimeFrame} " +
             $"viewFrame={result.ViewFrame} " +
+            $"localRuntimeFrame={result.LocalRuntimeFrame} " +
+            $"localViewFrame={result.LocalViewFrame} " +
             $"stateHash=0x{result.StateHash:X8} " +
             $"snapshot={result.SnapshotApplyResult}@{result.SnapshotFrame} " +
+            $"payloadOpCode={result.SnapshotPayloadOpCode} " +
+            $"payloadKind={result.SnapshotPayloadKind} " +
+            $"sourceFrame={result.SnapshotFrame} " +
+            $"baselineFrame={result.SnapshotBaselineFrame} " +
+            $"baselineHash=0x{result.SnapshotBaselineHash:X8} " +
             $"snapshotHash=0x{result.SnapshotStateHash:X8} " +
             $"snapshotHashMatched={result.SnapshotHashMatched} " +
             $"entities={result.SnapshotEntityCount} " +
+            $"visibilityHints={result.SnapshotVisibilityHintCount} " +
+            $"pureStateFullBaselinesApplied={result.PureStateFullBaselinesApplied} " +
+            $"pureStateDeltasApplied={result.PureStateDeltasApplied} " +
+            $"pureStateResyncRequests={result.PureStateResyncRequests} " +
+            $"pureStateLastResyncNeeded={result.PureStateLastResyncNeeded} " +
             $"reconcilePredictedFrame={result.ReconcilePredictedFrame} " +
             $"reconcilePredictedHash=0x{result.ReconcilePredictedHash:X8} " +
             $"reconcileAuthoritativeFrame={result.ReconcileAuthoritativeFrame} " +
@@ -259,7 +328,16 @@ internal static class ShooterSmokeClientProcessRunner
             $"lastServerTicks={result.LastServerTicks} " +
             $"shouldResync={result.ShouldResync} " +
             $"pushes={result.PushCount} " +
+            $"snapshotServerTicks={result.SnapshotServerTicks} " +
+            $"lastPushServerTicks={result.LastPushServerTicks} " +
+            $"lastPushPackedServerTick={result.LastPushPackedServerTick} " +
             $"lastPushFrame={result.LastPushFrame} " +
+            $"lagCompAccepted={result.LagCompAccepted} " +
+            $"lagCompReason={result.LagCompReason} " +
+            $"lagCompRequestedFrame={result.LagCompRequestedFrame} " +
+            $"lagCompResolvedFrame={result.LagCompResolvedFrame} " +
+            $"lagCompHitEntityId={result.LagCompHitEntityId} " +
+            $"lagCompDistance={result.LagCompDistance.ToString(CultureInfo.InvariantCulture)} " +
             $"matchState={result.MatchState} " +
             $"matchFinal={result.MatchFinal} " +
             $"matchVictory={result.MatchVictory} " +
@@ -285,18 +363,29 @@ internal static class ShooterSmokeClientProcessRunner
             $"inputStateReplayInputs={result.InputStateReplayValidation.InputCount} " +
             $"inputStateReplaySnapshots={result.InputStateReplayValidation.SnapshotCount} " +
             $"inputStateReplayHashes={result.InputStateReplayValidation.StateHashCount} " +
+            $"inputStateReplayFirstFrame={result.InputStateReplayValidation.Summary.FirstFrame} " +
+            $"inputStateReplayLastFrame={result.InputStateReplayValidation.Summary.LastFrame} " +
+            $"inputStateReplaySnapshotOpCodes=\"{Escape(result.InputStateReplayValidation.Summary.SnapshotOpCodeDistribution)}\" " +
+            $"inputStateReplayPureStateSnapshots={result.InputStateReplayValidation.Summary.PureStateRelatedSnapshotCount} " +
+            $"inputStateReplayPackedStateSnapshots={result.InputStateReplayValidation.Summary.PackedStateRelatedSnapshotCount} " +
             $"clientStateReplayPath=\"{Escape(result.InputStateReplayPath)}\" " +
             $"minimizedClientStateReplayPath=\"{Escape(result.MinimizedInputStateReplayPath)}\" " +
             $"clientStateReplayConsumed={result.InputStateReplayValidation.Consumed} " +
             $"clientStateReplayInputs={result.InputStateReplayValidation.InputCount} " +
             $"clientStateReplaySnapshots={result.InputStateReplayValidation.SnapshotCount} " +
-            $"clientStateReplayHashes={result.InputStateReplayValidation.StateHashCount}";
+            $"clientStateReplayHashes={result.InputStateReplayValidation.StateHashCount} " +
+            $"clientStateReplayFirstFrame={result.InputStateReplayValidation.Summary.FirstFrame} " +
+            $"clientStateReplayLastFrame={result.InputStateReplayValidation.Summary.LastFrame} " +
+            $"clientStateReplaySnapshotOpCodes=\"{Escape(result.InputStateReplayValidation.Summary.SnapshotOpCodeDistribution)}\" " +
+            $"clientStateReplayPureStateSnapshots={result.InputStateReplayValidation.Summary.PureStateRelatedSnapshotCount} " +
+            $"clientStateReplayPackedStateSnapshots={result.InputStateReplayValidation.Summary.PackedStateRelatedSnapshotCount}";
     }
 
     public static string FormatFailure(in ShooterSmokeClientProcessOptions options, Exception exception)
     {
         return "SHOOTER_MP_CLIENT_RESULT " +
             $"status=fail mode={options.Mode.ToString().ToLowerInvariant()} " +
+            $"payloadMode={options.StateSyncPayloadMode} " +
             $"clientId=\"{Escape(options.ClientId)}\" " +
             $"error=\"{Escape(GetExceptionMessage(exception))}\"";
     }
@@ -423,6 +512,78 @@ internal static class ShooterSmokeClientProcessRunner
         return await task.ConfigureAwait(false);
     }
 
+    private static ShooterSmokeLagCompensationProcessResult EvaluateLagCompensationSmoke(
+        ShooterBattleRuntimePort runtime,
+        uint playerId)
+    {
+        var snapshot = runtime.GetSnapshot();
+        var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+        ShooterPlayerSnapshot? shooter = null;
+        ShooterPlayerSnapshot? target = null;
+        for (var i = 0; i < players.Length; i++)
+        {
+            var player = players[i];
+            if (!player.Alive)
+            {
+                continue;
+            }
+
+            if (player.PlayerId == playerId)
+            {
+                shooter = player;
+                continue;
+            }
+
+            target ??= player;
+        }
+
+        if (!shooter.HasValue || !target.HasValue)
+        {
+            return new ShooterSmokeLagCompensationProcessResult(
+                false,
+                LagCompensationResultReason.HistoryUnavailable.ToString(),
+                snapshot.Frame,
+                -1,
+                0,
+                0f);
+        }
+
+        var shooterValue = shooter.Value;
+        var targetValue = target.Value;
+        var dx = targetValue.X - shooterValue.X;
+        var dy = targetValue.Y - shooterValue.Y;
+        var distance = MathF.Sqrt(dx * dx + dy * dy);
+        if (distance <= 0.0001f)
+        {
+            dx = 1f;
+            dy = 0f;
+            distance = 1f;
+        }
+
+        var service = new ShooterLagCompensationService(new ServerRewindLagCompensationConfig(
+            maxHistoryFrames: 8,
+            maxRewindFrames: 8));
+        service.RecordFrame(in snapshot);
+        var shot = new ShooterLagCompensationShot(
+            (int)playerId,
+            shooterValue.X,
+            shooterValue.Y,
+            dx / distance,
+            dy / distance,
+            MathF.Max(distance + 1f, 2f),
+            snapshot.Frame,
+            runtime.CurrentFrame);
+
+        service.TryEvaluateShot(in shot, out var hit);
+        return new ShooterSmokeLagCompensationProcessResult(
+            hit.Accepted,
+            hit.Reason.ToString(),
+            hit.RequestedFrame,
+            hit.EvaluatedFrame,
+            hit.HitEntityId,
+            hit.Distance);
+    }
+
     private static ShooterPlayerCommand CreateGameplayLoopCommand(int frame)
     {
         const float firstEnemyX = -0.12186934f;
@@ -534,6 +695,50 @@ internal static class ShooterSmokeClientProcessRunner
             throw new InvalidOperationException("Shooter snapshot push returned invalid server ticks.");
         }
 
+        if (wire.PayloadOpCode == ShooterOpCodes.Snapshot.PureState || wire.PayloadOpCode == ShooterOpCodes.Snapshot.PureStateDelta)
+        {
+            if (wire.Payload == null || wire.Payload.Length == 0)
+            {
+                throw new InvalidOperationException("Shooter pure-state snapshot push returned empty payload.");
+            }
+
+            var pureState = ShooterPureStateSyncCodec.Deserialize(wire.Payload);
+            if (pureState.WorldId != wire.WorldId)
+            {
+                throw new InvalidOperationException($"Shooter pure-state snapshot world id mismatch. Wire={wire.WorldId}, PureState={pureState.WorldId}");
+            }
+
+            if (pureState.Frame != wire.Frame)
+            {
+                throw new InvalidOperationException($"Shooter pure-state snapshot frame mismatch. Wire={wire.Frame}, PureState={pureState.Frame}");
+            }
+
+            result = new ShooterSnapshotPushSmokeResult(
+                applyResult,
+                wire.WorldId,
+                wire.Frame,
+                wire.ServerTicks,
+                wire.PayloadOpCode,
+                pureState.WorldId,
+                pureState.Frame,
+                pureState.ServerTick,
+                pureState.StateHash,
+                pureState.Entities?.Length ?? 0,
+                0,
+                false,
+                false,
+                0,
+                0,
+                0,
+                0,
+                0,
+                pureState.SnapshotKind,
+                pureState.BaselineFrame,
+                pureState.BaselineHash,
+                pureState.VisibilityHints?.Length ?? 0);
+            return true;
+        }
+
         if (wire.PayloadOpCode != ShooterOpCodes.Snapshot.PackedState)
         {
             result = new ShooterSnapshotPushSmokeResult(
@@ -554,6 +759,10 @@ internal static class ShooterSmokeClientProcessRunner
                 0,
                 0,
                 0,
+                0,
+                0,
+                0,
+                0u,
                 0);
             return true;
         }
@@ -583,7 +792,11 @@ internal static class ShooterSmokeClientProcessRunner
             metadata.DefeatedEnemies,
             metadata.VictoryTargetDefeats,
             metadata.TimeLimitFrames,
-            metadata.RemainingTimeFrames);
+            metadata.RemainingTimeFrames,
+            0,
+            0,
+            0u,
+            0);
         return true;
     }
 
@@ -764,6 +977,7 @@ internal readonly record struct ShooterSmokeClientProcessOptions(
     bool ReconnectOnce,
     int ReconnectDelayMs,
     SmokeNetworkConditionOptions NetworkCondition,
+    string StateSyncPayloadMode,
     string InputStateReplayOutputPath);
 
 internal readonly record struct ShooterSmokeReconnectProcessResult(
@@ -774,8 +988,17 @@ internal readonly record struct ShooterSmokeReconnectProcessResult(
     int PushesBefore,
     int PushesAfter);
 
+internal readonly record struct ShooterSmokeLagCompensationProcessResult(
+    bool Accepted,
+    string Reason,
+    int RequestedFrame,
+    int ResolvedFrame,
+    int HitEntityId,
+    float Distance);
+
 internal readonly record struct ShooterSmokeClientProcessResult(
     ShooterSmokeClientProcessMode Mode,
+    string StateSyncPayloadMode,
     string ClientId,
     string AccountId,
     string RoomId,
@@ -789,8 +1012,17 @@ internal readonly record struct ShooterSmokeClientProcessResult(
     uint StateHash,
     ShooterSnapshotApplyResult SnapshotApplyResult,
     int SnapshotFrame,
+    int SnapshotPayloadOpCode,
+    int SnapshotPayloadKind,
+    int SnapshotBaselineFrame,
+    uint SnapshotBaselineHash,
     uint SnapshotStateHash,
     int SnapshotEntityCount,
+    int SnapshotVisibilityHintCount,
+    int PureStateFullBaselinesApplied,
+    int PureStateDeltasApplied,
+    int PureStateResyncRequests,
+    bool PureStateLastResyncNeeded,
     bool SnapshotHashMatched,
     int ReconcilePredictedFrame,
     uint ReconcilePredictedHash,
@@ -833,6 +1065,22 @@ internal readonly record struct ShooterSmokeClientProcessResult(
     int ConditionInboundReceived,
     int ConditionInboundDelayed,
     int ConditionInboundDropped,
+    bool RemoteAnchorValid,
+    int RemoteTargetFrame,
+    int RemoteCatchUpFrames,
+    double RemoteElapsedSeconds,
+    long RemoteServerTicks,
+    long SnapshotServerTicks,
+    long LastPushServerTicks,
+    long LastPushPackedServerTick,
+    int LocalRuntimeFrame,
+    int LocalViewFrame,
+    bool LagCompAccepted,
+    string LagCompReason,
+    int LagCompRequestedFrame,
+    int LagCompResolvedFrame,
+    int LagCompHitEntityId,
+    float LagCompDistance,
     string InputStateReplayPath,
     string MinimizedInputStateReplayPath,
     ShooterSmokeReplayValidationResult InputStateReplayValidation);

@@ -81,6 +81,24 @@ export interface ShooterSandboxState {
   snapshot?: RoomSnapshot | null;
 }
 
+export interface RoomRobotBattleAiMount {
+  accountId: string;
+  playerId: number;
+  accepted: boolean;
+  status: string;
+  message: string;
+}
+
+export interface AddRoomRobotsResponse {
+  roomId: string;
+  requestedCount: number;
+  addedCount: number;
+  robotAccounts: string[];
+  battleAiMounts: RoomRobotBattleAiMount[];
+  snapshot: RoomSnapshot;
+  serverNowTicks: number;
+}
+
 export interface ShooterWorldDiagnostics {
   battleId: string;
   worldType: string;

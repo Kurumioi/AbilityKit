@@ -36,14 +36,14 @@ namespace AbilityKit.Ability.Flow.Nodes
 
                 if (!_childEntered)
                 {
-                    n.Enter(ctx);
+                    FlowDiagnostics.Enter(ctx, n);
                     _childEntered = true;
                 }
 
-                var s = n.Tick(ctx, deltaTime);
+                var s = FlowDiagnostics.Tick(ctx, n, deltaTime);
                 if (s == FlowStatus.Running) return FlowStatus.Running;
 
-                n.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, n, s);
                 _childEntered = false;
 
                 if (s != FlowStatus.Succeeded) return s;
@@ -58,7 +58,7 @@ namespace AbilityKit.Ability.Flow.Nodes
         {
             if (_childEntered && _index < _nodes.Length)
             {
-                _nodes[_index].Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _nodes[_index]);
             }
 
             _childEntered = false;
@@ -68,7 +68,7 @@ namespace AbilityKit.Ability.Flow.Nodes
         {
             if (_childEntered && _index < _nodes.Length)
             {
-                _nodes[_index].Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _nodes[_index]);
             }
 
             _childEntered = false;

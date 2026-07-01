@@ -26,6 +26,7 @@
         "AbilityKit.World.DI",
         "AbilityKit.World.Entitas",
         "AbilityKit.World.FrameSync",
+        "AbilityKit.GameplayTags",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

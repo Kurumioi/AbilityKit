@@ -12,6 +12,7 @@ namespace AbilityKit.Ability.Flow
         private IDisposable _rootScope;
 
         private int _pumpIterations;
+        private FlowRuntimeDiagnostics _diagnostics;
 
         private Action<FlowStatus> _onFinished;
         private Action<FlowStatus, FlowStatus> _onStatusChanged;
@@ -19,6 +20,8 @@ namespace AbilityKit.Ability.Flow
         public event Action<Exception> UnhandledException;
 
         public Action<Exception> ExceptionHandler { get; set; }
+        public IFlowObserver Observer { get; set; }
+        public IFlowTraceRecorder TraceRecorder { get; set; }
 
         public int MaxPumpIterationsPerWake { get; set; } = 128;
 
@@ -41,6 +44,7 @@ namespace AbilityKit.Ability.Flow
 
         public FlowContext Context => _ctx;
         public FlowStatus Status => _status;
+        public FlowRuntimeDiagnostics Diagnostics => _diagnostics;
 
         public void Start(IFlowNode root)
         {
@@ -61,10 +65,15 @@ namespace AbilityKit.Ability.Flow
             _rootScope?.Dispose();
             _rootScope = _ctx.BeginScope();
             _ctx.Set(_wakeUp);
+            _diagnostics = new FlowRuntimeDiagnostics(Observer, TraceRecorder);
+            _ctx.Set(_diagnostics);
             _wakeRequested = false;
 
             SetStatus(FlowStatus.Running);
             _entered = false;
+            _diagnostics.Statistics.RunsStarted++;
+            _diagnostics.Observer.OnRunStarted(_diagnostics.RunId, _root, _ctx);
+            _diagnostics.Record(FlowTraceEventType.RunStarted, _root, _status, 0f, 0L);
 
             // Prime once so Enter() runs and nodes can subscribe to events immediately.
             // After this, event callbacks can call FlowWakeUp.Wake() to progress without continuous Step() calls.
@@ -81,18 +90,19 @@ namespace AbilityKit.Ability.Flow
             {
                 if (!_entered)
                 {
-                    _root.Enter(_ctx);
+                    FlowDiagnostics.Enter(_ctx, _root);
                     _entered = true;
                 }
 
-                var s = _root.Tick(_ctx, deltaTime);
+                var s = FlowDiagnostics.Tick(_ctx, _root, deltaTime);
                 if (s == FlowStatus.Running) return _status;
 
                 SetStatus(s);
 
+                var finishedRoot = _root;
                 try
                 {
-                    _root.Exit(_ctx);
+                    FlowDiagnostics.Exit(_ctx, finishedRoot, _status);
                 }
                 finally
                 {
@@ -100,9 +110,10 @@ namespace AbilityKit.Ability.Flow
                 }
 
                 _ctx.Remove<FlowWakeUp>();
+                _ctx.Remove<FlowRuntimeDiagnostics>();
                 _rootScope?.Dispose();
                 _rootScope = null;
-                NotifyFinished();
+                NotifyFinished(finishedRoot);
                 return _status;
             }
             catch (Exception ex)
@@ -117,11 +128,12 @@ namespace AbilityKit.Ability.Flow
         {
             if (_root == null) return;
 
+            var finishedRoot = _root;
             try
             {
                 try
                 {
-                    _root.Interrupt(_ctx);
+                    FlowDiagnostics.Interrupt(_ctx, finishedRoot, FlowStatus.Failed);
                 }
                 catch (Exception ex)
                 {
@@ -138,9 +150,10 @@ namespace AbilityKit.Ability.Flow
                 }
 
                 _ctx.Remove<FlowWakeUp>();
+                _ctx.Remove<FlowRuntimeDiagnostics>();
                 _rootScope?.Dispose();
                 _rootScope = null;
-                NotifyFinished();
+                NotifyFinished(finishedRoot);
             }
         }
 
@@ -168,6 +181,7 @@ namespace AbilityKit.Ability.Flow
                     _pumpIterations++;
                     if (MaxPumpIterationsPerWake > 0 && _pumpIterations > MaxPumpIterationsPerWake)
                     {
+                        _diagnostics?.Record(FlowTraceEventType.PumpLimitExceeded, _root, _status, 0f, 0L, $"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}");
                         HandleUnhandledException(new InvalidOperationException($"FlowRunner pump iteration limit exceeded: limit={MaxPumpIterationsPerWake}"));
                         AbortDueToException();
                         return;
@@ -187,6 +201,13 @@ namespace AbilityKit.Ability.Flow
         {
             try
             {
+                if (_diagnostics != null)
+                {
+                    _diagnostics.Statistics.UnhandledExceptions++;
+                    _diagnostics.Observer.OnUnhandledException(_diagnostics.RunId, ex, _ctx);
+                    _diagnostics.Record(FlowTraceEventType.UnhandledException, _root, _status, 0f, 0L, ex.Message, ex);
+                }
+
                 ExceptionHandler?.Invoke(ex);
             }
             catch
@@ -209,9 +230,10 @@ namespace AbilityKit.Ability.Flow
             ThrowIfDisposed();
             if (_root == null) return;
 
+            var finishedRoot = _root;
             try
             {
-                _root.Interrupt(_ctx);
+                FlowDiagnostics.Interrupt(_ctx, finishedRoot, FlowStatus.Canceled);
             }
             finally
             {
@@ -223,11 +245,12 @@ namespace AbilityKit.Ability.Flow
                 }
 
                 _ctx.Remove<FlowWakeUp>();
+                _ctx.Remove<FlowRuntimeDiagnostics>();
 
                 _rootScope?.Dispose();
                 _rootScope = null;
 
-                NotifyFinished();
+                NotifyFinished(finishedRoot);
             }
         }
 
@@ -236,12 +259,25 @@ namespace AbilityKit.Ability.Flow
             if (_status == next) return;
             var prev = _status;
             _status = next;
+            if (_diagnostics != null)
+            {
+                _diagnostics.Statistics.LastStatus = next;
+                _diagnostics.Observer.OnStatusChanged(_diagnostics.RunId, prev, next, _ctx);
+                _diagnostics.Record(FlowTraceEventType.StatusChanged, _root, next, 0f, 0L, prev + " -> " + next);
+            }
             _onStatusChanged?.Invoke(prev, next);
         }
 
-        private void NotifyFinished()
+        private void NotifyFinished(IFlowNode finishedRoot)
         {
             if (_status == FlowStatus.Running || _status == FlowStatus.NotStarted) return;
+
+            if (_diagnostics != null)
+            {
+                _diagnostics.Statistics.RunsFinished++;
+                _diagnostics.Observer.OnRunFinished(_diagnostics.RunId, _status, _ctx);
+                _diagnostics.Record(FlowTraceEventType.RunFinished, finishedRoot, _status, 0f, 0L);
+            }
 
             var cb = _onFinished;
             _onFinished = null;
@@ -273,6 +309,7 @@ namespace AbilityKit.Ability.Flow
             _wakeRequested = false;
             _pumping = false;
             MaxPumpIterationsPerWake = 128;
+            _diagnostics = null;
             ResetCallbacks();
             _disposed = false;
         }
@@ -296,6 +333,7 @@ namespace AbilityKit.Ability.Flow
             _wakeRequested = false;
             _pumping = false;
             MaxPumpIterationsPerWake = 128;
+            _diagnostics = null;
             _disposed = true;
             return context;
         }
@@ -306,6 +344,8 @@ namespace AbilityKit.Ability.Flow
             _onStatusChanged = null;
             UnhandledException = null;
             ExceptionHandler = null;
+            Observer = null;
+            TraceRecorder = null;
         }
 
         private void ThrowIfDisposed()

@@ -12,8 +12,13 @@
     "AbilityKit.GameFramework",
     "AbilityKit.GameFramework.Network",
     "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Host",
+    "AbilityKit.Host.Extensions",
     "AbilityKit.Host.Extensions.Client",
+    "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
+    "AbilityKit.World.NetworkFragments",
+    "AbilityKit.World.Snapshot",
     "AbilityKit.Record"
   ],
   "includePlatforms": [],

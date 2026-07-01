@@ -61,6 +61,12 @@
             $"InputLogicReplayFrame={result.InputLogicReplayValidation.ReplayFrame}, " +
             $"InputLogicReplayStateHash={result.InputLogicReplayValidation.ReplayStateHash}, " +
             $"InputLogicReplayRoundTripMatched={result.InputLogicReplayValidation.ReplayRoundTripMatched}, " +
+            $"InputLogicReplayFirstFrame={result.InputLogicReplayValidation.Summary.FirstFrame}, " +
+            $"InputLogicReplayLastFrame={result.InputLogicReplayValidation.Summary.LastFrame}, " +
+            $"InputLogicReplayOpCodes=\"{Escape(result.InputLogicReplayValidation.Summary.InputOpCodeDistribution)}\", " +
+            $"InputLogicReplaySnapshotOpCodes=\"{Escape(result.InputLogicReplayValidation.Summary.SnapshotOpCodeDistribution)}\", " +
+            $"InputLogicReplayPureStateSnapshots={result.InputLogicReplayValidation.Summary.PureStateRelatedSnapshotCount}, " +
+            $"InputLogicReplayPackedStateSnapshots={result.InputLogicReplayValidation.Summary.PackedStateRelatedSnapshotCount}, " +
             $"ServerFrameReplayPath=\"{Escape(result.InputLogicReplayPath)}\", " +
             $"MinimizedServerFrameReplayPath=\"{Escape(result.MinimizedInputLogicReplayPath)}\", " +
             $"ServerFrameReplayConsumed={result.InputLogicReplayValidation.Consumed}, " +
@@ -69,7 +75,13 @@
             $"ServerFrameReplayHashes={result.InputLogicReplayValidation.StateHashCount}, " +
             $"ServerFrameReplayFrame={result.InputLogicReplayValidation.ReplayFrame}, " +
             $"ServerFrameReplayStateHash={result.InputLogicReplayValidation.ReplayStateHash}, " +
-            $"ServerFrameReplayRoundTripMatched={result.InputLogicReplayValidation.ReplayRoundTripMatched}";
+            $"ServerFrameReplayRoundTripMatched={result.InputLogicReplayValidation.ReplayRoundTripMatched}, " +
+            $"ServerFrameReplayFirstFrame={result.InputLogicReplayValidation.Summary.FirstFrame}, " +
+            $"ServerFrameReplayLastFrame={result.InputLogicReplayValidation.Summary.LastFrame}, " +
+            $"ServerFrameReplayOpCodes=\"{Escape(result.InputLogicReplayValidation.Summary.InputOpCodeDistribution)}\", " +
+            $"ServerFrameReplaySnapshotOpCodes=\"{Escape(result.InputLogicReplayValidation.Summary.SnapshotOpCodeDistribution)}\", " +
+            $"ServerFrameReplayPureStateSnapshots={result.InputLogicReplayValidation.Summary.PureStateRelatedSnapshotCount}, " +
+            $"ServerFrameReplayPackedStateSnapshots={result.InputLogicReplayValidation.Summary.PackedStateRelatedSnapshotCount}";
     }
 
     private static string Escape(string value) => (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"");

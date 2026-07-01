@@ -14,6 +14,9 @@ namespace AbilityKit.Ability.Flow
 
         public event Action<Exception> UnhandledException;
 
+        public IFlowObserver Observer { get; set; }
+        public IFlowTraceRecorder TraceRecorder { get; set; }
+
         internal FlowSession(bool deferRent)
         {
             _disposed = true;
@@ -45,6 +48,8 @@ namespace AbilityKit.Ability.Flow
         public void Start(IFlowNode root)
         {
             ThrowIfDisposed();
+            _runner.Observer = Observer;
+            _runner.TraceRecorder = TraceRecorder;
             _runner.Start(
                 root,
                 onFinished: s => Finished?.Invoke(s),
@@ -104,6 +109,8 @@ namespace AbilityKit.Ability.Flow
             StatusChanged = null;
             Finished = null;
             UnhandledException = null;
+            Observer = null;
+            TraceRecorder = null;
         }
 
         private void ThrowIfDisposed()

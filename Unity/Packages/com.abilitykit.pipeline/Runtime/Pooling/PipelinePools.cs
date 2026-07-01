@@ -98,6 +98,36 @@ namespace AbilityKit.Pipeline.Pooling
             Scope.Release(LifeOwnerListKey, list);
         }
 
+        /// <summary>
+        /// 租借单次运行阶段列表。
+        /// </summary>
+        public static List<IAbilityPipelinePhase<TCtx>> RentRunPhaseList<TCtx>()
+            where TCtx : IAbilityPipelineContext
+        {
+            var key = GetRunPhaseListKey<TCtx>();
+            return Scope.Get(
+                key,
+                () => new List<IAbilityPipelinePhase<TCtx>>(8),
+                PoolItemConfig.Default(defaultCapacity: 8, maxSize: 256, prewarmCount: 8, collectionCheck: true),
+                onGet: list => list.Clear());
+        }
+
+        /// <summary>
+        /// 释放单次运行阶段列表。
+        /// </summary>
+        public static void ReleaseRunPhaseList<TCtx>(List<IAbilityPipelinePhase<TCtx>> list)
+            where TCtx : IAbilityPipelineContext
+        {
+            if (list == null) return;
+            list.Clear();
+            Scope.Release(GetRunPhaseListKey<TCtx>(), list);
+        }
+
+        private static PoolKey GetRunPhaseListKey<TCtx>()
+        {
+            return new PoolKey("Pipeline.RunPhaseList." + typeof(TCtx).FullName);
+        }
+
         private static PoolScope Scope => Pools.GetOrCreateScope(ScopeName, destroyOnDispose: false);
     }
 }

@@ -38,6 +38,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         private readonly ShooterStateSyncPushOptions _stateSyncPushOptions;
         private IWorld? _battleWorld;
         private IShooterBattleRuntimePort? _runtime;
+        private ShooterBattleDriverHost? _driverHost;
         private ulong _worldId;
         private int _lastPureStateBaselineFrame;
         private uint _lastPureStateBaselineHash;
@@ -85,9 +86,14 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 anchor?.StartFrame ?? 0,
                 anchor?.FixedDeltaSeconds ?? 0d);
 
-            return _runtime.StartGame(in start)
-                ? BattleRuntimeStartResult.Success()
-                : BattleRuntimeStartResult.Fail("Shooter runtime rejected start spec.");
+            if (!_runtime.StartGame(in start))
+            {
+                return BattleRuntimeStartResult.Fail("Shooter runtime rejected start spec.");
+            }
+
+            _driverHost = new ShooterBattleDriverHost(_runtime);
+            _driverHost.Start();
+            return BattleRuntimeStartResult.Success();
         }
 
         public BattlePlayerJoinResult JoinPlayer(BattlePlayerJoinRequest request, int currentFrame)
@@ -157,7 +163,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
-            if (inputs == null || inputs.Count == 0 || _runtime == null)
+            if (inputs == null || inputs.Count == 0 || _driverHost == null)
             {
                 return 0;
             }
@@ -177,18 +183,18 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 commands.Add(CreateFallbackCommand(input));
             }
 
-            return _runtime.SubmitInput(frame, commands.ToArray());
+            return _driverHost.SubmitCommands(frame, commands);
         }
 
         public bool Tick(int frame, int tickRate, float deltaTime)
         {
-            if (_battleWorld == null || _runtime == null)
+            if (_battleWorld == null || _driverHost == null)
             {
                 return false;
             }
 
-            _runtime.Tick(deltaTime);
-            return _runtime.CurrentFrame >= frame;
+            _driverHost.AdvanceFrame(deltaTime);
+            return _driverHost.CurrentFrame >= frame;
         }
 
         public BattleSnapshot? GetSnapshot(int frame)
@@ -470,6 +476,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public void Dispose()
         {
+            _driverHost?.Stop();
+            _driverHost = null;
             _worldManager.DestroyBattleWorld(_battleId);
             _battleWorld = null;
             _runtime = null;

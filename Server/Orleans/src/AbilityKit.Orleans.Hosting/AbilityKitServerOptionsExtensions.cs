@@ -124,6 +124,7 @@ public static partial class AbilityKitServerOptionsExtensions
 
         ValidatePort(options.SiloPort, nameof(options.SiloPort), failures);
         ValidatePort(options.GatewayPort, nameof(options.GatewayPort), failures);
+        ValidatePort(options.PrimarySiloPort, nameof(options.PrimarySiloPort), failures);
 
         return ValidateOrThrow(nameof(AbilityKitOrleansClusterOptions), typeof(AbilityKitOrleansClusterOptions), failures, throwOnInvalid);
     }

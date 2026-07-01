@@ -1,552 +1,263 @@
 {
   "Triggers": [
     {
-      "TriggerId": 10020000,
+      "TriggerId": 10001,
+      "EventName": "",
+      "EventId": 0,
+      "AllowExternal": false,
+      "Phase": 0,
+      "Priority": 0,
+      "Predicate": {
+        "Kind": "none",
+        "Nodes": null
+      },
+      "Actions": [
+        {
+          "ActionId": 589451731,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 299330425.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Args": {
+            "msg_id": {
+              "Kind": "Const",
+              "ConstValue": 299330425.0,
+              "BoardId": 0,
+              "KeyId": 0,
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
+            },
+            "dump": {
+              "Kind": "Const",
+              "ConstValue": 0.0,
+              "BoardId": 0,
+              "KeyId": 0,
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
+            }
+          }
+        },
+        {
+          "ActionId": 508656420,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 100001.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 200001.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Args": {
+            "launcher_id": {
+              "Kind": "Const",
+              "ConstValue": 100001.0,
+              "BoardId": 0,
+              "KeyId": 0,
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
+            },
+            "projectile_id": {
+              "Kind": "Const",
+              "ConstValue": 200001.0,
+              "BoardId": 0,
+              "KeyId": 0,
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
+            }
+          }
+        }
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
+    },
+    {
+      "TriggerId": 20001,
+      "Scope": 1,
       "EventName": "skill.cast.complete",
       "EventId": 1035494462,
       "AllowExternal": false,
       "Phase": 0,
-      "Priority": 50,
+      "Priority": 0,
       "Predicate": {
         "Kind": "none",
-        "Nodes": []
+        "Nodes": null
       },
       "Actions": [
         {
-          "ActionId": 1241142882,
-          "Arity": 2,
-          "Args": {
-            "buffIds": {
-              "Kind": "Const",
-              "ConstValue": 10020001.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "targetCode": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
           "ActionId": 589451731,
           "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 1579385643.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
           "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
             "msg_id": {
               "Kind": "Const",
-              "ConstValue": 116948887.0,
+              "ConstValue": 1579385643.0,
               "BoardId": 0,
               "KeyId": 0,
-              "FieldId": 0
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
             },
             "dump": {
               "Kind": "Const",
               "ConstValue": 0.0,
               "BoardId": 0,
               "KeyId": 0,
-              "FieldId": 0
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
             }
           }
+        },
+        {
+          "ActionId": 1639587692,
+          "Arity": 0,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          }
         }
-      ]
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
     },
     {
-      "TriggerId": 10020101,
-      "EventName": "",
-      "EventId": 0,
+      "TriggerId": 20002,
+      "Scope": 1,
+      "EventName": "skill.cast.complete",
+      "EventId": 1035494462,
       "AllowExternal": false,
       "Phase": 0,
-      "Priority": 50,
+      "Priority": 0,
       "Predicate": {
         "Kind": "none",
-        "Nodes": []
+        "Nodes": null
       },
       "Actions": [
         {
-          "ActionId": 508656420,
-          "Arity": 2,
-          "Args": {
-            "launcher_id": {
-              "Kind": "Const",
-              "ConstValue": 31020101.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "projectile_id": {
-              "Kind": "Const",
-              "ConstValue": 30020101.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "directionSource": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
           "ActionId": 589451731,
           "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 879858906.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 0.0,
+            "BoardId": 0,
+            "KeyId": 0,
+            "FieldId": 0,
+            "DomainId": null,
+            "Key": null,
+            "ExprText": null
+          },
           "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
             "msg_id": {
               "Kind": "Const",
-              "ConstValue": 384346428.0,
+              "ConstValue": 879858906.0,
               "BoardId": 0,
               "KeyId": 0,
-              "FieldId": 0
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
             },
             "dump": {
               "Kind": "Const",
               "ConstValue": 0.0,
               "BoardId": 0,
               "KeyId": 0,
-              "FieldId": 0
+              "FieldId": 0,
+              "DomainId": null,
+              "Key": null,
+              "ExprText": null
             }
           }
         }
-      ]
-    },
-    {
-      "TriggerId": 10020111,
-      "EventName": "",
-      "EventId": 0,
-      "AllowExternal": false,
-      "Phase": 0,
-      "Priority": 50,
-      "Predicate": {
-        "Kind": "none",
-        "Nodes": []
-      },
-      "Actions": [
-        {
-          "ActionId": 176148626,
-          "Arity": 2,
-          "Args": {
-            "damage_value": {
-              "Kind": "Const",
-              "ConstValue": 120.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_type": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "reason_param": {
-              "Kind": "Const",
-              "ConstValue": 10020101.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_amount": {
-              "Kind": "Const",
-              "ConstValue": 120.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "msg_id": {
-              "Kind": "Const",
-              "ConstValue": 2086956942.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "TriggerId": 10020201,
-      "EventName": "",
-      "EventId": 0,
-      "AllowExternal": false,
-      "Phase": 0,
-      "Priority": 50,
-      "Predicate": {
-        "Kind": "none",
-        "Nodes": []
-      },
-      "Actions": [
-        {
-          "ActionId": 1822191218,
-          "Arity": 2,
-          "Args": {
-            "area_id": {
-              "Kind": "Const",
-              "ConstValue": 40020201.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50020201.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "msg_id": {
-              "Kind": "Const",
-              "ConstValue": 721871300.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "TriggerId": 10020211,
-      "EventName": "",
-      "EventId": 0,
-      "AllowExternal": false,
-      "Phase": 0,
-      "Priority": 50,
-      "Predicate": {
-        "Kind": "none",
-        "Nodes": []
-      },
-      "Actions": [
-        {
-          "ActionId": 176148626,
-          "Arity": 4,
-          "Args": {
-            "damage_value": {
-              "Kind": "Const",
-              "ConstValue": 100.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_type": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "reason_param": {
-              "Kind": "Const",
-              "ConstValue": 10020201.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50020201.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_amount": {
-              "Kind": "Const",
-              "ConstValue": 100.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "msg_id": {
-              "Kind": "Const",
-              "ConstValue": 502433595.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "TriggerId": 10020301,
-      "EventName": "",
-      "EventId": 0,
-      "AllowExternal": false,
-      "Phase": 0,
-      "Priority": 50,
-      "Predicate": {
-        "Kind": "none",
-        "Nodes": []
-      },
-      "Actions": [
-        {
-          "ActionId": 1241142882,
-          "Arity": 2,
-          "Args": {
-            "buffIds": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "targetCode": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "msg_id": {
-              "Kind": "Const",
-              "ConstValue": 1962063611.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        }
-      ]
-    },
-    {
-      "TriggerId": 10020311,
-      "EventName": "",
-      "EventId": 0,
-      "AllowExternal": false,
-      "Phase": 0,
-      "Priority": 50,
-      "Predicate": {
-        "Kind": "none",
-        "Nodes": []
-      },
-      "Actions": [
-        {
-          "ActionId": 176148626,
-          "Arity": 4,
-          "Args": {
-            "damage_value": {
-              "Kind": "Const",
-              "ConstValue": 80.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_type": {
-              "Kind": "Const",
-              "ConstValue": 2.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "reason_param": {
-              "Kind": "Const",
-              "ConstValue": 10020301.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50020301.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "damage_amount": {
-              "Kind": "Const",
-              "ConstValue": 80.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        },
-        {
-          "ActionId": 589451731,
-          "Arity": 2,
-          "Args": {
-            "message": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump_args": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "msg_id": {
-              "Kind": "Const",
-              "ConstValue": 733189699.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            },
-            "dump": {
-              "Kind": "Const",
-              "ConstValue": 0.0,
-              "BoardId": 0,
-              "KeyId": 0,
-              "FieldId": 0
-            }
-          }
-        }
-      ]
+      ],
+      "LegacyPredicate": null,
+      "LegacyActions": null
     }
   ],
-  "Strings": {
-    "116948887": "小乔被动触发：添加短暂移速状态（配置先行占位）",
-    "384346428": "小乔一技能：发射扇子投射物",
-    "2086956942": "小乔一技能：扇子命中造成法术伤害",
-    "721871300": "小乔二技能：生成击飞区域（控制行为后续实现）",
-    "502433595": "小乔二技能：区域命中造成法术伤害（击飞后续实现）",
-    "1962063611": "小乔三技能：添加持续落星状态",
-    "733189699": "小乔三技能：周期落星造成法术伤害"
-  }
+  "Strings": {}
 }

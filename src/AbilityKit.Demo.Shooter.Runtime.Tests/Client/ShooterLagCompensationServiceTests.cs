@@ -52,8 +52,10 @@ public sealed class ShooterLagCompensationServiceTests
         Assert.True(accepted);
         Assert.True(result.Accepted);
         Assert.Equal(LagCompensationResultReason.Hit, result.Reason);
-        Assert.Equal(2, result.HitEntityId);
+        Assert.Equal(10, result.RequestedFrame);
         Assert.Equal(10, result.EvaluatedFrame);
+        Assert.Equal(2, result.HitEntityId);
+        Assert.True(result.Distance >= 0f);
     }
 
     [Fact]
@@ -79,7 +81,11 @@ public sealed class ShooterLagCompensationServiceTests
         var accepted = service.TryEvaluateShot(in shot, out var result);
 
         Assert.False(accepted);
+        Assert.False(result.Accepted);
         Assert.Equal(LagCompensationResultReason.Miss, result.Reason);
+        Assert.Equal(10, result.RequestedFrame);
+        Assert.Equal(10, result.EvaluatedFrame);
+        Assert.Equal(0, result.HitEntityId);
     }
 
     private static ShooterStateSnapshotPayload Snapshot(int frame, params ShooterPlayerSnapshot[] players)

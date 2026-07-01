@@ -87,6 +87,16 @@ internal sealed record WebRoomPickHeroRequest(
     [property: Id(8)] List<int>? SkillIds);
 
 [GenerateSerializer]
+internal sealed record WebAddRoomRobotsRequest(
+    [property: Id(0)] string SessionToken,
+    [property: Id(1)] string RoomId,
+    [property: Id(2)] int Count,
+    [property: Id(3)] string? AccountPrefix,
+    [property: Id(4)] bool AutoReady = true,
+    [property: Id(5)] bool MountBattleAi = true,
+    [property: Id(6)] string? BattleAiProfileId = "simple-battle");
+
+[GenerateSerializer]
 internal sealed record WebStartRoomBattleRequest(
     [property: Id(0)] string SessionToken,
     [property: Id(1)] string RoomId,

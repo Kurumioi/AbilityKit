@@ -13,7 +13,8 @@ namespace AbilityKit.Demo.Moba.Services
 {
     public static class SkillRulePayloadFields
     {
-        private const string Prefix = "payload:";
+        private const string PayloadPrefix = "payload:";
+        private const string LegacyFieldPrefix = "field:";
 
         public const string SkillId = "skill.id";
         public const string SkillSlot = "skill.slot";
@@ -31,25 +32,43 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static int FieldId(string name)
         {
-            return string.IsNullOrEmpty(name) ? 0 : StableStringId.Get(Prefix + name);
+            return string.IsNullOrEmpty(name) ? 0 : StableStringId.Get(PayloadPrefix + name);
+        }
+
+        public static int LegacyFieldId(string name)
+        {
+            return string.IsNullOrEmpty(name) ? 0 : StableStringId.Get(LegacyFieldPrefix + name);
         }
     }
 
     public sealed class SkillPipelineContextPayloadAccessor : IPayloadIntAccessor<SkillPipelineContext>, IPayloadDoubleAccessor<SkillPipelineContext>
     {
         private static readonly int SkillIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillId);
+        private static readonly int SkillIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillId);
         private static readonly int SkillSlotId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillSlot);
+        private static readonly int SkillSlotLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillSlot);
         private static readonly int SkillLevelId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillLevel);
+        private static readonly int SkillLevelLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillLevel);
         private static readonly int SkillCostId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCost);
+        private static readonly int SkillCostLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCost);
         private static readonly int SkillCooldownMsId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCooldownMs);
+        private static readonly int SkillCooldownMsLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCooldownMs);
         private static readonly int SkillCooldownRemainingMsId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillCooldownRemainingMs);
+        private static readonly int SkillCooldownRemainingMsLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillCooldownRemainingMs);
         private static readonly int CasterActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId);
+        private static readonly int CasterActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId);
         private static readonly int TargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
+        private static readonly int TargetActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId);
         private static readonly int CasterManaId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterMana);
+        private static readonly int CasterManaLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterMana);
         private static readonly int CasterManaMaxId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterManaMax);
+        private static readonly int CasterManaMaxLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterManaMax);
         private static readonly int CasterManaPercentId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterManaPercent);
+        private static readonly int CasterManaPercentLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterManaPercent);
         private static readonly int CasterResourceManaId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterResourceMana);
+        private static readonly int CasterResourceManaLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterResourceMana);
         private static readonly int CasterResourceManaMaxId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterResourceManaMax);
+        private static readonly int CasterResourceManaMaxLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterResourceManaMax);
 
         private readonly IWorldResolver _services;
         private MobaConfigDatabase _configs;
@@ -73,37 +92,37 @@ namespace AbilityKit.Demo.Moba.Services
             value = 0;
             if (args == null) return false;
 
-            if (fieldId == SkillIdId)
+            if (fieldId == SkillIdId || fieldId == SkillIdLegacyId)
             {
                 value = args.SkillId;
                 return true;
             }
 
-            if (fieldId == SkillSlotId)
+            if (fieldId == SkillSlotId || fieldId == SkillSlotLegacyId)
             {
                 value = args.SkillSlot;
                 return true;
             }
 
-            if (fieldId == SkillLevelId)
+            if (fieldId == SkillLevelId || fieldId == SkillLevelLegacyId)
             {
                 value = Math.Max(1, args.GetSkillLevel());
                 return true;
             }
 
-            if (fieldId == CasterActorIdId)
+            if (fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId)
             {
                 value = args.CasterActorId;
                 return true;
             }
 
-            if (fieldId == TargetActorIdId)
+            if (fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId)
             {
                 value = args.TargetActorId;
                 return true;
             }
 
-            if (fieldId == SkillCostId || fieldId == SkillCooldownMsId || fieldId == SkillCooldownRemainingMsId || fieldId == CasterManaId || fieldId == CasterManaMaxId || fieldId == CasterManaPercentId || fieldId == CasterResourceManaId || fieldId == CasterResourceManaMaxId)
+            if (fieldId == SkillCostId || fieldId == SkillCostLegacyId || fieldId == SkillCooldownMsId || fieldId == SkillCooldownMsLegacyId || fieldId == SkillCooldownRemainingMsId || fieldId == SkillCooldownRemainingMsLegacyId || fieldId == CasterManaId || fieldId == CasterManaLegacyId || fieldId == CasterManaMaxId || fieldId == CasterManaMaxLegacyId || fieldId == CasterManaPercentId || fieldId == CasterManaPercentLegacyId || fieldId == CasterResourceManaId || fieldId == CasterResourceManaLegacyId || fieldId == CasterResourceManaMaxId || fieldId == CasterResourceManaMaxLegacyId)
             {
                 double doubleValue;
                 if (!TryGet(in args, fieldId, out doubleValue)) return false;
@@ -119,14 +138,14 @@ namespace AbilityKit.Demo.Moba.Services
             value = 0d;
             if (args == null) return false;
 
-            if (fieldId == SkillCostId)
+            if (fieldId == SkillCostId || fieldId == SkillCostLegacyId)
             {
                 if (!TryGetSkillLevel(args, out var level)) return false;
                 value = level.Cost;
                 return true;
             }
 
-            if (fieldId == SkillCooldownMsId)
+            if (fieldId == SkillCooldownMsId || fieldId == SkillCooldownMsLegacyId)
             {
                 if (TryGetSkillLevel(args, out var level))
                 {
@@ -138,54 +157,54 @@ namespace AbilityKit.Demo.Moba.Services
                 return true;
             }
 
-            if (fieldId == SkillCooldownRemainingMsId)
+            if (fieldId == SkillCooldownRemainingMsId || fieldId == SkillCooldownRemainingMsLegacyId)
             {
                 value = GetCooldownRemainingMs(args);
                 return true;
             }
 
-            if (fieldId == CasterManaId || fieldId == CasterResourceManaId)
+            if (fieldId == CasterManaId || fieldId == CasterManaLegacyId || fieldId == CasterResourceManaId || fieldId == CasterResourceManaLegacyId)
             {
                 return TryGetResource(args, args.CasterActorId, ResourceType.Mana, out value, out _);
             }
 
-            if (fieldId == CasterManaMaxId || fieldId == CasterResourceManaMaxId)
+            if (fieldId == CasterManaMaxId || fieldId == CasterManaMaxLegacyId || fieldId == CasterResourceManaMaxId || fieldId == CasterResourceManaMaxLegacyId)
             {
                 return TryGetResource(args, args.CasterActorId, ResourceType.Mana, out _, out value);
             }
 
-            if (fieldId == CasterManaPercentId)
+            if (fieldId == CasterManaPercentId || fieldId == CasterManaPercentLegacyId)
             {
                 if (!TryGetResource(args, args.CasterActorId, ResourceType.Mana, out var current, out var max) || max <= 0d) return false;
                 value = current / max;
                 return true;
             }
 
-            if (fieldId == SkillIdId)
+            if (fieldId == SkillIdId || fieldId == SkillIdLegacyId)
             {
                 value = args.SkillId;
                 return true;
             }
 
-            if (fieldId == SkillSlotId)
+            if (fieldId == SkillSlotId || fieldId == SkillSlotLegacyId)
             {
                 value = args.SkillSlot;
                 return true;
             }
 
-            if (fieldId == SkillLevelId)
+            if (fieldId == SkillLevelId || fieldId == SkillLevelLegacyId)
             {
                 value = Math.Max(1, args.GetSkillLevel());
                 return true;
             }
 
-            if (fieldId == CasterActorIdId)
+            if (fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId)
             {
                 value = args.CasterActorId;
                 return true;
             }
 
-            if (fieldId == TargetActorIdId)
+            if (fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId)
             {
                 value = args.TargetActorId;
                 return true;

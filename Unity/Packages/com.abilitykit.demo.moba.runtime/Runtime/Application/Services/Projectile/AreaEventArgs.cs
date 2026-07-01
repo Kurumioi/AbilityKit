@@ -40,15 +40,22 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public bool TryGetOrigin(out MobaGameplayOrigin origin)
         {
             var traceKind = TraceKind != MobaTraceKind.None ? TraceKind : MobaTraceKind.AreaSpawn;
+            var sourceContextId = SourceContextId;
+            var rootContextId = RootContextId != 0 ? RootContextId : sourceContextId;
+            var ownerContextId = OwnerContextId != 0 ? OwnerContextId : sourceContextId;
+            var isSpawn = string.Equals(EventId, "area.spawn", System.StringComparison.Ordinal);
+            var parentContextId = isSpawn
+                ? sourceContextId
+                : (rootContextId != 0L ? rootContextId : sourceContextId);
             origin = new MobaGameplayOrigin(
                 OwnerActorId,
                 TargetActorId,
                 traceKind,
                 TemplateId,
-                SourceContextId,
-                SourceContextId,
-                SourceContextId,
-                SourceContextId);
+                sourceContextId,
+                parentContextId,
+                rootContextId,
+                ownerContextId);
             return origin.IsValid;
         }
 
@@ -62,8 +69,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     origin.SourceActorId,
                     origin.TargetActorId,
                     origin.EffectiveParentContextId,
-                    RootContextId != 0 ? RootContextId : origin.EffectiveRootContextId,
-                    OwnerContextId != 0 ? OwnerContextId : origin.OwnerContextId,
+                    origin.EffectiveRootContextId,
+                    origin.OwnerContextId,
                     origin.ImmediateConfigId);
                 return lineageContext.SourceActorId > 0 && lineageContext.SourceContextId != 0;
             }

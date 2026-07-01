@@ -88,9 +88,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     Arg1 = BuildNumericValueRefDto(in a.Arg1)
                 };
 
-                // 优先序列化具名参数（新版格式）
+                // 具名参数模式下，运行时执行器只接受 0/1/2 三种 arity；
+                // 额外业务参数通过 Args 字典传递，不应把字典键数直接当作可执行参数个数写回 DTO。
                 if (a.HasNamedArgs)
                 {
+                    dto.Arity = (byte)Math.Min(2, a.Args?.Count ?? 0);
                     dto.Args = new Dictionary<string, NumericValueRefDto>(a.Args.Count);
                     foreach (var kv in a.Args)
                     {

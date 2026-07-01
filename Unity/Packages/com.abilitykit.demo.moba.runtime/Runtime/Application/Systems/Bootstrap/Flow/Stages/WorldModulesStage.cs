@@ -76,13 +76,18 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return registry;
             });
             builder.Register<AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>>(WorldLifetime.Singleton, r =>
-                new AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>(
+            {
+                var diagnosticsAdapter = new MobaTriggerDiagnosticsAdapter(r);
+                return new AbilityKit.Triggering.Runtime.TriggerRunner<IWorldResolver>(
                     r.Resolve<AbilityKit.Triggering.Eventing.IEventBus>(),
                     r.Resolve<FunctionRegistry>(),
                     r.Resolve<ActionRegistry>(),
+                    lifecycle: diagnosticsAdapter,
                     blackboards: r.Resolve<IBlackboardResolver>(),
                     payloads: r.Resolve<IPayloadAccessorRegistry>(),
-                    numericDomains: r.Resolve<INumericVarDomainRegistry>()));
+                    numericDomains: r.Resolve<INumericVarDomainRegistry>(),
+                    tracer: diagnosticsAdapter);
+            });
 
             builder.AddModule(new EntitasEcsWorldModule());
             builder.AddModule(new ProjectileWorldModule());

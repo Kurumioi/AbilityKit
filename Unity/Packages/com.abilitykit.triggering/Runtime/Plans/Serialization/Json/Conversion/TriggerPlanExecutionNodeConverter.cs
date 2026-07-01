@@ -43,7 +43,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             var children = new ITriggerPlanExecutable[actions.Length];
             for (int i = 0; i < actions.Length; i++)
             {
-                children[i] = new ActionCallTriggerPlanExecutable(actions[i]);
+                children[i] = new ActionCallTriggerPlanExecutable(actions[i], i);
             }
 
             return new SequenceTriggerPlanExecutable(children);
@@ -228,7 +228,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     throw new InvalidOperationException("Action execution node requires Action payload.");
                 }
 
-                return new ActionCallTriggerPlanExecutable(context._context.ConvertAction(dto.Action), Condition(context, dto), dto.Weight);
+                return new ActionCallTriggerPlanExecutable(
+                    context._context.ConvertAction(dto.Action),
+                    originalActionIndex: -1,
+                    condition: Condition(context, dto),
+                    weight: dto.Weight);
             }
         }
 

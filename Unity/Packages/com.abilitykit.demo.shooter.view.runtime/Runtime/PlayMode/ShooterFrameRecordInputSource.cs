@@ -2,6 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.Host;
+using AbilityKit.Core.Recording.Core;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Protocol.Shooter;
@@ -10,20 +13,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public sealed class ShooterFrameRecordInputSource : IShooterHostInputSource
     {
-        private readonly Dictionary<int, ShooterHostFrameInput> _inputsByFrame;
+        private readonly IFrameReplaySource _replaySource;
+        private int _controlledPlayerId;
         private int _frameCursor;
+        private int _inputFrameCount = -1;
         private ShooterHostFrameInput _lastInput;
 
         public ShooterFrameRecordInputSource(FrameRecordFile record, int controlledPlayerId)
+            : this(new FrameRecordReplaySource(record), controlledPlayerId)
         {
-            if (record == null) throw new ArgumentNullException(nameof(record));
+        }
 
-            _inputsByFrame = BuildInputMap(record, controlledPlayerId);
+        public ShooterFrameRecordInputSource(IFrameReplaySource replaySource, int controlledPlayerId)
+        {
+            _replaySource = replaySource ?? throw new ArgumentNullException(nameof(replaySource));
+            _controlledPlayerId = controlledPlayerId;
         }
 
         public int FrameCursor => _frameCursor;
 
-        public int InputFrameCount => _inputsByFrame.Count;
+        public int InputFrameCount => _inputFrameCount >= 0 ? _inputFrameCount : 0;
 
         public void Reset()
         {
@@ -33,7 +42,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         public ShooterHostFrameInput ReadInput(int controlledPlayerId)
         {
-            if (_inputsByFrame.TryGetValue(_frameCursor, out var input))
+            _controlledPlayerId = controlledPlayerId;
+            if (TryReadInput(new FrameIndex(_frameCursor), controlledPlayerId, out var input))
             {
                 _lastInput = input;
             }
@@ -46,54 +56,57 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return _lastInput;
         }
 
-        private static Dictionary<int, ShooterHostFrameInput> BuildInputMap(FrameRecordFile record, int controlledPlayerId)
+        private bool TryReadInput(FrameIndex frame, int controlledPlayerId, out ShooterHostFrameInput input)
         {
-            var inputs = record.Inputs;
-            var map = new Dictionary<int, ShooterHostFrameInput>(inputs?.Count ?? 0);
-            if (inputs == null || inputs.Count == 0)
+            input = default;
+            if (!_replaySource.TryGetInputs(frame, out var inputs) || inputs.Count == 0)
             {
-                return map;
+                return false;
             }
 
             for (var i = 0; i < inputs.Count; i++)
             {
-                var input = inputs[i];
-                if (input == null || input.OpCode != ShooterOpCodes.Input.PlayerCommand)
+                if (TryDecodeInput(inputs[i], controlledPlayerId, out input))
+                {
+                    if (frame.Value + 1 > _inputFrameCount)
+                    {
+                        _inputFrameCount = frame.Value + 1;
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryDecodeInput(in PlayerInputCommand input, int controlledPlayerId, out ShooterHostFrameInput hostInput)
+        {
+            hostInput = default;
+            if (input.OpCode != ShooterOpCodes.Input.PlayerCommand)
+            {
+                return false;
+            }
+
+            var commands = ShooterInputCodec.Deserialize(input.Payload);
+            for (var c = 0; c < commands.Length; c++)
+            {
+                var command = commands[c];
+                if (command.PlayerId != controlledPlayerId)
                 {
                     continue;
                 }
 
-                var payload = DecodePayload(input.PayloadBase64);
-                var commands = ShooterInputCodec.Deserialize(payload);
-                for (var c = 0; c < commands.Length; c++)
-                {
-                    var command = commands[c];
-                    if (command.PlayerId != controlledPlayerId)
-                    {
-                        continue;
-                    }
-
-                    map[input.Frame] = new ShooterHostFrameInput(
-                        command.MoveX,
-                        command.MoveY,
-                        command.AimX,
-                        command.AimY,
-                        command.Fire);
-                    break;
-                }
+                hostInput = new ShooterHostFrameInput(
+                    command.MoveX,
+                    command.MoveY,
+                    command.AimX,
+                    command.AimY,
+                    command.Fire);
+                return true;
             }
 
-            return map;
-        }
-
-        private static byte[] DecodePayload(string? payloadBase64)
-        {
-            if (string.IsNullOrEmpty(payloadBase64))
-            {
-                return Array.Empty<byte>();
-            }
-
-            return Convert.FromBase64String(payloadBase64);
+            return false;
         }
     }
 }

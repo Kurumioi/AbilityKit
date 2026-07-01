@@ -195,6 +195,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.LagCompensationTelemetry,
                 _session.LastLagCompensationEvaluation,
                 default,
+                ShooterCrossLayerDiagnostics.From(
+                    _session.FrameworkSnapshotPipelineDiagnostics,
+                    _session.LastCarrierSnapshotApplyResult,
+                    default,
+                    _session.Presentation.NeedsPureStateFullBaselineResync,
+                    _session.Presentation.LastPureStateAppliedFrame,
+                    _session.Presentation.LastPureStateResyncFrame),
                 _session.Presentation.LastPureStateSyncDiagnostics,
                 _session.Presentation.NeedsPureStateFullBaselineResync,
                 _session.Presentation.LastPureStateResyncReason,

@@ -86,8 +86,6 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(MobaTemporaryEntityLifecycleService), WorldLifetime.Scoped)]
     public sealed class MobaTemporaryEntityLifecycleService : IMobaTemporaryEntityLifecycleService, IService
     {
-        private const string MetricPrefix = "moba.temp_entity.";
-
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
 
         private CounterState _projectiles;
@@ -101,8 +99,9 @@ namespace AbilityKit.Demo.Moba.Services
             state.SpawnedCount += count;
             state.ActiveCount = ClampActive(activeCount);
             state.LastFrame = frame;
-            Counter(kind, "spawned", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntitySpawnedSuffix, count);
             GaugeActive(kind, state.ActiveCount);
+            RecordHealth(kind);
         }
 
         public void RecordDespawn(MobaTemporaryEntityKind kind, int activeCount, int frame = 0, long count = 1L)
@@ -112,8 +111,9 @@ namespace AbilityKit.Demo.Moba.Services
             state.DespawnedCount += count;
             state.ActiveCount = ClampActive(activeCount);
             state.LastFrame = frame;
-            Counter(kind, "despawned", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityDespawnedSuffix, count);
             GaugeActive(kind, state.ActiveCount);
+            RecordHealth(kind);
         }
 
         public void RecordRejected(MobaTemporaryEntityKind kind, int activeCount, int frame = 0, long count = 1L)
@@ -123,8 +123,9 @@ namespace AbilityKit.Demo.Moba.Services
             state.RejectedCount += count;
             state.ActiveCount = ClampActive(activeCount);
             state.LastFrame = frame;
-            Counter(kind, "rejected", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityRejectedSuffix, count);
             GaugeActive(kind, state.ActiveCount);
+            RecordHealth(kind);
         }
 
         public void RecordReplaced(MobaTemporaryEntityKind kind, int activeCount, int frame = 0, long count = 1L)
@@ -134,8 +135,9 @@ namespace AbilityKit.Demo.Moba.Services
             state.ReplacedCount += count;
             state.ActiveCount = ClampActive(activeCount);
             state.LastFrame = frame;
-            Counter(kind, "replaced", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityReplacedSuffix, count);
             GaugeActive(kind, state.ActiveCount);
+            RecordHealth(kind);
         }
 
         public void RecordTickEvents(MobaTemporaryEntityKind kind, long count, int frame = 0)
@@ -144,7 +146,8 @@ namespace AbilityKit.Demo.Moba.Services
             ref var state = ref GetState(kind);
             state.TickEventCount += count;
             state.LastFrame = frame;
-            Counter(kind, "ticks", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityTicksSuffix, count);
+            RecordHealth(kind);
         }
 
         public void RecordHitEvents(MobaTemporaryEntityKind kind, long count, int frame = 0)
@@ -153,7 +156,8 @@ namespace AbilityKit.Demo.Moba.Services
             ref var state = ref GetState(kind);
             state.HitEventCount += count;
             state.LastFrame = frame;
-            Counter(kind, "hits", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityHitsSuffix, count);
+            RecordHealth(kind);
         }
 
         public void RecordEnterEvents(MobaTemporaryEntityKind kind, long count, int frame = 0)
@@ -162,7 +166,8 @@ namespace AbilityKit.Demo.Moba.Services
             ref var state = ref GetState(kind);
             state.EnterEventCount += count;
             state.LastFrame = frame;
-            Counter(kind, "enters", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityEntersSuffix, count);
+            RecordHealth(kind);
         }
 
         public void RecordExitEvents(MobaTemporaryEntityKind kind, long count, int frame = 0)
@@ -171,7 +176,8 @@ namespace AbilityKit.Demo.Moba.Services
             ref var state = ref GetState(kind);
             state.ExitEventCount += count;
             state.LastFrame = frame;
-            Counter(kind, "exits", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityExitsSuffix, count);
+            RecordHealth(kind);
         }
 
         public void RecordExpireEvents(MobaTemporaryEntityKind kind, long count, int frame = 0)
@@ -180,7 +186,8 @@ namespace AbilityKit.Demo.Moba.Services
             ref var state = ref GetState(kind);
             state.ExpireEventCount += count;
             state.LastFrame = frame;
-            Counter(kind, "expires", count);
+            Counter(kind, MobaBattleDiagnosticMetric.TempEntityExpiresSuffix, count);
+            RecordHealth(kind);
         }
 
         public void SetActive(MobaTemporaryEntityKind kind, int activeCount, int frame = 0)
@@ -189,6 +196,7 @@ namespace AbilityKit.Demo.Moba.Services
             state.ActiveCount = ClampActive(activeCount);
             state.LastFrame = frame;
             GaugeActive(kind, state.ActiveCount);
+            RecordHealth(kind);
         }
 
         public MobaTemporaryEntityLifecycleHealth GetHealth(MobaTemporaryEntityKind kind)
@@ -240,12 +248,17 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void Counter(MobaTemporaryEntityKind kind, string suffix, long count)
         {
-            _diagnostics?.Counter(MetricPrefix + MetricKind(kind) + "." + suffix, count);
+            _diagnostics?.Counter(GetMetricPrefix(kind) + suffix, count);
         }
 
         private void GaugeActive(MobaTemporaryEntityKind kind, int activeCount)
         {
-            _diagnostics?.Gauge(MetricPrefix + MetricKind(kind) + ".active", activeCount);
+            _diagnostics?.Gauge(GetMetricPrefix(kind) + MobaBattleDiagnosticMetric.TempEntityActiveSuffix, activeCount);
+        }
+
+        private void RecordHealth(MobaTemporaryEntityKind kind)
+        {
+            _diagnostics?.RecordLifecycleHealth(GetHealth(kind));
         }
 
         private static int ClampActive(int activeCount)
@@ -253,17 +266,17 @@ namespace AbilityKit.Demo.Moba.Services
             return activeCount < 0 ? 0 : activeCount;
         }
 
-        private static string MetricKind(MobaTemporaryEntityKind kind)
+        private static string GetMetricPrefix(MobaTemporaryEntityKind kind)
         {
             switch (kind)
             {
                 case MobaTemporaryEntityKind.Area:
-                    return "area";
+                    return MobaBattleDiagnosticMetric.TempEntityAreaPrefix;
                 case MobaTemporaryEntityKind.Summon:
-                    return "summon";
+                    return MobaBattleDiagnosticMetric.TempEntitySummonPrefix;
                 case MobaTemporaryEntityKind.Projectile:
                 default:
-                    return "projectile";
+                    return MobaBattleDiagnosticMetric.TempEntityProjectilePrefix;
             }
         }
 

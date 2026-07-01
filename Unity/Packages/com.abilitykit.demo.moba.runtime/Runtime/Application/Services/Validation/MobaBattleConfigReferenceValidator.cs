@@ -397,6 +397,8 @@ namespace AbilityKit.Demo.Moba.Services
         private static void ValidateSkillFlow(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillFlowMO flow, string path, int businessId)
         {
             if (flow == null) return;
+            OptionalRef(Ref<ContinuousTagTemplateMO>(config.TryGetContinuousTagTemplate), flow.PipelineContinuousTagTemplateId, report, path + ".pipelineContinuousTagTemplateId", "continuous tag template", businessId);
+
             if (flow.Phases == null || flow.Phases.Count == 0)
             {
                 report.Warning(Source, path + ".phases", "skill flow has no phases.", businessId.ToString());
@@ -452,6 +454,9 @@ namespace AbilityKit.Demo.Moba.Services
                     if (phase.Delay == null) report.Error(Source, path + ".delay", "delay phase has no delay config.", businessId.ToString());
                     else if (phase.Delay.DelayMs < 0) report.Error(Source, path + ".delay.delayMs", "delay is negative.", businessId.ToString());
                     break;
+                case SkillPhaseType.WaitUntil:
+                    ValidateWaitUntilPhase(report, phase.WaitUntil, path + ".waitUntil", businessId);
+                    break;
                 default:
                     report.Warning(Source, path + ".type", "skill phase type is not recognized.", businessId.ToString());
                     break;
@@ -470,6 +475,18 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 ValidateSkillPhase(config, triggers, report, phases[i], $"{path}[{i}]", businessId);
             }
+        }
+
+        private static void ValidateWaitUntilPhase(MobaRuntimeValidationReport report, SkillWaitUntilPhaseDTO wait, string path, int businessId)
+        {
+            if (wait == null)
+            {
+                report.Error(Source, path, "waitUntil phase has no wait config.", businessId.ToString());
+                return;
+            }
+
+            if (string.IsNullOrEmpty(wait.Condition)) report.Error(Source, path + ".condition", "waitUntil condition is empty.", businessId.ToString());
+            if (wait.TimeoutMs < 0) report.Error(Source, path + ".timeoutMs", "waitUntil timeout is negative.", businessId.ToString());
         }
 
         private static void ValidateTimelinePhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillTimelinePhaseDTO timeline, string path, int businessId)

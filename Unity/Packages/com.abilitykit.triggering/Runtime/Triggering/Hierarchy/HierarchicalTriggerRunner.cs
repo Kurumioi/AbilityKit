@@ -81,6 +81,7 @@ namespace AbilityKit.Triggering.Runtime
         private readonly ITriggerContextSource<TCtx> _contextSource;
         private readonly ITriggerLifecycle<TCtx> _lifecycle;
         private readonly ITriggerObserver<TCtx> _observer;
+        private readonly ITriggerTracer<TCtx> _tracer;
 
         private readonly FunctionRegistry _functions;
         private readonly ActionRegistry _actions;
@@ -95,6 +96,7 @@ namespace AbilityKit.Triggering.Runtime
 
         private readonly Dictionary<Type, object> _triggerListsByArgsType = new Dictionary<Type, object>();
         private readonly Dictionary<Type, object> _subscriptionsByArgsType = new Dictionary<Type, object>();
+        private TraceScope _currentTraceScope;
         private long _registrationOrder;
 
         /// <summary>
@@ -133,6 +135,8 @@ namespace AbilityKit.Triggering.Runtime
             ActionRegistry actions,
             ITriggerContextSource<TCtx> contextSource = null,
             ITriggerLifecycle<TCtx> lifecycle = null,
+            ITriggerObserver<TCtx> observer = null,
+            ITriggerTracer<TCtx> tracer = null,
             IBlackboardResolver blackboards = null,
             IPayloadAccessorRegistry payloads = null,
             IIdNameRegistry idNames = null,
@@ -148,7 +152,8 @@ namespace AbilityKit.Triggering.Runtime
             _actions = actions ?? throw new ArgumentNullException(nameof(actions));
             _contextSource = contextSource;
             _lifecycle = lifecycle ?? NullTriggerLifecycle<TCtx>.Instance;
-            _observer = NullTriggerObserver<TCtx>.Instance;
+            _observer = observer ?? NullTriggerObserver<TCtx>.Instance;
+            _tracer = tracer ?? NullTriggerTracer<TCtx>.Instance;
             _blackboards = blackboards;
             _payloads = payloads;
             _idNames = idNames;
@@ -171,6 +176,8 @@ namespace AbilityKit.Triggering.Runtime
                 _actions,
                 _contextSource,
                 _lifecycle,
+                _observer,
+                _tracer,
                 _blackboards,
                 _payloads,
                 _idNames,
@@ -334,10 +341,13 @@ namespace AbilityKit.Triggering.Runtime
             int shortCircuitedCount = 0;
 
             _lifecycle.OnEventDispatching(key, in args);
+            _currentTraceScope = _tracer.BeginTrace(key, in args);
 
-            for (int i = 0; i < triggers.Count; i++)
+            try
             {
-                var entry = triggers[i];
+                for (int i = 0; i < triggers.Count; i++)
+                {
+                    var entry = triggers[i];
 
                 // ========== 检查优先级打断 ==========
                 if (control.ShouldBlock(entry.Phase, entry.Priority))
@@ -351,6 +361,7 @@ namespace AbilityKit.Triggering.Runtime
                             ? ETriggerShortCircuitReason.InterruptedByHigherPriority
                             : ETriggerShortCircuitReason.InterruptedByFailedCondition,
                         in execCtx);
+                    RecordTrace(key, in entry, TriggerRecordKind.ShortCircuited, null, reason, 0L);
                     shortCircuitedCount++;
                     continue;
                 }
@@ -375,6 +386,7 @@ namespace AbilityKit.Triggering.Runtime
 
                 _lifecycle.OnAfterEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok);
                 _observer.OnEvaluate(key, in args, entry.Phase, entry.Priority, entry.Order, ok, in execCtx);
+                RecordTrace(key, in entry, TriggerRecordKind.Evaluated, ok, null, 0L);
 
                 if (ok)
                 {
@@ -391,6 +403,7 @@ namespace AbilityKit.Triggering.Runtime
                     {
                         _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ShortCircuitReason.ConditionFailed);
                         _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, ETriggerShortCircuitReason.ConditionFailed, in execCtx);
+                        RecordTrace(key, in entry, TriggerRecordKind.ShortCircuited, null, ShortCircuitReason.ConditionFailed, 0L);
                         break;
                     }
 
@@ -399,16 +412,21 @@ namespace AbilityKit.Triggering.Runtime
 
                 // ========== Execute 阶段 ==========
                 _lifecycle.OnBeforeExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
+                _lifecycle.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1);
+                _observer.OnActionExecuting(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, in execCtx);
 
                 bool wasInterrupted = false;
                 try
                 {
+                    var startTicks = System.Diagnostics.Stopwatch.GetTimestamp();
                     entry.Trigger.Execute(in args, in execCtx);
+                    RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, System.Diagnostics.Stopwatch.GetTimestamp() - startTicks);
                 }
                 catch (Exception ex)
                 {
                     _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message);
                     _observer.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, ex.Message, in execCtx);
+                    RecordTrace(key, in entry, TriggerRecordKind.Executed, null, null, 0L);
                 }
 
                 if (control.IsHardStopped)
@@ -419,17 +437,50 @@ namespace AbilityKit.Triggering.Runtime
                     _lifecycle.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order, reason);
                     _observer.OnShortCircuit(key, in args, entry.Phase, entry.Priority, entry.Order,
                         control.Cancel ? ETriggerShortCircuitReason.Cancel : ETriggerShortCircuitReason.StopPropagation, in execCtx);
+                    RecordTrace(key, in entry, TriggerRecordKind.ShortCircuited, null, reason, 0L);
+                    _lifecycle.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, true);
+                    _observer.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, true, in execCtx);
                     break;
                 }
 
                 _lifecycle.OnAfterExecute(key, in args, entry.Phase, entry.Priority, entry.Order);
                 _observer.OnExecute(key, in args, entry.Phase, entry.Priority, entry.Order, in execCtx);
+                _lifecycle.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, false);
+                _observer.OnActionExecuted(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, 0, 1, false, in execCtx);
 
                 if (!wasInterrupted)
                     executedCount++;
+                }
+            }
+            finally
+            {
+                _tracer.EndTrace(_currentTraceScope);
+                _currentTraceScope = default;
             }
 
             _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
+        }
+
+        private void RecordTrace<TArgs>(
+            EventKey<TArgs> key,
+            in Entry<TArgs> entry,
+            TriggerRecordKind kind,
+            bool? predicateResult,
+            ShortCircuitReason? reason,
+            long elapsedTicks)
+        {
+            var record = new TriggerTraceRecord(
+                (int)entry.Order,
+                entry.Phase,
+                entry.Priority,
+                entry.Order,
+                kind,
+                predicateResult,
+                reason,
+                System.Diagnostics.Stopwatch.GetTimestamp(),
+                elapsedTicks,
+                GetScopePath());
+            _tracer.RecordTrigger<TArgs>(_currentTraceScope, record);
         }
 
         private List<Entry<TArgs>> GetTriggerList<TArgs>(EventKey<TArgs> key)

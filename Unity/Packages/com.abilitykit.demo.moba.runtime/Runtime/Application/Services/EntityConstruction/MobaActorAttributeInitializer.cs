@@ -51,6 +51,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             var resources = EnsureResourceContainer(entity);
             EnsureResource(resources, ResourceType.Hp, MobaAttributeIds.MAX_HP, template.Hp, template.MaxHp);
             EnsureResource(resources, ResourceType.Mana, MobaAttributeIds.MAX_MANA, template.Mana, template.MaxMana);
+            EnsureResource(resources, ResourceType.Rage, default, 0f, 100f);
         }
 
         private static AttributeGroup EnsureAttributeGroup(global::ActorEntity entity)

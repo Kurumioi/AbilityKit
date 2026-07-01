@@ -502,6 +502,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                PipelineContinuousTagTemplateId = obj["PipelineContinuousTagTemplateId"]?.Value<int>()
+                    ?? obj["ContinuousTagTemplateId"]?.Value<int>()
+                    ?? obj["TagTemplateId"]?.Value<int>()
+                    ?? 0,
                 Phases = DeserializeSkillPhases(obj["Phases"])
             };
             return dto;
@@ -526,7 +530,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                         RulePlan = DeserializeSkillRulePlan(obj["RulePlan"]),
                         Children = DeserializeSkillPhases(obj["Children"]),
                         Repeat = DeserializeSkillRepeat(obj["Repeat"]),
-                        Delay = DeserializeSkillDelay(obj["Delay"])
+                        Delay = DeserializeSkillDelay(obj["Delay"]),
+                        WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"])
                     });
                 }
             }
@@ -559,6 +564,21 @@ namespace AbilityKit.Demo.Moba.Config.Core
             };
         }
 
+        private static SkillWaitUntilPhaseDTO DeserializeSkillWaitUntil(JToken token)
+        {
+            if (token == null) return null;
+            var obj = token as JObject;
+            if (obj == null) return null;
+
+            return new SkillWaitUntilPhaseDTO
+            {
+                Condition = obj["Condition"]?.Value<string>() ?? string.Empty,
+                TimeoutMs = obj["TimeoutMs"]?.Value<int>() ?? 0,
+                CompleteOnTimeout = obj["CompleteOnTimeout"]?.Value<bool>() ?? true,
+                ObservedSlots = obj["ObservedSlots"]?.ToObject<int[]>() ?? Array.Empty<int>()
+            };
+        }
+
         private static SkillPhaseDTO DeserializeSkillPhase(JToken token)
         {
             var obj = token as JObject;
@@ -574,7 +594,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 RulePlan = DeserializeSkillRulePlan(obj["RulePlan"]),
                 Children = DeserializeSkillPhases(obj["Children"]),
                 Repeat = DeserializeSkillRepeat(obj["Repeat"]),
-                Delay = DeserializeSkillDelay(obj["Delay"])
+                Delay = DeserializeSkillDelay(obj["Delay"]),
+                WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"])
             };
         }
 

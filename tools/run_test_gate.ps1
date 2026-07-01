@@ -202,11 +202,16 @@ function Get-UnityEditorPath {
     return $defaultEditorPath
 }
 
-function Invoke-UnityEditModeStep {
+function Invoke-UnityBatchModeStep {
     param(
         [string]$DisplayName,
+        [string]$Kind,
         [object]$Step,
-        [string]$GateOutputDirectory
+        [string]$GateOutputDirectory,
+        [string[]]$Arguments,
+        [string]$ResultsFilePath,
+        [string]$Filter,
+        [string]$ExtraSummary = $null
     )
 
     $editorPath = Get-UnityEditorPath -Step $Step
@@ -219,48 +224,43 @@ function Invoke-UnityEditModeStep {
         throw "Unity project path not found: $projectPath"
     }
 
-    $testPlatform = if ($Step.PSObject.Properties['testPlatform'] -and -not [string]::IsNullOrWhiteSpace([string]$Step.testPlatform)) { [string]$Step.testPlatform } else { 'EditMode' }
-    $testFilter = if ($Step.PSObject.Properties['testFilter']) { [string]$Step.testFilter } else { '' }
-    $includeNoGraphics = -not ($Step.PSObject.Properties['noGraphics'] -and (-not [bool]$Step.noGraphics))
-    # Unity command-line test runs already terminate on their own. Appending -quit can
-    # preempt the Test Runner after domain reload and cause a false-success/no-results exit.
-    $includeQuit = ($Step.PSObject.Properties['quit'] -and [bool]$Step.quit)
-
     $unityArtifactsDirectory = Join-Path $GateOutputDirectory 'unity-results'
     $null = New-Item -ItemType Directory -Force -Path $unityArtifactsDirectory
 
     $safeName = ConvertTo-SafeName $DisplayName
     $logFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.log')
-    $xmlFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.xml')
     $commandFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.command.txt')
+    $resolvedResultsFilePath = $null
+    if (-not [string]::IsNullOrWhiteSpace($ResultsFilePath)) {
+        $resolvedResultsFilePath = Join-Path $unityArtifactsDirectory $ResultsFilePath
+    }
 
-    $arguments = @(
+    $fullArguments = @(
         '-batchmode'
         '-projectPath'
         $projectPath
-        '-runTests'
-        '-testPlatform'
-        $testPlatform
     )
-    if ($includeNoGraphics) { $arguments += '-nographics' }
-    if (-not [string]::IsNullOrWhiteSpace($testFilter)) {
-        $arguments += @('-testFilter', $testFilter)
+
+    $includeNoGraphics = -not ($Step.PSObject.Properties['noGraphics'] -and (-not [bool]$Step.noGraphics))
+    if ($includeNoGraphics) { $fullArguments += '-nographics' }
+
+    $fullArguments += $Arguments
+    $fullArguments += @('-logFile', $logFilePath)
+
+    $includeQuit = $true
+    if ($Step.PSObject.Properties['quit']) {
+        $includeQuit = [bool]$Step.quit
     }
-    $arguments += @(
-        '-testResults'
-        $xmlFilePath
-        '-logFile'
-        $logFilePath
-    )
-    if ($includeQuit) { $arguments += '-quit' }
+    if ($includeQuit) { $fullArguments += '-quit' }
+
     if ($Step.PSObject.Properties['extraArgs']) {
         $extraArgs = @($Step.extraArgs) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
         if ($extraArgs.Count -gt 0) {
-            $arguments += $extraArgs
+            $fullArguments += $extraArgs
         }
     }
 
-    $commandText = '"{0}" {1}' -f $editorPath, (($arguments | ForEach-Object {
+    $commandText = '"{0}" {1}' -f $editorPath, (($fullArguments | ForEach-Object {
         if ([string]$_ -match '\s') { '"{0}"' -f $_ } else { [string]$_ }
     }) -join ' ')
     Set-Content -Path $commandFilePath -Value $commandText -Encoding UTF8
@@ -269,22 +269,85 @@ function Invoke-UnityEditModeStep {
     Write-Host ("=== {0} ===" -f $DisplayName) -ForegroundColor Cyan
     Write-Host $commandText -ForegroundColor DarkGray
 
-    $process = Start-Process -FilePath $editorPath -ArgumentList $arguments -Wait -PassThru
+    $process = Start-Process -FilePath $editorPath -ArgumentList $fullArguments -Wait -PassThru
 
     $exitCode = $process.ExitCode
     $endedAt = Get-Date
+    $hasResultsFile = $true
+    if (-not [string]::IsNullOrWhiteSpace($resolvedResultsFilePath)) {
+        $hasResultsFile = Test-Path $resolvedResultsFilePath
+    }
+
+    $failureReason = $null
+    if ($exitCode -ne 0) {
+        $failureReason = "Unity exited with code $exitCode."
+    }
+    elseif (-not $hasResultsFile) {
+        $failureReason = "Unity did not create expected results file '$resolvedResultsFilePath'."
+    }
+
+    $record = [ordered]@{
+        name              = $DisplayName
+        kind              = $Kind
+        project           = $projectPath
+        filter            = $Filter
+        command           = $commandText
+        status            = $(if ($null -eq $failureReason) { 'Passed' } else { 'Failed' })
+        exitCode          = $exitCode
+        startedAt         = $startedAt.ToString('o')
+        endedAt           = $endedAt.ToString('o')
+        elapsedSeconds    = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
+        logFile           = $logFilePath
+        resultsFile       = $resolvedResultsFilePath
+        commandFile       = $commandFilePath
+        unityEditorPath   = $editorPath
+        resultsDirectory  = $unityArtifactsDirectory
+        extraSummary      = $ExtraSummary
+        failureReason     = $failureReason
+    }
+
+    return [pscustomobject]$record
+}
+
+function Invoke-UnityEditModeStep {
+    param(
+        [string]$DisplayName,
+        [object]$Step,
+        [string]$GateOutputDirectory
+    )
+
+    $testPlatform = if ($Step.PSObject.Properties['testPlatform'] -and -not [string]::IsNullOrWhiteSpace([string]$Step.testPlatform)) { [string]$Step.testPlatform } else { 'EditMode' }
+    $testFilter = if ($Step.PSObject.Properties['testFilter']) { [string]$Step.testFilter } else { '' }
+
+    $unityArtifactsDirectory = Join-Path $GateOutputDirectory 'unity-results'
+    $null = New-Item -ItemType Directory -Force -Path $unityArtifactsDirectory
+    $safeName = ConvertTo-SafeName $DisplayName
+    $xmlFilePath = Join-Path $unityArtifactsDirectory ($safeName + '.xml')
+
+    $arguments = @(
+        '-runTests'
+        '-testPlatform'
+        $testPlatform
+    )
+    if (-not [string]::IsNullOrWhiteSpace($testFilter)) {
+        $arguments += @('-testFilter', $testFilter)
+    }
+    $arguments += @('-testResults', $xmlFilePath)
+
+    $record = Invoke-UnityBatchModeStep -DisplayName $DisplayName -Kind 'unity-editmode-test' -Step $Step -GateOutputDirectory $GateOutputDirectory -Arguments $arguments -ResultsFilePath ($safeName + '.xml') -Filter $testFilter
+
     $recoveredResultsFrom = $null
-    $hasResultsFile = Test-Path $xmlFilePath
     $testRunnerStarted = $false
     $savedResultsPathFromLog = $null
     $batchmodeQuitInvoked = $false
-    if (Test-Path $logFilePath) {
-        $testRunnerStarted = $null -ne (Select-String -Path $logFilePath -Pattern '^Running tests for\s+' | Select-Object -First 1)
-        $saveLine = Select-String -Path $logFilePath -Pattern '^Saving results to:\s*(.+)$' | Select-Object -First 1
+    $hasResultsFile = Test-Path $xmlFilePath
+    if (Test-Path $record.logFile) {
+        $testRunnerStarted = $null -ne (Select-String -Path $record.logFile -Pattern '^Running tests for\s+' | Select-Object -First 1)
+        $saveLine = Select-String -Path $record.logFile -Pattern '^Saving results to:\s*(.+)$' | Select-Object -First 1
         if ($null -ne $saveLine) {
             $savedResultsPathFromLog = $saveLine.Matches[0].Groups[1].Value.Trim()
         }
-        $batchmodeQuitInvoked = $null -ne (Select-String -Path $logFilePath -Pattern '^Batchmode quit successfully invoked - shutting down!$' | Select-Object -First 1)
+        $batchmodeQuitInvoked = $null -ne (Select-String -Path $record.logFile -Pattern '^Batchmode quit successfully invoked - shutting down!$' | Select-Object -First 1)
     }
 
     if (-not $hasResultsFile -and -not [string]::IsNullOrWhiteSpace($savedResultsPathFromLog) -and (Test-Path $savedResultsPathFromLog)) {
@@ -293,11 +356,8 @@ function Invoke-UnityEditModeStep {
         $hasResultsFile = Test-Path $xmlFilePath
     }
 
-    $failureReason = $null
-    if ($exitCode -ne 0) {
-        $failureReason = "Unity exited with code $exitCode."
-    }
-    elseif (-not $hasResultsFile) {
+    $failureReason = $record.failureReason
+    if ($null -eq $failureReason -and -not $hasResultsFile) {
         if (-not $testRunnerStarted -and $batchmodeQuitInvoked) {
             $failureReason = "Unity exited with code 0 before the command-line Test Runner started. Log contains 'Batchmode quit successfully invoked - shutting down!' but no 'Running tests for ...' marker. This commonly indicates the requested -testFilter batch did not survive domain reload or was not accepted by the Unity Test Framework command-line runner."
         }
@@ -309,32 +369,37 @@ function Invoke-UnityEditModeStep {
         }
     }
 
-    $record = [ordered]@{
-        name                   = $DisplayName
-        kind                   = 'unity-editmode-test'
-        project                = $projectPath
-        filter                 = $testFilter
-        command                = $commandText
-        status                 = $(if ($null -eq $failureReason) { 'Passed' } else { 'Failed' })
-        exitCode               = $exitCode
-        startedAt              = $startedAt.ToString('o')
-        endedAt                = $endedAt.ToString('o')
-        elapsedSeconds         = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
-        logFile                = $logFilePath
-        resultsFile            = $xmlFilePath
-        commandFile            = $commandFilePath
-        unityEditorPath        = $editorPath
-        testPlatform           = $testPlatform
-        resultsDirectory       = $unityArtifactsDirectory
-        resultsFileExists      = $hasResultsFile
-        testRunnerStarted      = $testRunnerStarted
-        batchmodeQuitInvoked   = $batchmodeQuitInvoked
-        savedResultsPathFromLog = $savedResultsPathFromLog
-        recoveredResultsFrom   = $recoveredResultsFrom
-        failureReason          = $failureReason
+    $record.resultsFileExists = $hasResultsFile
+    $record.testRunnerStarted = $testRunnerStarted
+    $record.batchmodeQuitInvoked = $batchmodeQuitInvoked
+    $record.savedResultsPathFromLog = $savedResultsPathFromLog
+    $record.recoveredResultsFrom = $recoveredResultsFrom
+    $record.testPlatform = $testPlatform
+    $record.failureReason = $failureReason
+    $record.status = if ($null -eq $failureReason) { 'Passed' } else { 'Failed' }
+
+    return $record
+}
+
+function Invoke-UnityExecuteMethodStep {
+    param(
+        [string]$DisplayName,
+        [object]$Step,
+        [string]$GateOutputDirectory
+    )
+
+    $executeMethod = if ($Step.PSObject.Properties['executeMethod']) { [string]$Step.executeMethod } else { '' }
+    if ([string]::IsNullOrWhiteSpace($executeMethod)) {
+        throw "Unity execute-method step '$DisplayName' is missing executeMethod."
     }
 
-    return [pscustomobject]$record
+    $arguments = @('-executeMethod', $executeMethod)
+    $resultsFileName = $null
+    if ($Step.PSObject.Properties['resultsFile'] -and -not [string]::IsNullOrWhiteSpace([string]$Step.resultsFile)) {
+        $resultsFileName = [string]$Step.resultsFile
+    }
+
+    return Invoke-UnityBatchModeStep -DisplayName $DisplayName -Kind 'unity-execute-method' -Step $Step -GateOutputDirectory $GateOutputDirectory -Arguments $arguments -ResultsFilePath $resultsFileName -Filter $null -ExtraSummary $executeMethod
 }
 
 function Invoke-Gate {
@@ -429,6 +494,13 @@ function Invoke-Gate {
                 }
                 'unity-editmode-test' {
                     $record = Invoke-UnityEditModeStep -DisplayName $stepName -Step $step -GateOutputDirectory $gateOutputDirectory
+                    $stepResults.Add($record)
+                    if ($record.status -ne 'Passed') {
+                        throw "Step '$stepName' failed with exit code $($record.exitCode)."
+                    }
+                }
+                'unity-execute-method' {
+                    $record = Invoke-UnityExecuteMethodStep -DisplayName $stepName -Step $step -GateOutputDirectory $gateOutputDirectory
                     $stepResults.Add($record)
                     if ($record.status -ne 'Passed') {
                         throw "Step '$stepName' failed with exit code $($record.exitCode)."

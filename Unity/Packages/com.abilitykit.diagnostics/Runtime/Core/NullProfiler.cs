@@ -3,15 +3,21 @@ using System;
 namespace AbilityKit.Diagnostics
 {
     /// <summary>
-    /// 空探针实现 - 发布版本使用，完全零开销
+    /// 诊断关闭时使用的空操作 Profiler。
     /// </summary>
     public sealed class NullProfiler : IProfiler
     {
-        public static NullProfiler Instance { get; } = new();
+        public static NullProfiler Instance { get; } = new NullProfiler();
+
+        private NullProfiler()
+        {
+        }
 
         public bool IsEnabled => false;
 
         public ProbeToken Begin(string name) => default;
+
+        public void Complete(ProbeToken token) { }
 
         public void Record(string name, long nanoseconds) { }
 

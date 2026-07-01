@@ -13,4 +13,6 @@ public sealed record AbilityKitStorageOptions
     public string? ConnectionString { get; init; }
 
     public bool Required { get; init; }
+
+    public bool AllowInMemoryFallbackForUnsupportedProviders { get; init; } = true;
 }

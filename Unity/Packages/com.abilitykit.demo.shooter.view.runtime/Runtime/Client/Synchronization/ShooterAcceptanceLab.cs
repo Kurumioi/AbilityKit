@@ -710,7 +710,9 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterLagCompensationTelemetry? LagCompensationTelemetry => _authoritativeDriver?.Telemetry;
 
         public int LastAuthorityDeliveredInputCount => _authoritativeDriver?.LastDeliveredInputCount ?? 0;
-
+ 
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => Controller.FrameSyncCoordinator.FrameworkSnapshotPipelineDiagnostics;
+ 
         /// <summary>最近一次服务端回溯命中验证结果。</summary>
         public ShooterLagCompensationEvaluation? LastLagCompensationEvaluation => _authoritativeDriver?.LastLagCompensationEvaluation;
 

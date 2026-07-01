@@ -12,6 +12,10 @@ namespace AbilityKit.Ability.Flow
         public event Action Started;
         public event Action<FlowStatus, FlowStatus> StatusChanged;
         public event Action<FlowStatus> Finished;
+        public event Action<Exception> UnhandledException;
+
+        public IFlowObserver Observer { get; set; }
+        public IFlowTraceRecorder TraceRecorder { get; set; }
 
         internal FlowHost(bool deferRent)
         {
@@ -45,6 +49,8 @@ namespace AbilityKit.Ability.Flow
         {
             ThrowIfDisposed();
             var root = _provider.CreateRoot(args);
+            _session.Observer = Observer;
+            _session.TraceRecorder = TraceRecorder;
             _session.Start(root);
         }
 
@@ -78,6 +84,7 @@ namespace AbilityKit.Ability.Flow
             _session.Started += OnSessionStarted;
             _session.StatusChanged += OnSessionStatusChanged;
             _session.Finished += OnSessionFinished;
+            _session.UnhandledException += OnSessionUnhandledException;
             _disposed = false;
         }
 
@@ -109,11 +116,27 @@ namespace AbilityKit.Ability.Flow
             Finished?.Invoke(status);
         }
 
+        private void OnSessionUnhandledException(Exception ex)
+        {
+            UnhandledException?.Invoke(ex);
+        }
+
         private void ResetCallbacks()
         {
+            if (_session != null)
+            {
+                _session.Started -= OnSessionStarted;
+                _session.StatusChanged -= OnSessionStatusChanged;
+                _session.Finished -= OnSessionFinished;
+                _session.UnhandledException -= OnSessionUnhandledException;
+            }
+
             Started = null;
             StatusChanged = null;
             Finished = null;
+            UnhandledException = null;
+            Observer = null;
+            TraceRecorder = null;
         }
 
         private void ThrowIfDisposed()

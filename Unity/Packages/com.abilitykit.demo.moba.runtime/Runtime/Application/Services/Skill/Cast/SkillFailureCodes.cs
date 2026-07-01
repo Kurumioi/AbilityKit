@@ -25,6 +25,25 @@ namespace AbilityKit.Demo.Moba.Services
             public const string TraceRootCreateFailed = "skill.cast.traceRootCreateFailed";
             public const string RuntimeServiceMissing = "skill.cast.runtimeServiceMissing";
             public const string RuntimeHandleInvalid = "skill.cast.runtimeHandleInvalid";
+            public const string Failed = "skill.cast.failed";
+        }
+
+        internal static class Start
+        {
+            public const string AlreadyRunning = "skill.start.alreadyRunning";
+            public const string ContextMissing = "skill.start.contextMissing";
+            public const string CastConfigMissing = "skill.start.castConfigMissing";
+            public const string CastPhasesMissing = "skill.start.castPhasesMissing";
+            public const string FrameTimeMissing = "skill.start.frameTimeMissing";
+            public const string FrameResolveFailed = "skill.start.frameResolveFailed";
+            public const string Rejected = "skill.start.rejected";
+        }
+
+        internal static class Pipeline
+        {
+            public const string PreCastFailed = "skill.pipeline.preCastFailed";
+            public const string CastFailed = "skill.pipeline.castFailed";
+            public const string Failed = "skill.pipeline.failed";
         }
     }
 }

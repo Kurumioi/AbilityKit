@@ -528,6 +528,11 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var conditionsPassed = EvaluateTriggerConditions(effectId, in conditionContext);
                 var planExecuted = conditionsPassed && TryExecutePlanByTriggerId(effectId, wrappedContext);
+                if (!planExecuted)
+                {
+                    var hasFrameTime = _services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null;
+                    Log.Warning($"[MobaEffectExecutionService] Effect execution returned false. effectId={effectId}, conditionsPassed={conditionsPassed}, payloadType={wrappedContext.GetType().FullName}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}, hasFrameTime={hasFrameTime}");
+                }
                 session.Complete(planExecuted);
             }
         }
@@ -574,6 +579,11 @@ namespace AbilityKit.Demo.Moba.Services
                 var planExecuted = conditionsPassed && (predicateMissIsSuccess
                     ? TryExecutePlanByTriggerId(triggerId, payload)
                     : PlanExecutor.ExecuteRulePlan(triggerId, payload));
+                if (!planExecuted)
+                {
+                    var hasFrameTime = _services != null && _services.TryResolve<IFrameTime>(out var frameTime) && frameTime != null;
+                    Log.Warning($"[MobaEffectExecutionService] Trigger execution returned false. triggerId={triggerId}, predicateMissIsSuccess={predicateMissIsSuccess}, conditionsPassed={conditionsPassed}, payloadType={payload?.GetType().FullName ?? "<null>"}, source={lineageInput.SourceActorId}, target={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}, hasFrameTime={hasFrameTime}");
+                }
                 session.Complete(planExecuted);
                 return planExecuted;
             }

@@ -5,7 +5,7 @@ namespace AbilityKit.Demo.Moba.Events.Summon
     /// <summary>
     /// 召唤物事件负载
     /// </summary>
-    public sealed class SummonEventPayload : IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider
+    public sealed class SummonEventPayload : IMobaActorContextProvider, IMobaOriginContextProvider, IMobaTriggerLineageContextProvider, IMobaContextSourceProvider, IMobaPersistentContextSourceProvider
     {
         /// <summary>召唤物 ActorId</summary>
         public int SummonActorId;
@@ -80,6 +80,17 @@ namespace AbilityKit.Demo.Moba.Events.Summon
             }
 
             source = default;
+            return false;
+        }
+
+        public bool TryGetPersistentContextSource(out MobaPersistentContextSourceSnapshot snapshot)
+        {
+            if (SourceContext.TryGetPersistentContextSource(out snapshot) && snapshot.IsValid)
+            {
+                return true;
+            }
+
+            snapshot = default;
             return false;
         }
     }

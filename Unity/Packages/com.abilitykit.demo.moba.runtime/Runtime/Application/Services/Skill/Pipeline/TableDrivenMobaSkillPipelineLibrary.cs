@@ -138,16 +138,22 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (skill.PreCastFlowId > 0 && _configs.TryGetSkillFlow(skill.PreCastFlowId, out var preFlow) && preFlow != null)
             {
-                preCastConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 2) | 0, $"Skill_{skillId}_PreCast");
+                preCastConfig = CreatePipelineConfig((skillId << 2) | 0, $"Skill_{skillId}_PreCast", preFlow);
                 preCastDefinitions = BuildFlowDefinitions(preFlow, checksPhaseId: PreCastChecksPhaseId, timelinePhaseId: PreCastTimelinePhaseId);
             }
 
-            var castConfig = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig((skillId << 2) | 1, $"Skill_{skillId}_Cast");
+            var castConfig = CreatePipelineConfig((skillId << 2) | 1, $"Skill_{skillId}_Cast", castFlow);
             var castDefinitions = BuildFlowDefinitions(castFlow, checksPhaseId: CastChecksPhaseId, timelinePhaseId: CastTimelinePhaseId);
 
             entry = new SkillPipelineCacheEntry(preCastConfig, preCastDefinitions, castConfig, castDefinitions);
             _skillCache[skillId] = entry;
             return true;
+        }
+
+        private static IAbilityPipelineConfig CreatePipelineConfig(int configId, string configName, SkillFlowMO flow)
+        {
+            var inner = new AbilityKit.Ability.Share.Impl.Pipeline.Skill.SkillPipelineConfig(configId, configName);
+            return new MobaSkillPipelineConfig(inner, flow?.PipelineContinuousTagTemplateId ?? 0);
         }
 
         private static IReadOnlyList<IAbilityPipelinePhase<SkillPipelineContext>> BuildPhases(IReadOnlyList<PhaseDefinition> definitions)
@@ -248,6 +254,8 @@ namespace AbilityKit.Demo.Moba.Services
                     return BuildRepeatPhaseDefinition(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
                 case SkillPhaseType.Delay:
                     return BuildDelayPhaseDefinition(phase, fallbackPhaseId);
+                case SkillPhaseType.WaitUntil:
+                    return BuildWaitUntilPhaseDefinition(phase, fallbackPhaseId);
                 default:
                     throw new InvalidOperationException($"Unsupported skill phase type. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, type={phase.Type}");
             }
@@ -303,6 +311,32 @@ namespace AbilityKit.Demo.Moba.Services
             return new DelayPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), delayMs / 1000f);
         }
 
+        private PhaseDefinition BuildWaitUntilPhaseDefinition(SkillPhaseDTO phase, string fallbackPhaseId)
+        {
+            if (phase.WaitUntil == null)
+            {
+                throw new InvalidOperationException($"WaitUntil skill phase requires wait config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+            }
+
+            var wait = phase.WaitUntil;
+            if (wait.TimeoutMs < 0)
+            {
+                throw new InvalidOperationException($"WaitUntil skill phase timeout cannot be negative. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, timeoutMs={wait.TimeoutMs}");
+            }
+
+            if (string.IsNullOrEmpty(wait.Condition))
+            {
+                throw new InvalidOperationException($"WaitUntil skill phase requires condition. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+            }
+
+            return new WaitUntilPhaseDefinition(
+                MakePhaseId(phase, fallbackPhaseId),
+                wait.Condition,
+                wait.TimeoutMs > 0 ? wait.TimeoutMs / 1000f : -1f,
+                wait.CompleteOnTimeout,
+                CopySlots(wait.ObservedSlots));
+        }
+
         private MobaTriggerPlanExecutor GetOrCreateRulePlanExecutor()
         {
             if (_rulePlanExecutor != null) return _rulePlanExecutor;
@@ -329,6 +363,14 @@ namespace AbilityKit.Demo.Moba.Services
             if (list == null || list.Count == 0) return System.Array.Empty<SkillTimelineEventDTO>();
             var arr = new SkillTimelineEventDTO[list.Count];
             for (int i = 0; i < list.Count; i++) arr[i] = list[i];
+            return arr;
+        }
+
+        private static int[] CopySlots(IReadOnlyList<int> slots)
+        {
+            if (slots == null || slots.Count == 0) return System.Array.Empty<int>();
+            var arr = new int[slots.Count];
+            for (int i = 0; i < slots.Count; i++) arr[i] = slots[i];
             return arr;
         }
 
@@ -496,6 +538,60 @@ namespace AbilityKit.Demo.Moba.Services
             public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
             {
                 return new AbilityDelayPhase<SkillPipelineContext>(PhaseId, _delaySeconds);
+            }
+        }
+
+        private sealed class WaitUntilPhaseDefinition : PhaseDefinition
+        {
+            private const string ObservedSlotsIdleCondition = "ObservedSlotsIdle";
+            private readonly string _condition;
+            private readonly float _timeoutSeconds;
+            private readonly bool _completeOnTimeout;
+            private readonly int[] _observedSlots;
+
+            public WaitUntilPhaseDefinition(
+                AbilityPipelinePhaseId phaseId,
+                string condition,
+                float timeoutSeconds,
+                bool completeOnTimeout,
+                int[] observedSlots)
+                : base(phaseId)
+            {
+                _condition = condition;
+                _timeoutSeconds = timeoutSeconds;
+                _completeOnTimeout = completeOnTimeout;
+                _observedSlots = observedSlots ?? Array.Empty<int>();
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new AbilityWaitUntilPhase<SkillPipelineContext>(PhaseId, IsConditionMet, _timeoutSeconds, _completeOnTimeout);
+            }
+
+            private bool IsConditionMet(SkillPipelineContext context)
+            {
+                if (string.Equals(_condition, ObservedSlotsIdleCondition, StringComparison.OrdinalIgnoreCase))
+                {
+                    return AreObservedSlotsIdle(context);
+                }
+
+                throw new InvalidOperationException($"Unsupported WaitUntil skill phase condition. phase={PhaseId.Value}, condition={_condition}, skillId={context?.SkillId ?? 0}");
+            }
+
+            private bool AreObservedSlotsIdle(SkillPipelineContext context)
+            {
+                if (context == null || _observedSlots.Length == 0) return true;
+                if (context.WorldServices == null) return true;
+                if (!context.WorldServices.TryResolve<SkillCastCoordinator>(out var skills) || skills == null) return true;
+
+                for (int i = 0; i < _observedSlots.Length; i++)
+                {
+                    var slot = _observedSlots[i];
+                    if (slot <= 0 || slot == context.SkillSlot) continue;
+                    if (skills.TryGetRunningBySlot(context.CasterActorId, slot, out _)) return false;
+                }
+
+                return true;
             }
         }
     }

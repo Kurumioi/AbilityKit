@@ -16,11 +16,12 @@ public static class AbilityKitOrleansHostingExtensions
 
         builder.UseOrleans(silo =>
         {
-            if (options.SiloPort.HasValue || options.GatewayPort.HasValue)
+            if (options.SiloPort.HasValue || options.GatewayPort.HasValue || options.PrimarySiloPort.HasValue)
             {
                 silo.UseLocalhostClustering(
                     siloPort: options.SiloPort ?? 11111,
-                    gatewayPort: options.GatewayPort ?? 30000);
+                    gatewayPort: options.GatewayPort ?? 30000,
+                    primarySiloEndpoint: new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, options.PrimarySiloPort ?? options.SiloPort ?? 11111));
             }
             else
             {

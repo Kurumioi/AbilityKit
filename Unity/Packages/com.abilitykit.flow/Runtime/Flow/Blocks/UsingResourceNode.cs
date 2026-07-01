@@ -32,14 +32,14 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (!_bodyEntered)
             {
-                _body.Enter(ctx);
+                FlowDiagnostics.Enter(ctx, _body);
                 _bodyEntered = true;
             }
 
-            var s = _body.Tick(ctx, deltaTime);
+            var s = FlowDiagnostics.Tick(ctx, _body, deltaTime);
             if (s == FlowStatus.Running) return FlowStatus.Running;
 
-            _body.Exit(ctx);
+            FlowDiagnostics.Exit(ctx, _body, s);
             _bodyEntered = false;
             return s;
         }
@@ -48,7 +48,7 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_bodyEntered)
             {
-                _body.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _body);
                 _bodyEntered = false;
             }
 
@@ -59,7 +59,7 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_bodyEntered)
             {
-                _body.Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _body);
                 _bodyEntered = false;
             }
 

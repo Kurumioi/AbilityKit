@@ -232,6 +232,44 @@
           "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020000_PassiveCastBuff_ShouldIncreaseMoveSpeedTemporarily"
         }
       ]
+    },
+    {
+      "name": "moba-lianpo-unity",
+      "level": "P1",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Lian Po Unity EditMode scenario tests and persist matching command, log, and NUnit XML artifacts.",
+      "scope": [
+        "unity-editmode",
+        "moba-lianpo",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "claim-latest-lianpo-unity-result",
+        "close-lianpo-skill-contract-regression"
+      ],
+      "failurePolicy": "Do not claim the latest Lian Po Unity result until the executed scenario-test batch has matching XML result files in the gate output directory.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Lian Po Unity Skill10010201 authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10010201_ScenarioExportsTraceAndConfirmsShieldAreaDamageAndSlow"
+        },
+        {
+          "name": "Lian Po Unity Skill10010301 authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10010301_ScenarioExportsTraceAndConfirmsThirdStageKnockup"
+        }
+      ]
     }
   ]
 }

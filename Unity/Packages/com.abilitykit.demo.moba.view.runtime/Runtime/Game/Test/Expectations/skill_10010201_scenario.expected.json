@@ -9,7 +9,7 @@
     "effectId": 10010201,
     "triggerId": 10010201,
     "expectedActions": [
-      { "actionId": -906340766, "type": "add_buff" },
+      { "actionId": 1241142882, "type": "add_buff" },
       { "actionId": 951534590, "type": "add_shield" },
       { "actionId": 1822191218, "type": "spawn_area" },
       { "actionId": 589451731, "type": "debug_log" }
@@ -59,8 +59,9 @@
       {
         "stepId": "press_skill_2",
         "atMs": 0,
-        "action": "press",
+        "action": "release",
         "actorAlias": "caster",
+        "targetAlias": "target",
         "slot": 2,
         "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
       },
@@ -95,7 +96,7 @@
   "mustContain": [
     { "kind": "SkillCast", "configId": 10010201, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010201, "minCount": 1 },
-    { "kind": "EffectAction", "configId": -906340766, "underEffectId": 10010201, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 1241142882, "underEffectId": 10010201, "minCount": 1 },
     { "kind": "EffectAction", "configId": 951534590, "underEffectId": 10010201, "minCount": 1 },
     { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010201, "minCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010201, "underEffectId": 10010201, "minCount": 1, "maxCount": 1 },

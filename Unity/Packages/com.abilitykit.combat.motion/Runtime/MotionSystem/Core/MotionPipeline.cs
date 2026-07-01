@@ -6,20 +6,30 @@ using AbilityKit.Core.Mathematics;
 
 namespace AbilityKit.Combat.MotionSystem.Core
 {
-    public sealed class MotionPipeline
+    public sealed class MotionPipeline : IDisposable
     {
-        private readonly List<IMotionSource> _sources = new List<IMotionSource>(4);
+        private List<IMotionSource> _sources;
+        private Dictionary<int, int> _bestIndexByGroup;
+        private List<int> _suppressedGroups;
+        private bool _disposed;
 
-        private readonly Dictionary<int, int> _bestIndexByGroup = new Dictionary<int, int>(8);
-        private readonly List<int> _suppressedGroups = new List<int>(8);
+        public MotionPipeline()
+        {
+            _sources = MotionPipelinePool.RentSourceList();
+            _bestIndexByGroup = MotionPipelinePool.RentBestIndexDictionary();
+            _suppressedGroups = MotionPipelinePool.RentIntList();
+        }
 
         public IMotionSolver Solver { get; set; } = NoMotionSolver.Instance;
         public IMotionEventSink Events { get; set; }
 
         public MotionPipelinePolicy Policy { get; set; }
 
+        public int SourceCount => _sources?.Count ?? 0;
+
         public void AddSource(IMotionSource source)
         {
+            EnsureNotDisposed();
             if (source == null) throw new ArgumentNullException(nameof(source));
             _sources.Add(source);
             _sources.Sort((a, b) => b.Priority.CompareTo(a.Priority));
@@ -27,17 +37,31 @@ namespace AbilityKit.Combat.MotionSystem.Core
 
         public bool RemoveSource(IMotionSource source)
         {
+            EnsureNotDisposed();
             if (source == null) return false;
             return _sources.Remove(source);
         }
 
         public void ClearSources()
         {
+            EnsureNotDisposed();
             _sources.Clear();
+        }
+
+        public void Reset()
+        {
+            EnsureNotDisposed();
+            _sources.Clear();
+            _bestIndexByGroup.Clear();
+            _suppressedGroups.Clear();
+            Solver = NoMotionSolver.Instance;
+            Events = null;
+            Policy = null;
         }
 
         public MotionSolveResult Tick(int id, ref MotionState state, float dt, ref MotionOutput output)
         {
+            EnsureNotDisposed();
             output.Clear();
 
             var desired = Vec3.Zero;
@@ -45,7 +69,6 @@ namespace AbilityKit.Combat.MotionSystem.Core
             _bestIndexByGroup.Clear();
             _suppressedGroups.Clear();
 
-            // Pass 1: cleanup and find best source index per group (by priority) for exclusive/override groups.
             for (int i = _sources.Count - 1; i >= 0; i--)
             {
                 var s = _sources[i];
@@ -77,7 +100,6 @@ namespace AbilityKit.Combat.MotionSystem.Core
                 }
             }
 
-            // Pass 1.5: apply cross-group suppression based on policy.
             if (Policy != null)
             {
                 foreach (var kv in _bestIndexByGroup)
@@ -101,7 +123,6 @@ namespace AbilityKit.Combat.MotionSystem.Core
                 }
             }
 
-            // Pass 2: tick only effective sources.
             for (int i = _sources.Count - 1; i >= 0; i--)
             {
                 var s = _sources[i];
@@ -120,27 +141,9 @@ namespace AbilityKit.Combat.MotionSystem.Core
 
                 s.Tick(id, ref state, dt, ref desired);
 
-                // If a source finishes in this tick, notify.
                 if (!s.IsActive)
                 {
-                    if (Events != null)
-                    {
-                        var evt = MotionFinishEvent.Arrive;
-                        if (s is IMotionFinishEventSource finish)
-                        {
-                            evt = finish.FinishEvent;
-                        }
-
-                        switch (evt)
-                        {
-                            case MotionFinishEvent.Expired:
-                                Events.OnExpired(id, in state);
-                                break;
-                            case MotionFinishEvent.Arrive:
-                                Events.OnArrive(id, in state);
-                                break;
-                        }
-                    }
+                    NotifyFinished(id, in state, s);
                 }
             }
 
@@ -150,8 +153,11 @@ namespace AbilityKit.Combat.MotionSystem.Core
             var result = solver.Solve(id, state, output, dt);
 
             output.AppliedDelta = result.AppliedDelta;
+            output.NewVelocity = dt > 0f ? result.AppliedDelta / dt : Vec3.Zero;
+            output.NewForward = state.Forward;
 
             state.Position = new Vec3(state.Position.X + result.AppliedDelta.X, state.Position.Y + result.AppliedDelta.Y, state.Position.Z + result.AppliedDelta.Z);
+            state.Velocity = output.NewVelocity;
             state.Time += dt;
 
             if (result.Hit.Hit)
@@ -160,6 +166,27 @@ namespace AbilityKit.Combat.MotionSystem.Core
             }
 
             return result;
+        }
+
+        private void NotifyFinished(int id, in MotionState state, IMotionSource source)
+        {
+            if (Events == null) return;
+
+            var evt = MotionFinishEvent.Arrive;
+            if (source is IMotionFinishEventSource finish)
+            {
+                evt = finish.FinishEvent;
+            }
+
+            switch (evt)
+            {
+                case MotionFinishEvent.Expired:
+                    Events.OnExpired(id, in state);
+                    break;
+                case MotionFinishEvent.Arrive:
+                    Events.OnArrive(id, in state);
+                    break;
+            }
         }
 
         private void AddSuppressed(int groupId)
@@ -180,6 +207,26 @@ namespace AbilityKit.Combat.MotionSystem.Core
             }
 
             return false;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            MotionPipelinePool.ReleaseSourceList(_sources);
+            MotionPipelinePool.ReleaseBestIndexDictionary(_bestIndexByGroup);
+            MotionPipelinePool.ReleaseIntList(_suppressedGroups);
+            _sources = null;
+            _bestIndexByGroup = null;
+            _suppressedGroups = null;
+            Solver = NoMotionSolver.Instance;
+            Events = null;
+            Policy = null;
+            _disposed = true;
+        }
+
+        private void EnsureNotDisposed()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(MotionPipeline));
         }
     }
 }

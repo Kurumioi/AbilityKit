@@ -12,6 +12,42 @@
 
 ---
 
+## 内部推广分级
+
+AbilityKit 当前按“先基础包收口，再推进 Starter，再扩大到战斗/同步组合”的顺序推广。业务项目不应直接全量引入 `Unity/Packages`，而应按包分级和推荐组合选择依赖。
+
+| 等级 | 包 | 当前定位 | 推广建议 |
+|------|------|------|------|
+| P0 基础底座 | `com.abilitykit.core`、`com.abilitykit.world.di` | 日志、事件、对象池、数值、Marker、World 生命周期和服务装配 | 先补齐 README、样例、测试命令，作为所有 Starter 的第一层依赖 |
+| P1 技能核心 | `com.abilitykit.triggering`、`com.abilitykit.pipeline`、`com.abilitykit.attributes` | 事件触发、技能阶段编排、属性/修饰器能力 | 作为 `SkillCore` 组合试点，不依赖 Demo 包运行 |
+| P2 流程与状态 | `com.abilitykit.flow`、`com.abilitykit.hfsm` | 跨帧流程、状态迁移、角色/玩法状态管理 | 作为增强层接入，避免把简单技能都强制接到状态机 |
+| P3 战斗领域 | `com.abilitykit.combat.targeting`、`com.abilitykit.combat.projectile`、`com.abilitykit.combat.damage`、`com.abilitykit.combat.skilllibrary`、`com.abilitykit.combat.entitymanager` | 目标、投射物、伤害、技能索引、实体索引 | 在 `SkillCore` 跑通后按玩法需要接入 |
+| P4 同步与服务端 | `com.abilitykit.world.framesync`、`com.abilitykit.world.snapshot`、`com.abilitykit.world.statesync`、`com.abilitykit.record`、`com.abilitykit.protocol`、`com.abilitykit.host`、`com.abilitykit.host.extension` | 帧同步、快照、回放、协议、Host 和服务端组合 | 只对多人、回放、权威服项目推广 |
+| 示例/参考 | `com.abilitykit.demo.*`、`Server/Orleans` | MOBA、Shooter、Orleans 参考实现 | 作为最佳实践阅读，不作为默认业务依赖 |
+
+## 推荐组合
+
+| 组合 | 包含模块 | 适用场景 | 验收标准 |
+|------|------|------|------|
+| `Foundation` | `core` + `world.di` | 干净项目启动、基础设施验证、服务作用域验证 | 能在纯 C# 或 Unity 中运行最小示例，输出结构化日志，不依赖 Demo |
+| `SkillCore` | `Foundation` + `triggering` + `pipeline` + `attributes` | 技能、Buff、被动、事件规则的最小战斗核心 | 能跑 2 到 3 个技能、1 个 Buff、1 个触发规则和对应测试 |
+| `BattleRuntime` | `SkillCore` + `combat.targeting` + `combat.projectile` + `combat.damage` | 中大型战斗玩法、命中、投射物和伤害链路 | 能验证目标选择、命中、伤害和 Trace 输出 |
+| `SyncRuntime` | `BattleRuntime` + `framesync` + `snapshot` + `statesync` + `record` + `protocol` | 多人同步、回放、重连、状态恢复 | 能验证输入帧、快照应用、状态哈希和回放 |
+| `ServerRuntime` | `protocol` + `host` + `host.extension` + 项目服务端适配 | 权威服、房间服、网关服务 | 能启动房间/战斗宿主，并通过 Smoke 验证基础流程 |
+
+## Starter 推进顺序
+
+第一版 Starter 只证明基础包可以独立启动；技能核心不重复造新示例，而是收编 `Samples.Logic` 中已有的 Pipeline、Triggering、Modifiers/属性正式示例与 Web 导出能力。
+
+1. `Foundation Starter`：只接 `core`、`world.di`，展示日志、事件、对象池、World 服务注册和一次宿主驱动 Tick。
+2. `SkillCore 路线`：复用 `pipeline/basic-phases`、`triggering/basic-event-trigger`、`triggering/condition-blackboard`、`modifiers/attribute-basic` 等现有示例，展示一次技能释放、属性变化、触发规则和结构化输出。
+3. `BattleRuntime Starter`：增加目标、投射物和伤害，展示一个可测试的命中链路。
+4. `SyncRuntime Starter`：增加输入帧、快照和回放，只面向需要多人同步的项目。
+
+Starter 必须满足：不依赖 `demo.moba.*`、不依赖 `demo.shooter.*`、可纯 C# 运行、可被 Unity 宿主接入、输出可被测试或 Web/Unity 面板消费。
+
+---
+
 ## 模块文档列表
 
 ### 1. [Host 模块](./com.abilitykit.host.extension/Document/)

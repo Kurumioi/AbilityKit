@@ -41,6 +41,16 @@ namespace AbilityKit.Pipeline.Editor
             }
         }
 
+        public IReadOnlyList<PipelineTraceEvent> GetSnapshot(int ownerId)
+        {
+            lock (_lock)
+            {
+                return _traces.TryGetValue(ownerId, out var trace)
+                    ? trace.GetSnapshot()
+                    : Array.Empty<PipelineTraceEvent>();
+            }
+        }
+
         public void Clear()
         {
             lock (_lock)
@@ -94,17 +104,29 @@ namespace AbilityKit.Pipeline.Editor
             if (_count < _buffer.Length) _count++;
         }
 
-        public void CopyTo(List<PipelineTraceEvent> dst)
+        public IReadOnlyList<PipelineTraceEvent> GetSnapshot()
         {
-            if (dst == null) return;
-            dst.Clear();
-            if (_count == 0) return;
+            if (_count == 0) return Array.Empty<PipelineTraceEvent>();
 
+            var snapshot = new PipelineTraceEvent[_count];
             var start = _count == _buffer.Length ? _head : 0;
             for (int i = 0; i < _count; i++)
             {
                 var idx = (start + i) % _buffer.Length;
-                dst.Add(_buffer[idx]);
+                snapshot[i] = _buffer[idx];
+            }
+
+            return snapshot;
+        }
+
+        public void CopyTo(List<PipelineTraceEvent> dst)
+        {
+            if (dst == null) return;
+            dst.Clear();
+            var snapshot = GetSnapshot();
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                dst.Add(snapshot[i]);
             }
         }
     }

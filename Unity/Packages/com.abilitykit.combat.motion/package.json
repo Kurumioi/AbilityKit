@@ -7,6 +7,13 @@
     "author": {
         "name": "AbilityKit"
     },
+    "samples": [
+        {
+            "displayName": "Motion Examples",
+            "description": "combat motion 模块的 pipeline、分组抑制、路径轨迹与输入混合示例",
+            "path": "Samples~/MotionExamples"
+        }
+    ],
     "dependencies": {
         "com.abilitykit.core": "0.0.1",
         "com.abilitykit.combat.collision.abstractions": "0.0.1"

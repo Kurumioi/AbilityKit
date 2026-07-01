@@ -12,27 +12,18 @@ namespace AbilityKit.Combat.MotionSystem.Collision
         private readonly IMotionCollisionWorld _world;
         private readonly ConstraintsProvider _constraints;
 
-        public ConfigurableMotionSolver(IMotionCollisionWorld world, ConstraintsProvider constraints)
+        public ConfigurableMotionSolver(IMotionCollisionWorld world, ConstraintsProvider constraints, IMotionSolverDiagnostics diagnostics = null)
         {
             _world = world;
             _constraints = constraints;
+            Diagnostics = diagnostics;
         }
+
+        public IMotionSolverDiagnostics Diagnostics { get; set; }
 
         public MotionSolveResult Solve(int id, in MotionState state, in MotionOutput input, float dt)
         {
-            var constraints = MotionConstraints.Disabled;
-            try
-            {
-                if (_constraints != null)
-                {
-                    constraints = _constraints.Invoke(id, in state, in input, dt);
-                }
-            }
-            catch
-            {
-                constraints = MotionConstraints.Disabled;
-            }
-
+            var constraints = ResolveConstraints(id, in state, in input, dt);
             var desiredDelta = input.DesiredDelta;
 
             if (constraints.Leash.Enable && constraints.Leash.Radius > 0f)
@@ -41,13 +32,8 @@ namespace AbilityKit.Combat.MotionSystem.Collision
             }
 
             if (!constraints.Collision.Enable) return MotionSolveResult.NoHit(desiredDelta);
-
             if (_world == null) return MotionSolveResult.NoHit(desiredDelta);
-
-            if (constraints.Collision.AllowPassThrough)
-            {
-                return MotionSolveResult.NoHit(desiredDelta);
-            }
+            if (constraints.Collision.AllowPassThrough) return MotionSolveResult.NoHit(desiredDelta);
 
             var start = state.Position;
             var desired = desiredDelta;
@@ -62,10 +48,62 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                     hit: out var hit,
                     appliedDelta: out var applied))
             {
-                return new MotionSolveResult(applied, hit);
+                return ResolveEndOverlap(id, in state, in constraints.Collision, in applied, in hit);
             }
 
-            return MotionSolveResult.NoHit(desired);
+            var noHit = new MotionHit(false, 0, Vec3.Zero, 0f);
+            return ResolveEndOverlap(id, in state, in constraints.Collision, in desired, in noHit);
+        }
+
+        private MotionConstraints ResolveConstraints(int id, in MotionState state, in MotionOutput input, float dt)
+        {
+            if (_constraints == null) return MotionConstraints.Disabled;
+
+            try
+            {
+                return _constraints.Invoke(id, in state, in input, dt);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics?.OnConstraintsProviderException(id, in state, in input, dt, ex);
+                return MotionConstraints.Disabled;
+            }
+        }
+
+        private MotionSolveResult ResolveEndOverlap(int id, in MotionState state, in MotionCollisionConstraints constraints, in Vec3 candidateDelta, in MotionHit hit)
+        {
+            var end = state.Position + candidateDelta;
+            if (!_world.Overlap(id, in end, constraints.Radius, constraints.ObstacleMask, constraints.IgnoreMask))
+            {
+                return new MotionSolveResult(candidateDelta, hit);
+            }
+
+            switch (constraints.EndOverlapPolicy)
+            {
+                case MotionEndOverlapPolicy.AllowInside:
+                    Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, true);
+                    return new MotionSolveResult(candidateDelta, hit);
+
+                case MotionEndOverlapPolicy.ProjectToNearestFree:
+                    if (_world.TryProjectToFree(id, in end, constraints.Radius, constraints.ObstacleMask, constraints.IgnoreMask, out var projected))
+                    {
+                        var projectedDelta = projected - state.Position;
+                        Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, true);
+                        return new MotionSolveResult(projectedDelta, hit);
+                    }
+
+                    Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, false);
+                    return MotionSolveResult.NoHit(Vec3.Zero);
+
+                case MotionEndOverlapPolicy.ClampToLastValid:
+                    Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, true);
+                    return new MotionSolveResult(candidateDelta, hit);
+
+                case MotionEndOverlapPolicy.Reject:
+                default:
+                    Diagnostics?.OnEndOverlapResolved(id, in state, in constraints, constraints.EndOverlapPolicy, false);
+                    return MotionSolveResult.NoHit(Vec3.Zero);
+            }
         }
 
         private static Vec3 ApplyLeash(in Vec3 start, in Vec3 desiredDelta, in MotionLeashConstraints leash)
@@ -93,7 +131,7 @@ namespace AbilityKit.Combat.MotionSystem.Collision
                     break;
             }
 
-            var dist = (float)global::System.Math.Sqrt(dist2);
+            var dist = (float)Math.Sqrt(dist2);
             if (dist <= 1e-6f)
             {
                 return Vec3.Zero;

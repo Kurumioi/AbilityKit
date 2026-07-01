@@ -10,6 +10,10 @@ public static partial class AbilityKitServerOptionsExtensions
         services.AddOptions<AbilityKitDeploymentOptions>()
             .Bind(configuration.GetSection(AbilityKitDeploymentConfigurationSections.Deployment))
             .Validate(options => !string.IsNullOrWhiteSpace(options.Role), "Deployment:Role is required")
+            .Validate(options => options.TargetSiloCount > 0, "Deployment:TargetSiloCount must be greater than zero")
+            .Validate(options => options.MaxRoomsPerSilo >= 0, "Deployment:MaxRoomsPerSilo must be greater than or equal to zero")
+            .Validate(options => options.MaxBattlesPerSilo >= 0, "Deployment:MaxBattlesPerSilo must be greater than or equal to zero")
+            .Validate(options => options.MaxSessionsPerGateway >= 0, "Deployment:MaxSessionsPerGateway must be greater than or equal to zero")
             .ValidateOnStart();
 
         return services;

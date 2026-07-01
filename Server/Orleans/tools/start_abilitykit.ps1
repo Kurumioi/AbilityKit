@@ -9,7 +9,8 @@ param(
     [int]$GatewayPort,
     [int]$SiloPort,
     [int]$SiloGatewayPort,
-    [int]$TcpPort
+    [int]$TcpPort,
+    [int]$PrimarySiloPort
 )
 
 $ErrorActionPreference = 'Stop'
@@ -20,6 +21,25 @@ function Get-ProfileValue($profile, [string]$name, $fallback) {
     }
 
     return $fallback
+}
+
+function Get-ProfileSilos($profileData, [int]$effectiveSiloPort, [int]$effectiveSiloGatewayPort, [int]$effectivePrimarySiloPort) {
+    if ($profileData.PSObject.Properties.Name -contains 'silos' -and $null -ne $profileData.silos) {
+        return @($profileData.silos)
+    }
+
+    return @(
+        [pscustomobject]@{
+            role = Get-ProfileValue $profileData 'role' 'Shared'
+            siloPort = $effectiveSiloPort
+            siloGatewayPort = $effectiveSiloGatewayPort
+            primarySiloPort = $effectivePrimarySiloPort
+            logicalGroups = @('session', 'room', 'battle')
+            maxRooms = 500
+            maxBattles = 200
+            maxSessions = 5000
+        }
+    )
 }
 
 if (-not (Test-Path $ProfileConfig)) {
@@ -33,9 +53,11 @@ if ($ListProfiles) {
     Write-Host 'Available AbilityKit launch profiles:' -ForegroundColor Cyan
     foreach ($profileName in $profileNames) {
         $profileData = $config.profiles.$profileName
+        $profileSilos = Get-ProfileSilos $profileData (Get-ProfileValue $profileData 'siloPort' 11111) (Get-ProfileValue $profileData 'siloGatewayPort' 30000) (Get-ProfileValue $profileData 'primarySiloPort' (Get-ProfileValue $profileData 'siloPort' 11111))
         Write-Host "  $profileName" -ForegroundColor Green
         Write-Host "    $($profileData.description)" -ForegroundColor Gray
-        Write-Host "    HTTP: $($profileData.gatewayPort), TCP: $($profileData.tcpPort), Silo: $($profileData.siloPort), Orleans Gateway: $($profileData.siloGatewayPort)" -ForegroundColor Gray
+        Write-Host "    HTTP: $($profileData.gatewayPort), TCP: $($profileData.tcpPort), Silo: $($profileData.siloPort), Orleans Gateway: $($profileData.siloGatewayPort), Primary: $(Get-ProfileValue $profileData 'primarySiloPort' (Get-ProfileValue $profileData 'siloPort' 11111))" -ForegroundColor Gray
+        Write-Host "    Roles: $((@($profileSilos | ForEach-Object { $_.role }) | Where-Object { $_ }) -join ', ')" -ForegroundColor Gray
     }
 
     return
@@ -60,7 +82,9 @@ foreach ($profileName in $Profile) {
     $effectiveGatewayPort = if ($PSBoundParameters.ContainsKey('GatewayPort')) { $GatewayPort } else { Get-ProfileValue $profileData 'gatewayPort' 5001 }
     $effectiveSiloPort = if ($PSBoundParameters.ContainsKey('SiloPort')) { $SiloPort } else { Get-ProfileValue $profileData 'siloPort' 11111 }
     $effectiveSiloGatewayPort = if ($PSBoundParameters.ContainsKey('SiloGatewayPort')) { $SiloGatewayPort } else { Get-ProfileValue $profileData 'siloGatewayPort' 30000 }
+    $effectivePrimarySiloPort = if ($PSBoundParameters.ContainsKey('PrimarySiloPort')) { $PrimarySiloPort } else { Get-ProfileValue $profileData 'primarySiloPort' $effectiveSiloPort }
     $effectiveTcpPort = if ($PSBoundParameters.ContainsKey('TcpPort')) { $TcpPort } else { Get-ProfileValue $profileData 'tcpPort' 4000 }
+    $profileSilos = Get-ProfileSilos $profileData $effectiveSiloPort $effectiveSiloGatewayPort $effectivePrimarySiloPort
 
     $startParams = @{
         InstanceName = Get-ProfileValue $profileData 'instanceName' $profileName
@@ -70,7 +94,9 @@ foreach ($profileName in $Profile) {
         GatewayPort = $effectiveGatewayPort
         SiloPort = $effectiveSiloPort
         SiloGatewayPort = $effectiveSiloGatewayPort
+        PrimarySiloPort = $effectivePrimarySiloPort
         TcpPort = $effectiveTcpPort
+        Silos = $profileSilos
     }
 
     if ($NoCleanup) {

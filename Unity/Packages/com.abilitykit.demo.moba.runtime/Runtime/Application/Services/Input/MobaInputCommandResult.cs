@@ -94,8 +94,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (diagnostics != null)
             {
                 diagnostics.Exception(key, exception, message);
-                diagnostics.Counter("moba.input.command.exception");
+                diagnostics.Counter(MobaBattleDiagnosticMetric.InputCommandException);
                 diagnostics.Counter(key);
+                diagnostics.RecordInputCommandException();
                 return;
             }
 
@@ -115,8 +116,9 @@ namespace AbilityKit.Demo.Moba.Services
             if (diagnostics != null)
             {
                 diagnostics.Warning(key, () => FormatCommandRejectedMessage(frame, in capturedResult));
-                diagnostics.Counter("moba.input.command.rejected");
+                diagnostics.Counter(MobaBattleDiagnosticMetric.InputCommandRejected);
                 diagnostics.Counter(key);
+                diagnostics.RecordInputCommandRejected(result.FailureCode);
                 return;
             }
 
@@ -162,9 +164,10 @@ namespace AbilityKit.Demo.Moba.Services
 
         public static void RecordBatchAccepted(IMobaBattleDiagnosticsService diagnostics, int acceptedCount, int handledCount)
         {
-            diagnostics?.Counter("moba.input.batch.accepted");
-            diagnostics?.Sample("moba.input.batch.accepted.count", acceptedCount);
-            diagnostics?.Sample("moba.input.batch.handled.count", handledCount);
+            diagnostics?.Counter(MobaBattleDiagnosticMetric.InputBatchAccepted);
+            diagnostics?.Sample(MobaBattleDiagnosticMetric.InputBatchAcceptedCount, acceptedCount);
+            diagnostics?.Sample(MobaBattleDiagnosticMetric.InputBatchHandledCount, handledCount);
+            diagnostics?.RecordInputBatchAccepted(acceptedCount, handledCount);
         }
 
         private static string FormatCommandRejectedMessage(FrameIndex frame, in MobaInputCommandResult result)

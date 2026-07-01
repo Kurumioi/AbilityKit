@@ -19,6 +19,25 @@ namespace AbilityKit.Protocol.Room
     }
 
     [MemoryPackable]
+    public partial struct WireRoomAccountLoginReq
+    {
+        [MemoryPackOrder(0)] public string AccountId { get; set; }
+        [MemoryPackOrder(1)] public int ExpireSeconds { get; set; }
+        [MemoryPackOrder(2)] public bool KickExisting { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireRoomAccountLoginRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public string SessionToken { get; set; }
+        [MemoryPackOrder(2)] public string AccountId { get; set; }
+        [MemoryPackOrder(3)] public long ExpireAtUnixMs { get; set; }
+        [MemoryPackOrder(4)] public string KickedSessionToken { get; set; }
+        [MemoryPackOrder(5)] public string Message { get; set; }
+    }
+
+    [MemoryPackable]
     public partial struct WireCreateRoomReq
     {
         [MemoryPackOrder(0)] public string SessionToken { get; set; }

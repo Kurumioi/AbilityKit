@@ -37,8 +37,8 @@ namespace AbilityKit.Demo.Moba.Services
                     summonConfigId,
                     sourceContextId,
                     sourceContextId,
-                    sourceContextId,
-                    sourceContextId,
+                    rootContextId != 0 ? rootContextId : sourceContextId,
+                    ownerContextId != 0 ? ownerContextId : sourceContextId,
                     skillRuntimeHandle);
         }
 
@@ -55,8 +55,8 @@ namespace AbilityKit.Demo.Moba.Services
                     SummonConfigId,
                     SourceContextId,
                     SourceContextId,
-                    SourceContextId,
-                    SourceContextId,
+                    RootContextId != 0 ? RootContextId : SourceContextId,
+                    OwnerContextId != 0 ? OwnerContextId : SourceContextId,
                     SkillRuntimeHandle);
             return origin.IsValid;
         }

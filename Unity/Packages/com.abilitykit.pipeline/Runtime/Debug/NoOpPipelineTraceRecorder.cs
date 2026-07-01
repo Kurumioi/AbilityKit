@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace AbilityKit.Pipeline
 {
     /// <summary>
@@ -29,6 +32,14 @@ namespace AbilityKit.Pipeline
         {
             return NoOpPipelineRunTrace.Instance;
         }
+
+        /// <summary>
+        /// 获取指定拥有者的追踪快照。
+        /// </summary>
+        public IReadOnlyList<PipelineTraceEvent> GetSnapshot(int ownerId)
+        {
+            return Array.Empty<PipelineTraceEvent>();
+        }
     }
 
     /// <summary>
@@ -56,6 +67,14 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public void Add(EPipelineTraceEventType type, AbilityPipelinePhaseId phaseId, EAbilityPipelineState state, string message)
         {
+        }
+
+        /// <summary>
+        /// 获取当前追踪记录快照。
+        /// </summary>
+        public IReadOnlyList<PipelineTraceEvent> GetSnapshot()
+        {
+            return Array.Empty<PipelineTraceEvent>();
         }
     }
 }

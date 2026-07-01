@@ -9,6 +9,7 @@ using AbilityKit.Effect;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;
 
@@ -114,6 +115,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IMobaBattleDiagnosticsService _diagnostics;
         private readonly IMobaBattleExceptionPolicy _exceptions;
         private readonly ISkillLogger _logger;
+        private readonly PipelineRuntime _pipelineRuntime;
         private readonly List<Entry> _running = new List<Entry>(4);
         private readonly List<RunningSnapshot> _ended = new List<RunningSnapshot>(2);
 
@@ -127,6 +129,9 @@ namespace AbilityKit.Demo.Moba.Services
             _diagnostics = diagnostics;
             _exceptions = exceptions;
             _logger = logger ?? SkillLogger.Instance;
+            _pipelineRuntime = diagnostics != null
+                ? new PipelineRuntime(traceRecorder: new MobaPipelineDiagnosticsRecorder(diagnostics))
+                : null;
         }
 
         public int ActorId => _actorId;
@@ -318,22 +323,22 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 else
                 {
-                    return RejectStart(in request, triggerContext, "skill.start.alreadyRunning", "Skill is already running.", out failReason);
+                    return RejectStart(in request, triggerContext, SkillFailureCodes.Start.AlreadyRunning, "Skill is already running.", out failReason);
                 }
             }
 
             if (triggerContext == null)
             {
-                return RejectStart(in request, null, "skill.start.contextMissing", "Skill cast context is required.", out failReason);
+                return RejectStart(in request, null, SkillFailureCodes.Start.ContextMissing, "Skill cast context is required.", out failReason);
             }
 
             if (castConfig == null)
             {
-                return RejectStart(in request, triggerContext, "skill.start.castConfigMissing", "Skill cast pipeline config is missing.", out failReason);
+                return RejectStart(in request, triggerContext, SkillFailureCodes.Start.CastConfigMissing, "Skill cast pipeline config is missing.", out failReason);
             }
             if (castPhases == null || castPhases.Count == 0)
             {
-                return RejectStart(in request, triggerContext, "skill.start.castPhasesMissing", "Skill cast pipeline phases are missing.", out failReason);
+                return RejectStart(in request, triggerContext, SkillFailureCodes.Start.CastPhasesMissing, "Skill cast pipeline phases are missing.", out failReason);
             }
 
             _logger.LogSkillStart(
@@ -360,7 +365,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var ft = request.WorldServices != null ? request.WorldServices.Resolve<IFrameTime>() : null;
                 if (ft == null)
                 {
-                    return RejectStart(in request, triggerContext, "skill.start.frameTimeMissing", "IFrameTime is required to start skill pipeline.", out failReason);
+                    return RejectStart(in request, triggerContext, SkillFailureCodes.Start.FrameTimeMissing, "IFrameTime is required to start skill pipeline.", out failReason);
                 }
 
                 entry.StartFrame = ft.Frame.Value;
@@ -369,7 +374,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 const string message = "Failed to resolve skill pipeline start frame.";
                 Log.Exception(ex, $"[SkillPipelineRunner] {message} actor={request.CasterActorId} skillId={request.SkillId}");
-                return RejectStart(in request, triggerContext, "skill.start.frameResolveFailed", message, out failReason);
+                return RejectStart(in request, triggerContext, SkillFailureCodes.Start.FrameResolveFailed, message, out failReason);
             }
 
             // 如果没有 PreCast，直接进入 Cast。
@@ -406,7 +411,7 @@ namespace AbilityKit.Demo.Moba.Services
         private bool StartPreCast(ref Entry entry)
         {
             entry.Stage = EntryStage.PreCast;
-            entry.Pipeline = new SkillCastPipeline();
+            entry.Pipeline = CreatePipeline();
             for (int i = 0; i < entry.PreCastPhases.Count; i++)
             {
                 entry.Pipeline.AddPhase(entry.PreCastPhases[i]);
@@ -415,6 +420,7 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(entry.StartFrame);
+            TryBeginPhaseTrace(ref entry);
             entry.Run = entry.Pipeline.Start(entry.PreCastConfig, entry.Context);
 
             var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
@@ -429,16 +435,18 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 _logger.LogSkillStage(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, "PreCast", "Completed");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
+                TryEndPhaseTrace(ref entry, TraceLifecycleReason.Completed);
                 RunCleanups(in entry, "precast.complete.immediate");
                 // 立即衔接到 Cast。
                 return StartCast(ref entry);
             }
 
-            entry.FailReason = TryGetFailReason(entry);
-            MarkPipelineFailure(ref entry, "skill.pipeline.preCastFailed", entry.FailReason);
+            entry.FailReason = TryGetFailReason(entry) ?? $"PreCast state={state}";
+            MarkPipelineFailure(ref entry, SkillFailureCodes.Pipeline.PreCastFailed, entry.FailReason);
             _logger.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"PreCastFailed: {entry.FailReason}");
             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastFail, entry.TriggerContext, entry.FailReason);
 
+            TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
             TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
             RunCleanups(in entry, "precast.failed.immediate");
             return false;
@@ -447,7 +455,7 @@ namespace AbilityKit.Demo.Moba.Services
         private bool StartCast(ref Entry entry)
         {
             entry.Stage = EntryStage.Cast;
-            entry.Pipeline = new SkillCastPipeline();
+            entry.Pipeline = CreatePipeline();
             for (int i = 0; i < entry.CastPhases.Count; i++)
             {
                 entry.Pipeline.AddPhase(entry.CastPhases[i]);
@@ -456,6 +464,8 @@ namespace AbilityKit.Demo.Moba.Services
             entry.Context = new SkillPipelineContext();
             entry.Context.Initialize(entry.AbilityInstance, in entry.Request, entry.TriggerContext);
             entry.Context.SetFrame(ResolveCurrentFrame(in entry, entry.StartFrame));
+            TryBindPipelineContinuous(ref entry);
+            TryBeginPhaseTrace(ref entry);
             entry.Run = entry.Pipeline.Start(entry.CastConfig, entry.Context);
 
             var instanceId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
@@ -473,11 +483,12 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (state != EAbilityPipelineState.Completed)
             {
-                entry.FailReason = TryGetFailReason(entry);
-                MarkPipelineFailure(ref entry, "skill.pipeline.castFailed", entry.FailReason);
+                entry.FailReason = TryGetFailReason(entry) ?? $"Cast state={state}";
+                MarkPipelineFailure(ref entry, SkillFailureCodes.Pipeline.CastFailed, entry.FailReason);
                 _logger.LogSkillFail(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, $"CastFailed: {entry.FailReason}");
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
 
+                TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
                 TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
             }
             else
@@ -485,12 +496,42 @@ namespace AbilityKit.Demo.Moba.Services
                 _logger.LogSkillComplete(entry.TriggerContext.CasterActorId, entry.TriggerContext.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                 MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
+                TryEndPhaseTrace(ref entry, TraceLifecycleReason.Completed);
                 TryEndTraceContext(entry, TraceLifecycleReason.Completed);
             }
 
             RunCleanups(in entry, state == EAbilityPipelineState.Completed ? "cast.complete.immediate" : "cast.failed.immediate");
 
             return state == EAbilityPipelineState.Completed;
+        }
+
+        private static void TryBindPipelineContinuous(ref Entry entry)
+        {
+            var context = entry.Context;
+            if (context == null) return;
+            if (!(entry.CastConfig is MobaSkillPipelineConfig config) || !config.HasPipelineContinuousTagTemplate) return;
+
+            var failContext = $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, config={config.ConfigId}, tagTemplate={config.PipelineContinuousTagTemplateId}";
+            var registry = SafeResolve<IMobaContinuousTagTemplateRegistry>(in entry, failContext);
+            if (registry == null) return;
+
+            if (!registry.TryGet(config.PipelineContinuousTagTemplateId, out var requirements) || requirements == null)
+            {
+                Log.Warning($"[SkillPipelineRunner] pipeline continuous tag template missing. {failContext}");
+                return;
+            }
+
+            var continuous = SafeResolve<IContinuousManager>(in entry, failContext);
+            if (continuous == null) return;
+
+            var runtime = new SkillPipelineContinuousRuntime(context, config, requirements);
+            if (!continuous.TryActivate(runtime))
+            {
+                Log.Warning($"[SkillPipelineRunner] pipeline continuous activation failed. actor={context.CasterActorId} skillId={context.SkillId} configId={config.ConfigId} tagTemplateId={config.PipelineContinuousTagTemplateId}");
+                return;
+            }
+
+            context.RegisterCleanup(() => continuous.TryEnd(runtime, ContinuousEndReason.Completed));
         }
 
         private static int ReadNextEventIndex(SkillPipelineContext context)
@@ -594,6 +635,53 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        private static void TryBeginPhaseTrace(ref Entry entry)
+        {
+            TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
+
+            var rootId = entry.TriggerContext != null ? entry.TriggerContext.SourceContextId : 0L;
+            if (rootId == 0) return;
+
+            var trace = SafeResolve<MobaTraceRegistry>(in entry, $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, rootId={rootId}, stage={GetStageName(entry.Stage)}");
+            if (trace == null) return;
+
+            try
+            {
+                entry.PhaseTraceContextId = trace.CreateChildContext(
+                    rootId,
+                    MobaTraceKind.SkillPhase,
+                    entry.Request.SkillId,
+                    entry.Request.CasterActorId,
+                    entry.Request.TargetActorId,
+                    TraceEndpoint.Config(MobaRuntimeKindNames.SkillPipeline, entry.Request.SkillId),
+                    TraceEndpoint.Actor(entry.Request.TargetActorId));
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[SkillPipelineRunner] Trace.CreateChildContext failed (rootId={rootId}, actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, stage={GetStageName(entry.Stage)})");
+                entry.PhaseTraceContextId = 0L;
+            }
+        }
+
+        private static void TryEndPhaseTrace(ref Entry entry, TraceLifecycleReason reason)
+        {
+            var phaseContextId = entry.PhaseTraceContextId;
+            if (phaseContextId == 0) return;
+
+            entry.PhaseTraceContextId = 0L;
+            var trace = SafeResolve<MobaTraceRegistry>(in entry, $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}, phaseContextId={phaseContextId}, reason={reason}");
+            if (trace == null) return;
+
+            try
+            {
+                trace.EndContext(phaseContextId, reason);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[SkillPipelineRunner] Trace.EndContext failed (phaseContextId={phaseContextId}, reason={reason})");
+            }
+        }
+
         private static MobaSkillRuntimeEndReason ToRuntimeEndReason(TraceLifecycleReason reason)
         {
             switch (reason)
@@ -660,6 +748,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                 p?.Interrupt();
 
+                TryEndPhaseTrace(ref e, TraceLifecycleReason.Cancelled);
                 TryEndTraceContext(e, TraceLifecycleReason.Cancelled);
 
                 RunCleanups(e.Context, "cancelAll");
@@ -722,7 +811,9 @@ namespace AbilityKit.Demo.Moba.Services
 
             p?.Interrupt();
             TryCancelSkillRuntime(in e, MobaSkillRuntimeEndReason.Cancelled);
-            TryEndTraceContext(e, TraceLifecycleReason.Cancelled);
+            var entry = e;
+            TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
+            TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
 
             RunCleanups(e.Context, reason);
             TryAddEndedSnapshot(in e, SkillCastStage.Cancelled);
@@ -766,6 +857,7 @@ namespace AbilityKit.Demo.Moba.Services
                     {
                         _logger.LogSkillStage(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, "PreCast", "Completed_ChainingToCast");
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.PreCastComplete, entry.TriggerContext);
+                        TryEndPhaseTrace(ref entry, TraceLifecycleReason.Completed);
                         RunCleanups(entry.Context, "precast.complete");
                         // 衔接到 Cast。
                         if (StartCast(ref entry) && entry.Run != null && entry.Run.State == EAbilityPipelineState.Executing)
@@ -799,6 +891,7 @@ namespace AbilityKit.Demo.Moba.Services
                         _logger.LogSkillComplete(entry.Context.CasterActorId, entry.Context.SkillId, instanceId, (int)(entry.Context.ElapsedTime * 1000f));
                         MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastComplete, entry.TriggerContext);
 
+                        TryEndPhaseTrace(ref entry, TraceLifecycleReason.Completed);
                         TryEndTraceContext(entry, TraceLifecycleReason.Completed);
 
                         RunCleanups(entry.Context, "cast.complete");
@@ -808,8 +901,8 @@ namespace AbilityKit.Demo.Moba.Services
 
                     if (p.State != EAbilityPipelineState.Completed)
                     {
-                        entry.FailReason = entry.FailReason ?? TryGetFailReason(entry);
-                        MarkPipelineFailure(ref entry, entry.Stage == EntryStage.PreCast ? "skill.pipeline.preCastFailed" : "skill.pipeline.castFailed", entry.FailReason);
+                        entry.FailReason = entry.FailReason ?? TryGetFailReason(entry) ?? $"{GetStageName(entry.Stage)} state={p.State}";
+                        MarkPipelineFailure(ref entry, entry.Stage == EntryStage.PreCast ? SkillFailureCodes.Pipeline.PreCastFailed : SkillFailureCodes.Pipeline.CastFailed, entry.FailReason);
                         LastFailReason = entry.FailReason;
                         LastPipelineFailure = entry.PipelineFailure;
 
@@ -825,6 +918,7 @@ namespace AbilityKit.Demo.Moba.Services
                             MobaSkillTriggering.Publish(MobaSkillTriggering.Events.CastFail, entry.TriggerContext, entry.FailReason);
                         }
 
+                        TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
                         TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
 
                         RunCleanups(entry.Context, "pipeline.failed");
@@ -838,11 +932,15 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
 
-            if (diagnostics != null)
+            if (diagnostics != null && diagnostics.IsEnabled(MobaBattleDiagnosticChannel.SkillRunner))
             {
-                diagnostics.Sample("moba.skill.runner.running", runningAtStart);
-                diagnostics.Sample("moba.skill.runner.ticked", ticked);
-                diagnostics.Sample("moba.skill.runner.ended", ended);
+                if (diagnostics.ShouldSample(MobaBattleDiagnosticChannel.SkillRunner))
+                {
+                    diagnostics.Sample(MobaBattleDiagnosticMetric.SkillRunnerRunning, runningAtStart);
+                    diagnostics.Sample(MobaBattleDiagnosticMetric.SkillRunnerTicked, ticked);
+                    diagnostics.Sample(MobaBattleDiagnosticMetric.SkillRunnerEnded, ended);
+                }
+
                 diagnostics.RecordDuration(
                     MobaBattleDiagnosticMetric.SkillRunnerStep,
                     start,
@@ -858,7 +956,8 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
-                ReportCleanupException(_exceptions, _diagnostics, ex, _actorId, context != null ? context.SkillId : 0, context != null ? context.RuntimeId : 0L, reason);
+                var runtimeHandle = context != null ? context.RuntimeHandle : default;
+                ReportCleanupException(_exceptions, _diagnostics, ex, _actorId, context != null ? context.SkillId : 0, context != null ? context.RuntimeId : 0L, context != null ? context.SourceContextId : 0L, runtimeHandle, reason);
             }
         }
 
@@ -875,7 +974,9 @@ namespace AbilityKit.Demo.Moba.Services
                 var actorId = entry.Context != null ? entry.Context.CasterActorId : entry.Request.CasterActorId;
                 var skillId = entry.Context != null ? entry.Context.SkillId : entry.Request.SkillId;
                 var runtimeId = entry.Context != null ? entry.Context.RuntimeId : 0L;
-                ReportCleanupException(exceptions, diagnostics, ex, actorId, skillId, runtimeId, reason);
+                var sourceContextId = entry.Context != null ? entry.Context.SourceContextId : entry.TriggerContext?.SourceContextId ?? 0L;
+                var runtimeHandle = entry.Context != null ? entry.Context.RuntimeHandle : entry.TriggerContext != null ? entry.TriggerContext.RuntimeHandle : default;
+                ReportCleanupException(exceptions, diagnostics, ex, actorId, skillId, runtimeId, sourceContextId, runtimeHandle, reason);
             }
         }
 
@@ -889,7 +990,7 @@ namespace AbilityKit.Demo.Moba.Services
             return SafeResolve<IMobaBattleDiagnosticsService>(in entry, $"actor={entry.Request.CasterActorId}, skill={entry.Request.SkillId}");
         }
 
-        private static void ReportCleanupException(IMobaBattleExceptionPolicy exceptions, IMobaBattleDiagnosticsService diagnostics, Exception ex, int actorId, int skillId, long runtimeId, string reason)
+        private static void ReportCleanupException(IMobaBattleExceptionPolicy exceptions, IMobaBattleDiagnosticsService diagnostics, Exception ex, int actorId, int skillId, long runtimeId, long sourceContextId, MobaSkillCastRuntimeHandle runtimeHandle, string reason)
         {
             if (exceptions != null)
             {
@@ -901,16 +1002,27 @@ namespace AbilityKit.Demo.Moba.Services
                         actorId: actorId,
                         skillId: skillId,
                         runtimeId: runtimeId,
-                        detail: "reason=" + reason),
+                        detail: "reason=" + reason,
+                        rootContextId: runtimeHandle.RootTraceContextId,
+                        sourceContextId: sourceContextId,
+                        runtimeHandle: runtimeHandle),
                     MobaBattleExceptionSeverity.Recoverable);
             }
             else if (diagnostics != null)
             {
+                var diagnosticContext = new MobaBattleDiagnosticContext(
+                    runtimeHandle.RootTraceContextId,
+                    sourceContextId,
+                    runtimeHandle,
+                    actorId,
+                    skillId,
+                    "reason=" + reason);
                 diagnostics.Exception(
                     "skill.runner.cleanup",
                     ex,
-                    $"Skill cleanup failed. actor={actorId} reason={reason}");
-                diagnostics.Counter("moba.skill.runner.cleanupExceptions");
+                    $"Skill cleanup failed. actor={actorId} reason={reason}",
+                    in diagnosticContext);
+                diagnostics.Counter(MobaBattleDiagnosticMetric.SkillRunnerCleanupExceptions);
             }
             else
             {
@@ -924,6 +1036,17 @@ namespace AbilityKit.Demo.Moba.Services
             if (GetInstanceId(in e) == 0L) return;
 
             _ended.Add(CreateSnapshot(in e, terminalStage));
+        }
+
+        private SkillCastPipeline CreatePipeline()
+        {
+            var pipeline = new SkillCastPipeline();
+            if (_pipelineRuntime != null)
+            {
+                pipeline.Runtime = _pipelineRuntime;
+            }
+
+            return pipeline;
         }
 
         private static SkillCastStage ToSkillCastStage(EntryStage stage)
@@ -971,6 +1094,7 @@ namespace AbilityKit.Demo.Moba.Services
             public SkillPipelineContext Context;
             public string FailReason;
             public SkillPipelineFailure PipelineFailure;
+            public long PhaseTraceContextId;
 
             public int StartFrame;
 
@@ -997,6 +1121,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Context = null;
                 FailReason = null;
                 PipelineFailure = SkillPipelineFailure.None;
+                PhaseTraceContextId = 0L;
 
                 StartFrame = 0;
                 PreCastConfig = preCastConfig;

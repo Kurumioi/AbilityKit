@@ -50,6 +50,11 @@ namespace AbilityKit.Demo.Moba.Services
                 return new MobaSkillCastFailure("StartReject", null, startReject.Value.Code, startReject.Value.Message ?? failReason);
             }
 
+            if (runner != null && !string.IsNullOrEmpty(runner.LastFailReason))
+            {
+                return new MobaSkillCastFailure("StartReject", null, SkillFailureCodes.Start.Rejected, runner.LastFailReason);
+            }
+
             return MobaSkillCastFailure.None;
         }
 
@@ -61,6 +66,11 @@ namespace AbilityKit.Demo.Moba.Services
                 return new MobaSkillCastFailure("Pipeline", pipelineFailure.Value.Stage, pipelineFailure.Value.Code, pipelineFailure.Value.Message ?? failReason);
             }
 
+            if (runner != null && !string.IsNullOrEmpty(runner.LastFailReason))
+            {
+                return new MobaSkillCastFailure("Pipeline", null, SkillFailureCodes.Pipeline.Failed, runner.LastFailReason);
+            }
+
             return MobaSkillCastFailure.None;
         }
 
@@ -68,7 +78,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return string.IsNullOrEmpty(failReason)
                 ? MobaSkillCastFailure.None
-                : new MobaSkillCastFailure("Unknown", null, "skill.cast.failed", failReason);
+                : new MobaSkillCastFailure("Unknown", null, SkillFailureCodes.Cast.Failed, failReason);
         }
     }
 }

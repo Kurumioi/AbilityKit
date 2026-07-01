@@ -13,12 +13,6 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(IMobaSnapshotHealthProvider))]
     public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IMobaSnapshotBatchProvider, IMobaSnapshotHealthProvider, IWorldInitializable
     {
-        private const string MetricRequest = "moba.snapshot.request";
-        private const string MetricBatchRequest = "moba.snapshot.batch.request";
-        private const string MetricHit = "moba.snapshot.hit";
-        private const string MetricEmpty = "moba.snapshot.empty";
-        private const string MetricEmitterCount = "moba.snapshot.emitters";
-        private const string MetricBatchSize = "moba.snapshot.batch.size";
         private const string WarningNoEmitters = "snapshot.no.emitters";
 
         private List<IMobaSnapshotEmitter> _emitters;
@@ -64,7 +58,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _singleRequests++;
             _lastFrame = frame.Value;
-            _diagnostics?.Counter(MetricRequest);
+            _diagnostics?.Counter(MobaBattleDiagnosticMetric.SnapshotRequest);
 
             for (int i = 0; i < _emitters.Count; i++)
             {
@@ -83,7 +77,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             _batchRequests++;
             _lastFrame = frame.Value;
-            _diagnostics?.Counter(MetricBatchRequest);
+            _diagnostics?.Counter(MobaBattleDiagnosticMetric.SnapshotBatchRequest);
 
             if (snapshots == null)
             {
@@ -116,7 +110,9 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var requiredCount = _outputContract != null ? _outputContract.RequiredEmitters.Count : 0;
             var missingCount = _missingRequiredEmitters != null ? _missingRequiredEmitters.Count : 0;
-            return new MobaSnapshotRouterHealth(_emitters.Count, requiredCount, missingCount, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries, _missingRequiredEmitters);
+            var health = new MobaSnapshotRouterHealth(_emitters.Count, requiredCount, missingCount, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries, _missingRequiredEmitters);
+            _diagnostics?.RecordSnapshotRouterHealth(in health);
+            return health;
         }
 
         private void RecordHit(int opCode, int batchCount)
@@ -124,15 +120,17 @@ namespace AbilityKit.Demo.Moba.Services
             _hitCount++;
             _lastSnapshotOpCode = opCode;
             _lastBatchSnapshotCount = batchCount;
-            _diagnostics?.Counter(MetricHit);
-            _diagnostics?.Gauge(MetricBatchSize, batchCount);
+            _diagnostics?.Counter(MobaBattleDiagnosticMetric.SnapshotHit);
+            _diagnostics?.Gauge(MobaBattleDiagnosticMetric.SnapshotBatchSize, batchCount);
+            RecordSnapshotHealth();
         }
 
         private void RecordEmpty()
         {
             _emptyCount++;
             _lastBatchSnapshotCount = 0;
-            _diagnostics?.Counter(MetricEmpty);
+            _diagnostics?.Counter(MobaBattleDiagnosticMetric.SnapshotEmpty);
+            RecordSnapshotHealth();
         }
 
         private void RebuildEmitterHealthEntries()
@@ -180,11 +178,22 @@ namespace AbilityKit.Demo.Moba.Services
         private void RecordEmitterCount()
         {
             var count = _emitters != null ? _emitters.Count : 0;
-            _diagnostics?.Gauge(MetricEmitterCount, count);
+            _diagnostics?.Gauge(MobaBattleDiagnosticMetric.SnapshotEmitterCount, count);
+            RecordSnapshotHealth();
             if (count == 0)
             {
                 _diagnostics?.Warning(WarningNoEmitters, "[MobaSnapshotRouter] No snapshot emitters resolved; battle state output will be empty.");
             }
+        }
+ 
+        private void RecordSnapshotHealth()
+        {
+            if (_diagnostics == null) return;
+
+            var requiredCount = _outputContract != null ? _outputContract.RequiredEmitters.Count : 0;
+            var missingCount = _missingRequiredEmitters != null ? _missingRequiredEmitters.Count : 0;
+            var health = new MobaSnapshotRouterHealth(_emitters.Count, requiredCount, missingCount, _singleRequests, _batchRequests, _hitCount, _emptyCount, _lastFrame, _lastSnapshotOpCode, _lastBatchSnapshotCount, _usedAttributeRegistry, _emitterHealthEntries, _missingRequiredEmitters);
+            _diagnostics.RecordSnapshotRouterHealth(in health);
         }
  
         public void Dispose()

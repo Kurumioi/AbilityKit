@@ -5,6 +5,7 @@ using AbilityKit.Triggering.Runtime.ActionScheduler;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
+using AbilityKit.Triggering.Runtime.Schedule.Data;
 
 namespace AbilityKit.Triggering.Runtime.Pooling
 {
@@ -23,6 +24,12 @@ namespace AbilityKit.Triggering.Runtime.Pooling
         private static readonly PoolKey QueuedExecutorKey = new PoolKey("triggering.action-executor.queued");
         private static readonly PoolKey RetryExecutorKey = new PoolKey("triggering.action-executor.retry");
         private static readonly PoolKey ScheduleToBehaviorContextAdapterKey = new PoolKey("triggering.schedule.behavior-context-adapter");
+        private static readonly PoolKey IntListKey = new PoolKey("triggering.temp.int-list");
+        private static readonly PoolKey IntHashSetKey = new PoolKey("triggering.temp.int-hashset");
+        private static readonly PoolKey ScheduleItemListKey = new PoolKey("triggering.temp.schedule-item-list");
+        private static readonly PoolKey ScheduleEffectListKey = new PoolKey("triggering.temp.schedule-effect-list");
+        private static readonly PoolKey ScheduleEffectCallbackListKey = new PoolKey("triggering.temp.schedule-effect-callback-list");
+        private static readonly PoolKey InstanceKeyListKey = new PoolKey("triggering.temp.instance-key-list");
 
         private readonly bool _ownsScope;
         private bool _disposed;
@@ -58,10 +65,22 @@ namespace AbilityKit.Triggering.Runtime.Pooling
             GetScheduleToBehaviorContextAdapterPool().Prewarm(Profile.ScheduleAdapterPrewarmCount);
         }
 
+        public void PrewarmTemporaryCollections()
+        {
+            ThrowIfDisposed();
+            GetIntListPool().Prewarm(Profile.IntListPrewarmCount);
+            GetIntHashSetPool().Prewarm(Profile.IntHashSetPrewarmCount);
+            GetScheduleItemListPool().Prewarm(Profile.ScheduleItemListPrewarmCount);
+            GetScheduleEffectListPool().Prewarm(Profile.ScheduleEffectListPrewarmCount);
+            GetScheduleEffectCallbackListPool().Prewarm(Profile.ScheduleEffectCallbackListPrewarmCount);
+            GetInstanceKeyListPool().Prewarm(Profile.InstanceKeyListPrewarmCount);
+        }
+
         public void PrewarmAll()
         {
             PrewarmActionScheduler();
             PrewarmScheduleAdapters();
+            PrewarmTemporaryCollections();
         }
 
         public int TrimAll()
@@ -158,6 +177,102 @@ namespace AbilityKit.Triggering.Runtime.Pooling
             GetScheduleToBehaviorContextAdapterPool().Release(adapter);
         }
 
+        internal List<int> RentIntList()
+        {
+            ThrowIfDisposed();
+            var list = GetIntListPool().Get();
+            list.Clear();
+            return list;
+        }
+
+        internal void ReleaseIntList(List<int> list)
+        {
+            if (list == null) return;
+            ThrowIfDisposed();
+            list.Clear();
+            GetIntListPool().Release(list);
+        }
+
+        internal HashSet<int> RentIntHashSet()
+        {
+            ThrowIfDisposed();
+            var set = GetIntHashSetPool().Get();
+            set.Clear();
+            return set;
+        }
+
+        internal void ReleaseIntHashSet(HashSet<int> set)
+        {
+            if (set == null) return;
+            ThrowIfDisposed();
+            set.Clear();
+            GetIntHashSetPool().Release(set);
+        }
+
+        internal List<ScheduleItemData> RentScheduleItemList()
+        {
+            ThrowIfDisposed();
+            var list = GetScheduleItemListPool().Get();
+            list.Clear();
+            return list;
+        }
+
+        internal void ReleaseScheduleItemList(List<ScheduleItemData> list)
+        {
+            if (list == null) return;
+            ThrowIfDisposed();
+            list.Clear();
+            GetScheduleItemListPool().Release(list);
+        }
+
+        internal List<IScheduleEffect> RentScheduleEffectList()
+        {
+            ThrowIfDisposed();
+            var list = GetScheduleEffectListPool().Get();
+            list.Clear();
+            return list;
+        }
+
+        internal void ReleaseScheduleEffectList(List<IScheduleEffect> list)
+        {
+            if (list == null) return;
+            ThrowIfDisposed();
+            list.Clear();
+            GetScheduleEffectListPool().Release(list);
+        }
+
+        internal List<IScheduleEffectCallbacks> RentScheduleEffectCallbackList()
+        {
+            ThrowIfDisposed();
+            var list = GetScheduleEffectCallbackListPool().Get();
+            list.Clear();
+            return list;
+        }
+
+        internal void ReleaseScheduleEffectCallbackList(List<IScheduleEffectCallbacks> list)
+        {
+            if (list == null) return;
+            ThrowIfDisposed();
+            list.Clear();
+            GetScheduleEffectCallbackListPool().Release(list);
+        }
+
+        internal List<(int, int)> RentInstanceKeyList()
+        {
+            ThrowIfDisposed();
+            var list = GetInstanceKeyListPool().Get();
+            list.Clear();
+            return list;
+        }
+
+        internal void ReleaseInstanceKeyList(List<(int, int)> list)
+        {
+            if (list == null) return;
+            ThrowIfDisposed();
+            list.Clear();
+            GetInstanceKeyListPool().Release(list);
+        }
+
         internal void ReleaseActionExecutor(IActionExecutor executor)
         {
             if (executor == null) return;
@@ -228,6 +343,36 @@ namespace AbilityKit.Triggering.Runtime.Pooling
             return Scope.GetPool(ScheduleToBehaviorContextAdapterKey, () => new ScheduleToBehaviorContextAdapter(), Profile.ScheduleAdapterConfig);
         }
 
+        private ObjectPool<List<int>> GetIntListPool()
+        {
+            return Scope.GetPool(IntListKey, () => new List<int>(16), Profile.IntListConfig);
+        }
+
+        private ObjectPool<HashSet<int>> GetIntHashSetPool()
+        {
+            return Scope.GetPool(IntHashSetKey, () => new HashSet<int>(), Profile.IntHashSetConfig);
+        }
+
+        private ObjectPool<List<ScheduleItemData>> GetScheduleItemListPool()
+        {
+            return Scope.GetPool(ScheduleItemListKey, () => new List<ScheduleItemData>(16), Profile.ScheduleItemListConfig);
+        }
+
+        private ObjectPool<List<IScheduleEffect>> GetScheduleEffectListPool()
+        {
+            return Scope.GetPool(ScheduleEffectListKey, () => new List<IScheduleEffect>(16), Profile.ScheduleEffectListConfig);
+        }
+
+        private ObjectPool<List<IScheduleEffectCallbacks>> GetScheduleEffectCallbackListPool()
+        {
+            return Scope.GetPool(ScheduleEffectCallbackListKey, () => new List<IScheduleEffectCallbacks>(16), Profile.ScheduleEffectCallbackListConfig);
+        }
+
+        private ObjectPool<List<(int, int)>> GetInstanceKeyListPool()
+        {
+            return Scope.GetPool(InstanceKeyListKey, () => new List<(int, int)>(16), Profile.InstanceKeyListConfig);
+        }
+
         private void ThrowIfDisposed()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(TriggeringRuntimePools));
@@ -246,13 +391,25 @@ namespace AbilityKit.Triggering.Runtime.Pooling
         public readonly PoolItemConfig QueuedExecutorConfig;
         public readonly PoolItemConfig RetryExecutorConfig;
         public readonly PoolItemConfig ScheduleAdapterConfig;
+        public readonly PoolItemConfig IntListConfig;
+        public readonly PoolItemConfig IntHashSetConfig;
+        public readonly PoolItemConfig ScheduleItemListConfig;
+        public readonly PoolItemConfig ScheduleEffectListConfig;
+        public readonly PoolItemConfig ScheduleEffectCallbackListConfig;
+        public readonly PoolItemConfig InstanceKeyListConfig;
 
         public TriggeringPoolProfile(
             PoolItemConfig actionInstanceConfig,
             PoolItemConfig defaultExecutorConfig,
             PoolItemConfig queuedExecutorConfig,
             PoolItemConfig retryExecutorConfig,
-            PoolItemConfig scheduleAdapterConfig)
+            PoolItemConfig scheduleAdapterConfig,
+            PoolItemConfig intListConfig,
+            PoolItemConfig intHashSetConfig,
+            PoolItemConfig scheduleItemListConfig,
+            PoolItemConfig scheduleEffectListConfig,
+            PoolItemConfig scheduleEffectCallbackListConfig,
+            PoolItemConfig instanceKeyListConfig)
         {
             _specified = true;
             ActionInstanceConfig = actionInstanceConfig;
@@ -260,6 +417,12 @@ namespace AbilityKit.Triggering.Runtime.Pooling
             QueuedExecutorConfig = queuedExecutorConfig;
             RetryExecutorConfig = retryExecutorConfig;
             ScheduleAdapterConfig = scheduleAdapterConfig;
+            IntListConfig = intListConfig;
+            IntHashSetConfig = intHashSetConfig;
+            ScheduleItemListConfig = scheduleItemListConfig;
+            ScheduleEffectListConfig = scheduleEffectListConfig;
+            ScheduleEffectCallbackListConfig = scheduleEffectCallbackListConfig;
+            InstanceKeyListConfig = instanceKeyListConfig;
         }
 
         public bool IsSpecified => _specified;
@@ -269,19 +432,37 @@ namespace AbilityKit.Triggering.Runtime.Pooling
         public int QueuedExecutorPrewarmCount => QueuedExecutorConfig.PrewarmCount;
         public int RetryExecutorPrewarmCount => RetryExecutorConfig.PrewarmCount;
         public int ScheduleAdapterPrewarmCount => ScheduleAdapterConfig.PrewarmCount;
+        public int IntListPrewarmCount => IntListConfig.PrewarmCount;
+        public int IntHashSetPrewarmCount => IntHashSetConfig.PrewarmCount;
+        public int ScheduleItemListPrewarmCount => ScheduleItemListConfig.PrewarmCount;
+        public int ScheduleEffectListPrewarmCount => ScheduleEffectListConfig.PrewarmCount;
+        public int ScheduleEffectCallbackListPrewarmCount => ScheduleEffectCallbackListConfig.PrewarmCount;
+        public int InstanceKeyListPrewarmCount => InstanceKeyListConfig.PrewarmCount;
 
         public static TriggeringPoolProfile Default => new TriggeringPoolProfile(
             PoolItemConfig.Default(defaultCapacity: 32, maxSize: 4096, prewarmCount: 32),
             PoolItemConfig.Default(defaultCapacity: 32, maxSize: 4096, prewarmCount: 32),
             PoolItemConfig.Default(defaultCapacity: 8, maxSize: 1024, prewarmCount: 8),
             PoolItemConfig.Default(defaultCapacity: 8, maxSize: 1024, prewarmCount: 8),
-            PoolItemConfig.Default(defaultCapacity: 32, maxSize: 4096, prewarmCount: 32));
+            PoolItemConfig.Default(defaultCapacity: 32, maxSize: 4096, prewarmCount: 32),
+            PoolItemConfig.Default(defaultCapacity: 32, maxSize: 4096, prewarmCount: 32),
+            PoolItemConfig.Default(defaultCapacity: 16, maxSize: 2048, prewarmCount: 16),
+            PoolItemConfig.Default(defaultCapacity: 16, maxSize: 2048, prewarmCount: 16),
+            PoolItemConfig.Default(defaultCapacity: 16, maxSize: 2048, prewarmCount: 16),
+            PoolItemConfig.Default(defaultCapacity: 16, maxSize: 2048, prewarmCount: 16),
+            PoolItemConfig.Default(defaultCapacity: 16, maxSize: 2048, prewarmCount: 16));
 
         public static TriggeringPoolProfile Small => new TriggeringPoolProfile(
             PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
             PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
             PoolItemConfig.Default(defaultCapacity: 2, maxSize: 128, prewarmCount: 2),
             PoolItemConfig.Default(defaultCapacity: 2, maxSize: 128, prewarmCount: 2),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
+            PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4),
             PoolItemConfig.Default(defaultCapacity: 4, maxSize: 256, prewarmCount: 4));
     }
 }

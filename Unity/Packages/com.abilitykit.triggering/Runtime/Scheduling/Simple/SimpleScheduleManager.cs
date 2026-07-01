@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Pooling;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;
 
@@ -20,10 +21,13 @@ namespace AbilityKit.Triggering.Runtime.Schedule
     {
         // ===== 存储 =====
 
+        private static readonly TriggeringRuntimePools SharedPools = TriggeringRuntimePools.CreateDefault("triggering-simple-schedule-temporary");
+
         private readonly List<ScheduleItemData> _items = new();
         private readonly List<IScheduleEffect> _effects = new();
         private readonly List<IScheduleEffectCallbacks> _callbacks = new();
         private readonly Dictionary<int, int> _indexByHandleId = new();
+        private readonly TriggeringRuntimePools _pools;
         private int _nextHandleId = 1;
 
         // ===== 调度策略 =====
@@ -41,9 +45,10 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         /// 创建调度管理器
         /// </summary>
         /// <param name="strategy">调度策略（可选，默认使用 DefaultScheduleStrategy）</param>
-        public SimpleScheduleManager(IScheduleStrategy strategy = null)
+        public SimpleScheduleManager(IScheduleStrategy strategy = null, TriggeringRuntimePools pools = null)
         {
             _strategy = strategy ?? new DefaultScheduleStrategy();
+            _pools = pools ?? SharedPools;
         }
 
         // ===== IScheduleManager 实现 =====
@@ -358,45 +363,51 @@ namespace AbilityKit.Triggering.Runtime.Schedule
 
         public void Update(float deltaTimeMs)
         {
-            var indicesToRemove = new List<int>();
-
-            for (int i = 0; i < _items.Count; i++)
+            var indicesToRemove = _pools.RentIntList();
+            try
             {
-                var item = _items[i];
-
-                // 跳过已终止的
-                if (item.IsTerminated)
+                for (int i = 0; i < _items.Count; i++)
                 {
-                    indicesToRemove.Add(i);
-                    continue;
-                }
+                    var item = _items[i];
 
-                // 使用策略更新
-                var executor = new EffectExecutor(_effects[i]);
-                bool shouldRemove = _strategy.OnUpdate(ref item, deltaTimeMs, executor);
-                _items[i] = item;
-
-                if (shouldRemove)
-                {
-                    item.State = item.State == EScheduleItemState.Interrupted
-                        ? EScheduleItemState.Interrupted
-                        : EScheduleItemState.Completed;
-                    _items[i] = item;
-
-                    // 调用完成回调
-                    var callback = _callbacks[i];
-                    if (callback != null)
+                    // 跳过已终止的
+                    if (item.IsTerminated)
                     {
-                        var context = CreateContext(item);
-                        callback.OnCompleted(context);
+                        indicesToRemove.Add(i);
+                        continue;
                     }
 
-                    indicesToRemove.Add(i);
-                }
-            }
+                    // 使用策略更新
+                    var executor = new EffectExecutor(_effects[i]);
+                    bool shouldRemove = _strategy.OnUpdate(ref item, deltaTimeMs, executor);
+                    _items[i] = item;
 
-            // 清理终止的调度项
-            CleanupItems(indicesToRemove);
+                    if (shouldRemove)
+                    {
+                        item.State = item.State == EScheduleItemState.Interrupted
+                            ? EScheduleItemState.Interrupted
+                            : EScheduleItemState.Completed;
+                        _items[i] = item;
+
+                        // 调用完成回调
+                        var callback = _callbacks[i];
+                        if (callback != null)
+                        {
+                            var context = CreateContext(item);
+                            callback.OnCompleted(context);
+                        }
+
+                        indicesToRemove.Add(i);
+                    }
+                }
+
+                // 清理终止的调度项
+                CleanupItems(indicesToRemove);
+            }
+            finally
+            {
+                _pools.ReleaseIntList(indicesToRemove);
+            }
         }
 
         #endregion

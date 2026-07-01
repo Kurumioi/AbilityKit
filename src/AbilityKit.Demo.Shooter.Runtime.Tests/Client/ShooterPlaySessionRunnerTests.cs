@@ -298,6 +298,22 @@ public sealed class ShooterPlaySessionRunnerTests
             lagCompensationTelemetry: null,
             lagCompensationEvaluation: null,
             remoteLatencyCompensationDiagnostics: default,
+            crossLayerDiagnostics: new ShooterCrossLayerDiagnostics(
+                frameworkPacketCount: 3,
+                frameworkDispatchedSnapshotCount: 2,
+                frameworkPackedSnapshotCount: 1,
+                frameworkPureStateSnapshotCount: 1,
+                lastFrameworkFrame: 18,
+                lastFrameworkPayloadOpCode: 12002,
+                lastFrameworkWorldId: "shooter:7001",
+                hasSnapshotApplyResult: true,
+                snapshotApplyResult: ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded,
+                hasRemoteLatencyResult: false,
+                remoteInputDelayFrames: 0,
+                remoteAuthoritativeFrameGap: 0,
+                needsPureStateBaselineResync: true,
+                lastPureStateAppliedFrame: 12,
+                lastPureStateResyncFrame: 18),
             pureStateSyncDiagnostics: new ShooterPureStateSyncDiagnostics(
                 ShooterPureStateSnapshotApplyResult.NeedsFullBaselineResync,
                 sourceFrame: 18,
@@ -325,6 +341,18 @@ public sealed class ShooterPlaySessionRunnerTests
         var diagnostics = ShooterHostDiagnosticsProjector.ProjectFromFrame(in frame, previousTotalEvents: 0);
 
         Assert.True(diagnostics.NeedsPureStateBaselineResync);
+        Assert.Equal(3, diagnostics.CrossLayerDiagnostics.FrameworkPacketCount);
+        Assert.Equal(2, diagnostics.CrossLayerDiagnostics.FrameworkDispatchedSnapshotCount);
+        Assert.Equal(1, diagnostics.CrossLayerDiagnostics.FrameworkPackedSnapshotCount);
+        Assert.Equal(1, diagnostics.CrossLayerDiagnostics.FrameworkPureStateSnapshotCount);
+        Assert.Equal(18, diagnostics.CrossLayerDiagnostics.LastFrameworkFrame);
+        Assert.Equal(12002, diagnostics.CrossLayerDiagnostics.LastFrameworkPayloadOpCode);
+        Assert.Equal("shooter:7001", diagnostics.CrossLayerDiagnostics.LastFrameworkWorldId);
+        Assert.True(diagnostics.CrossLayerDiagnostics.HasSnapshotApplyResult);
+        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, diagnostics.CrossLayerDiagnostics.SnapshotApplyResult);
+        Assert.True(diagnostics.CrossLayerDiagnostics.NeedsPureStateBaselineResync);
+        Assert.Equal(12, diagnostics.CrossLayerDiagnostics.LastPureStateAppliedFrame);
+        Assert.Equal(18, diagnostics.CrossLayerDiagnostics.LastPureStateResyncFrame);
         Assert.Equal(ShooterPureStateResyncReason.BaselineMismatch, diagnostics.LastPureStateResyncReason);
         Assert.Equal(12, diagnostics.LastPureStateAppliedFrame);
         Assert.Equal(0x1234u, diagnostics.LastPureStateAppliedStateHash);
@@ -385,6 +413,13 @@ public sealed class ShooterPlaySessionRunnerTests
             lagCompensationTelemetry: null,
             lagCompensationEvaluation: null,
             remoteLatencyCompensationDiagnostics: remoteDiagnostics,
+            crossLayerDiagnostics: ShooterCrossLayerDiagnostics.From(
+                default,
+                ShooterSnapshotApplyResult.Ignored,
+                remoteDiagnostics,
+                needsPureStateBaselineResync: false,
+                lastPureStateAppliedFrame: 0,
+                lastPureStateResyncFrame: 0),
             pureStateSyncDiagnostics: default,
             needsPureStateBaselineResync: false,
             lastPureStateResyncReason: ShooterPureStateResyncReason.None,
@@ -396,6 +431,11 @@ public sealed class ShooterPlaySessionRunnerTests
         var diagnostics = ShooterHostDiagnosticsProjector.ProjectFromFrame(in frame, previousTotalEvents: 0);
 
         Assert.True(diagnostics.RemoteLatencyCompensationDiagnostics.HasResult);
+        Assert.True(diagnostics.CrossLayerDiagnostics.HasSnapshotApplyResult);
+        Assert.True(diagnostics.CrossLayerDiagnostics.HasRemoteLatencyResult);
+        Assert.Equal(ShooterSnapshotApplyResult.Ignored, diagnostics.CrossLayerDiagnostics.SnapshotApplyResult);
+        Assert.Equal(2, diagnostics.CrossLayerDiagnostics.RemoteInputDelayFrames);
+        Assert.Equal(-2, diagnostics.CrossLayerDiagnostics.RemoteAuthoritativeFrameGap);
         Assert.Equal(10, diagnostics.RemoteLatencyCompensationDiagnostics.RequestedFrame);
         Assert.Equal(12, diagnostics.RemoteLatencyCompensationDiagnostics.AcceptedFrame);
         Assert.Equal(8, diagnostics.RemoteLatencyCompensationDiagnostics.AuthoritativeFrame);
@@ -547,6 +587,7 @@ public sealed class ShooterPlaySessionRunnerTests
             lagCompensationTelemetry: null,
             lagCompensationEvaluation: null,
             remoteLatencyCompensationDiagnostics: default,
+            crossLayerDiagnostics: default,
             pureStateSyncDiagnostics: default,
             needsPureStateBaselineResync: false,
             lastPureStateResyncReason: ShooterPureStateResyncReason.None,

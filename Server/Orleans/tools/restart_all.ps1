@@ -10,7 +10,8 @@ param(
     [int]$GatewayPort = 5001,
     [int]$SiloPort = 11111,
     [int]$SiloGatewayPort = 30000,
-    [int]$TcpPort = 4000
+    [int]$TcpPort = 4000,
+    [int]$PrimarySiloPort
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,6 +27,10 @@ $startParams = @{
     SiloPort = $SiloPort
     SiloGatewayPort = $SiloGatewayPort
     TcpPort = $TcpPort
+}
+
+if ($PSBoundParameters.ContainsKey('PrimarySiloPort')) {
+    $startParams.PrimarySiloPort = $PrimarySiloPort
 }
 
 if ($Profile -and $Profile.Count -gt 0) {

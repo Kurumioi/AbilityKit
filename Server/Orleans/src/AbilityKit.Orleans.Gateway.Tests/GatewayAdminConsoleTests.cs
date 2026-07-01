@@ -52,10 +52,15 @@ public sealed class GatewayAdminConsoleTests
     public void Admin_console_source_should_expose_formal_layout_and_server_operations()
     {
         var app = File.ReadAllText(GetAdminConsoleProjectPath("src", "App.vue"));
-        var sidebar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "AdminSidebar.vue"));
-        var topbar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "AdminTopbar.vue"));
-        var skillDiagnosticsPanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillDiagnosticsPanel.vue"));
-        var skillAcceptancePanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillAcceptancePanel.vue"));
+        var sidebar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "layout", "AdminSidebar.vue"));
+        var topbar = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "layout", "AdminTopbar.vue"));
+        var overviewMetrics = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "overview", "AdminOverviewMetrics.vue"));
+        var opsPage = File.ReadAllText(GetAdminConsoleProjectPath("src", "pages", "AdminOpsPage.vue"));
+        var clusterPage = File.ReadAllText(GetAdminConsoleProjectPath("src", "pages", "AdminClusterPage.vue"));
+        var roomsPage = File.ReadAllText(GetAdminConsoleProjectPath("src", "pages", "AdminRoomsPage.vue"));
+        var battlePage = File.ReadAllText(GetAdminConsoleProjectPath("src", "pages", "AdminBattlePage.vue"));
+        var skillDiagnosticsPanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillDiagnosticsPanel.vue"));
+        var skillAcceptancePanel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillAcceptancePanel.vue"));
         var navigation = File.ReadAllText(GetAdminConsoleProjectPath("src", "navigation", "adminNavigation.ts"));
         var router = File.ReadAllText(GetAdminConsoleProjectPath("src", "router", "adminRouter.ts"));
         var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
@@ -68,21 +73,21 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("class=\"sidebar\"", sidebar);
         Assert.Contains("class=\"workspace\"", app);
         Assert.Contains("class=\"topbar\"", topbar);
-        Assert.Contains("id=\"overview\"", app);
-        Assert.Contains("id=\"ops\"", app);
-        Assert.Contains("id=\"rooms\"", app);
-        Assert.Contains("id=\"battle\"", app);
+        Assert.Contains("id=\"overview\"", overviewMetrics);
+        Assert.Contains("id=\"ops\"", opsPage);
+        Assert.Contains("id=\"rooms\"", roomsPage);
+        Assert.Contains("id=\"battle\"", battlePage);
         Assert.Contains("id=\"debug\"", app);
-        Assert.Contains("服务器运维", app);
-        Assert.Contains("集群诊断", app);
+        Assert.Contains("服务器运维", opsPage);
+        Assert.Contains("集群诊断", clusterPage);
         Assert.Contains("SkillDiagnosticsPanel", app);
         Assert.Contains("SkillAcceptancePanel", app);
         Assert.Contains("技能分析", skillDiagnosticsPanel);
         Assert.Contains("场景验收报告", skillAcceptancePanel);
-        Assert.Contains("id=\"cluster\"", app);
+        Assert.Contains("id=\"cluster\"", clusterPage);
         Assert.Contains("id=\"skills\"", skillDiagnosticsPanel);
         Assert.Contains("id=\"skill-acceptance\"", skillAcceptancePanel);
-        Assert.Contains("cluster-panel", app);
+        Assert.Contains("cluster-panel", clusterPage);
         Assert.Contains("skill-panel", skillDiagnosticsPanel);
         Assert.Contains("acceptance-panel", skillAcceptancePanel);
         Assert.Contains("buildAcceptanceTraceTree", skillAcceptanceAnalysis);
@@ -106,6 +111,7 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("/api/admin/server/restart-request", domainApi);
         Assert.Contains("/api/admin/rooms/create", domainApi);
         Assert.Contains("/api/admin/rooms/pick-hero", domainApi);
+        Assert.Contains("/api/admin/rooms/add-robots", domainApi);
         Assert.Contains("/api/admin/rooms/start-battle", domainApi);
         Assert.DoesNotContain("'/api/rooms/", domainApi);
         Assert.Contains("/api/admin/skills/summary", domainApi);
@@ -144,6 +150,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("worldType: 'shooter_battle'", store);
         Assert.Contains("syncTemplateId: 'pure-state-authority'", store);
         Assert.Contains("startShooterRoomQuick", store);
+        Assert.Contains("roomRobots", store);
+        Assert.Contains("addRoomRobots", store);
         Assert.Contains("/api/shooter-sandbox/start", domainApi);
     }
 
@@ -224,7 +232,7 @@ public sealed class GatewayAdminConsoleTests
         var modelProvider = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAnalysisModelProvider.cs"));
         var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
         var projection = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "skillAnalysisProjection.ts"));
-        var visualizer = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillTraceVisualizer.vue"));
+        var visualizer = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillTraceVisualizer.vue"));
         var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
  
         Assert.Contains("/skills/summary", api);
@@ -285,7 +293,7 @@ public sealed class GatewayAdminConsoleTests
         var artifacts = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAcceptanceArtifacts.cs"));
         var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
         var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
-        var panel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "SkillAcceptancePanel.vue"));
+        var panel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillAcceptancePanel.vue"));
 
         Assert.Contains("/skills/acceptance/artifact-directories", api);
         Assert.Contains("/skills/acceptance/templates", api);
@@ -446,6 +454,8 @@ public sealed class GatewayAdminConsoleTests
         var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
         var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
         var boundaries = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "adminApiBoundaries.ts"));
+        var robotContract = File.ReadAllText(GetContractsSourcePath("Automation", "IRoomRobotManagerGrain.cs"));
+        var robotGrain = File.ReadAllText(GetGrainsSourcePath("Automation", "RoomRobotManagerGrain.cs"));
 
         Assert.Contains("/rooms/create", api);
         Assert.Contains("/rooms/join", api);
@@ -456,10 +466,12 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("/rooms/ready", api);
         Assert.Contains("/rooms/pick-hero", api);
         Assert.Contains("/rooms/start-battle", api);
+        Assert.Contains("/rooms/add-robots", api);
         Assert.Contains("Gateway.AdminCreateRoom", api);
         Assert.Contains("Gateway.AdminJoinRoom", api);
         Assert.Contains("Gateway.AdminRestoreCurrentRoom", api);
         Assert.Contains("Gateway.AdminPickRoomHero", api);
+        Assert.Contains("Gateway.AdminAddRoomRobots", api);
         Assert.Contains("Gateway.AdminStartRoomBattle", api);
         Assert.Contains("/api/admin/rooms/create", domainApi);
         Assert.Contains("/api/admin/rooms/join", domainApi);
@@ -467,8 +479,15 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("/api/admin/rooms/mark-offline", domainApi);
         Assert.Contains("/api/admin/rooms/pick-hero", domainApi);
         Assert.Contains("/api/admin/rooms/start-battle", domainApi);
+        Assert.Contains("/api/admin/rooms/add-robots", domainApi);
         Assert.Contains("后台页面默认只依赖这里", boundaries);
         Assert.Contains("后台不直接调用", boundaries);
+        Assert.Contains("public interface IRoomRobotManagerGrain", robotContract);
+        Assert.Contains("AddRobotsAsync", robotContract);
+        Assert.Contains("MountBattleAiAsync", robotContract);
+        Assert.Contains("public sealed class RoomRobotManagerGrain", robotGrain);
+        Assert.Contains("JoinRoomMemberRequest(accountId, IsBot: true)", robotGrain);
+        Assert.Contains("BattleBotAiMountRequest", robotGrain);
     }
 
     [Fact]
@@ -507,6 +526,8 @@ public sealed class GatewayAdminConsoleTests
         var restartWrapper = File.ReadAllText(GetOrleansToolPath("restart_all.ps1"));
         var profiles = File.ReadAllText(GetOrleansToolPath("abilitykit_launch_profiles.json"));
 
+        var siloScript = File.ReadAllText(GetOrleansToolPath("start_orleans_silo.ps1"));
+
         Assert.Contains("abilitykit_launch_profiles.json", launcher);
         Assert.Contains("ListProfiles", launcher);
         Assert.Contains("string[]]$Profile", launcher);
@@ -514,31 +535,45 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("SiloPort", launcher);
         Assert.Contains("SiloGatewayPort", launcher);
         Assert.Contains("TcpPort", launcher);
+        Assert.Contains("PrimarySiloPort", launcher);
+        Assert.Contains("silos", launcher);
         Assert.Contains("start_orleans_dev.ps1", launcher);
         Assert.Contains("ClusterId", startScript);
         Assert.Contains("ServiceId", startScript);
         Assert.Contains("InstanceName", startScript);
+        Assert.Contains("start_orleans_silo.ps1", startScript);
+        Assert.Contains("PrimarySiloPort", startScript);
         Assert.Contains("--AbilityKit:Orleans:ClusterId", startScript);
         Assert.Contains("--AbilityKit:Gateway:Http:Port", startScript);
         Assert.Contains("--AbilityKit:Gateway:Tcp:Port", startScript);
         Assert.Contains("/health/ready", startScript);
         Assert.Contains("/health/live", startScript);
         Assert.Contains("Test-AbilityKitTcpPort", startScript);
-        Assert.Contains("Waiting for Orleans Silo Gateway TCP endpoint", startScript);
+        Assert.Contains("Waiting for Orleans client gateway endpoint", startScript);
+        Assert.Contains("Waiting for Orleans Silo Gateway TCP endpoint", siloScript);
         Assert.Contains("SiloGatewayWaitSeconds", startScript);
         Assert.Contains("ForceStartGateway", startScript);
         Assert.Contains("dotnet run --project", startScript);
         Assert.Contains("--no-build", startScript);
         Assert.Contains("Runtime windows will use dotnet run --no-build", startScript);
         Assert.Contains("Gateway startup skipped", startScript);
-        Assert.Contains("Orleans Silo Gateway is not reachable", startScript);
+        Assert.Contains("Orleans client gateway is not reachable", startScript);
         Assert.Contains("logs", startScript);
         Assert.Contains("stop_abilitykit.ps1", startScript);
         Assert.Contains("Stop-AbilityKitServices", stopScript);
+        Assert.Contains("--AbilityKit:Orleans:PrimarySiloPort", siloScript);
+        Assert.Contains("--AbilityKit:Deployment:SiloRole:Role", siloScript);
+        Assert.Contains("--AbilityKit:Deployment:RuntimeProfile:Role", siloScript);
         Assert.Contains("[switch]$All", stopScript);
+        Assert.Contains("silos", stopScript);
         Assert.Contains("AbilityKit.Orleans.Host.csproj", stopScript);
         Assert.Contains("AbilityKit.Orleans.Gateway.csproj", stopScript);
         Assert.Contains("start_abilitykit.ps1", restartWrapper);
+        Assert.Contains("PrimarySiloPort", restartWrapper);
+        Assert.Contains("dev-scaled", profiles);
+        Assert.Contains("Session", profiles);
+        Assert.Contains("Room", profiles);
+        Assert.Contains("Battle", profiles);
         Assert.Contains("ops-a", profiles);
         Assert.Contains("ops-b", profiles);
     }
@@ -556,6 +591,16 @@ public sealed class GatewayAdminConsoleTests
     private static string GetGatewayDirectoryPath(params string[] segments)
     {
         return FindWorkspacePath(Prepend(new[] { "Server", "Orleans", "src", "AbilityKit.Orleans.Gateway" }, segments), Directory.Exists);
+    }
+
+    private static string GetContractsSourcePath(params string[] segments)
+    {
+        return FindWorkspacePath(Prepend(new[] { "Server", "Orleans", "src", "AbilityKit.Orleans.Contracts" }, segments), File.Exists);
+    }
+
+    private static string GetGrainsSourcePath(params string[] segments)
+    {
+        return FindWorkspacePath(Prepend(new[] { "Server", "Orleans", "src", "AbilityKit.Orleans.Grains" }, segments), File.Exists);
     }
 
     private static string GetOrleansToolPath(params string[] segments)

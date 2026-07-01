@@ -43,10 +43,12 @@
 - `Events/`
   - `IMotionEventSink`：可选事件输出（命中、到达、过期等）
 
-- `Examples/`
-  - `MotionPipelineExample`：最小示例（线性轨迹 + fixed-step）
-  - `WaypointTrajectoryExample`：航点路径作为轨迹执行的示例
-  - `BlendPathLocomotionExample`：Path 与输入移动按权重混合的示例
+示例代码不放在 `Runtime/` 核心目录中，而是作为 Unity package sample 放在同级 `Samples~/MotionExamples/`：
+
+- `MotionPipelineExample`：最小示例（线性轨迹 + fixed-step）
+- `WaypointTrajectoryExample`：航点路径作为轨迹执行的示例
+- `BlendPathLocomotionExample`：Path 与输入移动按权重混合的示例
+- `GroupSuppressionExample`：Control 组抑制 Locomotion 的示例
 
 ## v1 vs v2
 

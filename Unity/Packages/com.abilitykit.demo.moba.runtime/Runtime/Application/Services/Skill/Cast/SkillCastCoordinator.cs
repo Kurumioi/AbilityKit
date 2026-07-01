@@ -322,9 +322,20 @@ namespace AbilityKit.Demo.Moba.Services
                 ctx,
                 out var failReason,
                 policy: policy);
-            var failure = SkillResultFactory.UnknownCastFailure(failReason);
+            var failure = MobaSkillCastFailure.None;
             if (!success)
             {
+                failure = SkillResultFactory.StartReject(runner, failReason);
+                if (!failure.HasValue)
+                {
+                    failure = SkillResultFactory.PipelineFailure(runner, failReason);
+                }
+
+                if (!failure.HasValue)
+                {
+                    failure = SkillResultFactory.UnknownCastFailure(failReason);
+                }
+
                 prepared.Runtimes.ForceTerminate(in ctx.RuntimeHandle, MobaSkillRuntimeEndReason.RollbackCleanup);
             }
 

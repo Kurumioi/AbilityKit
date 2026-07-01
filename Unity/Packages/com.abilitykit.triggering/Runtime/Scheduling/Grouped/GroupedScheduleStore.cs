@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Pooling;
 using AbilityKit.Triggering.Runtime.Schedule.Behavior;
 using AbilityKit.Triggering.Runtime.Schedule.Data;
 
@@ -13,6 +14,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         private readonly List<ScheduleItemData> _items = new();
         private readonly List<IScheduleEffect> _effects = new();
         private readonly List<IScheduleEffectCallbacks> _callbacks = new();
+        private readonly TriggeringRuntimePools _pools;
+
+        public GroupedScheduleStore(TriggeringRuntimePools pools)
+        {
+            _pools = pools ?? throw new ArgumentNullException(nameof(pools));
+        }
 
         public int Count => _items.Count;
 
@@ -81,30 +88,37 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             if (indicesToRemove == null || indicesToRemove.Count == 0)
                 return;
 
-            int newCount = _items.Count - indicesToRemove.Count;
-            var newItems = new List<ScheduleItemData>(newCount);
-            var newEffects = new List<IScheduleEffect>(newCount);
-            var newCallbacks = new List<IScheduleEffectCallbacks>(newCount);
-
-            for (int i = 0; i < _items.Count; i++)
+            var newItems = _pools.RentScheduleItemList();
+            var newEffects = _pools.RentScheduleEffectList();
+            var newCallbacks = _pools.RentScheduleEffectCallbackList();
+            try
             {
-                if (indicesToRemove.Contains(i))
-                    continue;
+                for (int i = 0; i < _items.Count; i++)
+                {
+                    if (indicesToRemove.Contains(i))
+                        continue;
 
-                int newIndex = newItems.Count;
-                var item = _items[i];
-                item.Handle = new ScheduleHandle(item.Handle.HandleId, newIndex);
-                newItems.Add(item);
-                newEffects.Add(_effects[i]);
-                newCallbacks.Add(_callbacks[i]);
+                    int newIndex = newItems.Count;
+                    var item = _items[i];
+                    item.Handle = new ScheduleHandle(item.Handle.HandleId, newIndex);
+                    newItems.Add(item);
+                    newEffects.Add(_effects[i]);
+                    newCallbacks.Add(_callbacks[i]);
+                }
+
+                _items.Clear();
+                _effects.Clear();
+                _callbacks.Clear();
+                _items.AddRange(newItems);
+                _effects.AddRange(newEffects);
+                _callbacks.AddRange(newCallbacks);
             }
-
-            _items.Clear();
-            _effects.Clear();
-            _callbacks.Clear();
-            _items.AddRange(newItems);
-            _effects.AddRange(newEffects);
-            _callbacks.AddRange(newCallbacks);
+            finally
+            {
+                _pools.ReleaseScheduleItemList(newItems);
+                _pools.ReleaseScheduleEffectList(newEffects);
+                _pools.ReleaseScheduleEffectCallbackList(newCallbacks);
+            }
         }
 
         private static ScheduleItemData CreateItem(int index, ScheduleRegisterRequest request)

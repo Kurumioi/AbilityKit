@@ -52,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         public int Id;
         public string Name;
+        public int PipelineContinuousTagTemplateId;
         public SkillPhaseDTO[] Phases;
     }
 
@@ -65,6 +66,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Parallel = 11,
         Repeat = 12,
         Delay = 13,
+        WaitUntil = 14,
     }
 
     [Serializable]
@@ -79,6 +81,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public SkillPhaseDTO[] Children;
         public SkillRepeatPhaseDTO Repeat;
         public SkillDelayPhaseDTO Delay;
+        public SkillWaitUntilPhaseDTO WaitUntil;
     }
 
     [Serializable]
@@ -101,6 +104,15 @@ namespace AbilityKit.Demo.Moba.Share.Config
     public sealed class SkillDelayPhaseDTO
     {
         public int DelayMs;
+    }
+
+    [Serializable]
+    public sealed class SkillWaitUntilPhaseDTO
+    {
+        public string Condition;
+        public int TimeoutMs;
+        public bool CompleteOnTimeout = true;
+        public int[] ObservedSlots;
     }
 
     [Serializable]

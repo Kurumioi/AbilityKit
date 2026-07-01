@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
     public readonly struct ShooterRoomLaunchSpec
     {
+        public const int DefaultOfflineTimeoutSeconds = 30 * 60;
+
         public readonly string Region;
         public readonly string ServerId;
         public readonly string RoomTitle;
@@ -64,9 +67,10 @@ namespace AbilityKit.Demo.Shooter.View
         {
             return new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["gameplay"] = ShooterGameplay.RoomType,
-                ["worldType"] = ShooterGameplay.WorldType,
-                ["tickRate"] = ShooterGameplay.DefaultTickRate.ToString()
+                [RoomTagKeys.Gameplay] = ShooterGameplay.RoomType,
+                [RoomTagKeys.WorldType] = ShooterGameplay.WorldType,
+                [RoomTagKeys.TickRate] = ShooterGameplay.DefaultTickRate.ToString(),
+                [RoomTagKeys.OfflineTimeoutSeconds] = DefaultOfflineTimeoutSeconds.ToString()
             };
         }
 

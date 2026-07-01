@@ -30,25 +30,25 @@ namespace AbilityKit.Ability.Flow.Blocks
             {
                 if (!_tryEntered)
                 {
-                    _try.Enter(ctx);
+                    FlowDiagnostics.Enter(ctx, _try);
                     _tryEntered = true;
                 }
 
-                var s = _try.Tick(ctx, deltaTime);
+                var s = FlowDiagnostics.Tick(ctx, _try, deltaTime);
                 if (s == FlowStatus.Running) return FlowStatus.Running;
 
                 _tryStatus = s;
-                _try.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _try, s);
                 _tryEntered = false;
 
-                _finally.Enter(ctx);
+                FlowDiagnostics.Enter(ctx, _finally);
                 _finallyEntered = true;
             }
 
-            var fs = _finally.Tick(ctx, deltaTime);
+            var fs = FlowDiagnostics.Tick(ctx, _finally, deltaTime);
             if (fs == FlowStatus.Running) return FlowStatus.Running;
 
-            _finally.Exit(ctx);
+            FlowDiagnostics.Exit(ctx, _finally, fs);
             _finallyEntered = false;
             return _tryStatus;
         }
@@ -57,12 +57,12 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_tryEntered)
             {
-                _try.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _try);
                 _tryEntered = false;
             }
             if (_finallyEntered)
             {
-                _finally.Exit(ctx);
+                FlowDiagnostics.Exit(ctx, _finally);
                 _finallyEntered = false;
             }
         }
@@ -71,12 +71,12 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (_tryEntered)
             {
-                _try.Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _try);
                 _tryEntered = false;
             }
             if (_finallyEntered)
             {
-                _finally.Interrupt(ctx);
+                FlowDiagnostics.Interrupt(ctx, _finally);
                 _finallyEntered = false;
             }
         }

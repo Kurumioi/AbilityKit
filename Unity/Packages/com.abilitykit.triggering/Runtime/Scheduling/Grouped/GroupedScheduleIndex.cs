@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Runtime.Pooling;
 
 namespace AbilityKit.Triggering.Runtime.Schedule
 {
@@ -10,6 +11,12 @@ namespace AbilityKit.Triggering.Runtime.Schedule
     {
         private readonly Dictionary<int, LinkedList<int>> _itemsByGroup = new();
         private readonly HashSet<int> _activeGroups = new();
+        private readonly TriggeringRuntimePools _pools;
+
+        public GroupedScheduleIndex(TriggeringRuntimePools pools)
+        {
+            _pools = pools ?? throw new ArgumentNullException(nameof(pools));
+        }
 
         public void AddItem(int groupId, int itemIndex)
         {
@@ -45,7 +52,11 @@ namespace AbilityKit.Triggering.Runtime.Schedule
         {
             if (_itemsByGroup.TryGetValue(groupId, out var linkedList))
             {
-                indices = new List<int>(linkedList);
+                indices = _pools.RentIntList();
+                foreach (var index in linkedList)
+                {
+                    indices.Add(index);
+                }
                 return true;
             }
 
@@ -75,37 +86,44 @@ namespace AbilityKit.Triggering.Runtime.Schedule
             if (indicesToRemove == null || indicesToRemove.Count == 0)
                 return;
 
-            var groupsToRemove = new List<int>();
-            foreach (var kvp in _itemsByGroup)
+            var groupsToRemove = _pools.RentIntList();
+            try
             {
-                int groupId = kvp.Key;
-                var linkedList = kvp.Value;
-                var node = linkedList.First;
-
-                while (node != null)
+                foreach (var kvp in _itemsByGroup)
                 {
-                    int itemIndex = node.Value;
-                    if (indicesToRemove.Contains(itemIndex))
+                    int groupId = kvp.Key;
+                    var linkedList = kvp.Value;
+                    var node = linkedList.First;
+
+                    while (node != null)
                     {
-                        var nextNode = node.Next;
-                        linkedList.Remove(node);
-                        node = nextNode;
+                        int itemIndex = node.Value;
+                        if (indicesToRemove.Contains(itemIndex))
+                        {
+                            var nextNode = node.Next;
+                            linkedList.Remove(node);
+                            node = nextNode;
+                        }
+                        else
+                        {
+                            node = node.Next;
+                        }
                     }
-                    else
+
+                    if (linkedList.Count == 0)
                     {
-                        node = node.Next;
+                        groupsToRemove.Add(groupId);
                     }
                 }
 
-                if (linkedList.Count == 0)
+                foreach (var groupId in groupsToRemove)
                 {
-                    groupsToRemove.Add(groupId);
+                    RemoveGroup(groupId);
                 }
             }
-
-            foreach (var groupId in groupsToRemove)
+            finally
             {
-                RemoveGroup(groupId);
+                _pools.ReleaseIntList(groupsToRemove);
             }
         }
 

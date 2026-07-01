@@ -13,7 +13,7 @@ namespace AbilityKit.Combat.MotionSystem.Generic
 
         public WaypointTrajectory3D(Vec3[] points, float speed)
         {
-            _points = points ?? Array.Empty<Vec3>();
+            _points = CopyPoints(points);
             _speed = speed <= 0f ? 0.0001f : speed;
 
             if (_points.Length < 2)
@@ -52,7 +52,6 @@ namespace AbilityKit.Combat.MotionSystem.Generic
 
             var dist = time * _speed;
 
-            // Find segment containing dist.
             var idx = FindSegmentIndex(dist);
             if (idx <= 0) return _points[0];
 
@@ -92,8 +91,6 @@ namespace AbilityKit.Combat.MotionSystem.Generic
 
         private int FindSegmentIndex(float dist)
         {
-            // _cumulative is monotonically increasing.
-            // Return smallest i where cumulative[i] >= dist.
             int lo = 1;
             int hi = _cumulative.Length - 1;
 
@@ -114,6 +111,14 @@ namespace AbilityKit.Combat.MotionSystem.Generic
             if (lo < 1) return 1;
             if (lo >= _cumulative.Length) return _cumulative.Length - 1;
             return lo;
+        }
+
+        private static Vec3[] CopyPoints(Vec3[] points)
+        {
+            if (points == null || points.Length == 0) return Array.Empty<Vec3>();
+            var copy = new Vec3[points.Length];
+            Array.Copy(points, copy, points.Length);
+            return copy;
         }
     }
 }

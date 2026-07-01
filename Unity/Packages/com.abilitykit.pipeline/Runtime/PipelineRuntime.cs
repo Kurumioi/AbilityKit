@@ -66,7 +66,14 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public void RecordTrace(IPipelineLifeOwner owner, PipelineTraceData data)
         {
-            TraceRecorder.Record(owner, data);
+            if (owner == null) return;
+
+            if (TraceRecorder.IsEnabled)
+            {
+                TraceRecorder.Record(owner, data);
+            }
+
+            PipelineDebugHooks.NotifyTrace(owner, data);
         }
 
         /// <summary>

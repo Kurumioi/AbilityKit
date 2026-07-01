@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
@@ -76,7 +77,7 @@ internal sealed class RoomMemberTracker
 
     public IReadOnlyList<string> CollectExpiredOfflineMembers(RoomSummary summary, long nowTicks)
     {
-        var offlineTimeoutSeconds = ReadIntTag(summary, "offlineTimeoutSeconds", 0);
+        var offlineTimeoutSeconds = ReadIntTag(summary, RoomTagKeys.OfflineTimeoutSeconds, 0);
         if (offlineTimeoutSeconds <= 0 || _memberStates.Count == 0)
         {
             return Array.Empty<string>();

@@ -1,161 +1,275 @@
-# Motion 模块使用文档（com.abilitykit.world.motion）
+﻿# Motion 模块使用文档（com.abilitykit.combat.motion）
 
-本文档给出在“游戏/World 逻辑层”中接入 `MotionSystem` 的推荐方式。MotionSystem 是纯逻辑计算模块，不直接依赖 Unity/Entitas，因此接入时需要你在上层维护实体状态与生命周期。
+> 本文说明 `AbilityKit.Combat.MotionSystem` 的推荐接入方式、对象池用法、快照恢复和常见组合策略。
 
-## 1. 最小接入：单实体 Locomotion 移动
+## 1. 模块定位
 
-### 1.1 准备 Pipeline / State
+`com.abilitykit.combat.motion` 提供战斗移动的组合层：
 
-对每个可移动实体，你通常需要维护：
+- `MotionPipeline`：统一调度多个 `IMotionSource`。
+- `IMotionSource`：输入移动、技能位移、击退、路径跟随等移动来源。
+- `IMotionSolver`：约束、碰撞、范围限制和最终位移求解。
+- `IMotionEventSink`：接收命中、到达、过期等事件。
+- `IMotionSnapshotSource`：导出/导入移动源内部进度，支持预测、回滚和重放。
 
-- 一个 `MotionPipeline`
-- 一个 `MotionState`
-- 一组 `IMotionSource`（例如 locomotion、技能位移、控制、路径）
+适合 MOBA、ARPG、RTS、帧同步或服务端权威移动等场景。
 
-推荐做法：
+## 2. 推荐的实体移动组件组织方式
 
-- **每个实体一个 pipeline**（最直观，便于回滚序列化与调试）
-- `MotionState` 由上层从 ECS 读初始位置/朝向初始化，并在每 tick 写回
+每个可移动实体建议持有一个 `MotionPipeline`，并在实体销毁或退场时归还：
 
-### 1.2 设置 Solver / Policy / Events
+```csharp
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Combat.MotionSystem.Collision;
 
-- `pipeline.Solver`：如果你不需要碰撞，使用默认 `NoMotionSolver.Instance` 即可。
-- `pipeline.Policy`：建议设置为 `MotionPipelinePolicy.CreateDefault()`（Control 抑制其它组）。
-- `pipeline.Events`：可选，用于接收命中/完成事件。
+public sealed class CombatMover
+{
+    private readonly int _entityId;
+    private MotionPipeline _pipeline;
+    private MotionState _state;
+    private MotionOutput _output;
 
-### 1.3 添加输入移动 Source
+    public CombatMover(int entityId, Vec3 spawnPosition)
+    {
+        _entityId = entityId;
+        _pipeline = MotionPipelinePool.Rent();
+        _state = new MotionState(spawnPosition);
+        _output = default;
+    }
 
-使用内置的 `LocomotionMotionSource`：
+    public void Tick(float dt)
+    {
+        _pipeline.Tick(_entityId, ref _state, dt, ref _output);
+    }
 
-- 支持 `MotionInputSpace.Local/World`
-- `SetInput(x,z)` 设置输入向量（例如 WASD）
-- `Speed` 控制速度
+    public void Dispose()
+    {
+        MotionPipelinePool.Release(_pipeline);
+        _pipeline = null;
+    }
+}
+```
 
-逻辑建议：
+如果已有生命周期框架，也可以直接 `new MotionPipeline()`，但推荐使用 `MotionPipelinePool.Rent()` / `MotionPipelinePool.Release()` 降低实体频繁创建销毁时的 GC 压力。
 
-- 每 tick 在读取输入后更新 locomotion source 的 input
-- 然后调用 pipeline tick 得到 applied delta
+## 3. 输入移动（Locomotion）
 
-## 2. 推荐的“实体运动组件”组织方式
+`LocomotionMotionSource` 用于玩家摇杆、键盘或 AI 输入移动。
 
-虽然 MotionSystem 不依赖 Entitas，但在 Entitas 项目中常见的组织方式是：
+```csharp
+var locomotion = LocomotionMotionSource.Rent(
+    speed: 5f,
+    space: MotionInputSpace.World,
+    priority: 0);
 
-- ECS 中存：
-  - `Position`、`Forward`、`Velocity`（可选）
-  - 当前运动模式/标志（例如是否可移动、是否处于控制状态）
-  - 运动相关的可回滚参数（例如正在执行的 dash 剩余时间）
+locomotion.SetInput(x: 1f, z: 0f);
+pipeline.AddSource(locomotion);
+```
 
-- Service/Runtime 对象中存：
-  - `MotionPipeline` 实例
-  - 各类 `IMotionSource` 实例（locomotion / path / ability / control）
+不再使用时归还：
 
-关键建议：
+```csharp
+pipeline.RemoveSource(locomotion);
+LocomotionMotionSource.Release(locomotion);
+```
 
-- 如果你要支持回滚/重演：
-  - 需要能在回滚时恢复“source 的状态”。
-  - 最稳妥的做法是：把 source 的必要状态做成可序列化数据（放 ECS 或快照 payload），回滚后重建 source 或恢复其字段。
+输入空间：
 
-## 3. Fixed-step 驱动（强烈建议）
+- `MotionInputSpace.World`：输入直接解释为世界方向。
+- `MotionInputSpace.Local`：输入根据 `MotionState.Forward` 转换为局部前后/左右移动。
 
-为了与帧同步/回放/回滚兼容，建议使用固定步长（fixed dt）：
+## 4. 技能位移、击退和路径移动
 
-- `dt = 1f / tickRate`（例如 1/30、1/60）
-- 每个逻辑 tick 都以固定 dt 调用 `MotionPipeline.Tick`
+### 4.1 轨迹位移
 
-注意：
+`TrajectoryMotionSource` 适合冲刺、跳跃、突进等按时间采样的位移。
 
-- 不要用 `Time.deltaTime` 直接驱动核心逻辑；应由上层将渲染帧累积成逻辑 tick。
+```csharp
+var trajectory = new LinearTrajectory3D(
+    start: Vec3.Zero,
+    end: new Vec3(4f, 0f, 0f),
+    duration: 0.35f);
 
-## 4. 与技能位移/控制/路径的组合
+var dash = TrajectoryMotionSource.Rent(
+    trajectory,
+    priority: 20,
+    groupId: MotionGroups.Ability,
+    stacking: MotionStacking.ExclusiveHighestPriority);
 
-MotionSystem 的核心优势是“多 source 组合”。建议按语义拆分 source：
+pipeline.AddSource(dash);
+```
 
-- **Locomotion**（输入移动）：`MotionGroups.Locomotion` + `Additive`
-- **Ability**（技能位移）：`MotionGroups.Ability`，按需求选 stacking
-- **Control**（控制效果，如击飞/眩晕/拉拽）：`MotionGroups.Control` + `OverrideLowerPriority`
-- **Path**（寻路/路径跟随）：`MotionGroups.Path`
+`TrajectoryMotionSource` 会在轨迹结束后自动变为 inactive，`MotionPipeline` 后续 tick 会自动移除 inactive source，并向 `IMotionEventSink` 发出过期事件。
 
-### 4.1 同组叠加策略建议
+### 4.2 固定位移/击退
 
-- 需要多效果累加（例如多个持续推力） -> `Additive`
-- 同一组只允许一个生效（例如多个 dash 同时只能一个） -> `ExclusiveHighestPriority`
-- 需要“强制覆盖并抑制其它组”（例如眩晕/击飞期间禁止输入与技能位移） -> `OverrideLowerPriority` + 配置 `MotionPipelinePolicy`
+`FixedDeltaMotionSource` 适合击退、拉拽、短时间持续推力。
 
-### 4.2 跨组抑制（Control 抑制 Locomotion/Ability/Path）
+```csharp
+var knockback = FixedDeltaMotionSource.Rent(
+    deltaPerSecond: new Vec3(-6f, 0f, 0f),
+    duration: 0.2f,
+    priority: 30,
+    groupId: MotionGroups.Ability,
+    stacking: MotionStacking.Additive);
 
-- 设置：`pipeline.Policy = MotionPipelinePolicy.CreateDefault()`
-- 触发抑制的条件：
-  - Control 组的最佳 source stacking = `OverrideLowerPriority`
+pipeline.AddSource(knockback);
+```
 
-## 5. 实现碰撞/阻挡：IMotionSolver
+### 4.3 路径跟随
 
-当你需要“撞墙停止/滑墙/可穿透”等行为时，实现 `IMotionSolver`：
+`PathFollowerMotionSource` 会对传入的点数组做防御性拷贝，避免外部修改路径造成非确定性。
 
-- 输入：`id`、`state`、`MotionOutput`（包含 desired delta）、`dt`
-- 输出：`MotionSolveResult`（包含 applied delta 与 hit 信息）
+```csharp
+var points = new[]
+{
+    new Vec3(0f, 0f, 0f),
+    new Vec3(2f, 0f, 1f),
+    new Vec3(4f, 0f, 1f),
+};
 
-典型策略：
+var path = PathFollowerMotionSource.Rent(
+    points,
+    speed: 3f,
+    arriveEpsilon: 0.05f,
+    priority: 10,
+    groupId: MotionGroups.Path,
+    stacking: MotionStacking.ExclusiveHighestPriority);
 
-- **停止**：检测到碰撞则 applied delta = 0
-- **滑墙**：将 desired delta 在法线方向投影去掉，保留切向分量
-- **反弹**：按法线反射速度/位移
+pipeline.AddSource(path);
+```
 
-注意：
+## 5. 跨组抑制策略
 
-- Solver 必须是纯逻辑（不要依赖 Unity Physics）
-- 为回滚/重演友好：
-  - 使用确定性的数据结构
-  - 不读取真实时间
-  - 若依赖地图数据，应来自确定性配置/网格
+默认策略中，`MotionGroups.Control` 通常用于眩晕、强制位移、强控等控制类效果，并会抑制 `Locomotion`、`Ability`、`Path` 等组。
 
-## 6. 事件（IMotionEventSink）使用建议
+可通过 `MotionPipeline.Policy` 配置自定义抑制关系：
 
-`MotionPipeline` 可触发：
+```csharp
+pipeline.Policy = new MotionPipelinePolicy();
+pipeline.Policy.SetSuppressedGroups(
+    MotionGroups.Control,
+    MotionGroups.Locomotion,
+    MotionGroups.Ability,
+    MotionGroups.Path);
+```
 
-- `OnHit`：碰撞命中
-- `OnArrive`：source 完成（到达终点等）
-- `OnExpired`：source 完成（超时/效果结束）
+常见约定：
 
-建议：
+- `Locomotion`：玩家/AI 常规移动，通常 `Additive`。
+- `Ability`：技能位移，通常 `ExclusiveHighestPriority`。
+- `Control`：强控或强制移动，通常 `OverrideLowerPriority`。
+- `Path`：导航路径移动，通常 `ExclusiveHighestPriority`。
 
-- 事件用于驱动“逻辑后续”（例如技能位移结束切换状态）
-- 表现（VFX/SFX/动画）建议在 View 层订阅逻辑事件再执行
+## 6. 碰撞与约束求解
 
-## 7. 回滚/预测场景下的集成方式（建议方案）
+`ConfigurableMotionSolver` 通过 `IMotionCollisionWorld` 接入项目自己的碰撞世界。
 
-如果你的项目使用帧同步/预测回滚：
+```csharp
+pipeline.Solver = new ConfigurableMotionSolver(
+    world,
+    (int moverId, in MotionState state, in MotionOutput input, float dt) =>
+        new MotionConstraints(
+            new MotionCollisionConstraints(
+                enable: true,
+                allowPassThrough: false,
+                endOverlapPolicy: MotionEndOverlapPolicy.ProjectToNearestFree,
+                radius: 0.4f,
+                skin: 0.02f,
+                obstacleMask: 1,
+                ignoreMask: 0),
+            MotionLeashConstraints.Disabled));
+```
 
-- MotionSystem 作为 world 内的纯逻辑子模块
-- 上层回滚模块负责：
-  - 在每帧保存必要状态（`MotionState` + sources 的必要参数）
-  - 回滚时恢复状态并重演
+`MotionEndOverlapPolicy`：
 
-推荐的保存粒度：
+- `AllowInside`：允许结束点仍在重叠内。
+- `ProjectToNearestFree`：尝试调用 `TryProjectToFree` 投影到最近可用位置。
+- `ClampToLastValid`：保留 sweep 已求出的可用位移。
+- `Reject`：重叠时拒绝本帧位移。
 
-- 至少保存：`MotionState.Position/Forward/Velocity/Time`
-- 需要保存 source 状态的场景：
-  - 轨迹/路径执行到一半（需要保存进度）
-  - dash/击飞持续中（需要保存剩余时间/当前速度）
+如果需要诊断异常或投影失败，可实现 `IMotionSolverDiagnostics` 并传入 solver。
 
-实现方式可选：
+## 7. 快照与回滚
 
-- **A：快照保存 source 状态数据，回滚后重建 source**（推荐，简单且明确）
-- **B：source 对象自己支持 Export/Import**（更高效，但要注意对象生命周期与内存）
+支持快照的 source 实现 `IMotionSnapshotSource`：
 
-## 8. 常见问题（FAQ）
+```csharp
+if (source is IMotionSnapshotSource snapshotSource &&
+    snapshotSource.ExportSnapshot(out var snapshot))
+{
+    // 保存 snapshot 到预测/回滚状态
+}
+```
 
-### Q1：为什么 `MotionPipeline` 会“自己删 source”？
+恢复时，先用相同配置创建或租借 source，再导入 snapshot：
 
-Pipeline 会在 tick 的清理阶段移除 `null` 或 `!IsActive` 的 source，避免外部忘记移除导致列表膨胀。
+```csharp
+var restored = TrajectoryMotionSource.Rent(trajectory);
+restored.ImportSnapshot(in snapshot);
+pipeline.AddSource(restored);
+```
 
-### Q2：如何做“立即取消技能位移”？
+注意：轨迹对象本身通常应由技能配置或回放上下文重新创建，`MotionSourceSnapshot` 只保存运行进度，不保存完整轨迹数据。
 
-- 调用 해당 source 的 `Cancel()`
-- 并确保 `IsActive` 在下一 tick 变为 false（或外部直接 `RemoveSource`）
+## 8. 对象池使用建议
 
-### Q3：如何保证不同平台结果一致（确定性）？
+当前模块推荐优先使用以下池化入口：
 
-- 固定步长驱动
-- 避免使用非确定随机/真实时间
-- 避免依赖容器遍历顺序（Dictionary/HashSet）影响逻辑分支
+- `MotionPipelinePool.Rent()` / `MotionPipelinePool.Release()`
+- `LocomotionMotionSource.Rent()` / `LocomotionMotionSource.Release()`
+- `TrajectoryMotionSource.Rent()` / `TrajectoryMotionSource.Release()`
+- `FixedDeltaMotionSource.Rent()` / `FixedDeltaMotionSource.Release()`
+- `PathFollowerMotionSource.Rent()` / `PathFollowerMotionSource.Release()`
+- `ScaledMotionSource.Rent()` / `ScaledMotionSource.Release()`
 
+兼容历史代码的 public 构造函数仍保留，但在高频创建销毁路径上不推荐使用。
+
+归还 source 前建议先从 pipeline 移除，避免仍被 tick：
+
+```csharp
+pipeline.RemoveSource(source);
+TrajectoryMotionSource.Release(source);
+```
+
+## 9. 事件处理
+
+实现 `IMotionEventSink` 可接收命中、到达、过期等事件：
+
+```csharp
+public sealed class MotionEvents : IMotionEventSink
+{
+    public void OnHit(int moverId, in MotionState state, in MotionHit hit)
+    {
+        // 播放碰撞反馈或通知战斗逻辑
+    }
+
+    public void OnArrive(int moverId, IMotionSource source)
+    {
+        // 路径到达
+    }
+
+    public void OnExpired(int moverId, IMotionSource source)
+    {
+        // 技能位移结束、击退结束等
+    }
+}
+```
+
+## 10. 常见问题
+
+### Q1：为什么 source 结束后没有立即手动释放？
+
+`MotionPipeline` 只负责从内部列表移除 inactive source，不会假设 source 的所有权。业务侧如果使用池化 source，应在确认不再引用后调用对应 `Release()`。
+
+### Q2：如何避免不同平台结果不一致？
+
+- 输入数组会做防御性拷贝，避免外部修改。
+- 同一组使用明确的 priority 决定胜出 source。
+- 快照只保存进度和必要标量，恢复时应使用同一份技能/轨迹配置。
+- 尽量避免在 solver 中读取非确定性状态。
+
+### Q3：是否完全没有分配？
+
+模块已将 pipeline、常用 source 和内部临时集合接入 core 对象池。路径点数组与轨迹累计长度数组仍可能因防御性拷贝产生分配；如需要严格零 GC，可继续接入数组池或预构建不可变轨迹资源。

@@ -204,7 +204,7 @@ namespace AbilityKit.Demo.Moba.Services
                 Log.Warning($"[MobaTriggerPlanExecutionRunner] executing compiled root type={executionRoot.GetType().Name} actionCount={plan.Actions?.Length ?? 0} argsType={args?.GetType().Name ?? "<null>"}");
                 var result = executionRoot.Execute(args, in execCtx);
                 Log.Warning($"[MobaTriggerPlanExecutionRunner] compiled root result success={result.IsSuccess} executedCount={result.ExecutedCount}");
-                return result.IsSuccess && result.ExecutedCount > 0;
+                return result.IsSuccess;
             }
 
             Log.Warning($"[MobaTriggerPlanExecutionRunner] fallback planned.Execute actionCount={plan.Actions?.Length ?? 0} hasExecutionRoot={hasExecutionRoot} executionRootType={executionRoot?.GetType().Name ?? "<null>"} argsType={args?.GetType().Name ?? "<null>"}");

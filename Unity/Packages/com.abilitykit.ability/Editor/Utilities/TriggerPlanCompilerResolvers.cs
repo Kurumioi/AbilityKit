@@ -11,7 +11,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static int ResolvePayloadFieldId(string fieldName)
         {
             if (string.IsNullOrEmpty(fieldName)) return 0;
-            return StableStringId.Get("field:" + fieldName);
+            return StableStringId.Get("payload:" + fieldName);
         }
 
         public static ActionId ResolveActionId(string actionName)

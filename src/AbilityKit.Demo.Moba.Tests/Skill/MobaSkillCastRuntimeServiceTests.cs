@@ -214,6 +214,8 @@ public sealed class MobaSkillCastRuntimeServiceTests
         public readonly List<KeyValuePair<string, string>> Warnings = new();
 
         public long GetTimestamp() => 0L;
+        public bool IsEnabled(string channel) => true;
+        public bool ShouldSample(string channel) => true;
         public MobaBattleDiagnosticScope Measure(string metricName, double warnThresholdMs = 0d, string context = null) => default;
         public void RecordDuration(string metricName, long startTimestamp, double warnThresholdMs = 0d, string context = null) { }
         public void Counter(string counterName, long value = 1L) { }
@@ -222,5 +224,6 @@ public sealed class MobaSkillCastRuntimeServiceTests
         public void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, message));
         public void Warning(string key, Func<string> messageFactory, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, messageFactory != null ? messageFactory() : null));
         public void Exception(string key, Exception exception, string context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit) { }
+        public IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot() => Array.Empty<MobaBattleDiagnosticWarningRecord>();
     }
 }

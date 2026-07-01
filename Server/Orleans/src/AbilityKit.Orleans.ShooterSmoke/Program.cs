@@ -44,7 +44,8 @@ builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Or
 var storageOptions = builder.Configuration.GetAbilityKitStorageOptions();
 builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.SessionStateProvider,
-    storageOptions.RoomStateProvider);
+    storageOptions.RoomStateProvider,
+    storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
 
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
     new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>()));

@@ -13,7 +13,7 @@ internal static class AbilityKitGatewayHealthEndpoints
 {
     public static IEndpointRouteBuilder MapAbilityKitGatewayHealthEndpoints(
         this IEndpointRouteBuilder app,
-        AbilityKitGatewayOptions deploymentOptions)
+        AbilityKitGatewayOptions gatewayOptions)
     {
         app.MapGet("/health/live", () => Results.Ok(new { status = "Alive" }))
             .WithName("Gateway.HealthLive")
@@ -22,10 +22,11 @@ internal static class AbilityKitGatewayHealthEndpoints
         app.MapGet("/health/ready", (HttpContext httpContext) =>
         {
             var options = httpContext.RequestServices.GetRequiredService<IOptions<AbilityKitGatewayOptions>>().Value;
+            var deployment = httpContext.RequestServices.GetRequiredService<IOptions<AbilityKitDeploymentOptions>>().Value;
             var environment = httpContext.RequestServices.GetRequiredService<IHostEnvironment>();
             var service = $"{options.Http.Scheme}://{options.Http.Host}:{options.Http.Port}";
-            var deployment = new AbilityKitGatewayDeploymentDiagnostics(
-                Role: "gateway",
+            var deploymentDiagnostics = new AbilityKitGatewayDeploymentDiagnostics(
+                Role: deployment.Role,
                 Region: options.Http.Host,
                 ServerId: options.Http.Url,
                 Cluster: null,
@@ -40,7 +41,7 @@ internal static class AbilityKitGatewayHealthEndpoints
 
             var report = AbilityKitGatewayHealthReport.Ready(
                 service,
-                deployment,
+                deploymentDiagnostics,
                 diagnostics: Array.Empty<string>(),
                 warnings: Array.Empty<string>());
 

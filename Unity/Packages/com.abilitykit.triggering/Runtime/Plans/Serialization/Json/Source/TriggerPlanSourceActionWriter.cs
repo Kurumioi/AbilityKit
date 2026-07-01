@@ -393,6 +393,17 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 }
             }
 
+            if (string.Equals(argName, "directionSource", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(argName, "direction_source", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(value, "cast_context", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(value, "CastContext", StringComparison.OrdinalIgnoreCase))
+                {
+                    enumValue = 0;
+                    return true;
+                }
+            }
+
             return false;
         }
 

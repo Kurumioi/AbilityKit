@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Pipeline.Pooling;
 
 namespace AbilityKit.Pipeline
 {
@@ -27,7 +28,7 @@ namespace AbilityKit.Pipeline
         public static List<IAbilityPipelinePhase<TCtx>> CreateRunPhases<TCtx>(IReadOnlyList<IAbilityPipelinePhase<TCtx>> phases)
             where TCtx : IAbilityPipelineContext
         {
-            var result = new List<IAbilityPipelinePhase<TCtx>>(phases.Count);
+            var result = PipelinePools.RentRunPhaseList<TCtx>();
             for (int i = 0; i < phases.Count; i++)
             {
                 var runPhase = CreateRunPhase(phases[i]);

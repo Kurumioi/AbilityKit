@@ -16,6 +16,11 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<ShooterGatewayAccountLoginResult> AccountLoginAsync(
+            ShooterGatewayAccountLoginRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<ShooterGatewayListRoomsResult> ListRoomsAsync(
             ShooterGatewayListRoomsRequest request,
             TimeSpan? timeout = null,
@@ -88,6 +93,31 @@ namespace AbilityKit.Demo.Shooter.View
             var respPayload = await _transport.SendRequestAsync(_opCodes.GuestLogin, payload, timeout, cancellationToken).ConfigureAwait(false);
             var wire = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(respPayload);
             return new ShooterGatewayGuestLoginResult(wire.Success, wire.SessionToken ?? string.Empty, wire.AccountId ?? string.Empty, wire.Message ?? string.Empty);
+        }
+
+        public async Task<ShooterGatewayAccountLoginResult> AccountLoginAsync(
+            ShooterGatewayAccountLoginRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateAccountLogin(in request);
+
+            var req = new WireRoomAccountLoginReq
+            {
+                AccountId = request.AccountId,
+                ExpireSeconds = request.ExpireSeconds,
+                KickExisting = request.KickExisting
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.AccountLogin, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomAccountLoginRes>(respPayload);
+            return new ShooterGatewayAccountLoginResult(
+                wire.Success,
+                wire.SessionToken ?? string.Empty,
+                wire.AccountId ?? string.Empty,
+                wire.ExpireAtUnixMs,
+                wire.KickedSessionToken ?? string.Empty,
+                wire.Message ?? string.Empty);
         }
 
         public async Task<ShooterGatewayListRoomsResult> ListRoomsAsync(
@@ -303,6 +333,12 @@ namespace AbilityKit.Demo.Shooter.View
             if (string.IsNullOrWhiteSpace(request.GuestId)) throw new ArgumentException("guestId is required.", nameof(request));
         }
 
+        private static void ValidateAccountLogin(in ShooterGatewayAccountLoginRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.AccountId)) throw new ArgumentException("accountId is required.", nameof(request));
+            if (request.ExpireSeconds < 0) throw new ArgumentOutOfRangeException(nameof(request));
+        }
+
         private static void ValidateListRooms(in ShooterGatewayListRoomsRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
@@ -470,6 +506,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         public static ShooterRoomGatewayRoomOpCodes Default => new ShooterRoomGatewayRoomOpCodes(
             RoomGatewayOpCodes.GuestLogin,
+            RoomGatewayOpCodes.AccountLogin,
             RoomGatewayOpCodes.ListRooms,
             RoomGatewayOpCodes.CreateRoom,
             RoomGatewayOpCodes.JoinRoom,
@@ -480,6 +517,7 @@ namespace AbilityKit.Demo.Shooter.View
             RoomGatewayOpCodes.RestoreRoom);
 
         public readonly uint GuestLogin;
+        public readonly uint AccountLogin;
         public readonly uint ListRooms;
         public readonly uint CreateRoom;
         public readonly uint JoinRoom;
@@ -505,8 +543,14 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public ShooterRoomGatewayRoomOpCodes(uint guestLogin, uint listRooms, uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom)
+            : this(guestLogin, RoomGatewayOpCodes.AccountLogin, listRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, requestFullStateSync, restoreRoom)
+        {
+        }
+
+        public ShooterRoomGatewayRoomOpCodes(uint guestLogin, uint accountLogin, uint listRooms, uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom)
         {
             GuestLogin = guestLogin;
+            AccountLogin = accountLogin;
             ListRooms = listRooms;
             CreateRoom = createRoom;
             JoinRoom = joinRoom;
@@ -525,6 +569,20 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterGatewayGuestLoginRequest(string guestId)
         {
             GuestId = guestId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayAccountLoginRequest
+    {
+        public readonly string AccountId;
+        public readonly int ExpireSeconds;
+        public readonly bool KickExisting;
+
+        public ShooterGatewayAccountLoginRequest(string accountId, int expireSeconds = 0, bool kickExisting = true)
+        {
+            AccountId = accountId ?? string.Empty;
+            ExpireSeconds = expireSeconds;
+            KickExisting = kickExisting;
         }
     }
 
@@ -701,6 +759,26 @@ namespace AbilityKit.Demo.Shooter.View
             Success = success;
             SessionToken = sessionToken ?? string.Empty;
             AccountId = accountId ?? string.Empty;
+            Message = message ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayAccountLoginResult
+    {
+        public readonly bool Success;
+        public readonly string SessionToken;
+        public readonly string AccountId;
+        public readonly long ExpireAtUnixMs;
+        public readonly string KickedSessionToken;
+        public readonly string Message;
+
+        public ShooterGatewayAccountLoginResult(bool success, string sessionToken, string accountId, long expireAtUnixMs, string kickedSessionToken, string message)
+        {
+            Success = success;
+            SessionToken = sessionToken ?? string.Empty;
+            AccountId = accountId ?? string.Empty;
+            ExpireAtUnixMs = expireAtUnixMs;
+            KickedSessionToken = kickedSessionToken ?? string.Empty;
             Message = message ?? string.Empty;
         }
     }

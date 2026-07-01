@@ -3,6 +3,7 @@ using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Orleans.Grains.Tests.Rooms;
@@ -46,7 +47,7 @@ public sealed class RoomLifecycleCleanupTests
             PlayerCount: 2,
             OwnerAccountId: "account-a",
             CreatedAtUnixMs: 0,
-            Tags: new Dictionary<string, string> { ["offlineTimeoutSeconds"] = "5" });
+            Tags: new Dictionary<string, string> { [RoomTagKeys.OfflineTimeoutSeconds] = "5" });
 
         tracker.SetMemberStateForTests("expired", new RoomMemberState(false, TimeSpan.FromSeconds(1).Ticks, TimeSpan.FromSeconds(1).Ticks));
         tracker.SetMemberStateForTests("recent", new RoomMemberState(false, TimeSpan.FromSeconds(8).Ticks, TimeSpan.FromSeconds(8).Ticks));

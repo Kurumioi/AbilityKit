@@ -76,9 +76,11 @@ namespace AbilityKit.Pipeline
                 if (context.IsAborted)
                 {
                     context.PipelineState = EAbilityPipelineState.Failed;
+                    var failure = CreatePipelineFailureException(context);
                     Events?.OnPipelineInterrupt?.Invoke(context, true);
                     Events?.OnPipelineError?.Invoke(context, null);
-                    return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: context.CurrentPhaseId);
+                    Events?.OnPipelineFailed?.Invoke(context, failure);
+                    return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: context.CurrentPhaseId, exception: failure);
                 }
 
                 var phase = _phases[i];
@@ -94,9 +96,11 @@ namespace AbilityKit.Pipeline
                     if (!phase.IsComplete)
                     {
                         context.PipelineState = EAbilityPipelineState.Failed;
-                        Events?.OnPhaseError?.Invoke(phase, context,
-                            new InvalidOperationException($"Instant phase did not complete synchronously: {phase.GetType().Name} (phaseId={phase.PhaseId})"));
-                        return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: phase.PhaseId);
+                        var failure = new InvalidOperationException($"Instant phase did not complete synchronously: {phase.GetType().Name} (phaseId={phase.PhaseId})");
+                        Events?.OnPhaseError?.Invoke(phase, context, failure);
+                        Events?.OnPipelineError?.Invoke(context, failure);
+                        Events?.OnPipelineFailed?.Invoke(context, failure);
+                        return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: phase.PhaseId, exception: failure);
                     }
 
                     Events?.OnPhaseComplete?.Invoke(phase, context);
@@ -108,6 +112,8 @@ namespace AbilityKit.Pipeline
 
                     context.PipelineState = EAbilityPipelineState.Failed;
                     Events?.OnPhaseError?.Invoke(phase, context, ex);
+                    Events?.OnPipelineError?.Invoke(context, ex);
+                    Events?.OnPipelineFailed?.Invoke(context, ex);
                     return new PipelineExecutionResult(EAbilityPipelineState.Failed, lastPhaseId: phase.PhaseId, exception: ex);
                 }
             }
@@ -115,6 +121,17 @@ namespace AbilityKit.Pipeline
             context.PipelineState = EAbilityPipelineState.Completed;
             Events?.OnPipelineComplete?.Invoke(context);
             return new PipelineExecutionResult(EAbilityPipelineState.Completed, lastPhaseId: context.CurrentPhaseId);
+        }
+
+        private static Exception CreatePipelineFailureException(TCtx context)
+        {
+            if (context != null && context.TryGetData<string>("FailReason", out var failReason) && !string.IsNullOrEmpty(failReason))
+            {
+                return new InvalidOperationException(failReason);
+            }
+
+            var phaseId = context != null ? context.CurrentPhaseId.ToString() : string.Empty;
+            return new InvalidOperationException($"Pipeline failed without exception (state={EAbilityPipelineState.Failed}, phaseId={phaseId}).");
         }
     }
 }
