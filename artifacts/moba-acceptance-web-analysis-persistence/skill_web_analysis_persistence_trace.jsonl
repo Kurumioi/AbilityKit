@@ -1,3 +1,0 @@
-{"contextId":101,"parentContextId":0,"rootContextId":101,"kind":"SkillCast","stage":"skill-cast","actorId":1,"skillId":10010101,"frame":1,"severity":"info","message":"cast accepted"}
-{"contextId":102,"parentContextId":101,"rootContextId":101,"kind":"EffectExecution","stage":"effect-execution","sourceActorId":1,"targetActorId":2,"configId":2001,"frame":2,"severity":"info","message":"effect executed"}
-{"contextId":103,"parentContextId":102,"rootContextId":101,"ownerContextId":102,"kind":"ProjectileLaunch","stage":"projectile","sourceActorId":1,"targetActorId":2,"configId":3001,"frame":3,"severity":"info","message":"projectile launched"}
