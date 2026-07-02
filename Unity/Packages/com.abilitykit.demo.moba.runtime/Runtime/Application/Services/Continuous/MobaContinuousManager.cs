@@ -1,13 +1,16 @@
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -32,13 +35,24 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out MobaEffectExecutionService effects);
             services.TryResolve(out MobaTraceRegistry trace);
             services.TryResolve(out AbilityKit.Ability.Triggering.Runtime.ITriggerActionRunner actionRunner);
+            services.TryResolve(out IFrameTime frameTime);
+            services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
+            services.TryResolve(out MobaRuntimeContextService runtimeContexts);
+            services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
+            services.TryResolve(out MobaTriggerExecutionGateway triggerGateway);
+            if (triggerGateway == null) triggerGateway = new MobaTriggerExecutionGateway(effects, triggerSubscriptions);
+
             _modifierProjectors = new MobaContinuousModifierProjectorRegistry();
             _modifierProjectors.OnInit(services);
             _lifecycleBinder = new MobaContinuousLifecycleBinder(_modifierProjectors);
             AddLifecycleBinder(_lifecycleBinder);
             _contextLifecycleBinder = new MobaContinuousContextLifecycleBinder(trace, actionRunner);
             AddLifecycleBinder(_contextLifecycleBinder);
-            _buffIntervalHandler = new BuffContinuousIntervalHandler(configs, null, null, null);
+            var buffContextRegistry = new BuffContextRegistry(trace, runtimeContexts, actionRunner, frameTime);
+            var events = new BuffEventPublisher(eventBus);
+            var stageEffects = new BuffStageEffectExecutor(triggerGateway);
+            var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
+            _buffIntervalHandler = new BuffContinuousIntervalHandler(configs, events, stageEffects, presentationCues, buffContextRegistry);
             _intervalHandlers.Add(_buffIntervalHandler);
             _tickProcessor = new MobaContinuousTickProcessor(_intervalHandlers);
         }

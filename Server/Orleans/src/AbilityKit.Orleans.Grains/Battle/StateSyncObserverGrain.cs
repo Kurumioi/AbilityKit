@@ -93,15 +93,19 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
 
             if (!success)
             {
-                _logger.LogDebug(
-                    "[StateSyncObserver] Snapshot push target is offline. Account: {AccountId}, Frame: {Frame}",
-                    _accountId, push.Frame);
+                _logger.LogWarning(
+                    "[StateSyncObserver] Snapshot push target is offline. Account: {AccountId}, Frame: {Frame}, FullSnapshot: {FullSnapshot}",
+                    _accountId,
+                    push.Frame,
+                    push.IsFullSnapshot);
                 await UnsubscribeCurrentBattleAsync("gateway push target offline");
+                throw new InvalidOperationException($"Snapshot push target is offline. Account={_accountId}, Frame={push.Frame}, FullSnapshot={push.IsFullSnapshot}");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[StateSyncObserver] Error pushing snapshot to account: {AccountId}", _accountId);
+            throw;
         }
     }
 

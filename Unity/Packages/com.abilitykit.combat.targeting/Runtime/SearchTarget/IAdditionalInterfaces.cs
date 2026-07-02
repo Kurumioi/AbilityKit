@@ -22,7 +22,7 @@ namespace AbilityKit.Battle.SearchTarget
     }
 
     /// <summary>
-    /// Actor ID 集合接口
+    /// 参与者标识集合接口
     /// </summary>
     public interface IActorIdSet
     {
@@ -31,7 +31,7 @@ namespace AbilityKit.Battle.SearchTarget
     }
 
     /// <summary>
-    /// 实体 Key 提供者接口
+    /// 实体稳定键提供者接口
     /// </summary>
     public interface IEntityKeyProvider
     {

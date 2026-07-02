@@ -3,7 +3,7 @@ using System;
 namespace AbilityKit.Battle.SearchTarget
 {
     /// <summary>
-    /// 2D 向量抽象接口
+    /// 二维向量抽象接口。
     /// </summary>
     public interface IVec2
     {
@@ -19,7 +19,7 @@ namespace AbilityKit.Battle.SearchTarget
     }
 
     /// <summary>
-    /// 默认 Vec2 实现
+    /// 默认二维向量实现。
     /// </summary>
     public readonly struct Vec2 : IVec2
     {

@@ -7,6 +7,7 @@ namespace AbilityKit.Battle.SearchTarget
     {
         private ICandidateProvider _provider;
         private List<ITargetRule> _rules;
+        private bool _ownsRules;
         private ITargetScorer _scorer;
         private ITargetSelector _selector;
         private int _maxCount;
@@ -18,6 +19,7 @@ namespace AbilityKit.Battle.SearchTarget
         {
             _provider = null;
             _rules = null;
+            _ownsRules = false;
             _scorer = null;
             _selector = null;
             _maxCount = 0;
@@ -35,7 +37,7 @@ namespace AbilityKit.Battle.SearchTarget
         public SearchPipelineBuilder Filter(ITargetRule rule)
         {
             if (rule == null) return this;
-            if (_rules == null) _rules = new List<ITargetRule>(4);
+            EnsureRuleList();
             _rules.Add(rule);
             return this;
         }
@@ -43,7 +45,7 @@ namespace AbilityKit.Battle.SearchTarget
         public SearchPipelineBuilder Filter(params ITargetRule[] rules)
         {
             if (rules == null || rules.Length == 0) return this;
-            if (_rules == null) _rules = new List<ITargetRule>(rules.Length);
+            EnsureRuleList();
             for (int i = 0; i < rules.Length; i++)
             {
                 if (rules[i] != null) _rules.Add(rules[i]);
@@ -105,10 +107,50 @@ namespace AbilityKit.Battle.SearchTarget
             return new SearchQuery(_provider, rules, _scorer, _selector, _maxCount, _flags);
         }
 
+        public SearchQuery BuildCopy()
+        {
+            if (_rules == null || _rules.Count == 0)
+            {
+                return new SearchQuery(_provider, s_emptyRules, _scorer, _selector, _maxCount, _flags);
+            }
+
+            var rules = _rules.ToArray();
+            return new SearchQuery(_provider, rules, _scorer, _selector, _maxCount, _flags);
+        }
+
+        public SearchResult Execute(TargetSearchEngine engine, SearchContext context)
+        {
+            var query = Build();
+            return engine.SearchIds(in query, context);
+        }
+
         public void Execute(TargetSearchEngine engine, SearchContext context, List<IEntityId> results)
         {
             var query = Build();
             engine.SearchIds(in query, context, results);
+        }
+
+        public void Dispose()
+        {
+            if (_ownsRules)
+            {
+                TargetingPool.ReleaseRuleList(_rules);
+            }
+
+            _provider = null;
+            _rules = null;
+            _ownsRules = false;
+            _scorer = null;
+            _selector = null;
+            _maxCount = 0;
+            _flags = 0;
+        }
+
+        private void EnsureRuleList()
+        {
+            if (_rules != null) return;
+            _rules = TargetingPool.RentRuleList();
+            _ownsRules = true;
         }
     }
 }

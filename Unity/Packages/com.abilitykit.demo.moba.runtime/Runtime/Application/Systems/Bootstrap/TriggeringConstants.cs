@@ -56,6 +56,8 @@ namespace AbilityKit.Demo.Moba.Systems
 
             // Resource Actions
             public const string ConsumeResource = "consume_resource";
+            public const string ModifyResource = "modify_resource";
+            public const string ConvertResourceToHeal = "convert_resource_to_heal";
             public const string StartCooldown = "start_cooldown";
         }
 
@@ -120,6 +122,7 @@ namespace AbilityKit.Demo.Moba.Systems
         /// </summary>
         public static ActionId GiveDamageId => GetActionId(Actions.GiveDamage);
         public static ActionId TakeDamageId => GetActionId(Actions.TakeDamage);
+        public static ActionId HealId => GetActionId(Actions.Heal);
         public static ActionId DebugLogId => GetActionId(Actions.DebugLog);
         public static ActionId ShootProjectileId => GetActionId(Actions.ShootProjectile);
         public static ActionId AddBuffId => GetActionId(Actions.AddBuff);
@@ -143,6 +146,8 @@ namespace AbilityKit.Demo.Moba.Systems
 
         // Resource Action IDs
         public static ActionId ConsumeResourceId => GetActionId(Actions.ConsumeResource);
+        public static ActionId ModifyResourceId => GetActionId(Actions.ModifyResource);
+        public static ActionId ConvertResourceToHealId => GetActionId(Actions.ConvertResourceToHeal);
         public static ActionId StartCooldownId => GetActionId(Actions.StartCooldown);
 
         /// <summary>

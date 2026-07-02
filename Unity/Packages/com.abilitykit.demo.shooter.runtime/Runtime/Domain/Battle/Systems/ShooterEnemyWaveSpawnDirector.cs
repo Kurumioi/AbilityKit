@@ -12,17 +12,29 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterEnemyWaveProgress _progress;
         private readonly ShooterEnemyIdAllocator _allocator;
         private readonly IShooterEntityManager _entities;
+        private readonly ShooterArenaGameplayOptions _arenaOptions;
 
         public ShooterEnemyWaveSpawnDirector(
             ShooterEnemyWaveOptions options,
             ShooterEnemyWaveProgress progress,
             ShooterEnemyIdAllocator allocator,
             IShooterEntityManager entities)
+            : this(options, progress, allocator, entities, ShooterArenaGameplayOptions.Disabled)
+        {
+        }
+
+        public ShooterEnemyWaveSpawnDirector(
+            ShooterEnemyWaveOptions options,
+            ShooterEnemyWaveProgress progress,
+            ShooterEnemyIdAllocator allocator,
+            IShooterEntityManager entities,
+            ShooterArenaGameplayOptions arenaOptions)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _progress = progress ?? throw new ArgumentNullException(nameof(progress));
             _allocator = allocator ?? throw new ArgumentNullException(nameof(allocator));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
+            _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
             _waves = _options.Waves;
         }
 
@@ -73,8 +85,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             var enemyId = _allocator.Allocate();
             var angle = (waveId * 97 + spawnIndex * 37) * Pi / 180f;
-            var x = MathF.Cos(angle) * spawnRadius;
-            var y = MathF.Sin(angle) * spawnRadius;
+            var activeSpawnRadius = ShooterCircularArenaMath.ClampSpawnRadius(spawnRadius, _arenaOptions);
+            var x = MathF.Cos(angle) * activeSpawnRadius;
+            var y = MathF.Sin(angle) * activeSpawnRadius;
             var directionX = -x;
             var directionY = -y;
             Normalize(ref directionX, ref directionY);

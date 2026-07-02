@@ -121,6 +121,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 TriggerId = triggerId,
                 BuffId = buffId,
                 Stage = stage,
+                RuntimeContextId = runtime != null ? runtime.RuntimeContextId : 0L,
+                RuntimeContextVersion = runtime != null ? runtime.RuntimeContextVersion : 0L,
                 StackCountSnapshot = runtime != null ? runtime.StackCount : 0,
                 RemainingSecondsSnapshot = runtime != null ? runtime.Remaining : 0f,
                 DurationSecondsSnapshot = durationSeconds,
@@ -135,6 +137,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
     {
         int BuffId { get; }
         string Stage { get; }
+        long RuntimeContextId { get; }
+        long RuntimeContextVersion { get; }
         int StackCountSnapshot { get; }
         float RemainingSecondsSnapshot { get; }
         float DurationSecondsSnapshot { get; }
@@ -152,6 +156,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         public override EffectContextKind Kind => EffectContextKind.Buff;
         public int BuffId { get; set; }
         public string Stage { get; set; }
+        public long RuntimeContextId { get; set; }
+        public long RuntimeContextVersion { get; set; }
         public int StackCountSnapshot { get; set; }
         public float RemainingSecondsSnapshot { get; set; }
         public float DurationSecondsSnapshot { get; set; }

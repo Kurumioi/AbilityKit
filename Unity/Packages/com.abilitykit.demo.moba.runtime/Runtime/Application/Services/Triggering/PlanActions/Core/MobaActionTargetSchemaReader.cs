@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 
@@ -12,15 +13,30 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return Instance.ParseArgs(namedArgs, ctx);
         }
 
+        public static MobaActionTargetRequest Read(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx, in TriggerActionParseContext parseContext)
+        {
+            return Instance.ParseArgs(namedArgs, ctx, in parseContext);
+        }
+
         private static readonly MobaActionTargetSchemaReader Instance = new MobaActionTargetSchemaReader();
 
         protected override string ActionName => "target_query";
 
         public override MobaActionTargetRequest ParseArgs(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx)
         {
+            return ParseArgs(namedArgs, ctx, default);
+        }
+
+        public override MobaActionTargetRequest ParseArgs(Dictionary<string, ActionArgValue> namedArgs, ExecCtx<IWorldResolver> ctx, in TriggerActionParseContext parseContext)
+        {
             var queryTemplateId = ReadInt(namedArgs, ctx, 0,
                 "query_template_id", "querytemplateid", "target_query_id", "targetqueryid", "target_query_template_id", "targetquerytemplateid");
             var targetActorId = ReadInt(namedArgs, ctx, 0, "target_actor_id", "targetactorid");
+            var targetPayloadFieldId = ReadInt(namedArgs, ctx, 0,
+                "target_payload_field_id", "targetpayloadfieldid", "target_actor_payload_field_id", "targetactorpayloadfieldid");
+            var targetPayloadActorId = targetPayloadFieldId > 0
+                ? ReadCurrentPayloadInt(ctx, in parseContext, targetPayloadFieldId, 0)
+                : 0;
             var sourceCode = ReadEnum(namedArgs, ctx, MobaActionTargetSourceCode.ContextTarget,
                 "target_source", "targetsource", "source_code", "sourcecode", "target_provider", "targetprovider", "target");
             var sourceParam = ReadInt(namedArgs, ctx, 0,
@@ -48,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var targetSelf = ReadBoolNonZero(namedArgs, ctx, false, "target_self", "targetself", "self");
             if (targetSelf) sourceCode = MobaActionTargetSourceCode.Self;
-            if (targetActorId > 0 && sourceCode == MobaActionTargetSourceCode.ContextTarget)
+            if ((targetActorId > 0 || targetPayloadActorId > 0) && sourceCode == MobaActionTargetSourceCode.ContextTarget)
             {
                 sourceCode = MobaActionTargetSourceCode.ExplicitActor;
             }
@@ -69,7 +85,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 selectCode,
                 maxCount,
                 queryTemplateId,
-                targetActorId);
+                targetActorId,
+                targetPayloadActorId);
         }
 
         public override bool TryValidateArgs(System.ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

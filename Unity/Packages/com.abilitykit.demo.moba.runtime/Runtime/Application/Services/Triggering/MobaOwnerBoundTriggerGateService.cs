@@ -42,6 +42,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             gate.Complete(ownerKey, triggerId);
         }
 
+        public bool TryGetExecutionSource(long ownerKey, int triggerId, out MobaOwnerBoundTriggerExecutionSource source)
+        {
+            source = default;
+            if (!TryGetGate(ownerKey, triggerId, out var gate)) return false;
+            if (!(gate is IMobaOwnerBoundTriggerExecutionSourceProvider provider)) return false;
+
+            return provider.TryGetExecutionSource(ownerKey, triggerId, out source) && source.HasExecutionSource;
+        }
+
         public void Dispose()
         {
             _runtimeGates.Clear();

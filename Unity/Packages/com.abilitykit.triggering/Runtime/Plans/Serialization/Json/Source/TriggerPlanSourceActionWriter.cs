@@ -127,8 +127,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
-            writer.WritePropertyName(argName);
-            WriteParamValue(writer, argName, value);
+            var runtimeArgName = NormalizeRuntimeArgName(argName);
+            writer.WritePropertyName(runtimeArgName);
+            WriteParamValue(writer, runtimeArgName, value);
         }
 
         private void WriteArrayArgs(JsonTextWriter writer, string argName, JArray values)
@@ -154,6 +155,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private static bool IsScalarValue(JToken value)
         {
             return value != null && value.Type != JTokenType.Array;
+        }
+
+        private static string NormalizeRuntimeArgName(string argName)
+        {
+            return IsTargetPayloadFieldArg(argName) ? "target_payload_field_id" : argName;
         }
 
         private static List<ActionArgSource> BuildOrderedActionArgs(JObject action, string type, Dictionary<string, ActionSourceDefJson> actionSchemas)
@@ -306,6 +312,15 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return;
             }
 
+            if (IsTargetPayloadFieldArg(argName))
+            {
+                var payloadField = value.StartsWith("payload:", StringComparison.OrdinalIgnoreCase)
+                    ? value.Substring("payload:".Length)
+                    : value.TrimStart('@');
+                TriggerPlanSourceValueWriter.WriteConstValue(writer, StableStringId.Get("payload:" + payloadField));
+                return;
+            }
+
             if (value.StartsWith("payload:", StringComparison.OrdinalIgnoreCase))
             {
                 TriggerPlanSourceValueWriter.WritePayloadFieldValue(writer, value.Substring("payload:".Length));
@@ -362,6 +377,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             }
 
             throw new InvalidOperationException($"Unsupported action parameter string value: {value}");
+        }
+
+        private static bool IsTargetPayloadFieldArg(string argName)
+        {
+            return string.Equals(argName, "target_payload_field", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "targetPayloadField", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "target_actor_payload_field", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "targetActorPayloadField", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryMapLegacyEnumLiteral(string argName, string value, out int enumValue)

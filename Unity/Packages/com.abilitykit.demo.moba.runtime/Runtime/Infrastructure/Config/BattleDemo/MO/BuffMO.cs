@@ -46,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
                     return dto.MagnitudeCurve != null && dto.MagnitudeCurve.Length > 0
                         ? MagnitudeSource.TimeDecay(baseValue, dto.MagnitudeDuration, dto.MagnitudeCurve)
                         : MagnitudeSource.TimeDecay(baseValue, dto.MagnitudeDuration, (DecayType)dto.MagnitudeDecayType);
+                case MagnitudeSourceType.ContextFloat:
+                    return MagnitudeSource.ContextFloat(dto.MagnitudeContextKey, coefficient, baseValue);
                 case MagnitudeSourceType.Pipeline:
                     return MagnitudeSource.Fixed(baseValue);
                 default:

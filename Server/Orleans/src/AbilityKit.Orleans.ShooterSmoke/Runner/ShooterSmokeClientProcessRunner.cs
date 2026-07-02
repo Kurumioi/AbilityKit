@@ -112,7 +112,11 @@ internal static class ShooterSmokeClientProcessRunner
             await RequestInitialFullStateSyncWhileTickingAsync(launched, launcher, resultTimeout);
         }
 
-        var push = await WaitForPushWhileTickingAsync(pushWait.Task, launcher, resultTimeout);
+        var push = await WaitForPushWhileTickingAsync(
+            pushWait.Task,
+            launcher,
+            resultTimeout,
+            () => BuildPushWaitDiagnostics(pushCount, in lastPush, channel, connection));
         ValidateAppliedSnapshot(push, runtime, presentation);
         var appliedSnapshotHashMatched = ValidateAppliedSnapshotHash(push, runtime);
 
@@ -495,14 +499,16 @@ internal static class ShooterSmokeClientProcessRunner
     private static async Task<ShooterSnapshotPushSmokeResult> WaitForPushWhileTickingAsync(
         Task<ShooterSnapshotPushSmokeResult> task,
         ShooterClientNetworkLauncher launcher,
-        TimeSpan timeout)
+        TimeSpan timeout,
+        Func<string>? diagnostics = null)
     {
         var deadline = DateTime.UtcNow + timeout;
         while (!task.IsCompleted)
         {
             if (DateTime.UtcNow >= deadline)
             {
-                throw new TimeoutException("Timed out waiting for Shooter snapshot push.");
+                var details = diagnostics == null ? string.Empty : " " + diagnostics();
+                throw new TimeoutException($"Timed out waiting for Shooter snapshot push.{details}");
             }
 
             launcher.Tick(1f / ShooterGameplay.DefaultTickRate);
@@ -510,6 +516,15 @@ internal static class ShooterSmokeClientProcessRunner
         }
 
         return await task.ConfigureAwait(false);
+    }
+
+    private static string BuildPushWaitDiagnostics(
+        int pushCount,
+        in ShooterSnapshotPushSmokeResult lastPush,
+        SmokeTcpGameFrameworkNetworkChannel channel,
+        AbilityKit.Network.Abstractions.IConnection connection)
+    {
+        return $"pushCount={pushCount}, lastApply={lastPush.ApplyResult}, lastPayloadOpCode={lastPush.PayloadOpCode}, lastPushFrame={lastPush.PackedFrame}, channelReceived={channel.ReceivedPacketCount}, channelSent={channel.SentPacketCount}, inboundReceived={channel.ConditionInboundReceived}, inboundDropped={channel.ConditionInboundDropped}, connected={connection.IsConnected}";
     }
 
     private static ShooterSmokeLagCompensationProcessResult EvaluateLagCompensationSmoke(
@@ -662,7 +677,11 @@ internal static class ShooterSmokeClientProcessRunner
             throw new InvalidOperationException($"Shooter multiprocess reconnect expected reconnect entry kind. Actual={reconnected.Flow.EntryKind}");
         }
 
-        var reconnectPush = await WaitForPushWhileTickingAsync(reconnectPushWait.Task, launcher, timeout);
+        var reconnectPush = await WaitForPushWhileTickingAsync(
+            reconnectPushWait.Task,
+            launcher,
+            timeout,
+            () => $"pushesBefore={pushesBefore}, pushesNow={getPushCount()}, connected={connection.IsConnected}");
         if (!IsAppliedSnapshotResult(reconnectPush.ApplyResult))
         {
             throw new InvalidOperationException($"Shooter multiprocess reconnect snapshot was not applied. Result={reconnectPush.ApplyResult}");
@@ -899,9 +918,17 @@ internal static class ShooterSmokeClientProcessRunner
         in ShooterSnapshotPushSmokeResult push,
         ShooterBattleRuntimePort runtime)
     {
-        return push.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot
-            || push.PackedStateHash == 0u
-            || runtime.ComputeStateHash() == push.PackedStateHash;
+        if (push.ApplyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot || push.PackedStateHash == 0u)
+        {
+            return true;
+        }
+
+        if (runtime.CurrentFrame != push.PackedFrame)
+        {
+            return true;
+        }
+
+        return runtime.ComputeStateHash() == push.PackedStateHash;
     }
 
     private static bool ValidateLatestAuthoritativeSnapshot(

@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterEntityManager _entities;
         private readonly IShooterBattleRules _rules;
         private readonly ShooterEnemyWaveOptions _enemyWaveOptions;
+        private readonly ShooterArenaGameplayOptions _arenaOptions;
         private readonly ShooterStateSnapshotExporter _snapshotExporter;
         private readonly ShooterStateHasher _stateHasher;
         private readonly ShooterPackedSnapshotExporter _packedSnapshotExporter;
@@ -44,22 +45,27 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits, ShooterEnemyWaveOptions enemyWaveOptions)
-            : this(CreateDefaultEntityManager(entityLimits), enemyWaveOptions)
+            : this(entityLimits, enemyWaveOptions, ShooterArenaGameplayOptions.Disabled)
         {
         }
 
-        private ShooterBattleRuntimePort(IShooterEntityManager entities, ShooterEnemyWaveOptions enemyWaveOptions)
-            : this(CreateState(entities), enemyWaveOptions)
+        public ShooterBattleRuntimePort(ShooterEntityLimitOptions entityLimits, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
+            : this(CreateDefaultEntityManager(entityLimits), enemyWaveOptions, arenaOptions)
         {
         }
 
-        private ShooterBattleRuntimePort(ShooterBattleState state, ShooterEnemyWaveOptions enemyWaveOptions)
-            : this(state, ShooterBattleRules.Default, enemyWaveOptions)
+        private ShooterBattleRuntimePort(IShooterEntityManager entities, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
+            : this(CreateState(entities), enemyWaveOptions, arenaOptions)
         {
         }
 
-        private ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions)
-            : this(state, new ShooterBattleSimulation(state, rules), state.Entities, rules, enemyWaveOptions)
+        private ShooterBattleRuntimePort(ShooterBattleState state, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
+            : this(state, ShooterBattleRules.Default, enemyWaveOptions, arenaOptions)
+        {
+        }
+
+        private ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
+            : this(state, new ShooterBattleSimulation(state, rules, arenaOptions), state.Entities, rules, enemyWaveOptions, arenaOptions)
         {
         }
 
@@ -69,17 +75,23 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules)
-            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled)
+            : this(state, simulation, entities, rules, ShooterEnemyWaveOptions.Disabled, ShooterArenaGameplayOptions.Disabled)
         {
         }
 
         public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions)
+            : this(state, simulation, entities, rules, enemyWaveOptions, ShooterArenaGameplayOptions.Disabled)
+        {
+        }
+
+        public ShooterBattleRuntimePort(ShooterBattleState state, IShooterBattleSimulation simulation, IShooterEntityManager entities, IShooterBattleRules rules, ShooterEnemyWaveOptions enemyWaveOptions, ShooterArenaGameplayOptions arenaOptions)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _simulation = simulation ?? throw new ArgumentNullException(nameof(simulation));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _enemyWaveOptions = enemyWaveOptions ?? ShooterEnemyWaveOptions.Disabled;
+            _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
             _snapshotExporter = new ShooterStateSnapshotExporter(_state, _entities);
             _stateHasher = new ShooterStateHasher(_state, _entities);
             _packedSnapshotExporter = new ShooterPackedSnapshotExporter(_state, _entities, _rules, this);
@@ -119,11 +131,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     var player = players[i];
                     if (player.PlayerId <= 0 || _entities.HasPlayer(player.PlayerId)) continue;
 
+                    var spawnX = player.SpawnX;
+                    var spawnY = player.SpawnY;
+                    ShooterCircularArenaMath.Clamp(ref spawnX, ref spawnY, _arenaOptions);
+
                     var component = new ShooterSveltoPlayerComponent
                     {
                         PlayerId = player.PlayerId,
-                        X = player.SpawnX,
-                        Y = player.SpawnY,
+                        X = spawnX,
+                        Y = spawnY,
                         AimX = 1f,
                         AimY = 0f,
                         Hp = ShooterGameplay.DefaultPlayerHp,
@@ -264,7 +280,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 .Add<IShooterEntityManager>(_entities)
                 .Add<IShooterBattleRules>(_rules)
                 .Add<IShooterBotAiRuntime>(_botAiRuntime)
-                .Add(enemyWaveOptions);
+                .Add(enemyWaveOptions)
+                .Add(_arenaOptions);
         }
     }
 }

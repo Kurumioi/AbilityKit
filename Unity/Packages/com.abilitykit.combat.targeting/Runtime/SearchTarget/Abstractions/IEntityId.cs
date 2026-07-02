@@ -1,8 +1,8 @@
 namespace AbilityKit.Battle.SearchTarget
 {
     /// <summary>
-    /// 实体 ID 抽象接口
-    /// 核心层不依赖具体 ECS 实现
+    /// 实体标识抽象接口。
+    /// 核心层不依赖具体实体系统实现。
     /// </summary>
     public interface IEntityId
     {
@@ -11,7 +11,7 @@ namespace AbilityKit.Battle.SearchTarget
     }
 
     /// <summary>
-    /// 默认实体 ID 实现
+    /// 默认实体标识实现。
     /// </summary>
     public readonly struct EntityId : IEntityId
     {

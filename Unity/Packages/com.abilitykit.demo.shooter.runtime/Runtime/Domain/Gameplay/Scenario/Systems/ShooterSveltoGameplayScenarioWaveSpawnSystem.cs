@@ -50,7 +50,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                QueueEnemySpawn(in wave, _waveSpawned[i]);
+                QueueEnemySpawn(in config, in wave, _waveSpawned[i]);
                 _waveSpawned[i]++;
                 activeEnemies++;
             }
@@ -58,12 +58,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             FlushEnemySpawns();
         }
 
-        private void QueueEnemySpawn(in ShooterSveltoGameplayWaveConfig wave, int spawnIndex)
+        private void QueueEnemySpawn(in ShooterSveltoGameplayScenarioConfig config, in ShooterSveltoGameplayWaveConfig wave, int spawnIndex)
         {
             var targetId = _nextTargetId++;
             var angle = (wave.WaveId * 97 + spawnIndex * 37) * Pi / 180f;
-            var x = MathF.Cos(angle) * wave.SpawnRadius;
-            var y = MathF.Sin(angle) * wave.SpawnRadius;
+            var spawnRadius = MathF.Min(wave.SpawnRadius, config.ArenaRadius);
+            var x = MathF.Cos(angle) * spawnRadius;
+            var y = MathF.Sin(angle) * spawnRadius;
             var dx = -x;
             var dy = -y;
             ShooterSveltoGameplayScenarioEcsUtility.Normalize(ref dx, ref dy);

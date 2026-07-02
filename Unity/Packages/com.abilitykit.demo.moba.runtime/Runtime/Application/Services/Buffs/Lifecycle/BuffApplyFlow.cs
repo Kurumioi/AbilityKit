@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Tagging;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.GameplayTags;
 using AbilityKit.Trace;
 
@@ -146,6 +147,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 BuffStackingPolicyApplier.ResetInterval(runtime, buff);
             }
 
+            _ctx?.SyncRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Refreshed);
             _notifier.AppliedExisting(buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, runtime, oldStackCount, applied);
             return true;
         }
@@ -174,9 +176,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for new buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
             }
 
+            _ctx?.SyncRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Active);
             list.Add(runtime);
             BuffRepository.RegisterRuntime(list, runtime);
-
+ 
             _triggerPlans.Upsert(target, runtime.SourceContextId, buff);
             _notifier.AppliedNew(buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, runtime);
             return true;

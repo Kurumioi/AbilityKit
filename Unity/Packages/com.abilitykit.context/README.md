@@ -125,6 +125,51 @@ storage.Save(new EntitySnapshot { EntityId = 1, Health = 100 });
 var snapshot = storage.Get(1);
 ```
 
+### 6. 统一读取实时值与快照值
+
+```csharp
+public sealed class HealthProperty : IProperty, IContextValueProvider
+{
+    public int TypeId => PropertyTypeRegistry.Instance.Register<HealthProperty>().Id;
+    public int Current { get; set; }
+    public int Max { get; set; }
+
+    public bool TryGetValue<T>(string key, out T value)
+    {
+        object raw = key == "Current" ? Current : key == "Max" ? Max : null;
+        if (raw is T typed)
+        {
+            value = typed;
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+}
+
+var registry = new ContextRegistry();
+var storage = new SnapshotStorage();
+var resolver = new ContextValueResolver(registry, storage);
+
+var contextId = registry.Create()
+    .With(new HealthProperty { Current = 80, Max = 100 })
+    .Build();
+
+var current = resolver.GetValue<int, HealthProperty>(
+    contextId,
+    "Current",
+    defaultValue: 0,
+    mode: ContextValueReadMode.RealtimeThenSnapshot);
+
+if (current.Found && current.IsRealtime)
+{
+    Console.WriteLine(current.Value);
+}
+```
+
+`ContextValueResolver` 是上下文触发模块的统一读入口：调用方只需要传入上下文 ID、属性类型和可选键名，即可按 `ContextValueReadMode` 决定优先读取实时注册中心还是快照存储。属性或快照实现 `IContextValueProvider` 后可暴露多个命名字段；快照也可以继续实现 `ISnapshotAccessor` 兼容旧的按键读取方式。
+
 ## API 概览
 
 ### ContextRegistry
@@ -157,6 +202,22 @@ var snapshot = storage.Get(1);
 | `With<T>()` | 添加查询条件 |
 | `Execute(registry)` | 执行查询 |
 
+### ContextValueResolver
+
+| 方法 | 说明 |
+|------|------|
+| `GetProperty<TProperty>(contextId, mode)` | 按上下文 ID 读取实时属性或快照属性 |
+| `GetValue<T, TProperty>(contextId, key, defaultValue, mode)` | 按属性类型和键名读取具体值 |
+| `TryGetValue<T, TProperty>(contextId, key, out value, mode)` | 只在实时值或快照值命中时返回 true |
+| `TryGetRealtimeProperty<TProperty>(contextId, out property)` | 只读取注册中心内的实时属性 |
+| `TryGetSnapshot(contextId, out snapshot)` | 只读取快照存储内的快照 |
+
+### IContextValueProvider
+
+| 方法 | 说明 |
+|------|------|
+| `TryGetValue<T>(key, out value)` | 由属性或快照实现，向统一解析器暴露命名值 |
+
 ## 模块结构
 
 ```
@@ -172,6 +233,10 @@ com.abilitykit.context/
 │   ├── IContextSnapshot.cs # 快照接口
 │   ├── ISnapshotAccessor.cs
 │   └── SnapshotStorage.cs # 快照存储
+├── Value/
+│   ├── ContextValueResolver.cs
+│   ├── ContextValueTypes.cs
+│   └── IContextValueProvider.cs
 └── Events/
     ├── ContextEventType.cs
     ├── ContextEvent.cs

@@ -109,6 +109,66 @@ public sealed class ShooterWorldModuleTests
     }
 
     [Fact]
+    public void RuntimeConstrainsCircularArenaMovementFireAndWaveSpawns()
+    {
+        var rules = new ShooterBattleRules(
+            playerSpeed: 20f,
+            bulletSpeed: 30f,
+            bulletLifeFrames: 3,
+            hitRadius: 0.45f,
+            hitDamage: 1);
+        var flow = new ShooterSveltoGameplayBattleFlowConfig(
+            durationFrames: 60,
+            victoryTargetDefeats: 99,
+            maxActiveEnemies: 4,
+            new[]
+            {
+                new ShooterSveltoGameplayWaveConfig(
+                    waveId: 1,
+                    startFrame: 1,
+                    spawnFrameInterval: 1,
+                    enemyCount: 1,
+                    enemyHp: 2,
+                    spawnRadius: 10f)
+            });
+        var arena = ShooterArenaGameplayOptions.CreateCircular(2f);
+        var container = new WorldContainerBuilder()
+            .RegisterInstance<IShooterBattleRules>(rules)
+            .RegisterInstance(new ShooterEnemyWaveOptions(enabled: true, flow))
+            .RegisterInstance(arena)
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "circular-arena",
+            30,
+            1,
+            new[] { new ShooterStartPlayer(1, "P1", 5f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(entities.TryGetPlayer(1, out var player));
+        Assert.Equal(2f, player.X, 5);
+        Assert.Equal(0f, player.Y, 5);
+
+        Assert.Equal(1, runtime.SubmitInput(0, new[] { new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, true) }));
+        Assert.True(runtime.Tick(1f));
+
+        Assert.True(entities.TryGetPlayer(1, out player));
+        Assert.Equal(2f, player.X, 5);
+        Assert.Equal(0f, player.Y, 5);
+        Assert.False(entities.TryGetProjectile(1, out _));
+        Assert.Equal(1, entities.EnemyCount);
+
+        foreach (var enemyId in entities.EnemyIds)
+        {
+            Assert.True(entities.TryGetEnemy(enemyId, out var transform, out _));
+            Assert.True(transform.X * transform.X + transform.Y * transform.Y <= arena.RadiusSquared + 0.0001f);
+        }
+    }
+
+    [Fact]
     public void RuntimeEmitsNamedHitEventWhenProjectileHitsPlayer()
     {
         var rules = new ShooterBattleRules(

@@ -38,7 +38,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 waveSpawnSystem.Tick(in config, frame);
                 shooterDecisionSystem.Tick(in config);
                 enemyDecisionSystem.Tick(in config, frame);
-                projectileSystem.Tick(config.TickDeltaTime);
+                projectileSystem.Tick(config.TickDeltaTime, config.ArenaRadius);
             }
 
             return resultCollector.BuildResult(in config, projectileSystem.CreateCounters());

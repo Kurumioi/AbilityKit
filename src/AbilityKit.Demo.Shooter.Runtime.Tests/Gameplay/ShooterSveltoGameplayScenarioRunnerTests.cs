@@ -166,6 +166,61 @@ public sealed class ShooterSveltoGameplayScenarioRunnerTests
     }
 
     [Fact]
+    public void SmallArenaWaveScenarioRunsDeterministicallyWithBoundedProjectiles()
+    {
+        var loadout = new ShooterSveltoGameplayLoadout(
+            loadoutId: 101,
+            name: "small-arena-rifle",
+            projectileSpeed: 12f,
+            projectileLifeFrames: 20,
+            damage: 2,
+            cooldownFrames: 1,
+            projectilesPerShot: 2,
+            spreadDegrees: 8f);
+        var flow = new ShooterSveltoGameplayBattleFlowConfig(
+            durationFrames: 24,
+            victoryTargetDefeats: 8,
+            maxActiveEnemies: 4,
+            new[]
+            {
+                new ShooterSveltoGameplayWaveConfig(
+                    waveId: 1,
+                    startFrame: 0,
+                    spawnFrameInterval: 1,
+                    enemyCount: 8,
+                    enemyHp: 4,
+                    spawnRadius: 25f)
+            });
+        var scenario = new ShooterSveltoGameplayScenarioConfig(
+            id: "small-arena-wave",
+            displayName: "Small Arena Wave",
+            description: "Verifies wave spawns and projectiles stay bounded by a small circular arena.",
+            shooterCount: 2,
+            targetCount: 0,
+            tickCount: 24,
+            tickDeltaTime: 1f / 30f,
+            arenaRadius: 3f,
+            loadout,
+            flow);
+        var container = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+
+        var runner = container.Resolve<IShooterSveltoGameplayScenarioRunner>();
+        var first = runner.Run(scenario);
+        var second = runner.Run(scenario);
+
+        Assert.Equal(scenario.Id, first.ScenarioId);
+        Assert.Equal(first.StateHash, second.StateHash);
+        Assert.Equal(first.ProjectilesSpawned, second.ProjectilesSpawned);
+        Assert.Equal(first.ProjectilesExpired, second.ProjectilesExpired);
+        Assert.True(first.Targets > 0);
+        Assert.True(first.ProjectilesSpawned > 0);
+        Assert.True(first.ProjectilesExpired > 0);
+        Assert.True(first.StateHash != 0);
+    }
+
+    [Fact]
     public void BenchmarkProfileRunsScenarioRepeatedlyWithDeterministicOutcome()
     {
         var container = new WorldContainerBuilder()

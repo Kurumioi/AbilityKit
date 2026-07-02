@@ -349,6 +349,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ValidateRequiredArgAny(path, action, result, "amount", "damage_value", "value", "damageValue");
                     break;
 
+                case "heal":
+                    ValidateRequiredArgAny(path, action, result, "amount", "heal_amount", "value");
+                    break;
+
+                case "modify_resource":
+                    ValidateRequiredArgAny(path, action, result, "amount", "delta", "value");
+                    break;
+
                 case "add_buff":
                     ValidateRequiredArgAny(path, action, result, "buffIds", "buff_id", "buffId");
                     break;
@@ -398,7 +406,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 "seq", "set_var", "set_num_var",
                 "debug_log", "log_attacker",
                 "effect_execute", "add_buff", "remove_buff",
-                "shoot_projectile", "give_damage", "take_damage",
+                "shoot_projectile", "give_damage", "take_damage", "heal", "modify_resource",
                 "spawn_summon", "play_presentation",
                 "attr_effect_duration"
             };

@@ -185,7 +185,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             try
             {
                 var start = BuildStartPayload(launchOptions.SessionOptions);
-                var launchSpec = ShooterRoomLaunchSpec.CreateDefault($"unity-{launchOptions.SessionOptions.ControlledPlayerId}");
+                var launchSpec = launchOptions.RoomLaunchSpec
+                    ?? ShooterRoomLaunchSpec.CreateDefault($"unity-{launchOptions.SessionOptions.ControlledPlayerId}");
                 var connectionResult = await new ShooterRemoteStateSyncConnectionFlow().ConnectAsync(
                     launcher,
                     runtimeWorld.Runtime,

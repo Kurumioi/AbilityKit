@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
     /// 被动技能生命周期服务：集中维护被动技能的运行时 listener、source context 和常驻触发器计划。
     /// </summary>
     [WorldService(typeof(MobaPassiveSkillLifecycleService))]
-    public sealed class MobaPassiveSkillLifecycleService : IService, IMobaOwnerBoundTriggerGate
+    public sealed class MobaPassiveSkillLifecycleService : IService, IMobaOwnerBoundTriggerGate, IMobaOwnerBoundTriggerExecutionSourceProvider
     {
         private static readonly ObjectPool<HashSet<long>> s_ownerKeySetPool = Pools.GetPool(
             createFunc: () => new HashSet<long>(),
@@ -136,6 +136,22 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             if (cooldownMs <= 0) return;
 
             binding.Runtime.CooldownEndTimeMs = GetCurrentTimeMs() + cooldownMs;
+        }
+
+        public bool TryGetExecutionSource(long ownerKey, int triggerId, out MobaOwnerBoundTriggerExecutionSource source)
+        {
+            source = default;
+            if (!TryGetPassiveBinding(ownerKey, triggerId, out var binding)) return false;
+            if (binding.ActorId <= 0 || ownerKey == 0) return false;
+
+            source = new MobaOwnerBoundTriggerExecutionSource(
+                binding.ActorId,
+                binding.ActorId,
+                ownerKey,
+                ownerKey,
+                ownerKey,
+                binding.PassiveSkillId);
+            return source.HasExecutionSource;
         }
 
         public bool CanExecuteOwnerBoundTrigger(long ownerKey, int triggerId)
@@ -390,6 +406,9 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         private void SyncPassiveOwnerBindings(global::ActorEntity entity, Dictionary<int, long> ownerKeyByPassiveSkillId)
         {
             if (entity == null || !entity.hasSkillLoadout || ownerKeyByPassiveSkillId == null) return;
+            if (!entity.hasActorId) return;
+
+            var actorId = entity.actorId.Value;
             var passiveSkills = entity.skillLoadout.PassiveSkills;
             if (passiveSkills == null || passiveSkills.Length == 0) return;
 
@@ -401,7 +420,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 if (!_configs.TryGetPassiveSkill(passiveSkillId, out var passiveSkill) || passiveSkill == null) continue;
                 if (!TryGetPassiveRuntime(passiveSkills, passiveSkillId, out var runtime) || runtime == null) continue;
 
-                _passiveByOwnerKey[ownerKey] = new PassiveOwnerBinding(passiveSkillId, runtime, passiveSkill);
+                _passiveByOwnerKey[ownerKey] = new PassiveOwnerBinding(actorId, passiveSkillId, runtime, passiveSkill);
             }
         }
 
@@ -657,12 +676,14 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
         private sealed class PassiveOwnerBinding
         {
+            public readonly int ActorId;
             public readonly int PassiveSkillId;
             public readonly PassiveSkillRuntime Runtime;
             public readonly PassiveSkillMO PassiveSkill;
 
-            public PassiveOwnerBinding(int passiveSkillId, PassiveSkillRuntime runtime, PassiveSkillMO passiveSkill)
+            public PassiveOwnerBinding(int actorId, int passiveSkillId, PassiveSkillRuntime runtime, PassiveSkillMO passiveSkill)
             {
+                ActorId = actorId;
                 PassiveSkillId = passiveSkillId;
                 Runtime = runtime;
                 PassiveSkill = passiveSkill;

@@ -372,19 +372,20 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.CompletedTask;
     }
 
-    public Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer)
+    public async Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer)
     {
         if (observer == null)
         {
             throw new ArgumentNullException(nameof(observer));
         }
 
-        if (_initialized)
+        if (!_initialized)
         {
-            _snapshotPublisher.PublishTo(observer, _battleHostState.Frame, isFullSnapshot: true);
+            return;
         }
 
-        return Task.CompletedTask;
+        var push = BuildStateSyncPush(_battleHostState.Frame, isFullSnapshot: true);
+        await observer.OnSnapshotPushedAsync(push);
     }
 
     public Task UnsubscribeAsync(IStateSyncObserverGrain observer)

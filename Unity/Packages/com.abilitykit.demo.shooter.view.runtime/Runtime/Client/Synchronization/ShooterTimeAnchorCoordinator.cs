@@ -38,30 +38,19 @@ namespace AbilityKit.Demo.Shooter.View
             in ShooterGatewayWorldStartAnchor worldStartAnchor,
             long serverNowTicks)
         {
-            if (!worldStartAnchor.IsValid || serverNowTicks <= 0L)
+            var projection = RemoteTimeAnchorProjector.Project(worldStartAnchor.ToFrameStartAnchor(), serverNowTicks);
+            if (!projection.AnchorValid)
             {
                 return default;
             }
-
-            var catchUp = WorldStartFrameCatchUpCalculator.Calculate(worldStartAnchor.ToFrameStartAnchor(), serverNowTicks);
-            if (!catchUp.AnchorValid)
-            {
-                return default;
-            }
-
-            var timelineTicks = Math.Max(0, catchUp.TargetFrame - worldStartAnchor.StartFrame);
-            var anchor = SyncTimeAnchor
-                .FromLocalFrame(catchUp.TargetFrame, timelineTicks, catchUp.ElapsedSeconds)
-                .WithAuthoritativeFrame(catchUp.TargetFrame)
-                .WithServerTicks(serverNowTicks);
 
             return new ShooterRemoteTimeAnchorProjection(
-                true,
-                serverNowTicks,
-                catchUp.TargetFrame,
-                catchUp.CatchUpFrames,
-                catchUp.ElapsedSeconds,
-                anchor);
+                projection.AnchorValid,
+                projection.ServerNowTicks,
+                projection.TargetFrame,
+                projection.CatchUpFrames,
+                projection.ElapsedSeconds,
+                projection.TimeAnchor);
         }
 
         private static SyncClock CreateClock(int tickRate)

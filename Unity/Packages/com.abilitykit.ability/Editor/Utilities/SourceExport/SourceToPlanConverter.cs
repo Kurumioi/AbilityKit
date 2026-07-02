@@ -710,6 +710,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "debug_log":
                 case "shoot_projectile":
                 case "give_damage":
+                case "heal":
+                case "modify_resource":
                 case "spawn_area":
                 case "remove_area":
                 case "play_effect":
@@ -799,6 +801,26 @@ namespace AbilityKit.Ability.Editor.Utilities
                     MapBoolArgAlias(args, plan, "target_self", "target_self", "targetSelf", "self");
                     MapIntListArgAliases(args, plan, new[] { "buff_id", "buffIds" }, "buffids", "buff_ids", "buffid", "buff_id", "id", "ids");
                     MapFloatArg(args, "duration", plan);
+                    break;
+
+                case "heal":
+                    MapEntityArg(args, "target", "target_actor_id", plan);
+                    MapIntArgAlias(args, plan, "target_actor_id", "target_actor_id", "targetActorId", "target_id", "targetId", "target");
+                    MapBoolArgAlias(args, plan, "target_self", "target_self", "targetSelf", "self");
+                    MapFloatArgAlias(args, plan, "amount", "amount", "heal_amount", "value");
+                    MapIntArgAlias(args, plan, "heal_type", "heal_type", "healType", "type");
+                    MapIntArgAlias(args, plan, "reason_kind", "reason_kind", "reasonKind");
+                    MapIntArgAlias(args, plan, "reason_param", "reason_param", "reasonParam", "reason");
+                    break;
+
+                case "modify_resource":
+                    MapEntityArg(args, "target", "target_actor_id", plan);
+                    MapIntArgAlias(args, plan, "target_actor_id", "target_actor_id", "targetActorId", "target_id", "targetId", "target");
+                    MapBoolArgAlias(args, plan, "target_self", "target_self", "targetSelf", "self");
+                    MapIntArgAlias(args, plan, "resource_type", "resource_type", "resourceType", "type");
+                    MapFloatArgAlias(args, plan, "amount", "amount", "delta", "value");
+                    MapFloatArgAlias(args, plan, "min", "min", "min_value", "minValue");
+                    MapFloatArgAlias(args, plan, "max", "max", "max_value", "maxValue");
                     break;
 
                 case "spawn_area":

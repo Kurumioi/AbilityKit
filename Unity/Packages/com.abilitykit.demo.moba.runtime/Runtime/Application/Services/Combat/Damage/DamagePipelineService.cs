@@ -18,7 +18,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly List<IMobaDamagePipelineStage> _standardStages;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
-
+        [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
+ 
         private readonly IMobaBattleDiagnosticsService _diagnostics;
 
         public DamagePipelineService(
@@ -101,6 +102,7 @@ namespace AbilityKit.Demo.Moba.Services
                     TryTraceDamageApply(in origin, result);
                 }
 
+                RecordCombatActivity(result);
                 Publish(DamagePipelineEvents.AfterApply, result);
                 diagnostics?.Counter("moba.damage.applied");
                 diagnostics?.Sample("moba.damage.value", applied);
@@ -195,6 +197,16 @@ namespace AbilityKit.Demo.Moba.Services
                 object boxed = payload;
                 eventBus.Publish(objectKey, in boxed);
             }
+        }
+
+        private void RecordCombatActivity(DamageResult result)
+        {
+            if (result == null || result.Value <= 0f) return;
+            var combatActivity = _combatActivity;
+            if (combatActivity == null) return;
+
+            combatActivity.RecordCombat(result.AttackerActorId);
+            combatActivity.RecordCombat(result.TargetActorId);
         }
 
         private void TryTraceDamageApply(in MobaGameplayOrigin origin, DamageResult result)

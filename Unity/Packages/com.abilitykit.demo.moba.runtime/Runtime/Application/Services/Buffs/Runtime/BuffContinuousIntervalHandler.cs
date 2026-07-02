@@ -17,13 +17,15 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         private readonly BuffEventPublisher _events;
         private readonly BuffStageEffectExecutor _stageEffects;
         private readonly MobaBuffPresentationCueReporter _presentationCues;
+        private readonly BuffContextRegistry _contextRegistry;
  
-        public BuffContinuousIntervalHandler(MobaConfigDatabase configs, BuffEventPublisher events, BuffStageEffectExecutor stageEffects, MobaBuffPresentationCueReporter presentationCues)
+        public BuffContinuousIntervalHandler(MobaConfigDatabase configs, BuffEventPublisher events, BuffStageEffectExecutor stageEffects, MobaBuffPresentationCueReporter presentationCues, BuffContextRegistry contextRegistry)
         {
             _configs = configs;
             _events = events;
             _stageEffects = stageEffects;
             _presentationCues = presentationCues;
+            _contextRegistry = contextRegistry;
         }
 
         public bool CanHandle(IContinuous continuous)
@@ -46,6 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             var sourceActorId = executionContext.SourceActorId > 0 ? executionContext.SourceActorId : runtime.SourceId;
             var targetActorId = executionContext.TargetActorId > 0 ? executionContext.TargetActorId : buffContinuous.TargetActorId;
             var sourceContextId = executionContext.ParentContextId != 0 ? executionContext.ParentContextId : runtime.SourceContextId;
+            _contextRegistry?.SyncRuntimeContext(runtime, targetActorId, MobaRuntimeContextLifecycleState.Interval);
             _events?.PublishInterval(buff, sourceActorId, targetActorId, runtime);
             _presentationCues?.Ticked(buff, sourceActorId, targetActorId, runtime);
             _stageEffects?.Execute(periodicConfig.IntervalEffectIds, buff.Id, sourceActorId, targetActorId, sourceContextId, MobaBuffTriggering.Stages.Interval, runtime);

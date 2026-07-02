@@ -130,6 +130,24 @@ namespace AbilityKit.Attributes.Core
         }
 
         /// <summary>
+        /// 设置浮点数据
+        /// </summary>
+        public void SetFloat(string key, float value)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            _dataSlots[key] = value;
+        }
+
+        /// <summary>
+        /// 设置整型数据
+        /// </summary>
+        public void SetInt(string key, int value)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            _dataSlots[key] = value;
+        }
+
+        /// <summary>
         /// 设置数据
         /// </summary>
         public void SetData<T>(string key, T value) where T : class

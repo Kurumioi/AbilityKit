@@ -32,7 +32,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             string serverId = ShooterRemoteStateSyncDefaults.DefaultServerId,
             ShooterRemoteStateSyncLaunchMode launchMode = ShooterRemoteStateSyncLaunchMode.RestoreFirst,
             TimeSpan? timeout = null,
-            string roomId = "")
+            string roomId = "",
+            ShooterRoomLaunchSpec? roomLaunchSpec = null)
         {
             SessionOptions = sessionOptions.Normalized();
             Endpoint = endpoint;
@@ -42,6 +43,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             LaunchMode = launchMode;
             Timeout = timeout ?? TimeSpan.FromSeconds(5);
             RoomId = roomId ?? string.Empty;
+            RoomLaunchSpec = roomLaunchSpec;
         }
 
         public ShooterPlayModeSessionOptions SessionOptions { get; }
@@ -52,6 +54,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public ShooterRemoteStateSyncLaunchMode LaunchMode { get; }
         public TimeSpan Timeout { get; }
         public string RoomId { get; }
+        public ShooterRoomLaunchSpec? RoomLaunchSpec { get; }
 
         public ShooterClientSyncAssemblyOptions CreateClientSyncAssemblyOptions()
         {

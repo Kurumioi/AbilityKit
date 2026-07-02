@@ -645,6 +645,7 @@ function Assert-ClientTimeAnchorResult {
     $lastPushPackedServerTick = Read-ResultInt64 -Fields $fields -Name 'lastPushPackedServerTick'
     $runtimeFrame = Read-ResultInt -Fields $fields -Name 'runtimeFrame'
     $viewFrame = Read-ResultInt -Fields $fields -Name 'viewFrame'
+    $timeLimitFrames = Read-ResultInt -Fields $fields -Name 'timeLimitFrames'
 
     if ($remoteAnchorValid) {
         if ($remoteServerTicks -le 0) {
@@ -680,8 +681,13 @@ function Assert-ClientTimeAnchorResult {
         throw "Last push packed/server payload tick was not reported: $line"
     }
 
-    if ($runtimeFrame -lt $remoteTargetFrame -or $viewFrame -lt $remoteTargetFrame) {
-        throw "Final runtime/view frame did not catch up to remote target frame: $line"
+    $reachableTargetFrame = $remoteTargetFrame
+    if ($timeLimitFrames -gt 0 -and $timeLimitFrames -lt $reachableTargetFrame) {
+        $reachableTargetFrame = $timeLimitFrames
+    }
+
+    if ($runtimeFrame -lt $reachableTargetFrame -or $viewFrame -lt $reachableTargetFrame) {
+        throw "Final runtime/view frame did not catch up to reachable target frame: $line"
     }
 }
 

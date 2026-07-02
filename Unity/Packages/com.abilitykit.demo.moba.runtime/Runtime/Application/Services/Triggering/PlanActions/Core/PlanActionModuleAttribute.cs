@@ -28,10 +28,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public const int CancelSkill = 9;
         public const int ConsumeResource = 10;
+        public const int ModifyResource = 10;
+        public const int ConvertResourceToHeal = 10;
         public const int StartCooldown = 10;
         public const int ShootProjectile = 10;
         public const int GiveDamage = 11;
         public const int TakeDamage = 12;
+        public const int Heal = 12;
 
         public const int Dash = 13;
         public const int Blink = 14;

@@ -46,7 +46,10 @@
 |------|------|
 | `TargetSearchEngine` | 查找引擎，协调整个流程 |
 | `SearchQuery` | 查询配置，定义查找条件 |
-| `SearchContext` | 查找上下文，提供服务和数据 |
+| `SearchContext` | 查找上下文，提供服务和数据，支持池化租还 |
+| `SearchResult` | 池化查询结果，适合数据库式返回结果 |
+| `TargetingPool` | 目标查找模块统一对象池入口 |
+| `TargetQueryDatabase` | query id 到查询工厂的目录，支持包外注册与上下文驱动执行 |
 | `SearchHit` | 命中结果结构 |
 
 ### 候选源
@@ -113,6 +116,9 @@
 ```
 com.abilitykit.combat.targeting/Runtime/SearchTarget/
 ├── TargetSearchEngine.cs         # 查找引擎
+├── TargetQueryDatabase.cs        # 数据库式查询目录
+├── TargetingPool.cs              # 模块对象池入口
+├── SearchResult.cs               # 池化查询结果
 ├── SearchQuery.cs               # 查询配置
 ├── SearchContext.cs             # 上下文
 ├── Providers/                  # 候选源提供者
@@ -139,4 +145,4 @@ com.abilitykit.combat.targeting/Runtime/SearchTarget/
 
 ---
 
-*最后更新：2026-03-19*
+*最后更新：2026-07-01*

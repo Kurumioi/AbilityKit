@@ -203,6 +203,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         float RemainingSeconds { get; }
         float IntervalRemainingSeconds { get; }
         long SourceContextId { get; }
+        long RuntimeContextId { get; }
+        long RuntimeContextVersion { get; }
         MobaGameplayOrigin Origin { get; }
         MobaContextSourceView ContextSource { get; }
         BuffContinuousRuntime Continuous { get; }
@@ -233,6 +235,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         void SetRemainingSeconds(float remainingSeconds);
         void SetIntervalRemainingSeconds(float intervalRemainingSeconds);
         void BindSourceContext(long sourceContextId);
+        void BindRuntimeContext(long runtimeContextId, long runtimeContextVersion);
         void BindOrigin(in MobaGameplayOrigin origin);
         void BindContextSource(in MobaContextSourceView source);
         void SetContinuous(BuffContinuousRuntime continuous);
@@ -261,6 +264,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         public float RemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.RemainingSeconds : _runtime != null ? _runtime.Remaining : 0f;
         public float IntervalRemainingSeconds => _runtime != null && _runtime.Continuous != null ? _runtime.Continuous.IntervalRemainingSeconds : _runtime != null ? _runtime.IntervalRemainingSeconds : 0f;
         public long SourceContextId => _runtime != null ? _runtime.SourceContextId : 0L;
+        public long RuntimeContextId => _runtime != null ? _runtime.RuntimeContextId : 0L;
+        public long RuntimeContextVersion => _runtime != null ? _runtime.RuntimeContextVersion : 0L;
         public MobaGameplayOrigin Origin => _runtime != null ? _runtime.Origin : default;
         public MobaContextSourceView ContextSource => _runtime != null ? _runtime.ContextSource : default;
         public BuffContinuousRuntime Continuous => _runtime != null ? _runtime.Continuous : null;
@@ -300,6 +305,13 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         {
             if (_runtime == null) return;
             _runtime.SourceContextId = sourceContextId;
+        }
+
+        public void BindRuntimeContext(long runtimeContextId, long runtimeContextVersion)
+        {
+            if (_runtime == null) return;
+            _runtime.RuntimeContextId = runtimeContextId;
+            _runtime.RuntimeContextVersion = runtimeContextVersion;
         }
 
         public void BindOrigin(in MobaGameplayOrigin origin)
@@ -349,6 +361,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             _runtime.SourceId = 0;
             _runtime.StackCount = 0;
             _runtime.SourceContextId = 0;
+            _runtime.RuntimeContextId = 0;
+            _runtime.RuntimeContextVersion = 0;
             _runtime.Origin = default;
             _runtime.ContextSource = default;
             _runtime.Continuous = null;

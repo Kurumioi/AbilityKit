@@ -1,11 +1,10 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 
 namespace AbilityKit.Battle.SearchTarget.Selectors
 {
     /// <summary>
-    /// TopK 评分选择器
+    /// 前若干个评分结果选择器。
     /// </summary>
     [TargetSelector(0x1001, "TopKByScore")]
     public sealed class TopKByScoreSelector : ITargetSelector
@@ -47,12 +46,12 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
     }
 
     /// <summary>
-    /// 流式 TopK 评分选择器
+    /// 流式前若干个评分结果选择器。
     /// </summary>
     [TargetSelector(0x1002, "StreamingTopKByScore")]
     public sealed class StreamingTopKByScoreSelector : ITargetSelector, IStreamingHitSelector
     {
-        private SearchHit[] _buffer;
+        private SearchHitBuffer _buffer;
         private int _count;
         private int _k;
 
@@ -72,7 +71,7 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
                 _buffer = null;
                 return;
             }
-            _buffer = ArrayPool<SearchHit>.Shared.Rent(_k);
+            _buffer = TargetingPool.RentHitBuffer(_k);
         }
 
         public void Offer(in SearchHit hit)
@@ -81,20 +80,20 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
 
             if (_count == 0)
             {
-                _buffer[0] = hit;
+                _buffer.Items[0] = hit;
                 _count = 1;
                 return;
             }
 
             if (_count < _k)
             {
-                InsertSorted(_buffer, ref _count, hit);
+                InsertSorted(_buffer.Items, ref _count, hit);
                 return;
             }
 
-            if (BetterThan(hit, _buffer[_count - 1]))
+            if (BetterThan(hit, _buffer.Items[_count - 1]))
             {
-                InsertAndTrim(_buffer, _count, hit);
+                InsertAndTrim(_buffer.Items, _count, hit);
             }
         }
 
@@ -102,12 +101,13 @@ namespace AbilityKit.Battle.SearchTarget.Selectors
         {
             if (_buffer == null) return;
 
+            var items = _buffer.Items;
             for (int i = 0; i < _count; i++)
             {
-                results.Add(_buffer[i].Id);
+                results.Add(items[i].Id);
             }
 
-            ArrayPool<SearchHit>.Shared.Return(_buffer, clearArray: false);
+            TargetingPool.ReleaseHitBuffer(_buffer);
             _buffer = null;
             _count = 0;
             _k = 0;

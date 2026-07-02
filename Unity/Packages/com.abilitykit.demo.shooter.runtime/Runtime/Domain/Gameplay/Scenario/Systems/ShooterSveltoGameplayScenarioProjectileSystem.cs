@@ -97,6 +97,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void Tick(float deltaTime)
         {
+            Tick(deltaTime, 0f);
+        }
+
+        public void Tick(float deltaTime, float arenaRadius)
+        {
             var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoProjectileComponent, ShooterSveltoProjectileDamageComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayProjectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> transforms, out NB<ShooterSveltoProjectileComponent> projectiles, out NB<ShooterSveltoProjectileDamageComponent> damageComponents, out NativeEntityIDs ids, out var count);
             var targetCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
@@ -116,6 +121,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 projectile.X = transform.X;
                 projectile.Y = transform.Y;
                 projectile.RemainingFrames--;
+
+                if (arenaRadius > 0f && transform.X * transform.X + transform.Y * transform.Y > arenaRadius * arenaRadius)
+                {
+                    _projectileRemovalBuffer.Add(ids[i]);
+                    _projectilesExpired++;
+                    continue;
+                }
 
                 var hit = damage.TargetFaction == ShooterSveltoGameplayFaction.Target
                     ? TryApplyHit(in transform, in damage, ShooterSveltoGameplayFaction.Target, targetTransforms, targetHealths, _targetIndexByEntityId)

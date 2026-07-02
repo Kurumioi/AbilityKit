@@ -26,14 +26,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
 
         public ShooterBattleSimulation(ShooterBattleState state, IShooterBattleRules rules)
+            : this(state, rules, ShooterArenaGameplayOptions.Disabled)
+        {
+        }
+
+        public ShooterBattleSimulation(ShooterBattleState state, IShooterBattleRules rules, ShooterArenaGameplayOptions arenaOptions)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             if (rules == null) throw new ArgumentNullException(nameof(rules));
 
+            var activeArenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
             _entities = _state.Entities;
             var events = new ShooterCombatEventBuffer(_state);
-            _players = new ShooterPlayerCommandBattleModule(_state, _entities, rules, events);
-            _projectiles = new ShooterProjectileCombatBattleModule(_state, _entities, rules, events);
+            _players = new ShooterPlayerCommandBattleModule(_state, _entities, rules, events, activeArenaOptions);
+            _projectiles = new ShooterProjectileCombatBattleModule(_state, _entities, rules, events, activeArenaOptions);
         }
 
         public void Tick(float deltaTime)

@@ -33,6 +33,7 @@
         "AbilityKit.Triggering",
         "AbilityKit.Pipeline",
         "AbilityKit.Trace",
+        "AbilityKit.Context",
         "AbilityKit.Diagnostics"
     ],
     "includePlatforms": [],

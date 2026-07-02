@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float MagnitudeDuration;
         public int MagnitudeDecayType;
         public int MagnitudeAttributeTypeId;
+        public string MagnitudeContextKey;
         public float[] MagnitudeCurve;
 
         // 0/Realtime recalculates from the source whenever the target value is recomputed.

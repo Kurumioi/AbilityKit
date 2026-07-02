@@ -13,23 +13,25 @@ using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     /// <summary>
-    /// Buff 上下文注册器：为 Buff 创建 trace/source 快照，并在结束时取消 owner 绑定的触发器动作。
+    /// Buff 上下文注册器：trace 负责溯源链，runtime context 负责运行时值与快照生命周期。
     /// </summary>
     internal sealed class BuffContextRegistry
     {
         private readonly MobaTraceRegistry _trace;
+        private readonly MobaRuntimeContextService _runtimeContexts;
         private readonly ITriggerActionRunner _actionRunner;
         private readonly IFrameTime _frameTime;
 
-        public BuffContextRegistry(MobaTraceRegistry trace, ITriggerActionRunner actionRunner, IFrameTime frameTime)
+        public BuffContextRegistry(MobaTraceRegistry trace, MobaRuntimeContextService runtimeContexts, ITriggerActionRunner actionRunner, IFrameTime frameTime)
         {
             _trace = trace;
+            _runtimeContexts = runtimeContexts;
             _actionRunner = actionRunner;
             _frameTime = frameTime;
         }
 
         /// <summary>
-        /// 确保运行时拥有稳定的 SourceContextId 和来源快照，供后续 tick、移除效果、表现事件复用。
+        /// 确保运行时拥有稳定的 trace/source 快照，并注册独立 runtime context 供触发器读取实时值。
         /// </summary>
         public void EnsureBuffContext(BuffRuntime rt, int buffId, int sourceActorId, int targetActorId, in BuffOriginContext origin)
         {
@@ -77,6 +79,29 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 false,
                 "Buff",
                 buffId);
+            SyncRuntimeContext(rt, targetActorId, MobaRuntimeContextLifecycleState.Active);
+        }
+
+        public void SyncRuntimeContext(BuffRuntime rt, int targetActorId, MobaRuntimeContextLifecycleState state)
+        {
+            if (rt == null || _runtimeContexts == null) return;
+
+            var frame = GetFrameOrDefault();
+            var origin = rt.Origin;
+            var data = new MobaBuffRuntimeContextData(
+                rt.BuffId,
+                rt.SourceId,
+                targetActorId,
+                rt.SourceContextId,
+                origin.EffectiveRootContextId,
+                origin.OwnerContextId,
+                rt.StackCount,
+                rt.Remaining,
+                rt.IntervalRemainingSeconds,
+                state,
+                frame,
+                rt.SkillRuntimeHandle);
+            _runtimeContexts.EnsureBuffContext(rt, in data);
         }
 
         public void CancelAndEnd(BuffRuntime rt)
@@ -103,6 +128,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 Log.Exception(ex, $"[BuffContextRegistry] Trace.End exception (sourceContextId={rt.SourceContextId})");
             }
 
+            DestroyRuntimeContext(rt, TraceLifecycleReason.Replaced);
             ClearSourceSnapshot(rt);
         }
 
@@ -140,6 +166,18 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             {
                 Log.Exception(ex, $"[BuffContextRegistry] Trace.End exception (sourceContextId={rt.SourceContextId}, reason={reason})");
             }
+
+            DestroyRuntimeContext(rt, reason);
+        }
+
+        private void DestroyRuntimeContext(BuffRuntime rt, TraceLifecycleReason reason)
+        {
+            if (rt == null || _runtimeContexts == null) return;
+
+            var state = reason == TraceLifecycleReason.Replaced
+                ? MobaRuntimeContextLifecycleState.Destroyed
+                : MobaRuntimeContextLifecycleState.Ended;
+            _runtimeContexts.SnapshotAndDestroyBuffContext(rt, state, GetFrameOrDefault());
         }
 
         private static MobaGameplayOrigin ResolveSourceOrigin(int sourceActorId, int targetActorId, int buffId, in BuffOriginContext origin)
@@ -167,10 +205,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             rt.ContextSource = default;
         }
 
-        private int GetFrame()
+        private int GetFrameOrDefault()
         {
-            if (_frameTime != null) return _frameTime.Frame.Value;
-            throw new InvalidOperationException("BuffContextRegistry requires IFrameTime for buff context frames.");
+            return _frameTime != null ? _frameTime.Frame.Value : 0;
         }
     }
 }

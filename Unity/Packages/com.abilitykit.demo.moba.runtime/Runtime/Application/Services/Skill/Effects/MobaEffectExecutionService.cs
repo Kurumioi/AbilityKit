@@ -12,11 +12,13 @@ using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -559,6 +561,57 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return ExecuteTriggerPlan(triggerId, payload, predicateMissIsSuccess: false);
+        }
+
+        public bool ExecuteOwnerBoundTriggerActions<TArgs>(
+            int triggerId,
+            TArgs args,
+            in ExecCtx<IWorldResolver> ctx,
+            in MobaOwnerBoundTriggerExecutionSource source,
+            ITrigger<TArgs, IWorldResolver> trigger)
+            where TArgs : class
+        {
+            if (triggerId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(triggerId), triggerId, "Trigger id must be positive.");
+            }
+
+            if (args == null) throw new ArgumentNullException(nameof(args));
+            if (trigger == null) throw new ArgumentNullException(nameof(trigger));
+            if (!source.HasExecutionSource) return false;
+
+            var lineageInput = source.ToLineageInput();
+            var executionSnapshot = CreateExecutionSnapshot(args, in lineageInput, triggerId, triggerId);
+            var frame = executionSnapshot.Frame != 0 ? executionSnapshot.Frame : CurrentBudgetFrame;
+            var origin = new MobaGameplayOrigin(
+                lineageInput.SourceActorId,
+                lineageInput.TargetActorId,
+                lineageInput.OriginKind,
+                lineageInput.OriginConfigId,
+                lineageInput.ParentContextId,
+                lineageInput.ParentContextId,
+                lineageInput.EffectiveRootContextId,
+                lineageInput.OwnerContextId);
+            var executionContext = new MobaCombatExecutionContext(args, lineageInput, origin, executionSnapshot, default, frame);
+
+            if (!TryGetPlanByTriggerId(triggerId, out var plan))
+            {
+                throw new InvalidOperationException($"Missing trigger plan for owner-bound trigger execution. triggerId={triggerId}, ownerContextId={source.OwnerContextId}, sourceActorId={source.SourceActorId}");
+            }
+
+            if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return false;
+
+            using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
+            {
+                var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
+                if (conditionsPassed)
+                {
+                    trigger.Execute(in args, in ctx);
+                }
+
+                session.Complete(conditionsPassed);
+                return conditionsPassed;
+            }
         }
 
         private bool ExecuteTriggerPlan(int triggerId, object payload, bool predicateMissIsSuccess)

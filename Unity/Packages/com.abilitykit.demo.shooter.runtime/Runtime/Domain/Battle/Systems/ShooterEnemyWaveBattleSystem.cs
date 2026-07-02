@@ -24,6 +24,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterEnemyWaveSpawnDirector _spawnDirector;
         private readonly ShooterEnemyWaveCombatModule _combat;
         private readonly ShooterEnemyWavePhase _phase;
+        private readonly ShooterArenaGameplayOptions _arenaOptions;
         private int _lastSynchronizedFrame = -1;
 
         public ShooterEnemyWaveBattleSystem(IShooterBattleServiceResolver services)
@@ -41,9 +42,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _options = services.TryResolve<ShooterEnemyWaveOptions>(out var options) && options != null
                 ? options
                 : ShooterEnemyWaveOptions.Disabled;
+            _arenaOptions = services.TryResolve<ShooterArenaGameplayOptions>(out var arenaOptions) && arenaOptions != null
+                ? arenaOptions
+                : ShooterArenaGameplayOptions.Disabled;
             _progress = new ShooterEnemyWaveProgress(_options.Waves);
             _idAllocator = new ShooterEnemyIdAllocator();
-            _spawnDirector = new ShooterEnemyWaveSpawnDirector(_options, _progress, _idAllocator, _entities);
+            _spawnDirector = new ShooterEnemyWaveSpawnDirector(_options, _progress, _idAllocator, _entities, _arenaOptions);
             _combat = new ShooterEnemyWaveCombatModule(_state, _entities, _options);
             _phase = phase;
         }

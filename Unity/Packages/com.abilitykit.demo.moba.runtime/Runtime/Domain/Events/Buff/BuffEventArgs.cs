@@ -35,8 +35,14 @@ namespace AbilityKit.Demo.Moba.Events.Buff
         /// <summary>移除原因</summary>
         public TraceLifecycleReason RemoveReason;
 
-        /// <summary>来源上下文 ID</summary>
+        /// <summary>trace/source 上下文 ID，用于溯源链和 owner 绑定</summary>
         public long SourceContextId;
+
+        /// <summary>运行时上下文 ID，用于从上下文注册中心读取实时值或快照值</summary>
+        public long RuntimeContextId;
+
+        /// <summary>运行时上下文版本</summary>
+        public long RuntimeContextVersion;
 
         /// <summary>Buff 运行时</summary>
         public BuffRuntime Runtime;

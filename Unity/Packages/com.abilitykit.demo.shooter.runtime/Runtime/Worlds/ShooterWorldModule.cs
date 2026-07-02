@@ -10,7 +10,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             if (builder == null) throw new ArgumentNullException(nameof(builder));
 
-            builder.RegisterInstance(ShooterEnemyWaveOptions.DefaultEnabled);
+            builder.TryRegister<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => ShooterEnemyWaveOptions.DefaultEnabled);
+            builder.TryRegister<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => ShooterArenaGameplayOptions.Disabled);
             builder.AddModule(new SveltoWorldModule());
             builder.AddModule(new ShooterServicesAutoModule());
         }

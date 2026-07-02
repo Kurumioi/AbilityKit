@@ -8,14 +8,17 @@ namespace AbilityKit.Battle.SearchTarget
     /// </summary>
     public sealed class TargetSearchEngine
     {
-        private readonly List<SearchHit> _hits = new List<SearchHit>(128);
-        private readonly List<IEntityId> _selectedIds = new List<IEntityId>(64);
+        public SearchResult SearchIds(in SearchQuery query, SearchContext context)
+        {
+            var result = TargetingPool.RentResult();
+            SearchIds(in query, context, result.MutableIds);
+            return result;
+        }
 
         public void SearchIds(in SearchQuery query, SearchContext context, List<IEntityId> results)
         {
+            if (results == null) return;
             results.Clear();
-            _hits.Clear();
-            _selectedIds.Clear();
 
             if (query.Provider == null) return;
 
@@ -43,37 +46,54 @@ namespace AbilityKit.Battle.SearchTarget
                 return;
             }
 
-            var consumer2 = new CandidateConsumer(in query, context, _hits, keyProvider, stats);
-            query.Provider.ForEachCandidate(in query, context, ref consumer2);
-
-            if (_hits.Count == 0) return;
-
-            if (query.Selector != null)
+            var hits = TargetingPool.RentHitList();
+            try
             {
-                query.Selector.Select(in query, context, _hits, results);
-                stats?.OnResult(results.Count);
-                return;
-            }
+                var consumer2 = new CandidateConsumer(in query, context, hits, keyProvider, stats);
+                query.Provider.ForEachCandidate(in query, context, ref consumer2);
 
-            _hits.Sort(DefaultHitComparer.Instance);
-            WriteAll(in query, _hits, results);
-            stats?.OnResult(results.Count);
+                if (hits.Count == 0) return;
+
+                if (query.Selector != null)
+                {
+                    query.Selector.Select(in query, context, hits, results);
+                    stats?.OnResult(results.Count);
+                    return;
+                }
+
+                hits.Sort(DefaultHitComparer.Instance);
+                WriteAll(in query, hits, results);
+                stats?.OnResult(results.Count);
+            }
+            finally
+            {
+                TargetingPool.ReleaseHitList(hits);
+            }
         }
 
         public void Search<T>(in SearchQuery query, SearchContext context, List<T> results, ITargetMapper<T> mapper)
         {
+            if (results == null) return;
             results.Clear();
             if (mapper == null) return;
 
-            SearchIds(in query, context, _selectedIds);
-            if (_selectedIds.Count == 0) return;
-
-            for (int i = 0; i < _selectedIds.Count; i++)
+            var selectedIds = TargetingPool.RentEntityIdList();
+            try
             {
-                if (mapper.TryMap(context, _selectedIds[i], out var v))
+                SearchIds(in query, context, selectedIds);
+                if (selectedIds.Count == 0) return;
+
+                for (int i = 0; i < selectedIds.Count; i++)
                 {
-                    results.Add(v);
+                    if (mapper.TryMap(context, selectedIds[i], out var v))
+                    {
+                        results.Add(v);
+                    }
                 }
+            }
+            finally
+            {
+                TargetingPool.ReleaseEntityIdList(selectedIds);
             }
         }
 

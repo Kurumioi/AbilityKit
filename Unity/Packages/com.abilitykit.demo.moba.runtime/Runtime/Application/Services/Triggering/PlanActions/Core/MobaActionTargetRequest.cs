@@ -64,7 +64,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaActionTargetSelectCode selectCode = MobaActionTargetSelectCode.TopK,
             int maxCount = 1,
             int queryTemplateId = 0,
-            int targetActorId = 0)
+            int targetActorId = 0,
+            int targetPayloadActorId = 0)
         {
             SourceCode = sourceCode;
             SourceParam = sourceParam;
@@ -78,6 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MaxCount = maxCount;
             QueryTemplateId = queryTemplateId;
             TargetActorId = targetActorId;
+            TargetPayloadActorId = targetPayloadActorId;
         }
 
         public MobaActionTargetSourceCode SourceCode { get; }
@@ -92,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public int MaxCount { get; }
         public int QueryTemplateId { get; }
         public int TargetActorId { get; }
+        public int TargetPayloadActorId { get; }
         public bool UsesTemplate => QueryTemplateId > 0 || SourceCode == MobaActionTargetSourceCode.SearchQueryTemplate;
 
         public static MobaActionTargetRequest ContextTarget(int queryTemplateId = 0)
@@ -173,6 +176,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static int ResolveContextTargetActorId(in MobaActionTargetRequest request, in MobaEffectActionInput input)
         {
+            if (request.TargetPayloadActorId > 0) return request.TargetPayloadActorId;
             if (request.TargetActorId > 0) return request.TargetActorId;
             if (request.SourceCode == MobaActionTargetSourceCode.Self) return input.CasterActorId;
             return input.TargetActorId;
@@ -184,7 +188,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var rules = BuildRules(in request);
             var scorer = BuildScorer(in request);
             var selector = new SearchTargetSelectorConfig(0, (int)request.SelectCode);
-            var explicitTargetPolicy = request.TargetActorId > 0 || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
+            var explicitTargetPolicy = request.TargetPayloadActorId > 0 || request.TargetActorId > 0 || request.SourceCode == MobaActionTargetSourceCode.ExplicitActor
                 ? SearchQueryExplicitTargetPolicy.PreferExplicitTarget
                 : SearchQueryExplicitTargetPolicy.IgnoreExplicitTarget;
 

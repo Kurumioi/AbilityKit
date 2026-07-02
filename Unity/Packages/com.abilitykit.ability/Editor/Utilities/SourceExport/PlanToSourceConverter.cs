@@ -748,6 +748,39 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             };
 
+            source.Actions["heal"] = new ActionTypeDefinition
+            {
+                Type = "heal",
+                DisplayName = "治疗",
+                Description = "对目标施加治疗",
+                Category = "战斗",
+                Params = new List<ParameterDefinition>
+                {
+                    new ParameterDefinition("target", "entity", false),
+                    new ParameterDefinition("target_self", "bool", false) { DefaultValue = false },
+                    new ParameterDefinition("amount", "expr", true),
+                    new ParameterDefinition("heal_type", "int", false) { DefaultValue = 0 },
+                    new ParameterDefinition("reason_param", "int", false) { DefaultValue = 0 }
+                }
+            };
+
+            source.Actions["modify_resource"] = new ActionTypeDefinition
+            {
+                Type = "modify_resource",
+                DisplayName = "修改资源",
+                Description = "修改目标资源值，可用于怒气、能量等通用资源",
+                Category = "资源",
+                Params = new List<ParameterDefinition>
+                {
+                    new ParameterDefinition("target", "entity", false),
+                    new ParameterDefinition("target_self", "bool", false) { DefaultValue = false },
+                    new ParameterDefinition("resource_type", "int", true),
+                    new ParameterDefinition("amount", "expr", true),
+                    new ParameterDefinition("min", "float", false),
+                    new ParameterDefinition("max", "float", false)
+                }
+            };
+
             // 条件类型定义
             source.Conditions["all"] = new ConditionTypeDefinition
             {

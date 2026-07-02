@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         [WorldInject] private TriggerRunner<AbilityKit.Ability.World.DI.IWorldResolver> _runner = null;
         [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry = null;
         [WorldInject(required: false)] private MobaOwnerBoundTriggerGateService _ownerBoundGates = null;
+        [WorldInject(required: false)] private MobaEffectExecutionService _effects = null;
 
         private readonly Dictionary<int, TriggerPlanJsonDatabase.Record> _byTriggerId = new Dictionary<int, TriggerPlanJsonDatabase.Record>();
         private readonly Dictionary<int, Type> _argsTypeByTriggerId = new Dictionary<int, Type>();
@@ -202,7 +203,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             if (_ownerBoundGates != null && _ownerBoundGates.HasGate(ownerKey, typedPlan.TriggerId))
             {
-                trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates);
+                trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects);
             }
 
             return _runner.Register(new EventKey<TArgs>(eventId), trigger, typedPlan.Phase, typedPlan.Priority);
@@ -286,13 +287,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             private readonly long _ownerKey;
             private readonly ITrigger<TArgs, IWorldResolver> _inner;
             private readonly MobaOwnerBoundTriggerGateService _gates;
+            private readonly MobaEffectExecutionService _effects;
             private readonly int _triggerId;
 
-            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates)
+            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates, MobaEffectExecutionService effects)
             {
                 _ownerKey = ownerKey;
                 _inner = inner ?? throw new ArgumentNullException(nameof(inner));
                 _gates = gates;
+                _effects = effects;
                 _triggerId = inner is ITriggerWithId withId ? withId.TriggerId : 0;
             }
 
@@ -308,6 +311,18 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             public void Execute(in TArgs args, in ExecCtx<IWorldResolver> ctx)
             {
                 if (_gates != null && !_gates.CanExecute(_ownerKey, _triggerId)) return;
+
+                if (_effects != null
+                    && _gates != null
+                    && _gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source))
+                {
+                    if (_effects.ExecuteOwnerBoundTriggerActions(_triggerId, args, in ctx, in source, _inner))
+                    {
+                        _gates.Complete(_ownerKey, _triggerId);
+                    }
+                    return;
+                }
+
                 _inner.Execute(in args, in ctx);
                 _gates?.Complete(_ownerKey, _triggerId);
             }

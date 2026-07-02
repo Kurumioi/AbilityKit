@@ -16,14 +16,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterBattleRules _rules;
         private readonly ShooterCombatEventBuffer _events;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterArenaGameplayOptions _arenaOptions;
 
         public ShooterPlayerCommandBattleModule(ShooterBattleState state, IShooterEntityManager entities, IShooterBattleRules rules, ShooterCombatEventBuffer events)
+            : this(state, entities, rules, events, ShooterArenaGameplayOptions.Disabled)
+        {
+        }
+
+        public ShooterPlayerCommandBattleModule(ShooterBattleState state, IShooterEntityManager entities, IShooterBattleRules rules, ShooterCombatEventBuffer events, ShooterArenaGameplayOptions arenaOptions)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _events = events ?? throw new ArgumentNullException(nameof(events));
             _context = _entities.SveltoContext;
+            _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
         }
 
         public void Tick(float deltaTime)
@@ -43,6 +50,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 {
                     players[i].X += command.MoveX * _rules.PlayerSpeed * deltaTime;
                     players[i].Y += command.MoveY * _rules.PlayerSpeed * deltaTime;
+                    ShooterCircularArenaMath.Clamp(ref players[i].X, ref players[i].Y, _arenaOptions);
                 }
 
                 var aimLength = ShooterBattleMath.Normalize(ref command.AimX, ref command.AimY);
@@ -62,12 +70,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private void SpawnBullet(in ShooterSveltoPlayerComponent player)
         {
+            var bulletX = player.X + player.AimX * 0.5f;
+            var bulletY = player.Y + player.AimY * 0.5f;
+            if (!ShooterCircularArenaMath.IsInside(bulletX, bulletY, _arenaOptions))
+            {
+                return;
+            }
+
             var bullet = new ShooterSveltoProjectileComponent
             {
                 BulletId = _state.AllocateBulletId(),
                 OwnerPlayerId = player.PlayerId,
-                X = player.X + player.AimX * 0.5f,
-                Y = player.Y + player.AimY * 0.5f,
+                X = bulletX,
+                Y = bulletY,
                 VelocityX = player.AimX * _rules.BulletSpeed,
                 VelocityY = player.AimY * _rules.BulletSpeed,
                 RemainingFrames = _rules.BulletLifeFrames
@@ -89,14 +104,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterSpatialHitIndex _enemyHitIndex;
         private readonly ShooterSpatialPlayerHitIndex _playerHitIndex;
         private readonly ISveltoWorldContext _context;
+        private readonly ShooterArenaGameplayOptions _arenaOptions;
 
         public ShooterProjectileCombatBattleModule(ShooterBattleState state, IShooterEntityManager entities, IShooterBattleRules rules, ShooterCombatEventBuffer events)
+            : this(state, entities, rules, events, ShooterArenaGameplayOptions.Disabled)
+        {
+        }
+
+        public ShooterProjectileCombatBattleModule(ShooterBattleState state, IShooterEntityManager entities, IShooterBattleRules rules, ShooterCombatEventBuffer events, ShooterArenaGameplayOptions arenaOptions)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _events = events ?? throw new ArgumentNullException(nameof(events));
             _context = _entities.SveltoContext;
+            _arenaOptions = arenaOptions ?? ShooterArenaGameplayOptions.Disabled;
             var hitCellSize = Math.Max(_rules.HitRadius * 2f, 1f);
             _enemyHitIndex = new ShooterSpatialHitIndex(hitCellSize);
             _playerHitIndex = new ShooterSpatialPlayerHitIndex(hitCellSize);
@@ -121,6 +143,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 bullets[i].X += bullets[i].VelocityX * deltaTime;
                 bullets[i].Y += bullets[i].VelocityY * deltaTime;
                 bullets[i].RemainingFrames--;
+
+                if (!ShooterCircularArenaMath.IsInside(bullets[i].X, bullets[i].Y, _arenaOptions))
+                {
+                    _projectileRemovalBuffer.Add(bullets[i].BulletId);
+                    continue;
+                }
 
                 if (TryCollectPlayerHit(in bullets[i], players, out var targetIndex))
                 {

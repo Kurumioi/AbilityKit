@@ -27,6 +27,9 @@ namespace AbilityKit.Modifiers
 
         /// <summary>修饰器管道</summary>
         Pipeline = 4,
+
+        /// <summary>上下文浮点值</summary>
+        ContextFloat = 5,
     }
 
     // ============================================================================
@@ -524,6 +527,9 @@ namespace AbilityKit.Modifiers
         /// <summary>获取属性键（Attribute）</summary>
         public ModifierKey AttributeKey => ModifierKey.FromPacked((uint)Data1);
 
+        /// <summary>获取上下文浮点 key</summary>
+        public string ContextFloatKey => ModifierContextKeyRegistry.Get((int)Data2);
+
         /// <summary>获取曲线数据</summary>
         public float[] CurveData => ArrayData;
 
@@ -552,6 +558,7 @@ namespace AbilityKit.Modifiers
                 MagnitudeSourceType.Attribute => CalculateAttribute(context),
                 MagnitudeSourceType.TimeDecay => CalculateTimeDecay(context),
                 MagnitudeSourceType.Pipeline => CalculatePipeline(context),
+                MagnitudeSourceType.ContextFloat => CalculateContextFloat(context),
                 _ => Data0
             };
         }
@@ -580,6 +587,14 @@ namespace AbilityKit.Modifiers
         {
             if (ctx == null) return 0f;
             return ctx.GetAttribute(AttributeKey) * Data0;
+        }
+
+        private float CalculateContextFloat(IModifierContext ctx)
+        {
+            if (ctx == null) return 0f;
+            var key = ContextFloatKey;
+            if (string.IsNullOrEmpty(key)) return Data0;
+            return (Data0 + ctx.GetFloat(key)) * Data1;
         }
 
         private float CalculateTimeDecay(IModifierContext context)
@@ -623,6 +638,10 @@ namespace AbilityKit.Modifiers
         public static MagnitudeSource TimeDecay(float initialValue, float duration, float[] customDecayCurve)
             => new() { Type = MagnitudeSourceType.TimeDecay, Data0 = initialValue, Data1 = duration, Data2 = (int)DecayType.CustomCurve, ArrayData = customDecayCurve };
 
+        /// <summary>创建上下文浮点来源</summary>
+        public static MagnitudeSource ContextFloat(string key, float coefficient = 1f, float baseValue = 0f)
+            => new() { Type = MagnitudeSourceType.ContextFloat, Data0 = baseValue, Data1 = coefficient, Data2 = ModifierContextKeyRegistry.Register(key) };
+
         /// <summary>创建修饰器管道来源（支持复杂组合）</summary>
         public static MagnitudeSource Pipeline(ModifierPipeline pipeline)
             => new() { Type = MagnitudeSourceType.Pipeline, Data0 = pipeline.GetBaseValue(), PipelineData = MagnitudePipelineData.Create(pipeline) };
@@ -647,6 +666,33 @@ namespace AbilityKit.Modifiers
             => new() { Type = Type, Data0 = Data0, Data1 = coefficient, Data2 = Data2, ArrayData = ArrayData, PipelineData = PipelineData };
 
         #endregion
+    }
+
+    /// <summary>
+    /// 修改器上下文 key 注册表，用 int 保存可序列化引用。
+    /// </summary>
+    public static class ModifierContextKeyRegistry
+    {
+        private static readonly string[] _keys = new string[1024];
+        private static readonly Dictionary<string, int> _keyToIndex = new(StringComparer.Ordinal);
+        private static int _keyCount;
+
+        public static int Register(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return 0;
+            if (_keyToIndex.TryGetValue(key, out var existing)) return existing;
+            if (_keyCount >= _keys.Length - 1) return 0;
+
+            var index = ++_keyCount;
+            _keys[index] = key;
+            _keyToIndex[key] = index;
+            return index;
+        }
+
+        public static string Get(int index)
+        {
+            return index > 0 && index <= _keyCount ? _keys[index] : string.Empty;
+        }
     }
 
     // ============================================================================

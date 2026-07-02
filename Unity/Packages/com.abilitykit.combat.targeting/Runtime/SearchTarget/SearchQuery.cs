@@ -46,7 +46,7 @@ namespace AbilityKit.Battle.SearchTarget
     }
 
     /// <summary>
-    /// Pipeline 标志位
+    /// 查询管线标志位
     /// </summary>
     [System.Flags]
     public enum PipelineFlags
