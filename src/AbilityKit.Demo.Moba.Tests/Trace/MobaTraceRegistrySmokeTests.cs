@@ -403,8 +403,18 @@ public sealed class MobaTraceRegistrySmokeTests
         public void Gauge(string gaugeName, long value) => Gauges[gaugeName] = value;
         public void Sample(string sampleName, double value) { }
         public void Warning(string key, string message, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, message));
+        public void Warning(string key, string message, in MobaBattleDiagnosticContext context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warning(key, message, maxCount);
         public void Warning(string key, Func<string> messageFactory, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warnings.Add(new KeyValuePair<string, string>(key, messageFactory != null ? messageFactory() : null));
+        public void Warning(string key, Func<string> messageFactory, in MobaBattleDiagnosticContext context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultWarningLimit) => Warning(key, messageFactory, maxCount);
         public void Exception(string key, Exception exception, string context, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit) { }
+        public void Exception(string key, Exception exception, string context, in MobaBattleDiagnosticContext diagnosticContext, int maxCount = MobaBattleDiagnosticsDefaults.DefaultExceptionLimit) { }
+        public void RecordInputBatchAccepted(int acceptedCount, int handledCount) { }
+        public void RecordInputCommandRejected(MobaInputCommandFailureCode failureCode) { }
+        public void RecordInputCommandException() { }
+        public void RecordSnapshotRouterHealth(in MobaSnapshotRouterHealth health) { }
+        public void RecordLifecycleHealth(in MobaTemporaryEntityLifecycleHealth health) { }
         public IReadOnlyList<MobaBattleDiagnosticWarningRecord> GetWarningsSnapshot() => Array.Empty<MobaBattleDiagnosticWarningRecord>();
+        public IReadOnlyList<MobaBattleDiagnosticExceptionRecord> GetExceptionsSnapshot() => Array.Empty<MobaBattleDiagnosticExceptionRecord>();
+        public MobaBattleDiagnosticsSnapshot GetSnapshot() => default;
     }
 }

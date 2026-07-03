@@ -28,6 +28,22 @@ namespace AbilityKit.Demo.Moba.Share.Config
     }
 
     [Serializable]
+    public sealed class ContinuousProcessDTO
+    {
+        public int Id;
+        public string Name;
+        public int DurationMs;
+        public int IntervalMs;
+        public int[] IntervalTriggerIds;
+        public int[] TriggerIds;
+        public int ContinuousTagTemplateId;
+        public int[] Tags;
+        public ContinuousModifierDTO[] Modifiers;
+        public bool RequireOutOfCombat;
+        public int OutOfCombatSeconds;
+    }
+
+    [Serializable]
     public sealed class BuffDTO
     {
         public int Id;

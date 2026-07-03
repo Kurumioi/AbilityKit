@@ -1,0 +1,50 @@
+using AbilityKit.Core.Numerics;
+
+namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
+{
+    public enum DamageNumberSlot
+    {
+        BaseDamage = 0,
+        DamageRate = 1,
+        FlatBonus = 2,
+        FinalDamage = 3,
+    }
+
+    public readonly struct AdjustDamageNumberArgs
+    {
+        public readonly DamageNumberSlot NumberSlot;
+        public readonly NumberModifierOp Op;
+        public readonly float Value;
+        public readonly int SourceId;
+        public readonly DamageReasonKind ReasonKind;
+        public readonly int ReasonParam;
+        public readonly bool RequireSkillRuntime;
+        public readonly bool SkipFirstHit;
+        public readonly float RepeatTargetDecayFactor;
+        public readonly int TargetHitCountKeyBase;
+
+        public AdjustDamageNumberArgs(
+            DamageNumberSlot numberSlot,
+            NumberModifierOp op,
+            float value,
+            int sourceId,
+            DamageReasonKind reasonKind,
+            int reasonParam,
+            bool requireSkillRuntime,
+            bool skipFirstHit,
+            float repeatTargetDecayFactor,
+            int targetHitCountKeyBase)
+        {
+            NumberSlot = numberSlot;
+            Op = op;
+            Value = value;
+            SourceId = sourceId;
+            ReasonKind = reasonKind;
+            ReasonParam = reasonParam;
+            RequireSkillRuntime = requireSkillRuntime;
+            SkipFirstHit = skipFirstHit;
+            RepeatTargetDecayFactor = repeatTargetDecayFactor;
+            TargetHitCountKeyBase = targetHitCountKeyBase;
+        }
+    }
+}

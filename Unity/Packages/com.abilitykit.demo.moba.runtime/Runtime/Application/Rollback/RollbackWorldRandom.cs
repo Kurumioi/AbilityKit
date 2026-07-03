@@ -3,10 +3,11 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Serialization;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    public sealed class RollbackWorldRandom : IWorldRandom, IRollbackStateProvider
+    public sealed class RollbackWorldRandom : IWorldRandom, IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10010;
 
@@ -14,6 +15,8 @@ namespace AbilityKit.Demo.Moba.Rollback
         private uint _state;
 
         public int Key => DefaultKey;
+
+        public string Name => "Random";
 
         public int Seed => _seed;
 
@@ -70,6 +73,23 @@ namespace AbilityKit.Demo.Moba.Rollback
                 _state = x;
                 return x;
             }
+        }
+
+        public byte[] ExportState(FrameIndex frame)
+        {
+            return Export(frame);
+        }
+
+        public void ImportState(FrameIndex frame, byte[] payload)
+        {
+            Import(frame, payload);
+        }
+
+        public void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash)
+        {
+            hash.AddInt(Key);
+            hash.AddInt(_seed);
+            hash.AddUInt(_state);
         }
 
         public byte[] Export(FrameIndex frame)

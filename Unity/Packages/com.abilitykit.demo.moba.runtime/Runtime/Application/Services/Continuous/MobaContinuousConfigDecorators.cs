@@ -29,6 +29,14 @@ namespace AbilityKit.Demo.Moba.Services
         IReadOnlyList<int> IntervalEffectIds { get; }
     }
 
+    /// <summary>
+    /// 用于在整个持续运行生命周期内绑定 owner-bound trigger 的配置装饰接口。
+    /// </summary>
+    public interface IMobaContinuousOwnerBoundTriggerConfig
+    {
+        IReadOnlyList<int> TriggerIds { get; }
+    }
+
     public static class MobaContinuousModifierTargetKind
     {
         public const int Attribute = 1;

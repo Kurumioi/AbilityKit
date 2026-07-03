@@ -48,7 +48,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             var sourceActorId = executionContext.SourceActorId > 0 ? executionContext.SourceActorId : runtime.SourceId;
             var targetActorId = executionContext.TargetActorId > 0 ? executionContext.TargetActorId : buffContinuous.TargetActorId;
             var sourceContextId = executionContext.ParentContextId != 0 ? executionContext.ParentContextId : runtime.SourceContextId;
-            _contextRegistry?.SyncRuntimeContext(runtime, targetActorId, MobaRuntimeContextLifecycleState.Interval);
+            _contextRegistry?.BindRuntimeContext(runtime, targetActorId, MobaRuntimeContextLifecycleState.Interval);
             _events?.PublishInterval(buff, sourceActorId, targetActorId, runtime);
             _presentationCues?.Ticked(buff, sourceActorId, targetActorId, runtime);
             _stageEffects?.Execute(periodicConfig.IntervalEffectIds, buff.Id, sourceActorId, targetActorId, sourceContextId, MobaBuffTriggering.Stages.Interval, runtime);

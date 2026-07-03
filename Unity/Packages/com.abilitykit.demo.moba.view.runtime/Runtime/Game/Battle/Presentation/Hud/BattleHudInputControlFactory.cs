@@ -73,8 +73,9 @@ namespace AbilityKit.Game.Flow
             cfg.AimMaxRadius = 220f;
             cfg.AimMode = slot == 1 ? SkillAimMode.Direction : SkillAimMode.Point;
 
+            var indicator = CreateSkillAimIndicator(parent, name + "AimIndicator");
             var view = element.GameObject.AddComponent<SkillButtonView>();
-            view.Initialize(element.Rect, root, canvas, cfg);
+            view.Initialize(element.Rect, root, canvas, cfg, indicator);
             return view;
         }
 
@@ -98,6 +99,39 @@ namespace AbilityKit.Game.Flow
             }
 
             return btn;
+        }
+
+        private SkillAimIndicatorView CreateSkillAimIndicator(Transform parent, string name)
+        {
+            var indicatorGo = new GameObject(name, typeof(RectTransform));
+            indicatorGo.transform.SetParent(parent, worldPositionStays: false);
+            indicatorGo.SetActive(false);
+
+            var indicatorRt = indicatorGo.GetComponent<RectTransform>();
+            BattleHudRectTransformLayout.StretchToParent(indicatorRt);
+
+            var ring = _images.Create(
+                "Ring",
+                indicatorGo.transform,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(160f, 160f),
+                new Color(0.2f, 0.75f, 1f, 0.18f),
+                raycastTarget: false).Rect;
+            var dot = _images.Create(
+                "Dot",
+                indicatorGo.transform,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(42f, 42f),
+                new Color(0.2f, 0.75f, 1f, 0.65f),
+                raycastTarget: false).Rect;
+
+            var indicator = indicatorGo.AddComponent<SkillAimIndicatorView>();
+            indicator.Initialize(ring, dot);
+            return indicator;
         }
 
         private RectTransform CreateJoystickPart(

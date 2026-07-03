@@ -14,6 +14,7 @@ using SkillLevelTableMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SkillLevelTa
 using AttrTypeMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.AttrTypeMO;
 using ModelMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ModelMO;
 using BuffMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.BuffMO;
+using ContinuousProcessMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousProcessMO;
 using ProjectileLauncherMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ProjectileLauncherMO;
 using ProjectileMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ProjectileMO;
 using AoeMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.AoeMO;
@@ -418,6 +419,11 @@ using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
             return GetTable<BuffMO>().Get(id);
         }
 
+        public ContinuousProcessMO GetContinuousProcess(int id)
+        {
+            return GetTable<ContinuousProcessMO>().Get(id);
+        }
+
         public ProjectileLauncherMO GetProjectileLauncher(int id)
         {
             return GetTable<ProjectileLauncherMO>().Get(id);
@@ -472,6 +478,7 @@ using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
         public bool TryGetAttrType(int id, out AttrTypeMO mo) => GetTable<AttrTypeMO>().TryGet(id, out mo);
         public bool TryGetModel(int id, out ModelMO mo) => GetTable<ModelMO>().TryGet(id, out mo);
         public bool TryGetBuff(int id, out BuffMO mo) => GetTable<BuffMO>().TryGet(id, out mo);
+        public bool TryGetContinuousProcess(int id, out ContinuousProcessMO mo) => GetTable<ContinuousProcessMO>().TryGet(id, out mo);
         public bool TryGetSummon(int id, out SummonMO mo) => GetTable<SummonMO>().TryGet(id, out mo);
         public bool TryGetComponentTemplate(int id, out ComponentTemplateMO mo) => GetTable<ComponentTemplateMO>().TryGet(id, out mo);
         public bool TryGetSkillButtonTemplate(int id, out SkillButtonTemplateMO mo) => GetTable<SkillButtonTemplateMO>().TryGet(id, out mo);

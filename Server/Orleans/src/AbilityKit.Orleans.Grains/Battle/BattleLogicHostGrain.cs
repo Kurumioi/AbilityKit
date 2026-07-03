@@ -23,6 +23,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private readonly IBattleInputBuffer<BattleInputItem> _inputBuffer = new BattleInputBuffer<BattleInputItem>();
     private readonly IBattleTickDriver<BattleInputItem> _tickDriver;
     private readonly BattleObserverRegistry<IStateSyncObserverGrain> _observerRegistry = new();
+    private readonly Dictionary<IStateSyncObserverGrain, BattleStateSyncObserverContext> _observerContexts = new();
     private readonly BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
 
@@ -352,24 +353,32 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.FromResult(_worldStartAnchor);
     }
 
-    public Task SubscribeAsync(IStateSyncObserverGrain observer)
+    public async Task SubscribeAsync(IStateSyncObserverGrain observer)
     {
         if (observer == null)
         {
             throw new ArgumentNullException(nameof(observer));
         }
 
+        var observerContext = await ResolveObserverContextAsync(observer);
         if (_observerRegistry.Subscribe(observer))
         {
-            _logger.LogInformation("[BattleLogicHost] Observer subscribed. Total observers: {Count}", _observerRegistry.Count);
+            _observerContexts[observer] = observerContext;
+            _logger.LogInformation(
+                "[BattleLogicHost] Observer subscribed. Total observers: {Count}, ObserverKey: {ObserverKey}, AccountId: {AccountId}",
+                _observerRegistry.Count,
+                observerContext.ObserverKey,
+                observerContext.AccountId);
 
             if (_initialized)
             {
                 PushSnapshot(isFullSnapshot: true);
             }
         }
-
-        return Task.CompletedTask;
+        else
+        {
+            _observerContexts[observer] = observerContext;
+        }
     }
 
     public async Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer)
@@ -384,7 +393,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return;
         }
 
-        var push = BuildStateSyncPush(_battleHostState.Frame, isFullSnapshot: true);
+        var observerContext = await ResolveObserverContextAsync(observer);
+        _observerContexts[observer] = observerContext;
+        var push = BuildStateSyncPush(observer, _battleHostState.Frame, isFullSnapshot: true);
         await observer.OnSnapshotPushedAsync(push);
     }
 
@@ -395,6 +406,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.CompletedTask;
         }
 
+        _observerContexts.Remove(observer);
         if (_observerRegistry.Unsubscribe(observer))
         {
             _logger.LogInformation("[BattleLogicHost] Observer unsubscribed. Total observers: {Count}", _observerRegistry.Count);
@@ -407,6 +419,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     {
         _logger.LogInformation("[BattleLogicHost] Destroying battle - WorldId: {WorldId}", _worldId);
         _observerRegistry.Clear();
+        _observerContexts.Clear();
         StopBattleRuntime();
         DeactivateOnIdle();
         return Task.CompletedTask;
@@ -487,7 +500,29 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return;
         }
 
-        _snapshotPublisher.Publish(_observerRegistry.Snapshot(), frame, isFullSnapshot);
+        var observers = _observerRegistry.Snapshot();
+        if (_runtimeSession is IObserverAwareBattleRuntimeSession)
+        {
+            _snapshotPublisher.PublishPerObserver(observers, frame, isFullSnapshot, BuildStateSyncPush);
+            return;
+        }
+
+        _snapshotPublisher.Publish(observers, frame, isFullSnapshot);
+    }
+
+    private StateSyncPush BuildStateSyncPush(IStateSyncObserverGrain observer, int frame, bool isFullSnapshot)
+    {
+        if (_runtimeSession is IObserverAwareBattleRuntimeSession observerAwareSession)
+        {
+            if (!_observerContexts.TryGetValue(observer, out var observerContext))
+            {
+                observerContext = default;
+            }
+
+            return NormalizeStateSyncPush(observerAwareSession.CreateStateSyncPush(_worldId, frame, isFullSnapshot, in observerContext), frame, isFullSnapshot);
+        }
+
+        return BuildStateSyncPush(frame, isFullSnapshot);
     }
 
     private StateSyncPush BuildStateSyncPush(int frame, bool isFullSnapshot)
@@ -499,6 +534,20 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 Frame = frame,
                 IsFullSnapshot = isFullSnapshot
             };
+
+        return NormalizeStateSyncPush(push, frame, isFullSnapshot);
+    }
+
+    private static StateSyncPush NormalizeStateSyncPush(StateSyncPush push, int frame, bool isFullSnapshot)
+    {
+        if (push == null)
+        {
+            push = new StateSyncPush
+            {
+                Frame = frame,
+                IsFullSnapshot = isFullSnapshot
+            };
+        }
 
         var serverTicks = DateTime.UtcNow.Ticks;
         push.ServerTicks = serverTicks;
@@ -520,12 +569,22 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _logger.LogError(exception, "[BattleLogicHost] Error pushing snapshot to observer");
     }
 
+    private static async Task<BattleStateSyncObserverContext> ResolveObserverContextAsync(IStateSyncObserverGrain observer)
+    {
+        var info = await observer.GetObserverInfoAsync();
+        return new BattleStateSyncObserverContext(
+            info?.ObserverKey ?? string.Empty,
+            info?.AccountId ?? string.Empty,
+            info?.RoomId ?? string.Empty);
+    }
+
     private void StopBattleRuntime()
     {
         _timer?.Dispose();
         _timer = null;
         _runtimeSession?.Dispose();
         _runtimeSession = null;
+        _observerContexts.Clear();
         _battleId = string.Empty;
         _worldId = 0;
         _initialized = false;

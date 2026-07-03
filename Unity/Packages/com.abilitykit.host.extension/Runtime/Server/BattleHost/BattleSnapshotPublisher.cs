@@ -5,6 +5,8 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
 {
     public delegate TSnapshot BattleSnapshotFactory<out TSnapshot>(int frame, bool isFullSnapshot);
 
+    public delegate TSnapshot BattleObserverSnapshotFactory<in TObserver, out TSnapshot>(TObserver observer, int frame, bool isFullSnapshot);
+
     public delegate void BattleSnapshotSender<in TObserver, in TSnapshot>(TObserver observer, TSnapshot snapshot);
 
     public delegate void BattleSnapshotPublishErrorHandler<in TObserver>(TObserver observer, Exception exception);
@@ -45,6 +47,32 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
             return sentCount;
         }
 
+        public int PublishPerObserver(IReadOnlyList<TObserver> observers, int frame, bool isFullSnapshot, BattleObserverSnapshotFactory<TObserver, TSnapshot> factory)
+        {
+            if (observers == null || observers.Count == 0)
+            {
+                return 0;
+            }
+
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            var sentCount = 0;
+            for (int i = 0; i < observers.Count; i++)
+            {
+                var observer = observers[i];
+                var snapshot = factory(observer, frame, isFullSnapshot);
+                if (Send(observer, snapshot))
+                {
+                    sentCount++;
+                }
+            }
+
+            return sentCount;
+        }
+
         public int PublishTo(TObserver observer, int frame, bool isFullSnapshot)
         {
             if (observer == null)
@@ -53,6 +81,22 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
             }
 
             var snapshot = _factory(frame, isFullSnapshot);
+            return Send(observer, snapshot) ? 1 : 0;
+        }
+
+        public int PublishTo(TObserver observer, int frame, bool isFullSnapshot, BattleObserverSnapshotFactory<TObserver, TSnapshot> factory)
+        {
+            if (observer == null)
+            {
+                return 0;
+            }
+
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+
+            var snapshot = factory(observer, frame, isFullSnapshot);
             return Send(observer, snapshot) ? 1 : 0;
         }
 

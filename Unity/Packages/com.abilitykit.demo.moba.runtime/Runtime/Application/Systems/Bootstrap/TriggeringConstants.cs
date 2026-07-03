@@ -28,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static class Actions
         {
             public const string GiveDamage = "give_damage";
+            public const string AdjustDamageNumber = "adjust_damage_number";
             public const string TakeDamage = "take_damage";
             public const string DebugLog = "debug_log";
             public const string ShootProjectile = "shoot_projectile";

@@ -1,3 +1,5 @@
+using AbilityKit.Context;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public interface IMobaCombatExecutionContextProvider
@@ -9,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Services
     /// MOBA 战斗执行期的统一上下文。
     /// 业务执行代码应先把触发 payload 归一化到该模型，再读取溯源、链路、快照、技能运行时和帧信息。
     /// </summary>
-    public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider
+    public readonly struct MobaCombatExecutionContext : IMobaContextSourceProvider, IMobaRuntimeContextPayload
     {
         public MobaCombatExecutionContext(
             object payload,
@@ -84,6 +86,40 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            if (Payload is IMobaRuntimeContextPayload provider
+                && provider.TryGetRuntimeContext(out reference)
+                && reference.IsValid)
+            {
+                return true;
+            }
+
+            reference = default;
+            return false;
+        }
+
+        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            return MobaRuntimeContextAccessExtensions.GetRuntimeContextValue<TValue, TProperty>(Payload, contexts, key, mode);
+        }
+
+        public bool TryGetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            out TValue value,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+            value = result.Value;
+            return result.Found;
+        }
+ 
         public bool TryGetSourceActorId(out int actorId)
         {
             actorId = SourceActorId;

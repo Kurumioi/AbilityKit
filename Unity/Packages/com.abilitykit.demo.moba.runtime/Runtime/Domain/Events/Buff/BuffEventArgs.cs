@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Events.Buff
     /// <summary>
     /// Buff 事件参数
     /// </summary>
-    public struct BuffEventArgs
+    public sealed class BuffEventArgs
     {
         /// <summary>事件 ID</summary>
         public string EventId;

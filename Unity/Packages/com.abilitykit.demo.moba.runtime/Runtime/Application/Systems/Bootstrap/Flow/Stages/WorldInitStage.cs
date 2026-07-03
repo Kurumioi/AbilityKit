@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.StartSources;
+using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Protocol.Moba.CreateWorld;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -70,8 +71,13 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             var spec = initPayload.ToGameStartSpec();
             specService.Set(in spec);
-            Log.Info("[WorldInitStage] WorldInitData decoded; battle game start spec stored");
+            if (services.TryResolve<MobaGameplayConfigSettings>(out var gameplaySettings) && gameplaySettings != null)
+            {
+                gameplaySettings.DefaultGameplayId = initPayload.Spec.GameplayId;
+            }
 
+            Log.Info("[WorldInitStage] WorldInitData decoded; battle game start spec stored");
+ 
             // Seed deterministic world random as early as possible.
             if (!services.TryResolve<IWorldRandom>(out var random) || random is not RollbackWorldRandom rr)
             {

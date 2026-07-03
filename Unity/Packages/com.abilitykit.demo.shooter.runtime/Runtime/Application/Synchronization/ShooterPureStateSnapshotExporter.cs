@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
@@ -46,7 +47,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterPureStateSyncSettings? settings = null,
             int baselineFrame = 0,
             uint baselineHash = 0,
-            ShooterPureStateInterestScope? interestScope = null)
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null)
         {
             var activeSettings = NormalizeSettings(settings ?? ShooterPureStateSyncSettings.Default);
             var frame = _state.CurrentFrame;
@@ -61,15 +63,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Sort(_candidateBuffer, 0, candidateCount, ShooterPureStateCandidateComparer.Instance);
             }
 
-            var selectedCount = Math.Min(maxEntities, candidateCount);
-            var entities = new ShooterPureStateEntityDelta[selectedCount];
-            var visibilityHints = new ShooterPureStateVisibilityHint[selectedCount];
- 
-            for (var i = 0; i < selectedCount; i++)
-            {
-                entities[i] = _candidateBuffer[i].Entity;
-                visibilityHints[i] = _candidateBuffer[i].VisibilityHint;
-            }
+            var selection = SelectCandidates(candidateCount, maxEntities, isFullBaseline, interestScope, aoiInterestSet);
+            var entities = selection.Entities;
+            var visibilityHints = selection.VisibilityHints;
 
             var stateHash = _stateHashProvider.ComputeStateHash();
             return new ShooterPureStateSnapshotPayload(
@@ -138,7 +134,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.KeyInteraction,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId, player.X, player.Y);
             }
 
             for (var i = 0; i < bullets.Length; i++)
@@ -176,7 +172,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.Combat,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId, bullet.X, bullet.Y);
             }
 
             return index;
@@ -228,7 +224,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.KeyInteraction,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId, player.X, player.Y);
             }
 
             var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(bullets, bulletCount);
@@ -267,7 +263,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.Combat,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId, bullet.X, bullet.Y);
             }
 
             var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
@@ -314,10 +310,114 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ShooterPureStateEntityLayers.Combat,
                     flags,
                     priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(transform.X, transform.Y, interestScope), entityId);
+                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(transform.X, transform.Y, interestScope), entityId, transform.X, transform.Y);
             }
 
             return index;
+        }
+
+        private ShooterPureStateSelection SelectCandidates(
+            int candidateCount,
+            int maxEntities,
+            bool isFullBaseline,
+            ShooterPureStateInterestScope? interestScope,
+            AoiInterestSet? aoiInterestSet)
+        {
+            if (aoiInterestSet == null || !interestScope.HasValue)
+            {
+                var selectedCount = Math.Min(maxEntities, candidateCount);
+                var selectedEntities = new ShooterPureStateEntityDelta[selectedCount];
+                var selectedHints = new ShooterPureStateVisibilityHint[selectedCount];
+                for (var i = 0; i < selectedCount; i++)
+                {
+                    selectedEntities[i] = _candidateBuffer[i].Entity;
+                    selectedHints[i] = _candidateBuffer[i].VisibilityHint;
+                }
+
+                return new ShooterPureStateSelection(selectedEntities, selectedHints);
+            }
+
+            var samples = new AoiEntitySample[candidateCount];
+            for (var i = 0; i < candidateCount; i++)
+            {
+                var candidate = _candidateBuffer[i];
+                samples[i] = new AoiEntitySample(
+                    candidate.AoiKey,
+                    candidate.X,
+                    candidate.Y,
+                    candidate.Priority,
+                    candidate.Entity.EntityLayer,
+                    candidate.Entity.OwnerId,
+                    candidate.Entity.Flags);
+            }
+
+            var evaluation = aoiInterestSet.Evaluate(samples, interestScope.Value.ToAoiScope(), isFullBaseline);
+            var entities = new List<ShooterPureStateEntityDelta>(Math.Min(maxEntities, evaluation.Changes.Count));
+            var hints = new List<ShooterPureStateVisibilityHint>(Math.Min(maxEntities, evaluation.Changes.Count));
+            var visibleCount = 0;
+            for (var i = 0; i < evaluation.Changes.Count; i++)
+            {
+                var change = evaluation.Changes[i];
+                if (change.Transition == AoiInterestTransition.Leave)
+                {
+                    entities.Add(CreateDespawnDelta(change));
+                    continue;
+                }
+
+                if (visibleCount >= maxEntities)
+                {
+                    continue;
+                }
+
+                if (!TryFindCandidate(change.Key, candidateCount, out var candidate))
+                {
+                    continue;
+                }
+
+                var entity = candidate.Entity;
+                entity.DeltaKind = change.Transition == AoiInterestTransition.Enter
+                    ? ShooterPureStateDeltaKinds.Spawn
+                    : CreateDeltaKind(isFullBaseline);
+                entity.Flags = (byte)(entity.Flags | ShooterPureStateEntityFlags.Visible);
+                entities.Add(entity);
+                hints.Add(candidate.VisibilityHint);
+                visibleCount++;
+            }
+
+            return new ShooterPureStateSelection(entities.ToArray(), hints.ToArray());
+        }
+
+        private bool TryFindCandidate(AoiEntityKey key, int candidateCount, out ShooterPureStateCandidate candidate)
+        {
+            for (var i = 0; i < candidateCount; i++)
+            {
+                candidate = _candidateBuffer[i];
+                if (candidate.AoiKey.Equals(key))
+                {
+                    return true;
+                }
+            }
+
+            candidate = default;
+            return false;
+        }
+
+        private static ShooterPureStateEntityDelta CreateDespawnDelta(AoiInterestChange change)
+        {
+            return new ShooterPureStateEntityDelta(
+                change.Key.Id,
+                change.Key.Kind,
+                change.Layer,
+                ShooterPureStateDeltaKinds.Despawn,
+                change.OwnerId,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                (byte)(change.Flags & ~ShooterPureStateEntityFlags.Alive));
         }
 
         private ShooterPureStateCandidate[] EnsureCandidateCapacity(int count)
@@ -519,13 +619,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ShooterPureStateVisibilityHint visibilityHint,
                 int priority,
                 float distanceSquared,
-                int tieBreaker)
+                int tieBreaker,
+                float x,
+                float y)
             {
                 Entity = entity;
                 VisibilityHint = visibilityHint;
                 Priority = priority;
                 DistanceSquared = distanceSquared;
                 TieBreaker = tieBreaker;
+                X = x;
+                Y = y;
+                AoiKey = new AoiEntityKey(entity.EntityKind, entity.EntityId);
             }
 
             public ShooterPureStateEntityDelta Entity { get; }
@@ -537,6 +642,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public float DistanceSquared { get; }
 
             public int TieBreaker { get; }
+
+            public float X { get; }
+
+            public float Y { get; }
+
+            public AoiEntityKey AoiKey { get; }
+        }
+
+        private readonly struct ShooterPureStateSelection
+        {
+            public ShooterPureStateSelection(ShooterPureStateEntityDelta[] entities, ShooterPureStateVisibilityHint[] visibilityHints)
+            {
+                Entities = entities;
+                VisibilityHints = visibilityHints;
+            }
+
+            public ShooterPureStateEntityDelta[] Entities { get; }
+
+            public ShooterPureStateVisibilityHint[] VisibilityHints { get; }
         }
     }
 }

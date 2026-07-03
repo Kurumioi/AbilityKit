@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -26,7 +26,9 @@ namespace AbilityKit.Demo.Moba.Services
         private MobaContinuousTickProcessor _tickProcessor;
         private MobaContinuousLifecycleBinder _lifecycleBinder;
         private MobaContinuousContextLifecycleBinder _contextLifecycleBinder;
+        private MobaContinuousOwnerBoundTriggerLifecycleBinder _ownerBoundTriggerBinder;
         private BuffContinuousIntervalHandler _buffIntervalHandler;
+        private MobaTriggerIntervalContinuousHandler _triggerIntervalHandler;
 
         public void OnInit(IWorldResolver services)
         {
@@ -39,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
+            services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaOwnerBoundTriggerGateService ownerBoundTriggerGates);
             services.TryResolve(out MobaTriggerExecutionGateway triggerGateway);
             if (triggerGateway == null) triggerGateway = new MobaTriggerExecutionGateway(effects, triggerSubscriptions);
 
@@ -48,12 +51,16 @@ namespace AbilityKit.Demo.Moba.Services
             AddLifecycleBinder(_lifecycleBinder);
             _contextLifecycleBinder = new MobaContinuousContextLifecycleBinder(trace, actionRunner);
             AddLifecycleBinder(_contextLifecycleBinder);
+            _ownerBoundTriggerBinder = new MobaContinuousOwnerBoundTriggerLifecycleBinder(triggerGateway, ownerBoundTriggerGates);
+            AddLifecycleBinder(_ownerBoundTriggerBinder);
             var buffContextRegistry = new BuffContextRegistry(trace, runtimeContexts, actionRunner, frameTime);
             var events = new BuffEventPublisher(eventBus);
             var stageEffects = new BuffStageEffectExecutor(triggerGateway);
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
             _buffIntervalHandler = new BuffContinuousIntervalHandler(configs, events, stageEffects, presentationCues, buffContextRegistry);
             _intervalHandlers.Add(_buffIntervalHandler);
+            _triggerIntervalHandler = new MobaTriggerIntervalContinuousHandler(triggerGateway);
+            _intervalHandlers.Add(_triggerIntervalHandler);
             _tickProcessor = new MobaContinuousTickProcessor(_intervalHandlers);
         }
 
@@ -89,7 +96,10 @@ namespace AbilityKit.Demo.Moba.Services
         public void Dispose()
         {
             _intervalHandlers.Clear();
+            _ownerBoundTriggerBinder?.Dispose();
+            _ownerBoundTriggerBinder = null;
             _buffIntervalHandler = null;
+            _triggerIntervalHandler = null;
             _tickProcessor = null;
             _contextLifecycleBinder = null;
             _lifecycleBinder = null;

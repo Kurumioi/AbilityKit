@@ -14,6 +14,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
         }
 
+        public ShooterWorldHost(Action<WorldCreateOptions> configureWorldOptions)
+            : this(CreateDefaultHostRuntime(configureWorldOptions))
+        {
+        }
+
         public ShooterWorldHost(HostRuntime hostRuntime)
         {
             _hostRuntime = hostRuntime ?? throw new ArgumentNullException(nameof(hostRuntime));
@@ -46,11 +51,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _hostRuntime.Tick(deltaTime);
         }
 
-        public static HostRuntime CreateDefaultHostRuntime()
+        public static HostRuntime CreateDefaultHostRuntime(Action<WorldCreateOptions>? configureWorldOptions = null)
         {
             var registry = new WorldTypeRegistry();
             ShooterWorldBlueprintsRegistration.RegisterAll(registry);
-            return new HostRuntime(new WorldManager(new RegistryWorldFactory(registry)), new HostRuntimeOptions());
+
+            var options = new HostRuntimeOptions();
+            if (configureWorldOptions != null)
+            {
+                options.OnBeforeCreateWorld = configureWorldOptions;
+            }
+
+            return new HostRuntime(new WorldManager(new RegistryWorldFactory(registry)), options);
         }
     }
 }

@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Range;
         public int IconId;
         public int Category;
+        public int SkillType;
         public int[] Tags;
 
         public int SkillButtonTemplateId;
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public string Name;
         public int CooldownMs;
         public int[] TriggerIds;
+        public int[] ContinuousProcessIds;
     }
 
     [Serializable]

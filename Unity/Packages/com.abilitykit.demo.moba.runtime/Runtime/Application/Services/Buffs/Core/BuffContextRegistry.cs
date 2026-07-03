@@ -79,10 +79,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 false,
                 "Buff",
                 buffId);
-            SyncRuntimeContext(rt, targetActorId, MobaRuntimeContextLifecycleState.Active);
+            BindRuntimeContext(rt, targetActorId, MobaRuntimeContextLifecycleState.Active);
         }
 
-        public void SyncRuntimeContext(BuffRuntime rt, int targetActorId, MobaRuntimeContextLifecycleState state)
+        public void BindRuntimeContext(BuffRuntime rt, int targetActorId, MobaRuntimeContextLifecycleState state)
         {
             if (rt == null || _runtimeContexts == null) return;
 

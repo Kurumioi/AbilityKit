@@ -14,6 +14,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
     private readonly ILogger<StateSyncObserverGrain> _logger;
 
     private readonly StateSyncObserverSubscriptionState _subscriptionState = new();
+    private string _observerKey = string.Empty;
     private string _accountId = string.Empty;
     private string _roomId = string.Empty;
 
@@ -25,6 +26,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var key = this.GetPrimaryKeyString();
+        _observerKey = key;
         _logger.LogInformation("[StateSyncObserver] Activated with key: {Key}", key);
 
         // key 格式: "accountId:roomId"
@@ -36,6 +38,16 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task<StateSyncObserverInfo> GetObserverInfoAsync()
+    {
+        return Task.FromResult(new StateSyncObserverInfo
+        {
+            ObserverKey = _observerKey,
+            AccountId = _accountId,
+            RoomId = _roomId
+        });
     }
 
     /// <summary>

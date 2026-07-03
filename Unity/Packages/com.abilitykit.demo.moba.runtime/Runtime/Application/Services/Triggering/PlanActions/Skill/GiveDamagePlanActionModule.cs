@@ -21,10 +21,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
     [PlanActionModule(order: MobaPlanActionModuleOrders.GiveDamage)]
     public sealed class GiveDamagePlanActionModule : MobaPlanActionModuleBase<GiveDamageArgs, GiveDamagePlanActionModule>
     {
-        private const int XiaoQiaoUltimateSkillId = 10020301;
-        private const float XiaoQiaoUltimateRepeatHitDecay = 0.5f;
-        private const int SkillRuntimeTargetHitCountKeyBase = 1200000;
-
         protected override IActionSchema<GiveDamageArgs, IWorldResolver> Schema => GiveDamageSchema.Instance;
 
         protected override void Execute(object triggerArgs, GiveDamageArgs args, ExecCtx<IWorldResolver> ctx)
@@ -73,7 +69,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
             var requestedDamage = args.DamageValue;
-            var damageValue = ApplySkillRuntimeDamageAdjustments(args, ctx, targetActorId, requestedDamage, in origin);
             var attack = new AttackInfo
             {
                 AttackerActorId = attackerActorId,
@@ -85,60 +80,26 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 FormulaKind = (int)DamageFormulaKind.Standard,
             };
             attack.SetOrigin(in origin);
-            attack.BaseDamage.BaseValue = damageValue;
+            attack.BaseDamage.BaseValue = requestedDamage;
 
             var result = combat.DealDamage(attack);
             if (result == null)
             {
-                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"pipeline returned null. attacker={attackerActorId} target={targetActorId} damage={damageValue:0.###} reasonParam={args.ReasonParam}");
+                MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.GiveDamage, $"pipeline returned null. attacker={attackerActorId} target={targetActorId} damage={requestedDamage:0.###} reasonParam={args.ReasonParam}");
                 return;
             }
 
-            LogDamageTrace(args, input, ctx, requestedDamage, damageValue, in origin, result);
+            LogDamageTrace(args, input, ctx, requestedDamage, attack.BaseDamage.Value, in origin, result);
         }
 
-        private static float ApplySkillRuntimeDamageAdjustments(GiveDamageArgs args, ExecCtx<IWorldResolver> ctx, int targetActorId, float damageValue, in MobaGameplayOrigin origin)
-        {
-            if (args.ReasonParam != XiaoQiaoUltimateSkillId || targetActorId <= 0) return damageValue;
-            if (!origin.SkillRuntimeHandle.IsValid) return damageValue;
-            if (!ctx.Context.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null) return damageValue;
-            var handle = origin.SkillRuntimeHandle;
-            if (!runtimes.TryGetBlackboard(in handle, out var blackboard) || blackboard == null) return damageValue;
-
-            var targetHitCountKey = CreateTargetHitCountKey(targetActorId);
-            blackboard.TryGetInt(in targetHitCountKey, out var targetHitCount);
-            var nextHitCount = targetHitCount + 1;
-            blackboard.SetInt(in targetHitCountKey, nextHitCount);
-            blackboard.AddInt(in MobaSkillRuntimeBlackboardKeys.HitCount, 1);
-            blackboard.AddActorId(in MobaSkillRuntimeBlackboardKeys.DamagedTargets, targetActorId);
-
-            var decayFactor = 1f;
-            for (var i = 1; i < nextHitCount; i++)
-            {
-                decayFactor *= XiaoQiaoUltimateRepeatHitDecay;
-            }
-
-            blackboard.SetFloat(in MobaSkillRuntimeBlackboardKeys.DecayFactor, decayFactor);
-            return nextHitCount <= 1 ? damageValue : damageValue * decayFactor;
-        }
-
-        private static MobaSkillRuntimeBlackboardKey CreateTargetHitCountKey(int targetActorId)
-        {
-            return new MobaSkillRuntimeBlackboardKey(
-                SkillRuntimeTargetHitCountKeyBase + targetActorId,
-                $"skill.targetHitCount.{targetActorId}",
-                MobaSkillRuntimeValueKind.Int,
-                MobaSkillRuntimeBlackboardScope.Cast);
-        }
-
-        private static void LogDamageTrace(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, float requestedDamage, float appliedBaseDamage, in MobaGameplayOrigin origin, DamageResult result)
+        private static void LogDamageTrace(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, float requestedDamage, float pipelineBaseDamage, in MobaGameplayOrigin origin, DamageResult result)
         {
             var sb = new StringBuilder(1024);
             sb.Append("[MobaDamageTrace] damage applied")
                 .Append(" attacker=").Append(result.AttackerActorId)
                 .Append(" target=").Append(result.TargetActorId)
                 .Append(" requested=").Append(requestedDamage.ToString("0.###"))
-                .Append(" adjustedBase=").Append(appliedBaseDamage.ToString("0.###"))
+                .Append(" pipelineBase=").Append(pipelineBaseDamage.ToString("0.###"))
                 .Append(" actual=").Append(result.Value.ToString("0.###"))
                 .Append(" damageType=").Append(result.DamageType)
                 .Append(" reason=").Append(result.ReasonKind).Append(':').Append(result.ReasonParam)

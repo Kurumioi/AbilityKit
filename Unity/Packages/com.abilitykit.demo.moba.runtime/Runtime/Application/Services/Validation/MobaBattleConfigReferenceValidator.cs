@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
             ValidateSkills(config, triggers, report);
             ValidatePassiveSkills(config, triggers, report);
             ValidateBuffs(config, triggers, report);
+            ValidateContinuousProcesses(config, triggers, report);
             ValidateCharacters(config, report);
             ValidateProjectiles(config, triggers, report);
             ValidateProjectileLaunchers(config, report);
@@ -121,6 +122,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (passive == null) continue;
                 ValidateTriggerRefs(triggers, passive.TriggerIds, report, $"passiveSkill.{passive.Id}.triggerIds", passive.Id, TriggerPlanScope.OwnerBound);
+                ValidateRefs(Ref<ContinuousProcessMO>(config.TryGetContinuousProcess), passive.ContinuousProcessIds, report, $"passiveSkill.{passive.Id}.continuousProcessIds", "continuous process", passive.Id);
             }
         }
 
@@ -172,9 +174,52 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        private static void ValidateContinuousProcesses(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report)
+        {
+            foreach (var process in All<ContinuousProcessMO>(config))
+            {
+                if (process == null) continue;
+                var path = $"continuousProcess.{process.Id}";
+
+                if (process.DurationMs < 0)
+                {
+                    report.Warning(Source, path + ".durationMs", "continuous process duration is negative; use zero only for explicit indefinite semantics.", process.Id.ToString());
+                }
+
+                if (process.IntervalMs < 0)
+                {
+                    report.Warning(Source, path + ".intervalMs", "continuous process interval is negative.", process.Id.ToString());
+                }
+
+                if (process.IntervalMs <= 0 && process.IntervalTriggerIds != null && process.IntervalTriggerIds.Count > 0)
+                {
+                    report.Warning(Source, path + ".intervalMs", "continuous process has interval triggers but no positive interval configured.", process.Id.ToString());
+                }
+
+                if (process.IntervalMs > 0 && (process.IntervalTriggerIds == null || process.IntervalTriggerIds.Count == 0))
+                {
+                    report.Warning(Source, path + ".intervalTriggerIds", "continuous process interval is configured but no interval triggers are defined.", process.Id.ToString());
+                }
+
+                if (process.OutOfCombatSeconds < 0)
+                {
+                    report.Warning(Source, path + ".outOfCombatSeconds", "continuous process out-of-combat threshold is negative.", process.Id.ToString());
+                }
+
+                ValidateTriggerRefs(triggers, process.IntervalTriggerIds, report, path + ".intervalTriggerIds", process.Id);
+                ValidateTriggerRefs(triggers, process.TriggerIds, report, path + ".triggerIds", process.Id, TriggerPlanScope.OwnerBound);
+                OptionalRef(Ref<ContinuousTagTemplateMO>(config.TryGetContinuousTagTemplate), process.ContinuousTagTemplateId, report, path + ".continuousTagTemplateId", "continuous tag template", process.Id);
+                ValidateContinuousModifiers(config, process.Modifiers, report, path + ".modifiers", process.Id);
+            }
+        }
+
         private static void ValidateBuffModifiers(MobaConfigDatabase config, BuffMO buff, MobaRuntimeValidationReport report)
         {
-            var modifiers = buff.Modifiers;
+            ValidateContinuousModifiers(config, buff.Modifiers, report, $"buff.{buff.Id}.modifiers", buff.Id);
+        }
+
+        private static void ValidateContinuousModifiers(MobaConfigDatabase config, IReadOnlyList<ContinuousModifierMO> modifiers, MobaRuntimeValidationReport report, string path, int businessId)
+        {
             if (modifiers == null || modifiers.Count == 0) return;
 
             for (int i = 0; i < modifiers.Count; i++)
@@ -182,24 +227,24 @@ namespace AbilityKit.Demo.Moba.Services
                 var modifier = modifiers[i];
                 if (modifier == null) continue;
 
-                var path = $"buff.{buff.Id}.modifiers[{i}]";
+                var itemPath = $"{path}[{i}]";
                 if (modifier.TargetKind <= 0)
                 {
-                    report.Error(Source, path + ".targetKind", "modifier target kind is empty.", buff.Id.ToString());
+                    report.Error(Source, itemPath + ".targetKind", "modifier target kind is empty.", businessId.ToString());
                 }
 
                 if (modifier.TargetId <= 0)
                 {
-                    report.Error(Source, path + ".targetId", "modifier target id is empty.", buff.Id.ToString());
+                    report.Error(Source, itemPath + ".targetId", "modifier target id is empty.", businessId.ToString());
                 }
 
                 if (modifier.TargetKind == MobaContinuousModifierTargetKind.Attribute)
                 {
-                    RequiredRef(Ref<AttrTypeMO>(config.TryGetAttrType), modifier.TargetId, report, path + ".targetId", "attribute type", buff.Id);
+                    RequiredRef(Ref<AttrTypeMO>(config.TryGetAttrType), modifier.TargetId, report, itemPath + ".targetId", "attribute type", businessId);
                 }
                 else if (modifier.TargetKind == MobaContinuousModifierTargetKind.SkillParameter)
                 {
-                    ValidateSkillParameterModifierTarget(modifier.TargetId, report, path + ".targetId", buff.Id);
+                    ValidateSkillParameterModifierTarget(modifier.TargetId, report, itemPath + ".targetId", businessId);
                 }
             }
         }

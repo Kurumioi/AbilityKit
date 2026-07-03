@@ -22,6 +22,7 @@
     <ProjectReference Include="../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.DI/AbilityKit.World.DI.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.FrameSync/AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.World.StateSync/AbilityKit.World.StateSync.csproj" />
     <ProjectReference Include="../../src/AbilityKit.World.Svelto/AbilityKit.World.Svelto.csproj" />
     <ProjectReference Include="../../src/AbilityKit.ThirdParty.Svelto/AbilityKit.ThirdParty.Svelto.csproj" />
     <ProjectReference Include="../../src/AbilityKit.HFSM.Core/AbilityKit.HFSM.Core.csproj" />

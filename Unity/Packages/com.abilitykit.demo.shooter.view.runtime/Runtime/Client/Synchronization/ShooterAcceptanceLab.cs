@@ -2,6 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
@@ -876,6 +879,7 @@ namespace AbilityKit.Demo.Shooter.View
         /// <param name="enableAuthoritativeWorld">
         /// 为 true 时，在客户端世界旁启动独立权威模拟，让 Unity 外壳可以同时渲染与比较二者。默认为 false（仅客户端世界）。
         /// </param>
+        /// <param name="gameplayScenario">可选玩法场景，会注入到 runtime world 的刷怪与竞技场配置。</param>
         /// <param name="networkStats">可选的实时网络统计源，会暴露给 harness。</param>
         /// <param name="remoteJitter">可选的实时远端抖动源。</param>
         /// <param name="acceptedHits">可选的命中接受计数源。</param>
@@ -890,6 +894,7 @@ namespace AbilityKit.Demo.Shooter.View
             int randomSeed = 0,
             InterpolationConfig? interpolationConfig = null,
             bool enableAuthoritativeWorld = false,
+            ShooterSveltoGameplayScenarioConfig? gameplayScenario = null,
             Func<NetworkConditioningStats>? networkStats = null,
             Func<double>? remoteJitter = null,
             Func<long>? acceptedHits = null,
@@ -905,6 +910,7 @@ namespace AbilityKit.Demo.Shooter.View
                 randomSeed,
                 interpolationConfig,
                 enableAuthoritativeWorld,
+                gameplayScenario,
                 networkStats,
                 remoteJitter,
                 acceptedHits,
@@ -931,6 +937,7 @@ namespace AbilityKit.Demo.Shooter.View
                 randomSeed: 0,
                 template.InterpolationConfig,
                 template.EnableAuthoritativeWorld,
+                gameplayScenario: null,
                 networkStats: null,
                 remoteJitter: null,
                 acceptedHits: null,
@@ -993,6 +1000,7 @@ namespace AbilityKit.Demo.Shooter.View
                         seed,
                         row.Template.InterpolationConfig,
                         row.Template.EnableAuthoritativeWorld,
+                        gameplayScenario: null,
                         networkStats: null,
                         remoteJitter: null,
                         acceptedHits: null,
@@ -1015,6 +1023,7 @@ namespace AbilityKit.Demo.Shooter.View
             int randomSeed,
             InterpolationConfig? interpolationConfig,
             bool enableAuthoritativeWorld,
+            ShooterSveltoGameplayScenarioConfig? gameplayScenario,
             Func<NetworkConditioningStats>? networkStats,
             Func<double>? remoteJitter,
             Func<long>? acceptedHits,
@@ -1024,7 +1033,9 @@ namespace AbilityKit.Demo.Shooter.View
             if (tickRate <= 0) throw new ArgumentOutOfRangeException(nameof(tickRate));
 
             var start = BuildStartPayload(matchId, tickRate, randomSeed, players, syncModel);
-            var worldHost = new ShooterWorldHost();
+            var worldHost = gameplayScenario.HasValue
+                ? new ShooterWorldHost(options => ConfigureGameplayScenarioWorldOptions(options, gameplayScenario.Value))
+                : new ShooterWorldHost();
             var runtimeWorld = ShooterBattleWorldSession.Create($"{start.MatchId}-client", worldHost);
             ShooterBattleWorldSession? authoritativeWorldSession = null;
 
@@ -1085,6 +1096,19 @@ namespace AbilityKit.Demo.Shooter.View
                 runtimeWorld.Dispose();
                 throw;
             }
+        }
+
+        private static void ConfigureGameplayScenarioWorldOptions(
+            WorldCreateOptions options,
+            in ShooterSveltoGameplayScenarioConfig scenario)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+            var enemyWaveOptions = new ShooterEnemyWaveOptions(true, scenario.BattleFlow);
+            var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
+            options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
+            options.ServiceBuilder.Register<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => arenaOptions);
         }
 
         private static ISyncDemoCarrier CreateCarrier(

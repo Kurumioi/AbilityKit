@@ -13,23 +13,33 @@ MonoBehaviour:
   m_Name: SkillButtonTemplateCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 10001
-    Name: 
-    LongPressSeconds: 0.5
-    DragThreshold: 0
+  - Id: 1
+    Name: direction_default
+    LongPressSeconds: 0.35
+    DragThreshold: 12
     EnableAim: 1
     AimMode: 0
-    AimMaxRadius: 0
+    AimMaxRadius: 220
     UsePointMode: 0
     SelectRange: 0
-    FaceToAim: 0
-  - Id: 10002
-    Name: 
-    LongPressSeconds: 0
-    DragThreshold: 2
-    EnableAim: 0
+    FaceToAim: 1
+  - Id: 2
+    Name: direction_line
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
     AimMode: 0
-    AimMaxRadius: 0
-    UsePointMode: 0
-    SelectRange: 3
+    AimMaxRadius: 220
+    UsePointMode: 1
+    SelectRange: 0
+    FaceToAim: 1
+  - Id: 3
+    Name: target_point_area
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 1
+    AimMaxRadius: 220
+    UsePointMode: 2
+    SelectRange: 0
     FaceToAim: 0

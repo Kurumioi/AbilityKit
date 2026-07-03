@@ -99,6 +99,27 @@ export interface AddRoomRobotsResponse {
   serverNowTicks: number;
 }
 
+export interface StartRoomBattleResponse {
+  battleId: string;
+  worldId: number;
+  started: boolean;
+  worldStartAnchor?: unknown | null;
+  serverNowTicks: number;
+}
+
+export interface MountRoomRobotBattleAiResponse {
+  roomId: string;
+  battleId: string;
+  worldId: number;
+  battleAiMounts: RoomRobotBattleAiMount[];
+  serverNowTicks: number;
+}
+
+export interface AdminStartRoomBattleResponse {
+  start: StartRoomBattleResponse;
+  battleAiMount?: MountRoomRobotBattleAiResponse | null;
+}
+
 export interface ShooterWorldDiagnostics {
   battleId: string;
   worldType: string;

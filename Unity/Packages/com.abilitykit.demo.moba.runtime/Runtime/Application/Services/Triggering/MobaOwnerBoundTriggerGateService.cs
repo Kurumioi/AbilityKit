@@ -25,6 +25,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             _runtimeGates.Add(gate);
         }
 
+        public bool UnregisterGate(IMobaOwnerBoundTriggerGate gate)
+        {
+            return gate != null && _runtimeGates.Remove(gate);
+        }
+
         public bool HasGate(long ownerKey, int triggerId)
         {
             return TryGetGate(ownerKey, triggerId, out _);

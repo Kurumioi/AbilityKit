@@ -1,38 +1,38 @@
 [
   {
     "Id": 1,
-    "Name": "普通技能按钮",
-    "LongPressSeconds": 0,
-    "DragThreshold": 0,
-    "EnableAim": false,
+    "Name": "direction_default",
+    "LongPressSeconds": 0.35,
+    "DragThreshold": 12.0,
+    "EnableAim": true,
     "AimMode": 0,
-    "AimMaxRadius": 0,
+    "AimMaxRadius": 220.0,
     "UsePointMode": 0,
-    "SelectRange": 0,
-    "FaceToAim": false
+    "SelectRange": 0.0,
+    "FaceToAim": true
   },
   {
     "Id": 2,
-    "Name": "指向性技能按钮",
-    "LongPressSeconds": 0,
-    "DragThreshold": 2,
+    "Name": "direction_line",
+    "LongPressSeconds": 0.35,
+    "DragThreshold": 12.0,
     "EnableAim": true,
-    "AimMode": 1,
-    "AimMaxRadius": 10,
-    "UsePointMode": 0,
-    "SelectRange": 0,
-    "FaceToAim": false
+    "AimMode": 0,
+    "AimMaxRadius": 220.0,
+    "UsePointMode": 1,
+    "SelectRange": 0.0,
+    "FaceToAim": true
   },
   {
     "Id": 3,
-    "Name": "蓄力技能按钮",
-    "LongPressSeconds": 1,
-    "DragThreshold": 2,
+    "Name": "target_point_area",
+    "LongPressSeconds": 0.35,
+    "DragThreshold": 12.0,
     "EnableAim": true,
     "AimMode": 1,
-    "AimMaxRadius": 15,
-    "UsePointMode": 0,
-    "SelectRange": 0,
-    "FaceToAim": true
+    "AimMaxRadius": 220.0,
+    "UsePointMode": 2,
+    "SelectRange": 0.0,
+    "FaceToAim": false
   }
 ]

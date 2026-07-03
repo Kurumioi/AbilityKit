@@ -86,9 +86,9 @@
     {
       "id": 10010003,
       "name": "廉颇-勇士之魂-脱战怒气转生命",
-      "event": "gameplay.tick",
+      "event": "",
       "enabled": true,
-      "allowExternal": false,
+      "allowExternal": true,
       "phase": "immediate",
       "priority": 40,
       "conditions": [],

@@ -154,19 +154,28 @@ namespace AbilityKit.Core.Serialization
                 valuesByName[m.Name] = ReadValue(br, m.MemberType);
             }
 
-            var args = new object[model.CtorParams.Length];
-            for (int i = 0; i < model.CtorParams.Length; i++)
+            object instance;
+            if (model.Constructor == null)
             {
-                var p = model.CtorParams[i];
-                if (!valuesByName.TryGetValue(p.Name, out var v))
+                instance = Activator.CreateInstance(type);
+            }
+            else
+            {
+                var args = new object[model.CtorParams.Length];
+                for (int i = 0; i < model.CtorParams.Length; i++)
                 {
-                    throw new InvalidOperationException($"Cannot map binary member to ctor param '{type.FullName}.{p.Name}'.");
+                    var p = model.CtorParams[i];
+                    if (!valuesByName.TryGetValue(p.Name, out var v))
+                    {
+                        throw new InvalidOperationException($"Cannot map binary member to ctor param '{type.FullName}.{p.Name}'.");
+                    }
+
+                    args[i] = v;
                 }
 
-                args[i] = v;
+                instance = model.Constructor.Invoke(args);
             }
 
-            var instance = model.Constructor.Invoke(args);
             if (model.CtorParams.Length == 0)
             {
                 for (int i = 0; i < model.Members.Length; i++)
@@ -272,12 +281,12 @@ namespace AbilityKit.Core.Serialization
                 .OrderByDescending(c => c.GetParameters().Length)
                 .FirstOrDefault();
 
-            if (ctor == null)
+            if (ctor == null && !type.IsValueType)
             {
                 throw new InvalidOperationException($"Type '{type.FullName}' must have a public instance constructor for binary decode.");
             }
 
-            var ctorParams = ctor.GetParameters();
+            var ctorParams = ctor != null ? ctor.GetParameters() : Array.Empty<ParameterInfo>();
             var paramNames = new HashSet<string>(ctorParams.Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < ctorParams.Length; i++)

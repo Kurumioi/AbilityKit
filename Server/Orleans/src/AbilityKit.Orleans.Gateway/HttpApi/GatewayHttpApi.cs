@@ -672,13 +672,14 @@ internal static class GatewayHttpApi
                     request.InterpolationEnabled,
                     request.InputDelayFrames)));
 
+            MountRoomRobotBattleAiResponse? mountResponse = null;
             if (response.Started)
             {
                 var manager = client.GetGrain<IRoomRobotManagerGrain>(request.RoomId);
-                await manager.MountBattleAiAsync(new MountRoomRobotBattleAiRequest(request.RoomId));
+                mountResponse = await manager.MountBattleAiAsync(new MountRoomRobotBattleAiRequest(request.RoomId));
             }
 
-            return Results.Ok(response);
+            return Results.Ok(new WebStartRoomBattleResponse(response, mountResponse));
         });
     }
 

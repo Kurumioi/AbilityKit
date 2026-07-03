@@ -78,8 +78,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             BuffContinuousBindingService continuousBindings,
             MobaSkillCastRuntimeService skillRuntimes,
             MobaBuffPresentationCueReporter presentationCues,
-            BuffEndFlow endFlow,
-            BuffTriggerPlanCoordinator triggerPlans)
+            BuffEndFlow endFlow)
         {
             _actors = actors;
             var resolvedRepo = repo ?? new BuffRepository();
@@ -87,8 +86,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             var resolvedStacking = stacking ?? new BuffStackingPolicyApplier();
             var resolvedBindings = new BuffRuntimeBindingCoordinator(lifecycleHooks, continuousBindings, skillRuntimes);
             _endFlow = endFlow ?? new BuffEndFlow(configs, ctx, resolvedNotifier, resolvedBindings);
-            var resolvedTriggerPlans = triggerPlans ?? new BuffTriggerPlanCoordinator();
-            _applyFlow = new BuffApplyFlow(configs, actors, tags, tagTemplates, resolvedRepo, ctx, resolvedStacking, resolvedBindings, _endFlow, resolvedTriggerPlans, resolvedNotifier);
+            _applyFlow = new BuffApplyFlow(configs, actors, tags, tagTemplates, resolvedRepo, ctx, resolvedStacking, resolvedBindings, _endFlow, resolvedNotifier);
         }
 
         /// <summary>
@@ -198,8 +196,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             var lifecycleHooks = MobaRuntimeLifecycleHookFactory.CreateDefault(trace);
             var bindings = new BuffRuntimeBindingCoordinator(lifecycleHooks, continuousBindings, skillRuntimes);
             var endFlow = new BuffEndFlow(configs, ctx, notifier, bindings);
-            var triggerPlans = new BuffTriggerPlanCoordinator();
-
+ 
             return new BuffLifecycleExecutor(
                 configs,
                 actors,
@@ -215,8 +212,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
                 continuousBindings,
                 skillRuntimes,
                 presentationCues,
-                endFlow,
-                triggerPlans);
+                endFlow);
         }
     }
 }

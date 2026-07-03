@@ -42,6 +42,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 bullets[i] = new ShooterBulletSnapshot(bullet.BulletId, bullet.OwnerPlayerId, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.RemainingFrames);
             }
 
+            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
+            var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
+            var enemies = new ShooterEnemySnapshot[enemyCount];
+            for (int i = 0; i < enemyCount; i++)
+            {
+                var enemyIndex = enemyOrder[i];
+                var transform = enemyTransforms[enemyIndex];
+                var health = enemyHealths[enemyIndex];
+                enemies[i] = new ShooterEnemySnapshot(
+                    checked((int)enemyIds[enemyIndex]),
+                    transform.X,
+                    transform.Y,
+                    transform.DirectionX,
+                    transform.DirectionY,
+                    health.Current,
+                    health.Max,
+                    health.Alive != 0);
+            }
+
             var events = _state.Events.Count == 0
                 ? Array.Empty<ShooterEventSnapshot>()
                 : _state.Events.ToArray();
@@ -53,7 +73,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 events,
                 (int)_state.MatchState,
                 _state.TimeLimitFrames,
-                _state.RemainingTimeFrames);
+                _state.RemainingTimeFrames,
+                enemies);
         }
     }
 }

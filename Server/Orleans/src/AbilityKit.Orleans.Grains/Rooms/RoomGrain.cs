@@ -218,6 +218,10 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
 
         EnsureOpen();
+        if (!gameplay.CanStart(gameplayState))
+        {
+            throw new InvalidOperationException("Room is not ready to start.");
+        }
 
         _battleId = summary.RoomId;
         var initParams = gameplay.BuildBattleInitParams(gameplayState, summary, request);

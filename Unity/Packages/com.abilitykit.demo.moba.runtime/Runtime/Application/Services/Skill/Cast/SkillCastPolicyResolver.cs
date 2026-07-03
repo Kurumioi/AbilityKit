@@ -1,4 +1,5 @@
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -29,7 +30,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (skill == null) return fallback;
 
-            if (skill.Id == 10010101 || skill.Id == 10010201)
+            if (skill.SkillType == SkillType.ParallelActive)
             {
                 return fallback.WithAllowParallel(true);
             }

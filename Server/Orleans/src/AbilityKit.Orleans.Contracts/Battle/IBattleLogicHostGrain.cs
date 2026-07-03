@@ -119,6 +119,7 @@ public class PlayerInitInfo
     [Id(8)] public int AttributeTemplateId { get; set; }
     [Id(9)] public int BasicAttackSkillId { get; set; }
     [Id(10)] public List<int>? SkillIds { get; set; }
+    [Id(11)] public string? AccountId { get; set; }
 }
 
 [GenerateSerializer]

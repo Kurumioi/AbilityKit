@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public string Name { get; }
         public int CooldownMs { get; }
         public IReadOnlyList<int> TriggerIds { get; }
+        public IReadOnlyList<int> ContinuousProcessIds { get; }
 
         public PassiveSkillMO(PassiveSkillDTO dto)
         {
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Name = dto.Name;
             CooldownMs = dto.CooldownMs;
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
+            ContinuousProcessIds = dto.ContinuousProcessIds ?? Array.Empty<int>();
         }
     }
 }

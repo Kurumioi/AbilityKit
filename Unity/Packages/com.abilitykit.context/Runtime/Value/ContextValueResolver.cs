@@ -10,21 +10,24 @@ namespace AbilityKit.Context
     {
         private readonly ContextRegistry _registry;
         private readonly SnapshotStorage _snapshots;
+        private readonly ContextRealtimeProviderRegistry _realtimeProviders;
 
-        public ContextValueResolver(ContextRegistry registry, SnapshotStorage snapshots = null)
+        public ContextValueResolver(ContextRegistry registry, SnapshotStorage snapshots = null, ContextRealtimeProviderRegistry realtimeProviders = null)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _snapshots = snapshots;
+            _realtimeProviders = realtimeProviders;
         }
 
         public ContextRegistry Registry => _registry;
         public SnapshotStorage Snapshots => _snapshots;
+        public ContextRealtimeProviderRegistry RealtimeProviders => _realtimeProviders;
 
         public bool TryGetRealtimeProperty<TProperty>(long contextId, out TProperty property)
             where TProperty : class, IProperty
         {
-            property = _registry.Get<TProperty>(contextId);
-            return property != null;
+            var type = PropertyTypeRegistry.Instance.Get<TProperty>() ?? PropertyTypeRegistry.Instance.Register<TProperty>();
+            return TryReadRealtimeProperty(contextId, type.Id, out property);
         }
 
         public bool TryGetSnapshot(long contextId, out IContextSnapshot snapshot)
@@ -117,6 +120,12 @@ namespace AbilityKit.Context
         private bool TryReadRealtimeProperty<TProperty>(long contextId, int propertyTypeId, out TProperty property)
             where TProperty : class, IProperty
         {
+            if (_realtimeProviders != null && _realtimeProviders.TryGetProperty(contextId, propertyTypeId, out TProperty realtime))
+            {
+                property = realtime;
+                return true;
+            }
+
             var raw = _registry.GetProperty(contextId, propertyTypeId);
             if (raw is TProperty typed)
             {
@@ -133,6 +142,9 @@ namespace AbilityKit.Context
             value = default;
             if (!request.HasPropertyType)
                 return false;
+
+            if (_realtimeProviders != null && _realtimeProviders.TryGetValue(request, out value))
+                return true;
 
             var property = _registry.GetProperty(request.ContextId, request.PropertyTypeId);
             if (property == null)

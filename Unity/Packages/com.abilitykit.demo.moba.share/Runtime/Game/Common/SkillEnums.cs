@@ -18,5 +18,6 @@ namespace AbilityKit.Demo.Moba
         Active = 2,
         Passive = 3,
         Ultimate = 4,
+        ParallelActive = 5,
     }
 }

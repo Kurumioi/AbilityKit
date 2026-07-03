@@ -66,7 +66,16 @@ namespace AbilityKit.Demo.Moba.Console.Bootstrap
                 var textAssetLoader = container.Resolve<ITextAssetLoader>();
 
                 var db = new AbilityKit.Demo.Moba.Config.Core.MobaConfigDatabase(registry, deserializer, null, textAssetLoader);
-                try { db.LoadFromResources(_resourcesDir); } catch { }
+                try
+                {
+                    db.LoadFromResources(_resourcesDir, strict: true);
+                }
+                catch (Exception ex)
+                {
+                    Platform.Log.Error($"[ConsoleConfigModule] Failed to load MobaConfigDatabase from resources '{_resourcesDir}': {ex.Message}");
+                    throw;
+                }
+
                 return db;
             });
 

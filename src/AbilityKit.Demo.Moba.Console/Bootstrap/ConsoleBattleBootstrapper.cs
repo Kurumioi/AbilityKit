@@ -324,6 +324,11 @@ namespace AbilityKit.Demo.Moba.Console
                 new[] { "AbilityKit" });
 
             builder.AddModule(new Bootstrap.ConsoleConfigModule());
+            if (_mobaConfig != null)
+            {
+                builder.RegisterInstance(_mobaConfig);
+            }
+
             builder.RegisterInstance(launchSpec.ToWorldInitData(MobaWorldBootstrapModule.InitOpCode));
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
             builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());

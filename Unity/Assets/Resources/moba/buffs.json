@@ -157,7 +157,7 @@
     "StackingPolicy": 0,
     "RefreshPolicy": 1,
     "MaxStacks": 1,
-    "TriggerIds": [],
+    "TriggerIds": [10020312],
     "Tags": [],
     "Modifiers": []
   }

@@ -25,7 +25,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         private readonly BuffStackingPolicyApplier _stacking;
         private readonly BuffRuntimeBindingCoordinator _bindings;
         private readonly BuffEndFlow _endFlow;
-        private readonly BuffTriggerPlanCoordinator _triggerPlans;
         private readonly BuffLifecycleNotifier _notifier;
 
         public BuffApplyFlow(
@@ -38,7 +37,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             BuffStackingPolicyApplier stacking,
             BuffRuntimeBindingCoordinator bindings,
             BuffEndFlow endFlow,
-            BuffTriggerPlanCoordinator triggerPlans,
             BuffLifecycleNotifier notifier)
         {
             _configs = configs;
@@ -50,7 +48,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
             _stacking = stacking ?? new BuffStackingPolicyApplier();
             _bindings = bindings;
             _endFlow = endFlow;
-            _triggerPlans = triggerPlans ?? new BuffTriggerPlanCoordinator();
             _notifier = notifier;
         }
 
@@ -141,13 +138,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for existing buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={runtime.SourceContextId}.");
             }
 
-            _triggerPlans.Upsert(target, runtime.SourceContextId, buff);
             if (stackingResult.ShouldResetInterval)
             {
                 BuffStackingPolicyApplier.ResetInterval(runtime, buff);
             }
 
-            _ctx?.SyncRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Refreshed);
+            _ctx?.BindRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Refreshed);
             _notifier.AppliedExisting(buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, runtime, oldStackCount, applied);
             return true;
         }
@@ -176,11 +172,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
                 return Reject(BuffLifecycleRejectCode.ApplyContinuousActivationFailed, $"continuous runtime activation failed for new buff. target={context.TargetActorId} buffId={buff.Id} source={request.SourceActorId} sourceContextId={failedSourceContextId}.");
             }
 
-            _ctx?.SyncRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Active);
+            _ctx?.BindRuntimeContext(runtime, context.TargetActorId, MobaRuntimeContextLifecycleState.Active);
             list.Add(runtime);
             BuffRepository.RegisterRuntime(list, runtime);
  
-            _triggerPlans.Upsert(target, runtime.SourceContextId, buff);
             _notifier.AppliedNew(buff, request.SourceActorId, context.TargetActorId, context.DurationSeconds, runtime);
             return true;
         }

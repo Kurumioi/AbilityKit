@@ -66,7 +66,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 tickRate: _options.TickRate,
                 players: players,
                 randomSeed: _options.RandomSeed,
-                enableAuthoritativeWorld: _options.EnableAuthoritativeWorld);
+                enableAuthoritativeWorld: _options.EnableAuthoritativeWorld,
+                gameplayScenario: _options.GameplayScenario);
 
             _session.Presentation.ControlledPlayerId = _options.ControlledPlayerId;
             if (_session.AuthoritativePresentation != null)

@@ -52,6 +52,18 @@ namespace AbilityKit.Demo.Shooter.View
                 }
             }
 
+            if (snapshot.Enemies != null)
+            {
+                for (int i = 0; i < snapshot.Enemies.Length; i++)
+                {
+                    var enemy = snapshot.Enemies[i];
+                    var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, enemy.EnemyId);
+                    AddEntity(key, 0, enemy.Alive);
+                    AddTransform(key, enemy.X, enemy.Y, enemy.FacingX, enemy.FacingY, 0f, 0f);
+                    AddHealth(key, enemy.Hp);
+                }
+            }
+
             if (snapshot.Events != null)
             {
                 _events.AddRange(snapshot.Events);

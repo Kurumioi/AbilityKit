@@ -7,6 +7,12 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         [SerializeField] private RectTransform _ring;
         [SerializeField] private RectTransform _dot;
 
+        public void Initialize(RectTransform ring, RectTransform dot)
+        {
+            _ring = ring;
+            _dot = dot;
+        }
+
         public void SetVisible(bool visible)
         {
             gameObject.SetActive(visible);

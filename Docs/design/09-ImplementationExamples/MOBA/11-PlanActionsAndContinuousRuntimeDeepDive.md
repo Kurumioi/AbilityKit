@@ -177,9 +177,37 @@ flowchart TD
 
 | 类型 | 特点 |
 |------|------|
-| `BuffContinuousRuntime` | 支持 tick、interval effect、state sync、debug source、execution context provider |
-| `MobaProjectileLaunchContinuous` | 用于投射物发射的持续过程，可暴露 debug info |
-| 其他派生 | Passive、Area、Summon 等可沿用同一范式 |
+| `BuffContinuousRuntime` | Buff 生命周期外壳，支持 duration、interval effect、state sync、debug source、execution context provider |
+| `SkillPipelineContinuousRuntime` | 技能施法 pipeline 的生命周期标签外壳，pipeline 存活期间持有霸体等 continuous tag |
+| `MobaTriggerIntervalContinuousRuntime` | 固定持续时间/固定间隔触发器型过程，用于光环、被动 tick、脱战转化等稳定周期逻辑 |
+| `MobaPipelineContinuousRuntime<TCtx>` | pipeline-backed continuous 外壳，用于非固定时间、多阶段、条件等待、并行/重复阶段等复杂过程 |
+| `MobaProjectileLaunchContinuous` | 投射物发射持续过程；复杂多阶段发射可在内部组合 pipeline-backed sequence |
+
+### 固定间隔与 Pipeline-backed 的边界
+
+`MobaTriggerIntervalContinuousRuntime` 和 `MobaPipelineContinuousRuntime<TCtx>` 是并列 runtime，不是继承替代关系。
+
+| 场景 | 推荐 runtime | 判断标准 |
+|------|--------------|----------|
+| 每 N 秒执行一组 trigger，直到固定 duration 或外部门控中断 | `MobaTriggerIntervalContinuousRuntime` | 时间点固定，行为不需要内部阶段状态 |
+| 引导直到松手、目标丢失、距离超限或条件满足 | `MobaPipelineContinuousRuntime<TCtx>` | 结束条件不是固定 duration，依赖 wait-until/condition |
+| 多阶段弹幕、预警后发射、阶段间并行/重复 | 领域 continuous + pipeline-backed sequence，或 `MobaPipelineContinuousRuntime<TCtx>` | 内部阶段需要 sequence/parallel/repeat/delay |
+| 位移、击退、牵引、冲刺 | motion domain runtime/manager；必要时外层接 continuous | 位移仲裁必须集中到 motion pipeline，不放进通用 continuous 执行器 |
+
+`MobaPipelineContinuousRuntime<TCtx>` 的职责只到三件事：
+
+- 把 `IAbilityPipelineRun<TCtx>` 纳入 `IContinuousManager` 的生命周期、暂停、恢复、中断和查询；
+- 让 pipeline 存活期间能携带 continuous tag、modifier 和 context source；
+- pipeline completed 时结束 continuous，continuous interrupted 时 interrupt pipeline。
+
+它不负责解释具体 pipeline 配置，也不直接执行 gameplay action。阶段构建仍属于技能、投射物、被动或其他领域服务；通用 continuous 只提供外壳协议。
+
+### 维护规则
+
+- 不要把 `MobaTriggerIntervalContinuousRuntime` 扩成支持条件、阶段、并行和领域动作的万能 runtime；这类需求应新建 pipeline-backed 或领域 runtime。
+- 不要让 motion/displacement 直接由通用 continuous 推 transform；位移源必须进入 motion pipeline 做优先级、叠加、覆盖和最终位移仲裁。
+- pipeline-backed continuous 的 tag/modifier 生命周期以 outer continuous 为准，阶段内部不要再独立决定 tag 清理。
+- 只有当流程需要被 query、debug、tag rule、modifier projection 或 interruption 统一治理时，才需要包一层 continuous。
 
 ## 8. `MobaContinuousRuntimeQueryService`：把持续运行时变成可查询视图
 
@@ -286,7 +314,10 @@ MOBA 的 continuous runtime 与 context 设计很强调边界来源：
 | 运行时校验 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaRuntimeValidation.cs` |
 | Continuous 查询服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousRuntimeQueryService.cs` |
 | Continuous 视图定义 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousRuntimeViews.cs` |
+| Trigger interval continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaTriggerIntervalContinuousRuntime.cs` |
+| Pipeline-backed continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaPipelineContinuousRuntime.cs` |
 | Buff continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` |
+| Skill pipeline continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContinuousRuntime.cs` |
 | Projectile continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs` |
 | Context source 视图 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs` |
 | Context integrity validator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaContextIntegrityRuntimeValidator.cs` |

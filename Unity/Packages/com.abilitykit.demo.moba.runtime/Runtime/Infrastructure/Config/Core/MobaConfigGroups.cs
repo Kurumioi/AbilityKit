@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             new ConfigTableDefinition(MobaConfigPaths.CharactersFile, typeof(CharacterDTO), typeof(BattleDemo.MO.CharacterMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.AttributeTemplatesFile, typeof(BattleAttributeTemplateDTO), typeof(BattleDemo.MO.BattleAttributeTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(BattleDemo.MO.BuffMO), ConfigGroupNames.LegacyJson),
+            new ConfigTableDefinition(MobaConfigPaths.ContinuousProcessesFile, typeof(ContinuousProcessDTO), typeof(BattleDemo.MO.ContinuousProcessMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SkillsFile, typeof(SkillDTO), typeof(BattleDemo.MO.SkillMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.PassiveSkillsFile, typeof(PassiveSkillDTO), typeof(BattleDemo.MO.PassiveSkillMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SkillFlowsFile, typeof(SkillFlowDTO), typeof(BattleDemo.MO.SkillFlowMO), ConfigGroupNames.LegacyJson),

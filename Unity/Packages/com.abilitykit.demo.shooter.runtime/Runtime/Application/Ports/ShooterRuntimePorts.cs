@@ -1,3 +1,4 @@
+using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.Runtime
@@ -56,17 +57,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterPureStateSyncSettings? settings = null,
             int baselineFrame = 0,
             uint baselineHash = 0,
-            ShooterPureStateInterestScope? interestScope = null);
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null);
     }
 
     public readonly struct ShooterPureStateInterestScope
     {
         public ShooterPureStateInterestScope(int observerPlayerId, float centerX, float centerY, float radius, int maxEntities = 0)
+            : this(observerPlayerId, centerX, centerY, radius, radius, maxEntities)
+        {
+        }
+
+        public ShooterPureStateInterestScope(int observerPlayerId, float centerX, float centerY, float visibleRadius, float boundaryRadius, int maxEntities = 0)
         {
             ObserverPlayerId = observerPlayerId;
             CenterX = centerX;
             CenterY = centerY;
-            Radius = radius;
+            Radius = visibleRadius;
+            BoundaryRadius = boundaryRadius <= 0f ? visibleRadius : boundaryRadius;
             MaxEntities = maxEntities;
         }
 
@@ -78,8 +86,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public float Radius { get; }
 
+        public float VisibleRadius => Radius;
+
+        public float BoundaryRadius { get; }
+
         public int MaxEntities { get; }
 
         public bool HasRadius => Radius > 0f;
+
+        public AoiInterestScope ToAoiScope()
+        {
+            return new AoiInterestScope(CenterX, CenterY, VisibleRadius, BoundaryRadius, MaxEntities);
+        }
     }
 }

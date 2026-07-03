@@ -136,6 +136,84 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void LocalMenuDefaultSessionProjectsWaveEnemiesAndFireBullets()
+    {
+        var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;
+        var inputs = new List<ShooterHostFrameInput>();
+        AddInput(inputs, tickRate, 0f, 0f, 0f, 1f, true);
+        AddIdle(inputs, tickRate * 2);
+
+        var input = new ScriptedInputSource(inputs.ToArray());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(ShooterPlayModeSessionOptions.Default);
+
+        for (var tick = 0; tick < inputs.Count; tick++)
+        {
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
+        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Bullet) > 0);
+    }
+
+    [Fact]
+    public void LocalMenuDefaultSessionContinuesAfterEnemyHit()
+    {
+        var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;
+        var totalTicks = tickRate * 2;
+        var options = new ShooterPlayModeSessionOptions(
+            NetworkSyncModel.PredictRollback,
+            tickRate,
+            playerCount: 1,
+            randomSeed: 3901,
+            controlledPlayerId: 1,
+            enableAuthoritativeWorld: false,
+            latencyMs: 0,
+            jitterMs: 0,
+            packetLossRate: 0f,
+            reorderRate: 0f,
+            bandwidthKbps: 0,
+            worldScale: 1f,
+            networkName: "close enemy hit regression",
+            syncTemplateId: null,
+            gameplayScenario: CreateCloseEnemyHitScenario(tickRate));
+        var input = new MutableInputSource(new ShooterHostFrameInput(0f, 0f, 0f, 1f, false));
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(options);
+
+        var enemyHitFrame = -1;
+        var runtimeEnemyHitFrame = -1;
+        for (var tick = 0; tick < totalTicks; tick++)
+        {
+            var snapshot = runner.Session!.Runtime.GetSnapshot();
+            input.Current = TryCreateAimAtNearestEnemy(in snapshot, runner.Options.ControlledPlayerId, out var aimX, out var aimY)
+                ? new ShooterHostFrameInput(0f, 0f, aimX, aimY, true)
+                : new ShooterHostFrameInput(0f, 0f, 0f, 1f, false);
+
+            runner.Tick(1f / runner.Options.TickRate);
+            var postTickSnapshot = runner.Session!.Runtime.GetSnapshot();
+            if (runtimeEnemyHitFrame < 0 && ContainsEnemyHitEvent(in postTickSnapshot))
+            {
+                runtimeEnemyHitFrame = postTickSnapshot.Frame;
+            }
+
+            if (enemyHitFrame < 0 && ContainsEnemyHitEvent(view.Frames[^1].ClientBatch))
+            {
+                enemyHitFrame = view.Frames[^1].ClientBatch.Frame;
+            }
+        }
+
+        Assert.True(runtimeEnemyHitFrame > 0, "Expected the PlayMode runtime to produce an enemy hit while dynamically aiming at the nearest close enemy.");
+        Assert.True(enemyHitFrame > 0, "Expected the PlayMode presentation to project the enemy hit event.");
+        Assert.Equal(totalTicks, runner.StepCount);
+        Assert.Equal(totalTicks, view.Frames.Count);
+        Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame);
+        Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame && CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
+    }
+
+    [Fact]
     public void TickAdvancesLocalTimeAnchorAndProjectsItToDiagnostics()
     {
         const int tickRate = 20;
@@ -467,6 +545,143 @@ public sealed class ShooterPlaySessionRunnerTests
         return false;
     }
 
+    private static int CountEntities(in ShooterSnapshotViewBatch batch, ShooterViewEntityKind kind)
+    {
+        var count = 0;
+        var entityChanges = batch.EntityChanges;
+        for (var i = 0; i < entityChanges.Count; i++)
+        {
+            var entity = entityChanges[i];
+            if (entity.Alive && entity.Kind == kind)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static ShooterSveltoGameplayScenarioConfig CreateCloseEnemyHitScenario(int tickRate)
+    {
+        return new ShooterSveltoGameplayScenarioConfig(
+            "close-enemy-hit-regression",
+            "Close Enemy Hit Regression",
+            "Spawns a short-range one-health enemy so PlayMode can verify post-hit frame continuity.",
+            shooterCount: 1,
+            targetCount: 1,
+            tickCount: tickRate * 2,
+            tickDeltaTime: 1f / tickRate,
+            arenaRadius: 8f,
+            ShooterSveltoGameplayScenarioCatalog.DefaultLoadout,
+            new ShooterSveltoGameplayBattleFlowConfig(
+                durationFrames: tickRate * 2,
+                victoryTargetDefeats: 2,
+                maxActiveEnemies: 2,
+                new[]
+                {
+                    new ShooterSveltoGameplayWaveConfig(
+                        waveId: 1,
+                        startFrame: 0,
+                        spawnFrameInterval: 1,
+                        enemyCount: 2,
+                        enemyHp: 1,
+                        spawnRadius: 2f)
+                },
+                enemyLoadoutId: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyLoadoutId,
+                enemyAttackIntervalFrames: tickRate,
+                enemyAttackDamage: 1,
+                enemyProjectileSpeedScale: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyProjectileSpeedScale,
+                enemyProjectilesPerShot: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyProjectilesPerShot,
+                enemySpreadDegrees: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemySpreadDegrees));
+    }
+
+    private static bool ContainsEnemyHitEvent(in ShooterSnapshotViewBatch batch)
+    {
+        var events = batch.Events;
+        for (var i = 0; i < events.Count; i++)
+        {
+            if (IsEnemyHitEvent(events[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ContainsEnemyHitEvent(in ShooterStateSnapshotPayload snapshot)
+    {
+        var events = snapshot.Events;
+        for (var i = 0; i < events.Length; i++)
+        {
+            if (IsEnemyHitEvent(events[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsEnemyHitEvent(in ShooterEventSnapshot candidate)
+    {
+        return candidate.EventType == (int)ShooterEventType.Hit && candidate.SourcePlayerId > 0 && candidate.TargetPlayerId < 0 && candidate.BulletId != 0;
+    }
+
+    private static bool TryCreateAimAtNearestEnemy(in ShooterStateSnapshotPayload snapshot, int playerId, out float aimX, out float aimY)
+    {
+        aimX = 0f;
+        aimY = 1f;
+        ShooterPlayerSnapshot? player = null;
+        var players = snapshot.Players;
+        for (var i = 0; i < players.Length; i++)
+        {
+            if (players[i].PlayerId == playerId)
+            {
+                player = players[i];
+                break;
+            }
+        }
+
+        if (!player.HasValue)
+        {
+            return false;
+        }
+
+        var bestDistanceSquared = float.MaxValue;
+        ShooterEnemySnapshot? nearestEnemy = null;
+        var enemies = snapshot.Enemies;
+        for (var i = 0; i < enemies.Length; i++)
+        {
+            if (!enemies[i].Alive)
+            {
+                continue;
+            }
+
+            var dx = enemies[i].X - player.Value.X;
+            var dy = enemies[i].Y - player.Value.Y;
+            var distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared < bestDistanceSquared)
+            {
+                bestDistanceSquared = distanceSquared;
+                nearestEnemy = enemies[i];
+            }
+        }
+
+        if (!nearestEnemy.HasValue || bestDistanceSquared <= 0.000001f)
+        {
+            return false;
+        }
+
+        var target = nearestEnemy.Value;
+        var targetX = target.X - player.Value.X;
+        var targetY = target.Y - player.Value.Y;
+        var invLength = 1f / MathF.Sqrt(targetX * targetX + targetY * targetY);
+        aimX = targetX * invLength;
+        aimY = targetY * invLength;
+        return true;
+    }
+
     private static bool TryGetFireEvent(in ShooterStateSnapshotPayload snapshot, int sourcePlayerId, out ShooterEventSnapshot fire)
     {
         var events = snapshot.Events;
@@ -550,6 +765,21 @@ public sealed class ShooterPlaySessionRunnerTests
             }
 
             return new ShooterPlayFrameInput(_inputs[_index++]);
+        }
+    }
+
+    private sealed class MutableInputSource : IShooterPlayInputSource
+    {
+        public MutableInputSource(ShooterHostFrameInput current)
+        {
+            Current = current;
+        }
+
+        public ShooterHostFrameInput Current { get; set; }
+
+        public ShooterPlayFrameInput ReadInput(int controlledPlayerId)
+        {
+            return new ShooterPlayFrameInput(Current);
         }
     }
 

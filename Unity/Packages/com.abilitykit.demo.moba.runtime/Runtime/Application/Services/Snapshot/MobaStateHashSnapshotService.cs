@@ -3,6 +3,9 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.Demo.Moba.Services.Buffs;
+using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -17,16 +20,25 @@ namespace AbilityKit.Demo.Moba.Services
 
         private readonly MobaLogicWorldRunGateService _phase;
         private readonly MobaActorRegistry _registry;
+        private readonly IMobaStateRecoveryProvider _randomRecovery;
+        private readonly MobaBuffStateRecoveryProvider _buffRecovery;
         private readonly MobaSnapshotBuffer<StateHashEntry> _entries = new MobaSnapshotBuffer<StateHashEntry>(16, 256);
 
         private FrameIndex _lastFrame;
 
         public int IntervalFrames { get; set; } = DefaultIntervalFrames;
 
-        public MobaStateHashSnapshotService(MobaLogicWorldRunGateService phase, MobaActorRegistry registry)
+        public MobaStateHashSnapshotService(
+            MobaLogicWorldRunGateService phase,
+            MobaActorRegistry registry,
+            IWorldRandom random,
+            MobaBuffStateRecoveryProvider buffRecovery)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _randomRecovery = random as IMobaStateRecoveryProvider
+                ?? throw new ArgumentException("World random must implement IMobaStateRecoveryProvider.", nameof(random));
+            _buffRecovery = buffRecovery ?? throw new ArgumentNullException(nameof(buffRecovery));
             _lastFrame = new FrameIndex(-999999);
         }
 
@@ -55,13 +67,23 @@ namespace AbilityKit.Demo.Moba.Services
 
             _lastFrame = frame;
 
-            var hash = ComputeStateHash();
+            var hash = ComputeStateHash(frame);
             var payload = MobaStateHashSnapshotCodec.Serialize(frame.Value, hash);
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.StateHash, payload);
             return true;
         }
 
-        private uint ComputeStateHash()
+        private uint ComputeStateHash(FrameIndex frame)
+        {
+            var hash = new MobaStateHashBuilder(2166136261u);
+            hash.AddBool(_phase.InGame);
+            AddActorTransformHash(hash);
+            _randomRecovery.AddStateHash(frame, hash);
+            _buffRecovery.AddStateHash(frame, hash);
+            return hash.Value;
+        }
+
+        private void AddActorTransformHash(MobaStateHashBuilder hash)
         {
             _entries.Clear();
             foreach (var kv in _registry.Entries)
@@ -70,57 +92,32 @@ namespace AbilityKit.Demo.Moba.Services
                 var e = kv.Value;
                 if (e == null) continue;
                 if (!e.hasTransform) continue;
-                var p = e.transform.Value.Position;
-                _entries.Add(new StateHashEntry(actorId, p.X, p.Y, p.Z));
+                _entries.Add(new StateHashEntry(actorId, e.transform.Value));
             }
 
             _entries.Sort(CompareEntriesByActorId);
 
             var entries = _entries.Items;
-            uint h = 2166136261u;
-
-            AddByte(ref h, _phase.InGame ? (byte)1 : (byte)0);
-            AddInt(ref h, entries.Count);
+            hash.AddInt(MobaActorTransformRollbackProvider.DefaultKey);
+            hash.AddInt(entries.Count);
 
             for (int i = 0; i < entries.Count; i++)
             {
                 var it = entries[i];
-                AddInt(ref h, it.ActorId);
-                AddFloat(ref h, it.X);
-                AddFloat(ref h, it.Y);
-                AddFloat(ref h, it.Z);
+                hash.AddInt(it.ActorId);
+                hash.AddFloat(it.X);
+                hash.AddFloat(it.Y);
+                hash.AddFloat(it.Z);
+                hash.AddFloat(it.Rx);
+                hash.AddFloat(it.Ry);
+                hash.AddFloat(it.Rz);
+                hash.AddFloat(it.Rw);
+                hash.AddFloat(it.Sx);
+                hash.AddFloat(it.Sy);
+                hash.AddFloat(it.Sz);
             }
 
             _entries.ClearAndTrim();
-            return h;
-        }
-
-        private static void AddByte(ref uint h, byte v)
-        {
-            h ^= v;
-            h *= 16777619u;
-        }
-
-        private static void AddInt(ref uint h, int v)
-        {
-            unchecked
-            {
-                AddUInt(ref h, (uint)v);
-            }
-        }
-
-        private static void AddUInt(ref uint h, uint v)
-        {
-            AddByte(ref h, (byte)(v & 0xFF));
-            AddByte(ref h, (byte)((v >> 8) & 0xFF));
-            AddByte(ref h, (byte)((v >> 16) & 0xFF));
-            AddByte(ref h, (byte)((v >> 24) & 0xFF));
-        }
-
-        private static void AddFloat(ref uint h, float v)
-        {
-            var bits = BitConverter.SingleToInt32Bits(v);
-            AddInt(ref h, bits);
         }
 
         public void Dispose()
@@ -135,13 +132,27 @@ namespace AbilityKit.Demo.Moba.Services
             public readonly float X;
             public readonly float Y;
             public readonly float Z;
+            public readonly float Rx;
+            public readonly float Ry;
+            public readonly float Rz;
+            public readonly float Rw;
+            public readonly float Sx;
+            public readonly float Sy;
+            public readonly float Sz;
 
-            public StateHashEntry(int actorId, float x, float y, float z)
+            public StateHashEntry(int actorId, in AbilityKit.Core.Mathematics.Transform3 transform)
             {
                 ActorId = actorId;
-                X = x;
-                Y = y;
-                Z = z;
+                X = transform.Position.X;
+                Y = transform.Position.Y;
+                Z = transform.Position.Z;
+                Rx = transform.Rotation.X;
+                Ry = transform.Rotation.Y;
+                Rz = transform.Rotation.Z;
+                Rw = transform.Rotation.W;
+                Sx = transform.Scale.X;
+                Sy = transform.Scale.Y;
+                Sz = transform.Scale.Z;
             }
         }
     }

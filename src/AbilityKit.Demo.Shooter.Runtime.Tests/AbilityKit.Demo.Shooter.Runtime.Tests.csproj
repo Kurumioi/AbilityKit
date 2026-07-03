@@ -15,6 +15,7 @@
     <ProjectReference Include="..\AbilityKit.GameFramework.Network\AbilityKit.GameFramework.Network.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.StateSync\AbilityKit.World.StateSync.csproj" />
   </ItemGroup>
 
   <ItemGroup>

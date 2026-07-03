@@ -76,7 +76,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
                 continue;
             }
 
-            return CreatePlayerInitInfo(index);
+            return CreatePlayerInitInfo(index, kv.Key);
         }
 
         return null;
@@ -90,7 +90,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         foreach (var kv in roomState.Players)
         {
             index++;
-            players.Add(CreatePlayerInitInfo(index));
+            players.Add(CreatePlayerInitInfo(index, kv.Key));
         }
 
         var syncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
@@ -113,11 +113,12 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         };
     }
 
-    private static PlayerInitInfo CreatePlayerInitInfo(int index)
+    private static PlayerInitInfo CreatePlayerInitInfo(int index, string accountId)
     {
         return new PlayerInitInfo
         {
             PlayerId = (uint)index,
+            AccountId = accountId,
             ActorId = index,
             HeroId = index,
             PosX = (index - 1) * 2f,

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Share.Config;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
@@ -12,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int Range { get; }
         public int IconId { get; }
         public int Category { get; }
+        public SkillType SkillType { get; }
         public int SkillButtonTemplateId { get; }
         public int LevelTableId { get; }
         public int PreCastFlowId { get; }
@@ -27,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Range = dto.Range;
             IconId = dto.IconId;
             Category = dto.Category;
+            SkillType = (SkillType)dto.SkillType;
             SkillButtonTemplateId = dto.SkillButtonTemplateId;
             LevelTableId = dto.LevelTableId;
             PreCastFlowId = dto.PreCastFlowId;

@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<ITagTemplateRegistry>(WorldLifetime.Singleton, r => new MobaTagTemplateRegistry(r.Resolve<MobaConfigDatabase>()));
             builder.TryRegister<IMobaContinuousTagTemplateRegistry>(WorldLifetime.Singleton, r => new MobaContinuousTagTemplateRegistry(r.Resolve<MobaConfigDatabase>()));
             builder.TryRegisterType<IGameplayTagService, AbilityTagService>(WorldLifetime.Scoped);
+            builder.TryRegisterType<MobaTagPresentationCueReporter, MobaTagPresentationCueReporter>(WorldLifetime.Scoped);
             builder.TryRegisterType<IDurableRegistry, DurableRegistry>(WorldLifetime.Scoped);
             builder.TryRegisterType<ITagEffectRouter, TagEffectRouter>(WorldLifetime.Scoped);
         }

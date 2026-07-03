@@ -115,6 +115,11 @@ internal sealed record WebStartRoomBattleRequest(
     [property: Id(14)] int InputDelayFrames);
 
 [GenerateSerializer]
+internal sealed record WebStartRoomBattleResponse(
+    [property: Id(0)] StartRoomBattleResponse Start,
+    [property: Id(1)] MountRoomRobotBattleAiResponse? BattleAiMount);
+
+[GenerateSerializer]
 internal sealed record ShooterSandboxHttpStartRequest(
     [property: Id(0)] string? SandboxId,
     [property: Id(1)] string Region,

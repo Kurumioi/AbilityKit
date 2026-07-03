@@ -52,6 +52,31 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
+    [MemoryPackable]
+    public partial struct ShooterEnemySnapshot
+    {
+        [MemoryPackOrder(0)] public int EnemyId;
+        [MemoryPackOrder(1)] public float X;
+        [MemoryPackOrder(2)] public float Y;
+        [MemoryPackOrder(3)] public float FacingX;
+        [MemoryPackOrder(4)] public float FacingY;
+        [MemoryPackOrder(5)] public int Hp;
+        [MemoryPackOrder(6)] public int MaxHp;
+        [MemoryPackOrder(7)] public bool Alive;
+
+        public ShooterEnemySnapshot(int enemyId, float x, float y, float facingX, float facingY, int hp, int maxHp, bool alive)
+        {
+            EnemyId = enemyId;
+            X = x;
+            Y = y;
+            FacingX = facingX;
+            FacingY = facingY;
+            Hp = hp;
+            MaxHp = maxHp;
+            Alive = alive;
+        }
+    }
+
     public enum ShooterEventType
     {
         Hit = 1,
@@ -105,9 +130,22 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(4)] public int MatchState;
         [MemoryPackOrder(5)] public int TimeLimitFrames;
         [MemoryPackOrder(6)] public int RemainingTimeFrames;
+        [MemoryPackOrder(7)] public ShooterEnemySnapshot[] Enemies;
 
         public ShooterStateSnapshotPayload(int frame, ShooterPlayerSnapshot[] players, ShooterBulletSnapshot[] bullets, ShooterEventSnapshot[] events)
-            : this(frame, players, bullets, events, matchState: 0, timeLimitFrames: 0, remainingTimeFrames: 0)
+            : this(frame, players, bullets, events, matchState: 0, timeLimitFrames: 0, remainingTimeFrames: 0, enemies: Array.Empty<ShooterEnemySnapshot>())
+        {
+        }
+
+        public ShooterStateSnapshotPayload(
+            int frame,
+            ShooterPlayerSnapshot[] players,
+            ShooterBulletSnapshot[] bullets,
+            ShooterEventSnapshot[] events,
+            int matchState,
+            int timeLimitFrames,
+            int remainingTimeFrames)
+            : this(frame, players, bullets, events, matchState, timeLimitFrames, remainingTimeFrames, Array.Empty<ShooterEnemySnapshot>())
         {
         }
 
@@ -119,7 +157,8 @@ namespace AbilityKit.Protocol.Shooter
             ShooterEventSnapshot[] events,
             int matchState,
             int timeLimitFrames,
-            int remainingTimeFrames)
+            int remainingTimeFrames,
+            ShooterEnemySnapshot[] enemies)
         {
             Frame = frame;
             Players = players;
@@ -128,6 +167,7 @@ namespace AbilityKit.Protocol.Shooter
             MatchState = matchState;
             TimeLimitFrames = timeLimitFrames < 0 ? 0 : timeLimitFrames;
             RemainingTimeFrames = remainingTimeFrames < 0 ? 0 : remainingTimeFrames;
+            Enemies = enemies;
         }
     }
 
@@ -153,7 +193,8 @@ namespace AbilityKit.Protocol.Shooter
                 value.Events ?? Array.Empty<ShooterEventSnapshot>(),
                 value.MatchState,
                 value.TimeLimitFrames,
-                value.RemainingTimeFrames);
+                value.RemainingTimeFrames,
+                value.Enemies ?? Array.Empty<ShooterEnemySnapshot>());
         }
     }
 }

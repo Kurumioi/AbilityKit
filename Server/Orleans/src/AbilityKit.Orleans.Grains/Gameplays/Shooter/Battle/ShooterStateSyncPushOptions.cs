@@ -20,11 +20,15 @@ internal sealed class ShooterStateSyncPushOptions
     private ShooterStateSyncPushOptions(
         ShooterStateSyncPushPayloadMode payloadMode,
         NetworkConditionProfile networkCondition,
-        ShooterPureStateSyncSettings? pureStateSettings)
+        ShooterPureStateSyncSettings? pureStateSettings,
+        float aoiVisibleRadius,
+        float aoiBoundaryRadius)
     {
         PayloadMode = payloadMode;
         NetworkCondition = networkCondition;
         PureStateSettings = pureStateSettings;
+        AoiVisibleRadius = aoiVisibleRadius > 0f ? aoiVisibleRadius : 24f;
+        AoiBoundaryRadius = aoiBoundaryRadius >= AoiVisibleRadius ? aoiBoundaryRadius : AoiVisibleRadius;
     }
 
     public ShooterStateSyncPushPayloadMode PayloadMode { get; }
@@ -33,14 +37,24 @@ internal sealed class ShooterStateSyncPushOptions
 
     public ShooterPureStateSyncSettings? PureStateSettings { get; }
 
+    public float AoiVisibleRadius { get; }
+
+    public float AoiBoundaryRadius { get; }
+
     public static ShooterStateSyncPushOptions PackedDefault { get; } = new ShooterStateSyncPushOptions(
         ShooterStateSyncPushPayloadMode.Packed,
         NetworkConditionProfile.Ideal,
-        null);
+        null,
+        24f,
+        30f);
 
-    public static ShooterStateSyncPushOptions PureState(NetworkConditionProfile networkCondition, ShooterPureStateSyncSettings? settings = null)
+    public static ShooterStateSyncPushOptions PureState(
+        NetworkConditionProfile networkCondition,
+        ShooterPureStateSyncSettings? settings = null,
+        float aoiVisibleRadius = 24f,
+        float aoiBoundaryRadius = 30f)
     {
-        return new ShooterStateSyncPushOptions(ShooterStateSyncPushPayloadMode.PureState, networkCondition, settings);
+        return new ShooterStateSyncPushOptions(ShooterStateSyncPushPayloadMode.PureState, networkCondition, settings, aoiVisibleRadius, aoiBoundaryRadius);
     }
 
     public static ShooterStateSyncPushOptions FromEnvironmentDefault()

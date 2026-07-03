@@ -1,4 +1,5 @@
 using System.Linq;
+using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -252,5 +253,50 @@ public sealed class ShooterPureStateSnapshotRuntimeTests
         Assert.DoesNotContain(payload.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Projectile);
         Assert.Equal(payload.Entities.Length, payload.VisibilityHints.Length);
         Assert.All(payload.VisibilityHints, hint => Assert.True(hint.Priority > 0));
+    }
+
+    [Fact]
+    public void PureStateSnapshotAoiLifecycleUsesVisibleAndBoundaryRadii()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "pure-state-aoi-lifecycle",
+            30,
+            7006,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 4f, 0f)
+            });
+        var settings = new ShooterPureStateSyncSettings(
+            maxEntityCount: 10,
+            activeSyncBudget: 10,
+            baselineIntervalFrames: 60,
+            deltaIntervalFrames: 1,
+            lowFrequencyIntervalFrames: 10,
+            interpolationDelayFrames: 3);
+        var aoi = new AoiInterestSet();
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(runtime.Tick(1f / 30f));
+
+        var enterScope = new ShooterPureStateInterestScope(1, 0f, 0f, visibleRadius: 5f, boundaryRadius: 8f, maxEntities: 10);
+        var enter = runtime.ExportPureStateSnapshot(92ul, isFullBaseline: false, settings: settings, interestScope: enterScope, aoiInterestSet: aoi);
+        Assert.Contains(enter.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 2 && entity.DeltaKind == ShooterPureStateDeltaKinds.Spawn);
+
+        var stayScope = new ShooterPureStateInterestScope(1, 0f, 0f, visibleRadius: 3f, boundaryRadius: 8f, maxEntities: 10);
+        var stay = runtime.ExportPureStateSnapshot(92ul, isFullBaseline: false, settings: settings, interestScope: stayScope, aoiInterestSet: aoi);
+        Assert.Contains(stay.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 2 && entity.DeltaKind == ShooterPureStateDeltaKinds.Update);
+
+        var leaveScope = new ShooterPureStateInterestScope(1, 0f, 0f, visibleRadius: 3f, boundaryRadius: 3f, maxEntities: 1);
+        var leave = runtime.ExportPureStateSnapshot(92ul, isFullBaseline: false, settings: settings, interestScope: leaveScope, aoiInterestSet: aoi);
+        var despawn = Assert.Single(leave.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 2 && entity.DeltaKind == ShooterPureStateDeltaKinds.Despawn);
+        Assert.Equal(ShooterPureStateEntityLayers.KeyInteraction, despawn.EntityLayer);
+        Assert.Equal(2, despawn.OwnerId);
+        Assert.Contains(leave.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 1 && entity.DeltaKind == ShooterPureStateDeltaKinds.Update);
+        Assert.Single(leave.VisibilityHints);
+
+        var reenter = runtime.ExportPureStateSnapshot(92ul, isFullBaseline: false, settings: settings, interestScope: enterScope, aoiInterestSet: aoi);
+        Assert.Contains(reenter.Entities, entity => entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 2 && entity.DeltaKind == ShooterPureStateDeltaKinds.Spawn);
     }
 }

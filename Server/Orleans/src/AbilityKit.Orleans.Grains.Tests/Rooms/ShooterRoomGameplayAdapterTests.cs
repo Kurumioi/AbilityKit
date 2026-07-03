@@ -82,11 +82,13 @@ public sealed class ShooterRoomGameplayAdapterTests
             first =>
             {
                 Assert.Equal(1U, first.PlayerId);
+                Assert.Equal("player-a", first.AccountId);
                 Assert.Equal(0f, first.PosX);
             },
             second =>
             {
                 Assert.Equal(2U, second.PlayerId);
+                Assert.Equal("player-b", second.AccountId);
                 Assert.Equal(2f, second.PosX);
             });
     }

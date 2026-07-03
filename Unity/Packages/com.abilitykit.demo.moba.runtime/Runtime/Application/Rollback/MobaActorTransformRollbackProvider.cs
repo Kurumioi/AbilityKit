@@ -6,10 +6,11 @@ using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    public sealed class MobaActorTransformRollbackProvider : IRollbackStateProvider
+    public sealed class MobaActorTransformRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10001;
 
@@ -28,6 +29,48 @@ namespace AbilityKit.Demo.Moba.Rollback
         }
 
         public int Key => DefaultKey;
+
+        public string Name => "ActorTransform";
+
+        public byte[] ExportState(FrameIndex frame)
+        {
+            return Export(frame);
+        }
+
+        public void ImportState(FrameIndex frame, byte[] payload)
+        {
+            Import(frame, payload);
+        }
+
+        public void AddStateHash(FrameIndex frame, MobaStateHashBuilder hash)
+        {
+            var entries = s_entryListPool.Get();
+            try
+            {
+                foreach (var kv in _registry.Entries)
+                {
+                    var actorId = kv.Key;
+                    var e = kv.Value;
+                    if (e == null) continue;
+                    if (!e.hasTransform) continue;
+                    entries.Add(new Entry(actorId, e.transform.Value));
+                }
+
+                entries.Sort((a, b) => a.ActorId.CompareTo(b.ActorId));
+                hash.AddInt(Key);
+                hash.AddInt(entries.Count);
+
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var it = entries[i];
+                    AddEntryHash(it, hash);
+                }
+            }
+            finally
+            {
+                s_entryListPool.Release(entries);
+            }
+        }
 
         public byte[] Export(FrameIndex frame)
         {
@@ -66,8 +109,40 @@ namespace AbilityKit.Demo.Moba.Rollback
                 if (_registry.TryGet(it.ActorId, out var e) && e != null)
                 {
                     e.ReplaceTransform(it.Transform);
+                    SyncMotionState(e, it.Transform);
                 }
             }
+        }
+
+        private static void SyncMotionState(global::ActorEntity e, in Transform3 transform)
+        {
+            if (e == null || !e.hasMotion) return;
+
+            var m = e.motion;
+            var state = m.State;
+            state.Position = transform.Position;
+            state.Forward = transform.Forward;
+
+            var output = m.Output;
+            output.NewForward = state.Forward;
+
+            e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized);
+        }
+
+        private static void AddEntryHash(in Entry entry, MobaStateHashBuilder hash)
+        {
+            var t = entry.Transform;
+            hash.AddInt(entry.ActorId);
+            hash.AddFloat(t.Position.X);
+            hash.AddFloat(t.Position.Y);
+            hash.AddFloat(t.Position.Z);
+            hash.AddFloat(t.Rotation.X);
+            hash.AddFloat(t.Rotation.Y);
+            hash.AddFloat(t.Rotation.Z);
+            hash.AddFloat(t.Rotation.W);
+            hash.AddFloat(t.Scale.X);
+            hash.AddFloat(t.Scale.Y);
+            hash.AddFloat(t.Scale.Z);
         }
 
         public readonly struct Payload

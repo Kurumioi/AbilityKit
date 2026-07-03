@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -11,11 +12,14 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private readonly ContextRegistry _registry = new ContextRegistry();
         private readonly SnapshotStorage _snapshots = new SnapshotStorage();
+        private readonly ContextRealtimeProviderRegistry _realtimeProviders = new ContextRealtimeProviderRegistry();
+        private readonly MobaBuffRealtimeContextProvider _buffProvider = new MobaBuffRealtimeContextProvider();
         private readonly ContextValueResolver _resolver;
 
         public MobaRuntimeContextService()
         {
-            _resolver = new ContextValueResolver(_registry, _snapshots);
+            _realtimeProviders.Register<MobaBuffContextProperty>(_buffProvider);
+            _resolver = new ContextValueResolver(_registry, _snapshots, _realtimeProviders);
         }
 
         public ContextRegistry Registry => _registry;
@@ -29,37 +33,23 @@ namespace AbilityKit.Demo.Moba.Services
             var contextId = runtime.RuntimeContextId;
             if (contextId == 0L || !_registry.Exists(contextId))
             {
-                var createdProperty = new MobaBuffContextProperty(data);
-                contextId = _registry.Create()
-                    .With(createdProperty)
-                    .Build();
-                createdProperty.SetContextId(contextId);
-                _registry.Set(contextId, createdProperty);
+                contextId = _registry.Create().Build();
                 runtime.RuntimeContextId = contextId;
-                runtime.RuntimeContextVersion = createdProperty.Version;
-                return contextId;
+                runtime.RuntimeContextVersion = 1L;
+            }
+            else if (runtime.RuntimeContextVersion <= 0L)
+            {
+                runtime.RuntimeContextVersion = 1L;
             }
 
-            var property = _registry.Get<MobaBuffContextProperty>(contextId);
-            if (property == null)
-            {
-                property = new MobaBuffContextProperty(data);
-                property.SetContextId(contextId);
-                _registry.Set(contextId, property);
-            }
-            else
-            {
-                property.Update(data);
-                _registry.Set(contextId, property);
-            }
-
-            runtime.RuntimeContextVersion = property.Version;
+            _buffProvider.Bind(contextId, runtime, data.TargetActorId, data.LifecycleState, data.Frame);
             return contextId;
         }
 
         public bool TryGetBuffContext(long contextId, out MobaBuffContextProperty property)
         {
-            property = contextId != 0L ? _registry.Get<MobaBuffContextProperty>(contextId) : null;
+            var result = _resolver.GetProperty<MobaBuffContextProperty>(contextId, ContextValueReadMode.RealtimeThenSnapshot);
+            property = result.Found ? result.Value : null;
             return property != null;
         }
 
@@ -70,24 +60,14 @@ namespace AbilityKit.Demo.Moba.Services
             var contextId = runtime.RuntimeContextId;
             if (contextId == 0L) return;
 
-            MobaBuffContextProperty property = null;
-            if (_registry.Exists(contextId))
-            {
-                property = _registry.Get<MobaBuffContextProperty>(contextId);
-                if (property != null)
-                {
-                    property.Mark(finalState, frame);
-                    _registry.Set(contextId, property);
-                    _snapshots.Save(new MobaBuffContextSnapshot(property));
-                }
-
-                _registry.Destroy(contextId);
-            }
+            if (_buffProvider.TryCreateSnapshot(contextId, finalState, frame, out var snapshot))
+                _snapshots.Save(snapshot);
             else if (!_snapshots.TryGetRecord(contextId, out _))
-            {
-                property = MobaBuffContextProperty.FromRuntime(runtime, 0, frame, finalState);
-                _snapshots.Save(new MobaBuffContextSnapshot(property));
-            }
+                _snapshots.Save(MobaBuffContextSnapshot.FromRuntime(runtime, 0, frame, finalState));
+
+            _buffProvider.Unbind(contextId);
+            if (_registry.Exists(contextId))
+                _registry.Destroy(contextId);
 
             _snapshots.MarkDestroyed(contextId);
             runtime.RuntimeContextId = 0L;
@@ -96,8 +76,83 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
+            _buffProvider.Clear();
+            _realtimeProviders.Clear();
             _registry.Clear();
             _snapshots.Clear();
+        }
+
+        private sealed class MobaBuffRealtimeContextProvider : IContextRealtimeValueProvider
+        {
+            private readonly Dictionary<long, Entry> _entries = new Dictionary<long, Entry>();
+
+            public void Bind(long contextId, BuffRuntime runtime, int targetActorId, MobaRuntimeContextLifecycleState state, int frame)
+            {
+                if (contextId == 0L || runtime == null) return;
+                _entries[contextId] = new Entry(runtime, targetActorId, state, frame);
+            }
+
+            public void Unbind(long contextId)
+            {
+                _entries.Remove(contextId);
+            }
+
+            public void Clear()
+            {
+                _entries.Clear();
+            }
+
+            public bool TryGetProperty(long contextId, out IProperty property)
+            {
+                if (_entries.TryGetValue(contextId, out var entry) && entry.Runtime != null)
+                {
+                    property = MobaBuffContextProperty.FromRuntime(entry.Runtime, entry.TargetActorId, entry.Frame, entry.State);
+                    return true;
+                }
+
+                property = null;
+                return false;
+            }
+
+            public bool TryGetValue<T>(long contextId, string key, out T value)
+            {
+                if (_entries.TryGetValue(contextId, out var entry) && entry.Runtime != null)
+                {
+                    var data = MobaBuffRuntimeContextData.FromRuntime(entry.Runtime, entry.TargetActorId, entry.Frame, entry.State);
+                    return data.TryGetValue(contextId, entry.Runtime.RuntimeContextVersion, key, out value);
+                }
+
+                value = default;
+                return false;
+            }
+
+            public bool TryCreateSnapshot(long contextId, MobaRuntimeContextLifecycleState state, int frame, out MobaBuffContextSnapshot snapshot)
+            {
+                if (_entries.TryGetValue(contextId, out var entry) && entry.Runtime != null)
+                {
+                    snapshot = MobaBuffContextSnapshot.FromRuntime(entry.Runtime, entry.TargetActorId, frame, state);
+                    return true;
+                }
+
+                snapshot = null;
+                return false;
+            }
+
+            private readonly struct Entry
+            {
+                public Entry(BuffRuntime runtime, int targetActorId, MobaRuntimeContextLifecycleState state, int frame)
+                {
+                    Runtime = runtime;
+                    TargetActorId = targetActorId;
+                    State = state;
+                    Frame = frame;
+                }
+
+                public BuffRuntime Runtime { get; }
+                public int TargetActorId { get; }
+                public MobaRuntimeContextLifecycleState State { get; }
+                public int Frame { get; }
+            }
         }
     }
 }

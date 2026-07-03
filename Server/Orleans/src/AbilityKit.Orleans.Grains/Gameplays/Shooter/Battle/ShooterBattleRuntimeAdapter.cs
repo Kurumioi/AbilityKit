@@ -1,4 +1,5 @@
-﻿using AbilityKit.Demo.Shooter;
+﻿using AbilityKit.Ability.StateSync.Aoi;
+using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Protocol.Shooter;
@@ -31,7 +32,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         return new ShooterBattleRuntimeSession(battleId, _worldManager, _stateSyncPushOptions);
     }
 
-    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession
+    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession, IObserverAwareBattleRuntimeSession
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
@@ -42,6 +43,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         private ulong _worldId;
         private int _lastPureStateBaselineFrame;
         private uint _lastPureStateBaselineHash;
+        private readonly Dictionary<string, ShooterObserverPureStateSyncState> _observerPureStateSyncStates = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _playerIdsByAccountId = new(StringComparer.Ordinal);
 
         public ShooterBattleRuntimeSession(
             string battleId,
@@ -73,6 +76,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             var tickRate = initParams.TickRate > 0 ? initParams.TickRate : ShooterGameplay.DefaultTickRate;
+            RebuildPlayerAccountIndex(initParams.Players);
             var players = BuildStartPlayers(initParams.Players);
             var anchor = initParams.WorldStartAnchor;
             var start = new ShooterStartGamePayload(
@@ -131,6 +135,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 Alive = true
             };
 
+            RegisterPlayerAccount(request.Player);
             _runtime.SetPlayer(in player);
             return _runtime.TryGetPlayer(playerId, out _)
                 ? new BattlePlayerJoinResult(true, (uint)playerId, currentFrame, "Joined", "Player joined Shooter runtime.")
@@ -446,6 +451,27 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             };
         }
 
+        public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext)
+        {
+            if (_stateSyncPushOptions.PayloadMode != ShooterStateSyncPushPayloadMode.PureState)
+            {
+                return CreateStateSyncPush(worldId, frame, isFullSnapshot);
+            }
+
+            var resolvedWorldId = worldId == 0 ? _worldId : worldId;
+            var snapshot = _runtime?.GetSnapshot() ?? default;
+            if (!TryCreateObserverInterestScope(in observerContext, out var interestScope))
+            {
+                return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
+            }
+
+            var observerKey = string.IsNullOrWhiteSpace(observerContext.ObserverKey)
+                ? $"player:{interestScope.ObserverPlayerId}"
+                : observerContext.ObserverKey;
+            var syncState = GetObserverPureStateSyncState(observerKey);
+            return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot, interestScope, syncState);
+        }
+
         private StateSyncPush CreatePureStateSyncPush(ulong worldId, bool isFullSnapshot, in ShooterStateSnapshotPayload snapshot)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
@@ -462,6 +488,41 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 _lastPureStateBaselineHash = pureState.StateHash;
             }
 
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in snapshot, in pureState);
+        }
+
+        private StateSyncPush CreatePureStateSyncPush(
+            ulong worldId,
+            bool isFullSnapshot,
+            in ShooterStateSnapshotPayload snapshot,
+            ShooterPureStateInterestScope interestScope,
+            ShooterObserverPureStateSyncState syncState)
+        {
+            var settings = _stateSyncPushOptions.ResolvePureStateSettings();
+            var pureState = _runtime?.ExportPureStateSnapshot(
+                worldId,
+                isFullBaseline: isFullSnapshot,
+                settings,
+                baselineFrame: isFullSnapshot ? 0 : syncState.BaselineFrame,
+                baselineHash: isFullSnapshot ? 0u : syncState.BaselineHash,
+                interestScope,
+                syncState.AoiInterestSet) ?? ShooterPureStateSnapshotPayload.Empty(snapshot.Frame);
+
+            if (isFullSnapshot)
+            {
+                syncState.BaselineFrame = pureState.Frame;
+                syncState.BaselineHash = pureState.StateHash;
+            }
+
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in snapshot, in pureState);
+        }
+
+        private static StateSyncPush CreatePureStateSyncPush(
+            ulong worldId,
+            bool isFullSnapshot,
+            in ShooterStateSnapshotPayload snapshot,
+            in ShooterPureStateSnapshotPayload pureState)
+        {
             return new StateSyncPush
             {
                 WorldId = worldId,
@@ -474,6 +535,77 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             };
         }
 
+        private ShooterObserverPureStateSyncState GetObserverPureStateSyncState(string observerKey)
+        {
+            if (!_observerPureStateSyncStates.TryGetValue(observerKey, out var state))
+            {
+                state = new ShooterObserverPureStateSyncState();
+                _observerPureStateSyncStates[observerKey] = state;
+            }
+
+            return state;
+        }
+
+        private bool TryCreateObserverInterestScope(in BattleStateSyncObserverContext observerContext, out ShooterPureStateInterestScope interestScope)
+        {
+            interestScope = default;
+            if (_runtime == null || !TryResolveObserverPlayerId(in observerContext, out var playerId))
+            {
+                return false;
+            }
+
+            if (!_runtime.TryGetPlayer(playerId, out var player) || !player.Alive)
+            {
+                return false;
+            }
+
+            interestScope = new ShooterPureStateInterestScope(
+                playerId,
+                player.X,
+                player.Y,
+                _stateSyncPushOptions.AoiVisibleRadius,
+                _stateSyncPushOptions.AoiBoundaryRadius,
+                _stateSyncPushOptions.ResolvePureStateSettings().MaxEntityCount);
+            return true;
+        }
+
+        private bool TryResolveObserverPlayerId(in BattleStateSyncObserverContext observerContext, out int playerId)
+        {
+            playerId = 0;
+            return !string.IsNullOrWhiteSpace(observerContext.AccountId)
+                && _playerIdsByAccountId.TryGetValue(observerContext.AccountId, out playerId);
+        }
+
+        private void RebuildPlayerAccountIndex(IReadOnlyList<PlayerInitInfo>? players)
+        {
+            _playerIdsByAccountId.Clear();
+            if (players == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < players.Count; i++)
+            {
+                RegisterPlayerAccount(players[i], i + 1);
+            }
+        }
+
+        private void RegisterPlayerAccount(PlayerInitInfo player, int fallbackPlayerId = 0)
+        {
+            if (player == null || string.IsNullOrWhiteSpace(player.AccountId))
+            {
+                return;
+            }
+
+            var playerId = player.PlayerId == 0 ? fallbackPlayerId : (int)player.PlayerId;
+            if (playerId <= 0)
+            {
+                return;
+            }
+
+            _playerIdsByAccountId[player.AccountId] = playerId;
+        }
+
         public void Dispose()
         {
             _driverHost?.Stop();
@@ -481,6 +613,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             _worldManager.DestroyBattleWorld(_battleId);
             _battleWorld = null;
             _runtime = null;
+            _observerPureStateSyncStates.Clear();
+            _playerIdsByAccountId.Clear();
         }
 
         private static ShooterStartPlayer[] BuildStartPlayers(IReadOnlyList<PlayerInitInfo>? players)
@@ -541,6 +675,12 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             var playerId = (int)input.PlayerId;
             var fire = input.OpCode != 0;
             return new ShooterPlayerCommand(playerId, 0f, 0f, 1f, 0f, fire);
+        }
+        private sealed class ShooterObserverPureStateSyncState
+        {
+            public readonly AoiInterestSet AoiInterestSet = new();
+            public int BaselineFrame;
+            public uint BaselineHash;
         }
     }
 }

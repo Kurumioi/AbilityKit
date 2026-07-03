@@ -8,6 +8,7 @@
     "AbilityKit.Host",
     "AbilityKit.World.DI",
     "AbilityKit.World.FrameSync",
+    "AbilityKit.World.StateSync",
     "AbilityKit.World.Svelto",
     "Svelto.Common",
     "Svelto.ECS",

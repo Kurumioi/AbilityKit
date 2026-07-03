@@ -142,6 +142,12 @@ pre { white-space: pre-wrap; max-height: 420px; overflow: auto; background: #050
 .check-row input { width: auto; }
 .status-box { margin-top: 14px; padding: 13px; border-radius: 14px; background: rgba(7, 13, 24, .72); border: 1px solid var(--line); display: grid; gap: 6px; }
 .status-box span { color: var(--muted); }
+.compact-list { display: grid; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.compact-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; min-width: 0; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: 10px; background: rgba(16, 24, 39, .68); }
+.compact-list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compact-list li strong { flex: 0 0 auto; font-size: 12px; }
+.ok { color: var(--ok); }
+.warn { color: var(--warn); }
 .ops-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
 .ops-status div { border: 1px solid var(--line-soft); border-radius: 14px; padding: 11px; background: rgba(7, 13, 24, .68); min-width: 0; }
 .ops-status span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }

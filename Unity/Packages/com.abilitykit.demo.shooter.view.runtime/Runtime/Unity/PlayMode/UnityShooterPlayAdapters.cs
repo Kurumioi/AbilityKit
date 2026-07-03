@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 Mathf.Clamp(moveY, -1f, 1f),
                 0f,
                 1f,
-                Input.GetKey(KeyCode.Space));
+                Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0));
         }
     }
 

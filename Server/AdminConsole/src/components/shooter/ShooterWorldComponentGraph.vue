@@ -10,14 +10,25 @@
       <div class="entity-pulse" :class="entity.entityKind.toLowerCase()">{{ entity.entityId }}</div>
     </div>
 
+    <div v-if="entity" class="selected-entity-stats">
+      <div><span>Entity Key</span><strong>{{ entity.key }}</strong></div>
+      <div><span>组件数</span><strong>{{ entity.components.length }}</strong></div>
+      <div><span>字段数</span><strong>{{ fieldCount }}</strong></div>
+      <div><span>状态</span><strong>{{ entity.alive ? 'Alive' : 'Inactive' }}</strong></div>
+    </div>
+
     <div v-if="entity" class="component-flow">
       <article v-for="component in entity.components" :key="`${entity.key}-${component.name}`" class="component-node-card">
         <div class="component-node-head">
           <strong>{{ component.name }}</strong>
           <span>{{ component.componentKind }}</span>
         </div>
-        <div class="component-chip-grid">
-          <span v-for="entry in fieldEntries(component.fields)" :key="entry.key" class="field-chip"><em>{{ entry.key }}</em>{{ entry.value }}</span>
+        <div class="component-field-table">
+          <div v-for="entry in fieldEntries(component.fields)" :key="entry.key" class="component-field-row">
+            <span>{{ entry.key }}</span>
+            <code>{{ entry.value }}</code>
+          </div>
+          <p v-if="fieldEntries(component.fields).length === 0" class="muted">该组件没有导出的字段。</p>
         </div>
       </article>
     </div>
@@ -26,10 +37,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { fieldEntries } from '../../composables/useShooterWorldProjection';
 import type { ShooterWorldEntityDiagnostics } from '../../types';
 
-defineProps<{
+const props = defineProps<{
   entity: ShooterWorldEntityDiagnostics | null;
 }>();
+
+const fieldCount = computed(() => props.entity?.components.reduce((total, component) => total + fieldEntries(component.fields).length, 0) || 0);
 </script>

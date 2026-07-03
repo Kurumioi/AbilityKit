@@ -68,8 +68,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle
         {
             if (target == null) return;
             if (ownerKey == 0) return;
-
-            BuffTriggerPlanCoordinator.Remove(target, ownerKey);
+ 
             RemoveEffectListeners(target, ownerKey);
         }
 

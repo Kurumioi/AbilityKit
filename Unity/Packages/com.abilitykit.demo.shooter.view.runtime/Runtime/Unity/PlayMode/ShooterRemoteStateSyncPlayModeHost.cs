@@ -103,7 +103,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 var state = await StartSessionAsync(launchOptions).ConfigureAwait(false);
                 _state = state;
                 _gatewayInputQueue = new RemoteClientInputSubmitQueue<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>(
-                    (local, timeout) => state.Launch.Battle.SubmitAcceptedInputToGatewayAsync(local, timeout),
+                    (local, timeout) => state.CoordinatorInputBridge.SubmitAcceptedInputAsync(local, timeout),
                     launchOptions.Timeout,
                     result => result.Remote.ShouldResync);
                 _lastInput = default;
@@ -205,7 +205,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _lastConnectionResult = connectionResult;
                 connectionResult.Launch.Session.Presentation.ControlledPlayerId = launchOptions.SessionOptions.ControlledPlayerId;
 
-                return new ShooterRemoteStateSyncRuntimeState(runtimeWorld, launcher, connectionResult.Launch);
+                var coordinatorInputBridge = ShooterCoordinatorInputBridge.Create(
+                    runtimeWorld.World,
+                    connectionResult.Launch,
+                    launchOptions.Endpoint,
+                    launchOptions.SessionOptions.TickRate);
+
+                return new ShooterRemoteStateSyncRuntimeState(runtimeWorld, launcher, connectionResult.Launch, coordinatorInputBridge);
             }
             catch
             {
@@ -244,6 +250,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _gatewayInputQueue?.SubmitOrQueue(_lastSubmitResult);
 
             _lastTickResult = state.Launch.Session.Tick(deltaSeconds);
+            state.CoordinatorInputBridge.Tick(deltaSeconds);
             state.Launcher.Tick(deltaSeconds);
             _gatewayInputQueue?.CompleteIfFinished();
             _lastRemoteLatencyCompensationDiagnostics = CreateRemoteLatencyCompensationDiagnostics();
@@ -530,16 +537,19 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             public ShooterRemoteStateSyncRuntimeState(
                 ShooterBattleWorldSession runtimeWorld,
                 ShooterClientNetworkLauncher launcher,
-                ShooterClientNetworkLaunchResult launch)
+                ShooterClientNetworkLaunchResult launch,
+                ShooterCoordinatorInputBridge coordinatorInputBridge)
             {
                 RuntimeWorld = runtimeWorld ?? throw new ArgumentNullException(nameof(runtimeWorld));
                 Launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
                 Launch = launch ?? throw new ArgumentNullException(nameof(launch));
+                CoordinatorInputBridge = coordinatorInputBridge ?? throw new ArgumentNullException(nameof(coordinatorInputBridge));
             }
 
             public ShooterBattleWorldSession RuntimeWorld { get; }
             public ShooterClientNetworkLauncher Launcher { get; }
             public ShooterClientNetworkLaunchResult Launch { get; }
+            public ShooterCoordinatorInputBridge CoordinatorInputBridge { get; }
 
             public void Dispose()
             {
@@ -549,6 +559,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
 
                 _disposed = true;
+                CoordinatorInputBridge.Dispose();
                 Launcher.Dispose();
                 RuntimeWorld.Dispose();
             }

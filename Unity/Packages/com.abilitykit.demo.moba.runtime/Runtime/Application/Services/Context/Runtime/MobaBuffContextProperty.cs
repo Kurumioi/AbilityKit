@@ -56,70 +56,17 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaRuntimeContextLifecycleState LifecycleState { get; }
         public int Frame { get; }
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
-    }
 
-    public sealed class MobaBuffContextProperty : IProperty, IContextValueProvider
-    {
-        public MobaBuffContextProperty(in MobaBuffRuntimeContextData data)
-        {
-            Update(data);
-        }
-
-        public int TypeId => PropertyTypeRegistry.Instance.Register<MobaBuffContextProperty>().Id;
-        public long ContextId { get; private set; }
-        public long Version { get; private set; }
-        public int BuffId { get; private set; }
-        public int SourceActorId { get; private set; }
-        public int TargetActorId { get; private set; }
-        public long TraceContextId { get; private set; }
-        public long RootTraceContextId { get; private set; }
-        public long OwnerTraceContextId { get; private set; }
-        public int StackCount { get; private set; }
-        public float RemainingSeconds { get; private set; }
-        public float IntervalRemainingSeconds { get; private set; }
-        public MobaRuntimeContextLifecycleState LifecycleState { get; private set; }
-        public int Frame { get; private set; }
-        public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; private set; }
-
-        public void SetContextId(long contextId)
-        {
-            ContextId = contextId;
-        }
-
-        public void Update(in MobaBuffRuntimeContextData data)
-        {
-            BuffId = data.BuffId;
-            SourceActorId = data.SourceActorId;
-            TargetActorId = data.TargetActorId;
-            TraceContextId = data.TraceContextId;
-            RootTraceContextId = data.RootTraceContextId;
-            OwnerTraceContextId = data.OwnerTraceContextId;
-            StackCount = data.StackCount;
-            RemainingSeconds = data.RemainingSeconds;
-            IntervalRemainingSeconds = data.IntervalRemainingSeconds;
-            LifecycleState = data.LifecycleState;
-            Frame = data.Frame;
-            SkillRuntimeHandle = data.SkillRuntimeHandle;
-            Version++;
-        }
-
-        public void Mark(MobaRuntimeContextLifecycleState state, int frame)
-        {
-            LifecycleState = state;
-            Frame = frame;
-            Version++;
-        }
-
-        public bool TryGetValue<T>(string key, out T value)
+        public bool TryGetValue<T>(long contextId, long version, string key, out T value)
         {
             object raw = null;
             switch (key)
             {
                 case MobaRuntimeContextKeys.ContextId:
-                    raw = ContextId;
+                    raw = contextId;
                     break;
                 case MobaRuntimeContextKeys.Version:
-                    raw = Version;
+                    raw = version;
                     break;
                 case MobaRuntimeContextKeys.BuffId:
                     raw = BuffId;
@@ -169,10 +116,10 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
-        public static MobaBuffContextProperty FromRuntime(BuffRuntime runtime, int targetActorId, int frame, MobaRuntimeContextLifecycleState state)
+        public static MobaBuffRuntimeContextData FromRuntime(BuffRuntime runtime, int targetActorId, int frame, MobaRuntimeContextLifecycleState state)
         {
             var origin = runtime != null ? runtime.Origin : default;
-            var data = new MobaBuffRuntimeContextData(
+            return new MobaBuffRuntimeContextData(
                 runtime != null ? runtime.BuffId : 0,
                 runtime != null ? runtime.SourceId : 0,
                 targetActorId,
@@ -185,12 +132,73 @@ namespace AbilityKit.Demo.Moba.Services
                 state,
                 frame,
                 runtime != null ? runtime.SkillRuntimeHandle : default);
+        }
+    }
+
+    public sealed class MobaBuffContextProperty : IProperty, IContextValueProvider
+    {
+        public MobaBuffContextProperty(in MobaBuffRuntimeContextData data)
+        {
+            BuffId = data.BuffId;
+            SourceActorId = data.SourceActorId;
+            TargetActorId = data.TargetActorId;
+            TraceContextId = data.TraceContextId;
+            RootTraceContextId = data.RootTraceContextId;
+            OwnerTraceContextId = data.OwnerTraceContextId;
+            StackCount = data.StackCount;
+            RemainingSeconds = data.RemainingSeconds;
+            IntervalRemainingSeconds = data.IntervalRemainingSeconds;
+            LifecycleState = data.LifecycleState;
+            Frame = data.Frame;
+            SkillRuntimeHandle = data.SkillRuntimeHandle;
+            Version = 1L;
+        }
+
+        public int TypeId => PropertyTypeRegistry.Instance.Register<MobaBuffContextProperty>().Id;
+        public long ContextId { get; private set; }
+        public long Version { get; }
+        public int BuffId { get; }
+        public int SourceActorId { get; }
+        public int TargetActorId { get; }
+        public long TraceContextId { get; }
+        public long RootTraceContextId { get; }
+        public long OwnerTraceContextId { get; }
+        public int StackCount { get; }
+        public float RemainingSeconds { get; }
+        public float IntervalRemainingSeconds { get; }
+        public MobaRuntimeContextLifecycleState LifecycleState { get; }
+        public int Frame { get; }
+        public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+
+        public void SetContextId(long contextId)
+        {
+            ContextId = contextId;
+        }
+
+        public bool TryGetValue<T>(string key, out T value)
+        {
+            var data = new MobaBuffRuntimeContextData(
+                BuffId,
+                SourceActorId,
+                TargetActorId,
+                TraceContextId,
+                RootTraceContextId,
+                OwnerTraceContextId,
+                StackCount,
+                RemainingSeconds,
+                IntervalRemainingSeconds,
+                LifecycleState,
+                Frame,
+                SkillRuntimeHandle);
+            return data.TryGetValue(ContextId, Version, key, out value);
+        }
+
+        public static MobaBuffContextProperty FromRuntime(BuffRuntime runtime, int targetActorId, int frame, MobaRuntimeContextLifecycleState state)
+        {
+            var data = MobaBuffRuntimeContextData.FromRuntime(runtime, targetActorId, frame, state);
             var property = new MobaBuffContextProperty(in data);
             if (runtime != null)
-            {
                 property.SetContextId(runtime.RuntimeContextId);
-                runtime.RuntimeContextVersion = property.Version;
-            }
 
             return property;
         }
@@ -199,23 +207,55 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaBuffContextSnapshot : IVersionedContextSnapshot, ISnapshotAccessor, ISourceContext, IOwnerContext, IDestroyableSnapshot, IContextValueProvider
     {
         private bool _destroyed;
-        private readonly MobaBuffContextProperty _property;
+        private readonly MobaBuffRuntimeContextData _data;
 
         public MobaBuffContextSnapshot(MobaBuffContextProperty property)
         {
-            _property = property ?? throw new ArgumentNullException(nameof(property));
+            if (property == null) throw new ArgumentNullException(nameof(property));
             EntityId = property.ContextId;
             CreatedAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             Version = property.Version;
             Frame = property.Frame;
+            _data = new MobaBuffRuntimeContextData(
+                property.BuffId,
+                property.SourceActorId,
+                property.TargetActorId,
+                property.TraceContextId,
+                property.RootTraceContextId,
+                property.OwnerTraceContextId,
+                property.StackCount,
+                property.RemainingSeconds,
+                property.IntervalRemainingSeconds,
+                property.LifecycleState,
+                property.Frame,
+                property.SkillRuntimeHandle);
+        }
+
+        private MobaBuffContextSnapshot(long contextId, long version, int frame, in MobaBuffRuntimeContextData data)
+        {
+            EntityId = contextId;
+            CreatedAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            Version = version;
+            Frame = frame;
+            _data = data;
+        }
+
+        public static MobaBuffContextSnapshot FromRuntime(BuffRuntime runtime, int targetActorId, int frame, MobaRuntimeContextLifecycleState state)
+        {
+            var data = MobaBuffRuntimeContextData.FromRuntime(runtime, targetActorId, frame, state);
+            return new MobaBuffContextSnapshot(
+                runtime != null ? runtime.RuntimeContextId : 0L,
+                runtime != null ? runtime.RuntimeContextVersion : 0L,
+                frame,
+                in data);
         }
 
         public long EntityId { get; }
         public long CreatedAtMs { get; }
         public long Version { get; }
         public int Frame { get; }
-        public long SourceEntityId => _property.TraceContextId;
-        public long OwnerEntityId => _property.OwnerTraceContextId;
+        public long SourceEntityId => _data.TraceContextId;
+        public long OwnerEntityId => _data.OwnerTraceContextId;
         public bool IsRealtimeAvailable => !_destroyed;
         public bool IsDestroyed => _destroyed;
 
@@ -231,7 +271,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGetValue<T>(string key, out T value)
         {
-            return _property.TryGetValue(key, out value);
+            return _data.TryGetValue(EntityId, Version, key, out value);
         }
     }
 

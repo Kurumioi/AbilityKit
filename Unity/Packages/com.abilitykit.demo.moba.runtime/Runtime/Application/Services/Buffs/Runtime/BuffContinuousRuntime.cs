@@ -207,7 +207,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             }
         }
 
-        private sealed class BuffContinuousConfig : MobaContinuousConfigBase
+        private sealed class BuffContinuousConfig : MobaContinuousConfigBase, IMobaContinuousOwnerBoundTriggerConfig
         {
             private readonly BuffContinuousRuntime _runtime;
 
@@ -227,6 +227,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             public override GameplayTagSource TagSource => CreateSource(_runtime);
             public override float IntervalSeconds => _buff != null && _buff.IntervalMs > 0 ? _buff.IntervalMs / 1000f : 0f;
             public override IReadOnlyList<int> IntervalEffectIds => _buff?.OnIntervalEffects ?? Array.Empty<int>();
+            public IReadOnlyList<int> TriggerIds => _buff?.TriggerIds ?? Array.Empty<int>();
 
             private static GameplayTagSource CreateSource(BuffContinuousRuntime runtime)
             {

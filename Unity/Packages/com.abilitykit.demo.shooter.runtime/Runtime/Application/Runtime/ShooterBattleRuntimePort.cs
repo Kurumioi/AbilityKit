@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Shooter;
@@ -230,9 +231,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterPureStateSyncSettings? settings = null,
             int baselineFrame = 0,
             uint baselineHash = 0,
-            ShooterPureStateInterestScope? interestScope = null)
+            ShooterPureStateInterestScope? interestScope = null,
+            AoiInterestSet? aoiInterestSet = null)
         {
-            return _pureStateSnapshotExporter.Export(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope);
+            return _pureStateSnapshotExporter.Export(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet);
         }
 
         public bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player)

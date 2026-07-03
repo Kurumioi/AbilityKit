@@ -1,3 +1,4 @@
+using AbilityKit.Context;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
@@ -32,11 +33,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         bool HasAimDirection { get; }
     }
 
+    internal interface IMobaPlanActionRuntimeContextInput
+    {
+        bool TryGetRuntimeContext(out MobaRuntimeContextReference reference);
+
+        MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty;
+    }
+
     /// <summary>
     /// 计划动作共享的核心执行事实。
     /// 领域专属的动作数据应保留在动作参数对象或诸如 MobaMovementActionInput 之类的专用输入中，不要继续扩展该类型。
     /// </summary>
-    internal readonly struct MobaPlanActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput
+    internal readonly struct MobaPlanActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         public MobaPlanActionInput(
             MobaCombatExecutionContext executionContext,
@@ -72,9 +84,35 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasTraceScope => TraceScope.EffectContextId != 0;
         public bool HasExecutionSource => ExecutionContext.HasExecutionSource;
         public bool IsValid => HasExecutionSource || HasCasterActor || HasTargetActor || HasAimPosition || HasAimDirection || HasTraceScope;
+
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            return ExecutionContext.TryGetRuntimeContext(out reference);
+        }
+
+        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            return ExecutionContext.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+        }
+
+        public bool TryGetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            out TValue value,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+            value = result.Value;
+            return result.Found;
+        }
     }
 
-    internal readonly struct MobaEffectActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput
+    internal readonly struct MobaEffectActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaPlanActionInput _core;
 
@@ -93,6 +131,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasExecutionSource => _core.HasExecutionSource;
         public bool IsValid => _core.IsValid;
 
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            return _core.TryGetRuntimeContext(out reference);
+        }
+
+        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            return _core.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+        }
+
+        public bool TryGetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            out TValue value,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+            value = result.Value;
+            return result.Found;
+        }
+ 
         public MobaGameplayOrigin BuildOrigin(int sourceActorId, int targetActorId, MobaTraceKind fallbackKind, int fallbackConfigId)
         {
             var executionContext = ExecutionContext;
@@ -119,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
     }
 
-    internal readonly struct MobaProjectileActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput
+    internal readonly struct MobaProjectileActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaEffectActionInput _effect;
         private readonly MobaPlanActionInput _core;
@@ -144,6 +208,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasExecutionSource => _effect.HasExecutionSource;
         public bool IsValid => _effect.IsValid;
 
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            return _effect.TryGetRuntimeContext(out reference);
+        }
+
+        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            return _effect.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+        }
+
+        public bool TryGetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            out TValue value,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+            value = result.Value;
+            return result.Found;
+        }
+ 
         public ProjectileSourceContext CreateSourceContext(int sourceActorId, int targetActorId, int projectileConfigId)
         {
             var origin = _effect.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.ProjectileLaunch, projectileConfigId);
@@ -160,7 +250,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         }
     }
 
-    internal readonly struct MobaSummonActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput
+    internal readonly struct MobaSummonActionInput : IMobaPlanActionExecutionInput, IMobaPlanActionTraceInput, IMobaPlanActionActorInput, IMobaPlanActionAimInput, IMobaPlanActionRuntimeContextInput
     {
         private readonly MobaEffectActionInput _effect;
         private readonly MobaPlanActionInput _core;
@@ -187,6 +277,32 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public bool HasExecutionSource => _effect.HasExecutionSource;
         public bool IsValid => _effect.IsValid;
 
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            return _effect.TryGetRuntimeContext(out reference);
+        }
+
+        public MobaRuntimeContextValueResult<TValue> GetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            return _effect.GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+        }
+
+        public bool TryGetRuntimeContextValue<TValue, TProperty>(
+            MobaRuntimeContextService contexts,
+            string key,
+            out TValue value,
+            ContextValueReadMode mode = ContextValueReadMode.RealtimeThenSnapshot)
+            where TProperty : class, IProperty
+        {
+            var result = GetRuntimeContextValue<TValue, TProperty>(contexts, key, mode);
+            value = result.Value;
+            return result.Found;
+        }
+ 
         public bool TryResolveSpawnPosition(SpawnSummonPositionMode positionMode, out Vec3 spawnPosition)
         {
             spawnPosition = Vec3.Zero;

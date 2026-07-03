@@ -73,6 +73,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
             if (dtoType == typeof(ContinuousTagTemplateDTO)) return DeserializeContinuousTagTemplate(obj);
             if (dtoType == typeof(SearchQueryTemplateDTO)) return DeserializeSearchQueryTemplate(obj);
             if (dtoType == typeof(BuffDTO)) return DeserializeBuff(obj);
+            if (dtoType == typeof(ContinuousProcessDTO)) return DeserializeContinuousProcess(obj);
             if (dtoType == typeof(ModelDTO)) return DeserializeModel(obj);
             if (dtoType == typeof(ProjectileLauncherDTO)) return DeserializeProjectileLauncher(obj);
             if (dtoType == typeof(ProjectileDTO)) return DeserializeProjectile(obj);
@@ -151,6 +152,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Range = obj["Range"]?.Value<int>() ?? 0,
                 IconId = obj["IconId"]?.Value<int>() ?? 0,
                 Category = obj["Category"]?.Value<int>() ?? 0,
+                SkillType = obj["SkillType"]?.Value<int>() ?? 0,
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 SkillButtonTemplateId = obj["SkillButtonTemplateId"]?.Value<int>() ?? 0,
                 LevelTableId = obj["LevelTableId"]?.Value<int>() ?? 0,
@@ -167,7 +169,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
                 CooldownMs = obj["CooldownMs"]?.Value<int>() ?? 0,
-                TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
+                TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                ContinuousProcessIds = obj["ContinuousProcessIds"]?.ToObject<int[]>() ?? Array.Empty<int>()
             };
             return dto;
         }
@@ -318,6 +321,27 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>() ?? 0,
                 Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Modifiers = DeserializeContinuousModifiers(obj["Modifiers"])
+            };
+            return dto;
+        }
+
+        private static ContinuousProcessDTO DeserializeContinuousProcess(JObject obj)
+        {
+            var dto = new ContinuousProcessDTO
+            {
+                Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
+                Name = obj["Name"]?.Value<string>() ?? string.Empty,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                IntervalMs = obj["IntervalMs"]?.Value<int>() ?? 0,
+                IntervalTriggerIds = obj["IntervalTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>()
+                    ?? obj["TagTemplateId"]?.Value<int>()
+                    ?? 0,
+                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                Modifiers = DeserializeContinuousModifiers(obj["Modifiers"]),
+                RequireOutOfCombat = obj["RequireOutOfCombat"]?.Value<bool>() ?? false,
+                OutOfCombatSeconds = obj["OutOfCombatSeconds"]?.Value<int>() ?? 0
             };
             return dto;
         }

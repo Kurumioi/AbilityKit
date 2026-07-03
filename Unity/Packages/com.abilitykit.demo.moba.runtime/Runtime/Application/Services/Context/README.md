@@ -1,5 +1,9 @@
 # MOBA Context Module Guidelines
 
+## Design guide
+
+For the current end-to-end combat context design, lifecycle rules, runtime context diagnostics, and extension checklist, see `Runtime/Docs/MobaCombatContextDesignGuide.md`.
+
 ## Purpose
 
 The `Context` module is the shared runtime context infrastructure for MOBA gameplay execution. It connects strongly typed trigger payloads, execution-time context aggregation, source snapshots, origin propagation, lineage construction, and trace integration.

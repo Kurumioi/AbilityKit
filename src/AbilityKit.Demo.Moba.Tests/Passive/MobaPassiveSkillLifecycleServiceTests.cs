@@ -1,7 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Continuous;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services;
@@ -81,6 +84,47 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         Assert.Equal(new[] { 1002 }, remaining.TriggerIds);
     }
 
+    [Fact]
+    public void Sync_actor_passives_activates_configured_continuous_process()
+    {
+        var configs = CreateConfigDatabase();
+        var continuous = new DefaultContinuousManager();
+        var processService = CreateProcessService(configs, continuous, new TestWorldClock());
+        using var trace = new MobaTraceRegistry();
+        var service = new MobaPassiveSkillLifecycleService(configs, trace, continuousProcesses: processService);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 10);
+
+        var active = Assert.Single(continuous.GetOwnerActiveContinuous(1));
+        var runtime = Assert.IsType<MobaTriggerIntervalContinuousRuntime>(active);
+        Assert.Equal(9001, runtime.ProcessId);
+        Assert.Equal(1, runtime.SourceActorId);
+        Assert.Equal(1, runtime.TargetActorId);
+        Assert.True(service.IsPassiveOwnerKey(runtime.SourceContextId));
+    }
+
+    [Fact]
+    public void Sync_actor_passives_interrupts_out_of_combat_process_after_combat_is_recorded()
+    {
+        var configs = CreateConfigDatabase();
+        var clock = new TestWorldClock { TimeSeconds = 10f };
+        var combat = new MobaCombatActivityService(clock);
+        var continuous = new DefaultContinuousManager();
+        var processService = CreateProcessService(configs, continuous, clock, combat);
+        using var trace = new MobaTraceRegistry();
+        var service = new MobaPassiveSkillLifecycleService(configs, trace, continuousProcesses: processService);
+        var actor = CreateActor(new PassiveSkillRuntime { PassiveSkillId = 101, Level = 1 });
+
+        service.SyncActorPassives(actor, frame: 10);
+        Assert.Equal(1, continuous.ActiveCount);
+
+        combat.RecordCombat(1);
+        service.SyncActorPassives(actor, frame: 11);
+
+        Assert.Equal(0, continuous.ActiveCount);
+    }
+
     private static ActorEntity CreateActor(params PassiveSkillRuntime[] passiveSkills)
     {
         var context = new ActorContext();
@@ -98,14 +142,41 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
             {
                 [typeof(PassiveSkillDTO)] = new[]
                 {
-                    new PassiveSkillDTO { Id = 101, Name = "passive_a", CooldownMs = 1000, TriggerIds = new[] { 1001 } },
+                    new PassiveSkillDTO { Id = 101, Name = "passive_a", CooldownMs = 1000, TriggerIds = new[] { 1001 }, ContinuousProcessIds = new[] { 9001 } },
                     new PassiveSkillDTO { Id = 102, Name = "passive_b", CooldownMs = 500, TriggerIds = new[] { 1002 } },
+                },
+                [typeof(ContinuousProcessDTO)] = new[]
+                {
+                    new ContinuousProcessDTO
+                    {
+                        Id = 9001,
+                        Name = "passive_process",
+                        DurationMs = 0,
+                        IntervalMs = 1000,
+                        IntervalTriggerIds = new[] { 1003 },
+                        RequireOutOfCombat = true,
+                        OutOfCombatSeconds = 5,
+                    },
                 },
             },
             strict: false);
 
         Assert.True(result.Succeeded, result.Error);
         return configs;
+    }
+
+    private static MobaTriggerIntervalContinuousService CreateProcessService(
+        MobaConfigDatabase configs,
+        IContinuousManager continuous,
+        TestWorldClock clock,
+        MobaCombatActivityService combat = null)
+    {
+        var service = new MobaTriggerIntervalContinuousService();
+        service.OnInit(new TestWorldResolver(
+            configs,
+            continuous,
+            combat ?? new MobaCombatActivityService(clock)));
+        return service;
     }
 
     private sealed class TestFrameTime : IFrameTime
@@ -117,4 +188,57 @@ public sealed class MobaPassiveSkillLifecycleServiceTests
         public float FrameToTime(FrameIndex frame) => 0f;
         public FrameIndex TimeToFrame(float time) => new FrameIndex(0);
     }
+
+    private sealed class TestWorldClock : IWorldClock
+    {
+        public float DeltaTime { get; private set; }
+        public float Time => TimeSeconds;
+        public float TimeSeconds { get; set; }
+
+        public void Tick(float deltaTime)
+        {
+            DeltaTime = deltaTime;
+            TimeSeconds += deltaTime;
+        }
+    }
+
+    private sealed class TestWorldResolver : IWorldResolver
+    {
+        private readonly Dictionary<Type, object> _services = new();
+
+        public TestWorldResolver(MobaConfigDatabase configs, IContinuousManager continuous, MobaCombatActivityService combat)
+        {
+            _services[typeof(MobaConfigDatabase)] = configs;
+            _services[typeof(IContinuousManager)] = continuous;
+            _services[typeof(MobaCombatActivityService)] = combat;
+        }
+
+        public object Resolve(Type serviceType)
+        {
+            return _services[serviceType];
+        }
+
+        public T Resolve<T>()
+        {
+            return (T)Resolve(typeof(T));
+        }
+
+        public bool TryResolve(Type serviceType, out object instance)
+        {
+            return _services.TryGetValue(serviceType, out instance);
+        }
+
+        public bool TryResolve<T>(out T instance)
+        {
+            if (_services.TryGetValue(typeof(T), out var value))
+            {
+                instance = (T)value;
+                return true;
+            }
+
+            instance = default;
+            return false;
+        }
+    }
 }
+

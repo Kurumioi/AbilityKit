@@ -78,8 +78,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
             // Presentation models
             new Entry(MobaConfigPaths.ModelsFile, typeof(ModelDTO), typeof(MO.ModelMO)),
 
-            // Buffs
+            // Buffs and generic continuous processes
             new Entry(MobaConfigPaths.BuffsFile, typeof(BuffDTO), typeof(MO.BuffMO)),
+            new Entry(MobaConfigPaths.ContinuousProcessesFile, typeof(ContinuousProcessDTO), typeof(MO.ContinuousProcessMO)),
 
             // Projectiles
             new Entry(MobaConfigPaths.ProjectileLaunchersFile, typeof(ProjectileLauncherDTO), typeof(MO.ProjectileLauncherMO)),

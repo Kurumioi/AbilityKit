@@ -452,8 +452,13 @@ public sealed class GatewayAdminConsoleTests
     public void Gateway_api_should_expose_admin_room_facade_endpoints()
     {
         var api = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApi.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
         var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
         var boundaries = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "adminApiBoundaries.ts"));
+        var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var battlePage = File.ReadAllText(GetAdminConsoleProjectPath("src", "pages", "AdminBattlePage.vue"));
+        var roomGrain = File.ReadAllText(GetGrainsSourcePath("Rooms", "RoomGrain.cs"));
         var robotContract = File.ReadAllText(GetContractsSourcePath("Automation", "IRoomRobotManagerGrain.cs"));
         var robotGrain = File.ReadAllText(GetGrainsSourcePath("Automation", "RoomRobotManagerGrain.cs"));
 
@@ -480,6 +485,16 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("/api/admin/rooms/pick-hero", domainApi);
         Assert.Contains("/api/admin/rooms/start-battle", domainApi);
         Assert.Contains("/api/admin/rooms/add-robots", domainApi);
+        Assert.Contains("WebStartRoomBattleResponse", models);
+        Assert.Contains("MountRoomRobotBattleAiResponse? BattleAiMount", models);
+        Assert.Contains("new WebStartRoomBattleResponse(response, mountResponse)", api);
+        Assert.Contains("!gameplay.CanStart(gameplayState)", roomGrain);
+        Assert.Contains("Room is not ready to start.", roomGrain);
+        Assert.Contains("export interface AdminStartRoomBattleResponse", types);
+        Assert.Contains("lastBattleStart", store);
+        Assert.Contains("AdminStartRoomBattleResponse", store);
+        Assert.Contains("battleAiMount", battlePage);
+        Assert.Contains("AI 挂载", battlePage);
         Assert.Contains("后台页面默认只依赖这里", boundaries);
         Assert.Contains("后台不直接调用", boundaries);
         Assert.Contains("public interface IRoomRobotManagerGrain", robotContract);

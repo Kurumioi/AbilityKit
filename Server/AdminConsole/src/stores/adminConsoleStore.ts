@@ -3,7 +3,7 @@ import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
 import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree, toText as acceptanceToText } from '../services/skillAcceptanceAnalysis';
 import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
+import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -32,6 +32,7 @@ const acceptanceLastRun = ref<AdminSkillAcceptanceRunResponse | null>(null);
 const shooterWorldDiagnostics = ref<ShooterWorldDiagnostics | null>(null);
 const lastResponse = ref('');
 const lastRobotAdd = ref<AddRoomRobotsResponse | null>(null);
+const lastBattleStart = ref<AdminStartRoomBattleResponse | null>(null);
 const apiCallLog = ref<AdminApiCallLogItem[]>([]);
 let apiCallLogId = 0;
 
@@ -703,7 +704,12 @@ async function addRoomRobots(): Promise<void> {
 }
 
 async function startBattle(): Promise<void> {
-  await call(apis.rooms.startBattle({ sessionToken: sessionToken.value, roomId: roomId.value, gameplayId: Number(battle.gameplayId || 0), ruleSetId: Number(battle.ruleSetId || 0), configVersion: Number(battle.configVersion || 1), protocolVersion: Number(battle.protocolVersion || 1), worldType: battle.worldType || null, clientId: 'admin-console', syncTemplateId: battle.syncTemplateId || null, syncModel: null, networkEnvironmentId: 'admin-console', carrierName: 'admin', enableAuthoritativeWorld: true, interpolationEnabled: true, inputDelayFrames: 0 }));
+  const data = await call<AdminStartRoomBattleResponse>(apis.rooms.startBattle({ sessionToken: sessionToken.value, roomId: roomId.value, gameplayId: Number(battle.gameplayId || 0), ruleSetId: Number(battle.ruleSetId || 0), configVersion: Number(battle.configVersion || 1), protocolVersion: Number(battle.protocolVersion || 1), worldType: battle.worldType || null, clientId: 'admin-console', syncTemplateId: battle.syncTemplateId || null, syncModel: null, networkEnvironmentId: 'admin-console', carrierName: 'admin', enableAuthoritativeWorld: true, interpolationEnabled: true, inputDelayFrames: 0 }));
+  if (data) {
+    lastBattleStart.value = data;
+    if (data.start?.battleId) skillEventFilter.battleId = data.start.battleId;
+  }
+
   await refreshDashboard();
   await refreshSkillDiagnostics();
 }
@@ -756,6 +762,7 @@ export function useAdminConsoleStore() {
     shooterWorldDiagnostics,
     lastResponse,
     lastRobotAdd,
+    lastBattleStart,
     apiCallLog,
     account,
     create,

@@ -222,7 +222,10 @@ sequenceDiagram
     Gateway-->>Client: battle start info
 
     loop Every input frame
-        Client->>Gateway: input(frame)
+        Client->>Coordinator: SubmitLocalInput(PlayerInput)
+        Coordinator->>RemoteSyncAdapter: SubmitInput(PlayerInput)
+        RemoteSyncAdapter->>Transport: IRemoteBattleSyncTransport.SubmitInput
+        Transport->>Gateway: input(frame)
         Gateway->>Battle: SubmitInputAsync
         Battle->>Battle: schedule and buffer input
         Battle->>Runtime: Tick with buffered inputs
@@ -234,11 +237,39 @@ sequenceDiagram
     end
 ```
 
+客户端应用层不应直接把输入提交到 Gateway。Gateway 是具体网络传输出口，标准路径应先进入 `SessionCoordinator.SubmitLocalInput`，再由 `RemoteSyncAdapter` 通过 `IRemoteBattleSyncTransport` 交给具体传输实现。
+
 ---
 
-## 6. 设计约束与扩展点
+## 6. Coordinator 接入现有世界
 
-### 6.1 约束
+`SessionCoordinator` 默认通过 `ISessionCoordinatorHost.CreateWorldHost` 创建并初始化 world。对于 Shooter 这类已经先创建 client runtime world 的示例，框架提供 `ExistingWorldSessionCoordinatorHost` 作为正式接入点：
+
+```mermaid
+flowchart TD
+    A[Existing IWorld] --> B[ExistingWorldSessionCoordinatorHost]
+    C[Service overrides] --> B
+    B --> D[ISessionCoordinatorHost]
+    D --> E[SessionCoordinator.Initialize]
+    E --> F[SyncAdapterFactory.Create]
+    F --> G[RemoteSyncAdapter]
+    G --> H[IRemoteBattleSyncTransport]
+```
+
+该 host 的语义是：
+
+- 复用已有 `IWorld`，不创建第二套逻辑世界。
+- 允许通过 service override 注入 transport、诊断或示例专属桥接服务。
+- `DestroyWorld` / `DisposeAll` 不销毁外部传入 world，生命周期仍由创建方负责。
+- 示例层只保留 session policy，例如 sync mode、host mode、world type 和是否启用 Coordinator spawn service。
+
+这条路径用于把既有示例、工具或客户端运行时纳入 Coordinator 分层，避免 PlayMode / View 层直接依赖 Gateway、TCP、Orleans 等具体传输协议。
+
+---
+
+## 7. 设计约束与扩展点
+
+### 7.1 约束
 
 - 帧号必须单调可比较，过旧输入应在服务端调度阶段拒绝。
 - `RemoteFrameAggregator` 需要定期 `TrimBefore`，否则长连接会积累历史帧。
@@ -246,11 +277,12 @@ sequenceDiagram
 - Room 的恢复/晚加入只提供会话锚点和快照入口，不应直接重放战斗逻辑。
 - 快照 Envelope 应保持协议中立，具体解码交给 snapshot routing/pipeline。
 
-### 6.2 扩展点
+### 7.2 扩展点
 
 | 扩展点 | 用法 |
 |--------|------|
-| 自定义网络传输 | 只要最终产出 `FramePacket` 或 `RemoteInputFrame`/`RemoteSnapshotFrame` 即可 |
+| 自定义网络传输 | 客户端输入侧实现 `IRemoteBattleSyncTransport`，快照侧最终产出 `FramePacket` 或 `RemoteInputFrame`/`RemoteSnapshotFrame` |
+| 接入已有 world | 使用 `ExistingWorldSessionCoordinatorHost` 复用外部创建的 `IWorld`，通过 service override 暴露 transport |
 | 自定义输入延迟 | 调整 `InputDelayFrames` 和服务端输入调度策略 |
 | 自定义房间玩法 | 实现/注册 `IRoomGameplayAdapter` |
 | 自定义战斗运行时 | 提供新的 `BattleRuntimeAdapter` 与 `IBattleRuntimeSession` |

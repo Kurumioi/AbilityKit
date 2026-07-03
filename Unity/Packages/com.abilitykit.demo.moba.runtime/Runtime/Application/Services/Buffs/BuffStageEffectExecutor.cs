@@ -133,7 +133,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         }
     }
 
-    internal interface IBuffTriggerContext : IMobaTriggerInvocationContext, IMobaActorContextProvider, IBuffLiveViewProvider
+    internal interface IBuffTriggerContext : IMobaTriggerInvocationContext, IMobaActorContextProvider, IBuffLiveViewProvider, IMobaRuntimeContextPayload
     {
         int BuffId { get; }
         string Stage { get; }
@@ -209,6 +209,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public bool TryGetBuffRuntime(out BuffRuntime runtime) => TryGetRuntime(out runtime);
 
+        public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
+        {
+            reference = new MobaRuntimeContextReference(RuntimeContextId, RuntimeContextVersion);
+            return reference.IsValid;
+        }
+ 
         public bool TryGetLiveBuffView(out BuffRuntimeView view)
         {
             view = new BuffRuntimeView(Runtime);

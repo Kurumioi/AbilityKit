@@ -7,6 +7,11 @@ namespace AbilityKit.Orleans.Contracts.Battle;
 public interface IStateSyncObserverGrain : IGrainWithStringKey
 {
     /// <summary>
+    /// 获取观察者上下文元信息。
+    /// </summary>
+    Task<StateSyncObserverInfo> GetObserverInfoAsync();
+
+    /// <summary>
     /// 订阅战斗状态同步
     /// </summary>
     Task SubscribeAsync(string battleGrainKey);
@@ -20,4 +25,12 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     /// 接收战斗状态快照推送。
     /// </summary>
     Task OnSnapshotPushedAsync(StateSyncPush push);
+}
+
+[GenerateSerializer]
+public sealed class StateSyncObserverInfo
+{
+    [Id(0)] public string ObserverKey { get; set; } = string.Empty;
+    [Id(1)] public string AccountId { get; set; } = string.Empty;
+    [Id(2)] public string RoomId { get; set; } = string.Empty;
 }
