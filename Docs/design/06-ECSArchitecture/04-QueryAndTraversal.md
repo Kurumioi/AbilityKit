@@ -52,10 +52,10 @@
 
 ```mermaid
 flowchart LR
-    QueryAPI[EntityWorld.Query<T>()] --> Result[EntityQuery<T>]
-    Result --> ForEach[ForEach(visitor)]
-    ForEach --> QueryImpl[EntityWorld.QueryImpl<T>]
-    QueryImpl --> Visitor[Action<IEntity, T>]
+    QueryAPI["EntityWorld.Query<T>()"] --> Result["EntityQuery<T>"]
+    Result --> ForEach["ForEach(visitor)"]
+    ForEach --> QueryImpl["EntityWorld.QueryImpl<T>"]
+    QueryImpl --> Visitor["Action<IEntity, T>"]
 ```
 
 ### 3.2 查询实现以组件索引为入口
@@ -86,12 +86,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    E1[EntityQuery<T1>] --> F1[ForEach]
-    E2[EntityQuery<T1,T2>] --> F2[ForEach]
-    E3[EntityQuery<T1,T2,T3>] --> F3[ForEach]
-    F1 --> V1[visitor]
-    F2 --> V2[visitor]
-    F3 --> V3[visitor]
+    E1["EntityQuery<T1>"] --> F1["ForEach"]
+    E2["EntityQuery<T1,T2>"] --> F2["ForEach"]
+    E3["EntityQuery<T1,T2,T3>"] --> F3["ForEach"]
+    F1 --> V1["visitor"]
+    F2 --> V2["visitor"]
+    F3 --> V3["visitor"]
 ```
 
 ### 3.4 存活性检查是查询的一部分
@@ -137,11 +137,11 @@ Svelto 的重点是：
 
 ```mermaid
 flowchart LR
-    Group[ExclusiveGroupStruct] --> DB[EntitiesDB]
-    DB --> Query1[QueryEntities<T>]
-    DB --> Query2[QueryMappedEntities<T>]
-    DB --> Query3[QueryEntitiesAndIndex<T>]
-    Query1 --> Enumerate[AllGroupsEnumerable / GroupsEnumerable]
+    Group["ExclusiveGroupStruct"] --> DB["EntitiesDB"]
+    DB --> Query1["QueryEntities<T>"]
+    DB --> Query2["QueryMappedEntities<T>"]
+    DB --> Query3["QueryEntitiesAndIndex<T>"]
+    Query1 --> Enumerate["AllGroupsEnumerable / GroupsEnumerable"]
 ```
 
 ### 4.3 设计上的共同点

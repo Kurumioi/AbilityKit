@@ -6,6 +6,7 @@ using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
+using AbilityKit.Demo.Moba.Predicates;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Payload;
@@ -31,7 +32,12 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         protected internal override void Configure(WorldContainerBuilder builder)
         {
             builder.TryRegisterType<AbilityKit.Triggering.Eventing.IEventBus, AbilityKit.Triggering.Eventing.EventBus>(WorldLifetime.Singleton);
-            builder.Register<FunctionRegistry>(WorldLifetime.Singleton, _ => new FunctionRegistry());
+            builder.Register<FunctionRegistry>(WorldLifetime.Singleton, _ =>
+            {
+                var functions = new FunctionRegistry();
+                MobaPlanPredicateFunctions.Register(functions);
+                return functions;
+            });
             builder.Register<ActionRegistry>(WorldLifetime.Singleton, _ => new ActionRegistry());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaBattleRouteRegistry.CreateDefault());
             builder.Register<AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry>(WorldLifetime.Singleton, _ => AbilityKit.Demo.Moba.Services.MobaInputCommandContractRegistry.CreateDefault());

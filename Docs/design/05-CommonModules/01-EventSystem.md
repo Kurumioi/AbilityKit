@@ -37,18 +37,18 @@
 
 ```mermaid
 flowchart TB
-    Publisher[Publisher\n发布者] -->|Publish string/int eventId + TArgs| Dispatcher[EventDispatcher]
+    Publisher["Publisher\\n发布者"] -->|Publish string/int eventId + TArgs| Dispatcher["EventDispatcher"]
 
-    Dispatcher --> Registry[StableStringIdRegistry\n字符串事件名转稳定 int]
-    Dispatcher --> Key[EventKey\neventId + typeof(TArgs)]
-    Key --> Channels[_channels\nDictionary<EventKey,IChannel>]
+    Dispatcher --> Registry["StableStringIdRegistry\\n字符串事件名转稳定 int"]
+    Dispatcher --> Key["EventKey\\neventId + typeof(TArgs)"]
+    Key --> Channels["_channels\\nDictionary<EventKey,IChannel>"]
 
-    Channels --> Channel[Channel<TArgs>\n同一事件 ID + 同一载荷类型]
-    Channel --> Listeners[List<Listener<TArgs>>\npriority/order/once]
-    Listeners --> SubscriberA[Subscriber A]
-    Listeners --> SubscriberB[Subscriber B]
+    Channels --> Channel["Channel<TArgs>\\n同一事件 ID + 同一载荷类型"]
+    Channel --> Listeners["List<Listener<TArgs>>\\npriority/order/once"]
+    Listeners --> SubscriberA["Subscriber A"]
+    Listeners --> SubscriberB["Subscriber B"]
 
-    Dispatcher --> Release[autoReleaseArgs\nIDisposable / Pools.TryRelease / IPoolable]
+    Dispatcher --> Release["autoReleaseArgs\\nIDisposable / Pools.TryRelease / IPoolable"]
 ```
 
 核心设计点有三个：
@@ -115,9 +115,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[新 Listener] --> B{比较 priority}
-    B -->|更高| C[插到当前 listener 前]
-    B -->|更低| D[继续向后找]
+    A["新 Listener"] --> B{比较 priority}
+    B -->|更高| C["插到当前 listener 前"]
+    B -->|更低| D["继续向后找"]
     B -->|相同| E{比较 order}
     E -->|更早订阅先执行| D
     E -->|新 listener 应在前| C
@@ -138,19 +138,19 @@ dispatcher.Publish(GameEvents.Damage, damageEvent, autoReleaseArgs: false);
 
 ```mermaid
 flowchart TB
-    Start[Publish<TArgs>] --> Resolve{eventId 是 string?}
-    Resolve -->|是| Id[StableStringIdRegistry.GetOrRegister]
+    Start["Publish<TArgs>"] --> Resolve{eventId 是 string?}
+    Resolve -->|是| Id["StableStringIdRegistry.GetOrRegister"]
     Resolve -->|否| Key
-    Id --> Key[new EventKey eventId + typeof(TArgs)]
+    Id --> Key["new EventKey eventId + typeof(TArgs)"]
     Key --> Lookup{_channels 命中?}
-    Lookup -->|否| Finally[finally: autoReleaseArgs]
-    Lookup -->|是| TypeCheck{IChannel 是 Channel<TArgs>?}
+    Lookup -->|否| Finally["finally: autoReleaseArgs"]
+    Lookup -->|是| TypeCheck{"IChannel 是 Channel<TArgs>?"}
     TypeCheck -->|否| Finally
-    TypeCheck -->|是| PublishChannel[Channel<TArgs>.Publish]
+    TypeCheck -->|是| PublishChannel["Channel<TArgs>.Publish"]
     PublishChannel --> Finally
     Finally --> Release{autoReleaseArgs?}
-    Release -->|否| End[结束]
-    Release -->|是| ReleasePath[释放事件参数]
+    Release -->|否| End["结束"]
+    Release -->|是| ReleasePath["释放事件参数"]
     ReleasePath --> End
 ```
 
@@ -164,25 +164,25 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Start[Channel.Publish] --> Count{listener 数量}
-    Count -->|0| End[返回]
-    Count -->|1| Single[直接调用唯一 listener]
-    Count -->|多于 1| Rent[从 ObjectPool 取 snapshot List]
+    Start["Channel.Publish"] --> Count{listener 数量}
+    Count -->|0| End["返回"]
+    Count -->|1| Single["直接调用唯一 listener"]
+    Count -->|多于 1| Rent["从 ObjectPool 取 snapshot List"]
     Single --> Once1{listener.once?}
-    Once1 -->|是| Remove1[从 _listeners 移除]
+    Once1 -->|是| Remove1["从 _listeners 移除"]
     Once1 -->|否| End
     Remove1 --> End
 
-    Rent --> Copy[复制 _listeners 到 snapshot]
-    Copy --> Loop[遍历 snapshot]
-    Loop --> Invoke[Invoke handler]
+    Rent --> Copy["复制 _listeners 到 snapshot"]
+    Copy --> Loop["遍历 snapshot"]
+    Loop --> Invoke["Invoke handler"]
     Invoke --> Once2{once?}
-    Once2 -->|是| Remove2[Remove listener]
+    Once2 -->|是| Remove2["Remove listener"]
     Once2 -->|否| Next
     Remove2 --> Next
     Next --> More{还有 listener?}
     More -->|是| Loop
-    More -->|否| Release[归还 snapshot List]
+    More -->|否| Release["归还 snapshot List"]
     Release --> End
 ```
 
@@ -223,10 +223,10 @@ AbilityKit 的实现用 `EventKey(eventId, typeof(TArgs))` 隔离通道：
 
 ```mermaid
 flowchart LR
-    A[eventId = 100] --> B[EventKey 100 + DamageEvent]
-    A --> C[EventKey 100 + HealEvent]
-    B --> D[Channel<DamageEvent>]
-    C --> E[Channel<HealEvent>]
+    A["eventId = 100"] --> B["EventKey 100 + DamageEvent"]
+    A --> C["EventKey 100 + HealEvent"]
+    B --> D["Channel<DamageEvent>"]
+    C --> E["Channel<HealEvent>"]
 ```
 
 这样可以保留整数 ID 的轻量性，也避免不同事件参数类型误投递。代价是：发布和订阅必须使用完全一致的 `TArgs` 类型，否则会命中另一个通道或根本没有监听者。
@@ -239,15 +239,15 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    Start[Publish finally] --> Auto{autoReleaseArgs?}
-    Auto -->|否| End[不处理]
+    Start["Publish finally"] --> Auto{autoReleaseArgs?}
+    Auto -->|否| End["不处理"]
     Auto -->|是| Disposable{args is IDisposable?}
-    Disposable -->|是| Dispose[Dispose]
-    Disposable -->|否| Box[box args as object]
-    Box --> TryPool{Pools.TryRelease(boxed)?}
+    Disposable -->|是| Dispose["Dispose"]
+    Disposable -->|否| Box["box args as object"]
+    Box --> TryPool{"Pools.TryRelease(boxed)?"}
     TryPool -->|是| End
     TryPool -->|否| Poolable{boxed is IPoolable?}
-    Poolable -->|是| OnRelease[OnPoolRelease]
+    Poolable -->|是| OnRelease["OnPoolRelease"]
     Poolable -->|否| End
     Dispose --> End
     OnRelease --> End

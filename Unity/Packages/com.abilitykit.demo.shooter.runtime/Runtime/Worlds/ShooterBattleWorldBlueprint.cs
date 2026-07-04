@@ -16,13 +16,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             options.WorldType = ShooterGameplay.WorldType;
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
-            var scenario = ShooterSveltoGameplayScenarioCatalog.WaveSurvival;
+            var scenario = ResolveScenario(options);
             var battleFlow = CreateBattleFlow(scenario.BattleFlow, options);
             var enemyWaveOptions = new ShooterEnemyWaveOptions(true, battleFlow);
             var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
             options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
             options.ServiceBuilder.Register<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => arenaOptions);
             options.Modules.Add(new ShooterWorldModule());
+        }
+
+        private static ShooterSveltoGameplayScenarioConfig ResolveScenario(WorldCreateOptions options)
+        {
+            return options.Extensions.TryGetValue(typeof(ShooterSveltoGameplayScenarioConfig), out var value) &&
+                   value is ShooterSveltoGameplayScenarioConfig scenario
+                ? scenario
+                : ShooterSveltoGameplayScenarioCatalog.WaveSurvival;
         }
 
         private static ShooterSveltoGameplayBattleFlowConfig CreateBattleFlow(

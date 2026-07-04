@@ -173,6 +173,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public string CompareOp;
             public NumericValueRefDto Left;
             public NumericValueRefDto Right;
+            public int FunctionId;
+            public int FunctionArity;
         }
 
         [Serializable]

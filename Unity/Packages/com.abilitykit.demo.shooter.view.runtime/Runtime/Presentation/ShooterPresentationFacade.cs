@@ -123,10 +123,16 @@ namespace AbilityKit.Demo.Shooter.View
         {
             ApplyLocalPredictionSnapshot(in snapshot);
         }
-
+ 
         public void ApplyLocalPredictionSnapshot(in ShooterStateSnapshotPayload snapshot)
         {
             var batch = _adapter.ApplySnapshot(in snapshot, ShooterViewBatchSource.LocalPrediction);
+            _stream.Publish(in batch);
+        }
+
+        public void ApplyLocalAuthoritativeSnapshot(in ShooterStateSnapshotPayload snapshot)
+        {
+            var batch = _adapter.ApplySnapshot(in snapshot, ShooterViewBatchSource.LocalAuthoritative);
             _stream.Publish(in batch);
         }
 

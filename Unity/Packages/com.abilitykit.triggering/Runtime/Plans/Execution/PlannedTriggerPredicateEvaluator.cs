@@ -181,9 +181,67 @@ namespace AbilityKit.Triggering.Runtime.Plan
                         stack[sp++] = CompareNumeric(n.CompareOp, left, right);
                         break;
                     }
+                    case EBoolExprNodeKind.Function:
+                    {
+                        stack[sp++] = EvaluateExprFunction(in n, in args, in ctx);
+                        break;
+                    }
                     default:
                         throw new InvalidOperationException($"Unsupported expr node kind: {n.Kind}");
                 }
+            }
+        }
+
+        private static bool EvaluateExprFunction(in BoolExprNode node, in TArgs args, in ExecCtx<TCtx> ctx)
+        {
+            switch (node.FunctionArity)
+            {
+                case 0:
+                    if (ctx.Functions.TryGet<Predicate0<TArgs, TCtx>>(node.FunctionId, out var p0, out var p0Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !p0Det)
+                        {
+                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, node.FunctionId)}");
+                        }
+
+                        return p0?.Invoke(args, ctx) ?? true;
+                    }
+
+                    throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=0");
+
+                case 1:
+                    if (ctx.Functions.TryGet<Predicate1<TArgs, TCtx>>(node.FunctionId, out var p1, out var p1Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !p1Det)
+                        {
+                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, node.FunctionId)}");
+                        }
+
+                        var v0 = ResolveNumeric(in args, in node.Left, in ctx);
+                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0);
+                        return p1?.Invoke(args, argsDict, ctx) ?? true;
+                    }
+
+                    throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=1");
+
+                case 2:
+                    if (ctx.Functions.TryGet<Predicate2<TArgs, TCtx>>(node.FunctionId, out var p2, out var p2Det))
+                    {
+                        if (ctx.Policy.RequireDeterministic && !p2Det)
+                        {
+                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, node.FunctionId)}");
+                        }
+
+                        var v0 = ResolveNumeric(in args, in node.Left, in ctx);
+                        var v1 = ResolveNumeric(in args, in node.Right, in ctx);
+                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0, v1);
+                        return p2?.Invoke(args, argsDict, ctx) ?? true;
+                    }
+
+                    throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=2");
+
+                default:
+                    throw new InvalidOperationException($"Unsupported predicate arity: {node.FunctionArity}");
             }
         }
 

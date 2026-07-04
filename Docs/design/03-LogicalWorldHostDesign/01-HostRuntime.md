@@ -41,16 +41,16 @@ Host 的定位可以理解为：
 
 ```mermaid
 flowchart TB
-    Builder[WorldHostBuilder] --> Runtime[HostRuntime]
-    Runtime --> Manager[WorldManager]
-    Runtime --> Options[HostRuntimeOptions]
-    Runtime --> Clients[Server connections]
-    Runtime --> Features[HostRuntimeFeatures]
+    Builder["WorldHostBuilder"] --> Runtime["HostRuntime"]
+    Runtime --> Manager["WorldManager"]
+    Runtime --> Options["HostRuntimeOptions"]
+    Runtime --> Clients["Server connections"]
+    Runtime --> Features["HostRuntimeFeatures"]
 
-    Manager --> Worlds[IWorld instances]
-    Options --> Hooks[Lifecycle hooks]
-    Features --> Modules[Extension modules]
-    Clients --> Messages[ServerMessage broadcast]
+    Manager --> Worlds["IWorld instances"]
+    Options --> Hooks["Lifecycle hooks"]
+    Features --> Modules["Extension modules"]
+    Clients --> Messages["ServerMessage broadcast"]
 ```
 
 ---
@@ -74,25 +74,25 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    subgraph HostPackage[com.abilitykit.host]
-        IWorldHost[IWorldHost]
-        HostRuntime[HostRuntime]
-        Options[HostRuntimeOptions]
-        Features[HostRuntimeFeatures]
-        Builder[WorldHostBuilder]
-        ServerConnection[IServerConnection]
+    subgraph HostPackage["com.abilitykit.host"]
+        IWorldHost["IWorldHost"]
+        HostRuntime["HostRuntime"]
+        Options["HostRuntimeOptions"]
+        Features["HostRuntimeFeatures"]
+        Builder["WorldHostBuilder"]
+        ServerConnection["IServerConnection"]
     end
 
-    subgraph WorldDI[com.abilitykit.world.di]
-        Manager[IWorldManager]
-        World[IWorld]
-        Factory[IWorldFactory]
+    subgraph WorldDI["com.abilitykit.world.di"]
+        Manager["IWorldManager"]
+        World["IWorld"]
+        Factory["IWorldFactory"]
     end
 
     Builder --> Factory
     Builder --> Options
     Builder --> HostRuntime
-    IWorldHost <|.. HostRuntime
+    IWorldHost -. implements .-> HostRuntime
     HostRuntime --> Manager
     HostRuntime --> Options
     HostRuntime --> Features
@@ -145,23 +145,23 @@ public interface IWorldHost
 
 ```mermaid
 flowchart TD
-    Start[BuildWithOptions] --> ChooseFactory{worldFactory exists}
-    ChooseFactory -->|No| DefaultFactory[Create DefaultWorldFactory]
-    ChooseFactory -->|Yes| GivenFactory[Use given factory]
+    Start["BuildWithOptions"] --> ChooseFactory{worldFactory exists}
+    ChooseFactory -->|No| DefaultFactory["Create DefaultWorldFactory"]
+    ChooseFactory -->|Yes| GivenFactory["Use given factory"]
     GivenFactory --> WrapBlueprint{blueprintRegistry exists}
-    WrapBlueprint -->|Yes| BlueprintFactory[Wrap with WorldBlueprintWorldFactory]
-    WrapBlueprint -->|No| FinalFactory[Use factory]
-    DefaultFactory --> Manager[Create WorldManager]
+    WrapBlueprint -->|Yes| BlueprintFactory["Wrap with WorldBlueprintWorldFactory"]
+    WrapBlueprint -->|No| FinalFactory["Use factory"]
+    DefaultFactory --> Manager["Create WorldManager"]
     BlueprintFactory --> Manager
     FinalFactory --> Manager
-    Manager --> Options[Create HostRuntimeOptions]
-    Options --> Runtime[Create HostRuntime]
-    Runtime --> Connection[Attach connection manager]
-    Connection --> TimeDriver[Attach time driver]
-    TimeDriver --> InputDriver[Attach input driver]
-    InputDriver --> Snapshot[Register snapshot provider in Features]
-    Snapshot --> Modules[Install modules]
-    Modules --> Done[Return host and options]
+    Manager --> Options["Create HostRuntimeOptions"]
+    Options --> Runtime["Create HostRuntime"]
+    Runtime --> Connection["Attach connection manager"]
+    Connection --> TimeDriver["Attach time driver"]
+    TimeDriver --> InputDriver["Attach input driver"]
+    InputDriver --> Snapshot["Register snapshot provider in Features"]
+    Snapshot --> Modules["Install modules"]
+    Modules --> Done["Return host and options"]
 ```
 
 对应源码顺序：
@@ -244,23 +244,23 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    Tick[HostRuntime.Tick] --> Try[try block]
-    Try --> PreHook[PreTick Hook]
-    PreHook --> LegacyPre[OnPreTick delegate]
-    LegacyPre --> WorldTick[WorldManager.Tick]
-    WorldTick --> PostHook[PostTick Hook]
-    PostHook --> LegacyPost[OnPostTick delegate]
-    Try --> Catch[Log exception]
+    Tick["HostRuntime.Tick"] --> Try["try block"]
+    Try --> PreHook["PreTick Hook"]
+    PreHook --> LegacyPre["OnPreTick delegate"]
+    LegacyPre --> WorldTick["WorldManager.Tick"]
+    WorldTick --> PostHook["PostTick Hook"]
+    PostHook --> LegacyPost["OnPostTick delegate"]
+    Try --> Catch["Log exception"]
 ```
 
 `WorldManager.Tick` 会遍历所有世界，并且单个世界异常只记录日志，不让整个 Host Tick 直接中断：
 
 ```mermaid
 flowchart LR
-    ManagerTick[WorldManager.Tick] --> Each[For each world]
-    Each --> TryWorld[Try world.Tick]
-    TryWorld -->|Success| Next[Next world]
-    TryWorld -->|Exception| Log[Log world id and exception]
+    ManagerTick["WorldManager.Tick"] --> Each["For each world"]
+    Each --> TryWorld["Try world.Tick"]
+    TryWorld -->|Success| Next["Next world"]
+    TryWorld -->|Exception| Log["Log world id and exception"]
     Log --> Next
 ```
 
@@ -311,11 +311,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    ModuleA[Module A] --> Register[RegisterFeature interface]
-    Register --> Features[HostRuntimeFeatures]
-    ModuleB[Module B] --> TryGet[TryGetFeature interface]
+    ModuleA["Module A"] --> Register["RegisterFeature interface"]
+    Register --> Features["HostRuntimeFeatures"]
+    ModuleB["Module B"] --> TryGet["TryGetFeature interface"]
     TryGet --> Features
-    Features --> Shared[Shared capability instance]
+    Features --> Shared["Shared capability instance"]
 ```
 
 典型例子：

@@ -78,7 +78,9 @@ namespace AbilityKit.Demo.Shooter.View
         public bool IsFullSnapshot => SnapshotKind == ShooterViewSnapshotKind.Full;
 
         public bool ShouldReplaceMissingEntities => IsFullSnapshot &&
-            (Source == ShooterViewBatchSource.AuthoritativeCorrection || Source == ShooterViewBatchSource.JoinOrReconnect);
+            (Source == ShooterViewBatchSource.AuthoritativeCorrection ||
+             Source == ShooterViewBatchSource.JoinOrReconnect ||
+             Source == ShooterViewBatchSource.LocalAuthoritative);
  
         public static ShooterSnapshotViewBatch Empty { get; } = new ShooterSnapshotViewBatch(
             0UL,
@@ -142,7 +144,8 @@ namespace AbilityKit.Demo.Shooter.View
         LocalPrediction = 1,
         AuthoritativeCorrection = 2,
         JoinOrReconnect = 3,
-        DebugSnapshot = 4
+        DebugSnapshot = 4,
+        LocalAuthoritative = 5
     }
 
     public readonly struct ShooterViewEntityChange

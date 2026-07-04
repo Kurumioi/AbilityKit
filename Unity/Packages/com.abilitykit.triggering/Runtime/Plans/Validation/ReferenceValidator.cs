@@ -80,7 +80,7 @@ namespace AbilityKit.Triggering.Validation
                 // 校验 PredicateExpr 中的引用
                 if (plan.PredicateKind == EPredicateKind.Expr)
                 {
-                    ValidatePredicateExpr(plan.PredicateExpr, path, ref result);
+                    ValidatePredicateExpr(plan.PredicateExpr, path, context, ref result);
                 }
             }
         }
@@ -108,6 +108,7 @@ namespace AbilityKit.Triggering.Validation
         private void ValidatePredicateExpr(
             PredicateExprPlan expr,
             string entryPath,
+            in ValidationContext<TCtx> context,
             ref ValidationResult result)
         {
             if (expr.Nodes == null)
@@ -118,10 +119,24 @@ namespace AbilityKit.Triggering.Validation
                 var node = expr.Nodes[i];
                 var nodePath = $"{entryPath}.predicate.nodes[{i}]";
 
-                if (node.Kind == EBoolExprNodeKind.CompareNumeric)
+                if (node.Kind == EBoolExprNodeKind.CompareNumeric || node.Kind == EBoolExprNodeKind.Function)
                 {
                     ValidateNumericValueRef(node.Left, nodePath, "left", ref result);
                     ValidateNumericValueRef(node.Right, nodePath, "right", ref result);
+
+                    if (node.Kind == EBoolExprNodeKind.Function)
+                    {
+                        var funcIdStr = node.FunctionId.Value.ToString();
+                        if (context.DefinedFunctionIds != null &&
+                            context.DefinedFunctionIds.Count > 0 &&
+                            !context.DefinedFunctionIds.Contains(funcIdStr))
+                        {
+                            result.AddError(
+                                ValidationErrorCodes.FUNCTION_NOT_FOUND,
+                                $"引用的函数 '{funcIdStr}' 未注册",
+                                nodePath);
+                        }
+                    }
                 }
             }
         }

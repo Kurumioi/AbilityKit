@@ -40,8 +40,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             ImportComponentChunks(componentChunks, isDelta);
 
-            _state.IsStarted = _entities.PlayerCount > 0;
-            return _state.IsStarted || snapshot.EntityCount == 0;
+            return _entities.PlayerCount > 0 || snapshot.EntityCount == 0;
         }
 
         private void ImportComponentChunks(ShooterPackedComponentChunk[] componentChunks, bool isDelta = false)
@@ -50,6 +49,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var projectiles = new Dictionary<int, ShooterSveltoProjectileComponent>();
             var enemies = new Dictionary<int, ImportedEnemy>();
             var removedProjectiles = new HashSet<int>();
+            var removedEnemies = new HashSet<int>();
 
             for (int i = 0; i < componentChunks.Length; i++)
             {
@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                         ImportRuntimeMetadataChunk(in chunk);
                         break;
                     case ShooterPackedComponentKinds.EntityLifecycle:
-                        ImportLifecycleComponentChunk(in chunk, players, projectiles, enemies, removedProjectiles);
+                        ImportLifecycleComponentChunk(in chunk, players, projectiles, enemies, removedProjectiles, removedEnemies);
                         break;
                     case ShooterPackedComponentKinds.Transform:
                         ImportTransformComponentChunk(in chunk, players, projectiles, enemies);
@@ -81,6 +81,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             {
                 projectiles.Remove(projectileId);
                 _entities.RemoveProjectile(projectileId);
+            }
+
+            foreach (var enemyId in removedEnemies)
+            {
+                enemies.Remove(enemyId);
+                _entities.RemoveEnemy(enemyId);
             }
 
             foreach (var player in players.Values)
@@ -138,7 +144,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             Dictionary<int, ShooterSveltoPlayerComponent> players,
             Dictionary<int, ShooterSveltoProjectileComponent> projectiles,
             Dictionary<int, ImportedEnemy> enemies,
-            HashSet<int> removedProjectiles)
+            HashSet<int> removedProjectiles,
+            HashSet<int> removedEnemies)
         {
             var count = Math.Max(0, chunk.Count);
             for (int i = 0; i < count; i++)
@@ -174,6 +181,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
                 else if (chunk.EntityKind == ShooterPackedEntityKinds.Enemy)
                 {
+                    if ((flags & ShooterPackedEntityFlags.Despawned) != 0)
+                    {
+                        removedEnemies.Add(entityId);
+                        enemies.Remove(entityId);
+                        continue;
+                    }
+
                     enemies[entityId] = new ImportedEnemy
                     {
                         EntityId = entityId,

@@ -204,6 +204,27 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void LocalMenuDefaultSessionDoesNotDefeatIdlePlayersAfterTwelveSeconds()
+    {
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(ShooterPlayModeSessionOptions.Default);
+
+        var totalTicks = runner.Options.TickRate * 12;
+        for (var tick = 0; tick < totalTicks; tick++)
+        {
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        Assert.Equal(totalTicks, runner.StepCount);
+        Assert.Equal(ShooterBattleMatchState.Running, runner.Session!.Runtime.MatchState);
+        Assert.True(runner.Session.Runtime.IsStarted);
+        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
+        Assert.True(MaxEntities(view.Frames, ShooterViewEntityKind.Enemy) >= 12, "Expected the local menu default waves to keep a visibly dense enemy population.");
+    }
+
+    [Fact]
     public void LocalMenuDefaultSessionContinuesAfterEnemyHit()
     {
         var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;
@@ -231,32 +252,76 @@ public sealed class ShooterPlaySessionRunnerTests
 
         var enemyHitFrame = -1;
         var runtimeEnemyHitFrame = -1;
+        ShooterEventSnapshot? firstPresentationHit = null;
         for (var tick = 0; tick < totalTicks; tick++)
         {
             var snapshot = runner.Session!.Runtime.GetSnapshot();
             input.Current = TryCreateAimAtNearestEnemy(in snapshot, runner.Options.ControlledPlayerId, out var aimX, out var aimY)
                 ? new ShooterHostFrameInput(0f, 0f, aimX, aimY, true)
                 : new ShooterHostFrameInput(0f, 0f, 0f, 1f, false);
-
+ 
             runner.Tick(1f / runner.Options.TickRate);
             var postTickSnapshot = runner.Session!.Runtime.GetSnapshot();
             if (runtimeEnemyHitFrame < 0 && ContainsEnemyHitEvent(in postTickSnapshot))
             {
                 runtimeEnemyHitFrame = postTickSnapshot.Frame;
             }
-
-            if (enemyHitFrame < 0 && ContainsEnemyHitEvent(view.Frames[^1].ClientBatch))
+ 
+            if (enemyHitFrame < 0 && TryGetEnemyHitEvent(view.Frames[^1].ClientBatch, out var hit))
             {
                 enemyHitFrame = view.Frames[^1].ClientBatch.Frame;
+                firstPresentationHit = hit;
             }
-        }
 
+        }
+ 
         Assert.True(runtimeEnemyHitFrame > 0, "Expected the PlayMode runtime to produce an enemy hit while dynamically aiming at the nearest close enemy.");
         Assert.True(enemyHitFrame > 0, "Expected the PlayMode presentation to project the enemy hit event.");
         Assert.Equal(totalTicks, runner.StepCount);
         Assert.Equal(totalTicks, view.Frames.Count);
         Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame);
         Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame && CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
+
+        var firstHit = Assert.IsType<ShooterEventSnapshot>(firstPresentationHit);
+        var projection = new ShooterSnapshotViewProjection();
+        for (var i = 0; i < view.Frames.Count; i++)
+        {
+            var batch = view.Frames[i].ClientBatch;
+            projection.Apply(in batch);
+        }
+
+        Assert.Equal(ShooterViewBatchSource.LocalAuthoritative, view.Frames[^1].ClientBatch.Source);
+        Assert.False(projection.Store.ContainsEntity(new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, firstHit.BulletId)));
+        Assert.False(projection.Store.ContainsEntity(new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, -firstHit.TargetPlayerId)));
+    }
+
+    [Fact]
+    public void AuthoritativePlayModePresentationUsesAuthoritativeSnapshotSource()
+    {
+        const int tickRate = 30;
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(new ShooterPlayModeSessionOptions(
+            NetworkSyncModel.PredictRollback,
+            tickRate,
+            playerCount: 2,
+            randomSeed: 3902,
+            controlledPlayerId: 1,
+            enableAuthoritativeWorld: true,
+            latencyMs: 0,
+            jitterMs: 0,
+            packetLossRate: 0f,
+            reorderRate: 0f,
+            bandwidthKbps: 0,
+            worldScale: 1f,
+            networkName: "authority projection source regression"));
+
+        runner.Tick(1f / tickRate);
+
+        var frame = Assert.Single(view.Frames);
+        Assert.True(frame.HasAuthorityBatch);
+        Assert.Equal(ShooterViewBatchSource.LocalAuthoritative, frame.AuthorityBatch.Source);
     }
 
     [Fact]
@@ -591,6 +656,17 @@ public sealed class ShooterPlaySessionRunnerTests
         return false;
     }
 
+    private static int MaxEntities(IReadOnlyList<ShooterHostPresentationFrame> frames, ShooterViewEntityKind kind)
+    {
+        var max = 0;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            max = Math.Max(max, CountEntities(frames[i].ClientBatch, kind));
+        }
+
+        return max;
+    }
+
     private static int CountEntities(in ShooterSnapshotViewBatch batch, ShooterViewEntityKind kind)
     {
         var count = 0;
@@ -643,15 +719,22 @@ public sealed class ShooterPlaySessionRunnerTests
 
     private static bool ContainsEnemyHitEvent(in ShooterSnapshotViewBatch batch)
     {
+        return TryGetEnemyHitEvent(in batch, out _);
+    }
+
+    private static bool TryGetEnemyHitEvent(in ShooterSnapshotViewBatch batch, out ShooterEventSnapshot hit)
+    {
         var events = batch.Events;
         for (var i = 0; i < events.Count; i++)
         {
             if (IsEnemyHitEvent(events[i]))
             {
+                hit = events[i];
                 return true;
             }
         }
 
+        hit = default;
         return false;
     }
 

@@ -110,12 +110,16 @@ flowchart TB
 
 ### 3.3 服务端/联机路线
 
-1. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
-2. [帧同步机制](07-NetworkSynchronization/01-FrameSync.md)
-3. [状态同步](07-NetworkSynchronization/02-StateSync.md)
-4. [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md)
-5. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
-6. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
+1. [服务端能力地图](12-ServerArchitecture/00-ServerCapabilityMap.md)
+2. [Orleans 运行时与部署设计](12-ServerArchitecture/01-OrleansRuntimeAndDeployment.md)
+3. [Gateway、Room 与 Battle 主链路设计](12-ServerArchitecture/02-GatewayRoomBattleFlow.md)
+4. [Web 后台：Admin Console 技术选型与职责边界](12-ServerArchitecture/03-WebAdminConsoleDesign.md)
+5. [网络同步能力地图](07-NetworkSynchronization/00-SynchronizationCapabilityMap.md)
+6. [帧同步机制](07-NetworkSynchronization/01-FrameSync.md)
+7. [状态同步](07-NetworkSynchronization/02-StateSync.md)
+8. [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md)
+9. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
+10. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
 
 ---
 
@@ -226,6 +230,7 @@ flowchart TB
 | [03.12-MOBA PlanActions DSL 与 Continuous Runtime 深潜](09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md) | 已新增 | ActionSchema、PlanActionModule、ContinuousRuntimeView、LifecycleBinder、ContextSourceBoundary |
 | [03.13-MOBA DI 与 System/Service 协作深潜](09-ImplementationExamples/MOBA/12-DIAndSystemServiceCollaborationDeepDive.md) | 已补强 | MobaServicesAutoModule、WorldService、WorldInject、WorldActivator、MobaGameplayTickSystem、MobaSkillPipelineStepSystem、MobaBuffCommandDrainSystem、Service + ECS System 协作边界 |
 | [03.14-MOBA 持续行为能力组合设计](09-ImplementationExamples/MOBA/13-ContinuousCapabilityCompositionDesign.md) | 已新增 | stack、periodic、cue、tag、modifier 与 Buff、Projectile、Motion、Skill Pipeline 等领域 runtime 的组合边界 |
+| [03.15-MOBA 四英雄技能正式实现设计](09-ImplementationExamples/MOBA/14-HeroSkillFormalDesign.md) | 已新增 | 廉颇、小乔、赵云、墨子的技能/被动需求映射、TriggerPlan、Buff、Projectile、Counter、通用 predicate 与验证路径 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | 已补强 | Shooter Runtime/Svelto、packed/pure-state snapshot、客户端同步控制器、Unity PlayMode 远程宿主、连接恢复、Gateway/Orleans 与 Smoke/replay 验收 |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | 已新增 | Shooter 示例拆分阅读入口 |
 | [04.2-Shooter Runtime、Svelto 与战斗模拟](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | 已新增 | RuntimePort、Svelto EntityManager、Simulation Tick |
@@ -252,6 +257,15 @@ flowchart TB
 |------|------|------|
 | [01-文档补全路线图](11-DocumentationCompletionPlan.md) | 已补强 | P0-P3 完成状态、源码验证重点、下一轮 P4-P8 优先方向、Batch 12 测试/CI 后续专题、文档验收顺序 |
 
+### 12 服务端架构
+
+| 文档 | 状态 | 说明 |
+|------|------|------|
+| [00-服务端能力地图](12-ServerArchitecture/00-ServerCapabilityMap.md) | 已新增 | 将 Orleans 服务端从 Shooter 演示支撑提升为正式运行面，梳理 Contracts、Gateway、Grains、Hosting、Smoke、Analyzer 的能力边界 |
+| [01-Orleans 运行时与部署设计](12-ServerArchitecture/01-OrleansRuntimeAndDeployment.md) | 已新增 | Host/Gateway 进程拓扑、Local Silo/Client 装配、部署角色、运行 profile、存储策略和后续生产化演进点 |
+| [02-Gateway、Room 与 Battle 主链路设计](12-ServerArchitecture/02-GatewayRoomBattleFlow.md) | 已新增 | GatewayRequestRouter、RoomDirectoryGrain、RoomGrain、RoomFrameSyncRoute、BattleLogicHostGrain 和 ServerGameplayModuleCatalog 的主流程 |
+| [03-Web 后台：Admin Console 技术选型与职责边界](12-ServerArchitecture/03-WebAdminConsoleDesign.md) | 已新增 | Vite + Vue 3 + TypeScript 后台工程、Hash Router、组合式状态、/api/admin 聚合门面、Gateway 静态托管与运维诊断边界 |
+
 ---
 
 ## 5. 源码入口索引
@@ -269,7 +283,12 @@ flowchart TB
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
 | Combat | `Unity/Packages/com.abilitykit.combat.*` | `src/AbilityKit.Combat.*` | Demo battle logic host |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime` | `src/AbilityKit.Record` | Smoke/replay tools |
-| Orleans | - | - | `Server/Orleans/src` |
+| Orleans Contracts | - | - | `Server/Orleans/src/AbilityKit.Orleans.Contracts` |
+| Orleans Gateway | - | - | `Server/Orleans/src/AbilityKit.Orleans.Gateway` |
+| Orleans Grains | - | - | `Server/Orleans/src/AbilityKit.Orleans.Grains` |
+| Orleans Hosting | - | - | `Server/Orleans/src/AbilityKit.Orleans.Hosting` |
+| Orleans Admin Console | - | - | `Server/AdminConsole` |
+| Orleans Smoke | - | - | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke` |
 
 ---
 
@@ -303,6 +322,9 @@ flowchart TB
 | 2026-07-04 | 2.21 | 完成 P5 World DI、ECS System 与 MOBA Service 协作补强，核准 WorldActivator 构造函数注入、WorldInject 成员注入、AutoSystemInstaller 构造约束与 Service + ECS System 组合开发模式 |
 | 2026-07-04 | 2.22 | 完成 P6 Pipeline、技能释放与 Triggering 主链路补强，核准 AbilityPipelinePhaseRuntime 运行实例语义、MOBA SkillTimelinePhase、SkillRulePlanPhase、MobaTriggerPlanExecutor 与 TriggerRunner 边界 |
 | 2026-07-04 | 2.23 | 完成 P7 CodeGen、Luban 与配置链路补强，核准 ConfigDatabase 原子重载、Luban JSON/导出链路、Console cfg.Tables 加载、AutoPlanActionGenerator 注册边界与 TriggerPlan ActionSchema 启动门禁 |
+| 2026-07-04 | 2.24 | 新增 MOBA 四英雄技能正式实现设计文档，说明廉颇、小乔、赵云、墨子如何通过 TriggerPlan、Buff、Projectile、Counter 与通用 predicate 落地 |
+| 2026-07-04 | 2.25 | 新增服务端架构专题，将 Orleans 服务端作为独立运行面补齐能力地图、运行时部署、Gateway/Room/Battle 主链路与源码锚点 |
+| 2026-07-04 | 2.26 | 新增 Web 后台设计文档，补齐 Admin Console 技术选型、页面职责、状态/API 边界、Gateway 静态托管和 /api/admin 运维诊断门面 |
 
 ---
 

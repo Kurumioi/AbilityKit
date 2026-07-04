@@ -1,11 +1,6 @@
 using System;
 using AbilityKit.Ability.FrameSync.Rollback;
-using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Host.Extensions.FrameSync;
-using AbilityKit.Ability.Host.Extensions.Rollback;
-using AbilityKit.Ability.Host.Extensions.Time;
-using AbilityKit.Ability.Host.Extensions.WorldStart;
-using AbilityKit.Ability.Host.Framework;
+using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -26,12 +21,19 @@ namespace AbilityKit.Game.Battle
             if (options.Mode == BattleLogicMode.Remote) return null;
 
             var worldManager = CreateWorldManager();
-            var serverOptions = new HostRuntimeOptions();
-            var server = new HostRuntime(worldManager, serverOptions);
-            var modules = CreateModules(options, rollbackRegistryFactory, out var rollbackModule);
+            var profile = new MobaHostRuntimeProfile(
+                enableFrameSync: true,
+                enableServerFrameTime: true,
+                enableWorldAutoStart: true,
+                enableRollback: options.EnableRollback,
+                rollbackHistoryFrames: options.RollbackHistoryFrames,
+                rollbackCaptureEveryNFrames: options.RollbackCaptureEveryNFrames);
+            var runtime = MobaHostRuntimeBuilder.CreateRuntime(
+                worldManager,
+                in profile,
+                world => rollbackRegistryFactory.Create(world));
 
-            modules.InstallAll(server, serverOptions);
-            return new BattleLogicSessionRuntime(worldManager, server, rollbackModule);
+            return new BattleLogicSessionRuntime(worldManager, runtime.Runtime, runtime.RollbackModule);
         }
 
         public WorldContainerBuilder CreateWorldServices(BattleLogicSessionOptions options)
@@ -78,30 +80,5 @@ namespace AbilityKit.Game.Battle
             return new WorldManager(factory);
         }
 
-        private static HostRuntimeModuleHost CreateModules(
-            BattleLogicSessionOptions options,
-            IBattleRollbackRegistryFactory rollbackRegistryFactory,
-            out ServerRollbackModule rollbackModule)
-        {
-            rollbackModule = null;
-            var modules = new HostRuntimeModuleHost()
-                .Add(new FrameSyncDriverModule())
-                .Add(new ServerFrameTimeModule())
-                .Add(new WorldAutoStartModule());
-
-            if (!options.EnableRollback) return modules;
-
-            var history = options.RollbackHistoryFrames;
-            if (history <= 0) history = 600;
-            var captureEvery = options.RollbackCaptureEveryNFrames;
-            if (captureEvery <= 0) captureEvery = 30;
-
-            rollbackModule = new ServerRollbackModule(
-                history,
-                captureEvery,
-                world => rollbackRegistryFactory.Create(world));
-            modules.Add(rollbackModule);
-            return modules;
-        }
     }
 }

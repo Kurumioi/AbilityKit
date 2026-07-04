@@ -45,15 +45,15 @@
 
 ```mermaid
 flowchart TB
-    Driver[外部驱动\nUnity Update / FixedStep / Server Loop] --> Host[HostRuntime.Tick(deltaTime)]
-    Host --> Worlds[IWorldManager.Tick]
-    Worlds --> Clock[IWorldClock.Tick\nDeltaTime + Time]
-    Worlds --> Systems[World/System Tick]
+    Driver["外部驱动\\nUnity Update / FixedStep / Server Loop"] --> Host["HostRuntime.Tick(deltaTime)"]
+    Host --> Worlds["IWorldManager.Tick"]
+    Worlds --> Clock["IWorldClock.Tick\\nDeltaTime + Time"]
+    Worlds --> Systems["World/System Tick"]
 
-    Driver --> Scheduler[DefaultScheduler.Tick(deltaTime)]
-    Scheduler --> Tasks[IScheduledTask.Update]
+    Driver --> Scheduler["DefaultScheduler.Tick(deltaTime)"]
+    Scheduler --> Tasks["IScheduledTask.Update"]
 
-    Utility[SystemTimer\nStopwatch elapsed] --> LocalMeasure[局部耗时测量]
+    Utility["SystemTimer\\nStopwatch elapsed"] --> LocalMeasure["局部耗时测量"]
 ```
 
 这几层不要混用：
@@ -83,11 +83,11 @@ public interface ITimer
 
 ```mermaid
 flowchart LR
-    Create[TimerUtility.CreateStarted] --> New[new SystemTimer]
-    New --> Reset[Reset]
-    Reset --> Stopwatch[Stopwatch.Restart]
-    Stopwatch --> Elapsed[Elapsed seconds]
-    Elapsed --> Compare[>, <, >=, <= operators]
+    Create["TimerUtility.CreateStarted"] --> New["new SystemTimer"]
+    New --> Reset["Reset"]
+    Reset --> Stopwatch["Stopwatch.Restart"]
+    Stopwatch --> Elapsed["Elapsed seconds"]
+    Elapsed --> Compare[">, <, >=, <= operators"]
 ```
 
 适合的用法：
@@ -183,16 +183,16 @@ public interface IScheduler
 
 ```mermaid
 flowchart TB
-    Start[DefaultScheduler.Tick(deltaTime)] --> Loop[for i = Count - 1; i >= 0; i--]
-    Loop --> Task[task = _tasks[i]]
-    Task --> Update[task.Update(deltaTime)]
+    Start["DefaultScheduler.Tick(deltaTime)"] --> Loop["for i = Count - 1; i >= 0; i--"]
+    Loop --> Task["task = _tasks[i]"]
+    Task --> Update["task.Update(deltaTime)"]
     Update --> Done{IsCompleted or IsCanceled?}
-    Done -->|是| Remove[_tasks.RemoveAt(i)]
-    Done -->|否| Next[i--]
+    Done -->|是| Remove["_tasks.RemoveAt(i)"]
+    Done -->|否| Next["i--"]
     Remove --> Next
     Next --> More{还有任务?}
     More -->|是| Loop
-    More -->|否| End[结束]
+    More -->|否| End["结束"]
 ```
 
 从后往前遍历加上 `TaskList.RemoveAt` 的尾元素覆盖删除，可以避免删除当前任务后还要整体搬移数组。
@@ -201,11 +201,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    Remove[RemoveAt index] --> Dec[_count--]
-    Dec --> Check{index < _count?}
-    Check -->|是| Move[_items[index] = _items[_count]]
+    Remove["RemoveAt index"] --> Dec["_count--"]
+    Dec --> Check{"index < _count?"}
+    Check -->|是| Move["_items[index] = _items[_count]"]
     Check -->|否| Clear
-    Move --> Clear[_items[_count] = null]
+    Move --> Clear["_items[_count] = null"]
 ```
 
 这也意味着任务顺序不是稳定队列语义。调度器适合推进一组任务，不适合依赖任务在列表中的相对顺序表达玩法逻辑。
@@ -248,13 +248,13 @@ stateDiagram-v2
 
 ```mermaid
 flowchart TB
-    Start[DelayTask.Update] --> Guard{IsCompleted or canceled?}
-    Guard -->|是| End[返回]
-    Guard -->|否| Add[_elapsed += deltaTime]
-    Add --> Due{_elapsed >= _delay?}
+    Start["DelayTask.Update"] --> Guard{IsCompleted or canceled?}
+    Guard -->|是| End["返回"]
+    Guard -->|否| Add["_elapsed += deltaTime"]
+    Add --> Due{"_elapsed >= _delay?"}
     Due -->|否| End
-    Due -->|是| Invoke[callback.Invoke]
-    Invoke --> Complete[_completed = true]
+    Due -->|是| Invoke["callback.Invoke"]
+    Invoke --> Complete["_completed = true"]
 ```
 
 使用示例：
@@ -278,18 +278,18 @@ scheduler.Tick(deltaTime);
 
 ```mermaid
 flowchart TB
-    Start[PeriodicTask.Update] --> Guard{IsCompleted or canceled?}
-    Guard -->|是| End[返回]
-    Guard -->|否| Add[_elapsed += deltaTime]
-    Add --> Loop{_elapsed >= _period?}
+    Start["PeriodicTask.Update"] --> Guard{IsCompleted or canceled?}
+    Guard -->|是| End["返回"]
+    Guard -->|否| Add["_elapsed += deltaTime"]
+    Add --> Loop{"_elapsed >= _period?"}
     Loop -->|否| End
     Loop --> Count{达到 maxExecutions?}
     Count -->|是| End
     Count -->|否| Duration{超过 duration?}
     Duration -->|是| End
-    Duration -->|否| Sub[_elapsed -= _period]
-    Sub --> Invoke[callback.Invoke]
-    Invoke --> Inc[_executionCount++]
+    Duration -->|否| Sub["_elapsed -= _period"]
+    Sub --> Invoke["callback.Invoke"]
+    Invoke --> Inc["_executionCount++"]
     Inc --> Loop
 ```
 
@@ -308,14 +308,14 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Start[ContinuousTask.Update] --> Guard{IsCompleted or canceled?}
-    Guard -->|是| End[返回]
-    Guard -->|否| Add[_elapsed += deltaTime]
-    Add --> Tick[onTick(deltaTime)]
-    Tick --> Duration{duration > 0 and elapsed >= duration?}
+    Start["ContinuousTask.Update"] --> Guard{IsCompleted or canceled?}
+    Guard -->|是| End["返回"]
+    Guard -->|否| Add["_elapsed += deltaTime"]
+    Add --> Tick["onTick(deltaTime)"]
+    Tick --> Duration{"duration > 0 and elapsed >= duration?"}
     Duration -->|否| End
-    Duration -->|是| CompleteCallback[onComplete.Invoke]
-    CompleteCallback --> Complete[_completed = true]
+    Duration -->|是| CompleteCallback["onComplete.Invoke"]
+    CompleteCallback --> Complete["_completed = true"]
 ```
 
 持续任务适合：

@@ -27,16 +27,16 @@ AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、
 
 ```mermaid
 flowchart TD
-    A[克隆仓库并打开根目录] --> B[确认 Unity/Packages 是唯一源码位置]
-    B --> C[阅读能力地图和项目结构]
-    C --> D[运行 dotnet build 或 Console Demo]
-    D --> E[观察配置、世界、阶段、自动测试日志]
-    E --> F[按源码入口追一条闭环]
+    A["克隆仓库并打开根目录"] --> B["确认 Unity/Packages 是唯一源码位置"]
+    B --> C["阅读能力地图和项目结构"]
+    C --> D["运行 dotnet build 或 Console Demo"]
+    D --> E["观察配置、世界、阶段、自动测试日志"]
+    E --> F["按源码入口追一条闭环"]
     F --> G{当前目标}
-    G -- 学框架底座 --> H[Core + World.DI + Host]
-    G -- 学玩法表达 --> I[Triggering + Ability + Combat]
-    G -- 学联机同步 --> J[FrameSync + Snapshot + StateSync + Record]
-    G -- 学示例落地 --> K[MOBA / Shooter / ET / Orleans]
+    G -- 学框架底座 --> H["Core + World.DI + Host"]
+    G -- 学玩法表达 --> I["Triggering + Ability + Combat"]
+    G -- 学联机同步 --> J["FrameSync + Snapshot + StateSync + Record"]
+    G -- 学示例落地 --> K["MOBA / Shooter / ET / Orleans"]
 ```
 
 这条路线的核心思想是：先跑起来，再读源码；先读一条闭环，再扩展到所有模块。
@@ -62,11 +62,11 @@ Unity Editor 启动慢，且很多逻辑模块不依赖 Unity 场景。AbilityKi
 
 ```mermaid
 flowchart LR
-    P[Unity/Packages<br/>唯一源码位置] --> U[Unity Editor/Player]
-    P --> S[src/*.csproj<br/>Compile Include]
-    S --> T[dotnet build/test]
-    S --> C[Console Demo]
-    P --> O[Server/Orleans<br/>服务端宿主]
+    P["Unity/Packages<br/>唯一源码位置"] --> U["Unity Editor/Player"]
+    P --> S["src/*.csproj<br/>Compile Include"]
+    S --> T["dotnet build/test"]
+    S --> C["Console Demo"]
+    P --> O["Server/Orleans<br/>服务端宿主"]
 ```
 
 这意味着：
@@ -155,14 +155,14 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[InMatchPhase.OnEnter] --> B[FeatureHost.Attach]
-    B --> C[BattleEntityFeature 创建并注入 ECS World]
-    C --> D[Step 1: RegisterPlayerEntities]
-    D --> E[按 BattleStartConfig.Players 生成角色实体]
-    E --> F[Step 2: RegisterLocalPlayer]
-    F --> G[Step 3: InitializeBattleState]
-    G --> H[Step 4: NotifyBattleStarted]
-    H --> I[FeatureHost.Tick + runtimeWorld.Tick + SyncAdapter.Tick]
+    A["InMatchPhase.OnEnter"] --> B["FeatureHost.Attach"]
+    B --> C["BattleEntityFeature 创建并注入 ECS World"]
+    C --> D["Step 1: RegisterPlayerEntities"]
+    D --> E["按 BattleStartConfig.Players 生成角色实体"]
+    E --> F["Step 2: RegisterLocalPlayer"]
+    F --> G["Step 3: InitializeBattleState"]
+    G --> H["Step 4: NotifyBattleStarted"]
+    H --> I["FeatureHost.Tick + runtimeWorld.Tick + SyncAdapter.Tick"]
 ```
 
 运行后建议观察三类输出：
@@ -231,17 +231,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[IWorldModule.Configure] --> B[WorldServiceCollection]
-    B --> C[WorldContainer]
+    A["IWorldModule.Configure"] --> B["WorldServiceCollection"]
+    B --> C["WorldContainer"]
     C --> D{Resolve lifetime}
-    D -- Singleton --> E[Root 创建并缓存]
-    D -- Transient --> F[每次创建]
+    D -- Singleton --> E["Root 创建并缓存"]
+    D -- Transient --> F["每次创建"]
     D -- Scoped --> G{从哪里解析}
-    G -- Root --> H[拒绝: 不能从 Root 解析 Scoped]
-    G -- Scope --> I[WorldScope.GetOrCreate]
-    I --> J[Scope Dispose 时逆序释放]
-    C --> K[CreateScope(seeder)]
-    K --> L[播种 per-battle/per-stage 输入]
+    G -- Root --> H["拒绝: 不能从 Root 解析 Scoped"]
+    G -- Scope --> I["WorldScope.GetOrCreate"]
+    I --> J["Scope Dispose 时逆序释放"]
+    C --> K["CreateScope(seeder)"]
+    K --> L["播种 per-battle/per-stage 输入"]
 ```
 
 新手需要先记住一句话：`WorldContainer` 管根生命周期，`WorldScope` 管一次世界或一次阶段内的局部生命周期，播种对象由外部持有，不由 scope 释放。
@@ -252,19 +252,19 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Loop as 外部循环
+    participant RuntimeLoop as 外部循环
     participant Host as HostRuntime
     participant Options as HostRuntimeOptions
     participant Worlds as IWorldManager
     participant World as IWorld
     participant Client as IServerConnection
 
-    Loop->>Host: CreateWorld(options)
+    RuntimeLoop->>Host: CreateWorld(options)
     Host->>Options: BeforeCreateWorld
     Host->>Worlds: Create(options)
     Host->>Options: WorldCreated
     Host->>Client: Broadcast(WorldCreatedMessage)
-    Loop->>Host: Tick(deltaTime)
+    RuntimeLoop->>Host: Tick(deltaTime)
     Host->>Options: PreTick
     Host->>Worlds: Tick(deltaTime)
     Worlds->>World: Tick(deltaTime)
@@ -279,16 +279,16 @@ Host 不直接写业务战斗逻辑，它提供世界生命周期、连接管理
 
 ```mermaid
 flowchart TD
-    A[world.Query<T1,T2>()] --> B[ComponentRegistry.GetId<T>()]
-    B --> C[EntityQuery 保存 typeId + world]
-    C --> D[ForEach(visitor)]
-    D --> E[EntityWorld.QueryImpl]
-    E --> F[从第一个组件索引取候选实体]
-    F --> G[复制候选快照，避免遍历中修改集合]
-    G --> H[验证 alive + version]
-    H --> I[检查其他组件是否存在]
-    I --> J[调用 visitor(entity, components)]
-    J --> K[释放快照列表到对象池]
+    A["world.Query<T1,T2>()"] --> B["ComponentRegistry.GetId<T>()"]
+    B --> C["EntityQuery 保存 typeId + world"]
+    C --> D["ForEach(visitor)"]
+    D --> E["EntityWorld.QueryImpl"]
+    E --> F["从第一个组件索引取候选实体"]
+    F --> G["复制候选快照，避免遍历中修改集合"]
+    G --> H["验证 alive + version"]
+    H --> I["检查其他组件是否存在"]
+    I --> J["调用 visitor(entity, components)"]
+    J --> K["释放快照列表到对象池"]
 ```
 
 这条链路适合理解 AbilityKit 自研轻量 ECS 的查询思路：用第一个组件索引收窄候选，再在实体组件数组中做类型和存活校验。
@@ -299,19 +299,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[ConsoleBattleBootstrapper.Tick] --> B[更新 LogicTimeSeconds 和 LastFrame]
-    B --> C[BattleFlow.Tick]
-    C --> D[PhaseHost.Tick 当前阶段]
-    D --> E[InMatchPhase.OnTick]
-    E --> F[FeatureHost.Tick view/sync/input/hud]
-    B --> G[runtimeWorld.Tick]
-    G --> H[Moba runtime services/systems]
-    B --> I[cuePresenter.Tick]
-    B --> J[battleView.Tick]
-    B --> K[syncAdapter.Tick]
-    K --> L[actor snapshots]
-    L --> M[ConsoleViewBinder.SyncActor + TickRender]
-    B --> N[ReplayRecorder 可选记录快照]
+    A["ConsoleBattleBootstrapper.Tick"] --> B["更新 LogicTimeSeconds 和 LastFrame"]
+    B --> C["BattleFlow.Tick"]
+    C --> D["PhaseHost.Tick 当前阶段"]
+    D --> E["InMatchPhase.OnTick"]
+    E --> F["FeatureHost.Tick view/sync/input/hud"]
+    B --> G["runtimeWorld.Tick"]
+    G --> H["Moba runtime services/systems"]
+    B --> I["cuePresenter.Tick"]
+    B --> J["battleView.Tick"]
+    B --> K["syncAdapter.Tick"]
+    K --> L["actor snapshots"]
+    L --> M["ConsoleViewBinder.SyncActor + TickRender"]
+    B --> N["ReplayRecorder 可选记录快照"]
 ```
 
 这条链路把“框架源码”和“示例表现”连起来：阶段和 Feature 管 Console 侧流程，Runtime World 管可复用战斗逻辑，SyncAdapter/快照/表现层把逻辑结果投射到可观察输出。
@@ -337,14 +337,14 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[我要改一个功能] --> B{属于哪类}
-    B -- 基础事件/对象池/标识 --> C[com.abilitykit.core]
-    B -- 服务装配/生命周期 --> D[com.abilitykit.world.di]
-    B -- 世界运行/连接/Tick --> E[com.abilitykit.host 或 host.extension]
-    B -- 技能触发/条件/动作 --> F[com.abilitykit.triggering]
-    B -- 属性/Buff/伤害/投射物 --> G[combat.* / ability / attributes]
-    B -- 输入帧/快照/同步/回放 --> H[world.framesync / snapshot / statesync / record]
-    B -- 示例接入问题 --> I[demo.moba / demo.shooter / Server/Orleans]
+    A["我要改一个功能"] --> B{属于哪类}
+    B -- 基础事件/对象池/标识 --> C["com.abilitykit.core"]
+    B -- 服务装配/生命周期 --> D["com.abilitykit.world.di"]
+    B -- 世界运行/连接/Tick --> E["com.abilitykit.host 或 host.extension"]
+    B -- 技能触发/条件/动作 --> F["com.abilitykit.triggering"]
+    B -- 属性/Buff/伤害/投射物 --> G["combat.* / ability / attributes"]
+    B -- 输入帧/快照/同步/回放 --> H["world.framesync / snapshot / statesync / record"]
+    B -- 示例接入问题 --> I["demo.moba / demo.shooter / Server/Orleans"]
 ```
 
 修改前建议先找三件事：
@@ -377,11 +377,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[跑 Demo 或测试] --> B[看日志]
-    B --> C[选一条链路]
-    C --> D[读源码入口]
-    D --> E[回到设计文档]
-    E --> F[改一个小点并跑测试]
+    A["跑 Demo 或测试"] --> B["看日志"]
+    B --> C["选一条链路"]
+    C --> D["读源码入口"]
+    D --> E["回到设计文档"]
+    E --> F["改一个小点并跑测试"]
 ```
 
 只要理解 `Unity/Packages`、`src`、`World`、`DI`、`Host`、`Snapshot`、`Demo` 这七个入口，后续阅读 Triggering、Ability、Combat、Network 时就不会迷路。

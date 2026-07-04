@@ -27,26 +27,26 @@
 
 ```mermaid
 flowchart TB
-    ClientInput[Client Input] --> Submit[SubmitInput]
-    Submit --> InputHub[IFrameSyncInputHub]
-    InputHub --> Pending[PendingInputs by World]
+    ClientInput["Client Input"] --> Submit["SubmitInput"]
+    Submit --> InputHub["IFrameSyncInputHub"]
+    InputHub --> Pending["PendingInputs by World"]
 
-    HostPreTick[HostRuntime PreTick] --> Flush[Flush pending inputs]
+    HostPreTick["HostRuntime PreTick"] --> Flush["Flush pending inputs"]
     Pending --> Flush
-    Flush --> WorldInput[IWorldInputSink.Submit]
-    WorldInput --> LogicWorld[Logical World]
+    Flush --> WorldInput["IWorldInputSink.Submit"]
+    WorldInput --> LogicWorld["Logical World"]
 
-    HostTick[HostRuntime Tick] --> LogicWorld
-    LogicWorld --> SnapshotProvider[IWorldStateSnapshotProvider]
+    HostTick["HostRuntime Tick"] --> LogicWorld
+    LogicWorld --> SnapshotProvider["IWorldStateSnapshotProvider"]
 
-    HostPostTick[HostRuntime PostTick] --> Packet[FramePacket]
+    HostPostTick["HostRuntime PostTick"] --> Packet["FramePacket"]
     SnapshotProvider --> Packet
     Flush --> Packet
-    Packet --> Broadcast[FrameMessage Broadcast]
+    Packet --> Broadcast["FrameMessage Broadcast"]
 
-    Broadcast --> ClientAdapter[FramePacketNetAdapter]
-    ClientAdapter --> InputBuffers[Remote and Confirmed Input Buffers]
-    ClientAdapter --> SnapshotDispatcher[FrameSnapshotDispatcher]
+    Broadcast --> ClientAdapter["FramePacketNetAdapter"]
+    ClientAdapter --> InputBuffers["Remote and Confirmed Input Buffers"]
+    ClientAdapter --> SnapshotDispatcher["FrameSnapshotDispatcher"]
 ```
 
 这条链路的关键点是：输入在 `PreTick` 前被归并并提交，逻辑世界随后 Tick，快照在 `PostTick` 采集并和输入一起打包广播。
@@ -95,12 +95,12 @@ public readonly struct PlayerInputCommand
 
 ```mermaid
 flowchart LR
-    Input[Player Operation] --> Encode[Protocol Encode]
-    Encode --> Command[PlayerInputCommand]
-    Command --> Frame[FrameIndex]
-    Command --> Player[PlayerId]
-    Command --> OpCode[OpCode]
-    Command --> Payload[Payload bytes]
+    Input["Player Operation"] --> Encode["Protocol Encode"]
+    Encode --> Command["PlayerInputCommand"]
+    Command --> Frame["FrameIndex"]
+    Command --> Player["PlayerId"]
+    Command --> OpCode["OpCode"]
+    Command --> Payload["Payload bytes"]
 ```
 
 ---
@@ -340,13 +340,13 @@ public sealed class FramePacket : ISnapshotEnvelope
 
 ```mermaid
 flowchart TB
-    PostTick[PostTick] --> SnapshotProvider[IWorldStateSnapshotProvider]
-    SnapshotProvider --> Snapshot[WorldStateSnapshot optional]
-    Inputs[PendingInputsArray] --> Packet[FramePacket]
+    PostTick["PostTick"] --> SnapshotProvider["IWorldStateSnapshotProvider"]
+    SnapshotProvider --> Snapshot["WorldStateSnapshot optional"]
+    Inputs["PendingInputsArray"] --> Packet["FramePacket"]
     Snapshot --> Packet
-    Packet --> Message[FrameMessage]
-    Message --> Broadcast[HostRuntime.Broadcast]
-    Packet --> SnapshotEnvelope[ISnapshotEnvelope]
+    Packet --> Message["FrameMessage"]
+    Message --> Broadcast["HostRuntime.Broadcast"]
+    Packet --> SnapshotEnvelope["ISnapshotEnvelope"]
 ```
 
 ---
@@ -382,14 +382,14 @@ private void OnBeforeCreateWorld(WorldCreateOptions options)
 
 ```mermaid
 flowchart TB
-    Install[ServerFrameTimeModule Install] --> HasEvents{Has IFrameSyncDriverEvents?}
-    HasEvents -->|Yes| AddPostStep[Subscribe AddPostStep]
-    HasEvents -->|No| PostTick[Subscribe Host PostTick]
+    Install["ServerFrameTimeModule Install"] --> HasEvents{Has IFrameSyncDriverEvents?}
+    HasEvents -->|Yes| AddPostStep["Subscribe AddPostStep"]
+    HasEvents -->|No| PostTick["Subscribe Host PostTick"]
 
-    BeforeCreate[BeforeCreateWorld] --> FrameTime[Create FrameTime]
-    FrameTime --> Register[Register IFrameTime]
+    BeforeCreate["BeforeCreateWorld"] --> FrameTime["Create FrameTime"]
+    FrameTime --> Register["Register IFrameTime"]
 
-    AddPostStep --> StepTo[FrameTime.StepTo(frame, delta)]
+    AddPostStep --> StepTo["FrameTime.StepTo(frame, delta)"]
     PostTick --> StepTo
 ```
 
@@ -474,11 +474,11 @@ public RemoteSnapshotFrame BuildSnapshotFrame(FrameIndex frame)
 
 ```mermaid
 flowchart LR
-    Packet1[FramePacket A] --> Aggregator[RemoteFrameAggregator]
-    Packet2[FramePacket B] --> Aggregator
-    Packet3[FramePacket C] --> Aggregator
-    Aggregator --> InputFrame[RemoteInputFrame]
-    Aggregator --> SnapshotFrame[RemoteSnapshotFrame]
+    Packet1["FramePacket A"] --> Aggregator["RemoteFrameAggregator"]
+    Packet2["FramePacket B"] --> Aggregator
+    Packet3["FramePacket C"] --> Aggregator
+    Aggregator --> InputFrame["RemoteInputFrame"]
+    Aggregator --> SnapshotFrame["RemoteSnapshotFrame"]
 ```
 
 ---
@@ -564,12 +564,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    RoomStart[Room Start Battle] --> Resolve[RoomFrameSyncRoute.ResolveStartRoute]
+    RoomStart["Room Start Battle"] --> Resolve["RoomFrameSyncRoute.ResolveStartRoute"]
     Resolve --> Supports{Template supports frame sync?}
-    Supports -->|No| Skip[Skip FrameSyncGrain]
-    Supports -->|Yes| Options[FrameSyncStartOptions]
-    Options --> Grain[IBattleFrameSyncGrain]
-    Grain --> Initialize[InitializeAsync]
+    Supports -->|No| Skip["Skip FrameSyncGrain"]
+    Supports -->|Yes| Options["FrameSyncStartOptions"]
+    Options --> Grain["IBattleFrameSyncGrain"]
+    Grain --> Initialize["InitializeAsync"]
 ```
 
 这也解释了为什么文档不能把帧同步描述成唯一网络模式。AbilityKit 里帧同步、状态同步、快照同步可以根据 gameplay profile 并存或选择。
@@ -654,13 +654,13 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 
 ```mermaid
 flowchart LR
-    Input[PlayerInputCommand] --> PreTick[PreTick Flush]
-    PreTick --> Sink[IWorldInputSink]
-    Sink --> World[World Tick]
-    World --> PostTick[PostTick Snapshot]
-    PostTick --> Packet[FramePacket]
-    Packet --> Client[Client Buffers and Snapshot Dispatcher]
-    Input --> Orleans[BattleFrameSyncGrain Relay]
+    Input["PlayerInputCommand"] --> PreTick["PreTick Flush"]
+    PreTick --> Sink["IWorldInputSink"]
+    Sink --> World["World Tick"]
+    World --> PostTick["PostTick Snapshot"]
+    PostTick --> Packet["FramePacket"]
+    Packet --> Client["Client Buffers and Snapshot Dispatcher"]
+    Input --> Orleans["BattleFrameSyncGrain Relay"]
 ```
 
 掌握这条链路后，再阅读状态同步、回滚预测和回放系统时，就能判断每个模块是在“生产输入”、“消费输入”、“保存帧状态”，还是“根据权威帧修正本地预测”。

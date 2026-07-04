@@ -174,7 +174,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             var snapshot = _session.Runtime.GetSnapshot();
-            _session.Presentation.ApplyLocalPredictionSnapshot(in snapshot);
+            _session.Presentation.ApplyLocalAuthoritativeSnapshot(in snapshot);
         }
 
         private void RenderLatest()

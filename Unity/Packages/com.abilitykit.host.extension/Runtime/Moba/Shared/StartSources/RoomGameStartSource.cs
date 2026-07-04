@@ -9,7 +9,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartSources
     {
         private readonly IMobaRoomOrchestrator _room;
 
-        public MobaGameStartSourceKind Kind => MobaGameStartSourceKind.Room;
+        public static readonly MobaGameStartSourceKey SourceKey = new MobaGameStartSourceKey("room");
+
+        public MobaGameStartSourceKey Key => SourceKey;
+
+        public int Priority => 100;
 
         public RoomGameStartSource(IMobaRoomOrchestrator room)
         {

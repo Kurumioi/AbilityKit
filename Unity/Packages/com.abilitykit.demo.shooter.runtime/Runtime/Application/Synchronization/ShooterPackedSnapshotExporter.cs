@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly HashSet<int> _lastExportedProjectileIds = new HashSet<int>();
+        private readonly HashSet<int> _lastExportedEnemyIds = new HashSet<int>();
 
         public ShooterPackedSnapshotExporter(
             ShooterBattleState state,
@@ -53,7 +54,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ExportRuntimeMetadataChunk(),
                 ExportPlayerLifecycleChunk(),
                 ExportProjectileLifecycleChunk(isFullSnapshot),
-                ExportEnemyLifecycleChunk(),
+                ExportEnemyLifecycleChunk(isFullSnapshot),
                 ExportPlayerTransformChunk(),
                 ExportProjectileTransformChunk(),
                 ExportEnemyTransformChunk(),
@@ -218,28 +219,44 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private ShooterPackedComponentChunk ExportEnemyLifecycleChunk()
+        private ShooterPackedComponentChunk ExportEnemyLifecycleChunk(bool isFullSnapshot)
         {
             var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
             enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> _, out NB<ShooterSveltoHealthComponent> healths, out NativeEntityIDs ids, out var count);
-            if (count == 0)
+            var order = count > 0 ? _orderBuffer.CreateSortedEnemyOrder(ids, count) : Array.Empty<int>();
+            var currentEnemyIds = new HashSet<int>();
+            var despawnedEnemyIds = isFullSnapshot ? Array.Empty<int>() : CollectDespawnedEnemies(ids, order, count, currentEnemyIds);
+            var totalCount = count + despawnedEnemyIds.Length;
+            if (totalCount == 0)
             {
+                _lastExportedEnemyIds.Clear();
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Enemy);
             }
 
-            var order = _orderBuffer.CreateSortedEnemyOrder(ids, count);
-            var entityIds = new int[count];
-            var flags = new byte[count];
+            var entityIds = new int[totalCount];
+            var flags = new byte[totalCount];
             for (int i = 0; i < count; i++)
             {
                 var sourceIndex = order[i];
-                entityIds[i] = (int)ids[sourceIndex];
+                var enemyId = (int)ids[sourceIndex];
+                entityIds[i] = enemyId;
                 flags[i] = (byte)ShooterPackedEntityFlags.Enemy;
                 if (healths[sourceIndex].Alive != 0)
                 {
                     flags[i] |= ShooterPackedEntityFlags.Alive;
                 }
+
+                currentEnemyIds.Add(enemyId);
             }
+
+            for (int i = 0; i < despawnedEnemyIds.Length; i++)
+            {
+                var targetIndex = count + i;
+                entityIds[targetIndex] = despawnedEnemyIds[i];
+                flags[targetIndex] = (byte)(ShooterPackedEntityFlags.Enemy | ShooterPackedEntityFlags.Despawned);
+            }
+
+            ReplaceLastExportedEnemies(currentEnemyIds);
 
             return new ShooterPackedComponentChunk(
                 ShooterPackedComponentKinds.EntityLifecycle,
@@ -254,6 +271,44 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 flags,
                 Array.Empty<int>(),
                 Array.Empty<int>());
+        }
+
+        private int[] CollectDespawnedEnemies(
+            NativeEntityIDs ids,
+            int[] order,
+            int count,
+            HashSet<int> currentEnemyIds)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                currentEnemyIds.Add((int)ids[order[i]]);
+            }
+
+            if (_lastExportedEnemyIds.Count == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var despawned = new List<int>();
+            foreach (var enemyId in _lastExportedEnemyIds)
+            {
+                if (!currentEnemyIds.Contains(enemyId))
+                {
+                    despawned.Add(enemyId);
+                }
+            }
+
+            despawned.Sort();
+            return despawned.ToArray();
+        }
+
+        private void ReplaceLastExportedEnemies(HashSet<int> currentEnemyIds)
+        {
+            _lastExportedEnemyIds.Clear();
+            foreach (var enemyId in currentEnemyIds)
+            {
+                _lastExportedEnemyIds.Add(enemyId);
+            }
         }
 
         private ShooterPackedComponentChunk ExportPlayerTransformChunk()

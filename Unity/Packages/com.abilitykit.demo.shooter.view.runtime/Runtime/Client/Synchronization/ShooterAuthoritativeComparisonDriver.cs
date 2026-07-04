@@ -122,7 +122,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (_authoritativePresentation != null)
             {
                 var authoritySnapshot = _authoritativeWorld.GetSnapshot();
-                _authoritativePresentation.ApplyLocalPredictionSnapshot(in authoritySnapshot);
+                _authoritativePresentation.ApplyLocalAuthoritativeSnapshot(in authoritySnapshot);
             }
         }
 

@@ -34,27 +34,27 @@ Shooter 逻辑层的核心端口是 `ShooterBattleRuntimePort`。它作为 world
 
 ```mermaid
 flowchart TD
-    A["StartGame payload"] --> B["ShooterBattleRuntimePort.StartGame"]
-    B --> C["Reset ShooterBattleState"]
-    C --> D["Create player entities in Svelto entity manager"]
-    D --> E["Match running"]
+    A[""StartGame payload""] --> B[""ShooterBattleRuntimePort.StartGame""]
+    B --> C[""Reset ShooterBattleState""]
+    C --> D[""Create player entities in Svelto entity manager""]
+    D --> E[""Match running""]
 
-    F["ShooterPlayerCommand array"] --> G["ShooterBattleRuntimePort.SubmitInput"]
+    F[""ShooterPlayerCommand array""] --> G[""ShooterBattleRuntimePort.SubmitInput""]
     G --> H{"player exists"}
-    H -->|"no"| I["reject command"]
-    H -->|"yes"| J["InputBuffer.SubmitCommand"]
+    H -->|"no"| I[""reject command""]
+    H -->|"yes"| J[""InputBuffer.SubmitCommand""]
 
-    K["fixed delta tick"] --> L["ShooterBattleRuntimePort.Tick"]
-    L --> M["Battle step engine"]
-    M --> N["Read frame inputs"]
-    N --> O["Move, fire, projectile, enemy, hit, score, match state systems"]
-    O --> P["Advance frame and update state hash"]
-    P --> Q["InputBuffer.TrimToWindow"]
+    K[""fixed delta tick""] --> L[""ShooterBattleRuntimePort.Tick""]
+    L --> M[""Battle step engine""]
+    M --> N[""Read frame inputs""]
+    N --> O[""Move, fire, projectile, enemy, hit, score, match state systems""]
+    O --> P[""Advance frame and update state hash""]
+    P --> Q[""InputBuffer.TrimToWindow""]
 
-    P --> R["GetSnapshot"]
-    P --> S["ComputeStateHash"]
-    P --> T["ExportPackedSnapshot"]
-    P --> U["ExportPureStateSnapshot"]
+    P --> R[""GetSnapshot""]
+    P --> S[""ComputeStateHash""]
+    P --> T[""ExportPackedSnapshot""]
+    P --> U[""ExportPureStateSnapshot""]
 ```
 
 这个图里，`SubmitInput` 只负责把命令放入逻辑层输入缓冲，并不直接改变表现层。真正的状态变化发生在后续 `Tick` 的固定步进中。
@@ -129,17 +129,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[StartAsync / StartOrReconnectAsync] --> B[Create local ShooterBattleWorldSession]
-    B --> C[ShooterClientNetworkLauncher opens Gateway connection]
-    C --> D[ShooterRemoteStateSyncConnectionFlow]
-    D --> E[Create / Join / Restore room]
-    E --> F[Ready + StartBattle + SubscribeStateSync]
-    F --> G[Request initial full state sync if needed]
-    G --> H[ShooterClientSession ready]
-    H --> I[ShooterCoordinatorInputBridge.Create]
-    I --> J[SessionCoordinator.Initialize + Start]
-    J --> K[RemoteSyncAdapter.Connect]
-    K --> L[ShooterGatewayCoordinatorInputTransport connected]
+    A["StartAsync / StartOrReconnectAsync"] --> B["Create local ShooterBattleWorldSession"]
+    B --> C["ShooterClientNetworkLauncher opens Gateway connection"]
+    C --> D["ShooterRemoteStateSyncConnectionFlow"]
+    D --> E["Create / Join / Restore room"]
+    E --> F["Ready + StartBattle + SubscribeStateSync"]
+    F --> G["Request initial full state sync if needed"]
+    G --> H["ShooterClientSession ready"]
+    H --> I["ShooterCoordinatorInputBridge.Create"]
+    I --> J["SessionCoordinator.Initialize + Start"]
+    J --> K["RemoteSyncAdapter.Connect"]
+    K --> L["ShooterGatewayCoordinatorInputTransport connected"]
 ```
 
 多人客户端每帧运行流程：
@@ -201,33 +201,33 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A["Gateway battle input request"] --> B["Room or Battle grain route"]
-    B --> C["BattleLogicHostGrain.SubmitInputAsync"]
+    A[""Gateway battle input request""] --> B[""Room or Battle grain route""]
+    B --> C[""BattleLogicHostGrain.SubmitInputAsync""]
     C --> D{"initialized and world id valid"}
-    D -->|"no"| E["reject"]
-    D -->|"yes"| F["BattleInputFrameScheduler.Schedule"]
+    D -->|"no"| E[""reject""]
+    D -->|"yes"| F[""BattleInputFrameScheduler.Schedule""]
     F --> G{"accepted"}
-    G -->|"no"| H["reject with accepted frame and status"]
-    G -->|"yes"| I["BattleInputBuffer.Enqueue"]
+    G -->|"no"| H[""reject with accepted frame and status""]
+    G -->|"yes"| I[""BattleInputBuffer.Enqueue""]
 
-    J["Orleans timer"] --> K["BattleLogicHostGrain.OnTickAsync"]
-    K --> L["BattleTickDriver.Tick"]
-    L --> M["SubmitRuntimeInputs"]
-    M --> N["ShooterBattleRuntimeAdapter.SubmitInputs"]
-    N --> O["ShooterInputCodec.Deserialize"]
-    O --> P["ShooterBattleDriverHost.SubmitCommands"]
-    P --> Q["ShooterBattleRuntimePort.SubmitInput"]
-    Q --> R["Shooter InputBuffer"]
+    J[""Orleans timer""] --> K[""BattleLogicHostGrain.OnTickAsync""]
+    K --> L[""BattleTickDriver.Tick""]
+    L --> M[""SubmitRuntimeInputs""]
+    M --> N[""ShooterBattleRuntimeAdapter.SubmitInputs""]
+    N --> O[""ShooterInputCodec.Deserialize""]
+    O --> P[""ShooterBattleDriverHost.SubmitCommands""]
+    P --> Q[""ShooterBattleRuntimePort.SubmitInput""]
+    Q --> R[""Shooter InputBuffer""]
 
-    L --> S["TickBattleWorld"]
-    S --> T["ShooterBattleRuntimeAdapter.Tick"]
-    T --> U["ShooterBattleDriverHost.AdvanceFrame"]
-    U --> V["ShooterBattleRuntimePort.Tick"]
+    L --> S[""TickBattleWorld""]
+    S --> T[""ShooterBattleRuntimeAdapter.Tick""]
+    T --> U[""ShooterBattleDriverHost.AdvanceFrame""]
+    U --> V[""ShooterBattleRuntimePort.Tick""]
 
     V --> W{"Should publish snapshot"}
-    W -->|"yes"| X["CreateStateSyncPush"]
-    X --> Y["PackedState or PureState payload"]
-    Y --> Z["StateSyncObserverGrain.OnSnapshotPushedAsync"]
+    W -->|"yes"| X[""CreateStateSyncPush""]
+    X --> Y[""PackedState or PureState payload""]
+    Y --> Z[""StateSyncObserverGrain.OnSnapshotPushedAsync""]
 ```
 
 服务端关键阶段：
@@ -263,22 +263,22 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Gateway StateSyncPush] --> B[ShooterClientSession.ApplyGatewayPush]
-    B --> C[ShooterClientFrameSyncController.ApplyGatewayPush]
+    A["Gateway StateSyncPush"] --> B["ShooterClientSession.ApplyGatewayPush"]
+    B --> C["ShooterClientFrameSyncController.ApplyGatewayPush"]
     C --> D{is snapshot push?}
-    D -- no --> E[Ignored]
-    D -- yes --> F[Decode packed / pure payload]
-    F --> G[Framework snapshot pipeline applies authoritative snapshot]
+    D -- no --> E["Ignored"]
+    D -- yes --> F["Decode packed / pure payload"]
+    F --> G["Framework snapshot pipeline applies authoritative snapshot"]
     G --> H{applied?}
-    H -- no --> I[mark full snapshot resync if import failed]
-    H -- yes --> J[Capture rollback snapshot]
-    J --> K[ReconcileAfterAuthoritativeSnapshot]
-    K --> L[Replay pending local inputs]
+    H -- no --> I["mark full snapshot resync if import failed"]
+    H -- yes --> J["Capture rollback snapshot"]
+    J --> K["ReconcileAfterAuthoritativeSnapshot"]
+    K --> L["Replay pending local inputs"]
     L --> M{hash matched?}
-    M -- no --> N[AwaitingFullSnapshot]
-    M -- yes --> O[Normal / Recovered]
-    O --> P[Publish reconciliation]
-    P --> Q[ApplyLocalPredictionSnapshot(runtime snapshot)]
+    M -- no --> N["AwaitingFullSnapshot"]
+    M -- yes --> O["Normal / Recovered"]
+    O --> P["Publish reconciliation"]
+    P --> Q["ApplyLocalPredictionSnapshot(runtime snapshot)"]
 ```
 
 这个输出处理体现了 Shooter 多人客户端的设计选择：表现层看到的是“权威校正后的本地预测 runtime 快照”，而不是原始服务端 snapshot。这样可以保留客户端输入即时反馈，同时由服务端快照负责纠偏。

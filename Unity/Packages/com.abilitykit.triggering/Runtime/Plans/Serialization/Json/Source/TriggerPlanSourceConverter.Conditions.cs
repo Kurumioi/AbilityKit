@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Eventing;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using static AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanSourceJsonUtility;
@@ -118,6 +119,14 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     WriteCompareNode(writer, cond, "NotEqual", writeParamValue);
                     break;
 
+                case "health_percent":
+                    WriteHealthPercentNode(writer, cond);
+                    break;
+
+                case "has_buff":
+                    WriteHasBuffNode(writer, cond);
+                    break;
+
                 default:
                     throw new InvalidOperationException($"Unsupported condition type: {type}");
             }
@@ -180,6 +189,67 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
             writer.WritePropertyName("Right");
             writeParamValue(writer, cond["right"] ?? cond["value"]);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteHealthPercentNode(JsonTextWriter writer, JObject cond)
+        {
+            var threshold = ReadFloat(cond, 50f, "threshold", "value");
+            var compareType = ReadInt(cond, 0, "compare_type", "compareType");
+            var compareOp = compareType switch
+            {
+                0 => "LessThan",
+                1 => "GreaterThan",
+                _ => throw new InvalidOperationException($"Unsupported health_percent compare_type: {compareType}")
+            };
+
+            writer.WriteStartObject();
+            writer.WritePropertyName("Kind");
+            writer.WriteValue("CompareNumeric");
+            writer.WritePropertyName("CompareOp");
+            writer.WriteValue(compareOp);
+            writer.WritePropertyName("Left");
+            WritePayloadFieldValue(writer, "target_hp");
+            writer.WritePropertyName("Right");
+            WriteScaledPayloadFieldValue(writer, "target_max_hp", threshold / 100d);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteHasBuffNode(JsonTextWriter writer, JObject cond)
+        {
+            var buffId = ReadInt(cond, 0, "buff_id", "buffId");
+            if (buffId <= 0)
+            {
+                throw new InvalidOperationException("has_buff condition requires a positive buff_id.");
+            }
+
+            var checkStack = ReadInt(cond, 0, "check_stack", "checkStack");
+
+            writer.WriteStartObject();
+            writer.WritePropertyName("Kind");
+            writer.WriteValue("Function");
+            writer.WritePropertyName("FunctionId");
+            writer.WriteValue(StableStringId.Get("predicate:has_buff"));
+            writer.WritePropertyName("FunctionArity");
+            writer.WriteValue(2);
+            writer.WritePropertyName("Left");
+            WriteConstValue(writer, buffId);
+            writer.WritePropertyName("Right");
+            WriteConstValue(writer, checkStack > 0 ? 1d : 0d);
+            writer.WriteEndObject();
+        }
+
+        private static void WriteScaledPayloadFieldValue(JsonTextWriter writer, string payloadField, double scale)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("Kind");
+            writer.WriteValue("PayloadField");
+            writer.WritePropertyName("FieldId");
+            writer.WriteValue(string.IsNullOrEmpty(payloadField) ? 0 : StableStringId.Get("payload:" + payloadField));
+            writer.WritePropertyName("HasScale");
+            writer.WriteValue(true);
+            writer.WritePropertyName("Scale");
+            writer.WriteValue(scale);
             writer.WriteEndObject();
         }
     }

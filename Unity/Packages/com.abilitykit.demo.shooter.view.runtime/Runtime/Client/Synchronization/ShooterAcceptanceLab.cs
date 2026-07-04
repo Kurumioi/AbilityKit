@@ -1070,7 +1070,7 @@ namespace AbilityKit.Demo.Shooter.View
                     }
 
                     var initialSnapshot = authoritativeWorldSession.Runtime.GetSnapshot();
-                    authoritativePresentation.ApplyLocalPredictionSnapshot(in initialSnapshot);
+                    authoritativePresentation.ApplyLocalAuthoritativeSnapshot(in initialSnapshot);
                 }
 
                 return new ShooterAcceptanceSession(

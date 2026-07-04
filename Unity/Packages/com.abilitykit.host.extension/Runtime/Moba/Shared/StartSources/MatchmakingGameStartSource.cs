@@ -8,7 +8,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartSources
     {
         private readonly IMobaMatchmakingSpecInbox _inbox;
 
-        public MobaGameStartSourceKind Kind => MobaGameStartSourceKind.Matchmaking;
+        public static readonly MobaGameStartSourceKey SourceKey = new MobaGameStartSourceKey("matchmaking");
+
+        public MobaGameStartSourceKey Key => SourceKey;
+
+        public int Priority => 200;
 
         public MatchmakingGameStartSource(IMobaMatchmakingSpecInbox inbox)
         {

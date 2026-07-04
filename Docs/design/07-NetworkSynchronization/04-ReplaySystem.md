@@ -35,12 +35,12 @@
 
 ```mermaid
 flowchart LR
-    Input[PlayerInputCommand] --> Record[Record or FrameRecord]
-    Hash[WorldStateHash] --> Record
-    Snapshot[WorldStateSnapshot] --> Record
-    Record --> Replay[Replay Source or Controller]
-    Replay --> Driver[Logic or View Driver]
-    Driver --> Verify[State hash / snapshot / visual check]
+    Input["PlayerInputCommand"] --> Record["Record or FrameRecord"]
+    Hash["WorldStateHash"] --> Record
+    Snapshot["WorldStateSnapshot"] --> Record
+    Record --> Replay["Replay Source or Controller"]
+    Replay --> Driver["Logic or View Driver"]
+    Driver --> Verify["State hash / snapshot / visual check"]
 ```
 
 回放不应该直接复制运行时对象。源码里的共同做法是：把运行时过程降级为“帧号 + 类型 + 字节载荷/快照/哈希”，回放时再交给对应 codec、handler 或 Demo driver。
@@ -99,19 +99,19 @@ AbilityKit 当前不是只有一种回放文件格式，而是三套互补层次
 
 ```mermaid
 flowchart TB
-    Runtime[Battle Runtime or Demo Loop] --> A{recording target}
-    A -->|generic events| Container[RecordContainer]
-    A -->|frame data| FrameRecord[FrameRecordFile]
-    A -->|console demo| Akrec[AKRC .akrec]
+    Runtime["Battle Runtime or Demo Loop"] --> A{recording target}
+    A -->|generic events| Container["RecordContainer"]
+    A -->|frame data| FrameRecord["FrameRecordFile"]
+    A -->|console demo| Akrec["AKRC .akrec"]
 
-    Container --> Session[RecordSession]
-    Session --> BasicReplay[BasicReplayController]
+    Container --> Session["RecordSession"]
+    Session --> BasicReplay["BasicReplayController"]
 
-    FrameRecord --> ReplaySource[FrameRecordReplaySource]
-    ReplaySource --> FrameQuery[TryGetInputs / TryGetSnapshot / TryGetStateHash]
+    FrameRecord --> ReplaySource["FrameRecordReplaySource"]
+    ReplaySource --> FrameQuery["TryGetInputs / TryGetSnapshot / TryGetStateHash"]
 
-    Akrec --> ConsoleDriver[ConsoleReplayDriver]
-    ConsoleDriver --> CommandIndex[commandsByFrame]
+    Akrec --> ConsoleDriver["ConsoleReplayDriver"]
+    ConsoleDriver --> CommandIndex["commandsByFrame"]
 ```
 
 文档和工具中必须标清使用哪一层，否则容易误以为 Console `.akrec` 就是通用 `RecordSession` 的落盘格式。源码实际不是这样。
@@ -230,13 +230,13 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Loop as Runtime Loop
+    participant RuntimeLoop as Runtime Loop
     participant Controller as BasicReplayController
     participant Clock as FixedStepReplayClock
     participant Reader as IEventTrackReader
     participant Handler as IReplayEventHandler
 
-    Loop->>Controller: Tick(deltaTime)
+    RuntimeLoop->>Controller: Tick(deltaTime)
     Controller->>Clock: TryConsume(deltaTime)
     alt next frame available
         Clock-->>Controller: nextFrame
@@ -339,11 +339,11 @@ classDiagram
 
 ```mermaid
 flowchart LR
-    File[FrameRecordFile] --> Decode[Decode payload Base64]
-    Decode --> Index[Build frame dictionaries]
-    Index --> Inputs[TryGetInputs]
-    Index --> Hash[TryGetStateHash]
-    Index --> Snapshots[TryGetSnapshot or TryGetSnapshots]
+    File["FrameRecordFile"] --> Decode["Decode payload Base64"]
+    Decode --> Index["Build frame dictionaries"]
+    Index --> Inputs["TryGetInputs"]
+    Index --> Hash["TryGetStateHash"]
+    Index --> Snapshots["TryGetSnapshot or TryGetSnapshots"]
 ```
 
 ---
@@ -387,13 +387,13 @@ Console `.akrec` 使用 MemoryPack 序列化：
 
 ```mermaid
 flowchart TD
-    A[ConsoleRecordWriter.Close] --> B[fill header StartFrame EndFrame TotalCommands]
-    B --> C[FrameRecordFile.Commands AddRange]
-    C --> D[FrameRecordFile.Snapshots AddRange]
-    D --> E[Write Header]
-    E --> F[Write command count and command bytes]
-    F --> G[Write snapshot count and snapshot bytes]
-    G --> H[replay_timestamp.akrec]
+    A["ConsoleRecordWriter.Close"] --> B["fill header StartFrame EndFrame TotalCommands"]
+    B --> C["FrameRecordFile.Commands AddRange"]
+    C --> D["FrameRecordFile.Snapshots AddRange"]
+    D --> E["Write Header"]
+    E --> F["Write command count and command bytes"]
+    F --> G["Write snapshot count and snapshot bytes"]
+    G --> H["replay_timestamp.akrec"]
 ```
 
 ### 7.3 `ConsoleReplayDriver`
@@ -465,35 +465,35 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Runtime Tick] --> B[AppendInput]
-    A --> C[AppendStateHash]
-    A --> D[AppendSnapshot]
-    B --> E[FrameRecordSink]
+    A["Runtime Tick"] --> B["AppendInput"]
+    A --> C["AppendStateHash"]
+    A --> D["AppendSnapshot"]
+    B --> E["FrameRecordSink"]
     C --> E
     D --> E
-    E --> F[FrameRecordFile]
-    F --> G[FrameRecordCodec]
-    G --> H[Disk or bytes]
-    H --> I[FrameRecordReplaySource]
-    I --> J[Query by frame]
+    E --> F["FrameRecordFile"]
+    F --> G["FrameRecordCodec"]
+    G --> H["Disk or bytes"]
+    H --> I["FrameRecordReplaySource"]
+    I --> J["Query by frame"]
 ```
 
 ### 8.3 Console 生命周期
 
 ```mermaid
 flowchart TD
-    A[Program --record] --> B[ReplayController.StartRecording]
-    B --> C[ConsoleRecordWriter]
-    C --> D[Append command]
-    C --> E[AddSnapshot]
-    D --> F[StopRecording]
+    A["Program --record"] --> B["ReplayController.StartRecording"]
+    B --> C["ConsoleRecordWriter"]
+    C --> D["Append command"]
+    C --> E["AddSnapshot"]
+    D --> F["StopRecording"]
     E --> F
-    F --> G[Write .akrec]
+    F --> G["Write .akrec"]
 
-    H[Program --replay file] --> I[ReplayController.StartReplay]
-    I --> J[ConsoleReplayDriver]
-    J --> K[Load and index commands]
-    K --> L[Play / Pause / Seek / Advance]
+    H["Program --replay file"] --> I["ReplayController.StartReplay"]
+    I --> J["ConsoleReplayDriver"]
+    J --> K["Load and index commands"]
+    K --> L["Play / Pause / Seek / Advance"]
 ```
 
 ---

@@ -188,8 +188,32 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ZhaoYunPassive_IsBoundToCharacterAndCompilesTriggerPlans()
+        {
+            const int heroId = 1003;
+            const int passiveSkillId = 10030000;
+
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                skillIds: new[] { 10030101, 10030201, 10030301 },
+                heroId: heroId,
+                attributeTemplateId: 1003,
+                worldId: "zhaoyun_passive_trigger_plan_assertion_world");
+
+            Assert.IsTrue(harness.Config.TryGetCharacter(heroId, out var character), $"Character config missing: {heroId}");
+            Assert.IsTrue(ContainsId(character.PassiveSkillIds, passiveSkillId), $"ZhaoYun character must bind passive skill {passiveSkillId}.");
+            Assert.IsTrue(harness.Config.TryGetPassiveSkill(passiveSkillId, out var passive), $"Passive skill config missing: {passiveSkillId}");
+            Assert.IsTrue(ContainsId(passive.TriggerIds, 10030000), "ZhaoYun passive must include low-health trigger 10030000.");
+
+            for (int i = 0; i < passive.TriggerIds.Count; i++)
+            {
+                harness.AssertTriggerPlanContainsActions(passive.TriggerIds[i]);
+            }
+        }
+
+        [Test]
         public void ZhaoYunAndMoziTriggerResources_AreSyncedBetweenAssetsAndPackageRuntime()
         {
+            AssertResourceCopiesMatch("moba/characters.json");
             AssertResourceCopiesMatch("ability/triggers/passives/trigger_10030000.json");
             AssertResourceCopiesMatch("ability/triggers/passives/trigger_10040000.json");
             AssertResourceCopiesMatch("ability/triggers/skills/trigger_10030101.json");
@@ -211,6 +235,17 @@ namespace AbilityKit.Game.Test.UnitTest
             CollectionAssert.Contains(script.RiskTags, BattleTestScenarioLibrary.VfxRiskTag);
             CollectionAssert.Contains(script.RiskTags, BattleTestScenarioLibrary.SnapshotEventRiskTag);
             Assert.AreEqual(script.TotalDurationTicks, driver.AppliedTickCount);
+        }
+
+        private static bool ContainsId(System.Collections.Generic.IReadOnlyList<int> ids, int expectedId)
+        {
+            if (ids == null) return false;
+            for (int i = 0; i < ids.Count; i++)
+            {
+                if (ids[i] == expectedId) return true;
+            }
+
+            return false;
         }
 
         private static void AssertResourceCopiesMatch(string resourcePath)

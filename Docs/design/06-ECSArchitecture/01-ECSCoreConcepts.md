@@ -40,28 +40,28 @@ AbilityKit 同时存在几类 ECS/世界相关能力：
 
 ```mermaid
 flowchart TB
-    World[EntityWorld] --> Ids[IEntityId: Index + Version]
-    World --> Alive[_alive slots]
-    World --> Versions[_versions]
-    World --> Components[object[][] components]
-    World --> Registry[ComponentRegistry]
-    World --> Index[componentIndex: typeId -> entity indices]
-    World --> Hierarchy[parent/children maps]
-    World --> Events[WorldEventBus]
+    World["EntityWorld"] --> Ids["IEntityId: Index + Version"]
+    World --> Alive["_alive slots"]
+    World --> Versions["_versions"]
+    World --> Components["object[][] components"]
+    World --> Registry["ComponentRegistry"]
+    World --> Index["componentIndex: typeId -> entity indices"]
+    World --> Hierarchy["parent/children maps"]
+    World --> Events["WorldEventBus"]
 
-    Entity[IEntity value handle] --> World
+    Entity["IEntity value handle"] --> World
     Entity --> Ids
 
-    Registry --> TypeId[component type id]
+    Registry --> TypeId["component type id"]
     TypeId --> Components
     TypeId --> Index
 
-    Query[EntityQuery<T...>] --> Index
+    Query["EntityQuery<T...>"] --> Index
     Query --> Components
-    Query --> Visitor[ForEach visitor]
+    Query --> Visitor["ForEach visitor"]
 
-    World --> Lifecycle[Create / Destroy / DestroyRecursive]
-    World --> ComponentOps[Set / Get / Remove]
+    World --> Lifecycle["Create / Destroy / DestroyRecursive"]
+    World --> ComponentOps["Set / Get / Remove"]
     World --> Query
 ```
 
@@ -84,17 +84,17 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    EntityId[Index,Version] --> Slot[Index slot]
-    Slot --> Alive[_alive[index]]
-    Slot --> Version[_versions[index]]
-    Slot --> Store[_components[index]]
-    Store --> C1[typeId 1 component]
-    Store --> C2[typeId 2 component]
-    Store --> Cn[typeId N component]
+    EntityId["Index,Version"] --> Slot["Index slot"]
+    Slot --> Alive["_alive[index]"]
+    Slot --> Version["_versions[index]"]
+    Slot --> Store["_components[index]"]
+    Store --> C1["typeId 1 component"]
+    Store --> C2["typeId 2 component"]
+    Store --> Cn["typeId N component"]
 
-    ComponentRegistry --> TypeId[type id]
+    ComponentRegistry --> TypeId["type id"]
     TypeId --> Store
-    TypeId --> ComponentIndex[typeId -> HashSet index]
+    TypeId --> ComponentIndex["typeId -> HashSet index"]
 ```
 
 主要字段可以这样读：
@@ -200,16 +200,16 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    SetStruct[SetComponent<T struct>] --> TypeId[ComponentRegistry.GetId<T>]
-    SetRef[SetComponentRef<T class>] --> TypeId
-    TypeId --> Store[SetComponentInternal]
-    Store --> ComponentArray[_components[entityIndex][typeId]]
-    Store --> Index[_componentIndex[typeId].Add(entityIndex)]
-    Store --> Event[Publish ComponentSet]
+    SetStruct["SetComponent<T struct>"] --> TypeId["ComponentRegistry.GetId<T>"]
+    SetRef["SetComponentRef<T class>"] --> TypeId
+    TypeId --> Store["SetComponentInternal"]
+    Store --> ComponentArray["_components[entityIndex][typeId]"]
+    Store --> Index["_componentIndex[typeId].Add(entityIndex)"]
+    Store --> Event["Publish ComponentSet"]
 
-    Remove[RemoveComponent<T>] --> RemoveStore[RemoveComponentById]
-    RemoveStore --> RemoveIndex[_componentIndex[typeId].Remove(entityIndex)]
-    RemoveStore --> RemovedEvent[Publish ComponentRemoved]
+    Remove["RemoveComponent<T>"] --> RemoveStore["RemoveComponentById"]
+    RemoveStore --> RemoveIndex["_componentIndex[typeId].Remove(entityIndex)"]
+    RemoveStore --> RemovedEvent["Publish ComponentRemoved"]
 ```
 
 这个设计给轻量 ECS 一个折中点：对外保持类型安全 API，对内用整数 typeId 做紧凑索引。
@@ -230,11 +230,11 @@ private int _nextId = 1;
 
 ```mermaid
 flowchart LR
-    Type[typeof TransformComponent] --> Registry[ComponentRegistry]
-    Registry --> Id[typeId = 1]
-    Id --> ComponentArray[components[index][1]]
-    Id --> ComponentIndex[componentIndex[1]]
-    Id --> Event[ComponentSet.ComponentTypeId]
+    Type["typeof TransformComponent"] --> Registry["ComponentRegistry"]
+    Registry --> Id["typeId = 1"]
+    Id --> ComponentArray["components[index][1]"]
+    Id --> ComponentIndex["componentIndex[1]"]
+    Id --> Event["ComponentSet.ComponentTypeId"]
 ```
 
 类型 ID 的好处是：
@@ -298,12 +298,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    Parent[Parent IEntity] --> ChildA[Child index 0]
-    Parent --> ChildB[Child index 1]
-    Parent --> ChildC[Child index 2]
+    Parent["Parent IEntity"] --> ChildA["Child index 0"]
+    Parent --> ChildB["Child index 1"]
+    Parent --> ChildC["Child index 2"]
 
-    LogicalMap[logicalChildId -> child list index] --> ChildB
-    DestroyRecursive[DestroyRecursive parent] --> ChildA
+    LogicalMap["logicalChildId -> child list index"] --> ChildB
+    DestroyRecursive["DestroyRecursive parent"] --> ChildA
     DestroyRecursive --> ChildB
     DestroyRecursive --> ChildC
 ```
@@ -326,14 +326,14 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    World[EntityWorld] --> Events[IWorldEventBus]
-    Events --> Created[OnEntityCreated]
-    Events --> Destroyed[OnEntityDestroyed]
-    Events --> Set[OnComponentSet]
-    Events --> Removed[OnComponentRemoved]
-    Events --> Parent[OnParentChanged]
+    World["EntityWorld"] --> Events["IWorldEventBus"]
+    Events --> Created["OnEntityCreated"]
+    Events --> Destroyed["OnEntityDestroyed"]
+    Events --> Set["OnComponentSet"]
+    Events --> Removed["OnComponentRemoved"]
+    Events --> Parent["OnParentChanged"]
 
-    Subscriber[Debug / Editor / Adapter] --> Events
+    Subscriber["Debug / Editor / Adapter"] --> Events
 ```
 
 `WorldEventBus.Publish` 会先复制订阅者列表再派发，避免派发过程中订阅集合被修改影响遍历。
@@ -356,13 +356,13 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    Entitas[Entitas Systems] --> WorldSystemBase
-    WorldSystemBase --> Initialize[Initialize -> OnInit]
-    WorldSystemBase --> Execute[Execute -> CanExecute -> OnExecute]
-    WorldSystemBase --> Cleanup[Cleanup -> OnCleanup]
-    WorldSystemBase --> TearDown[TearDown -> OnTearDown]
-    WorldSystemBase --> Services[IWorldResolver]
-    WorldSystemBase --> Contexts[IContexts]
+    Entitas["Entitas Systems"] --> WorldSystemBase
+    WorldSystemBase --> Initialize["Initialize -> OnInit"]
+    WorldSystemBase --> Execute["Execute -> CanExecute -> OnExecute"]
+    WorldSystemBase --> Cleanup["Cleanup -> OnCleanup"]
+    WorldSystemBase --> TearDown["TearDown -> OnTearDown"]
+    WorldSystemBase --> Services["IWorldResolver"]
+    WorldSystemBase --> Contexts["IContexts"]
 ```
 
 所以新手应把本页的 ECS 核心理解为“数据和查询底座”，不要把它和 Entitas/Svelto 的系统调度混为一谈。
@@ -373,13 +373,13 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    CreateWorld[new EntityWorld] --> Subscribe[optional subscribe world events]
-    Subscribe --> CreateEntity[world.Create name]
-    CreateEntity --> AddComponents[With value/ref components]
-    AddComponents --> Query[world.Query<T1,T2>]
-    Query --> ForEach[ForEach entity and components]
-    ForEach --> Mutate[Set/Remove components]
-    Mutate --> Destroy[Destroy or DestroyRecursive]
+    CreateWorld["new EntityWorld"] --> Subscribe["optional subscribe world events"]
+    Subscribe --> CreateEntity["world.Create name"]
+    CreateEntity --> AddComponents["With value/ref components"]
+    AddComponents --> Query["world.Query<T1,T2>"]
+    Query --> ForEach["ForEach entity and components"]
+    ForEach --> Mutate["Set/Remove components"]
+    Mutate --> Destroy["Destroy or DestroyRecursive"]
 ```
 
 示例代码按当前 API 应该写成：

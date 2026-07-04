@@ -372,6 +372,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         }
                         arr[i] = BoolExprNode.Compare(op, ConvertNumericValueRef(d.Left), ConvertNumericValueRef(d.Right));
                         break;
+                    case EBoolExprNodeKind.Function:
+                        arr[i] = BoolExprNode.Function(new FunctionId(d.FunctionId), (byte)d.FunctionArity, ConvertNumericValueRef(d.Left), ConvertNumericValueRef(d.Right));
+                        break;
                     default:
                         throw new InvalidOperationException($"Unsupported expr node kind: {kind}");
                 }

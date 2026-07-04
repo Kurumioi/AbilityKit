@@ -25,19 +25,19 @@ AbilityKit 不是单一技能库，而是一组可以组合的战斗能力：逻
 
 ```mermaid
 flowchart TB
-    User[玩家或测试脚本] --> Input[PlayerInput / PlayerInputCommand]
-    Input --> Sync[IBattleSyncAdapter 或 FrameSync Host]
-    Sync --> Flow[BattleFlow / PhaseHost]
-    Flow --> World[WorldManager / IWorld / IWorldResolver]
-    World --> ECS[EntityWorld / Entitas Contexts]
-    World --> Services[World Services]
-    Services --> Skill[MobaSkillCastRuntimeService]
-    Skill --> Pipeline[SkillPipelineContext]
-    Pipeline --> Trigger[TriggerContext / ExecCtx]
-    Trigger --> Effect[Effect / Combat Execution]
+    User["玩家或测试脚本"] --> Input["PlayerInput / PlayerInputCommand"]
+    Input --> Sync["IBattleSyncAdapter 或 FrameSync Host"]
+    Sync --> Flow["BattleFlow / PhaseHost"]
+    Flow --> World["WorldManager / IWorld / IWorldResolver"]
+    World --> ECS["EntityWorld / Entitas Contexts"]
+    World --> Services["World Services"]
+    Services --> Skill["MobaSkillCastRuntimeService"]
+    Skill --> Pipeline["SkillPipelineContext"]
+    Pipeline --> Trigger["TriggerContext / ExecCtx"]
+    Trigger --> Effect["Effect / Combat Execution"]
     Effect --> ECS
-    ECS --> Snapshot[FrameSnapshot / ActorStateSnapshot]
-    Snapshot --> View[ConsoleBattleView / Presentation]
+    ECS --> Snapshot["FrameSnapshot / ActorStateSnapshot"]
+    Snapshot --> View["ConsoleBattleView / Presentation"]
 ```
 
 这张图里有几个边界要先记住：
@@ -65,14 +65,14 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    Bootstrapper[ConsoleBattleBootstrapper] --> Modules[IWorldModule 列表]
-    Modules --> Manager[WorldManager]
-    Manager --> RuntimeWorld[IWorld]
-    RuntimeWorld --> Resolver[IWorldResolver]
-    Resolver --> Services[World Services]
-    Resolver --> Entitas[Entitas Contexts / Systems]
-    InMatch[InMatchPhase] --> EntityFeature[BattleEntityFeature]
-    EntityFeature --> EntityWorld[EntityWorld]
+    Bootstrapper["ConsoleBattleBootstrapper"] --> Modules["IWorldModule 列表"]
+    Modules --> Manager["WorldManager"]
+    Manager --> RuntimeWorld["IWorld"]
+    RuntimeWorld --> Resolver["IWorldResolver"]
+    Resolver --> Services["World Services"]
+    Resolver --> Entitas["Entitas Contexts / Systems"]
+    InMatch["InMatchPhase"] --> EntityFeature["BattleEntityFeature"]
+    EntityFeature --> EntityWorld["EntityWorld"]
 ```
 
 源码入口：
@@ -102,14 +102,14 @@ AbilityKit 当前不是旧文档里那种 `ActorEntity + ActorTransformComponent
 
 ```mermaid
 flowchart TD
-    Create[EntityWorld.Create] --> Id[IEntityId: Index + Version]
-    Id --> Handle[IEntity value handle]
-    Handle --> With[With / WithRef]
-    With --> Store[object[][] components]
-    Store --> Registry[ComponentRegistry: Type -> typeId]
-    Store --> Index[_componentIndex: typeId -> entity indices]
-    Handle --> Destroy[Destroy]
-    Destroy --> Version[Version 增加并释放 Index]
+    Create["EntityWorld.Create"] --> Id["IEntityId: Index + Version"]
+    Id --> Handle["IEntity value handle"]
+    Handle --> With["With / WithRef"]
+    With --> Store["object[][] components"]
+    Store --> Registry["ComponentRegistry: Type -> typeId"]
+    Store --> Index["_componentIndex: typeId -> entity indices"]
+    Handle --> Destroy["Destroy"]
+    Destroy --> Version["Version 增加并释放 Index"]
 ```
 
 一个最小示例：
@@ -157,15 +157,15 @@ world.Query<Position, MoveSpeed>().ForEach((entity, position, speed) =>
 ```mermaid
 flowchart TB
     BattleFlow --> PhaseHost
-    PhaseHost --> Prepare[PreparePhase]
-    PhaseHost --> InMatch[InMatchPhase]
-    PhaseHost --> End[EndPhase]
+    PhaseHost --> Prepare["PreparePhase"]
+    PhaseHost --> InMatch["InMatchPhase"]
+    PhaseHost --> End["EndPhase"]
     InMatch --> FeatureHost
-    FeatureHost --> EntityFeature[BattleEntityFeature]
-    FeatureHost --> InputFeature[ConsoleInputFeature]
-    FeatureHost --> SyncFeature[ConsoleSyncFeature]
-    FeatureHost --> ViewFeature[ConsoleViewFeature]
-    RuntimeWorld[IWorld] --> EntitasSystems[WorldSystemBase systems]
+    FeatureHost --> EntityFeature["BattleEntityFeature"]
+    FeatureHost --> InputFeature["ConsoleInputFeature"]
+    FeatureHost --> SyncFeature["ConsoleSyncFeature"]
+    FeatureHost --> ViewFeature["ConsoleViewFeature"]
+    RuntimeWorld["IWorld"] --> EntitasSystems["WorldSystemBase systems"]
 ```
 
 为什么要这么分：
@@ -233,13 +233,13 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Request[SkillCastRequest] --> Context[SkillPipelineContext.Initialize]
-    Context --> Runtime[MobaSkillCastRuntime]
-    Runtime --> Service[MobaSkillCastRuntimeService]
-    Context --> Source[MobaCombatContextSource]
-    Source --> Lineage[MobaTriggerLineageContext]
-    Source --> Exec[MobaCombatExecutionContext]
-    Exec --> Effect[Effect execution]
+    Request["SkillCastRequest"] --> Context["SkillPipelineContext.Initialize"]
+    Context --> Runtime["MobaSkillCastRuntime"]
+    Runtime --> Service["MobaSkillCastRuntimeService"]
+    Context --> Source["MobaCombatContextSource"]
+    Source --> Lineage["MobaTriggerLineageContext"]
+    Source --> Exec["MobaCombatExecutionContext"]
+    Exec --> Effect["Effect execution"]
 ```
 
 `SkillCastRequest` 承载的是一次施法需要的核心事实：
@@ -263,13 +263,13 @@ Trigger 和 Effect 的难点不是“执行一个动作”，而是动作执行�
 
 ```mermaid
 flowchart TB
-    SkillPipelineContext --> CombatSource[MobaCombatContextSource]
-    CombatSource --> Lineage[MobaTriggerLineageContext]
-    CombatSource --> Snapshot[MobaTriggerExecutionSnapshot]
-    CombatSource --> Origin[MobaGameplayOrigin]
-    Lineage --> EffectInput[MobaEffectLineageInput]
-    TriggerRuntime[Triggering.Runtime.Context.TriggerContext] --> ExecCtx[ExecCtx]
-    AbilityTrigger[Ability.Triggering.TriggerContext] --> Vars[local/global vars]
+    SkillPipelineContext --> CombatSource["MobaCombatContextSource"]
+    CombatSource --> Lineage["MobaTriggerLineageContext"]
+    CombatSource --> Snapshot["MobaTriggerExecutionSnapshot"]
+    CombatSource --> Origin["MobaGameplayOrigin"]
+    Lineage --> EffectInput["MobaEffectLineageInput"]
+    TriggerRuntime["Triggering.Runtime.Context.TriggerContext"] --> ExecCtx["ExecCtx"]
+    AbilityTrigger["Ability.Triggering.TriggerContext"] --> Vars["local/global vars"]
 ```
 
 源码里存在两类容易混淆的 `TriggerContext`：
@@ -320,11 +320,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    S0[Enter InMatch] --> S1[RegisterPlayerEntities]
-    S1 --> S2[RegisterLocalPlayer]
-    S2 --> S3[InitializeBattleState]
-    S3 --> S4[NotifyBattleStarted]
-    S4 --> Run[BattleRunning]
+    S0["Enter InMatch"] --> S1["RegisterPlayerEntities"]
+    S1 --> S2["RegisterLocalPlayer"]
+    S2 --> S3["InitializeBattleState"]
+    S3 --> S4["NotifyBattleStarted"]
+    S4 --> Run["BattleRunning"]
 ```
 
 这些阶段不是为了“写得复杂”，而是解决真实战斗启动里的顺序问题：配置要先加载，世界和服务要先建好，实体要先生成，本地玩家要绑定，状态要进入 InMatch，最后才能让输入、同步、表现层开始稳定 Tick。
@@ -350,17 +350,17 @@ AbilityKit 的 Demo 会同时演示本地帧同步、状态同步、混合同步
 
 ```mermaid
 flowchart TB
-    Human[ConsoleInputHandler] --> InputFeature[ConsoleInputFeature]
-    Auto[AutoTestInputFeature] --> InputFeature
-    Replay[ReplayPlayer] --> InputFeature
-    InputFeature --> Sink[IWorldInputSink]
-    Sink --> Direct[DirectCallInputSink]
-    Sink --> RuntimePort[RuntimePortInputSink]
-    Direct --> Adapter[IBattleSyncAdapter]
-    RuntimePort --> Port[IMobaBattleInputPort]
-    Adapter --> Frame[FrameSyncAdapter]
-    Adapter --> State[StateSyncAdapter]
-    Adapter --> Hybrid[HybridSyncAdapter]
+    Human["ConsoleInputHandler"] --> InputFeature["ConsoleInputFeature"]
+    Auto["AutoTestInputFeature"] --> InputFeature
+    Replay["ReplayPlayer"] --> InputFeature
+    InputFeature --> Sink["IWorldInputSink"]
+    Sink --> Direct["DirectCallInputSink"]
+    Sink --> RuntimePort["RuntimePortInputSink"]
+    Direct --> Adapter["IBattleSyncAdapter"]
+    RuntimePort --> Port["IMobaBattleInputPort"]
+    Adapter --> Frame["FrameSyncAdapter"]
+    Adapter --> State["StateSyncAdapter"]
+    Adapter --> Hybrid["HybridSyncAdapter"]
 ```
 
 这套抽象的收益是：同一份输入意图可以进入本地适配器、运行时输入端口、自动化脚本或回放系统。上层关心“玩家想做什么”，下层决定“这个操作如何同步、记录和应用”。
@@ -398,14 +398,14 @@ flowchart TB
 
 ```mermaid
 flowchart TD
-    A[01-AbilityKit 是什么] --> B[02-核心概念]
-    B --> C[03-快速开始]
-    C --> D[02-LogicalWorldDesign]
-    D --> E[06-ECSArchitecture]
-    E --> F[03-SkillSystemDesign]
-    F --> G[04-TriggerAndEffect]
-    G --> H[05-NetworkSync]
-    H --> I[09-ImplementationExamples]
+    A["01-AbilityKit 是什么"] --> B["02-核心概念"]
+    B --> C["03-快速开始"]
+    C --> D["02-LogicalWorldDesign"]
+    D --> E["06-ECSArchitecture"]
+    E --> F["03-SkillSystemDesign"]
+    F --> G["04-TriggerAndEffect"]
+    G --> H["05-NetworkSync"]
+    H --> I["09-ImplementationExamples"]
 ```
 
 建议先按下面顺序读源码：

@@ -1,3 +1,4 @@
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
@@ -219,6 +220,155 @@ public sealed class ShooterPackedSnapshotRuntimeTests
         Assert.True(!restoredProjectileLifecycle.HasValue || restoredProjectileLifecycle.Value.Count == 0);
         Assert.Equal(fullSnapshot.EntityCount - 1, restored.EntityCount);
         Assert.Equal(despawnDelta.Frame, target.CurrentFrame);
+    }
+
+    [Fact]
+    public void DeltaSnapshotExportMarksRemovedEnemyAsDespawned()
+    {
+        var container = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "delta-enemy-despawn-export",
+            30,
+            4260,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        entities.AddEnemy(
+            100,
+            new ShooterSveltoTransformComponent { X = 2f, Y = 0f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
+
+        var fullSnapshot = runtime.ExportPackedSnapshot(99ul, isFullSnapshot: true, authorityOverride: true);
+        var fullEnemyLifecycle = FindPackedChunk(fullSnapshot, ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Enemy);
+        Assert.NotNull(fullEnemyLifecycle);
+        Assert.Contains(100, fullEnemyLifecycle.Value.EntityIds);
+
+        entities.RemoveEnemy(100);
+        var deltaSnapshot = runtime.ExportPackedSnapshot(99ul, isFullSnapshot: false, authorityOverride: true);
+        var enemyLifecycle = FindPackedChunk(deltaSnapshot, ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Enemy);
+
+        Assert.NotNull(enemyLifecycle);
+        Assert.Equal(1, enemyLifecycle.Value.Count);
+        Assert.Equal(100, enemyLifecycle.Value.EntityIds[0]);
+        Assert.True((enemyLifecycle.Value.Flags[0] & ShooterPackedEntityFlags.Despawned) != 0);
+    }
+
+    [Fact]
+    public void DeltaSnapshotImportRemovesEnemyWhenLifecycleMarksDespawned()
+    {
+        var sourceContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var source = sourceContainer.Resolve<IShooterBattleRuntimePort>();
+        var sourceEntities = sourceContainer.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "delta-enemy-despawn-import",
+            30,
+            4270,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+        Assert.True(source.StartGame(in start));
+        sourceEntities.AddEnemy(
+            100,
+            new ShooterSveltoTransformComponent { X = 2f, Y = 0f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
+        var fullSnapshot = source.ExportPackedSnapshot(99ul, isFullSnapshot: true, authorityOverride: true);
+
+        var targetContainer = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var target = targetContainer.Resolve<IShooterBattleRuntimePort>();
+        var targetEntities = targetContainer.Resolve<IShooterEntityManager>();
+        Assert.True(target.ImportPackedSnapshot(in fullSnapshot));
+        Assert.True(targetEntities.TryGetEnemy(100, out _, out _));
+
+        var despawnDelta = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            worldId: 99ul,
+            frame: fullSnapshot.Frame + 1,
+            serverTick: fullSnapshot.ServerTick + 1,
+            snapshotFlags: ShooterPackedSnapshotFlags.Delta,
+            stateHash: 0u,
+            entityCount: 1,
+            extensionPayload: Array.Empty<byte>(),
+            componentChunks: new[]
+            {
+                new ShooterPackedComponentChunk(
+                    ShooterPackedComponentKinds.EntityLifecycle,
+                    ShooterPackedEntityKinds.Enemy,
+                    count: 1,
+                    entityIds: new[] { 100 },
+                    valueX: Array.Empty<float>(),
+                    valueY: Array.Empty<float>(),
+                    valueZ: Array.Empty<float>(),
+                    valueW: Array.Empty<float>(),
+                    intValues: Array.Empty<int>(),
+                    flags: new[] { (byte)(ShooterPackedEntityFlags.Enemy | ShooterPackedEntityFlags.Despawned) },
+                    ownerIds: Array.Empty<int>(),
+                    aux: Array.Empty<int>())
+            });
+
+        Assert.True(target.ImportPackedSnapshot(in despawnDelta));
+
+        var restored = target.ExportPackedSnapshot(99ul, isFullSnapshot: true, authorityOverride: true);
+        var restoredEnemyLifecycle = FindPackedChunk(restored, ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Enemy);
+        Assert.False(targetEntities.TryGetEnemy(100, out _, out _));
+        Assert.True(!restoredEnemyLifecycle.HasValue || restoredEnemyLifecycle.Value.Count == 0);
+        Assert.Equal(fullSnapshot.EntityCount - 1, restored.EntityCount);
+        Assert.Equal(despawnDelta.Frame, target.CurrentFrame);
+    }
+
+    [Fact]
+    public void PackedSnapshotImportPreservesFinalMatchMetadataWhenPlayersExist()
+    {
+        var target = new ShooterBattleRuntimePort();
+        var finalSnapshot = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            worldId: 99ul,
+            frame: 12,
+            serverTick: 12,
+            snapshotFlags: ShooterPackedSnapshotFlags.Full,
+            stateHash: 0u,
+            entityCount: 1,
+            extensionPayload: Array.Empty<byte>(),
+            componentChunks: new[]
+            {
+                new ShooterPackedComponentChunk(
+                    ShooterPackedComponentKinds.RuntimeMetadata,
+                    entityKind: 0,
+                    count: 1,
+                    entityIds: Array.Empty<int>(),
+                    valueX: Array.Empty<float>(),
+                    valueY: Array.Empty<float>(),
+                    valueZ: Array.Empty<float>(),
+                    valueW: Array.Empty<float>(),
+                    intValues: new[] { (int)ShooterBattleMatchState.Victory, 12, 3, 3, 180, 168 },
+                    flags: Array.Empty<byte>(),
+                    ownerIds: Array.Empty<int>(),
+                    aux: Array.Empty<int>()),
+                new ShooterPackedComponentChunk(
+                    ShooterPackedComponentKinds.EntityLifecycle,
+                    ShooterPackedEntityKinds.Player,
+                    count: 1,
+                    entityIds: new[] { 1 },
+                    valueX: Array.Empty<float>(),
+                    valueY: Array.Empty<float>(),
+                    valueZ: Array.Empty<float>(),
+                    valueW: Array.Empty<float>(),
+                    intValues: Array.Empty<int>(),
+                    flags: new[] { (byte)(ShooterPackedEntityFlags.Player | ShooterPackedEntityFlags.Alive) },
+                    ownerIds: new[] { 1 },
+                    aux: Array.Empty<int>())
+            });
+
+        Assert.True(target.ImportPackedSnapshot(in finalSnapshot));
+
+        Assert.Equal(ShooterBattleMatchState.Victory, target.MatchState);
+        Assert.False(target.IsStarted);
+        Assert.Equal(12, target.CurrentFrame);
     }
 
     [Fact]

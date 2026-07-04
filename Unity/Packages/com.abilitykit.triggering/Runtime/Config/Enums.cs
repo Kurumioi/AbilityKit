@@ -80,6 +80,7 @@ namespace AbilityKit.Triggering.Runtime.Config
         And = 2,
         Or = 3,
         CompareNumeric = 4,
+        Function = 5,
     }
 
     /// <summary>

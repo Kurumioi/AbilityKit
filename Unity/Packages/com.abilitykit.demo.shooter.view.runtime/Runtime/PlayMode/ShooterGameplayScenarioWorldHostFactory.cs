@@ -2,8 +2,6 @@
 
 using System;
 using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Shooter.Runtime;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
@@ -21,11 +19,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
 
-            options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
-            var enemyWaveOptions = new ShooterEnemyWaveOptions(true, scenario.BattleFlow);
-            var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
-            options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
-            options.ServiceBuilder.Register<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => arenaOptions);
+            options.Extensions[typeof(ShooterSveltoGameplayScenarioConfig)] = scenario;
         }
     }
 }

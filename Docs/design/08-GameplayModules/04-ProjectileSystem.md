@@ -75,27 +75,27 @@
 
 ```mermaid
 flowchart TB
-    subgraph Core[Combat Projectile Core]
-        Service[ProjectileService]
-        World[ProjectileWorld]
-        Runtime[Projectile runtime]
-        Collision[ICollisionWorld]
-        Events[Spawn Hit Tick Exit events]
+    subgraph Core["Combat Projectile Core"]
+        Service["ProjectileService"]
+        World["ProjectileWorld"]
+        Runtime["Projectile runtime"]
+        Collision["ICollisionWorld"]
+        Events["Spawn Hit Tick Exit events"]
     end
 
-    subgraph Policies[Extension Policies]
-        Pattern[IProjectileSpawnPattern]
-        HitPolicy[IProjectileHitPolicy]
-        HitFilter[IProjectileHitFilter]
-        ReturnTarget[IProjectileReturnTargetProvider]
+    subgraph Policies["Extension Policies"]
+        Pattern["IProjectileSpawnPattern"]
+        HitPolicy["IProjectileHitPolicy"]
+        HitFilter["IProjectileHitFilter"]
+        ReturnTarget["IProjectileReturnTargetProvider"]
     end
 
-    subgraph Moba[MOBA Demo Binding]
-        MobaSvc[MobaProjectileService]
-        Link[MobaProjectileLinkService]
-        Source[ProjectileSourceContext]
-        Stage[MobaStageTriggerService]
-        Snapshot[MobaProjectileEventSnapshotService]
+    subgraph Moba["MOBA Demo Binding"]
+        MobaSvc["MobaProjectileService"]
+        Link["MobaProjectileLinkService"]
+        Source["ProjectileSourceContext"]
+        Stage["MobaStageTriggerService"]
+        Snapshot["MobaProjectileEventSnapshotService"]
     end
 
     MobaSvc --> Service
@@ -175,15 +175,15 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[ProjectileTickSystem.OnExecute] --> B{IFrameTime available?}
-    B -->|yes| C[Tick with frame and DeltaTime]
-    B -->|no| D[Tick with fallback frame and WorldClock]
-    C --> E[ProjectileService.Tick]
+    A["ProjectileTickSystem.OnExecute"] --> B{IFrameTime available?}
+    B -->|yes| C["Tick with frame and DeltaTime"]
+    B -->|no| D["Tick with fallback frame and WorldClock"]
+    C --> E["ProjectileService.Tick"]
     D --> E
-    E --> F[TickSchedules]
-    E --> G[AreaWorld.Tick]
-    E --> H[ProjectileWorld.Tick]
-    H --> I[collect hit tick exit events]
+    E --> F["TickSchedules"]
+    E --> G["AreaWorld.Tick"]
+    E --> H["ProjectileWorld.Tick"]
+    H --> I["collect hit tick exit events"]
 ```
 
 ### 5.3 单个投射物推进
@@ -202,34 +202,34 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[ProjectileWorld.Tick projectile] --> B{Lifetime <= 0?}
-    B -->|yes| X[Exit: Lifetime]
+    A["ProjectileWorld.Tick projectile"] --> B{"Lifetime <= 0?"}
+    B -->|yes| X["Exit: Lifetime"]
     B -->|no| C{Should return?}
-    C -->|yes| D[Resolve return target]
+    C -->|yes| D["Resolve return target"]
     D --> E{Target valid?}
-    E -->|no| Y[Exit: ReturnTargetLost]
-    E -->|yes| F[Update direction to target]
-    C -->|no| G[Compute movement]
+    E -->|no| Y["Exit: ReturnTargetLost"]
+    E -->|yes| F["Update direction to target"]
+    C -->|no| G["Compute movement"]
     F --> G
-    G --> H{Move <= 0?}
-    H -->|yes| I[Decrease lifetime only]
-    H -->|no| J[Raycast along segment]
+    G --> H{"Move <= 0?"}
+    H -->|yes| I["Decrease lifetime only"]
+    H -->|no| J["Raycast along segment"]
     J --> K{Hit?}
-    K -->|no| L[Move to segment end]
-    K -->|yes| M[Filter and cooldown checks]
+    K -->|no| L["Move to segment end"]
+    K -->|yes| M["Filter and cooldown checks"]
     M --> N{Accepted hit?}
-    N -->|no| O[Advance slightly and continue]
-    N -->|yes| P[Emit ProjectileHitEvent]
+    N -->|no| O["Advance slightly and continue"]
+    N -->|yes| P["Emit ProjectileHitEvent"]
     P --> Q{HitPolicy exits?}
-    Q -->|yes| Z[Exit: Hit]
+    Q -->|yes| Z["Exit: Hit"]
     Q -->|no| O
     O --> R{Step budget left?}
     R -->|yes| J
     R -->|no| L
-    L --> S[Update lifetime and distance]
+    L --> S["Update lifetime and distance"]
     S --> T{Tick interval reached?}
-    T -->|yes| U[Emit ProjectileTickEvent]
-    T -->|no| V[Continue]
+    T -->|yes| U["Emit ProjectileTickEvent"]
+    T -->|no| V["Continue"]
     U --> V
 ```
 
@@ -260,17 +260,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[ScheduleEmit] --> B[Store ScheduledEmit]
-    B --> C[TickSchedules each frame]
-    C --> D{frame >= nextFrame?}
+    A["ScheduleEmit"] --> B["Store ScheduledEmit"]
+    B --> C["TickSchedules each frame"]
+    C --> D{"frame >= nextFrame?"}
     D -->|no| C
-    D -->|yes| E[Resolve pattern]
-    E --> F[Build spawn list]
-    F --> G[Spawn each projectile]
-    G --> H[Emit spawn events]
+    D -->|yes| E["Resolve pattern"]
+    E --> F["Build spawn list"]
+    F --> G["Spawn each projectile"]
+    G --> H["Emit spawn events"]
     H --> I{remaining == 0?}
-    I -->|yes| J[Remove schedule]
-    I -->|no| K[Advance nextFrame]
+    I -->|yes| J["Remove schedule"]
+    I -->|no| K["Advance nextFrame"]
 ```
 
 发射模式由 [`IProjectileSpawnPattern`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Patterns/IProjectileSpawnPattern.cs:5) 构建多个 [`ProjectileSpawnParams`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileSpawnParams.cs:11)。内置模式包括单发、连发、扇形、散射等。MOBA 层还通过 [`MobaModifierProjectileSpawnPatternProvider`](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaModifierProjectileSpawnPatternProvider.cs:5) 在发射时读取技能参数修饰器，动态改变每次发射数量和扇形角度。
@@ -291,12 +291,12 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[Active Projectile List] --> B[SnapshotItem array]
-    B --> C[SnapshotPayload]
-    C --> D[BinaryObjectCodec.Encode]
-    D --> E[Rollback payload]
-    E --> F[BinaryObjectCodec.Decode]
-    F --> G[Rebuild Projectile list from pool]
+    A["Active Projectile List"] --> B["SnapshotItem array"]
+    B --> C["SnapshotPayload"]
+    C --> D["BinaryObjectCodec.Encode"]
+    D --> E["Rollback payload"]
+    E --> F["BinaryObjectCodec.Decode"]
+    F --> G["Rebuild Projectile list from pool"]
 ```
 
 需要注意：底层快照保存的是底层运行状态；Demo 层额外的演员链接、来源上下文、技能 retain handle 等，需要由 Demo 侧服务自行维护或在生命周期中重新绑定。
@@ -322,20 +322,20 @@ MOBA 示例没有直接把“技能命中”和“投射物命中”写死在核
 sequenceDiagram
     participant Action as Trigger Action or Skill Effect
     participant Moba as MobaProjectileService
-    participant Actor as ActorSpawnService
+    participant ProjectileActor as ActorSpawnService
     participant Projectile as ProjectileService
-    participant Link as MobaProjectileLinkService
+    participant LinkSvc as MobaProjectileLinkService
     participant Trace as Trace Context
 
     Action->>Moba: Launch or Shoot
     Moba->>Moba: validate dependencies and config
-    Moba->>Actor: spawn projectile or launcher actor
-    Actor-->>Moba: actor id and entity
+    Moba->>ProjectileActor: spawn projectile or launcher actor
+    ProjectileActor-->>Moba: actor id and entity
     Moba->>Trace: create or inherit ProjectileSourceContext
     Moba->>Projectile: Spawn or ScheduleEmit
     Projectile-->>Moba: ProjectileId
-    Moba->>Link: Link projectile id to actor id
-    Moba->>Link: Bind source context and retain handle
+    Moba->>LinkSvc: Link projectile id to actor id
+    Moba->>LinkSvc: Bind source context and retain handle
 ```
 
 ### 9.2 事件转译
@@ -350,14 +350,14 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[ProjectileService event buffers] --> B[MOBA systems drain or peek events]
+    A["ProjectileService event buffers"] --> B["MOBA systems drain or peek events"]
     B --> C{event kind}
-    C -->|Spawn| D[MobaProjectileEventSnapshotService]
-    C -->|Hit| E[MobaStageTriggerService]
-    C -->|Exit| F[despawn temporary actor and snapshot]
-    E --> G[ProjectileHitArgs]
-    G --> H[MobaTriggerPlanExecutor]
-    H --> I[Effects Damage Buff Area etc]
+    C -->|Spawn| D["MobaProjectileEventSnapshotService"]
+    C -->|Hit| E["MobaStageTriggerService"]
+    C -->|Exit| F["despawn temporary actor and snapshot"]
+    E --> G["ProjectileHitArgs"]
+    G --> H["MobaTriggerPlanExecutor"]
+    H --> I["Effects Damage Buff Area etc"]
 ```
 
 ---

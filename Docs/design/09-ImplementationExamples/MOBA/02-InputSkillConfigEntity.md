@@ -24,15 +24,15 @@
 
 ```mermaid
 flowchart TD
-    A[PlayerInputCommand[]] --> B[MobaInputCoordinator]
-    B --> C[CreateContext]
-    C --> D[MobaInputCommandContext]
-    D --> E[玩家到 Actor 映射]
-    D --> F[MobaEntityManager]
-    D --> G[SkillCastCoordinator]
-    B --> H[InputCommandHandlers]
-    H --> I[移动/技能/交互命令]
-    I --> J[MobaInputCommandResult]
+    A["PlayerInputCommand[]"] --> B["MobaInputCoordinator"]
+    B --> C["CreateContext"]
+    C --> D["MobaInputCommandContext"]
+    D --> E["玩家到 Actor 映射"]
+    D --> F["MobaEntityManager"]
+    D --> G["SkillCastCoordinator"]
+    B --> H["InputCommandHandlers"]
+    H --> I["移动/技能/交互命令"]
+    I --> J["MobaInputCommandResult"]
 ```
 
 ## 3. 技能释放协调器
@@ -71,16 +71,16 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A[Luban/Json/Bytes/Resources] --> B[MobaConfigDatabase]
-    B --> C[ConfigDatabase]
-    B --> D[TableRegistry]
-    B --> E[DTO Deserializer]
-    B --> F[Bytes Deserializer]
-    B --> G[ConfigReloadBus]
-    C --> H[Skill Config]
-    C --> I[Buff Config]
-    C --> J[Projectile Config]
-    C --> K[Character Config]
+    A["Luban/Json/Bytes/Resources"] --> B["MobaConfigDatabase"]
+    B --> C["ConfigDatabase"]
+    B --> D["TableRegistry"]
+    B --> E["DTO Deserializer"]
+    B --> F["Bytes Deserializer"]
+    B --> G["ConfigReloadBus"]
+    C --> H["Skill Config"]
+    C --> I["Buff Config"]
+    C --> J["Projectile Config"]
+    C --> K["Character Config"]
 ```
 
 配置门面让技能、Buff、Projectile、角色生成服务不必关心配置来源，只依赖统一查询接口。
@@ -118,15 +118,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[MobaActorSpawnService] --> B[ActorEntity]
-    B --> C[MobaActorRegistry]
-    B --> D[MobaEntityManager]
-    D --> E[ByActorId]
-    D --> F[ByTeam]
-    D --> G[ByMainType]
-    D --> H[ByUnitSubType]
-    D --> I[ByOwnerPlayer]
-    D --> J[Spawn/Despawn Events]
+    A["MobaActorSpawnService"] --> B["ActorEntity"]
+    B --> C["MobaActorRegistry"]
+    B --> D["MobaEntityManager"]
+    D --> E["ByActorId"]
+    D --> F["ByTeam"]
+    D --> G["ByMainType"]
+    D --> H["ByUnitSubType"]
+    D --> I["ByOwnerPlayer"]
+    D --> J["Spawn/Despawn Events"]
 ```
 
 ## 7. 输入到技能的完整路径

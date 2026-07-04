@@ -10,7 +10,11 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.StartSources
         private readonly int _dungeonId;
         private readonly int _presetId;
 
-        public MobaGameStartSourceKind Kind => MobaGameStartSourceKind.DungeonPreset;
+        public static readonly MobaGameStartSourceKey SourceKey = new MobaGameStartSourceKey("dungeon-preset");
+
+        public MobaGameStartSourceKey Key => SourceKey;
+
+        public int Priority => 0;
 
         public DungeonPresetGameStartSource(IMobaDungeonPresetResolver resolver, int dungeonId, int presetId)
         {

@@ -43,23 +43,23 @@
 
 ```mermaid
 flowchart TB
-    Caller[调用方] --> Pools[Pools 静态门面]
-    Pools --> Registry[PoolRegistry]
-    Registry --> Global[Global PoolScope]
-    Registry --> Named[Named PoolScope\nBattle/UI/Scene]
+    Caller["调用方"] --> Pools["Pools 静态门面"]
+    Pools --> Registry["PoolRegistry"]
+    Registry --> Global["Global PoolScope"]
+    Registry --> Named["Named PoolScope\\nBattle/UI/Scene"]
 
-    Global --> ManagerA[PoolManager]
-    Named --> ManagerB[PoolManager]
+    Global --> ManagerA["PoolManager"]
+    Named --> ManagerB["PoolManager"]
 
-    ManagerA --> PoolA[ObjectPool<T>\nType + PoolKey]
-    ManagerB --> PoolB[ObjectPool<T>\nType + PoolKey]
+    ManagerA --> PoolA["ObjectPool<T>\\nType + PoolKey"]
+    ManagerB --> PoolB["ObjectPool<T>\\nType + PoolKey"]
 
-    PoolA --> Stack[Stack<T> inactive]
-    PoolA --> Stats[PoolStats]
-    PoolA --> Hooks[IPoolable + lifecycle delegates]
+    PoolA --> Stack["Stack<T> inactive"]
+    PoolA --> Stats["PoolStats"]
+    PoolA --> Hooks["IPoolable + lifecycle delegates"]
 
-    Registry --> Config[PoolConfigCenter]
-    Config --> Providers[IPoolConfigProvider list]
+    Registry --> Config["PoolConfigCenter"]
+    Config --> Providers["IPoolConfigProvider list"]
 ```
 
 这个结构把三类问题分开：
@@ -130,22 +130,22 @@ evt.Value = damage;
 
 ```mermaid
 flowchart TB
-    Start[ObjectPool<T>.Get] --> Lock[lock _syncRoot]
-    Lock --> Inc[_getTotal++]
-    Inc --> Has{_stack.Count > 0?}
-    Has -->|是| Pop[Pop inactive object]
-    Pop --> Hit[_hitCount++]
-    Hit --> EditorRemove[UNITY_EDITOR: inactiveSet.Remove]
-    EditorRemove --> Peak[UpdatePeakActiveCount]
-    Has -->|否| Miss[_missCount++]
-    Miss --> Create[createFunc]
+    Start["ObjectPool<T>.Get"] --> Lock["lock _syncRoot"]
+    Lock --> Inc["_getTotal++"]
+    Inc --> Has{"_stack.Count > 0?"}
+    Has -->|是| Pop["Pop inactive object"]
+    Pop --> Hit["_hitCount++"]
+    Hit --> EditorRemove["UNITY_EDITOR: inactiveSet.Remove"]
+    EditorRemove --> Peak["UpdatePeakActiveCount"]
+    Has -->|否| Miss["_missCount++"]
+    Miss --> Create["createFunc"]
     Create --> Null{created == null?}
-    Null -->|是| Throw[throw InvalidOperationException]
-    Null -->|否| Created[_createdTotal++]
+    Null -->|是| Throw["throw InvalidOperationException"]
+    Null -->|否| Created["_createdTotal++"]
     Created --> Peak
-    Peak --> PoolGet[TryOnPoolGet]
-    PoolGet --> OnGet[onGet?.Invoke]
-    OnGet --> Return[return object]
+    Peak --> PoolGet["TryOnPoolGet"]
+    PoolGet --> OnGet["onGet?.Invoke"]
+    OnGet --> Return["return object"]
 ```
 
 调用顺序非常明确：
@@ -164,19 +164,19 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    Start[ObjectPool<T>.Release] --> Null{element == null?}
-    Null -->|是| ThrowNull[ArgumentNullException]
-    Null -->|否| Lock[lock _syncRoot]
-    Lock --> Inc[_releaseTotal++]
+    Start["ObjectPool<T>.Release"] --> Null{element == null?}
+    Null -->|是| ThrowNull["ArgumentNullException"]
+    Null -->|否| Lock["lock _syncRoot"]
+    Lock --> Inc["_releaseTotal++"]
     Inc --> Check{UNITY_EDITOR collectionCheck?}
-    Check -->|重复归还| ThrowDouble[InvalidOperationException]
-    Check -->|通过| PoolRelease[TryOnPoolRelease]
-    PoolRelease --> OnRelease[onRelease?.Invoke]
-    OnRelease --> Full{_stack.Count >= _maxSize?}
-    Full -->|是| Destroy[DestroyElementUnsafe]
-    Destroy --> Overflow[_overflowDestroyCount++]
-    Full -->|否| Push[_stack.Push]
-    Push --> EditorAdd[UNITY_EDITOR: inactiveSet.Add]
+    Check -->|重复归还| ThrowDouble["InvalidOperationException"]
+    Check -->|通过| PoolRelease["TryOnPoolRelease"]
+    PoolRelease --> OnRelease["onRelease?.Invoke"]
+    OnRelease --> Full{"_stack.Count >= _maxSize?"}
+    Full -->|是| Destroy["DestroyElementUnsafe"]
+    Destroy --> Overflow["_overflowDestroyCount++"]
+    Full -->|否| Push["_stack.Push"]
+    Push --> EditorAdd["UNITY_EDITOR: inactiveSet.Add"]
 ```
 
 这条顺序决定了一个重要约束：对象状态清理发生在是否溢出销毁之前。即使池已满，对象也会先走 `OnPoolRelease()` 和 `onRelease`，再走销毁逻辑。
@@ -252,13 +252,13 @@ battleScope.Release(new PoolKey("Projectile.Fast"), projectile);
 
 ```mermaid
 flowchart LR
-    Registry[PoolRegistry] --> Global[Global scope\ndestroyOnDispose=false]
-    Registry --> Battle[Battle scope\ndestroyOnDispose=true]
-    Registry --> UI[UI scope\ndestroyOnDispose=true]
+    Registry["PoolRegistry"] --> Global["Global scope\\ndestroyOnDispose=false"]
+    Registry --> Battle["Battle scope\\ndestroyOnDispose=true"]
+    Registry --> UI["UI scope\\ndestroyOnDispose=true"]
 
-    Battle --> ProjectileFast[(ProjectileEntity + Fast key)]
-    Battle --> ProjectileSlow[(ProjectileEntity + Slow key)]
-    UI --> FloatingText[(FloatingText + Default key)]
+    Battle --> ProjectileFast["(ProjectileEntity + Fast key)"]
+    Battle --> ProjectileSlow["(ProjectileEntity + Slow key)"]
+    UI --> FloatingText["(FloatingText + Default key)"]
 ```
 
 同一个类型可以通过不同 `PoolKey` 拆成多个池。适合以下情况：
@@ -305,17 +305,17 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    Start[PoolScope.GetPool<T>] --> Request[PoolConfigRequest\nscopeName + typeof(T) + PoolKey]
-    Request --> Center[PoolConfigCenter.GetConfigOrDefault]
-    Center --> Providers[遍历 IPoolConfigProvider]
+    Start["PoolScope.GetPool<T>"] --> Request["PoolConfigRequest\\nscopeName + typeof(T) + PoolKey"]
+    Request --> Center["PoolConfigCenter.GetConfigOrDefault"]
+    Center --> Providers["遍历 IPoolConfigProvider"]
     Providers --> Match{TryGetConfig 命中且 IsSpecified?}
-    Match -->|否| Fallback[使用 fallback/default config]
-    Match -->|是| Winner[按 priority/registrationOrder 选 winner]
+    Match -->|否| Fallback["使用 fallback/default config"]
+    Match -->|是| Winner["按 priority/registrationOrder 选 winner"]
     Winner --> Enabled{config.Enabled?}
     Fallback --> Enabled
-    Enabled -->|否| Throw[Pool is disabled by config]
-    Enabled -->|是| Options[PoolOptions.FromConfig]
-    Options --> Manager[PoolManager.GetOrCreate]
+    Enabled -->|否| Throw["Pool is disabled by config"]
+    Enabled -->|是| Options["PoolOptions.FromConfig"]
+    Options --> Manager["PoolManager.GetOrCreate"]
 ```
 
 仲裁规则：
@@ -363,13 +363,13 @@ PoolRegistry.RegisterConfigModule(
 
 ```mermaid
 flowchart TB
-    SceneLoad[战斗/场景加载] --> Prewarm[Prewarm 常用对象]
-    Running[运行中] --> GetRelease[Get/Release 高频复用]
-    Pressure[内存压力或场景切换] --> Trim[TrimAll / ForceTrimAll]
-    End[战斗/场景结束] --> Dispose[PoolScope.Dispose]
+    SceneLoad["战斗/场景加载"] --> Prewarm["Prewarm 常用对象"]
+    Running["运行中"] --> GetRelease["Get/Release 高频复用"]
+    Pressure["内存压力或场景切换"] --> Trim["TrimAll / ForceTrimAll"]
+    End["战斗/场景结束"] --> Dispose["PoolScope.Dispose"]
     Dispose --> Clear{destroyOnDispose?}
-    Clear -->|true| Destroy[ClearAll destroy=true]
-    Clear -->|false| Drop[ClearAll destroy=false]
+    Clear -->|true| Destroy["ClearAll destroy=true"]
+    Clear -->|false| Drop["ClearAll destroy=false"]
 ```
 
 `PoolRegistry.DestroyScope(name, destroy)` 会移除命名 scope 并调用 `scope.Dispose(destroy)`。全局 scope 不会被移除，销毁全局 scope 时只会清空其中的池。
@@ -384,10 +384,10 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    ObjectPool[ObjectPool<T>] --> Stats[PoolStats]
-    PoolManager --> Snapshot[PoolDebugSnapshot]
-    PoolScope --> ScopeSnapshots[GetDebugSnapshots]
-    PoolRegistry --> AllSnapshots[GetDebugSnapshots scopeName]
+    ObjectPool["ObjectPool<T>"] --> Stats["PoolStats"]
+    PoolManager --> Snapshot["PoolDebugSnapshot"]
+    PoolScope --> ScopeSnapshots["GetDebugSnapshots"]
+    PoolRegistry --> AllSnapshots["GetDebugSnapshots scopeName"]
 ```
 
 这些数据能回答：
@@ -405,11 +405,11 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    EventDispatcher --> SnapshotPool[Channel<TArgs> snapshot List pool]
-    EventDispatcher --> AutoRelease[Publish autoReleaseArgs]
-    SnapshotPool --> ObjectPoolList[ObjectPool<List<Listener<TArgs>>>]
-    AutoRelease --> PoolsTryRelease[Pools.TryRelease(object)]
-    PoolsTryRelease --> PoolManager[ConditionalWeakTable release handle]
+    EventDispatcher --> SnapshotPool["Channel<TArgs> snapshot List pool"]
+    EventDispatcher --> AutoRelease["Publish autoReleaseArgs"]
+    SnapshotPool --> ObjectPoolList["ObjectPool<List<Listener<TArgs>>>"]
+    AutoRelease --> PoolsTryRelease["Pools.TryRelease(object)"]
+    PoolsTryRelease --> PoolManager["ConditionalWeakTable release handle"]
 ```
 
 这意味着：

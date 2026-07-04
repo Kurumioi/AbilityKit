@@ -1,7 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import mermaid from 'mermaid';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
+const validationPackage = path.resolve(process.cwd(), 'artifacts/mermaid-validation/package.json');
+const validationRequire = createRequire(pathToFileURL(validationPackage).href);
+const { JSDOM } = validationRequire('jsdom');
+const dom = new JSDOM('<!doctype html><html><body></body></html>');
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.DOMParser = dom.window.DOMParser;
+globalThis.Element = dom.window.Element;
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: dom.window.navigator,
+});
+
+const mermaidEntry = path.resolve(process.cwd(), 'artifacts/mermaid-validation/node_modules/mermaid/dist/mermaid.esm.mjs');
+if (!fs.existsSync(mermaidEntry)) {
+  throw new Error('Mermaid dependency missing. Run: npm install --prefix artifacts\\mermaid-validation mermaid');
+}
+const mermaid = (await import(pathToFileURL(mermaidEntry).href)).default;
 
 const sourceDir = process.argv[2] ?? 'Docs/design';
 const root = process.cwd();
