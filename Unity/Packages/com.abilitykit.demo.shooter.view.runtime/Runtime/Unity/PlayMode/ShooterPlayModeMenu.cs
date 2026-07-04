@@ -190,6 +190,27 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 RunAsync("reconnect", () => StartRemoteAsync(ShooterRemoteStateSyncLaunchMode.RestoreOnly, string.Empty));
             }
 
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUI.enabled = !_busy
+                && ShooterRemoteStateSyncPlayModeHost.IsRunning
+                && !ShooterRemoteStateSyncPlayModeHost.IsPaused
+                && !ShooterRemoteStateSyncPlayModeHost.IsAutoReconnecting;
+            if (GUILayout.Button("Pause Remote"))
+            {
+                ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();
+                SetStatus("Remote session paused for reconnect validation.");
+            }
+
+            GUI.enabled = !_busy && ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            if (GUILayout.Button("Resume Remote"))
+            {
+                RunAsync("resume remote", ResumeRemoteAsync);
+            }
+
+            GUI.enabled = !_busy && (ShooterRemoteStateSyncPlayModeHost.IsRunning || ShooterRemoteStateSyncPlayModeHost.IsPaused || ShooterRemoteStateSyncPlayModeHost.IsStarting);
             if (GUILayout.Button("Stop Remote"))
             {
                 ShooterRemoteStateSyncPlayModeHost.Stop();
@@ -198,7 +219,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             GUI.enabled = true;
             GUILayout.EndHorizontal();
-            GUILayout.Label($"Remote: {(ShooterRemoteStateSyncPlayModeHost.IsRunning ? "Running" : ShooterRemoteStateSyncPlayModeHost.IsStarting ? "Starting" : "Stopped")}");
+            GUILayout.Label($"Remote: {RemoteStateLabel()}");
         }
 
         private void DrawRoomList()
@@ -332,6 +353,34 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             SetStatus($"Remote {mode} ok: room={flow.RoomId} battle={flow.BattleId}");
         }
 
+        private async Task ResumeRemoteAsync()
+        {
+            var launch = await ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync();
+            var flow = launch.Flow;
+            roomId = flow.RoomId;
+            SetStatus($"Remote resumed through reconnect: room={flow.RoomId} battle={flow.BattleId}");
+        }
+
+        private static string RemoteStateLabel()
+        {
+            if (ShooterRemoteStateSyncPlayModeHost.IsStarting)
+            {
+                return "Starting";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.IsAutoReconnecting)
+            {
+                return "Auto Reconnecting";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.IsPaused)
+            {
+                return "Paused";
+            }
+
+            return ShooterRemoteStateSyncPlayModeHost.IsRunning ? "Running" : "Stopped";
+        }
+
         private ShooterPlayModeSessionOptions BuildSessionOptions()
         {
             var templateOptions = ShooterPlayModeSessionOptions.FromTemplate(
@@ -361,6 +410,20 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private ShooterRoomLaunchSpec BuildRoomLaunchSpec(ShooterPlayModeSessionOptions sessionOptions)
         {
             var defaults = ShooterRoomLaunchSpec.CreateDefault($"unity-{sessionOptions.ControlledPlayerId}");
+            var template = ShooterAcceptanceCatalog.GetSyncTemplate(NormalizeOrDefault(sessionOptions.SyncTemplateId, DefaultTemplateId));
+            var tags = new Dictionary<string, string>(defaults.Tags, StringComparer.Ordinal)
+            {
+                ["syncTemplateId"] = template.Id,
+                ["syncModel"] = ((int)template.SyncModel).ToString(),
+                ["networkEnvironmentId"] = template.NetworkEnvironmentId,
+                ["carrierName"] = template.ExpectedCarrierName,
+                ["enableAuthoritativeWorld"] = template.EnableAuthoritativeWorld.ToString(),
+                ["interpolationEnabled"] = template.ExpectsInterpolationDiagnostics.ToString(),
+                ["inputDelayFrames"] = "0",
+                ["randomSeed"] = sessionOptions.RandomSeed.ToString(),
+                ["durationFrames"] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString()
+            };
+
             return new ShooterRoomLaunchSpec(
                 Region(),
                 ServerId(),
@@ -372,7 +435,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 defaults.ProtocolVersion,
                 defaults.WorldType,
                 defaults.ClientId,
-                defaults.Tags);
+                tags,
+                template.Id,
+                (int)template.SyncModel,
+                template.NetworkEnvironmentId,
+                template.ExpectedCarrierName,
+                template.EnableAuthoritativeWorld,
+                template.ExpectsInterpolationDiagnostics,
+                inputDelayFrames: 0);
         }
 
         private async Task<T> WithRoomClient<T>(Func<ShooterRoomGatewayRoomClient, Task<T>> action)

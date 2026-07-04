@@ -61,7 +61,8 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.True(mobaProfile.ResolveTemplate("state-sync-authority").RequiresBattleRuntime);
         Assert.Equal("frame-sync-authority", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
         Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.DefaultMode);
-        Assert.Equal("pure-state-authority", shooterProfile.DefaultTemplateId);
+        Assert.Equal("predict-rollback-authority", shooterProfile.DefaultTemplateId);
+        Assert.Equal("predict-rollback-authority", moduleCatalog.GameplayCatalog.Resolve(ShooterGameplay.RoomType).DefaultSyncTemplateId);
         Assert.True(shooterProfile.SupportsStateSyncPush);
         Assert.False(shooterProfile.SupportsFrameSync);
         Assert.True(shooterProfile.SupportsTemplate("runtime-snapshot-interpolation"));

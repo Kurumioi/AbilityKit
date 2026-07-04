@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly Dictionary<int, ShooterSpatialHashCell> _cells = new();
         private readonly List<int> _activeCellKeys = new(128);
         private readonly List<ShooterSpatialSearchOffset> _ringOffsets = new(128);
+        private readonly List<ShooterSpatialRingOffsetRange> _ringOffsetRanges = new(16);
         private int _largestCellOccupancy;
         private int _totalEntries;
 
@@ -88,14 +89,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             EnsureRingOffsets(radius);
             var before = target.Count;
-            for (var i = 0; i < _ringOffsets.Count; i++)
+            var range = _ringOffsetRanges[radius];
+            var end = range.Start + range.Count;
+            for (var i = range.Start; i < end; i++)
             {
                 var offset = _ringOffsets[i];
-                if (offset.Radius != radius)
-                {
-                    continue;
-                }
-
                 WriteCell(originCellX + offset.Dx, originCellY + offset.Dy, target);
             }
 
@@ -132,7 +130,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            var currentMaxRadius = _ringOffsets.Count == 0 ? -1 : _ringOffsets[_ringOffsets.Count - 1].Radius;
+            var currentMaxRadius = _ringOffsetRanges.Count - 1;
             if (currentMaxRadius >= maxRadius)
             {
                 return;
@@ -140,6 +138,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             for (var radius = currentMaxRadius + 1; radius <= maxRadius; radius++)
             {
+                var start = _ringOffsets.Count;
                 for (var y = -radius; y <= radius; y++)
                 {
                     for (var x = -radius; x <= radius; x++)
@@ -149,9 +148,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                             continue;
                         }
 
-                        _ringOffsets.Add(new ShooterSpatialSearchOffset(x, y, radius));
+                        _ringOffsets.Add(new ShooterSpatialSearchOffset(x, y));
                     }
                 }
+
+                _ringOffsetRanges.Add(new ShooterSpatialRingOffsetRange(start, _ringOffsets.Count - start));
             }
         }
 
@@ -228,16 +229,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private readonly struct ShooterSpatialSearchOffset
         {
-            public ShooterSpatialSearchOffset(int dx, int dy, int radius)
+            public ShooterSpatialSearchOffset(int dx, int dy)
             {
                 Dx = dx;
                 Dy = dy;
-                Radius = radius;
             }
 
             public int Dx { get; }
             public int Dy { get; }
-            public int Radius { get; }
+        }
+
+        private readonly struct ShooterSpatialRingOffsetRange
+        {
+            public ShooterSpatialRingOffsetRange(int start, int count)
+            {
+                Start = start;
+                Count = count;
+            }
+
+            public int Start { get; }
+            public int Count { get; }
         }
     }
 }

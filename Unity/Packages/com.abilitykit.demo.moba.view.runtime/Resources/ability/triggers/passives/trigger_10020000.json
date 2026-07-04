@@ -17,7 +17,7 @@
         },
         {
           "type": "debug_log",
-          "message": "小乔被动触发：添加短暂移速状态（配置先行占位）",
+          "message": "小乔被动触发：添加短暂移速状态",
           "dump_args": false
         }
       ]

@@ -40,7 +40,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
             new ConfigTableDefinition(MobaConfigPaths.SearchQueryTemplatesFile, typeof(SearchQueryTemplateDTO), typeof(BattleDemo.MO.SearchQueryTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.SpawnSummonActionTemplatesFile, typeof(SpawnSummonActionTemplateDTO), typeof(BattleDemo.MO.SpawnSummonActionTemplateMO), ConfigGroupNames.LegacyJson),
             new ConfigTableDefinition(MobaConfigPaths.PresentationTemplatesFile, typeof(PresentationTemplateDTO), typeof(BattleDemo.MO.PresentationTemplateMO), ConfigGroupNames.LegacyJson),
-            new ConfigTableDefinition(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(BattleDemo.MO.GameplayMO), ConfigGroupNames.LegacyJson)
+            new ConfigTableDefinition(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(BattleDemo.MO.GameplayMO), ConfigGroupNames.LegacyJson),
+            new ConfigTableDefinition(MobaConfigPaths.MotionGroupsFile, typeof(MotionGroupDTO), typeof(BattleDemo.MO.MotionGroupMO), ConfigGroupNames.LegacyJson)
         );
 
         /// <summary>

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
@@ -13,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public IReadOnlyList<int> IntervalTriggerIds { get; }
         public IReadOnlyList<int> TriggerIds { get; }
         public int ContinuousTagTemplateId { get; }
-        public IReadOnlyList<int> Tags { get; }
+        public GameplayTagContainer Tags { get; }
         public IReadOnlyList<ContinuousModifierMO> Modifiers { get; }
         public bool RequireOutOfCombat { get; }
         public int OutOfCombatSeconds { get; }
@@ -29,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             IntervalTriggerIds = dto.IntervalTriggerIds ?? Array.Empty<int>();
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             ContinuousTagTemplateId = dto.ContinuousTagTemplateId;
-            Tags = dto.Tags ?? Array.Empty<int>();
+            Tags = MobaGameplayTagCatalog.ToContainer(dto.TagNames);
             Modifiers = CreateModifiers(dto.Modifiers);
             RequireOutOfCombat = dto.RequireOutOfCombat;
             OutOfCombatSeconds = dto.OutOfCombatSeconds;

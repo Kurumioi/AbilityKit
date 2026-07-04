@@ -61,7 +61,22 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             EnsureSuccess(ready.Success, ready.Message, "set ready");
 
             var start = await _client.StartBattleAsync(
-                new RoomGatewayStartBattleRequest(sessionToken, create.RoomId, launchSpec.GameplayId, launchSpec.RuleSetId, launchSpec.ConfigVersion, launchSpec.ProtocolVersion, launchSpec.WorldType, launchSpec.ClientId),
+                new RoomGatewayStartBattleRequest(
+                    sessionToken,
+                    create.RoomId,
+                    launchSpec.GameplayId,
+                    launchSpec.RuleSetId,
+                    launchSpec.ConfigVersion,
+                    launchSpec.ProtocolVersion,
+                    launchSpec.WorldType,
+                    launchSpec.ClientId,
+                    launchSpec.SyncTemplateId,
+                    launchSpec.SyncModel,
+                    launchSpec.NetworkEnvironmentId,
+                    launchSpec.CarrierName,
+                    launchSpec.EnableAuthoritativeWorld,
+                    launchSpec.InterpolationEnabled,
+                    launchSpec.InputDelayFrames),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(start.Success, start.Message, "start battle");
@@ -138,7 +153,22 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             EnsureSuccess(ready.Success, ready.Message, "set ready");
 
             var start = await _client.StartBattleAsync(
-                new RoomGatewayStartBattleRequest(sessionToken, roomId, launchSpec.GameplayId, launchSpec.RuleSetId, launchSpec.ConfigVersion, launchSpec.ProtocolVersion, launchSpec.WorldType, launchSpec.ClientId),
+                new RoomGatewayStartBattleRequest(
+                    sessionToken,
+                    roomId,
+                    launchSpec.GameplayId,
+                    launchSpec.RuleSetId,
+                    launchSpec.ConfigVersion,
+                    launchSpec.ProtocolVersion,
+                    launchSpec.WorldType,
+                    launchSpec.ClientId,
+                    launchSpec.SyncTemplateId,
+                    launchSpec.SyncModel,
+                    launchSpec.NetworkEnvironmentId,
+                    launchSpec.CarrierName,
+                    launchSpec.EnableAuthoritativeWorld,
+                    launchSpec.InterpolationEnabled,
+                    launchSpec.InputDelayFrames),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(start.Success, start.Message, "start battle");
@@ -310,8 +340,34 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly string WorldType;
         public readonly string ClientId;
         public readonly IReadOnlyDictionary<string, string>? Tags;
+        public readonly string SyncTemplateId;
+        public readonly int SyncModel;
+        public readonly string NetworkEnvironmentId;
+        public readonly string CarrierName;
+        public readonly bool EnableAuthoritativeWorld;
+        public readonly bool InterpolationEnabled;
+        public readonly int InputDelayFrames;
 
-        public RoomGatewayLaunchSpec(string region, string serverId, string roomType, string roomTitle, int maxPlayers, int gameplayId, int ruleSetId, int configVersion, int protocolVersion, string worldType, string clientId, IReadOnlyDictionary<string, string>? tags = null)
+        public RoomGatewayLaunchSpec(
+            string region,
+            string serverId,
+            string roomType,
+            string roomTitle,
+            int maxPlayers,
+            int gameplayId,
+            int ruleSetId,
+            int configVersion,
+            int protocolVersion,
+            string worldType,
+            string clientId,
+            IReadOnlyDictionary<string, string>? tags = null,
+            string syncTemplateId = "",
+            int syncModel = 0,
+            string networkEnvironmentId = "",
+            string carrierName = "",
+            bool enableAuthoritativeWorld = true,
+            bool interpolationEnabled = false,
+            int inputDelayFrames = 0)
         {
             Region = region ?? string.Empty;
             ServerId = serverId ?? string.Empty;
@@ -325,6 +381,13 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             WorldType = worldType ?? string.Empty;
             ClientId = clientId ?? string.Empty;
             Tags = tags;
+            SyncTemplateId = syncTemplateId ?? string.Empty;
+            SyncModel = syncModel;
+            NetworkEnvironmentId = networkEnvironmentId ?? string.Empty;
+            CarrierName = carrierName ?? string.Empty;
+            EnableAuthoritativeWorld = enableAuthoritativeWorld;
+            InterpolationEnabled = interpolationEnabled;
+            InputDelayFrames = inputDelayFrames < 0 ? 0 : inputDelayFrames;
         }
     }
 
@@ -392,8 +455,30 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly int ProtocolVersion;
         public readonly string WorldType;
         public readonly string ClientId;
+        public readonly string SyncTemplateId;
+        public readonly int SyncModel;
+        public readonly string NetworkEnvironmentId;
+        public readonly string CarrierName;
+        public readonly bool EnableAuthoritativeWorld;
+        public readonly bool InterpolationEnabled;
+        public readonly int InputDelayFrames;
 
-        public RoomGatewayStartBattleRequest(string sessionToken, string roomId, int gameplayId, int ruleSetId, int configVersion, int protocolVersion, string worldType, string clientId)
+        public RoomGatewayStartBattleRequest(
+            string sessionToken,
+            string roomId,
+            int gameplayId,
+            int ruleSetId,
+            int configVersion,
+            int protocolVersion,
+            string worldType,
+            string clientId,
+            string syncTemplateId = "",
+            int syncModel = 0,
+            string networkEnvironmentId = "",
+            string carrierName = "",
+            bool enableAuthoritativeWorld = true,
+            bool interpolationEnabled = false,
+            int inputDelayFrames = 0)
         {
             SessionToken = sessionToken ?? string.Empty;
             RoomId = roomId ?? string.Empty;
@@ -403,6 +488,13 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             ProtocolVersion = protocolVersion;
             WorldType = worldType ?? string.Empty;
             ClientId = clientId ?? string.Empty;
+            SyncTemplateId = syncTemplateId ?? string.Empty;
+            SyncModel = syncModel;
+            NetworkEnvironmentId = networkEnvironmentId ?? string.Empty;
+            CarrierName = carrierName ?? string.Empty;
+            EnableAuthoritativeWorld = enableAuthoritativeWorld;
+            InterpolationEnabled = interpolationEnabled;
+            InputDelayFrames = inputDelayFrames < 0 ? 0 : inputDelayFrames;
         }
     }
 

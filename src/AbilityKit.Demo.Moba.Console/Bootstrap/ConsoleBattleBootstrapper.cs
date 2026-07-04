@@ -448,7 +448,7 @@ namespace AbilityKit.Demo.Moba.Console
             if (!_running) return;
 
             var now = DateTime.Now;
-            var elapsed = (now - _lastTick).TotalSeconds;
+            var elapsed = deltaTime > 0f ? deltaTime : (now - _lastTick).TotalSeconds;
             _lastTick = now;
 
             _totalTime += elapsed;

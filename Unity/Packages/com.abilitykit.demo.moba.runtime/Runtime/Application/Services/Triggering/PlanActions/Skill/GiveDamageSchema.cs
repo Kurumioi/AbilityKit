@@ -25,13 +25,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var damageValue = ReadFloat(namedArgs, ctx, 0f, "damage_value", "value", "damagevalue");
             var reasonParam = ReadInt(namedArgs, ctx, 0, "reason_param", "reasonparam");
             var damageType = ReadEnum(namedArgs, ctx, DamageType.Physical, "damage_type", "damagetype");
+            var sourceAttackRatio = ReadFloat(namedArgs, ctx, 0f, "source_attack_ratio", "sourceattackratio", "attack_ratio", "attackratio");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
-            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest);
+            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest, sourceAttackRatio);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
-            return RequireAny(args, "damage_value", out error, "damage_value", "value", "damagevalue");
+            return RequireAny(args, "damage_value/source_attack_ratio", out error, "damage_value", "value", "damagevalue", "source_attack_ratio", "sourceattackratio", "attack_ratio", "attackratio");
         }
     }
 }

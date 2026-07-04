@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.AI.Training.Runner</RootNamespace>
+    <AssemblyName>AbilityKit.AI.Training.Runner</AssemblyName>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.AI.Abstractions\AbilityKit.AI.Abstractions.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.AI\AbilityKit.Demo.Moba.AI.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Shooter.AI\AbilityKit.Demo.Shooter.AI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\AbilityKit.Demo.Moba.Console\Configs\**\*" Link="Configs\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

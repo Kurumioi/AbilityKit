@@ -26,8 +26,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, ShootProjectileArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            Log.Warning($"[ShootProjectilePlanActionModule] entered triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId}");
-            LogInvestigation(ctx, $"entered. triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId}");
+            Log.Warning($"[ShootProjectilePlanActionModule] entered triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId} continuousProcessId={args.ContinuousProcessId}");
+            LogInvestigation(ctx, $"entered. triggerArgsType={triggerArgs?.GetType().Name ?? "<null>"} rawLauncherId={args.LauncherId} rawProjectileId={args.ProjectileId} continuousProcessId={args.ContinuousProcessId}");
 
             if (!ctx.Context.TryResolve<MobaProjectileService>(out var projectileSvc) || projectileSvc == null)
             {
@@ -135,9 +135,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (!aimPos.Equals(Vec3.Zero)) aimPos = casterPos + aimPos;
             if (!aimDir.Equals(Vec3.Zero)) aimDir = aimDir.Normalized;
 
-            Log.Warning($"[ShootProjectilePlanActionModule] launching casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection} aimPos={aimPos} aimDir={aimDir}");
+            Log.Warning($"[ShootProjectilePlanActionModule] launching casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection} aimPos={aimPos} aimDir={aimDir}");
             var sourceContext = input.CreateSourceContext(casterActorId, 0, projectile.Id);
-            if (!projectileSvc.Launch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, in aimPos, in aimDir, in sourceContext))
+            if (!projectileSvc.Launch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, in aimPos, in aimDir, in sourceContext))
             {
                 Log.Warning($"[ShootProjectilePlanActionModule] launch failed casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
                 LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
@@ -145,7 +145,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             Log.Warning($"[ShootProjectilePlanActionModule] launch succeeded casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
-            LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
+            LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
         }
     }
 }

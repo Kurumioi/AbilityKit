@@ -18,12 +18,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (Input.GetKey(KeyCode.DownArrow) || Input.GetKey(KeyCode.S)) moveY -= 1f;
             if (Input.GetKey(KeyCode.UpArrow) || Input.GetKey(KeyCode.W)) moveY += 1f;
 
-            return new ShooterHostFrameInput(
-                Mathf.Clamp(moveX, -1f, 1f),
-                Mathf.Clamp(moveY, -1f, 1f),
-                0f,
-                1f,
-                Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0));
+            return ShooterPlayInputMapping.CreateFrameInput(
+                moveX,
+                moveY,
+                Input.GetKey(KeyCode.Space) || Input.GetMouseButton(0) || Input.GetKey(KeyCode.J),
+                Input.GetKey(KeyCode.K),
+                Input.GetKey(KeyCode.L));
         }
     }
 

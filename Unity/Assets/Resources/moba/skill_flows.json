@@ -1,7 +1,7 @@
 [
   {
     "Id": 10010101,
-    "Name": "廉颇-爆裂冲撞-配置先行版",
+    "Name": "廉颇-爆裂冲撞",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
@@ -27,7 +27,7 @@
   },
   {
     "Id": 10010201,
-    "Name": "廉颇-熔岩重击-配置先行版",
+    "Name": "廉颇-熔岩重击",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
@@ -53,7 +53,7 @@
   },
   {
     "Id": 10010301,
-    "Name": "廉颇-天崩地裂-配置先行版",
+    "Name": "廉颇-天崩地裂",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
@@ -133,7 +133,7 @@
   },
   {
     "Id": 10020101,
-    "Name": "小乔-绽放之舞-配置先行版",
+    "Name": "小乔-绽放之舞",
     "Phases": [
       {
         "Type": 2,
@@ -148,7 +148,7 @@
   },
   {
     "Id": 10020201,
-    "Name": "小乔-甜蜜恋风-配置先行版",
+    "Name": "小乔-甜蜜恋风",
     "Phases": [
       {
         "Type": 2,
@@ -163,7 +163,7 @@
   },
   {
     "Id": 10020301,
-    "Name": "小乔-星华缭乱-配置先行版",
+    "Name": "小乔-星华缭乱",
     "Phases": [
       {
         "Type": 2,
@@ -171,6 +171,150 @@
           "DurationMs": 500,
           "Events": [
             { "AtMs": 0, "EffectId": 10020301, "ExecuteMode": 0, "EventTag": "xq_skill_3_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030101,
+    "Name": "赵云-惊雷之龙",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030101, "ExecuteMode": 0, "EventTag": "zy_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030201,
+    "Name": "赵云-破云之龙",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030201, "ExecuteMode": 0, "EventTag": "zy_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030301,
+    "Name": "赵云-天翔之龙",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 800,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030301, "ExecuteMode": 0, "EventTag": "zy_skill_3_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040101,
+    "Name": "墨子-和平漫步",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040101, "ExecuteMode": 0, "EventTag": "mz_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040201,
+    "Name": "墨子-机关重炮",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040201, "ExecuteMode": 0, "EventTag": "mz_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040301,
+    "Name": "墨子-墨守成规",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 3500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040301, "ExecuteMode": 0, "EventTag": "mz_skill_3_cast" }
           ]
         }
       }

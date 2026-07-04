@@ -22,16 +22,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// 伤害类型，如物理或法术。
         /// </summary>
         public readonly DamageType DamageType;
-        public readonly MobaActionTargetRequest TargetRequest;
 
-        public GiveDamageArgs(float damageValue, int reasonParam, DamageType damageType = DamageType.Physical, MobaActionTargetRequest targetRequest = default)
+        /// <summary>
+        /// 来源角色攻击属性加成。物理伤害读取物攻，法术伤害读取法攻。
+        /// </summary>
+        public readonly float SourceAttackRatio;
+
+        public readonly MobaActionTargetRequest TargetRequest;
+ 
+        public GiveDamageArgs(float damageValue, int reasonParam, DamageType damageType = DamageType.Physical, MobaActionTargetRequest targetRequest = default, float sourceAttackRatio = 0f)
         {
             DamageValue = damageValue;
             ReasonParam = reasonParam;
             DamageType = damageType;
+            SourceAttackRatio = sourceAttackRatio;
             TargetRequest = targetRequest;
         }
-
+ 
         public static GiveDamageArgs Default => new GiveDamageArgs(0f, 0, DamageType.Physical, MobaActionTargetRequest.ContextTarget());
     }
 }

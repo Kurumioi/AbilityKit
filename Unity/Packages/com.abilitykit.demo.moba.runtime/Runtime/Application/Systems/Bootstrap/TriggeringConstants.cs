@@ -49,6 +49,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string EndGame = "end_game";
             public const string SetGameplayVar = "set_gameplay_var";
             public const string AddGameplayVar = "add_gameplay_var";
+            public const string AdvanceGameplayCounter = "advance_gameplay_counter";
 
             // Motion Actions
             public const string Dash = "dash";
@@ -80,11 +81,13 @@ namespace AbilityKit.Demo.Moba.Systems
         /// 缓存的Action ID
         /// </summary>
         private static readonly Dictionary<string, ActionId> _actionIdCache = new(StringComparer.Ordinal);
+        private static readonly object _actionIdCacheLock = new object();
 
         /// <summary>
         /// 缓存的Event ID
         /// </summary>
         private static readonly Dictionary<string, int> _eventIdCache = new(StringComparer.Ordinal);
+        private static readonly object _eventIdCacheLock = new object();
 
         /// <summary>
         /// 获取Action ID（带缓存）
@@ -94,12 +97,16 @@ namespace AbilityKit.Demo.Moba.Systems
             if (string.IsNullOrEmpty(actionName))
                 return default;
 
-            if (!_actionIdCache.TryGetValue(actionName, out var id))
+            lock (_actionIdCacheLock)
             {
-                id = new ActionId(StableStringId.Get(ActionPrefix + actionName));
-                _actionIdCache[actionName] = id;
+                if (!_actionIdCache.TryGetValue(actionName, out var id))
+                {
+                    id = new ActionId(StableStringId.Get(ActionPrefix + actionName));
+                    _actionIdCache[actionName] = id;
+                }
+
+                return id;
             }
-            return id;
         }
 
         /// <summary>
@@ -110,12 +117,16 @@ namespace AbilityKit.Demo.Moba.Systems
             if (string.IsNullOrEmpty(eventName))
                 return 0;
 
-            if (!_eventIdCache.TryGetValue(eventName, out var id))
+            lock (_eventIdCacheLock)
             {
-                id = StableStringId.Get(EventPrefix + eventName);
-                _eventIdCache[eventName] = id;
+                if (!_eventIdCache.TryGetValue(eventName, out var id))
+                {
+                    id = StableStringId.Get(EventPrefix + eventName);
+                    _eventIdCache[eventName] = id;
+                }
+
+                return id;
             }
-            return id;
         }
 
         /// <summary>
@@ -139,6 +150,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId EndGameId => GetActionId(Actions.EndGame);
         public static ActionId SetGameplayVarId => GetActionId(Actions.SetGameplayVar);
         public static ActionId AddGameplayVarId => GetActionId(Actions.AddGameplayVar);
+        public static ActionId AdvanceGameplayCounterId => GetActionId(Actions.AdvanceGameplayCounter);
 
         // Motion Action IDs
         public static ActionId DashId => GetActionId(Actions.Dash);
@@ -164,8 +176,15 @@ namespace AbilityKit.Demo.Moba.Systems
         /// </summary>
         public static void ClearCache()
         {
-            _actionIdCache.Clear();
-            _eventIdCache.Clear();
+            lock (_actionIdCacheLock)
+            {
+                _actionIdCache.Clear();
+            }
+
+            lock (_eventIdCacheLock)
+            {
+                _eventIdCache.Clear();
+            }
         }
     }
 }

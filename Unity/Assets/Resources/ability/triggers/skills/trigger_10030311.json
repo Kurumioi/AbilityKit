@@ -1,0 +1,30 @@
+{
+  "triggers": [
+    {
+      "id": 10030311,
+      "name": "赵云-天翔之龙-落地伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 250,
+          "source_attack_ratio": 0.90,
+          "damage_type": 1,
+          "reason_param": 10030301,
+          "target_query_id": 50030301,
+          "target_max_count": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云三技能落地：对范围内敌人造成物理伤害",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

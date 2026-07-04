@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.GameplayTags;
 using AbilityKit.Modifiers;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
@@ -84,7 +85,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int MaxStacks { get; }
         public IReadOnlyList<int> TriggerIds { get; }
         public int ContinuousTagTemplateId { get; }
-        public IReadOnlyList<int> Tags { get; }
+        public GameplayTagContainer Tags { get; }
         public IReadOnlyList<ContinuousModifierMO> Modifiers { get; }
 
         public BuffMO(BuffDTO dto)
@@ -104,7 +105,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             MaxStacks = dto.MaxStacks;
             TriggerIds = dto.TriggerIds ?? Array.Empty<int>();
             ContinuousTagTemplateId = dto.ContinuousTagTemplateId;
-            Tags = dto.Tags ?? Array.Empty<int>();
+            Tags = MobaGameplayTagCatalog.ToContainer(dto.TagNames);
             Modifiers = CreateModifiers(dto.Modifiers);
         }
 

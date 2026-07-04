@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Systems;
@@ -68,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
-            var requestedDamage = args.DamageValue;
+            var requestedDamage = ResolveRequestedDamage(args, ctx, attackerActorId);
             var attack = new AttackInfo
             {
                 AttackerActorId = attackerActorId,
@@ -92,6 +93,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             LogDamageTrace(args, input, ctx, requestedDamage, attack.BaseDamage.Value, in origin, result);
         }
 
+        private static float ResolveRequestedDamage(GiveDamageArgs args, ExecCtx<IWorldResolver> ctx, int attackerActorId)
+        {
+            if (args.SourceAttackRatio == 0f || attackerActorId <= 0) return args.DamageValue;
+            if (!ctx.Context.TryResolve<MobaActorLookupService>(out var actors) || actors == null) return args.DamageValue;
+            if (!actors.TryGetActorEntity(attackerActorId, out var attacker) || attacker == null || !attacker.hasAttributeGroup) return args.DamageValue;
+
+            var attrs = attacker.GetMobaAttrs();
+            var sourceAttack = args.DamageType == DamageType.Magic ? attrs.MagicAttack : attrs.PhysicsAttack;
+            return args.DamageValue + sourceAttack * args.SourceAttackRatio;
+        }
+ 
         private static void LogDamageTrace(GiveDamageArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, float requestedDamage, float pipelineBaseDamage, in MobaGameplayOrigin origin, DamageResult result)
         {
             var sb = new StringBuilder(1024);

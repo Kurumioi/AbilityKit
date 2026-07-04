@@ -59,5 +59,67 @@
       { "CooldownMs": 9400, "Cost": 130, "Params": [200.0, 5000.0, 1000.0] },
       { "CooldownMs": 9200, "Cost": 140, "Params": [240.0, 5000.0, 1000.0] }
     ]
+  },
+  {
+    "Id": 10030101,
+    "ParamNames": ["damage", "dashDistance", "dashDurationMs", "dashSpeed", "slowPercent", "slowDurationMs"],
+    "Levels": [
+      { "CooldownMs": 7000, "Cost": 35, "Params": [150.0, 8.0, 500.0, 16.0, 0.30, 1500.0] },
+      { "CooldownMs": 6800, "Cost": 40, "Params": [190.0, 8.0, 500.0, 16.0, 0.32, 1500.0] },
+      { "CooldownMs": 6600, "Cost": 45, "Params": [230.0, 8.0, 500.0, 16.0, 0.34, 1500.0] },
+      { "CooldownMs": 6400, "Cost": 50, "Params": [270.0, 8.0, 500.0, 16.0, 0.36, 1500.0] },
+      { "CooldownMs": 6200, "Cost": 55, "Params": [310.0, 8.0, 500.0, 16.0, 0.38, 1500.0] }
+    ]
+  },
+  {
+    "Id": 10030201,
+    "ParamNames": ["damage", "radius", "delayMs", "attackSpeedBuffPercent", "attackSpeedBuffDurationMs"],
+    "Levels": [
+      { "CooldownMs": 8000, "Cost": 45, "Params": [180.0, 3.5, 200.0, 0.25, 3000.0] },
+      { "CooldownMs": 7600, "Cost": 50, "Params": [220.0, 3.5, 200.0, 0.30, 3000.0] },
+      { "CooldownMs": 7200, "Cost": 55, "Params": [260.0, 3.5, 200.0, 0.35, 3000.0] },
+      { "CooldownMs": 6800, "Cost": 60, "Params": [300.0, 3.5, 200.0, 0.40, 3000.0] },
+      { "CooldownMs": 6400, "Cost": 65, "Params": [340.0, 3.5, 200.0, 0.45, 3000.0] }
+    ]
+  },
+  {
+    "Id": 10030301,
+    "ParamNames": ["damage", "radius", "leapDelayMs", "knockUpDurationMs", "knockUpSpeed"],
+    "Levels": [
+      { "CooldownMs": 18000, "Cost": 100, "Params": [250.0, 4.5, 600.0, 500.0, 8.0] },
+      { "CooldownMs": 16000, "Cost": 110, "Params": [320.0, 4.5, 600.0, 550.0, 8.5] },
+      { "CooldownMs": 14000, "Cost": 120, "Params": [390.0, 4.5, 600.0, 600.0, 9.0] }
+    ]
+  },
+  {
+    "Id": 10040101,
+    "ParamNames": ["damage", "dashDistance", "dashDurationMs", "dashSpeed", "shieldValue", "shieldDurationMs"],
+    "Levels": [
+      { "CooldownMs": 10000, "Cost": 50, "Params": [200.0, 8.0, 600.0, 14.0, 250.0, 3000.0] },
+      { "CooldownMs": 9500, "Cost": 55, "Params": [250.0, 8.0, 600.0, 14.0, 300.0, 3000.0] },
+      { "CooldownMs": 9000, "Cost": 60, "Params": [300.0, 8.0, 600.0, 14.0, 350.0, 3000.0] },
+      { "CooldownMs": 8500, "Cost": 65, "Params": [350.0, 8.0, 600.0, 14.0, 400.0, 3000.0] },
+      { "CooldownMs": 8000, "Cost": 70, "Params": [400.0, 8.0, 600.0, 14.0, 450.0, 3000.0] }
+    ]
+  },
+  {
+    "Id": 10040201,
+    "ParamNames": ["damage", "stunDurationMs", "projectileSpeed"],
+    "Levels": [
+      { "CooldownMs": 7000, "Cost": 55, "Params": [300.0, 1000.0, 20.0] },
+      { "CooldownMs": 6700, "Cost": 60, "Params": [370.0, 1100.0, 20.0] },
+      { "CooldownMs": 6400, "Cost": 65, "Params": [440.0, 1200.0, 20.0] },
+      { "CooldownMs": 6100, "Cost": 70, "Params": [510.0, 1300.0, 20.0] },
+      { "CooldownMs": 5800, "Cost": 75, "Params": [580.0, 1400.0, 20.0] }
+    ]
+  },
+  {
+    "Id": 10040301,
+    "ParamNames": ["damagePerTick", "radius", "durationMs", "tickIntervalMs", "stunDurationPerTickMs"],
+    "Levels": [
+      { "CooldownMs": 45000, "Cost": 100, "Params": [120.0, 5.0, 3500.0, 500.0, 250.0] },
+      { "CooldownMs": 42000, "Cost": 110, "Params": [150.0, 5.0, 3500.0, 500.0, 250.0] },
+      { "CooldownMs": 39000, "Cost": 120, "Params": [180.0, 5.0, 3500.0, 500.0, 250.0] }
+    ]
   }
 ]

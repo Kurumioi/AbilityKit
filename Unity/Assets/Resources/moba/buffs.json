@@ -60,7 +60,7 @@
     "RefreshPolicy": 1,
     "MaxStacks": 1,
     "TriggerIds": [],
-    "Tags": [10010001],
+    "Tags": ["State.SuperArmor"],
     "Modifiers": [
       {
         "TargetKind": 1,
@@ -123,7 +123,7 @@
   },
   {
     "Id": 10020001,
-    "Name": "小乔-治愈微笑-短暂加速占位",
+    "Name": "小乔-治愈微笑-短暂加速",
     "DurationMs": 2000,
     "OngoingEffectId": 0,
     "OnAddEffects": [],
@@ -160,5 +160,244 @@
     "TriggerIds": [10020312],
     "Tags": [],
     "Modifiers": []
+  },
+  {
+    "Id": 10030000,
+    "Name": "赵云-龙鸣-一档(惊雷)",
+    "DurationMs": 600,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10030001, 10030010],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 15,
+        "TargetId": 15,
+        "Op": 3,
+        "Value": 0.15,
+        "Priority": 20
+      }
+    ]
+  },
+  {
+    "Id": 10030001,
+    "Name": "赵云-龙鸣-二档(破云)",
+    "DurationMs": 600,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10030001, 10030011],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 15,
+        "TargetId": 15,
+        "Op": 3,
+        "Value": 0.25,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 17,
+        "TargetId": 17,
+        "Op": 0,
+        "Value": 0.5,
+        "Priority": 20
+      }
+    ]
+  },
+  {
+    "Id": 10030002,
+    "Name": "赵云-龙鸣-三档(天翔)",
+    "DurationMs": 600,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10030001, 10030012],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 15,
+        "TargetId": 15,
+        "Op": 3,
+        "Value": 0.35,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 17,
+        "TargetId": 17,
+        "Op": 0,
+        "Value": 0.8,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 8,
+        "TargetId": 8,
+        "Op": 3,
+        "Value": 0.15,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 9,
+        "TargetId": 9,
+        "Op": 3,
+        "Value": 0.15,
+        "Priority": 20
+      }
+    ]
+  },
+  {
+    "Id": 10030003,
+    "Name": "赵云-龙鸣-三档护盾标记",
+    "DurationMs": 3000,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10030013],
+    "Modifiers": []
+  },
+  {
+    "Id": 10040000,
+    "Name": "墨子-机关术-技能护盾",
+    "DurationMs": 3000,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10040001],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 8,
+        "TargetId": 8,
+        "Op": 3,
+        "Value": 0.20,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 9,
+        "TargetId": 9,
+        "Op": 3,
+        "Value": 0.20,
+        "Priority": 20
+      }
+    ]
+  },
+  {
+    "Id": 10040001,
+    "Name": "墨子-机关重炮-眩晕",
+    "DurationMs": 1000,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10040002],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 17,
+        "TargetId": 17,
+        "Op": 3,
+        "Value": -1.0,
+        "Priority": 30
+      }
+    ]
+  },
+  {
+    "Id": 10040002,
+    "Name": "墨子-墨守成规-持续眩晕",
+    "DurationMs": 500,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10040002],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 17,
+        "TargetId": 17,
+        "Op": 3,
+        "Value": -1.0,
+        "Priority": 30
+      }
+    ]
+  },
+  {
+    "Id": 10040003,
+    "Name": "墨子-墨守成规-机关屏障状态",
+    "DurationMs": 3500,
+    "OngoingEffectId": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [10040311],
+    "IntervalMs": 500,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "Tags": [10040003],
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 8,
+        "TargetId": 8,
+        "Op": 3,
+        "Value": 0.30,
+        "Priority": 20
+      },
+      {
+        "TargetKind": 1,
+        "AttrTypeId": 9,
+        "TargetId": 9,
+        "Op": 3,
+        "Value": 0.30,
+        "Priority": 20
+      }
+    ]
   }
 ]

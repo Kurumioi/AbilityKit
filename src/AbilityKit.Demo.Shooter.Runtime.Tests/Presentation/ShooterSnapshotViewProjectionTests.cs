@@ -249,6 +249,72 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void PackedDeltaSnapshotRemovesProjectileWhenLifecycleMarksDespawned()
+    {
+        var projection = new ShooterSnapshotViewProjection();
+        var mapper = new ShooterSnapshotViewModelMapper();
+        var bullet = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, 100);
+        var full = new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame: 1,
+            sequence: 1ul,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            new[] { new ShooterViewEntityChange(bullet, 1, alive: true) },
+            Array.Empty<ShooterViewEntityKey>(),
+            new[] { new ShooterViewTransformComponentChange(bullet, 3f, 4f, 0f, 1f, 8f, 9f) },
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            new[] { new ShooterViewProjectileLifetimeComponentChange(bullet, 12) },
+            Array.Empty<ShooterEventSnapshot>());
+        var packedDelta = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            worldId: 77ul,
+            frame: 2,
+            serverTick: 2L,
+            snapshotFlags: ShooterPackedSnapshotFlags.Delta,
+            stateHash: 0u,
+            entityCount: 1,
+            extensionPayload: Array.Empty<byte>(),
+            componentChunks: new[]
+            {
+                new ShooterPackedComponentChunk(
+                    ShooterPackedComponentKinds.EntityLifecycle,
+                    ShooterPackedEntityKinds.Projectile,
+                    count: 1,
+                    entityIds: new[] { 100 },
+                    valueX: Array.Empty<float>(),
+                    valueY: Array.Empty<float>(),
+                    valueZ: Array.Empty<float>(),
+                    valueW: Array.Empty<float>(),
+                    intValues: Array.Empty<int>(),
+                    flags: new[] { (byte)(ShooterPackedEntityFlags.Projectile | ShooterPackedEntityFlags.Despawned) },
+                    ownerIds: Array.Empty<int>(),
+                    aux: Array.Empty<int>())
+            });
+        var gatewaySnapshot = new ShooterGatewaySnapshot(
+            worldId: 77ul,
+            frame: 2,
+            timestamp: 2d,
+            serverTicks: 2L,
+            isFullSnapshot: false,
+            actors: Array.Empty<ShooterGatewayActorSnapshot>(),
+            payloadOpCode: ShooterOpCodes.Snapshot.PackedStateDelta,
+            packedSnapshot: packedDelta);
+
+        var delta = mapper.Map(in gatewaySnapshot);
+        projection.Apply(in full);
+        var result = projection.Apply(in delta);
+
+        Assert.Equal(ShooterViewSnapshotKind.Delta, delta.SnapshotKind);
+        Assert.Equal(1, result.RemovedEntities);
+        Assert.Equal(1, result.ExplicitEntityRemovals);
+        Assert.False(projection.Store.ContainsEntity(bullet));
+        Assert.False(projection.Store.Transforms.ContainsKey(bullet));
+        Assert.False(projection.Store.ProjectileLifetimes.ContainsKey(bullet));
+    }
+
+    [Fact]
     public void FullSnapshotRemovesEntitiesMissingFromAuthoritativeBatch()
     {
         var projection = new ShooterSnapshotViewProjection();

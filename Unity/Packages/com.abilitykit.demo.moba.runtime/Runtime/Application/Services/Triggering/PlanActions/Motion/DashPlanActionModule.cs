@@ -2,9 +2,9 @@ using System;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -67,9 +67,34 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var velocity = dir * args.Speed;
             var duration = args.DurationMs / 1000f;
-            var source = new FixedDeltaMotionSource(velocity, duration, args.Priority, MotionGroups.Control, MotionStacking.OverrideLowerPriority);
+            var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
+            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
 
-            m.Pipeline.AddSource(source);
+            var hitTriggerRuntime = default(MobaMotionHitTriggerRuntime);
+            if (args.HitTriggerPlanId > 0 && input.ActionInput.HasTraceScope)
+            {
+                hitTriggerRuntime = new MobaMotionHitTriggerRuntime(
+                    args.HitTriggerPlanId,
+                    actorId,
+                    input.ActionInput.TraceScope.EffectConfigId,
+                    input.ActionInput.TraceScope);
+            }
+
+            if (!MobaMotionContinuousActionRuntime.TryActivate(
+                    ctx,
+                    input,
+                    "DashMotion",
+                    input.CasterActorId > 0 ? input.CasterActorId : actorId,
+                    actorId,
+                    actorId,
+                    duration,
+                    source,
+                    args.Continuous,
+                    hitTriggerRuntime,
+                    out var rejectReason))
+            {
+                LogRejected(ctx, rejectReason);
+            }
         }
 
     }

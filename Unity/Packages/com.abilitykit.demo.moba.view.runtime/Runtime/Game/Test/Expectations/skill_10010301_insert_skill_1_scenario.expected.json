@@ -93,7 +93,7 @@
     { "kind": "EffectExecution", "configId": 10010311, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010321, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010101, "minCount": 1 },
-    { "kind": "ProjectileLaunch", "configId": 30010101, "underEffectId": 10010101, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 427896051, "underEffectId": 10010101, "minCount": 1 },
     { "kind": "EffectAction", "configId": 1822191218, "underEffectId": 10010321, "minCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010301, "minCount": 1, "maxCount": 1 },
     { "kind": "AreaSpawn", "configId": 40010311, "minCount": 1, "maxCount": 1 },

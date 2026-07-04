@@ -84,7 +84,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 m.Solver,
                 m.Policy,
                 m.Events,
-                m.Initialized);
+                m.Initialized,
+                m.HitTriggerRuntime);
 
             var newTransform = new Transform3(in newPos, in t.Rotation, in t.Scale);
             entity.ReplaceTransform(newTransform);

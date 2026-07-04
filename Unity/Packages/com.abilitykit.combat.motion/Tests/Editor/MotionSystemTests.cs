@@ -31,7 +31,7 @@ namespace AbilityKit.Combat.MotionSystem.Tests
         }
 
         [Test]
-        public void Pipeline_DefaultPolicy_ControlSuppressesLocomotion()
+        public void Pipeline_DefaultPolicy_AbilitySuppressesLocomotion()
         {
             var pipeline = new MotionPipeline { Policy = MotionPipelinePolicy.CreateDefault() };
             var state = new MotionState(Vec3.Zero);
@@ -40,11 +40,46 @@ namespace AbilityKit.Combat.MotionSystem.Tests
             var locomotion = new LocomotionMotionSource(10f, MotionInputSpace.World);
             locomotion.SetInput(1f, 0f);
             pipeline.AddSource(locomotion);
+            pipeline.AddSource(new FixedDeltaMotionSource(new Vec3(0f, 0f, 1f), 1f, 20, MotionGroups.Ability, MotionStacking.OverrideLowerPriority));
+
+            pipeline.Tick(1, ref state, 1f, ref output);
+
+            Assert.That(output.AppliedDelta.X, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(output.AppliedDelta.Z, Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Pipeline_DefaultPolicy_ControlSuppressesLocomotionAndAbility()
+        {
+            var pipeline = new MotionPipeline { Policy = MotionPipelinePolicy.CreateDefault() };
+            var state = new MotionState(Vec3.Zero);
+            var output = new MotionOutput();
+
+            var locomotion = new LocomotionMotionSource(10f, MotionInputSpace.World);
+            locomotion.SetInput(1f, 0f);
+            pipeline.AddSource(locomotion);
+            pipeline.AddSource(new FixedDeltaMotionSource(new Vec3(10f, 0f, 0f), 1f, 20, MotionGroups.Ability, MotionStacking.OverrideLowerPriority));
             pipeline.AddSource(new FixedDeltaMotionSource(new Vec3(0f, 0f, 1f), 1f, 100, MotionGroups.Control, MotionStacking.OverrideLowerPriority));
 
             pipeline.Tick(1, ref state, 1f, ref output);
 
             Assert.That(output.AppliedDelta.X, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(output.AppliedDelta.Z, Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Pipeline_DefaultPolicy_ControlAllowsPassiveDisplacementToCompose()
+        {
+            var pipeline = new MotionPipeline { Policy = MotionPipelinePolicy.CreateDefault() };
+            var state = new MotionState(Vec3.Zero);
+            var output = new MotionOutput();
+
+            pipeline.AddSource(new FixedDeltaMotionSource(new Vec3(0f, 0f, 1f), 1f, 100, MotionGroups.Control, MotionStacking.OverrideLowerPriority));
+            pipeline.AddSource(new FixedDeltaMotionSource(new Vec3(2f, 0f, 0f), 1f, 0, MotionGroups.PassiveDisplacement, MotionStacking.Additive));
+
+            pipeline.Tick(1, ref state, 1f, ref output);
+
+            Assert.That(output.AppliedDelta.X, Is.EqualTo(2f).Within(0.0001f));
             Assert.That(output.AppliedDelta.Z, Is.EqualTo(1f).Within(0.0001f));
         }
 

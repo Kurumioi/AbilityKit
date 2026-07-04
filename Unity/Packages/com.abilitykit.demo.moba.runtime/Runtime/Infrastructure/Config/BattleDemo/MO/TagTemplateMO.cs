@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
@@ -9,11 +10,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int Id { get; }
         public string Name { get; }
 
-        public IReadOnlyList<int> RequiredTags { get; }
-        public IReadOnlyList<int> BlockedTags { get; }
-
-        public IReadOnlyList<int> GrantTags { get; }
-        public IReadOnlyList<int> RemoveTags { get; }
+        public GameplayTagContainer RequiredTags { get; }
+        public GameplayTagContainer BlockedTags { get; }
+        public GameplayTagContainer GrantTags { get; }
+        public GameplayTagContainer RemoveTags { get; }
 
         public TagTemplateMO(TagTemplateDTO dto)
         {
@@ -21,10 +21,10 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             Id = dto.Id;
             Name = dto.Name;
 
-            RequiredTags = dto.RequiredTags ?? Array.Empty<int>();
-            BlockedTags = dto.BlockedTags ?? Array.Empty<int>();
-            GrantTags = dto.GrantTags ?? Array.Empty<int>();
-            RemoveTags = dto.RemoveTags ?? Array.Empty<int>();
+            RequiredTags = MobaGameplayTagCatalog.ToContainer(dto.RequiredTagNames);
+            BlockedTags = MobaGameplayTagCatalog.ToContainer(dto.BlockedTagNames);
+            GrantTags = MobaGameplayTagCatalog.ToContainer(dto.GrantTagNames);
+            RemoveTags = MobaGameplayTagCatalog.ToContainer(dto.RemoveTagNames);
         }
     }
 }

@@ -15,10 +15,34 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Tagging
         public static ContinuousTagRequirements ResolveRequirements(BuffMO buff, IMobaContinuousTagTemplateRegistry registry)
         {
             if (buff == null) return null;
-            if (buff.ContinuousTagTemplateId <= 0) return null;
-            if (registry == null) return null;
 
-            return registry.TryGet(buff.ContinuousTagTemplateId, out var requirements) ? requirements : null;
+            ContinuousTagRequirements template = null;
+            if (buff.ContinuousTagTemplateId > 0 && registry != null)
+            {
+                registry.TryGet(buff.ContinuousTagTemplateId, out template);
+            }
+
+            var hasDirectTags = buff.Tags != null && buff.Tags.Count > 0;
+            if (template == null && !hasDirectTags) return null;
+
+            var result = new ContinuousTagRequirements
+            {
+                ActivationRequired = template?.ActivationRequired ?? new GameplayTagRequirements(),
+                ApplicationTags = CopyContainer(template?.ApplicationTags),
+                RemovalRequired = template?.RemovalRequired ?? new GameplayTagRequirements(),
+                OngoingRequired = template?.OngoingRequired ?? new GameplayTagRequirements(),
+                RemovalTags = CopyContainer(template?.RemovalTags)
+            };
+
+            result.ApplicationTags.AppendTags(buff.Tags);
+            return result;
+        }
+
+        private static GameplayTagContainer CopyContainer(GameplayTagContainer source)
+        {
+            var copy = new GameplayTagContainer();
+            copy.AppendTags(source);
+            return copy;
         }
 
         public static void AssignRequirements(BuffRuntime runtime, BuffMO buff, IMobaContinuousTagTemplateRegistry registry)

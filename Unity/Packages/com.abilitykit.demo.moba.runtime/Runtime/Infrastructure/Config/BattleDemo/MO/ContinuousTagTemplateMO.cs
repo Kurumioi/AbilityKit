@@ -1,6 +1,7 @@
 using System;
-using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 {
@@ -8,14 +9,14 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
     {
         public int Id { get; }
         public string Name { get; }
-        public IReadOnlyList<int> ActivationRequiredTags { get; }
-        public IReadOnlyList<int> ActivationBlockedTags { get; }
-        public IReadOnlyList<int> ApplicationTags { get; }
-        public IReadOnlyList<int> RemovalRequiredTags { get; }
-        public IReadOnlyList<int> RemovalBlockedTags { get; }
-        public IReadOnlyList<int> OngoingRequiredTags { get; }
-        public IReadOnlyList<int> OngoingBlockedTags { get; }
-        public IReadOnlyList<int> RemovalTags { get; }
+        public GameplayTagContainer ActivationRequiredTags { get; }
+        public GameplayTagContainer ActivationBlockedTags { get; }
+        public GameplayTagContainer ApplicationTags { get; }
+        public GameplayTagContainer RemovalRequiredTags { get; }
+        public GameplayTagContainer RemovalBlockedTags { get; }
+        public GameplayTagContainer OngoingRequiredTags { get; }
+        public GameplayTagContainer OngoingBlockedTags { get; }
+        public GameplayTagContainer RemovalTags { get; }
 
         public ContinuousTagTemplateMO(ContinuousTagTemplateDTO dto)
         {
@@ -23,14 +24,14 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             Id = dto.Id;
             Name = dto.Name;
-            ActivationRequiredTags = dto.ActivationRequiredTags ?? Array.Empty<int>();
-            ActivationBlockedTags = dto.ActivationBlockedTags ?? Array.Empty<int>();
-            ApplicationTags = dto.ApplicationTags ?? Array.Empty<int>();
-            RemovalRequiredTags = dto.RemovalRequiredTags ?? Array.Empty<int>();
-            RemovalBlockedTags = dto.RemovalBlockedTags ?? Array.Empty<int>();
-            OngoingRequiredTags = dto.OngoingRequiredTags ?? Array.Empty<int>();
-            OngoingBlockedTags = dto.OngoingBlockedTags ?? Array.Empty<int>();
-            RemovalTags = dto.RemovalTags ?? Array.Empty<int>();
+            ActivationRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.ActivationRequiredTagNames);
+            ActivationBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.ActivationBlockedTagNames);
+            ApplicationTags = MobaGameplayTagCatalog.ToContainer(dto.ApplicationTagNames);
+            RemovalRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalRequiredTagNames);
+            RemovalBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalBlockedTagNames);
+            OngoingRequiredTags = MobaGameplayTagCatalog.ToContainer(dto.OngoingRequiredTagNames);
+            OngoingBlockedTags = MobaGameplayTagCatalog.ToContainer(dto.OngoingBlockedTagNames);
+            RemovalTags = MobaGameplayTagCatalog.ToContainer(dto.RemovalTagNames);
         }
     }
 }

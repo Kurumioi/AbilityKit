@@ -102,7 +102,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     command.MoveY,
                     command.AimX,
                     command.AimY,
-                    command.Fire);
+                    command.Fire,
+                    command.AttackSlot);
                 return true;
             }
 

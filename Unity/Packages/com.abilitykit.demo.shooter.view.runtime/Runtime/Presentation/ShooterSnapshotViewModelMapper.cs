@@ -94,7 +94,7 @@ namespace AbilityKit.Demo.Shooter.View
                 var pureState = snapshot.PureStateSnapshot.Value;
                 return MapPureStateSnapshot(in pureState, ShooterViewBatchSource.AuthoritativeCorrection, controlledPlayerId);
             }
- 
+
             BeginSnapshot();
 
             var actors = snapshot.Actors;
@@ -119,7 +119,7 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot.IsFullSnapshot ? ShooterViewSnapshotKind.Full : ShooterViewSnapshotKind.Delta,
                 ShooterViewBatchSource.JoinOrReconnect);
         }
- 
+
         public ShooterSnapshotViewBatch Map(in ShooterPackedSnapshotPayload snapshot)
         {
             return MapPackedSnapshot(0UL, in snapshot, ShooterViewBatchSource.AuthoritativeCorrection, controlledPlayerId: -1);
@@ -264,6 +264,12 @@ namespace AbilityKit.Demo.Shooter.View
                 if (!key.HasValue) continue;
 
                 var flags = GetByte(chunk.Flags, i);
+                if ((flags & ShooterPackedEntityFlags.Despawned) != 0)
+                {
+                    RemoveEntity(key.Value);
+                    continue;
+                }
+
                 AddEntity(key.Value, GetInt(chunk.OwnerIds, i), (flags & ShooterPackedEntityFlags.Alive) != 0);
             }
         }
@@ -354,6 +360,11 @@ namespace AbilityKit.Demo.Shooter.View
         private void AddEntity(ShooterViewEntityKey key, int ownerEntityId, bool alive)
         {
             _entityChanges.Add(new ShooterViewEntityChange(key, ownerEntityId, alive));
+        }
+
+        private void RemoveEntity(ShooterViewEntityKey key)
+        {
+            _removedEntities.Add(key);
         }
 
         private void AddTransform(

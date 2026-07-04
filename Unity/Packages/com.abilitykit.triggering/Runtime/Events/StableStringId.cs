@@ -5,6 +5,7 @@ namespace AbilityKit.Triggering.Eventing
 {
     public static class StableStringId
     {
+        private static readonly object SyncRoot = new object();
         private static readonly Dictionary<int, string> Reverse = new Dictionary<int, string>();
 
         public static int Get(string value)
@@ -12,18 +13,21 @@ namespace AbilityKit.Triggering.Eventing
             if (string.IsNullOrEmpty(value)) throw new ArgumentException("Id string is null or empty", nameof(value));
 
             var id = Fnv1a32(value);
-            if (Reverse.TryGetValue(id, out var existing))
+            lock (SyncRoot)
             {
-                if (!string.Equals(existing, value, StringComparison.Ordinal))
+                if (Reverse.TryGetValue(id, out var existing))
                 {
-                    throw new InvalidOperationException($"StableStringId collision: '{existing}' and '{value}' => {id}");
+                    if (!string.Equals(existing, value, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException($"StableStringId collision: '{existing}' and '{value}' => {id}");
+                    }
+
+                    return id;
                 }
 
+                Reverse[id] = value;
                 return id;
             }
-
-            Reverse[id] = value;
-            return id;
         }
 
         private static int Fnv1a32(string s)

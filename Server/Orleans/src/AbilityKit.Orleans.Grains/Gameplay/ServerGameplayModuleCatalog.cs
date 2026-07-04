@@ -290,7 +290,7 @@ internal sealed class ServerGameplayModuleCatalog
             }),
         new ServerGameplayModule(
             ServerGameplayDescriptors.Shooter,
-            ServerBattleSyncProfile.StateSync("pure-state-authority", "state-sync-authority", "runtime-snapshot-interpolation", "predict-rollback-authority"),
+            ServerBattleSyncProfile.StateSync("predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority"),
             static () => new ShooterRoomGameplayAdapter(),
             static worldManager => new ShooterBattleRuntimeAdapter(worldManager),
             new Func<IWorldBlueprint>[]

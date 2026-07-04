@@ -54,7 +54,7 @@ public sealed class ShooterClientBattleHandleTests
         var handle = new ShooterClientBattleHandle(session, flow);
 
         var context = handle.CreateCurrentFrameInputContext();
-        var result = await handle.SubmitLocalInputToGatewayAsync(moveX: 1f, moveY: 0f, aimX: 0f, aimY: 1f, fire: true);
+        var result = await handle.SubmitLocalInputToGatewayAsync(moveX: 1f, moveY: 0f, aimX: 0f, aimY: 1f, fire: true, attackSlot: ShooterPlayerAttackSlots.Spread);
 
         Assert.Equal(session, handle.Session);
         Assert.Equal("room-9", handle.RoomId);
@@ -87,6 +87,7 @@ public sealed class ShooterClientBattleHandleTests
         Assert.Single(commands);
         Assert.Equal(11, commands[0].PlayerId);
         Assert.True(commands[0].Fire);
+        Assert.Equal(ShooterPlayerAttackSlots.Spread, commands[0].AttackSlot);
     }
     [Fact]
     public async Task ClientBattleHandleAutomaticallyRequestsFullStateSyncWhenInputResponseRequiresResync()

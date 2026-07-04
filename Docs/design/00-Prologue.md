@@ -266,6 +266,29 @@ MOBA/Shooter/Console/ET]
 - .NET 测试能快速跑；
 - 服务端和工具链能复用核心能力。
 
+更重要的是，它让设计文档可以拿真实源码和真实测试作证，而不是只停留在愿景层面。当前源码中已经形成四条互相印证的证据链：
+
+| 证据链 | 代表入口 | 说明 |
+|--------|----------|------|
+| Unity package | `Unity/Packages/com.abilitykit.*` | 项目接入、运行时包、Unity 表现层、包内测试与 asmdef 组织 |
+| .NET projects | `src/AbilityKit.*` | 纯 C# 构建、单元测试、Demo runtime、Console/ET/Shooter 复用 |
+| Server projects | `Server/Orleans/src` | Gateway、RoomGrain、BattleGrain、FrameSyncGrain 与 smoke 验收 |
+| Design docs | `Docs/design` | 把源码入口、设计意图、运行流程、测试门禁组织成新手可读路线 |
+
+```mermaid
+flowchart LR
+    Source[源码实现] --> Tests[单元测试与验收]
+    Tests --> Smoke[端到端 Smoke]
+    Smoke --> Docs[设计文档]
+    Docs --> Source
+
+    Source --> UnityPkg[Unity Packages]
+    Source --> Dotnet[src projects]
+    Source --> Orleans[Orleans Server]
+```
+
+因此，阅读 AbilityKit 时不要只看 package，也不要只看 Demo。更稳妥的方式是：先从能力地图理解模块边界，再进入源码入口，最后通过测试和 smoke 验证文档描述是否真实。
+
 ---
 
 ## 8. AbilityKit 的设计原则
@@ -285,9 +308,34 @@ AbilityKit 初版设计遵循以下原则：
 
 ---
 
-## 9. 这套框架希望解决什么，不解决什么
+## 9. 如何用测试理解 AbilityKit
 
-### 9.1 希望解决
+AbilityKit 把测试体系当作框架设计的一部分。原因很直接：战斗框架最怕“看起来抽象正确，组合起来却跑不通”。所以源码中同时保留了几种验证层级：
+
+| 验证层级 | 代表入口 | 能证明什么 |
+|----------|----------|------------|
+| 纯 C# 单测 | `src/AbilityKit.World.DI.Tests`、`src/AbilityKit.Network.Runtime.Tests` | DI、同步时钟、DemoHarness、健康事件等基础契约可以脱离 Unity 验证 |
+| Demo runtime 测试 | `src/AbilityKit.Demo.Moba.Tests`、`src/AbilityKit.Demo.Shooter.Runtime.Tests` | MOBA/Shooter 示例不是展示脚本，而是可验收的战斗运行时 |
+| Unity 测试工程 | `Unity/AbilityKit.Triggering.Tests.csproj`、`Unity/AbilityKit.Game.UnitTests.csproj` | Unity 包内逻辑、Editor/PlayMode 外壳和生成工程入口可被批处理校验 |
+| Orleans 测试 | `Server/Orleans/src/AbilityKit.Orleans.*.Tests` | Gateway、Grain、Shooter smoke 具备服务端级回归入口 |
+| Smoke 脚本 | `tools/run_et_battle_smoke.ps1`、`Server/Orleans/tools/run_shooter_smoke.ps1` | ET 与 Orleans 链路能跑过真实输入、快照、重连、回放和状态哈希 |
+
+```mermaid
+flowchart TB
+    Read[阅读设计文档] --> Locate[定位源码入口]
+    Locate --> Unit[运行纯 C# 测试]
+    Unit --> Matrix[运行 DemoHarness 或 Acceptance]
+    Matrix --> Smoke[运行 ET 或 Shooter Smoke]
+    Smoke --> Trust[确认能力边界可信]
+```
+
+这也是序章反复强调“可测试”的原因。一个技能框架如果只能在完整游戏场景里手工点按钮验证，就很难沉淀成跨项目资产；而 AbilityKit 希望每个核心能力都能找到对应的自动化验证入口。
+
+---
+
+## 10. 这套框架希望解决什么，不解决什么
+
+### 10.1 希望解决
 
 - 降低每个项目重复建设战斗系统的成本；
 - 减少技能、Buff、属性、投射物、伤害、表现之间的硬绑定；
@@ -297,7 +345,7 @@ AbilityKit 初版设计遵循以下原则：
 - 为联机、回放、预测、回滚预留统一路径；
 - 让大型团队可以沉淀跨项目框架资产。
 
-### 9.2 暂不试图解决
+### 10.2 暂不试图解决
 
 - 不替代 Unity、ET 或 Orleans 的全部工程体系；
 - 不强制所有项目使用同一种 ECS；
@@ -307,7 +355,7 @@ AbilityKit 初版设计遵循以下原则：
 
 ---
 
-## 10. 序章结论
+## 11. 序章结论
 
 AbilityKit 的起点是一个非常现实的问题：游戏战斗系统经常在需求增长中越写越重，越重越难改，越难改越只能继续打补丁。
 

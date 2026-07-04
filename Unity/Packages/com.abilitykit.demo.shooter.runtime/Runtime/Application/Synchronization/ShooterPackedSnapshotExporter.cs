@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
@@ -14,6 +15,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterStateHashProvider _stateHashProvider;
         private readonly ISveltoWorldContext _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
+        private readonly HashSet<int> _lastExportedProjectileIds = new HashSet<int>();
 
         public ShooterPackedSnapshotExporter(
             ShooterBattleState state,
@@ -30,7 +32,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public ShooterPackedSnapshotPayload Export(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
         {
-            var componentChunks = ExportComponentChunks();
+            var componentChunks = ExportComponentChunks(isFullSnapshot);
 
             return new ShooterPackedSnapshotPayload(
                 ShooterPackedSnapshotCodec.CurrentVersion,
@@ -44,13 +46,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 componentChunks);
         }
 
-        private ShooterPackedComponentChunk[] ExportComponentChunks()
+        private ShooterPackedComponentChunk[] ExportComponentChunks(bool isFullSnapshot)
         {
             return new[]
             {
                 ExportRuntimeMetadataChunk(),
                 ExportPlayerLifecycleChunk(),
-                ExportProjectileLifecycleChunk(),
+                ExportProjectileLifecycleChunk(isFullSnapshot),
                 ExportEnemyLifecycleChunk(),
                 ExportPlayerTransformChunk(),
                 ExportProjectileTransformChunk(),
@@ -128,26 +130,40 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Array.Empty<int>());
         }
 
-        private ShooterPackedComponentChunk ExportProjectileLifecycleChunk()
+        private ShooterPackedComponentChunk ExportProjectileLifecycleChunk(bool isFullSnapshot)
         {
             var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
-            if (count == 0)
+            var order = count > 0 ? _orderBuffer.CreateSortedProjectileOrder(bullets, count) : Array.Empty<int>();
+            var currentProjectileIds = new HashSet<int>();
+            var despawnedProjectileIds = isFullSnapshot ? Array.Empty<int>() : CollectDespawnedProjectiles(bullets, order, count, currentProjectileIds);
+            var totalCount = count + despawnedProjectileIds.Length;
+            if (totalCount == 0)
             {
+                _lastExportedProjectileIds.Clear();
                 return ShooterPackedComponentChunk.Empty(ShooterPackedComponentKinds.EntityLifecycle, ShooterPackedEntityKinds.Projectile);
             }
 
-            var order = _orderBuffer.CreateSortedProjectileOrder(bullets, count);
-            var entityIds = new int[count];
-            var flags = new byte[count];
-            var ownerIds = new int[count];
+            var entityIds = new int[totalCount];
+            var flags = new byte[totalCount];
+            var ownerIds = new int[totalCount];
             for (int i = 0; i < count; i++)
             {
                 var bullet = bullets[order[i]];
                 entityIds[i] = bullet.BulletId;
                 flags[i] = (byte)(ShooterPackedEntityFlags.Alive | ShooterPackedEntityFlags.Projectile);
                 ownerIds[i] = bullet.OwnerPlayerId;
+                currentProjectileIds.Add(bullet.BulletId);
             }
+
+            for (int i = 0; i < despawnedProjectileIds.Length; i++)
+            {
+                var targetIndex = count + i;
+                entityIds[targetIndex] = despawnedProjectileIds[i];
+                flags[targetIndex] = (byte)(ShooterPackedEntityFlags.Projectile | ShooterPackedEntityFlags.Despawned);
+            }
+
+            ReplaceLastExportedProjectiles(currentProjectileIds);
 
             return new ShooterPackedComponentChunk(
                 ShooterPackedComponentKinds.EntityLifecycle,
@@ -162,6 +178,44 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 flags,
                 ownerIds,
                 Array.Empty<int>());
+        }
+
+        private int[] CollectDespawnedProjectiles(
+            NB<ShooterSveltoProjectileComponent> bullets,
+            int[] order,
+            int count,
+            HashSet<int> currentProjectileIds)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                currentProjectileIds.Add(bullets[order[i]].BulletId);
+            }
+
+            if (_lastExportedProjectileIds.Count == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var despawned = new List<int>();
+            foreach (var projectileId in _lastExportedProjectileIds)
+            {
+                if (!currentProjectileIds.Contains(projectileId))
+                {
+                    despawned.Add(projectileId);
+                }
+            }
+
+            despawned.Sort();
+            return despawned.ToArray();
+        }
+
+        private void ReplaceLastExportedProjectiles(HashSet<int> currentProjectileIds)
+        {
+            _lastExportedProjectileIds.Clear();
+            foreach (var projectileId in currentProjectileIds)
+            {
+                _lastExportedProjectileIds.Add(projectileId);
+            }
         }
 
         private ShooterPackedComponentChunk ExportEnemyLifecycleChunk()
@@ -459,11 +513,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var order = _orderBuffer.CreateSortedProjectileOrder(bullets, count);
             var entityIds = new int[count];
             var remainingFrames = new int[count];
+            var penetrationRemaining = new int[count];
+            var explosionRadius = new float[count];
+            var explosionDamage = new float[count];
             for (int i = 0; i < count; i++)
             {
                 var bullet = bullets[order[i]];
                 entityIds[i] = bullet.BulletId;
                 remainingFrames[i] = bullet.RemainingFrames;
+                penetrationRemaining[i] = bullet.PenetrationRemaining;
+                explosionRadius[i] = bullet.ExplosionRadius;
+                explosionDamage[i] = bullet.ExplosionDamage;
             }
 
             return new ShooterPackedComponentChunk(
@@ -471,14 +531,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 ShooterPackedEntityKinds.Projectile,
                 entityIds.Length,
                 entityIds,
-                Array.Empty<float>(),
-                Array.Empty<float>(),
+                explosionRadius,
+                explosionDamage,
                 Array.Empty<float>(),
                 Array.Empty<float>(),
                 remainingFrames,
                 Array.Empty<byte>(),
                 Array.Empty<int>(),
-                Array.Empty<int>());
+                penetrationRemaining);
         }
 
         private int CountEnemies()

@@ -24,8 +24,8 @@ internal static class GatewayGameplayCatalog
             false,
             "shooter_battle",
             30,
-            "pure-state-authority",
-            new[] { "pure-state-authority", "batch-state-sync", "mass-battle-lod", "hybrid-hero-prediction" },
+            "predict-rollback-authority",
+            new[] { "predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority" },
             SupportsStateSyncPush: true,
             SupportsFrameSync: false)
     };

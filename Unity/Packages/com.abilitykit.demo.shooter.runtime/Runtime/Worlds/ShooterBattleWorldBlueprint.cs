@@ -16,7 +16,38 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             options.WorldType = ShooterGameplay.WorldType;
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+            var scenario = ShooterSveltoGameplayScenarioCatalog.WaveSurvival;
+            var battleFlow = CreateBattleFlow(scenario.BattleFlow, options);
+            var enemyWaveOptions = new ShooterEnemyWaveOptions(true, battleFlow);
+            var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
+            options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
+            options.ServiceBuilder.Register<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => arenaOptions);
             options.Modules.Add(new ShooterWorldModule());
+        }
+
+        private static ShooterSveltoGameplayBattleFlowConfig CreateBattleFlow(
+            ShooterSveltoGameplayBattleFlowConfig battleFlow,
+            WorldCreateOptions options)
+        {
+            if (!options.Extensions.TryGetValue(typeof(ShooterGameplay), out var value) ||
+                value is not int durationFrames ||
+                durationFrames <= 0 ||
+                durationFrames == battleFlow.DurationFrames)
+            {
+                return battleFlow;
+            }
+
+            return new ShooterSveltoGameplayBattleFlowConfig(
+                durationFrames,
+                battleFlow.VictoryTargetDefeats,
+                battleFlow.MaxActiveEnemies,
+                battleFlow.Waves,
+                battleFlow.EnemyLoadoutId,
+                battleFlow.EnemyAttackIntervalFrames,
+                battleFlow.EnemyAttackDamage,
+                battleFlow.EnemyProjectileSpeedScale,
+                battleFlow.EnemyProjectilesPerShot,
+                battleFlow.EnemySpreadDegrees);
         }
     }
 }

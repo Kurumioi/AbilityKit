@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Services.Motion;
+
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
@@ -30,15 +32,30 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly bool ApplyToCaster;
 
-        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true)
+        /// <summary>
+        /// 冲刺碰撞到角色后执行的触发计划 ID。
+        /// </summary>
+        public readonly int HitTriggerPlanId;
+
+        /// <summary>
+        /// 位移组 ID；0 表示使用行为默认组。
+        /// </summary>
+        public readonly int MotionGroupId;
+
+        public readonly MobaMotionContinuousSettings Continuous;
+
+        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default)
         {
             Speed = speed;
             DurationMs = durationMs;
             DirectionMode = directionMode;
             Priority = priority;
             ApplyToCaster = applyToCaster;
+            HitTriggerPlanId = hitTriggerPlanId;
+            MotionGroupId = motionGroupId;
+            Continuous = continuous;
         }
 
-        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true);
+        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, MobaMotionContinuousSettings.Empty);
     }
 }

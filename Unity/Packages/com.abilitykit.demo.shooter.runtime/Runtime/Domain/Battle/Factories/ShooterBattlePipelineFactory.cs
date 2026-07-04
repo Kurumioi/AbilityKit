@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 new ShooterFrameBeginBattleSystem(services),
                 new ShooterBotAiServiceBattleSystem(services),
                 new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Spawn),
+                new ShooterEnemyWaveMovementBattleSystem(services),
                 new ShooterSimulationBattleSystem(services),
                 new ShooterEnemyLifecycleCleanupBattleSystem(services),
                 new ShooterEnemyWaveBattleSystem(services, ShooterEnemyWavePhase.Attack),

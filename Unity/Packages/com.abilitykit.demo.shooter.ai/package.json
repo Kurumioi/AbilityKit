@@ -1,0 +1,15 @@
+{
+  "name": "com.abilitykit.demo.shooter.ai",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Shooter AI",
+  "unity": "2022.3",
+  "description": "Shooter demo AI training environment adapter built on AbilityKit model-neutral AI abstractions.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.ai.abstractions": "0.0.1",
+    "com.abilitykit.demo.shooter.runtime": "0.0.1",
+    "com.abilitykit.protocol.shooter": "0.0.1"
+  }
+}

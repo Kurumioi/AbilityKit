@@ -9,6 +9,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public readonly struct ShooterPlayModeSessionOptions
     {
+        private const int PlayModeDefaultDurationFrames = ShooterAcceptanceLab.DefaultTickRate * 120;
+
         public static ShooterPlayModeSessionOptions Default => FromTemplate(
             ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority"));
 
@@ -30,7 +32,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 worldScale: 1f,
                 networkName: template.DisplayName,
                 syncTemplateId: template.Id,
-                gameplayScenario: ShooterSveltoGameplayScenarioCatalog.WaveSurvival);
+                gameplayScenario: CreatePlayModeDefaultScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival));
         }
 
         public static ShooterPlayModeSessionOptions FromTemplateId(string templateId)
@@ -154,7 +156,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 worldScale,
                 networkName,
                 syncTemplateId,
-                ShooterSveltoGameplayScenarioCatalog.WaveSurvival)
+                CreatePlayModeDefaultScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival))
         {
         }
 
@@ -190,7 +192,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             NetworkName = networkName;
             SyncTemplateId = syncTemplateId;
             GameplayScenario = string.IsNullOrWhiteSpace(gameplayScenario.Id)
-                ? ShooterSveltoGameplayScenarioCatalog.WaveSurvival
+                ? CreatePlayModeDefaultScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival)
                 : gameplayScenario;
         }
 
@@ -255,7 +257,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var controlledPlayerId = Math.Min(Math.Max(ControlledPlayerId, 1), playerCount);
             var worldScale = WorldScale <= 0f ? 1f : WorldScale;
             var gameplayScenario = string.IsNullOrWhiteSpace(GameplayScenario.Id)
-                ? ShooterSveltoGameplayScenarioCatalog.WaveSurvival
+                ? CreatePlayModeDefaultScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival)
                 : GameplayScenario;
 
             return new ShooterPlayModeSessionOptions(
@@ -274,6 +276,35 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 NetworkName,
                 SyncTemplateId,
                 gameplayScenario);
+        }
+
+        private static ShooterSveltoGameplayScenarioConfig CreatePlayModeDefaultScenario(in ShooterSveltoGameplayScenarioConfig scenario)
+        {
+            var battleFlow = scenario.BattleFlow;
+            var durationFrames = Math.Max(battleFlow.DurationFrames, PlayModeDefaultDurationFrames);
+            var extendedFlow = new ShooterSveltoGameplayBattleFlowConfig(
+                durationFrames,
+                battleFlow.VictoryTargetDefeats,
+                battleFlow.MaxActiveEnemies,
+                battleFlow.Waves,
+                battleFlow.EnemyLoadoutId,
+                battleFlow.EnemyAttackIntervalFrames,
+                battleFlow.EnemyAttackDamage,
+                battleFlow.EnemyProjectileSpeedScale,
+                battleFlow.EnemyProjectilesPerShot,
+                battleFlow.EnemySpreadDegrees);
+
+            return new ShooterSveltoGameplayScenarioConfig(
+                scenario.Id,
+                scenario.DisplayName,
+                scenario.Description,
+                scenario.ShooterCount,
+                scenario.TargetCount,
+                Math.Max(scenario.TickCount, durationFrames),
+                scenario.TickDeltaTime,
+                scenario.ArenaRadius,
+                scenario.Loadout,
+                extendedFlow);
         }
 
         private static float Clamp01(float value)

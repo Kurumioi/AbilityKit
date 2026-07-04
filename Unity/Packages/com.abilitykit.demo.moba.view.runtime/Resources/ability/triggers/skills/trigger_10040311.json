@@ -1,0 +1,36 @@
+{
+  "triggers": [
+    {
+      "id": 10040311,
+      "name": "墨子-墨守成规-屏障周期伤害与眩晕",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 120,
+          "source_attack_ratio": 0.35,
+          "damage_type": 2,
+          "reason_param": 10040301,
+          "target_query_id": 50040301,
+          "target_max_count": 10
+        },
+        {
+          "type": "add_buff",
+          "buffIds": [10040002],
+          "target_query_id": 50040301,
+          "target_max_count": 10
+        },
+        {
+          "type": "debug_log",
+          "message": "墨子三技能持续：屏障范围内敌人受到周期法术伤害并短暂眩晕",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

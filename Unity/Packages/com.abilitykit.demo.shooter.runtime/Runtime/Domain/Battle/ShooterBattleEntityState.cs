@@ -18,6 +18,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int HealthMax;
         public int Score;
         public int RemainingFrames;
+        public int PenetrationRemaining;
+        public float ExplosionRadius;
+        public int ExplosionDamage;
         public bool Alive;
 
         public bool IsActor => Kind == ShooterBattleEntityKind.Player || Kind == ShooterBattleEntityKind.Enemy;
@@ -53,6 +56,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 VelocityX = projectile.VelocityX,
                 VelocityY = projectile.VelocityY,
                 RemainingFrames = projectile.RemainingFrames,
+                PenetrationRemaining = projectile.PenetrationRemaining,
+                ExplosionRadius = projectile.ExplosionRadius,
+                ExplosionDamage = projectile.ExplosionDamage,
                 Alive = true
             };
         }
@@ -98,7 +104,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 Y = Y,
                 VelocityX = VelocityX,
                 VelocityY = VelocityY,
-                RemainingFrames = RemainingFrames
+                RemainingFrames = RemainingFrames,
+                PenetrationRemaining = PenetrationRemaining,
+                ExplosionRadius = ExplosionRadius,
+                ExplosionDamage = ExplosionDamage
             };
         }
 

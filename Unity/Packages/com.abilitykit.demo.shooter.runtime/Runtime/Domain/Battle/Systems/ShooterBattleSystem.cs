@@ -20,6 +20,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public const int EnemyWaveSpawn = 150;
 
+        public const int EnemyWaveMovement = 175;
+
         public const int Simulation = 200;
 
         public const int EnemyLifecycleCleanup = 250;

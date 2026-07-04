@@ -12,6 +12,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
     public partial class ActionSchemaRegistry
     {
         private static readonly Dictionary<ActionId, IActionSchema> Schemas = new Dictionary<ActionId, IActionSchema>();
+        private static readonly object SchemasLock = new object();
 
         private sealed class GenericSchemaAdapter<TActionArgs, TCtx> : IActionSchema
         {
@@ -39,7 +40,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public static bool TryGet(ActionId actionId, out IActionSchema schema)
         {
-            return Schemas.TryGetValue(actionId, out schema);
+            lock (SchemasLock)
+            {
+                return Schemas.TryGetValue(actionId, out schema);
+            }
         }
 
         public static void Register<TActionArgs, TCtx>(IActionSchema<TActionArgs, TCtx> schema)
@@ -47,7 +51,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (schema == null)
                 throw new ArgumentNullException(nameof(schema));
 
-            Schemas[schema.ActionId] = new GenericSchemaAdapter<TActionArgs, TCtx>(schema);
+            lock (SchemasLock)
+            {
+                Schemas[schema.ActionId] = new GenericSchemaAdapter<TActionArgs, TCtx>(schema);
+            }
         }
 
         public static void Register(ActionId actionId, IActionSchema schema)
@@ -55,7 +62,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (schema == null)
                 throw new ArgumentNullException(nameof(schema));
 
-            Schemas[actionId] = schema;
+            lock (SchemasLock)
+            {
+                Schemas[actionId] = schema;
+            }
         }
 
         public static object ParseArgs(Dictionary<string, ActionArgValue> namedArgs, object ctx)

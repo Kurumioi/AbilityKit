@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.GameplayTags;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Services
             public const string Rooted = "State.Rooted";
             public const string Suppressed = "State.Suppressed";
             public const string ControlImmune = "State.ControlImmune";
+            public const string SuperArmor = "State.SuperArmor";
             public const string Feared = "State.Feared";
             public const string Asleep = "State.Asleep";
             public const string Charmed = "State.Charmed";
@@ -30,7 +32,8 @@ namespace AbilityKit.Demo.Moba.Services
         public static readonly string[] StunnedAliases = { State.Stunned, "Stunned", "stunned" };
         public static readonly string[] RootedAliases = { State.Rooted, "Rooted", "rooted" };
         public static readonly string[] SuppressedAliases = { State.Suppressed, "Suppressed", "suppressed" };
-        public static readonly string[] ControlImmuneAliases = { State.ControlImmune, "ControlImmune", "control_immune" };
+        public static readonly string[] SuperArmorAliases = { State.SuperArmor, "SuperArmor", "super_armor" };
+        public static readonly string[] ControlImmuneAliases = Combine(new[] { State.ControlImmune, "ControlImmune", "control_immune" }, SuperArmorAliases);
         public static readonly string[] FearedAliases = { State.Feared, "Feared", "feared" };
         public static readonly string[] AsleepAliases = { State.Asleep, "Asleep", "Sleeping", "asleep", "sleeping" };
         public static readonly string[] CharmedAliases = { State.Charmed, "Charmed", "charmed" };
@@ -38,6 +41,38 @@ namespace AbilityKit.Demo.Moba.Services
         public static readonly string[] MoveBlockedAliases = Combine(StunnedAliases, DisabledAliases, SuppressedAliases, RootedAliases, FearedAliases, AsleepAliases);
         public static readonly string[] CastBlockedAliases = Combine(StunnedAliases, DisabledAliases, SuppressedAliases, SilencedAliases, FearedAliases, AsleepAliases);
         public static readonly string[] ControlBlockedAliases = Combine(StunnedAliases, FearedAliases, CharmedAliases, AsleepAliases);
+        public static readonly string[] AllNames = Combine(
+            UntargetableAliases,
+            InvulnerableAliases,
+            SilencedAliases,
+            DisabledAliases,
+            StunnedAliases,
+            RootedAliases,
+            SuppressedAliases,
+            ControlImmuneAliases,
+            FearedAliases,
+            AsleepAliases,
+            CharmedAliases);
+
+        public static readonly GameplayTagContainer UntargetableTags = ToContainer(UntargetableAliases);
+        public static readonly GameplayTagContainer InvulnerableTags = ToContainer(InvulnerableAliases);
+        public static readonly GameplayTagContainer CastBlockedTags = ToContainer(CastBlockedAliases);
+        public static readonly GameplayTagContainer StunnedTags = ToContainer(StunnedAliases);
+        public static readonly GameplayTagContainer DisabledTags = ToContainer(DisabledAliases);
+        public static readonly GameplayTagContainer SuppressedTags = ToContainer(SuppressedAliases);
+        public static readonly GameplayTagContainer MoveBlockedTags = ToContainer(MoveBlockedAliases);
+        public static readonly GameplayTagContainer ControlImmuneTags = ToContainer(ControlImmuneAliases);
+        public static readonly GameplayTagContainer ControlBlockedTags = ToContainer(ControlBlockedAliases);
+
+        static MobaGameplayTagCatalog()
+        {
+            RegisterAll();
+        }
+
+        public static void RegisterAll()
+        {
+            GameplayTagManager.Instance.RegisterTags(AllNames);
+        }
 
         public static bool TryGet(string tagName, out GameplayTag tag)
         {
@@ -47,16 +82,35 @@ namespace AbilityKit.Demo.Moba.Services
                 && tag.IsValid;
         }
 
-        public static bool HasAny(GameplayTagContainer container, params string[] tagNames)
+        public static bool TryResolve(string tagName, out GameplayTag tag)
         {
-            if (container == null || tagNames == null || tagNames.Length == 0) return false;
+            tag = default;
+            if (string.IsNullOrWhiteSpace(tagName)) return false;
 
-            for (int i = 0; i < tagNames.Length; i++)
+            tag = global::AbilityKit.GameplayTags.GameplayTags.Tag(tagName);
+            return tag.IsValid;
+        }
+
+        public static GameplayTagContainer ToContainer(IReadOnlyList<string> names)
+        {
+            var c = new GameplayTagContainer();
+            Append(c, names);
+            return c.Count > 0 ? c : null;
+        }
+
+        public static void Append(GameplayTagContainer container, IReadOnlyList<string> names)
+        {
+            if (container == null || names == null) return;
+
+            for (int i = 0; i < names.Count; i++)
             {
-                if (TryGet(tagNames[i], out var tag) && container.HasTag(tag)) return true;
+                if (TryResolve(names[i], out var tag)) container.Add(tag);
             }
+        }
 
-            return false;
+        public static bool HasAny(GameplayTagContainer container, GameplayTagContainer query)
+        {
+            return container != null && query != null && query.Count > 0 && container.HasAny(query, exact: false);
         }
 
         private static string[] Combine(params string[][] groups)

@@ -197,7 +197,20 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var command = ShooterClientInputBuilder.CreateCommand(GetPlayerIdAsInt(), moveX, moveY, aimX, aimY, fire);
+            return SubmitLocalInputToGatewayAsync(moveX, moveY, aimX, aimY, fire, ShooterPlayerAttackSlots.Primary, timeout, cancellationToken);
+        }
+
+        public Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(
+            float moveX,
+            float moveY,
+            float aimX,
+            float aimY,
+            bool fire,
+            int attackSlot,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            var command = ShooterClientInputBuilder.CreateCommand(GetPlayerIdAsInt(), moveX, moveY, aimX, aimY, fire, attackSlot);
             return SubmitLocalInputToGatewayAsync(command, timeout, cancellationToken);
         }
 

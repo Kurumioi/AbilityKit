@@ -50,6 +50,20 @@
         "com.abilitykit.core": "0.0.1"
       }
     },
+    "com.abilitykit.ai.abstractions": {
+      "version": "file:com.abilitykit.ai.abstractions",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.ai.mlagents.bridge": {
+      "version": "file:com.abilitykit.ai.mlagents.bridge",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.ai.abstractions": "0.0.1"
+      }
+    },
     "com.abilitykit.analyzer": {
       "version": "file:com.abilitykit.analyzer",
       "depth": 0,
@@ -294,6 +308,16 @@
         "com.abilitykit.demo.moba.runtime": "0.0.1",
         "com.abilitykit.demo.moba.share": "0.0.1",
         "com.abilitykit.demo.moba.view.abstractions": "0.1.0"
+      }
+    },
+    "com.abilitykit.demo.shooter.ai": {
+      "version": "file:com.abilitykit.demo.shooter.ai",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.ai.abstractions": "0.0.1",
+        "com.abilitykit.demo.shooter.runtime": "0.0.1",
+        "com.abilitykit.protocol.shooter": "0.0.1"
       }
     },
     "com.abilitykit.demo.shooter.editor": {

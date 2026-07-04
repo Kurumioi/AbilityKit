@@ -1,6 +1,7 @@
 #nullable enable
 
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Protocol.Shooter;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
 
@@ -9,12 +10,18 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
     public readonly struct ShooterHostFrameInput
     {
         public ShooterHostFrameInput(float moveX, float moveY, float aimX, float aimY, bool fire)
+            : this(moveX, moveY, aimX, aimY, fire, ShooterPlayerAttackSlots.Primary)
+        {
+        }
+
+        public ShooterHostFrameInput(float moveX, float moveY, float aimX, float aimY, bool fire, int attackSlot)
         {
             MoveX = moveX;
             MoveY = moveY;
             AimX = aimX;
             AimY = aimY;
             Fire = fire;
+            AttackSlot = ShooterPlayerAttackSlots.Normalize(attackSlot);
         }
 
         public float MoveX { get; }
@@ -22,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
         public float AimX { get; }
         public float AimY { get; }
         public bool Fire { get; }
+        public int AttackSlot { get; }
     }
 
     public readonly struct ShooterHostPresentationFrame

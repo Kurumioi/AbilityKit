@@ -2,6 +2,7 @@
 using AbilityKit.Combat.MotionSystem.Collision;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Events;
+using AbilityKit.Demo.Moba.Services.Motion;
 using Entitas;
 using Entitas.CodeGeneration.Attributes;
 
@@ -21,5 +22,8 @@ namespace AbilityKit.Demo.Moba.Components
 
         // Optional initialization flag for systems.
         public bool Initialized;
+
+        // Runtime trigger carried by ability-driven motion sources such as dash.
+        public MobaMotionHitTriggerRuntime HitTriggerRuntime;
     }
 }

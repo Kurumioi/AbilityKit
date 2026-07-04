@@ -315,14 +315,22 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             if (condition.Args != null)
             {
-                if (condition.Args.TryGetValue("arg_name", out var argNameObj) ||
-                    condition.Args.TryGetValue("var_name", out argNameObj))
+                if (condition.Args.TryGetValue("left", out var leftObj))
+                {
+                    node.Left = ConvertConditionOperand("left", leftObj, result);
+                }
+                else if (condition.Args.TryGetValue("arg_name", out var argNameObj) ||
+                         condition.Args.TryGetValue("var_name", out argNameObj))
                 {
                     var argName = argNameObj?.ToString() ?? "arg1";
                     node.Left = CreatePayloadRef(argName);
                 }
 
-                if (condition.Args.TryGetValue("value", out var valueObj))
+                if (condition.Args.TryGetValue("right", out var rightObj))
+                {
+                    node.Right = ConvertConditionOperand("right", rightObj, result);
+                }
+                else if (condition.Args.TryGetValue("value", out var valueObj))
                 {
                     node.Right = ConvertValue("value", valueObj, null, result);
                 }
@@ -335,6 +343,17 @@ namespace AbilityKit.Ability.Editor.Utilities
             node.Left = node.Left ?? CreatePayloadRef("arg1");
             node.Right = node.Right ?? CreateConstRef(0);
             nodes.Add(node);
+        }
+
+        private static NumericValueRefDto ConvertConditionOperand(string key, object value, ConvertResult result)
+        {
+            var text = value is JValue jValue ? jValue.Value<string>() : value?.ToString();
+            if (!string.IsNullOrEmpty(text) && text.StartsWith("payload:", StringComparison.OrdinalIgnoreCase))
+            {
+                return CreatePayloadRef(text.Substring("payload:".Length));
+            }
+
+            return ConvertValue(key, value, null, result);
         }
 
         private static void ConvertConditionListToExpr(
@@ -724,6 +743,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "set_move_direction_8dir":
                 case "set_move_direction_free":
                 case "clear_move_direction_mode":
+                case "advance_gameplay_counter":
                     return 2;
                 default:
                     return -1;
@@ -823,6 +843,16 @@ namespace AbilityKit.Ability.Editor.Utilities
                     MapFloatArgAlias(args, plan, "max", "max", "max_value", "maxValue");
                     break;
 
+                case "advance_gameplay_counter":
+                    MapIntArgAlias(args, plan, "key_id", "key_id", "keyId", "keyid", "id");
+                    MapPayloadFieldArgAlias(args, plan, "scope_payload_field_id", "scope_payload_field", "scopePayloadField", "scope_field", "field");
+                    MapIntArgAlias(args, plan, "scope_payload_field_id", "scope_payload_field_id", "scopePayloadFieldId", "scope_field_id", "field_id");
+                    MapFloatArgAlias(args, plan, "threshold", "threshold", "limit", "count");
+                    MapFloatArgAlias(args, plan, "delta", "delta", "step", "amount");
+                    MapFloatArgAlias(args, plan, "reset_value", "reset_value", "resetValue", "reset");
+                    MapIntArgAlias(args, plan, "trigger_id", "trigger_id", "triggerId", "on_threshold_trigger_id", "onThresholdTriggerId");
+                    break;
+
                 case "spawn_area":
                     MapIntArgAlias(args, plan, "area_id", "area_id", "areaId", "aoe_id", "aoeId", "id");
                     MapIntArgAlias(args, plan, "position_mode", "position_mode", "positionMode", "position");
@@ -882,6 +912,31 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void MapBoolArgAlias(Dictionary<string, object> args, ActionCallPlanDto plan, string targetKey, params string[] candidateKeys)
         {
             MapIntArgAlias(args, plan, targetKey, candidateKeys);
+        }
+
+        private static void MapPayloadFieldArgAlias(Dictionary<string, object> args, ActionCallPlanDto plan, string targetKey, params string[] candidateKeys)
+        {
+            for (int i = 0; i < candidateKeys.Length; i++)
+            {
+                var sourceKey = candidateKeys[i];
+                if (!args.TryGetValue(sourceKey, out var obj) || obj == null)
+                {
+                    continue;
+                }
+
+                var fieldName = obj is JValue jValue ? jValue.Value<string>() : obj.ToString();
+                if (string.IsNullOrEmpty(fieldName))
+                {
+                    continue;
+                }
+
+                plan.Args[targetKey] = new NumericValueRefDto
+                {
+                    Kind = "Const",
+                    ConstValue = StableStringId.Get("payload:" + fieldName)
+                };
+                return;
+            }
         }
 
         /// <summary>

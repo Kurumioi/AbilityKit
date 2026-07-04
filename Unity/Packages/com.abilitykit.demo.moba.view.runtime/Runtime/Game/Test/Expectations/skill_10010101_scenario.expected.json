@@ -1,8 +1,8 @@
 {
   "caseId": "skill_10010101_scenario_dash_hit_damage_knockup",
-  "description": "Lian Po skill 1 should apply self armor, launch the dash collision projectile, hit one enemy, deal damage, and execute the hit knock-up pull action.",
+  "description": "Lian Po skill 1 should apply self armor, dash into one enemy with motion hit detection, deal damage, and execute the hit knock-up pull action.",
   "category": "contract",
-  "tags": ["lian-po", "skill-1", "projectile", "dash", "scenario", "damage", "knockup"],
+  "tags": ["lian-po", "skill-1", "dash", "motion-hit", "scenario", "damage", "knockup"],
   "config": {
     "skillId": 10010101,
     "castFlowId": 10010101,
@@ -10,13 +10,9 @@
     "triggerId": 10010101,
     "expectedActions": [
       { "actionId": 1241142882, "type": "add_buff" },
-      { "actionId": 508656420, "type": "shoot_projectile" },
+      { "actionId": 427896051, "type": "dash" },
       { "actionId": 589451731, "type": "debug_log" }
-    ],
-    "expectedProjectile": {
-      "launcherId": 31010101,
-      "projectileId": 30010101
-    }
+    ]
   },
   "scenario": {
     "scenarioId": "skill_10010101_scenario_dash_hit_damage_knockup",
@@ -69,7 +65,7 @@
         "position": { "x": 3.0, "y": 0.0, "z": 0.0 }
       },
       {
-        "stepId": "wait_for_dash_projectile_hit",
+        "stepId": "wait_for_dash_motion_hit",
         "atMs": 1,
         "action": "wait",
         "durationMs": 900
@@ -94,8 +90,7 @@
     { "kind": "SkillCast", "configId": 10010101, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10010101, "minCount": 1 },
     { "kind": "EffectAction", "configId": 1241142882, "underEffectId": 10010101, "minCount": 1 },
-    { "kind": "EffectAction", "configId": 508656420, "underEffectId": 10010101, "minCount": 1 },
-    { "kind": "ProjectileLaunch", "configId": 30010101, "underEffectId": 10010101, "minCount": 1 },
+    { "kind": "EffectAction", "configId": 427896051, "underEffectId": 10010101, "minCount": 1 },
     { "kind": "BuffApply", "configId": 10010000, "minCount": 1 },
     { "kind": "DamageApply", "configId": 10010101, "minCount": 1, "maxCount": 1 },
     { "kind": "EffectAction", "configId": -13684592, "minCount": 1 }

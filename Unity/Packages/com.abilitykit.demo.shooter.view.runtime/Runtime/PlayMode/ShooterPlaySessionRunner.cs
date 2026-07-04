@@ -159,7 +159,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 input.MoveY,
                 input.AimX,
                 input.AimY,
-                input.Fire);
+                input.Fire,
+                input.AttackSlot);
 
             _lastSubmitResult = _session.Controller.SubmitLocalInput(in command);
             _lastTickResult = _session.Controller.Tick(deltaSeconds);

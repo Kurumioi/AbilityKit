@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -31,8 +32,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var input = MobaMovementActionInputResolver.Resolve(triggerArgs, ctx);
-            var targetId = input.TargetActorId;
-            if (targetId <= 0)
+            var targets = PooledMobaPlanActionLists.GetIntList();
+            try
+            {
+                var coreInput = input.ActionInput;
+                var effectInput = new MobaEffectActionInput(in coreInput);
+                if (!MobaActionTargetResolver.TryResolveTargets(in args.TargetRequest, in coreInput, in effectInput, ctx, TriggeringConstants.Actions.Pull, targets))
+                {
+                    return;
+                }
+
+                ExecuteForTargets(input, args, ctx, targets);
+            }
+            finally
+            {
+                PooledMobaPlanActionLists.Release(targets);
+            }
+        }
+
+        private void ExecuteForTargets(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, List<int> targets)
+        {
+            if (targets == null || targets.Count == 0)
             {
                 LogRejected(ctx, "requires valid target actor");
                 return;
@@ -42,6 +62,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             if (registry == null)
             {
                 LogRejected(ctx, "requires MobaActorRegistry service");
+                return;
+            }
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                ExecuteForTarget(input, args, ctx, registry, targets[i]);
+            }
+        }
+
+        private void ExecuteForTarget(MobaMovementActionInput input, PullArgs args, ExecCtx<IWorldResolver> ctx, MobaActorRegistry registry, int targetId)
+        {
+            if (targetId <= 0)
+            {
+                LogRejected(ctx, "requires valid target actor");
                 return;
             }
 
@@ -61,16 +95,30 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var pullDir = input.ResolvePullDirection(args.DirectionMode, targetId);
             if (pullDir.SqrMagnitude <= 0f)
             {
-                LogRejected(ctx, $"cannot resolve pull direction. mode={args.DirectionMode}");
+                LogRejected(ctx, $"cannot resolve pull direction. mode={args.DirectionMode} targetId={targetId}");
                 return;
             }
 
             var velocity = pullDir * args.Speed;
             var duration = args.DurationMs / 1000f;
-            var source = new FixedDeltaMotionSource(velocity, duration, args.Priority, MotionGroups.Control, MotionStacking.OverrideLowerPriority);
+            var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Control, args.Priority, 12);
+            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
 
-            m.Pipeline.AddSource(source);
+            if (!MobaMotionContinuousActionRuntime.TryActivate(
+                    ctx,
+                    input,
+                    "PullMotion",
+                    input.CasterActorId,
+                    targetId,
+                    targetId,
+                    duration,
+                    source,
+                    args.Continuous,
+                    default,
+                    out var rejectReason))
+            {
+                LogRejected(ctx, rejectReason);
+            }
         }
-
     }
 }

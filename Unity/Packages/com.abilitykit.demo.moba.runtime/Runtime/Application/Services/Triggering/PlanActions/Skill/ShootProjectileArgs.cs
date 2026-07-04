@@ -15,12 +15,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly int ProjectileId;
 
-        public ShootProjectileArgs(int launcherId, int projectileId)
+        public readonly int ContinuousProcessId;
+
+        public ShootProjectileArgs(int launcherId, int projectileId, int continuousProcessId)
         {
             LauncherId = launcherId;
             ProjectileId = projectileId;
+            ContinuousProcessId = continuousProcessId;
         }
 
-        public static ShootProjectileArgs Default => new ShootProjectileArgs(0, 0);
+        public static ShootProjectileArgs Default => new ShootProjectileArgs(0, 0, 0);
     }
 }

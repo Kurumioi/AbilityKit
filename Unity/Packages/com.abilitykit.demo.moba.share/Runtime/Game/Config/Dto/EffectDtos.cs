@@ -37,7 +37,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int[] IntervalTriggerIds;
         public int[] TriggerIds;
         public int ContinuousTagTemplateId;
-        public int[] Tags;
+        public string[] TagNames;
         public ContinuousModifierDTO[] Modifiers;
         public bool RequireOutOfCombat;
         public int OutOfCombatSeconds;
@@ -60,7 +60,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int MaxStacks;
         public int[] TriggerIds;
         public int ContinuousTagTemplateId;
-        public int[] Tags;
+        public string[] TagNames;
         public ContinuousModifierDTO[] Modifiers;
     }
 

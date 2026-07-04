@@ -1,15 +1,15 @@
 [
   {
     "Id": 1,
-    "Name": "direction_default",
-    "LongPressSeconds": 0.35,
+    "Name": "instant_click",
+    "LongPressSeconds": 0.0,
     "DragThreshold": 12.0,
-    "EnableAim": true,
+    "EnableAim": false,
     "AimMode": 0,
-    "AimMaxRadius": 220.0,
+    "AimMaxRadius": 0.0,
     "UsePointMode": 0,
     "SelectRange": 0.0,
-    "FaceToAim": true
+    "FaceToAim": false
   },
   {
     "Id": 2,

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;
@@ -11,6 +12,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 {
     internal sealed class ShooterPlayerCommandBattleModule
     {
+        private const float SpreadCenterExplosionRadius = 1.8f;
+
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly IShooterBattleRules _rules;
@@ -62,16 +65,38 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 if (command.Fire)
                 {
-                    SpawnBullet(in players[i]);
+                    SpawnBullets(in players[i], command.AttackSlot);
                     _state.InputBuffer.TryConsumeLatestFire(_state.CurrentFrame, players[i].PlayerId, out _);
                 }
             }
         }
 
-        private void SpawnBullet(in ShooterSveltoPlayerComponent player)
+        private void SpawnBullets(in ShooterSveltoPlayerComponent player, int attackSlot)
         {
-            var bulletX = player.X + player.AimX * 0.5f;
-            var bulletY = player.Y + player.AimY * 0.5f;
+            switch (ShooterPlayerAttackSlots.Normalize(attackSlot))
+            {
+                case ShooterPlayerAttackSlots.Spread:
+                    SpawnBullet(in player, player.AimX, player.AimY, 1f, 1f, explosionRadius: SpreadCenterExplosionRadius, explosionDamage: _rules.HitDamage);
+                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, 0.28f), RotateY(player.AimX, player.AimY, 0.28f), 0.92f, 0.85f);
+                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, -0.28f), RotateY(player.AimX, player.AimY, -0.28f), 0.92f, 0.85f);
+                    return;
+                case ShooterPlayerAttackSlots.Twin:
+                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, -0.28f, penetrationRemaining: 2);
+                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, 0.28f, penetrationRemaining: 2);
+                    return;
+                default:
+                    SpawnBullet(in player, player.AimX, player.AimY, 1f, 1f);
+                    return;
+            }
+        }
+
+        private void SpawnBullet(in ShooterSveltoPlayerComponent player, float directionX, float directionY, float speedScale, float lifeScale, float lateralOffset = 0f, int penetrationRemaining = 0, float explosionRadius = 0f, int explosionDamage = 0)
+        {
+            ShooterBattleMath.Normalize(ref directionX, ref directionY);
+            var sideX = -directionY;
+            var sideY = directionX;
+            var bulletX = player.X + directionX * 0.5f + sideX * lateralOffset;
+            var bulletY = player.Y + directionY * 0.5f + sideY * lateralOffset;
             if (!ShooterCircularArenaMath.IsInside(bulletX, bulletY, _arenaOptions))
             {
                 return;
@@ -83,13 +108,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 OwnerPlayerId = player.PlayerId,
                 X = bulletX,
                 Y = bulletY,
-                VelocityX = player.AimX * _rules.BulletSpeed,
-                VelocityY = player.AimY * _rules.BulletSpeed,
-                RemainingFrames = _rules.BulletLifeFrames
+                VelocityX = directionX * _rules.BulletSpeed * speedScale,
+                VelocityY = directionY * _rules.BulletSpeed * speedScale,
+                RemainingFrames = Math.Max(1, (int)MathF.Round(_rules.BulletLifeFrames * lifeScale)),
+                PenetrationRemaining = Math.Max(0, penetrationRemaining),
+                ExplosionRadius = Math.Max(0f, explosionRadius),
+                ExplosionDamage = Math.Max(0, explosionDamage)
             };
 
             _entities.AddProjectile(in bullet);
             _events.AddFire(player.PlayerId, bullet.BulletId, bullet.X, bullet.Y);
+        }
+
+        private static float RotateX(float x, float y, float radians)
+        {
+            return x * MathF.Cos(radians) - y * MathF.Sin(radians);
+        }
+
+        private static float RotateY(float x, float y, float radians)
+        {
+            return x * MathF.Sin(radians) + y * MathF.Cos(radians);
         }
     }
 
@@ -157,11 +195,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                if (TryCollectEnemyHit(in bullets[i], enemyTransforms, enemyHealths, enemyIds, out var enemyHit))
+                if (TryCollectEnemyHit(in bullets[i], i, enemyTransforms, enemyHealths, enemyIds, out var enemyHit))
                 {
                     _pendingEnemyHits.Add(enemyHit);
-                    _projectileRemovalBuffer.Add(bullets[i].BulletId);
-                    continue;
+                    if (IsExplosive(in bullets[i]))
+                    {
+                        CollectExplosionEnemyHits(in bullets[i], enemyHit.EnemyIndex, enemyTransforms, enemyHealths, enemyIds, enemyCount);
+                        _projectileRemovalBuffer.Add(bullets[i].BulletId);
+                        continue;
+                    }
+
+                    if (bullets[i].PenetrationRemaining <= 0)
+                    {
+                        _projectileRemovalBuffer.Add(bullets[i].BulletId);
+                        continue;
+                    }
+
+                    bullets[i].PenetrationRemaining--;
+                    AdvancePenetratingBullet(ref bullets[i]);
                 }
 
                 if (bullets[i].RemainingFrames <= 0)
@@ -197,6 +248,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private bool TryCollectEnemyHit(
             in ShooterSveltoProjectileComponent bullet,
+            int bulletIndex,
             NB<ShooterSveltoTransformComponent> transforms,
             NB<ShooterSveltoHealthComponent> healths,
             NativeEntityIDs ids,
@@ -204,12 +256,39 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             if (_enemyHitIndex.TryFindFirstHit(bullet.X, bullet.Y, _rules.HitRadius, transforms, healths, ids, out var targetIndex, out var enemyId))
             {
-                hit = new ShooterPendingEnemyHit(bullet.BulletId, bullet.OwnerPlayerId, targetIndex, enemyId);
+                hit = new ShooterPendingEnemyHit(bullet.BulletId, bullet.OwnerPlayerId, bulletIndex, targetIndex, enemyId);
                 return true;
             }
 
             hit = default;
             return false;
+        }
+
+        private void CollectExplosionEnemyHits(
+            in ShooterSveltoProjectileComponent bullet,
+            int directHitEnemyIndex,
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoHealthComponent> healths,
+            NativeEntityIDs ids,
+            int enemyCount)
+        {
+            var radiusSquared = bullet.ExplosionRadius * bullet.ExplosionRadius;
+            for (var i = 0; i < enemyCount; i++)
+            {
+                if (i == directHitEnemyIndex || healths[i].Alive == 0)
+                {
+                    continue;
+                }
+
+                var dx = transforms[i].X - bullet.X;
+                var dy = transforms[i].Y - bullet.Y;
+                if (dx * dx + dy * dy > radiusSquared)
+                {
+                    continue;
+                }
+
+                _pendingEnemyHits.Add(new ShooterPendingEnemyHit(bullet.BulletId, bullet.OwnerPlayerId, 0, i, ids[i], bullet.ExplosionDamage));
+            }
         }
 
         private void ResolveEnemyHits(
@@ -226,7 +305,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                enemyHealths[hit.EnemyIndex].Current = Math.Max(0, enemyHealths[hit.EnemyIndex].Current - _rules.HitDamage);
+                var damage = hit.Damage > 0 ? hit.Damage : _rules.HitDamage;
+                enemyHealths[hit.EnemyIndex].Current = Math.Max(0, enemyHealths[hit.EnemyIndex].Current - damage);
                 var defeated = enemyHealths[hit.EnemyIndex].Current == 0;
                 if (defeated)
                 {
@@ -235,8 +315,23 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     IncrementPlayerScore(hit.OwnerPlayerId, players, playerCount);
                 }
 
-                _events.AddEnemyHit(hit.OwnerPlayerId, hit.EnemyId, hit.BulletId, enemyTransforms[hit.EnemyIndex].X, enemyTransforms[hit.EnemyIndex].Y, _rules.HitDamage);
+                _events.AddEnemyHit(hit.OwnerPlayerId, hit.EnemyId, hit.BulletId, enemyTransforms[hit.EnemyIndex].X, enemyTransforms[hit.EnemyIndex].Y, damage);
             }
+        }
+
+        private static bool IsExplosive(in ShooterSveltoProjectileComponent bullet)
+        {
+            return bullet.ExplosionRadius > 0f && bullet.ExplosionDamage > 0;
+        }
+
+        private void AdvancePenetratingBullet(ref ShooterSveltoProjectileComponent bullet)
+        {
+            var directionX = bullet.VelocityX;
+            var directionY = bullet.VelocityY;
+            ShooterBattleMath.Normalize(ref directionX, ref directionY);
+            var step = Math.Max(_rules.HitRadius * 2f, 0.01f);
+            bullet.X += directionX * step;
+            bullet.Y += directionY * step;
         }
 
         private static void IncrementPlayerScore(int playerId, NB<ShooterSveltoPlayerComponent> players, int count)
@@ -253,18 +348,22 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private readonly struct ShooterPendingEnemyHit
         {
-            public ShooterPendingEnemyHit(int bulletId, int ownerPlayerId, int enemyIndex, uint enemyId)
+            public ShooterPendingEnemyHit(int bulletId, int ownerPlayerId, int bulletIndex, int enemyIndex, uint enemyId, int damage = 0)
             {
                 BulletId = bulletId;
                 OwnerPlayerId = ownerPlayerId;
+                BulletIndex = bulletIndex;
                 EnemyIndex = enemyIndex;
                 EnemyId = enemyId;
+                Damage = damage;
             }
 
             public int BulletId { get; }
             public int OwnerPlayerId { get; }
+            public int BulletIndex { get; }
             public int EnemyIndex { get; }
             public uint EnemyId { get; }
+            public int Damage { get; }
         }
     }
 }

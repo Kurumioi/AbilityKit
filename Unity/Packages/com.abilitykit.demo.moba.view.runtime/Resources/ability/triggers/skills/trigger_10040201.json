@@ -1,0 +1,27 @@
+{
+  "triggers": [
+    {
+      "id": 10040201,
+      "name": "墨子-机关重炮-发射炮弹",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "shoot_projectile",
+          "launcher_id": 31040201,
+          "projectile_id": 30040201,
+          "directionSource": "cast_context"
+        },
+        {
+          "type": "debug_log",
+          "message": "墨子二技能机关重炮：向指定方向发射炮弹，命中造成法术伤害并眩晕",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

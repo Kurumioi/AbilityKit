@@ -2,6 +2,8 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.GameplayTags;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public enum MobaCombatRuleFailure
@@ -91,45 +93,64 @@ namespace AbilityKit.Demo.Moba.Services
             return team != Team.None;
         }
 
-        public bool HasAnyTag(int actorId, params string[] tagNames)
+        public bool HasAnyTag(int actorId, GameplayTagContainer query)
         {
-            if (actorId <= 0 || tagNames == null || tagNames.Length == 0) return false;
+            return TryGetAnyTag(actorId, query, out _);
+        }
+
+        public bool TryGetAnyTag(int actorId, GameplayTagContainer query, out GameplayTag matchedTag)
+        {
+            matchedTag = default;
+            if (actorId <= 0 || query == null || query.Count == 0) return false;
             if (_effectiveTags == null) return false;
 
             var tags = _effectiveTags.GetEffectiveTags(actorId);
-            if (tags == null) return false;
+            if (tags == null || tags.Count == 0) return false;
 
-            return MobaGameplayTagCatalog.HasAny(tags, tagNames);
+            foreach (var tag in query)
+            {
+                if (tags.HasTag(tag))
+                {
+                    matchedTag = tag;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public bool IsUntargetable(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.UntargetableAliases);
+            return HasAnyTag(actorId, MobaGameplayTagCatalog.UntargetableTags);
         }
 
         public bool IsInvulnerable(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.InvulnerableAliases);
+            return HasAnyTag(actorId, MobaGameplayTagCatalog.InvulnerableTags);
         }
 
         public bool IsSilenced(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.CastBlockedAliases);
+            return HasAnyTag(actorId, MobaGameplayTagCatalog.CastBlockedTags);
         }
 
         public bool IsStunned(int actorId)
         {
-            return HasAnyTag(actorId, MobaGameplayTagCatalog.StunnedAliases) || HasAnyTag(actorId, MobaGameplayTagCatalog.DisabledAliases) || HasAnyTag(actorId, MobaGameplayTagCatalog.SuppressedAliases);
+            return HasAnyTag(actorId, MobaGameplayTagCatalog.StunnedTags)
+                || HasAnyTag(actorId, MobaGameplayTagCatalog.DisabledTags)
+                || HasAnyTag(actorId, MobaGameplayTagCatalog.SuppressedTags);
         }
 
         public bool CanMove(int actorId)
         {
-            return IsAlive(actorId) && !HasAnyTag(actorId, MobaGameplayTagCatalog.MoveBlockedAliases);
+            return IsAlive(actorId) && !HasAnyTag(actorId, MobaGameplayTagCatalog.MoveBlockedTags);
         }
 
         public bool CanBeControlled(int actorId)
         {
-            return IsAlive(actorId) && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlImmuneAliases) && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlBlockedAliases);
+            return IsAlive(actorId)
+                && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlImmuneTags)
+                && !HasAnyTag(actorId, MobaGameplayTagCatalog.ControlBlockedTags);
         }
 
         public MobaCombatRuleResult CanBeSearchedTarget(int casterActorId, int targetActorId)

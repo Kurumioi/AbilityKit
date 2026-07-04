@@ -233,7 +233,14 @@ namespace AbilityKit.Demo.Shooter.View
                 ConfigVersion = request.ConfigVersion,
                 ProtocolVersion = request.ProtocolVersion,
                 WorldType = request.WorldType,
-                ClientId = request.ClientId
+                ClientId = request.ClientId,
+                SyncTemplateId = request.SyncTemplateId,
+                SyncModel = request.SyncModel,
+                NetworkEnvironmentId = request.NetworkEnvironmentId,
+                CarrierName = request.CarrierName,
+                EnableAuthoritativeWorld = request.EnableAuthoritativeWorld,
+                InterpolationEnabled = request.InterpolationEnabled,
+                InputDelayFrames = request.InputDelayFrames
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _transport.SendRequestAsync(_opCodes.StartBattle, payload, timeout, cancellationToken).ConfigureAwait(false);
@@ -684,8 +691,30 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly int ProtocolVersion;
         public readonly string WorldType;
         public readonly string ClientId;
+        public readonly string SyncTemplateId;
+        public readonly int SyncModel;
+        public readonly string NetworkEnvironmentId;
+        public readonly string CarrierName;
+        public readonly bool EnableAuthoritativeWorld;
+        public readonly bool InterpolationEnabled;
+        public readonly int InputDelayFrames;
 
-        public ShooterGatewayStartBattleRequest(string sessionToken, string roomId, int gameplayId, int ruleSetId, int configVersion, int protocolVersion, string worldType, string clientId)
+        public ShooterGatewayStartBattleRequest(
+            string sessionToken,
+            string roomId,
+            int gameplayId,
+            int ruleSetId,
+            int configVersion,
+            int protocolVersion,
+            string worldType,
+            string clientId,
+            string syncTemplateId = "",
+            int syncModel = 0,
+            string networkEnvironmentId = "",
+            string carrierName = "",
+            bool enableAuthoritativeWorld = true,
+            bool interpolationEnabled = false,
+            int inputDelayFrames = 0)
         {
             SessionToken = sessionToken ?? string.Empty;
             RoomId = roomId ?? string.Empty;
@@ -695,6 +724,13 @@ namespace AbilityKit.Demo.Shooter.View
             ProtocolVersion = protocolVersion;
             WorldType = worldType ?? string.Empty;
             ClientId = clientId ?? string.Empty;
+            SyncTemplateId = syncTemplateId ?? string.Empty;
+            SyncModel = syncModel;
+            NetworkEnvironmentId = networkEnvironmentId ?? string.Empty;
+            CarrierName = carrierName ?? string.Empty;
+            EnableAuthoritativeWorld = enableAuthoritativeWorld;
+            InterpolationEnabled = interpolationEnabled;
+            InputDelayFrames = inputDelayFrames < 0 ? 0 : inputDelayFrames;
         }
     }
 

@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.World.Abstractions;
-using AbilityKit.Ability.World.DI;
-using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.DemoHarness;
@@ -1033,9 +1031,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (tickRate <= 0) throw new ArgumentOutOfRangeException(nameof(tickRate));
 
             var start = BuildStartPayload(matchId, tickRate, randomSeed, players, syncModel);
-            var worldHost = gameplayScenario.HasValue
-                ? new ShooterWorldHost(options => ConfigureGameplayScenarioWorldOptions(options, gameplayScenario.Value))
-                : new ShooterWorldHost();
+            var worldHost = ShooterGameplayScenarioWorldHostFactory.Create(gameplayScenario);
             var runtimeWorld = ShooterBattleWorldSession.Create($"{start.MatchId}-client", worldHost);
             ShooterBattleWorldSession? authoritativeWorldSession = null;
 
@@ -1096,19 +1092,6 @@ namespace AbilityKit.Demo.Shooter.View
                 runtimeWorld.Dispose();
                 throw;
             }
-        }
-
-        private static void ConfigureGameplayScenarioWorldOptions(
-            WorldCreateOptions options,
-            in ShooterSveltoGameplayScenarioConfig scenario)
-        {
-            if (options == null) throw new ArgumentNullException(nameof(options));
-
-            options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
-            var enemyWaveOptions = new ShooterEnemyWaveOptions(true, scenario.BattleFlow);
-            var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
-            options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
-            options.ServiceBuilder.Register<ShooterArenaGameplayOptions>(WorldLifetime.Singleton, _ => arenaOptions);
         }
 
         private static ISyncDemoCarrier CreateCarrier(

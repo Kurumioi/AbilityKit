@@ -24,6 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int DebugLog = 0;
         public const int SetGameplayVar = 0;
         public const int AddGameplayVar = 0;
+        public const int AdvanceGameplayCounter = 0;
         public const int EndGame = 0;
 
         public const int CancelSkill = 9;

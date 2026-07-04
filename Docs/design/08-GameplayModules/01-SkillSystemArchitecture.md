@@ -13,6 +13,7 @@
   - [3. 总体设计](#3-总体设计)
   - [4. 技能输入到释放的主流程](#4-技能输入到释放的主流程)
   - [5. 配置到 Pipeline 的构建流程](#5-配置到-pipeline-的构建流程)
+    - [5.1 Pipeline 运行态不是直接复用配置阶段](#51-pipeline-运行态不是直接复用配置阶段)
   - [6. PreCast/Cast 双阶段执行模型](#6-precastcast-双阶段执行模型)
   - [7. 技能运行时上下文与生命周期追踪](#7-技能运行时上下文与生命周期追踪)
   - [8. 与 Triggering、Effect、Combat 的协作边界](#8-与-triggeringeffectcombat-的协作边界)
@@ -45,9 +46,12 @@ AbilityKit 的技能系统不是单个包中的封闭系统，而是一个跨模
 | 释放协调 | `SkillCastCoordinator` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` |
 | 释放准备 | `SkillCastPreparationService` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastPreparationService.cs` |
 | 释放上下文 | `SkillCastContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastContext.cs` |
+| 通用 Pipeline 运行态 | `AbilityPipeline<TCtx>` / `AbilityPipelinePhaseRuntime` | `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipeline.cs` / `Unity/Packages/com.abilitykit.pipeline/Runtime/Core/Pipeline/AbilityPipelinePhaseRuntime.cs` |
 | Pipeline 库 | `IMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/IMobaSkillPipelineLibrary.cs` |
 | 配置驱动 Pipeline | `TableDrivenMobaSkillPipelineLibrary` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/TableDrivenMobaSkillPipelineLibrary.cs` |
 | Pipeline 运行器 | `SkillPipelineRunner` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` |
+| MOBA 时间线阶段 | `SkillTimelinePhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillTimelinePhase.cs` |
+| MOBA 规则计划阶段 | `SkillRulePlanPhase` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Phases/SkillRulePlanPhase.cs` |
 | 运行器注册表 | `SkillRunnerRegistry` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillRunnerRegistry.cs` |
 | Pipeline 上下文 | `SkillPipelineContext` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineContext.cs` |
 | 通用 Skill Pipeline Builder | `SkillPipelineBuilder` | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Domain/Ability/Pipeline/Skill/SkillPipelineBuilder.cs` |
@@ -179,14 +183,40 @@ flowchart TD
 
 | 阶段 | 运行时定义 | 说明 |
 |------|------------|------|
-| Timeline | `TimelinePhaseDefinition` -> `SkillTimelinePhase` | 按时间轴触发技能事件或效果调用 |
-| RulePlan | `RulePlanPhaseDefinition` -> `SkillRulePlanPhase` | 执行 Triggering RulePlan，连接条件和动作 |
-| Sequence | `SequencePhaseDefinition` -> `AbilitySequencePhase<T>` | 子阶段顺序执行 |
-| Parallel | `ParallelPhaseDefinition` -> `AbilityParallelPhase<T>` | 子阶段并行执行 |
+| Timeline | `TimelinePhaseDefinition` -> `SkillTimelinePhase` | MOBA 自己的时间线阶段，按毫秒推进事件，当前只接受 `EffectExecuteMode.InternalOnly` 并调用 `MobaEffectInvokerService.Execute` |
+| RulePlan | `RulePlanPhaseDefinition` -> `SkillRulePlanPhase` | 瞬时阶段，按配置 triggerId 调用 `MobaTriggerPlanExecutor.ExecuteRulePlan`，失败且 `AbortOnFailure` 时写入 `FailReason` 并中止 Pipeline |
+| Sequence | `SequencePhaseDefinition` -> `AbilitySequencePhase<T>` | 子阶段顺序执行，运行时通过 `CreateRunPhase` 复制复合阶段和子阶段 |
+| Parallel | `ParallelPhaseDefinition` -> `AbilityParallelPhase<T>` | 子阶段并行执行，维护 active phase 索引，全部完成后结束 |
 | Repeat | `RepeatPhaseDefinition` -> `AbilityRepeatPhase<T>` | 重复执行子阶段，可设置间隔 |
 | Delay | `DelayPhaseDefinition` -> `AbilityDelayPhase<T>` | 等待指定毫秒数 |
+| WaitUntil | `WaitUntilPhaseDefinition` -> `AbilityWaitUntilPhase<T>` | 当前支持 `ObservedSlotsIdle`，通过 `SkillCastCoordinator.TryGetRunningBySlot` 等待指定技能槽空闲 |
 
-源码中特别标注：旧的 `Checks` 和 `Handlers` 阶段已经废弃，应迁移到 RulePlan 的 Trigger 条件与动作。这体现了设计方向：技能校验和效果执行尽量收敛到统一的触发器/动作体系中。
+源码中特别标注：旧的 `Checks` 和 `Handlers` 阶段已经废弃，`TableDrivenMobaSkillPipelineLibrary.BuildPhaseDefinition` 会直接抛出异常，要求迁移到 RulePlan 的 Trigger 条件与动作。这体现了设计方向：技能校验和效果执行尽量收敛到统一的触发器/动作体系中。
+
+### 5.1 Pipeline 运行态不是直接复用配置阶段
+
+通用 `AbilityPipeline<TCtx>.Start` 会先调用 `AbilityPipelinePhaseRuntime.CreateRunPhases(_phases)`，再创建一次 `Run`。这个步骤有两个含义：
+
+1. 如果阶段实现了 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，每次运行会通过 `CreateRunPhase()` 创建运行实例。
+2. 如果阶段没有实现工厂契约，则保持原实例兼容，但仍会调用 `Reset()`。
+
+```mermaid
+flowchart TD
+    Config[TableDrivenMobaSkillPipelineLibrary.TryGet] --> Defs[PhaseDefinition cache]
+    Defs --> Build[BuildPhases creates phase objects]
+    Build --> Runner[SkillPipelineRunner StartPreCast or StartCast]
+    Runner --> Pipeline[AbilityPipeline AddPhase]
+    Pipeline --> Start[AbilityPipeline Start]
+    Start --> Runtime[AbilityPipelinePhaseRuntime CreateRunPhases]
+    Runtime --> Factory{phase implements factory}
+    Factory -- yes --> Clone[CreateRunPhase]
+    Factory -- no --> Same[reuse phase instance]
+    Clone --> Reset[Reset]
+    Same --> Reset
+    Reset --> Run[Run Tick / ExecutePipeline]
+```
+
+`AbilitySequencePhase<TCtx>` 和 `AbilityParallelPhase<TCtx>` 都实现了运行实例创建；`SkillTimelinePhase` 当前没有实现工厂契约，因此 `TableDrivenMobaSkillPipelineLibrary.TryGet` 每次会从缓存的 `PhaseDefinition` 重新 `CreatePhase()`，避免多个技能释放共享同一个时间线阶段状态。
 
 ---
 
@@ -197,7 +227,7 @@ flowchart TD
 - `PreCast`：可用于前摇、吟唱、预检查、提前表现提示。
 - `Cast`：正式执行技能效果、时间轴、RulePlan、投射物、伤害等。
 
-`SkillPipelineRunner.Start` 会检查并发策略、上下文、Cast 配置和阶段列表，然后记录起始帧。如果没有 PreCast，会直接进入 Cast。
+`SkillPipelineRunner.Start` 会检查并发策略、上下文、Cast 配置和阶段列表，然后记录起始帧。如果没有 PreCast，会直接进入 Cast。源码里还有一个容易漏掉的约束：`triggerContext` 必须存在；缺失时会以 `SkillFailureCodes.Start.ContextMissing` 拒绝启动，因为后续 PreCast/Cast 事件、Trace 和运行时句柄都依赖释放级上下文。
 
 ```mermaid
 flowchart TD
@@ -290,6 +320,8 @@ flowchart TD
 
 `SkillPipelineContext` 在初始化时会把核心事实同步到通用 `IAbilityPipelineContext` 扩展字段：技能信息、参与者、瞄准、上下文类型、SourceContextId、SkillRuntimeHandle。这保证了 Pipeline Phase、Trigger Action、Effect 执行器可以通过统一上下文读取技能事实，而不是直接依赖 MOBA 专用类型。
 
+时间线阶段还会把 `_nextEventIndex` 同步到 `SkillPipelineContext.SetTimelineNextEventIndex`。这不是表现层字段，而是运行时快照字段：`SkillPipelineRunner.RunningSnapshot` 会暴露 `ElapsedMs` 与 `NextEventIndex`，用于同步、诊断或恢复当前技能释放进度。
+
 ---
 
 ## 8. 与 Triggering、Effect、Combat 的协作边界
@@ -340,11 +372,13 @@ flowchart LR
 ### 9.2 关键约束
 
 1. **不要把技能写成巨型 Executor**：复杂逻辑应拆到 Pipeline Phase、Trigger PlanAction、Effect Component、Combat Service。
-2. **不要在配置构建阶段修改世界状态**：`TableDrivenMobaSkillPipelineLibrary` 只构建 Phase，状态修改应发生在运行时动作中。
+2. **不要在配置构建阶段修改世界状态**：`TableDrivenMobaSkillPipelineLibrary` 只构建 PhaseDefinition 和 Phase，状态修改应发生在运行时动作中。
 3. **需要可回放/可同步的逻辑必须确定性**：随机值、时间、帧号应由上层注入或来自 `IFrameTime`。
 4. **运行时必须可追踪**：正式技能释放应创建 `MobaTraceRegistry` 根上下文和 `MobaSkillCastRuntimeService` runtime handle。
 5. **清理必须集中处理**：阶段订阅、临时对象、持续效果绑定应注册到 `SkillPipelineContext` cleanup 中。
 6. **旧 Checks/Handlers 阶段不应继续扩散**：源码已明确要求迁移到 RulePlan 条件与动作。
+7. **不要把通用 `AbilityTimelinePhase.cs` 当成当前技能时间线实现**：该文件当前只是停用占位，MOBA 正在使用的是 `SkillTimelinePhase`。
+8. **长生命周期阶段要确认运行实例隔离**：有状态阶段应实现 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，或者像 MOBA 配置库一样每次从 PhaseDefinition 创建新阶段。
 
 ---
 
@@ -356,4 +390,4 @@ flowchart LR
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-06-23*
+*文档版本：v2.1 | 最后更新：2026-07-04*

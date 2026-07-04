@@ -151,7 +151,7 @@ namespace AbilityKit.Demo.Moba.Services
             return source.IsValid;
         }
 
-        private static ContinuousTagRequirements BuildRequirements(ContinuousTagRequirements template, IReadOnlyList<int> extraTags)
+        private static ContinuousTagRequirements BuildRequirements(ContinuousTagRequirements template, GameplayTagContainer extraTags)
         {
             var result = new ContinuousTagRequirements
             {
@@ -162,18 +162,7 @@ namespace AbilityKit.Demo.Moba.Services
                 RemovalTags = CopyContainer(template?.RemovalTags)
             };
 
-            if (extraTags != null && extraTags.Count > 0)
-            {
-                for (int i = 0; i < extraTags.Count; i++)
-                {
-                    var tagId = extraTags[i];
-                    if (tagId > 0)
-                    {
-                        result.ApplicationTags.Add(GameplayTag.FromId(tagId));
-                    }
-                }
-            }
-
+            result.ApplicationTags.AppendTags(extraTags);
             return result;
         }
 

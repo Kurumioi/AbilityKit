@@ -1,11 +1,11 @@
 {
   "caseId": "skill_10010101_basic",
-  "description": "Lian Po skill 1 casts skill 10010101 and executes the current dash/projectile effect chain down to concrete trigger actions and projectile launch.",
+  "description": "Lian Po skill 1 casts skill 10010101 and executes the dash motion hit effect chain down to concrete trigger actions.",
   "worldId": "skill_10010101_acceptance_world",
   "tickRate": 30,
   "accelerated": true,
   "category": "golden",
-  "tags": ["golden", "core", "projectile", "lian-po", "skill-1", "representative"],
+  "tags": ["golden", "core", "dash", "motion-hit", "lian-po", "skill-1", "representative"],
   "generatedFrom": "manual",
   "lastReviewedAt": "2026-07-01",
   "input": {
@@ -24,18 +24,14 @@
         "type": "add_buff"
       },
       {
-        "actionId": 508656420,
-        "type": "shoot_projectile"
+        "actionId": 427896051,
+        "type": "dash"
       },
       {
         "actionId": 589451731,
         "type": "debug_log"
       }
-    ],
-    "expectedProjectile": {
-      "launcherId": 31010101,
-      "projectileId": 30010101
-    }
+    ]
   },
   "mustContain": [
     {
@@ -56,19 +52,13 @@
     },
     {
       "kind": "EffectAction",
-      "configId": 508656420,
+      "configId": 427896051,
       "underEffectId": 10010101,
       "minCount": 1
     },
     {
       "kind": "EffectAction",
       "configId": 589451731,
-      "underEffectId": 10010101,
-      "minCount": 1
-    },
-    {
-      "kind": "ProjectileLaunch",
-      "configId": 30010101,
       "underEffectId": 10010101,
       "minCount": 1
     },
@@ -90,19 +80,13 @@
       "parentKind": "EffectExecution",
       "parentConfigId": 10010101,
       "childKind": "EffectAction",
-      "childConfigId": 508656420
+      "childConfigId": 427896051
     },
     {
       "parentKind": "EffectExecution",
       "parentConfigId": 10010101,
       "childKind": "EffectAction",
       "childConfigId": 589451731
-    },
-    {
-      "parentKind": "EffectExecution",
-      "parentConfigId": 10010101,
-      "childKind": "ProjectileLaunch",
-      "childConfigId": 30010101
     }
   ]
 }

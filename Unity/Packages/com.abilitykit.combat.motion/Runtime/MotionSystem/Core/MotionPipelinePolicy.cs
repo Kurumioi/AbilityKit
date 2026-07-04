@@ -15,7 +15,9 @@ namespace AbilityKit.Combat.MotionSystem.Core
         public static MotionPipelinePolicy CreateDefault()
         {
             var p = new MotionPipelinePolicy();
-            // Typical rule: Control suppresses other groups.
+            // Active ability movement should own locomotion while it runs.
+            p.SetSuppressedGroups(MotionGroups.Ability, MotionGroups.Locomotion);
+            // Hard control displacements suppress active movement, but allow passive displacement sources to compose.
             p.SetSuppressedGroups(MotionGroups.Control, MotionGroups.Locomotion, MotionGroups.Ability, MotionGroups.Path);
             return p;
         }

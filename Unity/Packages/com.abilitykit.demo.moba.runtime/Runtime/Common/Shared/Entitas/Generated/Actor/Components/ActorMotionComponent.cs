@@ -11,7 +11,7 @@ public partial class ActorEntity {
     public AbilityKit.Demo.Moba.Components.MotionComponent motion { get { return (AbilityKit.Demo.Moba.Components.MotionComponent)GetComponent(ActorComponentsLookup.Motion); } }
     public bool hasMotion { get { return HasComponent(ActorComponentsLookup.Motion); } }
 
-    public void AddMotion(AbilityKit.Combat.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Combat.MotionSystem.Core.MotionState newState, AbilityKit.Combat.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Combat.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Combat.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Combat.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized) {
+    public void AddMotion(AbilityKit.Combat.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Combat.MotionSystem.Core.MotionState newState, AbilityKit.Combat.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Combat.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Combat.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Combat.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized, AbilityKit.Demo.Moba.Services.Motion.MobaMotionHitTriggerRuntime newHitTriggerRuntime) {
         var index = ActorComponentsLookup.Motion;
         var component = (AbilityKit.Demo.Moba.Components.MotionComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.MotionComponent));
         component.Pipeline = newPipeline;
@@ -21,10 +21,11 @@ public partial class ActorEntity {
         component.Policy = newPolicy;
         component.Events = newEvents;
         component.Initialized = newInitialized;
+        component.HitTriggerRuntime = newHitTriggerRuntime;
         AddComponent(index, component);
     }
 
-    public void ReplaceMotion(AbilityKit.Combat.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Combat.MotionSystem.Core.MotionState newState, AbilityKit.Combat.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Combat.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Combat.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Combat.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized) {
+    public void ReplaceMotion(AbilityKit.Combat.MotionSystem.Core.MotionPipeline newPipeline, AbilityKit.Combat.MotionSystem.Core.MotionState newState, AbilityKit.Combat.MotionSystem.Core.MotionOutput newOutput, AbilityKit.Combat.MotionSystem.Collision.IMotionSolver newSolver, AbilityKit.Combat.MotionSystem.Core.MotionPipelinePolicy newPolicy, AbilityKit.Combat.MotionSystem.Events.IMotionEventSink newEvents, bool newInitialized, AbilityKit.Demo.Moba.Services.Motion.MobaMotionHitTriggerRuntime newHitTriggerRuntime) {
         var index = ActorComponentsLookup.Motion;
         var component = (AbilityKit.Demo.Moba.Components.MotionComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.MotionComponent));
         component.Pipeline = newPipeline;
@@ -34,6 +35,7 @@ public partial class ActorEntity {
         component.Policy = newPolicy;
         component.Events = newEvents;
         component.Initialized = newInitialized;
+        component.HitTriggerRuntime = newHitTriggerRuntime;
         ReplaceComponent(index, component);
     }
 

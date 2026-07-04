@@ -1,0 +1,42 @@
+{
+  "triggers": [
+    {
+      "id": 10040101,
+      "name": "墨子-和平漫步-机甲突进与护盾",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "dash",
+          "speed": 18,
+          "duration_ms": 450,
+          "direction_mode": 0,
+          "apply_to_caster": true,
+          "priority": 20,
+          "motion_group_id": 2,
+          "hit_trigger_plan_id": 10040111
+        },
+        {
+          "type": "add_shield",
+          "shield_id": 10040101,
+          "shield_value": 300,
+          "absorb_ratio": 1.0,
+          "duration_ms": 3000,
+          "priority": 20,
+          "target_self": true,
+          "stacking_policy": 1,
+          "consume_policy": 0
+        },
+        {
+          "type": "debug_log",
+          "message": "墨子一技能和平漫步：机甲向前突进，对路径敌人造成法术伤害并获得护盾",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

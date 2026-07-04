@@ -75,6 +75,134 @@
                     {
                         "trigger_id":  10010341,
                         "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020000,
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10020101,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020111,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020201,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020211,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020301,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020311,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10020312,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030000,
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10030101,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030111,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030201,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030211,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030301,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030311,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030321,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030102,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030103,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030202,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030203,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030212,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030213,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030312,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10030313,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040000,
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10040101,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040111,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040201,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040211,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040301,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040311,
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10040321,
+                        "category":  "skills"
                     }
                 ]
 }

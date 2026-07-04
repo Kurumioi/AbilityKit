@@ -1,0 +1,20 @@
+{
+  "name": "com.abilitykit.ai.mlagents.bridge",
+  "version": "0.0.1",
+  "displayName": "AbilityKit AI ML-Agents Bridge",
+  "unity": "2022.3",
+  "description": "Optional Unity ML-Agents bridge for AbilityKit model-neutral AI environments. This package does not force ML-Agents into core runtime packages.",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.ai.abstractions": "0.0.1"
+  },
+  "samples": [
+    {
+      "displayName": "Shooter ML-Agents Agent Skeleton",
+      "description": "Minimal Shooter agent skeleton showing how to connect ShooterAiTrainingEnvironment to the optional ML-Agents bridge.",
+      "path": "Samples~/ShooterMlAgentsBridge"
+    }
+  ]
+}

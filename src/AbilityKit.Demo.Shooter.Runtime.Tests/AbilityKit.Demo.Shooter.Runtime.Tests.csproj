@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.AI.Abstractions\AbilityKit.AI.Abstractions.csproj" />
+    <ProjectReference Include="..\AbilityKit.AI.Training.Runner\AbilityKit.AI.Training.Runner.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Shooter.AI\AbilityKit.Demo.Shooter.AI.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Shooter.Runtime\AbilityKit.Demo.Shooter.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Shooter.View.Runtime\AbilityKit.Demo.Shooter.View.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />

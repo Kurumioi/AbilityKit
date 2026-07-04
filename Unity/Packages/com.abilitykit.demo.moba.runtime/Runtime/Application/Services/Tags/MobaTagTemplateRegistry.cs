@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.GameplayTags;
 using ITagTemplateRegistry = AbilityKit.GameplayTags.ITagTemplateRegistry;
 using TagTemplateRuntime = AbilityKit.GameplayTags.TagTemplateRuntime;
 using GameplayTagRequirements = AbilityKit.GameplayTags.GameplayTagRequirements;
-using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
-using GameplayTag = AbilityKit.GameplayTags.GameplayTag;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -59,30 +56,10 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
-        private TagTemplateRuntime CreateTemplate(TagTemplateMO mo)
+        private static TagTemplateRuntime CreateTemplate(TagTemplateMO mo)
         {
-            var required = ToContainer(mo.RequiredTags);
-            var blocked = ToContainer(mo.BlockedTags);
-            var grant = ToContainer(mo.GrantTags);
-            var remove = ToContainer(mo.RemoveTags);
-
-            var req = new GameplayTagRequirements(required, blocked, exact: false);
-            return new TagTemplateRuntime(mo.Id, mo.Name, req, grant, remove);
-        }
-
-        private static GameplayTagContainer ToContainer(IReadOnlyList<int> ids)
-        {
-            if (ids == null || ids.Count == 0) return null;
-
-            var c = new GameplayTagContainer();
-            for (int i = 0; i < ids.Count; i++)
-            {
-                var id = ids[i];
-                if (id <= 0) continue;
-                c.Add(GameplayTag.FromId(id));
-            }
-
-            return c.Count > 0 ? c : null;
+            var req = new GameplayTagRequirements(mo.RequiredTags, mo.BlockedTags, exact: false);
+            return new TagTemplateRuntime(mo.Id, mo.Name, req, mo.GrantTags, mo.RemoveTags);
         }
     }
 }

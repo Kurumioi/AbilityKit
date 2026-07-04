@@ -199,11 +199,12 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
-                RequiredTags = obj["RequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                BlockedTags = obj["BlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                GrantTags = obj["GrantTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                RemoveTags = obj["RemoveTags"]?.ToObject<int[]>() ?? Array.Empty<int>()
             };
+
+            dto.RequiredTagNames = ReadTagNames(obj["RequiredTags"]);
+            dto.BlockedTagNames = ReadTagNames(obj["BlockedTags"]);
+            dto.GrantTagNames = ReadTagNames(obj["GrantTags"]);
+            dto.RemoveTagNames = ReadTagNames(obj["RemoveTags"]);
             return dto;
         }
 
@@ -213,16 +214,33 @@ namespace AbilityKit.Demo.Moba.Config.Core
             {
                 Id = obj["Id"]?.Value<int>() ?? obj["Code"]?.Value<int>() ?? 0,
                 Name = obj["Name"]?.Value<string>() ?? string.Empty,
-                ActivationRequiredTags = obj["ActivationRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                ActivationBlockedTags = obj["ActivationBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                ApplicationTags = obj["ApplicationTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                RemovalRequiredTags = obj["RemovalRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                RemovalBlockedTags = obj["RemovalBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                OngoingRequiredTags = obj["OngoingRequiredTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                OngoingBlockedTags = obj["OngoingBlockedTags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-                RemovalTags = obj["RemovalTags"]?.ToObject<int[]>() ?? Array.Empty<int>()
             };
+
+            dto.ActivationRequiredTagNames = ReadTagNames(obj["ActivationRequiredTags"]);
+            dto.ActivationBlockedTagNames = ReadTagNames(obj["ActivationBlockedTags"]);
+            dto.ApplicationTagNames = ReadTagNames(obj["ApplicationTags"]);
+            dto.RemovalRequiredTagNames = ReadTagNames(obj["RemovalRequiredTags"]);
+            dto.RemovalBlockedTagNames = ReadTagNames(obj["RemovalBlockedTags"]);
+            dto.OngoingRequiredTagNames = ReadTagNames(obj["OngoingRequiredTags"]);
+            dto.OngoingBlockedTagNames = ReadTagNames(obj["OngoingBlockedTags"]);
+            dto.RemovalTagNames = ReadTagNames(obj["RemovalTags"]);
             return dto;
+        }
+
+        private static string[] ReadTagNames(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return Array.Empty<string>();
+
+            var names = new List<string>();
+            IEnumerable<JToken> values = token.Type == JTokenType.Array ? token.Children() : new[] { token };
+            foreach (var value in values)
+            {
+                if (value == null || value.Type == JTokenType.Null) continue;
+                var name = value.Value<string>();
+                if (!string.IsNullOrWhiteSpace(name)) names.Add(name.Trim());
+            }
+
+            return names.Count > 0 ? names.ToArray() : Array.Empty<string>();
         }
 
         private static SearchQueryTemplateDTO DeserializeSearchQueryTemplate(JObject obj)
@@ -249,7 +267,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
             return new SearchTargetProviderDTO
             {
                 Id = obj["Id"]?.Value<int>() ?? 0,
-                Kind = obj["Kind"]?.Value<int>() ?? 0
+                Kind = obj["Kind"]?.Value<int>() ?? 0,
+                Param = obj["Param"]?.Value<int>() ?? 0
             };
         }
 
@@ -319,9 +338,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 MaxStacks = obj["MaxStacks"]?.Value<int>() ?? 1,
                 TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>() ?? 0,
-                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Modifiers = DeserializeContinuousModifiers(obj["Modifiers"])
             };
+            dto.TagNames = ReadTagNames(obj["Tags"]);
             return dto;
         }
 
@@ -338,11 +357,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>()
                     ?? obj["TagTemplateId"]?.Value<int>()
                     ?? 0,
-                Tags = obj["Tags"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 Modifiers = DeserializeContinuousModifiers(obj["Modifiers"]),
                 RequireOutOfCombat = obj["RequireOutOfCombat"]?.Value<bool>() ?? false,
                 OutOfCombatSeconds = obj["OutOfCombatSeconds"]?.Value<int>() ?? 0
             };
+            dto.TagNames = ReadTagNames(obj["Tags"]);
             return dto;
         }
 

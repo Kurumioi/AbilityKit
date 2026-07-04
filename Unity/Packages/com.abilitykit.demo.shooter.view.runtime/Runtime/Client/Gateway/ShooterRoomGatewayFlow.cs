@@ -86,7 +86,14 @@ namespace AbilityKit.Demo.Shooter.View
                 launchSpec.ProtocolVersion,
                 launchSpec.WorldType,
                 launchSpec.ClientId,
-                launchSpec.Tags);
+                launchSpec.Tags,
+                launchSpec.SyncTemplateId,
+                launchSpec.SyncModel,
+                launchSpec.NetworkEnvironmentId,
+                launchSpec.CarrierName,
+                launchSpec.EnableAuthoritativeWorld,
+                launchSpec.InterpolationEnabled,
+                launchSpec.InputDelayFrames);
         }
 
         private static ShooterRoomGatewayFlowResult ToShooterResult(in RoomGatewaySessionFlowResult result)
@@ -245,7 +252,22 @@ namespace AbilityKit.Demo.Shooter.View
             public async Task<RoomGatewayStartBattleResult> StartBattleAsync(RoomGatewayStartBattleRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             {
                 var result = await _roomClient.StartBattleAsync(
-                    new ShooterGatewayStartBattleRequest(request.SessionToken, request.RoomId, request.GameplayId, request.RuleSetId, request.ConfigVersion, request.ProtocolVersion, request.WorldType, request.ClientId),
+                    new ShooterGatewayStartBattleRequest(
+                        request.SessionToken,
+                        request.RoomId,
+                        request.GameplayId,
+                        request.RuleSetId,
+                        request.ConfigVersion,
+                        request.ProtocolVersion,
+                        request.WorldType,
+                        request.ClientId,
+                        request.SyncTemplateId,
+                        request.SyncModel,
+                        request.NetworkEnvironmentId,
+                        request.CarrierName,
+                        request.EnableAuthoritativeWorld,
+                        request.InterpolationEnabled,
+                        request.InputDelayFrames),
                     timeout,
                     cancellationToken).ConfigureAwait(false);
                 return new RoomGatewayStartBattleResult(result.Success, result.BattleId, result.WorldId, result.Started, ToRoomAnchor(in result.WorldStartAnchor), result.ServerNowTicks, result.Message);

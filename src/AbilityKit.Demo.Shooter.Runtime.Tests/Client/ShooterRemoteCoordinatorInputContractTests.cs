@@ -21,6 +21,45 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
     }
 
     [Fact]
+    public void RemotePlayModePauseStopsPumpAndResumeUsesRestoreOnlyReconnect()
+    {
+        var playModeHost = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemoteStateSyncPlayModeHost.cs");
+
+        Assert.Contains("public static bool IsPaused => _isPaused;", playModeHost);
+        Assert.Contains("public static bool IsAutoReconnecting => _isAutoReconnecting;", playModeHost);
+        Assert.Contains("public static void PauseForReconnectValidation()", playModeHost);
+        Assert.Contains("state.Launcher.Close();", playModeHost);
+        Assert.Contains("_gatewayInputQueue?.Reset();", playModeHost);
+        Assert.Contains("if (state == null || _isPaused || _isAutoReconnecting)", playModeHost);
+        Assert.Contains("public static Task<ShooterClientNetworkLaunchResult> ResumeFromPauseAsync()", playModeHost);
+        Assert.Contains("TryBeginAutoReconnectAfterSocketLoss(state)", playModeHost);
+        Assert.Contains("connection.State == ConnectionState.Connected", playModeHost);
+        Assert.Contains("connection.State == ConnectionState.Connecting", playModeHost);
+        Assert.Contains("_ = ResumeAfterSocketLossAsync(_pausedResumeOptions);", playModeHost);
+        Assert.Contains("ShooterRemoteStateSyncLaunchMode.RestoreOnly", playModeHost);
+        Assert.Contains("RequestInitialFullStateSyncIfNeededAsync(", playModeHost);
+    }
+
+    [Fact]
+    public void PlayModeMenuExposesRemotePauseAndResumeControls()
+    {
+        var playModeMenu = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterPlayModeMenu.cs");
+
+        Assert.Contains("Pause Remote", playModeMenu);
+        Assert.Contains("ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();", playModeMenu);
+        Assert.Contains("Resume Remote", playModeMenu);
+        Assert.Contains("RunAsync(\"resume remote\", ResumeRemoteAsync);", playModeMenu);
+        Assert.Contains("ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync()", playModeMenu);
+        Assert.Contains("IsAutoReconnecting", playModeMenu);
+        Assert.Contains("return \"Auto Reconnecting\";", playModeMenu);
+        Assert.Contains("return \"Paused\";", playModeMenu);
+    }
+
+    [Fact]
     public void CoordinatorBridgeOwnsSessionCoordinatorAndConnectsRemoteAdapter()
     {
         var bridge = ReadUnityPackageSource(

@@ -101,6 +101,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             MapId = ReadIntTag(summary, "mapId", 1),
             RandomSeed = ReadIntTag(summary, "randomSeed", Environment.TickCount),
             InputDelayFrames = syncOptions.InputDelayFrames,
+            DurationFrames = ReadIntTag(summary, "durationFrames", 0),
             Players = players,
             GameplayId = request.GameplayId > 0 ? request.GameplayId : ShooterGameplay.GameplayId,
             RuleSetId = request.RuleSetId,

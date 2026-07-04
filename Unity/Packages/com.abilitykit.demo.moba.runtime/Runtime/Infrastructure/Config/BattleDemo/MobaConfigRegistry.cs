@@ -114,6 +114,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo
 
             // Gameplay modes
             new Entry(MobaConfigPaths.GameplaysFile, typeof(GameplayDTO), typeof(MO.GameplayMO)),
+
+            // Motion groups
+            new Entry(MobaConfigPaths.MotionGroupsFile, typeof(MotionGroupDTO), typeof(MO.MotionGroupMO)),
         };
     }
 }

@@ -8,6 +8,8 @@
 **/node_modules
 **/artifacts
 
+tools/feishu-design-sync.local.json
+
 .vs/
 
 sample-web/

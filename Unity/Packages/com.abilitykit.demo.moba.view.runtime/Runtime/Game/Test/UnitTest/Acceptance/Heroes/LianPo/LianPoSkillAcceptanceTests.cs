@@ -23,7 +23,6 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(summary.result.skillCastTraceFound);
             Assert.IsTrue(summary.result.effectExecutionTraceFound);
             Assert.IsTrue(summary.result.allExpectedActionsExecuted);
-            Assert.IsTrue(summary.result.projectileLaunched);
             Assert.Greater(summary.result.effectRootId, 0);
             AssertArtifactsExist(summary);
         }
@@ -34,7 +33,6 @@ namespace AbilityKit.Game.Test.UnitTest
             var summary = RunExpectationFile(Skill10010101ScenarioExpectationPath);
 
             AssertPassed(summary);
-            Assert.IsTrue(summary.result.projectileLaunched);
             Assert.IsTrue(summary.result.buffApplied);
             AssertNoMissingTraceNodes(summary);
             AssertArtifactsExist(summary);
@@ -44,8 +42,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(MobaAcceptanceExpectationAssert.TryGetEffectRootId(records, expectation.config.effectId, out var effectRootId), "Missing effect root trace for Lian Po skill 1 scenario.");
             MobaAcceptanceExpectationAssert.AssertMatches(expectation, records);
 
-            MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, effectRootId, "ProjectileLaunch", 30010101, "Lian Po skill 1 should launch the configured dash collision projectile under its effect root.");
-            MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010101, expectedHitCount: 1, "Lian Po skill 1 dash collision should damage exactly one target once.");
+            MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010101, expectedHitCount: 1, "Lian Po skill 1 dash collision should damage exactly one target once during motion hit detection.");
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", -13684592, "Lian Po skill 1 hit should execute the configured knock-up pull action with a valid target.");
         }
 

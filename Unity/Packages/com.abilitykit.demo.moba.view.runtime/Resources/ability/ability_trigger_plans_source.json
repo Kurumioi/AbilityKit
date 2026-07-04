@@ -19,6 +19,7 @@
       "params": [
         { "name": "launcher_id", "type": "int", "required": true },
         { "name": "projectile_id", "type": "int", "required": true },
+        { "name": "continuous_process_id", "type": "int", "required": false, "defaultValue": 0 },
         { "name": "targetCode", "type": "int", "required": false, "defaultValue": 0 },
         { "name": "directionSource", "type": "string", "required": false, "defaultValue": "cast_context" }
       ]
@@ -69,7 +70,8 @@
         { "name": "duration_ms", "type": "int", "required": true },
         { "name": "direction_mode", "type": "int", "required": false, "defaultValue": 0 },
         { "name": "apply_to_caster", "type": "bool", "required": false, "defaultValue": true },
-        { "name": "priority", "type": "int", "required": false, "defaultValue": 10 }
+        { "name": "priority", "type": "int", "required": false, "defaultValue": 10 },
+        { "name": "motion_group_id", "type": "int", "required": false, "defaultValue": 2 }
       ]
     },
     "pull": {
@@ -81,7 +83,13 @@
         { "name": "duration_ms", "type": "int", "required": true },
         { "name": "direction_mode", "type": "int", "required": false, "defaultValue": 0 },
         { "name": "target_distance", "type": "float", "required": false, "defaultValue": 0 },
-        { "name": "priority", "type": "int", "required": false, "defaultValue": 12 }
+        { "name": "priority", "type": "int", "required": false, "defaultValue": 12 },
+        { "name": "motion_group_id", "type": "int", "required": false, "defaultValue": 3 },
+        { "name": "continuous_process_id", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "continuous_tag_template_id", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "trigger_ids", "type": "int[]", "required": false },
+        { "name": "interval_ms", "type": "int", "required": false, "defaultValue": 0 },
+        { "name": "interval_trigger_ids", "type": "int[]", "required": false }
       ]
     },
     "add_shield": {
@@ -213,9 +221,8 @@
       "conditions": [],
       "actions": [
         { "type": "add_buff", "buffIds": [10010000], "targetCode": 1, "duration_ms": 1500 },
-        { "type": "dash", "speed": 12.3, "duration_ms": 650, "direction_mode": 0, "apply_to_caster": true, "priority": 20 },
-        { "type": "shoot_projectile", "launcher_id": 31010101, "projectile_id": 30010101, "directionSource": "cast_context" },
-        { "type": "debug_log", "message": "廉颇一技能：霸体并向指向方向冲锋，生成碰撞判定", "dump_args": false }
+        { "type": "dash", "speed": 12.3, "duration_ms": 650, "direction_mode": 0, "apply_to_caster": true, "priority": 20, "motion_group_id": 2, "hit_trigger_plan_id": 10010111 },
+        { "type": "debug_log", "message": "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判定", "dump_args": false }
       ]
     },
     {
@@ -229,7 +236,7 @@
       "conditions": [],
       "actions": [
         { "type": "give_damage", "damage_value": 160, "damage_type": 1, "reason_param": 10010101, "target_max_count": 1 },
-        { "type": "pull", "speed": 7.0, "duration_ms": 300, "direction_mode": 2, "target_distance": 0, "priority": 100 },
+        { "type": "pull", "speed": 7.0, "duration_ms": 300, "direction_mode": 2, "target_distance": 0, "priority": 100, "motion_group_id": 3, "continuous_tag_template_id": 10000001 },
         { "type": "debug_log", "message": "廉颇一技能：冲撞命中造成物理伤害并击飞目标", "dump_args": false }
       ]
     },
@@ -331,7 +338,7 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "pull", "speed": 8.0, "duration_ms": 500, "direction_mode": 2, "target_distance": 0, "priority": 110 },
+        { "type": "pull", "speed": 8.0, "duration_ms": 500, "direction_mode": 2, "target_distance": 0, "priority": 110, "motion_group_id": 3, "continuous_tag_template_id": 10000001, "target_query_id": 50010301, "target_max_count": 10 },
         { "type": "debug_log", "message": "廉颇三技能：第三段命中击飞目标", "dump_args": false }
       ]
     },
@@ -346,7 +353,7 @@
       "conditions": [],
       "actions": [
         { "type": "add_buff", "buffIds": [10020001], "targetCode": 1 },
-        { "type": "debug_log", "message": "小乔被动触发：添加短暂移速状态（配置先行占位）", "dump_args": false }
+        { "type": "debug_log", "message": "小乔被动触发：添加短暂移速状态", "dump_args": false }
       ]
     },
     {
@@ -359,7 +366,7 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "shoot_projectile", "launcher_id": 31020101, "projectile_id": 30020101, "directionSource": "cast_context" },
+        { "type": "shoot_projectile", "launcher_id": 31020101, "projectile_id": 30020101, "continuous_process_id": 10020101, "directionSource": "cast_context" },
         { "type": "debug_log", "message": "小乔一技能：发射扇子投射物", "dump_args": false }
       ]
     },
@@ -387,8 +394,8 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "spawn_area", "area_id": 40020201, "position_mode": 0, "radius": 3.0, "duration_ms": 500 },
-        { "type": "debug_log", "message": "小乔二技能：生成击飞区域（控制行为后续实现）", "dump_args": false }
+        { "type": "spawn_area", "area_id": 40020201, "position_mode": 1, "radius": 4.0, "duration_ms": 1000 },
+        { "type": "debug_log", "message": "小乔二技能：生成击飞区域", "dump_args": false }
       ]
     },
     {
@@ -401,8 +408,9 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 100, "damage_type": 2, "reason_param": 10020201, "target_query_id": 50020201 },
-        { "type": "debug_log", "message": "小乔二技能：区域命中造成法术伤害（击飞后续实现）", "dump_args": false }
+        { "type": "give_damage", "damage_value": 100, "damage_type": 2, "reason_param": 10020201, "target_query_id": 50020201, "target_max_count": 10 },
+        { "type": "pull", "speed": 8.0, "duration_ms": 500, "direction_mode": 2, "target_distance": 0, "priority": 110, "motion_group_id": 3, "continuous_tag_template_id": 10000001, "target_query_id": 50020201, "target_max_count": 10 },
+        { "type": "debug_log", "message": "小乔二技能：区域命中造成法术伤害并击飞目标", "dump_args": false }
       ]
     },
     {
@@ -429,7 +437,7 @@
       "priority": 50,
       "conditions": [],
       "actions": [
-        { "type": "give_damage", "damage_value": 80, "damage_type": 2, "reason_param": 10020301, "target_query_id": 50020301 },
+        { "type": "give_damage", "damage_value": 80, "damage_type": 2, "reason_param": 10020301, "target_query_id": 50020301, "target_max_count": 1 },
         { "type": "debug_log", "message": "小乔三技能：周期落星造成法术伤害", "dump_args": false }
       ]
     },

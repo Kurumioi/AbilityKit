@@ -1,0 +1,141 @@
+{
+  "triggers": [
+    {
+      "id": 10030000,
+      "name": "赵云-龙鸣-一档(惊雷,HP>66%)",
+      "event": "damage.apply.after",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "health_percent",
+          "threshold": 66.0,
+          "compare_type": 1
+        }
+      ],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [10030000],
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云龙鸣一档(惊雷)：血量充足，获得基础攻速加成",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10030001,
+      "name": "赵云-龙鸣-二档(破云,33%<HP<=66%)",
+      "event": "damage.apply.after",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 49,
+      "conditions": [
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "health_percent",
+          "threshold": 33.0,
+          "compare_type": 1
+        },
+        {
+          "type": "health_percent",
+          "threshold": 66.0,
+          "compare_type": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [10030001],
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云龙鸣二档(破云)：血量下降，攻速/移速提升，技能范围增大",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10030002,
+      "name": "赵云-龙鸣-三档(天翔,HP<=33%)",
+      "event": "damage.apply.after",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 48,
+      "conditions": [
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "health_percent",
+          "threshold": 33.0,
+          "compare_type": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [10030002],
+          "duration_ms": 600
+        },
+        {
+          "type": "add_shield",
+          "shield_id": 10030302,
+          "shield_value": 400,
+          "absorb_ratio": 1.0,
+          "duration_ms": 2000,
+          "priority": 30,
+          "stacking_policy": 1,
+          "consume_policy": 0
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云龙鸣三档(天翔)：血量危急，全属性大幅提升并获得护盾，技能伤害增强",
+          "dump_args": false
+        }
+      ]
+    },
+    {
+      "id": 10030003,
+      "name": "赵云-龙鸣-初始一档(出生/脱战)",
+      "event": "",
+      "enabled": true,
+      "allowExternal": true,
+      "phase": "immediate",
+      "priority": 40,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "add_buff",
+          "buffIds": [10030000],
+          "target_self": true,
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云龙鸣初始化：满血状态默认进入一档",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

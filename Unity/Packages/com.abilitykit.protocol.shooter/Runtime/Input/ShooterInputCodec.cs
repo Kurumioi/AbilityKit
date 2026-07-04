@@ -13,8 +13,14 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(3)] public float AimX;
         [MemoryPackOrder(4)] public float AimY;
         [MemoryPackOrder(5)] public bool Fire;
+        [MemoryPackOrder(6)] public int AttackSlot;
 
         public ShooterPlayerCommand(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
+            : this(playerId, moveX, moveY, aimX, aimY, fire, ShooterPlayerAttackSlots.Primary)
+        {
+        }
+
+        public ShooterPlayerCommand(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire, int attackSlot)
         {
             PlayerId = playerId;
             MoveX = moveX;
@@ -22,6 +28,24 @@ namespace AbilityKit.Protocol.Shooter
             AimX = aimX;
             AimY = aimY;
             Fire = fire;
+            AttackSlot = ShooterPlayerAttackSlots.Normalize(attackSlot);
+        }
+    }
+
+    public static class ShooterPlayerAttackSlots
+    {
+        public const int Primary = 0;
+        public const int Spread = 1;
+        public const int Twin = 2;
+
+        public static int Normalize(int attackSlot)
+        {
+            return attackSlot switch
+            {
+                Spread => Spread,
+                Twin => Twin,
+                _ => Primary
+            };
         }
     }
 

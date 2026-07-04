@@ -157,7 +157,7 @@ namespace AbilityKit.Protocol.Shooter
 
     public static class ShooterPackedSnapshotCodec
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         public static byte[] Serialize(in ShooterPackedSnapshotPayload snapshot)
         {

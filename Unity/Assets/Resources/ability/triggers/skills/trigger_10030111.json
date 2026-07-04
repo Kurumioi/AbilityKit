@@ -1,0 +1,29 @@
+{
+  "triggers": [
+    {
+      "id": 10030111,
+      "name": "赵云-惊雷之龙-命中伤害",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 150,
+          "source_attack_ratio": 0.65,
+          "damage_type": 1,
+          "reason_param": 10030101,
+          "target_max_count": 1
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云一技能命中：造成物理伤害",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

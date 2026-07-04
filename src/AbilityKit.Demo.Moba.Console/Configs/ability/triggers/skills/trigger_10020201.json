@@ -11,7 +11,7 @@
       "conditions": [],
       "actions": [
         { "type": "spawn_area", "area_id": 40020201, "position_mode": 1, "radius": 4, "duration_ms": 1000 },
-        { "type": "debug_log", "message": "小乔二技能：生成击飞区域（控制行为后续实现）", "dump_args": false }
+        { "type": "debug_log", "message": "小乔二技能：生成击飞区域", "dump_args": false }
       ]
     }
   ]

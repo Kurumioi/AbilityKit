@@ -1,0 +1,31 @@
+{
+  "triggers": [
+    {
+      "id": 10030101,
+      "name": "赵云-惊雷之龙-发起冲锋",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "dash",
+          "speed": 16.0,
+          "duration_ms": 500,
+          "direction_mode": 0,
+          "apply_to_caster": true,
+          "priority": 20,
+          "motion_group_id": 2,
+          "hit_trigger_plan_id": 10030111
+        },
+        {
+          "type": "debug_log",
+          "message": "赵云一技能惊雷之龙：向指向方向冲锋，对路径上敌人造成物理伤害并减速",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

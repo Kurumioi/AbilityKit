@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Services.Motion;
+
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
@@ -30,15 +32,27 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly int Priority;
 
-        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12)
+        /// <summary>
+        /// 位移组 ID；0 表示使用行为默认组。
+        /// </summary>
+        public readonly int MotionGroupId;
+
+        public readonly MobaMotionContinuousSettings Continuous;
+
+        public readonly MobaActionTargetRequest TargetRequest;
+
+        public PullArgs(float speed, float durationMs, int directionMode = 0, float targetDistance = 0f, int priority = 12, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default, MobaActionTargetRequest targetRequest = default)
         {
             Speed = speed;
             DurationMs = durationMs;
             DirectionMode = directionMode;
             TargetDistance = targetDistance;
             Priority = priority;
+            MotionGroupId = motionGroupId;
+            Continuous = continuous;
+            TargetRequest = targetRequest;
         }
 
-        public static PullArgs Default => new PullArgs(0f, 0f, 0, 0f, 12);
+        public static PullArgs Default => new PullArgs(0f, 0f, 0, 0f, 12, 0, MobaMotionContinuousSettings.Empty, MobaActionTargetRequest.ContextTarget());
     }
 }

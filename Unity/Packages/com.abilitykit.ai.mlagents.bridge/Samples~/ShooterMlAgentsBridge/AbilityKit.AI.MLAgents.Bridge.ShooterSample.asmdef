@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.AI.MLAgents.Bridge.ShooterSample",
+  "rootNamespace": "AbilityKit.AI.MLAgents.Bridge.Samples",
+  "references": [
+    "AbilityKit.AI.Abstractions",
+    "AbilityKit.AI.MLAgents.Bridge",
+    "AbilityKit.Demo.Shooter.AI",
+    "Unity.ML-Agents"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "ABILITYKIT_ML_AGENTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

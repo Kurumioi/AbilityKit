@@ -126,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             var output = m.Output;
             output.NewForward = state.Forward;
 
-            e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized);
+            e.ReplaceMotion(m.Pipeline, state, output, m.Solver, m.Policy, m.Events, m.Initialized, m.HitTriggerRuntime);
         }
 
         private static void AddEntryHash(in Entry entry, MobaStateHashBuilder hash)

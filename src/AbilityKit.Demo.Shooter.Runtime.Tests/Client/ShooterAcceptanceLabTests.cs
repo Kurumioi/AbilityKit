@@ -101,6 +101,22 @@ public sealed class ShooterAcceptanceLabTests
     }
 
     [Fact]
+    public void DefaultRoomLaunchSpecUsesRunnableClientSyncTemplate()
+    {
+        var launchSpec = ShooterRoomLaunchSpec.CreateDefault("client-a");
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate(launchSpec.SyncTemplateId);
+
+        Assert.Equal("predict-rollback-authority", launchSpec.SyncTemplateId);
+        Assert.Equal((int)NetworkSyncModel.PredictRollback, launchSpec.SyncModel);
+        Assert.Equal("ideal", launchSpec.NetworkEnvironmentId);
+        Assert.Equal("server", launchSpec.CarrierName);
+        Assert.Equal(template.SyncModel, (NetworkSyncModel)launchSpec.SyncModel);
+        Assert.True(template.IsRunnable);
+        Assert.True(launchSpec.EnableAuthoritativeWorld);
+        Assert.False(launchSpec.InterpolationEnabled);
+    }
+
+    [Fact]
     public void SyncTemplateCreatesSessionWithAssociatedConfiguration()
     {
         foreach (var template in ShooterAcceptanceCatalog.SyncTemplates.Where(t => t.IsRunnable))

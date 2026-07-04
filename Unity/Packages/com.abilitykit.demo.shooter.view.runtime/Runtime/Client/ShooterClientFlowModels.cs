@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 
@@ -8,6 +9,10 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterRoomLaunchSpec
     {
         public const int DefaultOfflineTimeoutSeconds = 30 * 60;
+        public const string DefaultSyncTemplateId = "predict-rollback-authority";
+        public const int DefaultSyncModel = (int)NetworkSyncModel.PredictRollback;
+        public const string DefaultNetworkEnvironmentId = "ideal";
+        public const string DefaultCarrierName = "server";
 
         public readonly string Region;
         public readonly string ServerId;
@@ -20,6 +25,13 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly string WorldType;
         public readonly string ClientId;
         public readonly IReadOnlyDictionary<string, string> Tags;
+        public readonly string SyncTemplateId;
+        public readonly int SyncModel;
+        public readonly string NetworkEnvironmentId;
+        public readonly string CarrierName;
+        public readonly bool EnableAuthoritativeWorld;
+        public readonly bool InterpolationEnabled;
+        public readonly int InputDelayFrames;
 
         public ShooterRoomLaunchSpec(
             string region,
@@ -32,7 +44,14 @@ namespace AbilityKit.Demo.Shooter.View
             int protocolVersion,
             string worldType,
             string clientId,
-            IReadOnlyDictionary<string, string> tags)
+            IReadOnlyDictionary<string, string> tags,
+            string syncTemplateId = "",
+            int syncModel = 0,
+            string networkEnvironmentId = "",
+            string carrierName = "",
+            bool enableAuthoritativeWorld = true,
+            bool interpolationEnabled = false,
+            int inputDelayFrames = 0)
         {
             Region = string.IsNullOrWhiteSpace(region) ? "local" : region;
             ServerId = string.IsNullOrWhiteSpace(serverId) ? "dev" : serverId;
@@ -45,6 +64,13 @@ namespace AbilityKit.Demo.Shooter.View
             WorldType = string.IsNullOrWhiteSpace(worldType) ? ShooterGameplay.WorldType : worldType;
             ClientId = clientId ?? string.Empty;
             Tags = tags ?? EmptyTags.Value;
+            SyncTemplateId = syncTemplateId ?? string.Empty;
+            SyncModel = syncModel;
+            NetworkEnvironmentId = networkEnvironmentId ?? string.Empty;
+            CarrierName = carrierName ?? string.Empty;
+            EnableAuthoritativeWorld = enableAuthoritativeWorld;
+            InterpolationEnabled = interpolationEnabled;
+            InputDelayFrames = inputDelayFrames < 0 ? 0 : inputDelayFrames;
         }
 
         public static ShooterRoomLaunchSpec CreateDefault(string clientId)
@@ -60,7 +86,14 @@ namespace AbilityKit.Demo.Shooter.View
                 protocolVersion: 1,
                 ShooterGameplay.WorldType,
                 clientId,
-                CreateDefaultTags());
+                CreateDefaultTags(),
+                syncTemplateId: DefaultSyncTemplateId,
+                syncModel: DefaultSyncModel,
+                networkEnvironmentId: DefaultNetworkEnvironmentId,
+                carrierName: DefaultCarrierName,
+                enableAuthoritativeWorld: true,
+                interpolationEnabled: false,
+                inputDelayFrames: 0);
         }
 
         public static Dictionary<string, string> CreateDefaultTags()
@@ -98,16 +131,26 @@ namespace AbilityKit.Demo.Shooter.View
     {
         public static ShooterInputPacket CreatePacket(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
         {
-            var command = CreateCommand(playerId, moveX, moveY, aimX, aimY, fire);
+            return CreatePacket(playerId, moveX, moveY, aimX, aimY, fire, ShooterPlayerAttackSlots.Primary);
+        }
+
+        public static ShooterInputPacket CreatePacket(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire, int attackSlot)
+        {
+            var command = CreateCommand(playerId, moveX, moveY, aimX, aimY, fire, attackSlot);
             var payload = ShooterInputCodec.Serialize(new[] { command });
             return new ShooterInputPacket(ShooterOpCodes.Input.PlayerCommand, payload, in command);
         }
 
         public static ShooterPlayerCommand CreateCommand(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
         {
+            return CreateCommand(playerId, moveX, moveY, aimX, aimY, fire, ShooterPlayerAttackSlots.Primary);
+        }
+
+        public static ShooterPlayerCommand CreateCommand(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire, int attackSlot)
+        {
             Normalize(ref moveX, ref moveY);
             Normalize(ref aimX, ref aimY);
-            return new ShooterPlayerCommand(playerId, moveX, moveY, aimX, aimY, fire);
+            return new ShooterPlayerCommand(playerId, moveX, moveY, aimX, aimY, fire, attackSlot);
         }
 
         private static void Normalize(ref float x, ref float y)

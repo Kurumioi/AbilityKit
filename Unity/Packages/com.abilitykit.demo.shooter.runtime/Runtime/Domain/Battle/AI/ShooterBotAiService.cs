@@ -150,16 +150,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
     internal sealed class ShooterSpatialTargetIndex
     {
         private const float CellSize = 6f;
-        private const int MaxSearchRadius = 4;
+        private const int MaxSearchRadius = 64;
+        private const int FullScanFallbackThreshold = 256;
 
         private readonly ShooterSpatialHashGrid _grid = new(CellSize);
-        private readonly Dictionary<int, ShooterSpatialTargetRecord> _records = new();
+        private readonly Dictionary<int, int> _recordIndicesByPlayerId = new();
+        private readonly List<ShooterSpatialTargetRecord> _records = new(16);
         private readonly List<int> _candidateBuffer = new(32);
         private int _lastRebuildFrame = -1;
 
         public int CellCount => _grid.CellCount;
 
-        public int IndexedPlayerCount => _grid.TotalEntries;
+        public int IndexedPlayerCount => _records.Count;
 
         public int LargestCellOccupancy => _grid.LargestCellOccupancy;
 
@@ -171,29 +173,42 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _lastRebuildFrame = frame;
-            _grid.Clear();
-            _records.Clear();
-
             var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var count);
+            Rebuild(players, count);
+        }
+
+        public void Rebuild(NB<ShooterSveltoPlayerComponent> players, int count)
+        {
+            _grid.Clear();
+            _recordIndicesByPlayerId.Clear();
+            _records.Clear();
+
             for (var i = 0; i < count; i++)
             {
-                if (!players[i].Alive)
+                if (!players[i].Alive || players[i].Hp <= 0)
                 {
                     continue;
                 }
 
                 var player = players[i];
-                var record = new ShooterSpatialTargetRecord(in player);
-                _records[player.PlayerId] = record;
-                _grid.Add(player.X, player.Y, player.PlayerId);
+                var recordIndex = _records.Count;
+                _records.Add(new ShooterSpatialTargetRecord(in player));
+                _recordIndicesByPlayerId[player.PlayerId] = recordIndex;
+                _grid.Add(player.X, player.Y, recordIndex);
             }
         }
 
         public bool TryGetLivePlayer(int playerId, out ShooterSveltoPlayerComponent player)
         {
             player = default;
-            if (!_records.TryGetValue(playerId, out var record) || !record.Player.Alive)
+            if (!_recordIndicesByPlayerId.TryGetValue(playerId, out var recordIndex))
+            {
+                return false;
+            }
+
+            var record = _records[recordIndex];
+            if (!record.Player.Alive || record.Player.Hp <= 0)
             {
                 return false;
             }
@@ -224,26 +239,60 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var cellX = _grid.ComputeCellX(selfX);
             var cellY = _grid.ComputeCellY(selfY);
             var bestDistanceSq = float.MaxValue;
+            var found = false;
 
             for (var radius = 0; radius <= MaxSearchRadius; radius++)
             {
                 _candidateBuffer.Clear();
                 _grid.CollectRingByCell(cellX, cellY, radius, _candidateBuffer);
-                if (TryFindBestCandidate(selfX, selfY, selfPlayerId, _candidateBuffer, ref targetPlayerId, ref targetX, ref targetY, ref bestDistanceSq))
+                found |= TryFindBestCandidate(selfX, selfY, selfPlayerId, _candidateBuffer, ref targetPlayerId, ref targetX, ref targetY, ref bestDistanceSq);
+                if (found && IsSearchRadiusComplete(radius, bestDistanceSq))
                 {
                     targetDistanceSq = bestDistanceSq;
                     return true;
                 }
             }
 
-            foreach (var kv in _records)
+            if (!found || _records.Count <= FullScanFallbackThreshold)
             {
-                if (kv.Value.PlayerId == selfPlayerId)
+                found |= TryFindBestRecord(selfX, selfY, selfPlayerId, ref targetPlayerId, ref targetX, ref targetY, ref bestDistanceSq);
+            }
+
+            targetDistanceSq = bestDistanceSq;
+            return found;
+        }
+
+        private static bool IsSearchRadiusComplete(int radius, float bestDistanceSq)
+        {
+            if (radius <= 0 || bestDistanceSq == float.MaxValue)
+            {
+                return false;
+            }
+
+            var guaranteedDistance = (radius - 1) * CellSize;
+            return guaranteedDistance * guaranteedDistance >= bestDistanceSq;
+        }
+
+        private bool TryFindBestCandidate(
+            float selfX,
+            float selfY,
+            int selfPlayerId,
+            List<int> candidateIndices,
+            ref int targetPlayerId,
+            ref float targetX,
+            ref float targetY,
+            ref float bestDistanceSq)
+        {
+            var found = false;
+            for (var i = 0; i < candidateIndices.Count; i++)
+            {
+                var candidateIndex = candidateIndices[i];
+                var candidate = _records[candidateIndex];
+                if (candidate.PlayerId == selfPlayerId)
                 {
                     continue;
                 }
 
-                var candidate = kv.Value;
                 var dx = candidate.X - selfX;
                 var dy = candidate.Y - selfY;
                 var distanceSq = dx * dx + dy * dy;
@@ -256,27 +305,26 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 targetPlayerId = candidate.PlayerId;
                 targetX = candidate.X;
                 targetY = candidate.Y;
+                found = true;
             }
 
-            targetDistanceSq = bestDistanceSq;
-            return targetPlayerId != 0;
+            return found;
         }
 
-        private bool TryFindBestCandidate(
+        private bool TryFindBestRecord(
             float selfX,
             float selfY,
             int selfPlayerId,
-            List<int> candidateIds,
             ref int targetPlayerId,
             ref float targetX,
             ref float targetY,
             ref float bestDistanceSq)
         {
             var found = false;
-            for (var i = 0; i < candidateIds.Count; i++)
+            for (var i = 0; i < _records.Count; i++)
             {
-                var candidateId = candidateIds[i];
-                if (candidateId == selfPlayerId || !_records.TryGetValue(candidateId, out var candidate))
+                var candidate = _records[i];
+                if (candidate.PlayerId == selfPlayerId)
                 {
                     continue;
                 }

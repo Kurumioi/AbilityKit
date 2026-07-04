@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.View;
 using Xunit;
@@ -12,7 +13,35 @@ public sealed class ShooterRoomGatewayFlowTests
     {
         var roomClient = new ScriptedShooterRoomClient();
         var flow = new ShooterRoomGatewayFlow(roomClient);
-        var launchSpec = ShooterRoomLaunchSpec.CreateDefault("client-a");
+        var launchSpec = new ShooterRoomLaunchSpec(
+            "local",
+            "dev",
+            "Shooter Room",
+            ShooterGameplay.DefaultMaxPlayers,
+            ShooterGameplay.GameplayId,
+            ruleSetId: 1,
+            configVersion: 1,
+            protocolVersion: 1,
+            ShooterGameplay.WorldType,
+            "client-a",
+            new Dictionary<string, string>
+            {
+                ["mode"] = "duo",
+                ["syncTemplateId"] = "runtime-snapshot-interpolation",
+                ["syncModel"] = "2",
+                ["networkEnvironmentId"] = "wan-90ms",
+                ["carrierName"] = "server",
+                ["enableAuthoritativeWorld"] = "True",
+                ["interpolationEnabled"] = "True",
+                ["inputDelayFrames"] = "4"
+            },
+            "runtime-snapshot-interpolation",
+            syncModel: 2,
+            networkEnvironmentId: "wan-90ms",
+            carrierName: "server",
+            enableAuthoritativeWorld: true,
+            interpolationEnabled: true,
+            inputDelayFrames: 4);
 
         var result = await flow.CreateReadyStartAndSubscribeAsync("session-token", launchSpec, playerId: 21u);
 
@@ -26,8 +55,25 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal("dev", roomClient.LastCreateRequest.ServerId);
         Assert.Equal(ShooterGameplay.RoomType, roomClient.LastCreateRequest.RoomType);
         Assert.Equal(ShooterGameplay.DefaultMaxPlayers, roomClient.LastCreateRequest.MaxPlayers);
+        Assert.NotNull(roomClient.LastCreateRequest.Tags);
+        var createTags = roomClient.LastCreateRequest.Tags!;
+        Assert.Equal("duo", createTags["mode"]);
+        Assert.Equal("runtime-snapshot-interpolation", createTags["syncTemplateId"]);
+        Assert.Equal("2", createTags["syncModel"]);
+        Assert.Equal("wan-90ms", createTags["networkEnvironmentId"]);
+        Assert.Equal("server", createTags["carrierName"]);
+        Assert.Equal("True", createTags["enableAuthoritativeWorld"]);
+        Assert.Equal("True", createTags["interpolationEnabled"]);
+        Assert.Equal("4", createTags["inputDelayFrames"]);
         Assert.Equal(ShooterGameplay.WorldType, roomClient.LastStartBattleRequest.WorldType);
         Assert.Equal("client-a", roomClient.LastStartBattleRequest.ClientId);
+        Assert.Equal("runtime-snapshot-interpolation", roomClient.LastStartBattleRequest.SyncTemplateId);
+        Assert.Equal(2, roomClient.LastStartBattleRequest.SyncModel);
+        Assert.Equal("wan-90ms", roomClient.LastStartBattleRequest.NetworkEnvironmentId);
+        Assert.Equal("server", roomClient.LastStartBattleRequest.CarrierName);
+        Assert.True(roomClient.LastStartBattleRequest.EnableAuthoritativeWorld);
+        Assert.True(roomClient.LastStartBattleRequest.InterpolationEnabled);
+        Assert.Equal(4, roomClient.LastStartBattleRequest.InputDelayFrames);
         Assert.Equal("room-1", result.RoomId);
         Assert.Equal(1001ul, result.NumericRoomId);
         Assert.Equal("battle-1", result.BattleId);

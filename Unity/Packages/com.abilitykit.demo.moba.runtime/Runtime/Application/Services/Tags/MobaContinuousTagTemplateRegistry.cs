@@ -57,27 +57,19 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return new ContinuousTagRequirements
             {
-                ActivationRequired = new GameplayTagRequirements(ToContainer(mo.ActivationRequiredTags), ToContainer(mo.ActivationBlockedTags), exact: false),
-                ApplicationTags = ToContainer(mo.ApplicationTags) ?? new GameplayTagContainer(),
-                RemovalRequired = new GameplayTagRequirements(ToContainer(mo.RemovalRequiredTags), ToContainer(mo.RemovalBlockedTags), exact: false),
-                OngoingRequired = new GameplayTagRequirements(ToContainer(mo.OngoingRequiredTags), ToContainer(mo.OngoingBlockedTags), exact: false),
-                RemovalTags = ToContainer(mo.RemovalTags) ?? new GameplayTagContainer()
+                ActivationRequired = new GameplayTagRequirements(mo.ActivationRequiredTags, mo.ActivationBlockedTags, exact: false),
+                ApplicationTags = CopyContainer(mo.ApplicationTags),
+                RemovalRequired = new GameplayTagRequirements(mo.RemovalRequiredTags, mo.RemovalBlockedTags, exact: false),
+                OngoingRequired = new GameplayTagRequirements(mo.OngoingRequiredTags, mo.OngoingBlockedTags, exact: false),
+                RemovalTags = CopyContainer(mo.RemovalTags)
             };
         }
 
-        private static GameplayTagContainer ToContainer(IReadOnlyList<int> ids)
+        private static GameplayTagContainer CopyContainer(GameplayTagContainer source)
         {
-            if (ids == null || ids.Count == 0) return null;
-
-            var c = new GameplayTagContainer();
-            for (int i = 0; i < ids.Count; i++)
-            {
-                var id = ids[i];
-                if (id <= 0) continue;
-                c.Add(GameplayTag.FromId(id));
-            }
-
-            return c.Count > 0 ? c : null;
+            var copy = new GameplayTagContainer();
+            copy.AppendTags(source);
+            return copy;
         }
     }
 }

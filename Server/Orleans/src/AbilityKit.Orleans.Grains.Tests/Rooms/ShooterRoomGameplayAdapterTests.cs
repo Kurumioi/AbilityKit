@@ -28,7 +28,8 @@ public sealed class ShooterRoomGameplayAdapterTests
         {
             ["tickRate"] = "20",
             ["mapId"] = "3",
-            ["randomSeed"] = "1234"
+            ["randomSeed"] = "1234",
+            ["durationFrames"] = "3600"
         });
         var state = adapter.CreateState(summary);
         adapter.Join(state, summary, new HashSet<string>(), "player-a");
@@ -63,6 +64,7 @@ public sealed class ShooterRoomGameplayAdapterTests
         Assert.Equal(20, initParams.TickRate);
         Assert.Equal(3, initParams.MapId);
         Assert.Equal(1234, initParams.RandomSeed);
+        Assert.Equal(3600, initParams.DurationFrames);
         Assert.Equal(7, initParams.RuleSetId);
         Assert.Equal(8, initParams.ConfigVersion);
         Assert.Equal(9, initParams.ProtocolVersion);

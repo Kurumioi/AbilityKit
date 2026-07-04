@@ -148,11 +148,25 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("roomType: 'shooter'", store);
         Assert.Contains("gameplayId: 2", store);
         Assert.Contains("worldType: 'shooter_battle'", store);
-        Assert.Contains("syncTemplateId: 'pure-state-authority'", store);
+        Assert.Contains("syncTemplateId: 'predict-rollback-authority'", store);
         Assert.Contains("startShooterRoomQuick", store);
         Assert.Contains("roomRobots", store);
         Assert.Contains("addRoomRobots", store);
         Assert.Contains("/api/shooter-sandbox/start", domainApi);
+    }
+
+    [Fact]
+    public void Gateway_gameplay_catalog_should_expose_server_supported_shooter_sync_templates()
+    {
+        var shooter = Assert.Single(GatewayGameplayCatalog.All, gameplay => gameplay.RoomType == "shooter");
+
+        Assert.Equal("predict-rollback-authority", shooter.DefaultSyncTemplateId);
+        Assert.Equal(
+            new[] { "predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority" },
+            shooter.SupportedSyncTemplateIds);
+        Assert.DoesNotContain("batch-state-sync", shooter.SupportedSyncTemplateIds);
+        Assert.DoesNotContain("mass-battle-lod", shooter.SupportedSyncTemplateIds);
+        Assert.DoesNotContain("hybrid-hero-prediction", shooter.SupportedSyncTemplateIds);
     }
 
     [Fact]

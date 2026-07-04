@@ -19,7 +19,7 @@
         },
         {
           "type": "debug_log",
-          "message": "小乔二技能：生成击飞区域（控制行为后续实现）",
+          "message": "小乔二技能：生成击飞区域",
           "dump_args": false
         }
       ]

@@ -66,10 +66,14 @@ namespace AbilityKit.Ability.World.Services.Attributes
         }
 
         private static readonly System.Collections.Generic.Dictionary<CacheKey, Registration[]> Cache = new System.Collections.Generic.Dictionary<CacheKey, Registration[]>();
+        private static readonly object CacheLock = new object();
 
         public static void ClearCache()
         {
-            Cache.Clear();
+            lock (CacheLock)
+            {
+                Cache.Clear();
+            }
         }
  
         public AttributeWorldServicesModule(WorldServiceProfile profile, Assembly[] assemblies, string[] namespacePrefixes)
@@ -125,10 +129,14 @@ namespace AbilityKit.Ability.World.Services.Attributes
             }
 
             var key = new CacheKey(_profile, _scanAllLoadedAssemblies, assembliesHash, namespacePrefixesHash);
-            if (!Cache.TryGetValue(key, out var registrations))
+            Registration[] registrations;
+            lock (CacheLock)
             {
-                registrations = BuildRegistrations(assemblies, _profile, _namespacePrefixes);
-                Cache[key] = registrations;
+                if (!Cache.TryGetValue(key, out registrations))
+                {
+                    registrations = BuildRegistrations(assemblies, _profile, _namespacePrefixes);
+                    Cache[key] = registrations;
+                }
             }
 
             for (int i = 0; i < registrations.Length; i++)

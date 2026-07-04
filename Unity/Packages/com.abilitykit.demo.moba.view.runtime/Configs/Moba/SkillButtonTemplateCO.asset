@@ -14,15 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dataList:
   - Id: 1
-    Name: direction_default
-    LongPressSeconds: 0.35
+    Name: instant_click
+    LongPressSeconds: 0
     DragThreshold: 12
-    EnableAim: 1
+    EnableAim: 0
     AimMode: 0
-    AimMaxRadius: 220
+    AimMaxRadius: 0
     UsePointMode: 0
     SelectRange: 0
-    FaceToAim: 1
+    FaceToAim: 0
   - Id: 2
     Name: direction_line
     LongPressSeconds: 0.35

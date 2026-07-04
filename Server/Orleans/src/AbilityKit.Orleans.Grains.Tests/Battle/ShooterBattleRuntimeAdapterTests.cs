@@ -80,6 +80,51 @@ public sealed class ShooterBattleRuntimeAdapterTests
     }
 
     [Fact]
+    public void SessionStart_WhenDurationFramesProvided_UsesDurationForShooterWorld()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-duration-override-test");
+        var initParams = CreateInitParams();
+        initParams.DurationFrames = 3600;
+
+        var start = session.Start(initParams);
+
+        Assert.True(start.Succeeded, start.Error);
+        var snapshot = session.GetSnapshot(0);
+        Assert.NotNull(snapshot);
+        Assert.Equal(3600, snapshot!.TimeLimitFrames);
+        Assert.Equal(3600, snapshot.RemainingTimeFrames);
+    }
+
+    [Fact]
+    public void SessionTick_MovesWaveEnemiesInServerAuthorityWorld()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-battle-adapter-enemy-move-test");
+        var initParams = CreateInitParams();
+        var start = session.Start(initParams);
+        Assert.True(start.Succeeded, start.Error);
+
+        Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
+        var initialPush = session.CreateStateSyncPush(initParams.WorldId, frame: 1, isFullSnapshot: true);
+        var initialPacked = ShooterPackedSnapshotCodec.Deserialize(initialPush.Payload!);
+        var initialEnemy = FindFirstPackedTransform(initialPacked, ShooterPackedEntityKinds.Enemy);
+        Assert.NotNull(initialEnemy);
+        var beforeDistanceSquared = initialEnemy.Value.X * initialEnemy.Value.X + initialEnemy.Value.Y * initialEnemy.Value.Y;
+
+        Assert.True(session.Tick(frame: 2, tickRate: 30, deltaTime: 1f / 30f));
+
+        var movedPush = session.CreateStateSyncPush(initParams.WorldId, frame: 2, isFullSnapshot: true);
+        var movedPacked = ShooterPackedSnapshotCodec.Deserialize(movedPush.Payload!);
+        var movedEnemy = FindPackedTransform(movedPacked, ShooterPackedEntityKinds.Enemy, initialEnemy.Value.EntityId);
+        Assert.NotNull(movedEnemy);
+        var afterDistanceSquared = movedEnemy.Value.X * movedEnemy.Value.X + movedEnemy.Value.Y * movedEnemy.Value.Y;
+        Assert.True(afterDistanceSquared < beforeDistanceSquared);
+    }
+
+    [Fact]
     public void CreateStateSyncPush_WhenPureStateEnabled_EmitsPureStateFullAndDeltaPayloads()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
@@ -233,6 +278,40 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.True(enemyLifecycleChunk.Value.Count > 0);
         Assert.Equal(enemyLifecycleChunk.Value.Count, enemyTransformChunk.Value.Count);
         Assert.Equal(enemyLifecycleChunk.Value.Count, enemyHealthChunk.Value.Count);
+    }
+
+    private static (int EntityId, float X, float Y)? FindFirstPackedTransform(in ShooterPackedSnapshotPayload packed, int entityKind)
+    {
+        var transformChunk = FindPackedChunk(packed, ShooterPackedComponentKinds.Transform, entityKind);
+        if (!transformChunk.HasValue || transformChunk.Value.Count <= 0)
+        {
+            return null;
+        }
+
+        return (
+            transformChunk.Value.EntityIds[0],
+            transformChunk.Value.ValueX[0],
+            transformChunk.Value.ValueY[0]);
+    }
+
+    private static (int EntityId, float X, float Y)? FindPackedTransform(in ShooterPackedSnapshotPayload packed, int entityKind, int entityId)
+    {
+        var transformChunk = FindPackedChunk(packed, ShooterPackedComponentKinds.Transform, entityKind);
+        if (!transformChunk.HasValue)
+        {
+            return null;
+        }
+
+        var chunk = transformChunk.Value;
+        for (var i = 0; i < chunk.Count; i++)
+        {
+            if (chunk.EntityIds[i] == entityId)
+            {
+                return (entityId, chunk.ValueX[i], chunk.ValueY[i]);
+            }
+        }
+
+        return null;
     }
 
     private static ShooterPackedComponentChunk? FindPackedChunk(in ShooterPackedSnapshotPayload packed, int componentKind, int entityKind)

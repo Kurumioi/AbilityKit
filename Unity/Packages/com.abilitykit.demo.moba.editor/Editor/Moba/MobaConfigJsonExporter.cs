@@ -115,37 +115,41 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 {
                     if (entries.GetValue(i) is TagTemplateDTO dto)
                     {
-                        ConvertTagNamesToIds(dto);
+                        NormalizeTagNames(dto);
                     }
                 }
             }
         }
 
-        private static void ConvertTagNamesToIds(TagTemplateDTO dto)
+        private static void NormalizeTagNames(TagTemplateDTO dto)
         {
             if (dto == null) return;
             GameplayTagsLib.RegisterAll();
 
-            dto.RequiredTags = ConvertNames(dto.RequiredTagNames);
-            dto.BlockedTags = ConvertNames(dto.BlockedTagNames);
-            dto.GrantTags = ConvertNames(dto.GrantTagNames);
-            dto.RemoveTags = ConvertNames(dto.RemoveTagNames);
+            dto.RequiredTagNames = NormalizeNames(dto.RequiredTagNames);
+            dto.BlockedTagNames = NormalizeNames(dto.BlockedTagNames);
+            dto.GrantTagNames = NormalizeNames(dto.GrantTagNames);
+            dto.RemoveTagNames = NormalizeNames(dto.RemoveTagNames);
         }
 
-        private static int[] ConvertNames(string[] names)
+        private static string[] NormalizeNames(string[] names)
         {
-            if (names == null || names.Length == 0) return Array.Empty<int>();
+            if (names == null || names.Length == 0) return Array.Empty<string>();
 
-            var list = new List<int>(names.Length);
+            var list = new List<string>(names.Length);
             for (var i = 0; i < names.Length; i++)
             {
                 var n = names[i];
                 if (string.IsNullOrWhiteSpace(n)) continue;
+
+                n = n.Trim();
                 var tag = GameplayTagsUtil.Tag(n);
                 if (!tag.IsValid) continue;
-                list.Add(tag.Value);
+
+                list.Add(n);
             }
-            return list.Count == 0 ? Array.Empty<int>() : list.ToArray();
+
+            return list.Count == 0 ? Array.Empty<string>() : list.ToArray();
         }
 
         private static void ValidateUniqueById(Array entries, Type entryType, string name)

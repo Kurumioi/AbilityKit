@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             unchecked
             {
                 var hash = 2166136261u;
-                hash = Hash(hash, 3); // hash schema version
+                hash = Hash(hash, 4); // hash schema version
                 hash = Hash(hash, _state.CurrentFrame);
                 hash = Hash(hash, (int)_state.MatchState);
                 hash = Hash(hash, _state.MatchCompletedFrame);
@@ -62,6 +62,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(bullet.VelocityX));
                     hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(bullet.VelocityY));
                     hash = Hash(hash, bullet.RemainingFrames);
+                    hash = Hash(hash, bullet.PenetrationRemaining);
+                    hash = Hash(hash, ShooterRuntimeSnapshotUtility.Quantize(bullet.ExplosionRadius));
+                    hash = Hash(hash, bullet.ExplosionDamage);
                 }
 
                 var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);

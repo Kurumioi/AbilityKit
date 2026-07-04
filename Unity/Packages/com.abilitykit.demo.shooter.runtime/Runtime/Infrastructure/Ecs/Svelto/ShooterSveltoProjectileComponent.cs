@@ -11,6 +11,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public float VelocityX;
         public float VelocityY;
         public int RemainingFrames;
+        public int PenetrationRemaining;
+        public float ExplosionRadius;
+        public int ExplosionDamage;
     }
 
     public sealed class ShooterSveltoProjectileDescriptor : GenericEntityDescriptor<ShooterSveltoProjectileComponent>

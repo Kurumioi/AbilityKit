@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.Host;
@@ -166,6 +167,36 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void MoziPassive_UsesGenericCounterTriggerPlanAndFourthHitProjectile()
+        {
+            const int passiveCounterTriggerId = 10040001;
+            const int passiveProjectileTriggerId = 10040002;
+            const int expectedProjectileLauncherId = 31040201;
+            const int expectedProjectileId = 30040201;
+
+            using var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(
+                skillIds: new[] { 10040101, 10040201, 10040301 },
+                worldId: "mozi_passive_trigger_plan_assertion_world");
+
+            harness.AssertProjectileConfigExists(expectedProjectileLauncherId, expectedProjectileId);
+            harness.AssertTriggerPlanContainsActions(passiveCounterTriggerId, (int)TriggeringConstants.AdvanceGameplayCounterId.Value);
+            harness.AssertTriggerPlanContainsActions(
+                passiveProjectileTriggerId,
+                (int)TriggeringConstants.ShootProjectileId.Value,
+                (int)TriggeringConstants.DebugLogId.Value);
+            AssertResourceCopiesMatch("ability/triggers/passives/trigger_10040000.json");
+        }
+
+        [Test]
+        public void ZhaoYunAndMoziTriggerResources_AreSyncedBetweenAssetsAndPackageRuntime()
+        {
+            AssertResourceCopiesMatch("ability/triggers/passives/trigger_10030000.json");
+            AssertResourceCopiesMatch("ability/triggers/passives/trigger_10040000.json");
+            AssertResourceCopiesMatch("ability/triggers/skills/trigger_10030101.json");
+            AssertResourceCopiesMatch("ability/triggers/skills/trigger_10040101.json");
+        }
+
+        [Test]
         public void SharedRunner_PropagatesRiskTagsForUnityPresentationCoverage()
         {
             var script = new ViewPresentationRiskScenario { Cycles = 1 }.CreateScript();
@@ -180,6 +211,16 @@ namespace AbilityKit.Game.Test.UnitTest
             CollectionAssert.Contains(script.RiskTags, BattleTestScenarioLibrary.VfxRiskTag);
             CollectionAssert.Contains(script.RiskTags, BattleTestScenarioLibrary.SnapshotEventRiskTag);
             Assert.AreEqual(script.TotalDurationTicks, driver.AppliedTickCount);
+        }
+
+        private static void AssertResourceCopiesMatch(string resourcePath)
+        {
+            var assetsPath = Path.Combine("Assets", "Resources", resourcePath.Replace('/', Path.DirectorySeparatorChar));
+            var packagePath = Path.Combine("Packages", "com.abilitykit.demo.moba.view.runtime", "Resources", resourcePath.Replace('/', Path.DirectorySeparatorChar));
+
+            Assert.IsTrue(File.Exists(assetsPath), $"Assets resource missing: {assetsPath}");
+            Assert.IsTrue(File.Exists(packagePath), $"Package runtime resource missing: {packagePath}");
+            Assert.AreEqual(File.ReadAllText(assetsPath), File.ReadAllText(packagePath), $"Resource copy mismatch: {resourcePath}");
         }
 
         private sealed class RecordingUnityHeadlessDriver : IBattleTestScriptDriver

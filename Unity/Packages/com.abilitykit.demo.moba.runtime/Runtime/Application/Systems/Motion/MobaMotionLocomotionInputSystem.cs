@@ -100,7 +100,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newSolver: m.Solver,
                     newPolicy: m.Policy,
                     newEvents: m.Events,
-                    newInitialized: m.Initialized);
+                    newInitialized: m.Initialized,
+                    newHitTriggerRuntime: m.HitTriggerRuntime);
             }
 
             if (_locomotionByActorId.Count > 0)

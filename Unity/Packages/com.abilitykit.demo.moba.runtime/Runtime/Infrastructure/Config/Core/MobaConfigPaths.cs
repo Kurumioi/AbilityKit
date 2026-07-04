@@ -39,5 +39,7 @@
         public const string PresentationTemplatesFile = "presentation_templates";
 
         public const string GameplaysFile = "gameplays";
+
+        public const string MotionGroupsFile = "motion_groups";
     }
 }

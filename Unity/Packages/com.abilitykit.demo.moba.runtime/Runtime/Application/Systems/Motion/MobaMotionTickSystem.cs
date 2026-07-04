@@ -7,6 +7,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Systems.Motion
@@ -15,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     public sealed class MobaMotionTickSystem : WorldSystemBase
     {
         private IWorldClock _clock;
+        private MobaMotionHitTriggerService _hitTriggers;
         private global::Entitas.IGroup<global::ActorEntity> _group;
         private int _sampleLogCount;
 
@@ -26,6 +28,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
         protected override void OnInit()
         {
             Services.TryResolve(out _clock);
+            Services.TryResolve(out _hitTriggers);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.Transform,
@@ -59,7 +62,15 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 var output = m.Output;
                 var oldPosition = state.Position;
 
-                m.Pipeline.Tick(e.actorId.Value, ref state, dt, ref output);
+                var result = m.Pipeline.Tick(e.actorId.Value, ref state, dt, ref output);
+                var hitTriggerRuntime = m.HitTriggerRuntime;
+                if (_hitTriggers != null && hitTriggerRuntime.IsValid && result.Hit.Hit)
+                {
+                    if (_hitTriggers.TryExecute(e.actorId.Value, in result.Hit, in state.Position, in hitTriggerRuntime))
+                    {
+                        hitTriggerRuntime = default;
+                    }
+                }
 
                 _sampleLogCount++;
                 if (_sampleLogCount <= 5 || _sampleLogCount % 60 == 0)
@@ -80,7 +91,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newSolver: m.Solver,
                     newPolicy: m.Policy,
                     newEvents: m.Events,
-                    newInitialized: true);
+                    newInitialized: true,
+                    newHitTriggerRuntime: hitTriggerRuntime);
             }
         }
     }

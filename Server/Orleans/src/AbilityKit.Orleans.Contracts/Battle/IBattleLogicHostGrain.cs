@@ -90,6 +90,7 @@ public class BattleInitParams
     [Id(12)] public string? RoomType { get; set; }
     [Id(13)] public WorldStartAnchor? WorldStartAnchor { get; set; }
     [Id(14)] public BattleSyncStartOptions? SyncOptions { get; set; }
+    [Id(15)] public int DurationFrames { get; set; }
 }
 
 [GenerateSerializer]

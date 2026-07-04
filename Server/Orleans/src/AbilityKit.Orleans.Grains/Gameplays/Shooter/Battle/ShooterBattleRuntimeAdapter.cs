@@ -64,7 +64,11 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _worldId = initParams.WorldId;
-            _battleWorld = _worldManager.CreateBattleWorld(_battleId, ShooterGameplay.WorldType, initParams.TickRate);
+            _battleWorld = _worldManager.CreateBattleWorld(
+                _battleId,
+                ShooterGameplay.WorldType,
+                initParams.TickRate,
+                options => ConfigureShooterWorldOptions(options, initParams));
             if (_battleWorld == null)
             {
                 return BattleRuntimeStartResult.Fail("Shooter battle world creation returned null.");
@@ -98,6 +102,16 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             _driverHost = new ShooterBattleDriverHost(_runtime);
             _driverHost.Start();
             return BattleRuntimeStartResult.Success();
+        }
+
+        private static void ConfigureShooterWorldOptions(
+            AbilityKit.Ability.World.Abstractions.WorldCreateOptions options,
+            BattleInitParams initParams)
+        {
+            if (initParams.DurationFrames > 0)
+            {
+                options.Extensions[typeof(ShooterGameplay)] = initParams.DurationFrames;
+            }
         }
 
         public BattlePlayerJoinResult JoinPlayer(BattlePlayerJoinRequest request, int currentFrame)

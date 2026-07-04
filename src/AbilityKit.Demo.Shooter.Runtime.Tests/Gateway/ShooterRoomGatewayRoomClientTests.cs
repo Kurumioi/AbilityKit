@@ -113,7 +113,22 @@ public sealed class ShooterRoomGatewayRoomClientTests
             ServerNowTicks = 323456L,
             Message = "started"
         });
-        var start = await roomClient.StartBattleAsync(new ShooterGatewayStartBattleRequest("session-token", "room-1", 2, 1, 3, 1, "shooter-runtime", "client-a"));
+        var start = await roomClient.StartBattleAsync(new ShooterGatewayStartBattleRequest(
+            "session-token",
+            "room-1",
+            2,
+            1,
+            3,
+            1,
+            "shooter-runtime",
+            "client-a",
+            "runtime-snapshot-interpolation",
+            syncModel: 2,
+            networkEnvironmentId: "wan-90ms",
+            carrierName: "server",
+            enableAuthoritativeWorld: true,
+            interpolationEnabled: true,
+            inputDelayFrames: 4));
         Assert.Equal(RoomGatewayOpCodes.StartBattle, transport.LastOpCode);
         var startWire = WireRoomGatewayBinary.Deserialize<WireStartRoomBattleReq>(transport.LastPayload);
         Assert.Equal("session-token", startWire.SessionToken);
@@ -124,6 +139,13 @@ public sealed class ShooterRoomGatewayRoomClientTests
         Assert.Equal(1, startWire.ProtocolVersion);
         Assert.Equal("shooter-runtime", startWire.WorldType);
         Assert.Equal("client-a", startWire.ClientId);
+        Assert.Equal("runtime-snapshot-interpolation", startWire.SyncTemplateId);
+        Assert.Equal(2, startWire.SyncModel);
+        Assert.Equal("wan-90ms", startWire.NetworkEnvironmentId);
+        Assert.Equal("server", startWire.CarrierName);
+        Assert.True(startWire.EnableAuthoritativeWorld);
+        Assert.True(startWire.InterpolationEnabled);
+        Assert.Equal(4, startWire.InputDelayFrames);
         Assert.True(start.Success);
         Assert.True(start.Started);
         Assert.Equal("battle-1", start.BattleId);

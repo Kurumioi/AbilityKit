@@ -16,6 +16,7 @@ MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点
 | Trace/Context/Effect | TraceTreeRegistry、MobaTraceRegistry、LineageInput、CombatExecutionContext、EffectInvoker | [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md) |
 | Trigger/Validation/Presentation Cue | TriggerExecutionGateway、Owner-bound Subscription、RuntimeValidation、StageTrigger、PresentationCue | [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md) |
 | PlanActions/Continuous Runtime | ActionSchema、PlanActionModule、ContinuousRuntimeView、LifecycleBinder、ContextSourceBoundary | [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md) |
+| Continuous 能力组合设计 | stack、periodic、cue、tag、modifier 与领域 runtime 的组合边界 | [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md) |
 | 快照与表现 | WorldStateSnapshot、SnapshotBuffer、FrameSnapshotDispatcher、BattleSnapshotPipeline | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 | 远程驱动 | RemoteDrivenWorldRuntimeFactory、ClientPredictionDriverModule、RollbackRegistry | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 
@@ -99,7 +100,8 @@ sequenceDiagram
 6. 再读 [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md)，理解效果执行如何携带来源、父子 trace 与验收结构。
 7. 再读 [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md)，理解触发器订阅、运行时校验、阶段触发与表现 Cue。
 8. 再读 [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md)，理解配置动作 DSL、强类型 action module、持续运行时查询与上下文边界。
-9. 最后读 [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)，理解逻辑结果如何同步到客户端表现。
+9. 再读 [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md)，理解 stack、periodic、cue、tag、modifier 如何按领域 runtime 组合。
+10. 最后读 [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)，理解逻辑结果如何同步到客户端表现。
 
 ## 5. 关键源码入口
 

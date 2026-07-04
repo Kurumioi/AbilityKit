@@ -22,8 +22,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             var launcherId = ReadInt(namedArgs, ctx, 0, "launcher_id", "launcherid", "launcher");
             var projectileId = ReadInt(namedArgs, ctx, 0, "projectile_id", "projectileid", "projectile");
+            var continuousProcessId = ReadInt(namedArgs, ctx, 0, "continuous_process_id", "continuousprocessid", "continuous_id", "continuousid");
 
-            return new ShootProjectileArgs(launcherId, projectileId);
+            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

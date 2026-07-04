@@ -1,5 +1,4 @@
 using System;
-using Newtonsoft.Json;
 
 namespace AbilityKit.Demo.Moba.Share.Config
 {
@@ -9,16 +8,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Id;
         public string Name;
 
-        [JsonIgnore] public string[] RequiredTagNames;
-        [JsonIgnore] public string[] BlockedTagNames;
-        [JsonIgnore] public string[] GrantTagNames;
-        [JsonIgnore] public string[] RemoveTagNames;
-
-        public int[] RequiredTags;
-        public int[] BlockedTags;
-
-        public int[] GrantTags;
-        public int[] RemoveTags;
+        public string[] RequiredTagNames;
+        public string[] BlockedTagNames;
+        public string[] GrantTagNames;
+        public string[] RemoveTagNames;
     }
 
     [Serializable]
@@ -27,14 +20,14 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int Id;
         public string Name;
 
-        public int[] ActivationRequiredTags;
-        public int[] ActivationBlockedTags;
-        public int[] ApplicationTags;
-        public int[] RemovalRequiredTags;
-        public int[] RemovalBlockedTags;
-        public int[] OngoingRequiredTags;
-        public int[] OngoingBlockedTags;
-        public int[] RemovalTags;
+        public string[] ActivationRequiredTagNames;
+        public string[] ActivationBlockedTagNames;
+        public string[] ApplicationTagNames;
+        public string[] RemovalRequiredTagNames;
+        public string[] RemovalBlockedTagNames;
+        public string[] OngoingRequiredTagNames;
+        public string[] OngoingBlockedTagNames;
+        public string[] RemovalTagNames;
     }
 
     public enum SearchTargetProviderKind

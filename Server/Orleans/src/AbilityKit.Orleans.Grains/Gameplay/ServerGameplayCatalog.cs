@@ -24,7 +24,7 @@ internal static class ServerGameplayDescriptors
         RequiresPlayerLoadout: false,
         DefaultWorldType: ShooterGameplay.WorldType,
         DefaultTickRate: ShooterGameplay.DefaultTickRate,
-        DefaultSyncTemplateId: "pure-state-authority");
+        DefaultSyncTemplateId: "predict-rollback-authority");
 }
 
 internal sealed class ServerGameplayCatalog

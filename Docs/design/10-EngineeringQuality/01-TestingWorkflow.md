@@ -67,12 +67,18 @@ flowchart TB
 
 | 测试域 | 入口 | 关注点 |
 |--------|------|--------|
-| Triggering 包内测试 | `Unity/Packages/com.abilitykit.triggering/Tests` | TriggerPlan、Runner、Validator、Pooling hotspot、运行时兼容性 |
+| Triggering 包内测试 | `Unity/Packages/com.abilitykit.triggering/Tests`、`Unity/AbilityKit.Triggering.Tests.csproj` | TriggerPlan、Runner、Validator、Pooling hotspot、Unity 包内兼容性 |
+| Unity 游戏测试工程 | `Unity/AbilityKit.Game.UnitTests.csproj`、`Unity/AbilityKit.HFSM.Tests.csproj`、`Unity/AbilityKit.Combat.Motion.Tests.csproj` | Unity 生成工程、Editor/PlayMode 外壳、HFSM、Motion 等包内回归入口 |
 | World DI 测试 | `src/AbilityKit.World.DI.Tests` | `WorldInject`、Scope seeding、测试注入器 |
 | Network Runtime 测试 | `src/AbilityKit.Network.Runtime.Tests` | DemoHarness、SyncClock、TimeSync、Lag Compensation、SyncHealthEvent、Profile Registry |
 | MOBA 逻辑测试 | `src/AbilityKit.Demo.Moba.Tests` | Buff、Context、Continuous、Passive、Skill、Smoke、Trace、Triggering |
 | MOBA View Runtime 测试 | `src/AbilityKit.Demo.Moba.View.Runtime.Tests` | 客户端同步策略、远端插值播放、DemoHarness carrier |
+| Game View Runtime 测试 | `src/AbilityKit.Game.View.Runtime.Tests` | 通用视图运行时、表现会话、跨 Demo 视图基础设施 |
 | Shooter Runtime 测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests` | AcceptanceLab、同步模式 smoke、Svelto benchmark、Gateway flow、client session、rollback、presentation |
+| AI Inference 测试 | `src/AbilityKit.AI.Inference.Tests` | AI 推理边界与训练/运行时拆分后的基础回归 |
+| Orleans Gateway 测试 | `Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests` | TCP/WebSocket Gateway、RoomGatewaySessionFlow、协议路由 |
+| Orleans Grains 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests` | RoomGrain、BattleLogicHostGrain、FrameSyncGrain、Grain 状态边界 |
+| Shooter Smoke 测试工程 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests` | Smoke runner、结果格式化、replay artifact、端到端场景保护 |
 | ET Smoke 脚本 | `tools/run_et_battle_smoke.ps1` | ET 控制台战斗、配置门禁、确定性签名、临时输出清理 |
 | Shooter Orleans Smoke | `Server/Orleans/tools/run_shooter_smoke.ps1` | Gateway、Room、BattleGrain、StateSync push、input submit、late join、reconnect |
 
@@ -203,6 +209,8 @@ flowchart TD
 - 支持 `RunMany` 批量执行多 carrier、多 scenario；
 - 把网络抖动、丢包、重排、pending 数转成可断言 metrics。
 
+`DemoHarnessRunnerTests` 还说明了状态分类的边界：carrier 不支持某个同步模型时返回 Unsupported，运行中质量未达标可以标记 Degraded，真实异常才进入 Failed。这让矩阵报告可以区分“能力尚未实现”和“已经实现但退化”。
+
 Shooter 在此基础上建立 `ShooterAcceptanceCatalog` 与 `ShooterAcceptanceLab`，将同步模板、网络环境和验收标准固化为正式矩阵：
 
 ```mermaid
@@ -216,7 +224,17 @@ flowchart LR
     Session --> Run[RunCatalogMatrix / Run]
 ```
 
-这使 Unity 面板、xUnit、CI 可以共享同一套验收边界，而不是各自维护不同判断逻辑。
+这使 Unity 面板、xUnit、CI 可以共享同一套验收边界，而不是各自维护不同判断逻辑。当前 golden baseline 由 `ShooterAcceptanceMatrixSnapshotTests` 固化为 5 个可运行同步模式乘以 6 个网络环境，共 30 个场景，并要求全部 Completed：
+
+| 同步模式 | 默认 carrier 语义 | 验收重点 |
+|----------|-------------------|----------|
+| `PredictRollback` | `ShooterDemoHarnessCarrier` | 客户端预测、runtime/presentation frame 对齐、无 reconciliation 异常 |
+| `AuthoritativeInterpolation` | interpolation carrier | 权威快照插值、remote jitter、snapshot apply |
+| `BatchStateSync` | 低频插值兼容 carrier | 批量状态同步、pending 包和 full snapshot 请求 |
+| `MassBattleLodSync` | LOD/batch carrier | 大规模实体、LOD 预算、批量同步稳定性 |
+| `HybridHeroPrediction` | `ShooterHybridDemoHarnessCarrier` | 英雄预测与远端插值混合、专用 Hybrid controller 约束 |
+
+矩阵的价值不是“多跑几个 case”，而是把新增同步模式、新增网络环境、carrier 能力声明和指标阈值绑定在一起。任何组合数量或状态分布变化，都会迫使开发者显式更新 baseline。
 
 ---
 
@@ -284,6 +302,22 @@ sequenceDiagram
 
 它验证的是 Gateway、RoomGrain、BattleAdapter、FrameSyncGrain、StateSyncPush、输入提交、晚加入、重连、stale snapshot 保护等端到端协议语义。
 
+`ShooterSmokeResult` 和 `ShooterSmokeResultFormatter` 把 smoke 输出拆成稳定字段，便于 CI 和人工排查读取：
+
+| 字段组 | 代表字段 | 用途 |
+|--------|----------|------|
+| 房间与战斗身份 | `RoomId`、`BattleId`、`WorldId` | 定位本次 smoke 的服务端实体和逻辑世界 |
+| 输入推进 | `InputCount`、`LastAcceptedFrame`、`LastCurrentFrame`、`LastInputStatus` | 验证输入提交、帧推进、服务端接受状态 |
+| 客户端状态 | `Frame`、`ActorCount`、`StateHash` | 验证客户端 runtime 和表现层已经推进并具备有效状态 |
+| packed snapshot | `SnapshotApplyResult`、`SnapshotFrame`、`SnapshotStateHash`、`SnapshotEntityCount` | 验证服务端推送 packed snapshot 被客户端应用且 hash 非零 |
+| stale 保护 | `StaleSnapshotResult` | 验证旧快照不会覆盖较新的客户端状态 |
+| projection | `ProjectionApplyCount`、`ProjectionFullSyncApplyCount`、`ProjectionFinalEntityCount` | 验证状态投影批次、全量同步和最终实体数 |
+| late join/reconnect | `LateJoinEntryKind`、`ReconnectEntryKind`、`LateJoinProjectionFinalPlayerCount` | 验证晚加入和重连能获得可用投影 |
+| gameplay loop | `GameplayMoved`、`GameplayFired`、`GameplayDefeatedEnemy`、`GameplayFinalMatchState` | 验证不是只连通网络，而是真正跑过战斗行为 |
+| replay artifact | `InputLogicReplayPath`、`MinimizedInputLogicReplayPath`、`InputLogicReplayValidation` | 验证 smoke 输入逻辑可录制、可回放、可最小化 |
+
+`ShooterSmokeScenarioBase.ValidateSmokeResult` 会继续检查帧、hash、snapshot op code、投影实体数、late join、reconnect、玩法最终状态和清理逻辑。也就是说，Shooter smoke 不是只看进程退出码，而是把服务端、客户端、投影、回放和玩法结果一起验收。
+
 ### 8.4 ET smoke
 
 ET smoke 通过脚本执行控制台战斗，具备更强的流程化门禁：
@@ -336,11 +370,34 @@ flowchart TD
 
 建议形成三档测试组合：
 
-| 档位 | 运行时机 | 内容 |
-|------|----------|------|
-| P0 快速本地 | 每次小改 | 目标工程 build + targeted xUnit/NUnit |
-| P1 合入前 | PR / 合入前 | 相关 `src/*.Tests` + DemoHarness/Acceptance matrix 子集 |
-| P2 正式回归 | 版本准入 / 大重构后 | 全量测试 + Unity batch + Shooter Orleans smoke + ET smoke + 关键 MOBA smoke |
+| 档位 | 运行时机 | 内容 | 典型命令 |
+|------|----------|------|----------|
+| P0 快速本地 | 每次小改 | 目标工程 build + targeted xUnit | `dotnet test src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj` |
+| P1 合入前 | PR / 合入前 | 相关 `src/*.Tests` + DemoHarness/Acceptance matrix 子集 | `dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter ShooterAcceptance` |
+| P2 正式回归 | 版本准入 / 大重构后 | 全量测试 + Unity batch + Shooter Orleans smoke + ET smoke + 关键 MOBA smoke | `powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1` |
+
+常用命令可以按改动面选择：
+
+```powershell
+# 网络运行时、DemoHarness、SyncHealthEvent
+ dotnet test src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj
+
+# MOBA 逻辑、技能、Buff、Trace、Smoke
+ dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj
+
+# Shooter runtime、同步模式、Acceptance matrix
+ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj
+
+# Orleans Gateway 与 Grain 回归
+ dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj
+ dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj
+
+# ET 与 Shooter 端到端 smoke
+ powershell -ExecutionPolicy Bypass -File tools/run_et_battle_smoke.ps1
+ powershell -ExecutionPolicy Bypass -File Server/Orleans/tools/run_shooter_smoke.ps1
+```
+
+Unity batch 命令需要按本机 Unity Editor 路径执行，核心参数保持一致：`-batchmode -projectPath Unity -runTests -testPlatform EditMode` 或 `PlayMode`，并把结果输出到固定 artifact 路径。
 
 ---
 

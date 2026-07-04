@@ -49,6 +49,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var players = new Dictionary<int, ShooterSveltoPlayerComponent>();
             var projectiles = new Dictionary<int, ShooterSveltoProjectileComponent>();
             var enemies = new Dictionary<int, ImportedEnemy>();
+            var removedProjectiles = new HashSet<int>();
 
             for (int i = 0; i < componentChunks.Length; i++)
             {
@@ -59,7 +60,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                         ImportRuntimeMetadataChunk(in chunk);
                         break;
                     case ShooterPackedComponentKinds.EntityLifecycle:
-                        ImportLifecycleComponentChunk(in chunk, players, projectiles, enemies);
+                        ImportLifecycleComponentChunk(in chunk, players, projectiles, enemies, removedProjectiles);
                         break;
                     case ShooterPackedComponentKinds.Transform:
                         ImportTransformComponentChunk(in chunk, players, projectiles, enemies);
@@ -74,6 +75,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
                         ImportProjectileLifetimeComponentChunk(in chunk, projectiles);
                         break;
                 }
+            }
+
+            foreach (var projectileId in removedProjectiles)
+            {
+                projectiles.Remove(projectileId);
+                _entities.RemoveProjectile(projectileId);
             }
 
             foreach (var player in players.Values)
@@ -130,7 +137,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             in ShooterPackedComponentChunk chunk,
             Dictionary<int, ShooterSveltoPlayerComponent> players,
             Dictionary<int, ShooterSveltoProjectileComponent> projectiles,
-            Dictionary<int, ImportedEnemy> enemies)
+            Dictionary<int, ImportedEnemy> enemies,
+            HashSet<int> removedProjectiles)
         {
             var count = Math.Max(0, chunk.Count);
             for (int i = 0; i < count; i++)
@@ -151,6 +159,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
                 else if (chunk.EntityKind == ShooterPackedEntityKinds.Projectile)
                 {
+                    if ((flags & ShooterPackedEntityFlags.Despawned) != 0)
+                    {
+                        removedProjectiles.Add(entityId);
+                        projectiles.Remove(entityId);
+                        continue;
+                    }
+
                     projectiles[entityId] = new ShooterSveltoProjectileComponent
                     {
                         BulletId = entityId,
@@ -275,6 +290,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 if (entityId <= 0 || !projectiles.TryGetValue(entityId, out var projectile)) continue;
 
                 projectile.RemainingFrames = ShooterPackedSnapshotChunkCodec.GetInt(chunk.IntValues, i, projectile.RemainingFrames);
+                projectile.PenetrationRemaining = ShooterPackedSnapshotChunkCodec.GetInt(chunk.Aux, i, projectile.PenetrationRemaining);
+                projectile.ExplosionRadius = ShooterPackedSnapshotChunkCodec.GetFloat(chunk.ValueX, i, projectile.ExplosionRadius);
+                projectile.ExplosionDamage = Math.Max(0, (int)MathF.Round(ShooterPackedSnapshotChunkCodec.GetFloat(chunk.ValueY, i, projectile.ExplosionDamage)));
                 projectiles[entityId] = projectile;
             }
         }

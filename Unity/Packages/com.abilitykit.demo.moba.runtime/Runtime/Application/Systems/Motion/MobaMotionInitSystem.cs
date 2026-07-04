@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Services;
@@ -50,7 +51,7 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                 }
                 else
                 {
-                    pipeline.Policy ??= MotionPipelinePolicy.CreateDefault();
+                    pipeline.Policy ??= MobaMotionGroupConfigResolver.CreatePolicy(Services);
                 }
 
                 if (m.Solver != null) pipeline.Solver = m.Solver;
@@ -73,7 +74,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newSolver: m.Solver,
                     newPolicy: m.Policy,
                     newEvents: m.Events,
-                    newInitialized: true);
+                    newInitialized: true,
+                    newHitTriggerRuntime: m.HitTriggerRuntime);
             }
         }
     }

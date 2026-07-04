@@ -60,9 +60,14 @@ public sealed class ServerBattleWorldManager : IDisposable
 
     public IWorld CreateBattleWorld(string roomId, string worldType, int tickRate)
     {
+        return CreateBattleWorld(roomId, worldType, tickRate, configureOptions: null);
+    }
+
+    public IWorld CreateBattleWorld(string roomId, string worldType, int tickRate, Action<WorldCreateOptions>? configureOptions)
+    {
         lock (_lock)
         {
-            return CreateBattleWorldCore(roomId, string.IsNullOrWhiteSpace(worldType) ? GetDefaultWorldType() : worldType);
+            return CreateBattleWorldCore(roomId, string.IsNullOrWhiteSpace(worldType) ? GetDefaultWorldType() : worldType, configureOptions);
         }
     }
 
@@ -77,7 +82,7 @@ public sealed class ServerBattleWorldManager : IDisposable
         return defaultWorldType;
     }
 
-    private IWorld CreateBattleWorldCore(string roomId, string worldType)
+    private IWorld CreateBattleWorldCore(string roomId, string worldType, Action<WorldCreateOptions>? configureOptions = null)
     {
         if (_worlds.TryGetValue(roomId, out var existingWorld))
         {
@@ -90,6 +95,7 @@ public sealed class ServerBattleWorldManager : IDisposable
             WorldType = worldType,
             Id = new WorldId(roomId)
         };
+        configureOptions?.Invoke(options);
 
         var world = _worldManager.Create(options);
 

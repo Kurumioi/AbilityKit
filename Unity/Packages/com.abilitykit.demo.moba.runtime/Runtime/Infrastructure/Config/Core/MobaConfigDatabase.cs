@@ -26,6 +26,7 @@ using TagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.TagTemplateMO;
 using ContinuousTagTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.ContinuousTagTemplateMO;
 using SearchQueryTemplateMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.SearchQueryTemplateMO;
 using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
+using MotionGroupMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.MotionGroupMO;
  
  namespace AbilityKit.Demo.Moba.Config.Core
 {
@@ -520,6 +521,9 @@ using GameplayMO = AbilityKit.Demo.Moba.Config.BattleDemo.MO.GameplayMO;
         public bool TryGetEmitter(int id, out EmitterMO mo) => GetTable<EmitterMO>().TryGet(id, out mo);
         public bool TryGetSearchQueryTemplate(int id, out SearchQueryTemplateMO mo) => GetTable<SearchQueryTemplateMO>().TryGet(id, out mo);
         public bool TryGetGameplay(int id, out GameplayMO mo) => GetTable<GameplayMO>().TryGet(id, out mo);
+        public MotionGroupMO GetMotionGroup(int id) => GetTable<MotionGroupMO>().Get(id);
+        public bool TryGetMotionGroup(int id, out MotionGroupMO mo) => GetTable<MotionGroupMO>().TryGet(id, out mo);
+        public IEnumerable<MotionGroupMO> GetAllMotionGroups() => GetTable<MotionGroupMO>().All();
  
         // ==================== Internal adapter for MOBA deserializer ====================
 

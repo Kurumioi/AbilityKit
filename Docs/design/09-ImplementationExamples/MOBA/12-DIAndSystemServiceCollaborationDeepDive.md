@@ -1,6 +1,6 @@
 # MOBA 依赖注入与 System/Service 协作深潜
 
-> 本文说明 MOBA 示例为什么把主要业务逻辑放在 Service 层，把 System 层收敛成调度与遍历入口，并通过世界级依赖注入把配置、诊断、时间、事件、实体索引和能力执行解耦出来。
+> 本文说明 MOBA 示例为什么把主要业务逻辑放在 Service 层，把 System 层收敛成调度、遍历、ECS 写回和异常边界，并通过世界级依赖注入把配置、诊断、时间、事件、实体索引和能力执行解耦出来。结论是：当前 DI 模块和 Entitas System 适配层已经明确支持“Service + ECS System”的组合开发模式，MOBA 示例也大量采用了这条路径。
 
 ---
 
@@ -11,16 +11,17 @@ MOBA 的依赖注入与协作模式，核心不是“把对象都注入进去”
 | 层级 | 职责 | 典型类型 |
 |------|------|----------|
 | 世界装配层 | 声明服务、系统、模块与生命周期 | `MobaWorldBootstrapModule`、`MobaServicesAutoModule` |
-| 服务层 | 承载业务规则、状态机、配置读取、事件发布、校验逻辑 | `SkillCastCoordinator`、`MobaBuffService`、`MobaEffectInvokerService` |
-| System 层 | 只负责按顺序调度、遍历 ECS、驱动服务执行 | `MobaSkillPipelineStepSystem`、`MobaBuffCommandDrainSystem`、`MobaProjectileSyncSystem` |
+| 服务层 | 承载业务规则、状态机、配置读取、事件发布、校验逻辑 | `SkillCastCoordinator`、`MobaBuffService`、`MobaGameplayService`、`MobaEnterGameFlowService` |
+| System 层 | 负责按顺序调度、遍历 ECS、驱动服务执行，必要时做贴近组件的写回 | `MobaSkillPipelineStepSystem`、`MobaBuffCommandDrainSystem`、`MobaGameplayTickSystem`、`MobaMotionTickSystem`、`MobaProjectileSyncSystem` |
 | 基础设施层 | 提供日志、诊断、异常策略、时间、实体索引、事件总线 | `MobaWorldSystemExecution`、`GameServiceBase`、`LogicWorldServiceBase` |
 
 设计收益：
 
-- System 变薄，减少和具体玩法逻辑的耦合。
-- Service 更容易被单元测试，因为它们通常只依赖少量外部服务。
+- System 主要表达“何时执行、按什么顺序执行、遍历哪些实体”。
+- Service 主要表达“业务规则、状态机、配置、事件、诊断和生命周期”。
 - 世界装配保持声明式，便于替换、裁剪和分层复用。
 - 依赖注入让诊断、异常策略、时间源、配置源都能在测试里替换。
+- 对紧贴 ECS component 的局部写回，仍允许留在 System 内，避免把实体遍历细节硬塞进 Service。
 
 ---
 
@@ -30,12 +31,18 @@ MOBA 的依赖注入与协作模式，核心不是“把对象都注入进去”
 |------|------|------|
 | 服务自动注册模块 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Bootstrap/MobaServicesAutoModule.cs` | 按命名空间批量注册服务 |
 | 世界引导模块 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldBootstrapModule.cs` | 进入 Flow Bootstrap 并安装系统 |
-| 系统顺序定义 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs` | 规定 System 执行顺序 |
-| 系统协作辅助 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldSystemExecution.cs` | 统一 Resolve / Warn / Require / HandleException |
-| 服务基类 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Templates/GameServiceBase.cs` | 统一日志、生命周期、事件发布 |
-| 技能调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` | 只遍历实体并调用 `SkillCastCoordinator` |
-| Buff 调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs` | 只触发 `MobaBuffService.DrainPending()` |
+| 系统顺序定义 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaSystemOrder.cs` | 规定 System 执行顺序并校验关键依赖 |
+| 系统协作辅助 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldSystemExecution.cs` | 统一 Resolve / Warn / Require / HandleException / Sample |
+| 服务基类 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Templates/GameServiceBase.cs` | 统一日志、生命周期、resolver 持有和事件发布 |
+| 技能调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` | 遍历实体并调用 `SkillCastCoordinator.Step(actorId)` |
+| 技能协调 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Cast/SkillCastCoordinator.cs` | 处理技能输入、释放准备、策略、runner 生命周期 |
+| Buff 调度 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Buffs/MobaBuffCommandDrainSystem.cs` | 触发 `MobaBuffService.DrainPending()` |
+| Buff Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/MobaBuffService.cs` | 维护命令队列、生命周期执行器、重入保护、诊断和异常 |
+| 玩法 Tick System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Systems/MobaGameplayTickSystem.cs` | 读取时钟和运行门禁，驱动玩法服务 Tick |
+| 玩法 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Gameplay/Core/MobaGameplayService.cs` | 维护玩法阶段、配置解析、触发绑定和生命周期事件 |
+| 进场流程 Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Lifecycle/MobaEnterGameFlowService.cs` | 处理开局校验、Actor 生成、索引注册和 gameplay 启动 |
 | 投射物同步 System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Projectile/MobaProjectileSyncSystem.cs` | 调度投射物事件处理和快照输出 |
+| 移动 Tick System | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Motion/MobaMotionTickSystem.cs` | 示例中的例外边界：系统内保留 component 局部推进和写回 |
 
 ---
 
@@ -70,17 +77,21 @@ flowchart TB
 - 按命名空间分层后，逻辑服务、系统辅助服务、基础设施服务边界清晰。
 - 可以单独替换某一层的服务集合，不影响其它层。
 
-### 3.2 `WorldService` 和 `WorldInject` 让依赖关系显式化
+### 3.2 `WorldService`、构造函数注入和 `WorldInject` 让依赖关系显式化
 
-MOBA 中很多服务都通过 `[WorldService]` 声明生命周期，再通过 `[WorldInject]` 获取依赖。例如 `MobaBuffService`：
+MOBA 中很多服务都通过 `[WorldService]` 声明生命周期，再通过构造函数或 `[WorldInject]` 获取依赖。当前 World DI 的 `RegisterType` 会走 `WorldActivator.Create`，它会选择所有参数都能解析的 public 构造函数，然后再注入标记了 `[WorldInject]` 的字段和属性。
+
+`SkillCastCoordinator` 是构造函数注入的例子：它把 `IWorldResolver`、`IWorldClock`、`IFrameTime`、`IEventBus`、`IUnitResolver`、`MobaSkillLoadoutService`、`MobaActorLookupService` 和 `IMobaSkillPipelineLibrary` 放在构造函数里，说明这些依赖是技能释放协调的核心前置条件。
+
+`MobaBuffService` 是成员注入的例子：
 
 - 自身是入口服务，负责把请求收敛成命令队列。
-- 通过注入拿到 `MobaActorLookupService`、`MobaConfigDatabase`、`IMobaEffectiveTagQueryService` 等依赖。
-- 再把复杂生命周期交给 `BuffLifecycleExecutor`。
+- 通过 `[WorldInject]` 拿到 `MobaActorLookupService`、`MobaConfigDatabase`、`IMobaEffectiveTagQueryService`、诊断和异常策略等依赖。
+- 在 `OnInit(IWorldResolver services)` 中创建 `BuffLifecycleExecutor`。
 
 这种写法的关键收益是：
 
-- 依赖是可见的，不需要在方法内部到处 `Resolve`。
+- 必要依赖和可选协作对象都能从源码上看出来。
 - 测试时可以替换注入对象，验证单个服务的行为。
 - 生命周期对象和外部协作对象解耦。
 
@@ -88,7 +99,7 @@ MOBA 中很多服务都通过 `[WorldService]` 声明生命周期，再通过 `[
 
 ## 4. System/Service 的协作方式
 
-### 4.1 System 只做调度，不承载主要业务规则
+### 4.1 System 主要做调度，不承载主要业务规则
 
 MOBA 的 System 典型模式是：
 
@@ -124,9 +135,9 @@ sequenceDiagram
 
 这意味着：
 
-- System 是“什么时候执行”的问题。
-- Service 是“执行什么业务”的问题。
-- 两者分工后，System 不会膨胀成大段业务逻辑。
+- System 是“什么时候执行、遍历哪些实体、如何处理异常边界”的问题。
+- Service 是“执行什么业务、维护什么状态、读取什么配置、输出什么事件”的问题。
+- 两者分工后，System 不会膨胀成大段业务逻辑，Service 也不需要知道自己被哪个 phase 调用。
 
 ### 4.2 Service 才是测试友好的逻辑单元
 
@@ -149,7 +160,7 @@ sequenceDiagram
 - 可以替换 `IMobaSkillPipelineLibrary` 来验证不同技能管线。
 - 可以注入假的诊断和异常策略来检查日志与错误边界。
 
-换句话说，MOBA 的主业务不是写在 System 里，而是写在可组合、可替换、可测试的 Service 里。
+换句话说，MOBA 的主业务不是散落在 System 里，而是尽量写在可组合、可替换、可测试的 Service 里。`MobaGameplayService` 维护 gameplay phase、elapsed time、配置解析和生命周期事件；`MobaEnterGameFlowService` 维护开局校验、Actor 生成、玩家映射、索引注册和 gameplay 启动；`MobaRuntimeValidationService` 维护验证器注册、执行、历史和报告。这些都比直接塞进某个 System 更适合测试和替换。
 
 ### 4.3 `GameServiceBase` 统一了服务基类能力
 
@@ -166,6 +177,15 @@ sequenceDiagram
 - 状态。
 - 协作。
 - 输出。
+
+### 4.4 System 不是越薄越好，边界要看 ECS 局部性
+
+“Service + ECS System”不是要求所有 System 都只能调用一个服务方法。MOBA 里至少有两类合理例外：
+
+- `MobaMotionTickSystem` 会在系统内读取 `motion` 和 `transform` 组件，执行 motion pipeline tick，并写回 `ReplaceTransform` / `ReplaceMotion`。这些逻辑高度贴近 Entitas group 和组件局部性，留在 System 里更直接。
+- `MobaProjectileSyncSystem` 会从 `IProjectileService` drain spawn/tick/exit/hit 事件，然后分发给内部 handler，并联动 `MobaEntityManager`、`MobaActorRegistry`、`MobaTriggerExecutionGateway`、`MobaTraceRegistry` 等服务。它不是纯一行 wrapper，而是 PostExecute 阶段的事件路由器。
+
+判断边界可以用一个简单规则：跨系统复用、需要配置/诊断/生命周期、需要单元测试的业务规则放进 Service；只服务于当前 phase/group/component 写回的局部流程可以留在 System。
 
 ---
 
@@ -202,7 +222,7 @@ flowchart TB
     Coordinator --> Trace[Trace / Context / Effect]
 ```
 
-这里 System 只负责把 actor 批量送进 Coordinator，真正的技能判定、输入阶段处理、运行态切换、失败原因解释都在 Service 里。
+这里 System 只负责把 actor 批量送进 Coordinator，真正的技能判定、输入阶段处理、释放准备、运行态切换、失败原因解释都在 Service 里。`SkillCastCoordinator.Step(actorId)` 最终推进的是服务内部的 runner registry，而不是让 System 自己持有技能运行态。
 
 ### 6.2 Buff 命令链路
 
@@ -229,6 +249,26 @@ flowchart LR
 
 - 投射物事件分发是 System 的职责。
 - 命中、退出、生成、销毁、快照、追踪才是服务/处理器的职责。
+
+### 6.4 玩法 Tick 链路
+
+```mermaid
+sequenceDiagram
+    participant Sys as MobaGameplayTickSystem
+    participant Clock as IWorldClock
+    participant Gate as MobaLogicWorldRunGateService
+    participant Gameplay as MobaGameplayService
+
+    Sys->>Clock: DeltaTime
+    Sys->>Gate: InGame
+    alt dt > 0 and in game
+        Sys->>Gameplay: Tick(dt)
+        Gameplay->>Gameplay: elapsed += dt
+        Gameplay->>Gameplay: publish gameplay tick trigger
+    end
+```
+
+`MobaGameplayTickSystem` 不维护玩法阶段，只检查时钟和运行门禁；`MobaGameplayService` 才维护 `NotStarted / Running / Finished`、当前 gameplay 配置、elapsed time 和生命周期事件。
 
 ---
 
@@ -285,8 +325,9 @@ Service 层可以直接构造并注入 mock：
 
 ### 8.1 约束
 
-- System 不应堆叠过多业务规则，否则会破坏分层。
-- Service 不应直接假设所有依赖都存在，必要依赖要做显式校验。
+- System 不应堆叠过多跨领域业务规则，否则会破坏分层。
+- System 可以保留贴近 ECS group、component 写回、phase 边界的局部逻辑。
+- Service 不应直接假设所有 optional 依赖都存在，必要依赖要做显式校验。
 - DI 注册要与生命周期匹配，避免把短生命周期对象注册成单例。
 - System 的执行顺序要和实体生命周期、快照时序保持一致。
 - 测试替身必须尽量保持接口语义一致，否则会掩盖时序问题。
@@ -295,8 +336,8 @@ Service 层可以直接构造并注入 mock：
 
 | 扩展点 | 用法 |
 |--------|------|
-| 新服务类型 | 新增 `IService` / `IWorldInitializable` / `IWorldDeinitializable` 实现 |
-| 新 System | 只负责调度新服务，不把业务逻辑写进 System |
+| 新服务类型 | 新增 `IService` / `IWorldInitializable` / `IWorldDeinitializable` 实现，并用 `[WorldService]` 声明注册入口 |
+| 新 System | 用 `[WorldSystem]` 声明 phase/order，在 `OnInit` 解析服务，在 `OnExecute` 处理时序、遍历和调用 |
 | 新诊断策略 | 扩展 `MobaWorldSystemExecution` 或注入新的诊断接口 |
 | 新注册分组 | 给 `MobaServicesAutoModule` 增加新的命名空间模块 |
 | 新测试场景 | 用 mock resolver、clock、event bus、config database 构造服务 |
@@ -307,11 +348,11 @@ Service 层可以直接构造并注入 mock：
 
 MOBA 的设计重点是把“运行时调度”和“业务规则执行”拆开：
 
-- `System` 负责顺序、遍历、帧节拍和异常兜底。
-- `Service` 负责技能、Buff、投射物、效果、验证、诊断等主要逻辑。
+- `System` 负责顺序、遍历、帧节拍、ECS 局部写回和异常兜底。
+- `Service` 负责技能、Buff、玩法阶段、开局流程、验证、诊断等主要逻辑。
 - `DI` 负责把这些能力组合成可替换、可测试、可分层复用的世界。
 
-这也是为什么 MOBA 的战斗代码看起来很多，但主逻辑并没有散落在 System 中，而是集中在可组合的服务单元里。
+这也是为什么 MOBA 的战斗代码看起来很多，但主逻辑没有全部堆进 System 中，而是集中在可组合的服务单元里；对于移动和投射物同步这类紧贴组件局部性的场景，System 则保留必要的实体写回和事件路由职责。
 
 ---
 
@@ -323,4 +364,4 @@ MOBA 的设计重点是把“运行时调度”和“业务规则执行”拆开
 
 ---
 
-*文档版本：v1.0 | 最后更新：2026-06-23*
+*文档版本：v1.1 | 最后更新：2026-07-04*

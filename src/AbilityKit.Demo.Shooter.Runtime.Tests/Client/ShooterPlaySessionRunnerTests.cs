@@ -136,6 +136,52 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void PlayInputMappingMapsSpecialFireKeysToAttackSlots()
+    {
+        var primary = ShooterPlayInputMapping.CreateFrameInput(0f, 0f, primaryFire: true, spreadFire: false, twinFire: false);
+        var spread = ShooterPlayInputMapping.CreateFrameInput(0f, 0f, primaryFire: false, spreadFire: true, twinFire: false);
+        var twin = ShooterPlayInputMapping.CreateFrameInput(0f, 0f, primaryFire: false, spreadFire: false, twinFire: true);
+        var combined = ShooterPlayInputMapping.CreateFrameInput(2f, -2f, primaryFire: true, spreadFire: true, twinFire: true);
+
+        Assert.True(primary.Fire);
+        Assert.Equal(ShooterPlayerAttackSlots.Primary, primary.AttackSlot);
+        Assert.True(spread.Fire);
+        Assert.Equal(ShooterPlayerAttackSlots.Spread, spread.AttackSlot);
+        Assert.True(twin.Fire);
+        Assert.Equal(ShooterPlayerAttackSlots.Twin, twin.AttackSlot);
+        Assert.True(combined.Fire);
+        Assert.Equal(ShooterPlayerAttackSlots.Twin, combined.AttackSlot);
+        Assert.Equal(1f, combined.MoveX);
+        Assert.Equal(-1f, combined.MoveY);
+    }
+
+    [Fact]
+    public void GameplayScenarioWorldHostEnablesWaveEnemyMovement()
+    {
+        using var world = ShooterBattleWorldSession.Create(
+            "play-mode-scenario-world-host-tests",
+            ShooterGameplayScenarioWorldHostFactory.Create(CreateCloseEnemyHitScenario(30)));
+        var runtime = world.Runtime;
+        var start = new ShooterStartGamePayload(
+            "play-mode-scenario-world-host-tests",
+            30,
+            123,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(runtime.Tick(0f));
+        var spawned = runtime.GetSnapshot();
+        var enemy = Assert.Single(spawned.Enemies);
+        var beforeDistanceSquared = enemy.X * enemy.X + enemy.Y * enemy.Y;
+
+        Assert.True(runtime.Tick(1f / 30f));
+
+        var movedEnemy = Assert.Single(runtime.GetSnapshot().Enemies, candidate => candidate.EnemyId == enemy.EnemyId);
+        var afterDistanceSquared = movedEnemy.X * movedEnemy.X + movedEnemy.Y * movedEnemy.Y;
+        Assert.True(afterDistanceSquared < beforeDistanceSquared);
+    }
+
+    [Fact]
     public void LocalMenuDefaultSessionProjectsWaveEnemiesAndFireBullets()
     {
         var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;

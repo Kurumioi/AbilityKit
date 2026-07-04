@@ -1,165 +1,360 @@
 # 9.2 ET Demo 解析
 
-> 本文说明 AbilityKit 的 ET 示例如何把逻辑层事件桥接到 ET 热更/视图层，以及 ActorId 与 ET EntityId 的双标识映射方式。
-
----
-
-## 目录
-
-- [9.2 ET Demo 解析](#92-et-demo-解析)
-  - [目录](#目录)
-  - [1. 示例定位](#1-示例定位)
-  - [2. 源码入口](#2-源码入口)
-  - [3. 逻辑层到视图层的事件桥](#3-逻辑层到视图层的事件桥)
-  - [4. 双字典视图索引设计](#4-双字典视图索引设计)
-  - [5. 典型事件处理流程](#5-典型事件处理流程)
-    - [5.1 Spawn](#51-spawn)
-    - [5.2 Move / Damage / Dead](#52-move--damage--dead)
-  - [6. 设计约束与扩展点](#6-设计约束与扩展点)
-    - [6.1 约束](#61-约束)
-    - [6.2 扩展点](#62-扩展点)
-  - [下一步](#下一步)
+> 本文从当前源码出发说明 ET Demo 如何把 AbilityKit MOBA Runtime 接入 ET 的 Scene、Component、System、Event 与热更侧表现模型。它不是一个独立 ET 框架复刻，而是一个“ET 宿主 + AbilityKit 战斗逻辑世界 + MOBA 快照表现”的接入样板。
 
 ---
 
 ## 1. 示例定位
 
-ET Demo 的意义不是“再造一个 ET 项目”，而是展示 AbilityKit 逻辑层能力如何接入 ET 的热更/视图体系：
+ET Demo 解决的问题是：已有项目如果使用 ET 作为场景、实体、热更和事件体系，如何复用 AbilityKit 的战斗逻辑、配置、输入、快照与 MOBA 示例能力。
 
-| 目标 | 说明 |
-|------|------|
-| 逻辑层解耦 | AbilityKit 逻辑层只认识业务事件，不直接操作视图对象 |
-| 视图桥接 | ET View 侧负责接收事件并更新实体表现 |
-| 双标识映射 | 用 `ActorId` 作为业务主键，用 `ET Entity.Id` 作为 ET 内部标识 |
-| 热更落地 | ET 的事件系统、组件和视图实体用于表现接入 |
+| 目标 | 源码落点 | 说明 |
+|------|----------|------|
+| ET 场景流转 | `DemoProcessComponentSystem` | 从登录流程切到 `DemoBattle` Scene，创建房间和战斗组件 |
+| 本地房间准备 | `ETMobaRoomComponent` / `ETLocalMobaScenarioInitializer` | 构造 match、玩家、出生布局、ready/start 条件 |
+| 战斗组件生命周期 | `ETBattleComponentSystem` | 安装 ET 侧组件、创建 battle host、驱动 Tick、结束销毁 |
+| AbilityKit 世界创建 | `ETBattleWorldFactory` | 通过 `MobaSessionCoordinatorHost` 创建 MOBA battle world 和 `MobaBattleDriverHost` |
+| 开局规格转换 | `ETBattleEnterGameSpecBuilder` | 把 ET 房间玩家出生数据转为 `MobaBattleLaunchSpec` / `MobaGameStartSpec` |
+| 输入桥接 | `ETMobaBattleDriver` | 把 ET `MoveCommand` / `SkillCommand` / `StopCommand` 转为 `PlayerInputCommand` |
+| 快照分发 | `ETMobaBattleDriver` / `FrameSnapshotDispatcher` | 从运行时收集 `WorldStateSnapshot`，转为 `FrameSnapshotData` 后派发 |
+| ET 表现缓存 | `ETBattleViewEventSink` / `ETBattleEntityCacheComponent` / `ETUnitComponent` | 创建 ETUnit、缓存 Actor 状态、发布 Move/Damage/Dead 事件 |
+| 自动化验收 | `ETBattleAutomationInstaller` / `ETBattleAutomationSnapshotSink` | 在 ET 场景内接入可选自动化与快照观测 |
+
+推荐先读本篇，再读 [MOBA Demo 解析](./03-MOBA%20Demo%20Analysis.md) 理解被 ET 复用的战斗域能力。
 
 ---
 
 ## 2. 源码入口
 
-| 类型 | 源码 | 说明 |
+| 模块 | 源码 | 作用 |
 |------|------|------|
-| 视图事件 Sink 接口 | `src/AbilityKit.Demo.ET.Share/Interface/IETViewEventSink.cs` | 逻辑层对视图层的事件接口 |
-| 视图事件 Sink 实现 | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Sinks/ETViewEventSink.cs` | 发布 ET 事件 |
-| 视图监听器 | `src/AbilityKit.Demo.ET.View/Model/Unit/ViewComponents/ETViewEventListener.cs` | ActorId/EntityId 映射表 |
-| Spawn 处理器 | `src/AbilityKit.Demo.ET.View/Hotfix/Battle/ActorSpawnEventHandler.cs` | 创建视图实体 |
-| Move 处理器 | `src/AbilityKit.Demo.ET.View/Hotfix/Battle/ActorMoveEventHandler.cs` | 更新位置与旋转 |
-| Damage 处理器 | `src/AbilityKit.Demo.ET.View/Hotfix/Battle/ActorDamageEventHandler.cs` | 更新血量并展示伤害 |
-| Dead 处理器 | `src/AbilityKit.Demo.ET.View/Hotfix/Battle/ActorDeadEventHandler.cs` | 处理死亡表现 |
+| 流程切场景 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Process/DemoProcessComponentSystem.cs` | 登录后创建 `DemoBattle` Scene、房间、战斗组件与自动化 |
+| 战斗组件系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Battle/ETBattleComponentSystem.cs` | `Awake/Update/Destroy`、初始化、Start/End、帧推进 |
+| 战斗宿主 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/ETMobaBattleDriver.cs` | ET 侧 facade，持有 AbilityKit world/runtime/driverHost |
+| 世界工厂 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/World/ETBattleWorldFactory.cs` | 装配 `MobaSessionCoordinatorHost`、world、HostRuntime、driverHost |
+| 开局协调 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/ETBattleEnterGameCoordinator.cs` | 调用 `IMobaBattleRuntimePort.TryStartGame` |
+| 开局规格 Builder | `src/AbilityKit.Demo.ET.Logic/Model/Driver/EnterGame/ETBattleEnterGameSpecBuilder.cs` | 校验 `BattleStartPlan` 和玩家 loadout，生成 canonical launch spec |
+| View Sink | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Sinks/ETBattleViewEventSink.cs` | 把快照转换为 ETUnit 创建、缓存更新和 ET EventSystem 事件 |
+| 实体缓存 | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Cache/ETBattleEntityCacheComponent.cs` | `actorId -> ETUnit` 缓存，记录帧、位置、HP |
+| 缓存系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Presentation/Cache/ETBattleEntityCacheComponentSystem.cs` | 按 transform/damage snapshot 更新 ETUnit 数据 |
+| 单位组件 | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Units/ETUnitComponent.cs` | ET Scene 下的单位管理组件 |
+| 单位系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Presentation/Units/ETUnitComponentSystem.cs` | 使用 `AddChildWithId<ETUnit>(actorId)` 创建和查询单位 |
 
 ---
 
-## 3. 逻辑层到视图层的事件桥
+## 3. 从登录到战斗场景
 
-`IETViewEventSink` 定义了一组视图相关事件：单位事件、技能事件、特效事件、战斗事件和帧同步事件。`ETViewEventSink` 的实现非常薄，只做一件事：把 AbilityKit 事件发布到 ET 的 `EventSystem` 中。
+`DemoProcessComponentSystem.ChangeToBattleScene` 是 ET Demo 的真实入口。它不是直接 new 一个战斗世界，而是先按 ET 习惯创建一个 `DemoBattle` 子场景，再在场景上挂房间、战斗、输入、单位、缓存等组件。
 
 ```mermaid
 sequenceDiagram
-    participant Logic as AbilityKit Logic
-    participant Sink as ETViewEventSink
-    participant ET as ET EventSystem
-    participant View as ET View Handler
+    participant Login as Login Scene
+    participant Process as DemoProcessComponentSystem
+    participant Scene as DemoBattle Scene
+    participant Room as ETMobaRoomComponent
+    participant Battle as ETBattleComponent
+    participant Auto as ETBattleAutomationInstaller
+    participant View as ETViewEventSink
 
-    Logic->>Sink: OnActorSpawn / OnActorMove / ...
-    Sink->>ET: EventSystem.Instance.Publish(scene, evt)
-    ET->>View: ActorSpawnEventHandler / ActorMoveEventHandler / ...
+    Login->>Process: ChangeToBattleScene(playerId, playerName)
+    Process->>Process: DisposeActiveChildScenes(root)
+    Process->>Scene: EntitySceneFactory.CreateScene(DemoBattle)
+    Process->>Room: AddComponent + InitializeRoom(match/map/tick/inputDelay)
+    Process->>Room: ETLocalMobaScenarioInitializer.SetupRoom
+    Process->>Battle: AddComponent + InitializeBattle(plan, loader, spawnList)
+    Process->>Auto: Install(scene, automationOptions)
+    Process->>View: new ETViewEventSink(scene)
+    Room-->>Process: OnAllPlayersReady
+    Process->>Battle: TriggerBattleStart
 ```
 
-这种桥接原则是：逻辑层只发事件，视图层自己决定如何渲染。
+这条链路的设计意图是把“ET 流程控制”和“AbilityKit 战斗运行”分开：ET 负责场景切换、组件挂载和事件发布；AbilityKit 负责战斗世界、输入、技能、快照和状态推进。
 
 ---
 
-## 4. 双字典视图索引设计
+## 4. BattleStartPlan 与房间数据
 
-`ETViewEventListener` 维护两张表：
+切入战斗时会创建 `BattleStartPlan`。当前本地 ET 示例使用：
 
-| 字典 | Key | Value | 作用 |
-|------|-----|-------|------|
-| `_unitViews` | `ActorId` | `ETUnitViewComponent` | 业务事件直接查找视图 |
-| `_entityIdToActorId` | `ET EntityId` | `ActorId` | ET 内部用 EntityId 反查业务主键 |
+| 字段 | 当前用法 | 说明 |
+|------|----------|------|
+| `mapId` / `worldId` / `gameplayId` | 来自 `ETLocalMobaScenarioConfig` | 决定 MOBA 世界和玩法配置 |
+| `playerId` / `clientId` | 当前登录玩家 | 用于本地玩家身份和输入归属 |
+| `syncMode` | `SnapshotAuthority` | 业务计划层表达为快照权威，但世界工厂当前用本地 lockstep host 创建 |
+| `hostMode` | `Local` | ET Demo 当前是本地宿主，不走 Gateway Transport |
+| `tickRate` | scenario 配置 | `ETBattleComponentSystem.Update` 用固定 delta 驱动 |
+| `inputDelayFrames` | scenario 配置 | 传入 MOBA session defaults / launch profile |
+| `playerIds` | 当前玩家数组 | 本地示例最小玩家集合 |
 
-这样做的好处：
-
-- 逻辑层始终使用业务主键 `ActorId`。
-- ET 内部生成的 `Entity.Id` 不会污染业务层模型。
-- Spawn 时可以同时记录两个 ID 的映射。
-- 移除时可按 ActorId 清理视图和映射。
+房间准备完成后，`TriggerBattleStart` 会重新从房间玩家构造 `ETPlayerSpawnData`，调用 `battleHost.OnAllPlayersReady(playerSpawnList)`。只有 AbilityKit runtime 的 game start 成功后，`ETBattleComponent.StartBattle` 才会进入 `InProgress`。
 
 ```mermaid
 flowchart TB
-    Spawn[ActorSpawnEventHandler] --> AddView[AddUnitView actorId/view/entityId]
-    AddView --> ActorMap[_unitViews ActorId to View]
-    AddView --> EntityMap[_entityIdToActorId EntityId to ActorId]
-    Move[ActorMoveEventHandler] --> Lookup[GetUnitView actorId]
-    Damage[ActorDamageEventHandler] --> Lookup
-    Dead[ActorDeadEventHandler] --> Lookup
+    RoomReady[ETMobaRoomComponent.CanStartBattle]
+    SpawnList[PlayerSpawnBuilder.BuildSpawnListFromRoomPlayers]
+    Host[ETMobaBattleDriver.OnAllPlayersReady]
+    Runtime[ETBattleEnterGameCoordinator.Trigger]
+    Port[IMobaBattleRuntimePort.TryStartGame]
+    State[ETBattleComponent.State = InProgress]
+
+    RoomReady --> SpawnList --> Host --> Runtime --> Port --> State
 ```
 
 ---
 
-## 5. 典型事件处理流程
+## 5. AbilityKit 世界创建
 
-### 5.1 Spawn
-
-`ActorSpawnEventHandler` 会：
-
-1. `scene.AddChild<ETUnitViewEntity>()` 创建 ET 视图实体。
-2. 获取或创建 `ETViewEventListener`。
-3. 构造 `ETUnitViewComponent`，把 `UnitId` 设为 ET `Entity.Id`，把 `MobaActorId` 设为业务 `ActorId`。
-4. 调用 `listener.AddUnitView(args.ActorId, view, entity.Id)`。
-
-### 5.2 Move / Damage / Dead
-
-这些事件处理器都遵循相同模式：
-
-1. 找到 `ETViewEventListener`。
-2. 按 `ActorId` 取出 `ETUnitViewComponent`。
-3. 调用对应视图方法更新表现。
-4. 如果找不到视图，则输出日志而不是抛异常。
+`ETBattleComponentSystem.InitializeBattle` 会在 ET Scene 上创建 `ETMobaBattleDriver`，并通过 `ETMobaBattleRuntimeDriver` 暴露给组件系统。真正的 AbilityKit 世界创建发生在 `ETMobaBattleDriver.Initialize` 内部。
 
 ```mermaid
 sequenceDiagram
-    participant Event as ActorMove/Damage/Dead
-    participant Listener as ETViewEventListener
-    participant View as ETUnitViewComponent
+    participant Battle as ETBattleComponentSystem
+    participant Driver as ETMobaBattleDriver
+    participant Factory as ETBattleWorldFactory
+    participant Session as MobaSessionCoordinatorHost
+    participant WorldHost as Moba WorldHost
+    participant World as MOBA IWorld
+    participant Host as MobaBattleDriverHost
 
-    Event->>Listener: GetUnitView(ActorId)
-    alt view exists
-        Listener-->>Event: ETUnitViewComponent
-        Event->>View: UpdatePosition / UpdateHp / OnDead
-    else view missing
-        Event->>Log: record missing view
-    end
+    Battle->>Driver: Initialize(plan, runtimeSink)
+    Driver->>Factory: Create(ETBattleWorldCreateContext)
+    Factory->>Factory: ETBattleEnterGameSpecBuilder.BuildLaunchSpec
+    Factory->>Session: new MobaSessionCoordinatorHost(loader, defaults)
+    Factory->>Session: ConfigureSession + SetPendingPlayerLoadouts
+    Factory->>WorldHost: sessionHost.CreateWorldHost(sessionConfig)
+    Factory->>WorldHost: CreateWorld(options)
+    Factory->>World: Initialize + RegisterServices + LoadConfig
+    Factory->>Host: new MobaBattleDriverHost + BindLogicWorld(world, runtime)
+    Factory-->>Driver: world/runtime/worldManager/sessionHost/driverHost
+```
+
+这里最重要的取舍是：ET Demo 复用 MOBA 示例的正式启动协议，而不是自己临时创建 Actor。`ETBattleEnterGameSpecBuilder` 会强制校验 world、map、gameplay、tick、inputDelay 和玩家 loadout，避免 ET 接入绕过 MOBA runtime 的配置与协议校验。
+
+---
+
+## 6. ET Tick 如何驱动 MOBA 世界
+
+`ETBattleComponentSystem.Update` 只在 `BattleState.InProgress` 时执行。它用 `1f / TickRate` 作为固定 delta 调用 battle driver，然后执行 `AdvanceFrame` 发布帧事件并检查结束条件。
+
+```mermaid
+sequenceDiagram
+    participant ET as ET Update
+    participant Comp as ETBattleComponent
+    participant Driver as ETMobaBattleDriver
+    participant Host as MobaBattleDriverHost
+    participant Sink as IBattleViewEventSink
+
+    ET->>Comp: Update()
+    Comp->>Driver: Tick(1 / TickRate)
+    Driver->>Driver: SubmitBufferedInputs(FrameIndex + 1)
+    Driver->>Host: Step(deltaTime)
+    Host-->>Driver: CurrentFrame / LogicTimeSeconds
+    Driver->>Driver: CollectAndDispatchSnapshots(frame)
+    Driver->>Sink: OnActorTransform/Damage/Spawn/StateHash...
+    Comp->>Sink: OnFrameTick(frame,time)
+```
+
+`ETMobaBattleDriver` 自己保存 `CurrentFrame`、`LogicTimeSeconds`、`IsRunning`、`RuntimeGameStarted` 和最近的 Actor/Hash 快照，因此 ET 侧可以用它做调试、UI 和自动化断言。
+
+---
+
+## 7. 输入转换
+
+ET Demo 的输入不是直接写入 MOBA 服务，而是先进入 `ETMobaBattleDriver.SubmitInputCommand` 缓冲，再在下一帧 Tick 前转换成 AbilityKit 帧输入。
+
+| ET 命令 | 转换结果 | Payload |
+|---------|----------|---------|
+| `MoveCommand` | `PlayerInputCommand(frame, player, MobaOpCodes.Input.Move, payload)` | `MobaMoveCodec.Serialize(dx, dz)` |
+| `SkillCommand` | `PlayerInputCommand(frame, player, MobaOpCodes.Input.SkillInput, payload)` | `SkillInputCodec.Serialize(SkillInputEvent)` |
+| `StopCommand` | `PlayerInputCommand(frame, player, MobaOpCodes.Input.Stop, null)` | 无 |
+
+```mermaid
+flowchart LR
+    ETInput[ETInputComponent / UI / Automation]
+    Buffer[ETMobaBattleDriver._bufferedInputCommands]
+    Convert[TryConvertInputCommand]
+    PlayerCmd[PlayerInputCommand]
+    DriverHost[MobaBattleDriverHost.SubmitInputs]
+    World[MobaInputCoordinator]
+
+    ETInput --> Buffer --> Convert --> PlayerCmd --> DriverHost --> World
+```
+
+这条路径保证 ET 层只需要表达本地业务命令，最终仍然走 AbilityKit 的 `PlayerInputCommand`、OpCode、Codec 和 `IWorldInputSink` 链路。
+
+---
+
+## 8. 快照分发与 ET 表现
+
+`ETMobaBattleDriver` 会从 MOBA runtime 收集 `WorldStateSnapshot`，经 `ETBattleWorldSnapshotAdapter.TryConvert` 转换成 `FrameSnapshotData`。随后它会做两类分发：
+
+1. 分发给 `FrameSnapshotDispatcher`：用于 ET Demo 内部调试、订阅和自动化观测。
+2. 分发给 `IBattleViewEventSink`：用于 ET 表现对象创建、缓存更新和事件发布。
+
+```mermaid
+sequenceDiagram
+    participant Runtime as MOBA Runtime SnapshotBuffer
+    participant Driver as ETMobaBattleDriver
+    participant Adapter as ETBattleWorldSnapshotAdapter
+    participant Dispatch as FrameSnapshotDispatcher
+    participant Sink as ETBattleViewEventSink
+    participant Cache as ETBattleEntityCacheComponent
+    participant Unit as ETUnitComponent
+    participant Event as ET EventSystem
+
+    Runtime-->>Driver: WorldStateSnapshot[]
+    Driver->>Adapter: TryConvert(snapshot, frame, logicTime)
+    Adapter-->>Driver: FrameSnapshotData
+    Driver->>Dispatch: DispatchActorTransform/Damage/Spawn/StateHash
+    Driver->>Sink: OnEnterGameSnapshot / OnActorTransformSnapshot / OnDamageEventSnapshot
+    Sink->>Unit: CreateUnit(actorId, entityCode, kind, pos, hp)
+    Sink->>Cache: AddEntity + UpdateCache
+    Sink->>Event: Publish ActorMoveEvent / ActorDamageEvent / ActorDeadEvent
+```
+
+当前源码里 `ETBattleViewEventSink` 会在 enter-game 或 actor spawn 快照中创建 ETUnit，在 transform 快照中发布 `ActorMoveEvent`，在 damage 快照中发布 `ActorDamageEvent`，并在 kill 时发布 `ActorDeadEvent`。
+
+---
+
+## 9. ActorId 与 ET Entity.Id
+
+旧文档把 ET Demo 描述成“双字典 ActorId/EntityId 映射”。当前源码的核心策略更直接：`ETUnitComponentSystem.CreateUnit` 使用 `AddChildWithId<ETUnit>((long)actorId)`，让 ETUnit 的 ET child id 与 MOBA ActorId 对齐，同时保留 `ETUnit.LogicActorId`。
+
+| 标识 | 当前用途 | 设计约束 |
+|------|----------|----------|
+| `ActorId` | MOBA 逻辑、输入、快照、事件、缓存主键 | 必须稳定，跨逻辑与表现传递 |
+| `ETUnit.Id` | ET 子实体 ID | 当前直接使用 `actorId`，便于 `GetChild<ETUnit>(actorId)` |
+| `ETUnit.LogicActorId` | 显式保存业务 ActorId | 方便调试与未来恢复双 ID 策略 |
+| `ETBattleEntityCacheComponent._entityCache` | `actorId -> ETUnit` | 用于快照更新、位置/HP 查询和表现插值 |
+
+```mermaid
+flowchart TB
+    Spawn[ActorSpawn Snapshot]
+    Create[ETUnitComponent.CreateUnit]
+    Child[AddChildWithId ETUnit actorId]
+    LogicId[ETUnit.LogicActorId = actorId]
+    Cache[ETBattleEntityCacheComponent actorId -> ETUnit]
+    Query[GetUnit/GetEntity/TryGetPosition/TryGetHp]
+
+    Spawn --> Create --> Child --> LogicId --> Cache --> Query
+```
+
+这种实现牺牲了一部分“ET 内部 ID 完全独立”的抽象，但换来了 Demo 里的低成本查找和更少映射错误。项目化接入时，如果 ET EntityId 必须由框架统一分配，可以把 `ETBattleEntityCacheComponent` 扩展为双索引，但不要让协议层依赖 ET EntityId。
+
+---
+
+## 10. 缓存、单位与插值
+
+`ETBattleEntityCacheComponent` 是纯数据缓存，系统负责业务更新。它缓存：
+
+- 当前缓存帧 `CachedFrame`；
+- 缓存时间戳 `CacheTimestamp`；
+- `actorId -> ETUnit`；
+- 位置和 HP 查询能力。
+
+`ETBattleEntityCacheComponentSystem.UpdateCache` 处理两类快照：
+
+| 快照 | 更新内容 |
+|------|----------|
+| `ActorTransforms` | 调用 `ETUnit.UpdateFromSnapshot(x, y, rotation, frame)` |
+| `DamageEvents` | 写入 `ETUnit.Hp = TargetHpAfter`，击杀时置 0 |
+
+`UpdateRenderPositions(interpolationSpeed, deltaTime)` 则统一推进 ETUnit 的渲染位置插值。也就是说，ET Demo 保留了“逻辑坐标”和“渲染坐标”的分层，不要求快照一到就让表现瞬移。
+
+---
+
+## 11. 自动化与验收价值
+
+`ETBattleComponentSystem.InitializeBattle` 会根据 `AutomationOptions` 选择普通 `ETBattleViewEventSink` 或组合 `ETCompositeBattleViewEventSink(viewSink, ETBattleAutomationSnapshotSink)`。这意味着 ET Demo 的表现管线同时可以服务于：
+
+- 人工运行时的 ET 表现；
+- 自动化测试中的快照记录；
+- 对 enter-game、spawn、transform、damage、state-hash 的断言；
+- 本地场景不依赖 Gateway 的快速验证。
+
+```mermaid
+flowchart LR
+    Runtime[MOBA Runtime]
+    Sink[ETCompositeBattleViewEventSink]
+    View[ETBattleViewEventSink]
+    Auto[ETBattleAutomationSnapshotSink]
+    ET[ET Event/Unit/Cache]
+    Assert[Automation Assertions]
+
+    Runtime --> Sink
+    Sink --> View --> ET
+    Sink --> Auto --> Assert
 ```
 
 ---
 
-## 6. 设计约束与扩展点
+## 12. 一帧端到端链路
 
-### 6.1 约束
+```mermaid
+sequenceDiagram
+    participant Room as ETMobaRoomComponent
+    participant Battle as ETBattleComponent
+    participant Driver as ETMobaBattleDriver
+    participant Host as MobaBattleDriverHost
+    participant World as MOBA World
+    participant Snap as Snapshot Adapter
+    participant View as ETBattleViewEventSink
+    participant Unit as ETUnit/Cache
 
-- 视图层不应反向修改逻辑层状态。
-- `ActorId` 必须是逻辑层稳定主键。
-- `ET Entity.Id` 只用于 ET 内部标识，不应泄漏到业务协议。
-- 事件处理器应容忍视图缺失，避免因为加载时序导致硬崩。
-
-### 6.2 扩展点
-
-| 扩展点 | 说明 |
-|--------|------|
-| 更多事件 | 可扩展 Attribute / Skill / Vfx / Text 等处理器 |
-| 更细粒度映射 | 可增加从 EntityId 到更多业务元信息的索引 |
-| 视图同步策略 | 可把移动、伤害、死亡拆成更细的表现管线 |
-| ET 热更能力 | 可继续把逻辑与表现拆为更多热更模块 |
+    Room->>Battle: OnAllPlayersReady
+    Battle->>Driver: OnAllPlayersReady(loadouts)
+    Driver->>World: TryStartGame(MobaGameStartSpec)
+    Battle->>Driver: Start + Tick(delta)
+    Driver->>Host: SubmitInputs + Step
+    Host->>World: 输入、技能、Buff、Projectile、Damage
+    World-->>Driver: WorldStateSnapshot
+    Driver->>Snap: Convert to FrameSnapshotData
+    Driver->>View: Dispatch view snapshots
+    View->>Unit: Create/update ETUnit and cache
+```
 
 ---
 
-## 下一步
+## 13. 设计要点与约束
 
-- [Console Demo 解析](./01-ConsoleDemoAnalysis.md)
-- [MOBA Demo 解析](./03-MOBA%20Demo%20Analysis.md)
-- [Shooter Demo 与 Orleans Smoke](./04-Shooter%20Demo%20与%20Orleans%20Smoke.md)
+| 主题 | 要点 |
+|------|------|
+| ET 只做宿主 | Scene、Component、Event、热更表现归 ET；战斗推进仍归 AbilityKit MOBA Runtime |
+| 启动协议要正式 | 不要绕过 `MobaBattleLaunchSpec` / `MobaGameStartSpec`，否则配置、玩家 loadout 和协议校验会失效 |
+| 输入必须编码成帧命令 | ET 命令最终应转换为 `PlayerInputCommand`，避免表现层直接修改逻辑状态 |
+| 快照是表现边界 | ETUnit 和缓存只消费快照，不反向写 runtime 状态 |
+| ActorId 是主键 | 当前 ETUnit child id 直接使用 actorId；项目接入可扩展双索引，但协议仍以 ActorId 为准 |
+| 自动化复用 View Sink | 通过 composite sink 让表现和验收共用同一份快照分发结果 |
 
 ---
 
-*文档版本：v1.0 | 最后更新：2026-06-23*
+## 14. 新手阅读路线
+
+1. 先读 `DemoProcessComponentSystem.ChangeToBattleScene`，理解 ET Scene、Room、BattleComponent 如何创建。
+2. 再读 `ETBattleComponentSystem.InitializeBattle/Update/StartBattle`，看 ET 生命周期如何驱动 battle driver。
+3. 接着读 `ETBattleWorldFactory` 和 `ETBattleEnterGameSpecBuilder`，确认 MOBA world 和 game-start spec 如何从 ET 数据生成。
+4. 然后读 `ETMobaBattleDriver.Tick`、`TryConvertInputCommand`、`CollectAndDispatchSnapshots`，理解输入和快照的双向边界。
+5. 最后读 `ETBattleViewEventSink`、`ETUnitComponentSystem`、`ETBattleEntityCacheComponentSystem`，看快照如何落到 ET 表现对象。
+
+---
+
+## 15. 源码索引
+
+| 模块 | 源码 |
+|------|------|
+| 流程切场景 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Process/DemoProcessComponentSystem.cs` |
+| 战斗组件系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Battle/ETBattleComponentSystem.cs` |
+| 战斗宿主 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/ETMobaBattleDriver.cs` |
+| 世界工厂 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/World/ETBattleWorldFactory.cs` |
+| 开局协调 | `src/AbilityKit.Demo.ET.Logic/Model/Driver/ETBattleEnterGameCoordinator.cs` |
+| 开局规格 Builder | `src/AbilityKit.Demo.ET.Logic/Model/Driver/EnterGame/ETBattleEnterGameSpecBuilder.cs` |
+| View Sink | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Sinks/ETBattleViewEventSink.cs` |
+| 实体缓存 | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Cache/ETBattleEntityCacheComponent.cs` |
+| 缓存系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Presentation/Cache/ETBattleEntityCacheComponentSystem.cs` |
+| 单位组件 | `src/AbilityKit.Demo.ET.Logic/Model/Presentation/Units/ETUnitComponent.cs` |
+| 单位系统 | `src/AbilityKit.Demo.ET.Logic/Hotfix/Systems/Presentation/Units/ETUnitComponentSystem.cs` |
+| MOBA battle blueprint | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaBattleWorldBlueprint.cs` |
+
+---
+
+*文档版本：v2.0 | 最后更新：2026-07-04*
