@@ -22,8 +22,8 @@
     - [9.3 销毁时清理组件索引](#93-销毁时清理组件索引)
     - [9.4 非递归销毁和递归销毁分开](#94-非递归销毁和递归销毁分开)
     - [9.5 事件让表现层和调试工具解耦](#95-事件让表现层和调试工具解耦)
-  - [10. 新手常见误区](#10-新手常见误区)
-  - [11. 推荐阅读顺序](#11-推荐阅读顺序)
+  - [10. 边界判断](#10-边界判断)
+  - [11. 源码阅读路径](#11-源码阅读路径)
 
 ---
 
@@ -300,10 +300,10 @@ private string[] _names = Array.Empty<string>();
 
 ---
 
-## 10. 新手常见误区
+## 10. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 以为 `IWorld` 直接提供 `CreateEntity` | 当前实体 API 在 `IECWorld` 和 `EntityWorld`，不是世界生命周期接口 |
 | 以为 `IEntity` 是引用对象 | `IEntity` 是值类型句柄，真实状态在 `EntityWorld` |
 | 保存 `Index` 就能长期定位实体 | 必须保存完整 `IEntityId`，并用 `IsAlive` 校验版本 |
@@ -313,13 +313,13 @@ private string[] _names = Array.Empty<string>();
 
 ---
 
-## 11. 推荐阅读顺序
+## 11. 源码阅读路径
 
-1. 先读 `IEntityId.cs`，理解 index 和 version。
-2. 再读 `IEntity.cs`，确认实体句柄只是 `IECWorld + IEntityId` 的封装。
-3. 再读 `IECWorld.cs`，看实体、组件、查询、父子关系的完整 API。
-4. 再读 `EntityWorld.cs` 的 `Create`、`AllocateEntity`、`Destroy`、`InternalDestroy`。
-5. 最后读 `WorldEvents.cs` 和 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)，把实体生命周期和系统查询连起来。
+1. `IEntityId.cs`：index 和 version。
+2. `IEntity.cs`：实体句柄只是 `IECWorld + IEntityId` 的封装。
+3. `IECWorld.cs`：实体、组件、查询、父子关系的完整 API。
+4. `EntityWorld.cs` 的 `Create`、`AllocateEntity`、`Destroy`、`InternalDestroy`：实体生命周期主路径。
+5. `WorldEvents.cs` 与 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：实体生命周期和系统查询关系。
 
 ---
 

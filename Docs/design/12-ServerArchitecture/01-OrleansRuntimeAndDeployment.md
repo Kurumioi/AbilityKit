@@ -168,7 +168,7 @@ flowchart TB
     BattleSilo --> Contracts
 ```
 
-当前最成熟的是本地开发与 Smoke。Shared/Split 更多体现为配置和 route registry 的设计预留，后续如果进入真实部署，需要继续补齐：
+当前成熟度最高的是本地开发与 Smoke。Shared/Split 目前主要体现为配置模型和 route registry 边界，真实部署需要覆盖以下基础设施：
 
 1. 外部存储 provider 和迁移策略。
 2. Silo membership 后端。
@@ -186,7 +186,7 @@ flowchart TB
 | 部署角色先逻辑化 | 即使本地单 Silo，也按 Session/Room/Battle 分组理解 |
 | Smoke 使用同构链路 | Smoke 应尽量走真实 Gateway/Grain/Runtime，而不是绕开服务器主链路 |
 
-## 10. 后续演进点
+## 10. 演进边界
 
 1. 将 deployment profile 与 Orleans placement policy 更紧密绑定。
 2. 为 Room/Battle 增加更明确的容量指标和健康诊断。

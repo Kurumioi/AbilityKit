@@ -18,7 +18,7 @@
 10. [恢复、晚加入与已有 world 接入](#10-恢复晚加入与已有-world-接入)
 11. [设计意图](#11-设计意图)
 12. [风险与检查点](#12-风险与检查点)
-13. [继续阅读路线](#13-继续阅读路线)
+13. [源码阅读路径](#13-源码阅读路径)
 
 ---
 
@@ -210,7 +210,7 @@ flowchart TD
     I --> J[InvokePostTick]
 ```
 
-`CanDriveLogicWorld` 会优先查询 `ILogicWorldDriveGate`。如果 runtime policy 要求 gate，但 resolver 中没有 gate 或 gate 返回 false，本地 world 就不会被 Tick。这对远端权威/状态同步客户端很重要。
+`CanDriveLogicWorld` 会优先查询 `ILogicWorldDriveGate`。如果 runtime policy 要求 gate，但 resolver 中没有 gate 或 gate 返回 false，本地 world 就不会被 Tick。该边界服务于远端权威和状态同步客户端的驱动隔离。
 
 ---
 
@@ -754,17 +754,15 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 ---
 
-## 13. 继续阅读路线
+## 13. 源码阅读路径
 
-建议顺序：
-
-1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs`：先看客户端会话生命周期。
-2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs`：看远端输入和快照端口。
-3. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs`：看 create/join/ready/start/restore 编排。
-4. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：看房间和恢复语义。
-5. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：看权威 Tick 和输入调度。
-6. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：看端侧输入/快照如何落到 world。
-7. `Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`：回到能力地图，把各模块放回全局同步架构。
+1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs`：客户端会话生命周期。
+2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs`：远端输入和快照端口。
+3. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs`：create/join/ready/start/restore 编排。
+4. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
+5. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
+6. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：端侧输入和快照如何落到 world。
+7. `Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`：全局同步架构中的模块关系。
 
 ---
 

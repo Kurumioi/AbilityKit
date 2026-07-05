@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Game.View.Presentation;
 using AbilityKit.Protocol.Shooter;
 
@@ -95,6 +96,72 @@ namespace AbilityKit.Demo.Shooter.View
             EmptyScoreChanges,
             EmptyProjectileLifetimeChanges,
             EmptyEvents);
+        public void ReleasePooledResources()
+        {
+            ReleaseIfPooled(EntityChanges);
+            ReleaseIfPooled(RemovedEntities);
+            ReleaseIfPooled(TransformChanges);
+            ReleaseIfPooled(HealthChanges);
+            ReleaseIfPooled(ScoreChanges);
+            ReleaseIfPooled(ProjectileLifetimeChanges);
+            ReleaseIfPooled(Events);
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewEntityChange> list)
+        {
+            if (list is List<ShooterViewEntityChange> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewEntityKey> list)
+        {
+            if (list is List<ShooterViewEntityKey> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewTransformComponentChange> list)
+        {
+            if (list is List<ShooterViewTransformComponentChange> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewHealthComponentChange> list)
+        {
+            if (list is List<ShooterViewHealthComponentChange> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewScoreComponentChange> list)
+        {
+            if (list is List<ShooterViewScoreComponentChange> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterViewProjectileLifetimeComponentChange> list)
+        {
+            if (list is List<ShooterViewProjectileLifetimeComponentChange> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
+
+        private static void ReleaseIfPooled(IReadOnlyList<ShooterEventSnapshot> list)
+        {
+            if (list is List<ShooterEventSnapshot> pooled)
+            {
+                Pools.Release(pooled);
+            }
+        }
     }
 
     public readonly struct ShooterViewEntityKey : IEquatable<ShooterViewEntityKey>

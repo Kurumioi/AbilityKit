@@ -207,7 +207,7 @@ public sealed class ShooterPlaySessionRunnerTests
     public void LocalMenuDefaultSessionDoesNotDefeatIdlePlayersAfterTwelveSeconds()
     {
         var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
-        var view = new RecordingViewSink();
+        var view = new AggregatingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         runner.Start(ShooterPlayModeSessionOptions.Default);
 
@@ -218,10 +218,33 @@ public sealed class ShooterPlaySessionRunnerTests
         }
 
         Assert.Equal(totalTicks, runner.StepCount);
+        Assert.Equal(totalTicks, view.RenderCount);
         Assert.Equal(ShooterBattleMatchState.Running, runner.Session!.Runtime.MatchState);
         Assert.True(runner.Session.Runtime.IsStarted);
-        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
-        Assert.True(MaxEntities(view.Frames, ShooterViewEntityKind.Enemy) >= 12, "Expected the local menu default waves to keep a visibly dense enemy population.");
+        Assert.InRange(view.MaxEnemyCount, 128, ShooterPlayModeSessionOptions.PlayModeDefaultEnemyBudget);
+    }
+
+    [Fact]
+    public void ExplicitHighDensityPlayModeScenarioCanDemonstrateThousandsOfEnemies()
+    {
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new AggregatingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        var options = ShooterPlayModeSessionOptions.Default.WithGameplayScenario(
+            ShooterPlayModeSessionOptions.CreatePlayModeScenario(ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget));
+        runner.Start(options);
+
+        var totalTicks = runner.Options.TickRate * 3;
+        for (var tick = 0; tick < totalTicks; tick++)
+        {
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        Assert.Equal(totalTicks, runner.StepCount);
+        Assert.Equal(totalTicks, view.RenderCount);
+        Assert.Equal(ShooterBattleMatchState.Running, runner.Session!.Runtime.MatchState);
+        Assert.True(runner.Session.Runtime.IsStarted);
+        Assert.True(view.MaxEnemyCount >= 2048, $"Expected the explicit high-density PlayMode scenario to demonstrate thousands of active enemies, but max was {view.MaxEnemyCount}.");
     }
 
     [Fact]
@@ -909,6 +932,25 @@ public sealed class ShooterPlaySessionRunnerTests
         public ShooterPlayFrameInput ReadInput(int controlledPlayerId)
         {
             return new ShooterPlayFrameInput(Current);
+        }
+    }
+
+    private sealed class AggregatingViewSink : IShooterPlayViewSink
+    {
+        public int RenderCount { get; private set; }
+
+        public int MaxEnemyCount { get; private set; }
+
+        public void Render(in ShooterHostPresentationFrame frame)
+        {
+            RenderCount++;
+            MaxEnemyCount = Math.Max(MaxEnemyCount, CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy));
+        }
+
+        public void Clear()
+        {
+            RenderCount = 0;
+            MaxEnemyCount = 0;
         }
     }
 

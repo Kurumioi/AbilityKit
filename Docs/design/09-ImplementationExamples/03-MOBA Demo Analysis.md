@@ -651,7 +651,7 @@ flowchart LR
     ET --> Spec --> Session --> World --> Driver --> Sink
 ```
 
-这个关系能帮助新手判断：MOBA Demo 是战斗域样板，ET Demo 是宿主集成样板；两者不是两套玩法实现。
+这个关系用于界定示例边界：MOBA Demo 是战斗域样板，ET Demo 是宿主集成样板；两者不是两套玩法实现。
 
 ---
 

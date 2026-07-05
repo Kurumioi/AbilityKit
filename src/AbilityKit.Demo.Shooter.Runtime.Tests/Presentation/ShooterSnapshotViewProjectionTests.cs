@@ -551,6 +551,49 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
  
     [Fact]
+    public void LocalAuthoritativeMapperDeltaRemovesEntitiesMissingFromNextSnapshot()
+    {
+        var mapper = new ShooterSnapshotViewModelMapper();
+        var projection = new ShooterSnapshotViewProjection();
+        var player = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1);
+        var bullet = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, 100);
+        var enemy = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 200);
+        var firstSnapshot = new ShooterStateSnapshotPayload(
+            10,
+            new[] { new ShooterPlayerSnapshot(1, 0f, 0f, 1f, 0f, 100, 0, alive: true) },
+            new[] { new ShooterBulletSnapshot(100, 1, 1f, 0f, 1f, 0f, remainingFrames: 30) },
+            Array.Empty<ShooterEventSnapshot>(),
+            matchState: 0,
+            timeLimitFrames: 0,
+            remainingTimeFrames: 0,
+            enemies: new[] { new ShooterEnemySnapshot(200, 2f, 0f, -1f, 0f, 20, 20, alive: true) });
+        var secondSnapshot = new ShooterStateSnapshotPayload(
+            11,
+            new[] { new ShooterPlayerSnapshot(1, 0f, 0f, 1f, 0f, 100, 0, alive: true) },
+            Array.Empty<ShooterBulletSnapshot>(),
+            Array.Empty<ShooterEventSnapshot>(),
+            matchState: 0,
+            timeLimitFrames: 0,
+            remainingTimeFrames: 0,
+            enemies: Array.Empty<ShooterEnemySnapshot>());
+
+        var first = mapper.Map(in firstSnapshot, ShooterViewBatchSource.LocalAuthoritative);
+        projection.Apply(in first);
+        var second = mapper.Map(in secondSnapshot, ShooterViewBatchSource.LocalAuthoritative);
+        var result = projection.Apply(in second);
+
+        Assert.Equal(ShooterViewSnapshotKind.Delta, second.SnapshotKind);
+        Assert.False(second.ShouldReplaceMissingEntities);
+        Assert.Equal(2, second.RemovedEntityCount);
+        Assert.Contains(bullet, second.RemovedEntities);
+        Assert.Contains(enemy, second.RemovedEntities);
+        Assert.Equal(2, result.ExplicitEntityRemovals);
+        Assert.True(projection.Store.ContainsEntity(player));
+        Assert.False(projection.Store.ContainsEntity(bullet));
+        Assert.False(projection.Store.ContainsEntity(enemy));
+    }
+
+    [Fact]
     public void ProjectedSinkPublishesStoreAfterApplyingBatch()
     {
         var recordingSink = new RecordingProjectedViewSink();

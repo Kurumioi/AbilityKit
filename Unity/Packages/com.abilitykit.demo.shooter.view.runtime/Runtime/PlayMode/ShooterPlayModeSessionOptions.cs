@@ -10,6 +10,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     public readonly struct ShooterPlayModeSessionOptions
     {
         private const int PlayModeDefaultDurationFrames = ShooterAcceptanceLab.DefaultTickRate * 120;
+        private const int PlayModeEnemiesPerWave = 64;
+
+        public const int PlayModeDefaultEnemyBudget = 512;
+        public const int PlayModeMediumEnemyBudget = 2048;
+        public const int PlayModeHighDensityEnemyBudget = 8192;
 
         public static ShooterPlayModeSessionOptions Default => FromTemplate(
             ShooterAcceptanceCatalog.GetSyncTemplate("predict-rollback-authority"));
@@ -32,7 +37,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 worldScale: 1f,
                 networkName: template.DisplayName,
                 syncTemplateId: template.Id,
-                gameplayScenario: CreatePlayModeDefaultScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival));
+                gameplayScenario: CreatePlayModeScenario(PlayModeDefaultEnemyBudget));
         }
 
         public static ShooterPlayModeSessionOptions FromTemplateId(string templateId)
@@ -278,19 +283,32 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 gameplayScenario);
         }
 
+        public static ShooterSveltoGameplayScenarioConfig CreatePlayModeScenario(int enemyBudget)
+        {
+            return CreatePlayModeScenario(ShooterSveltoGameplayScenarioCatalog.WaveSurvival, enemyBudget);
+        }
+
         private static ShooterSveltoGameplayScenarioConfig CreatePlayModeDefaultScenario(in ShooterSveltoGameplayScenarioConfig scenario)
+        {
+            return CreatePlayModeScenario(in scenario, PlayModeDefaultEnemyBudget);
+        }
+
+        private static ShooterSveltoGameplayScenarioConfig CreatePlayModeScenario(
+            in ShooterSveltoGameplayScenarioConfig scenario,
+            int enemyBudget)
         {
             var battleFlow = scenario.BattleFlow;
             var tickRate = Math.Max(1, (int)Math.Round(1f / scenario.TickDeltaTime));
             var durationFrames = Math.Max(battleFlow.DurationFrames, PlayModeDefaultDurationFrames);
-            var playModeWaves = CreatePlayModeDefaultWaves(tickRate);
+            var normalizedEnemyBudget = Math.Max(1, enemyBudget);
+            var playModeWaves = CreatePlayModeDefaultWaves(normalizedEnemyBudget);
             var playModeFlow = new ShooterSveltoGameplayBattleFlowConfig(
                 durationFrames,
-                battleFlow.VictoryTargetDefeats,
-                maxActiveEnemies: 18,
+                victoryTargetDefeats: Math.Max(battleFlow.VictoryTargetDefeats, normalizedEnemyBudget),
+                maxActiveEnemies: normalizedEnemyBudget,
                 playModeWaves,
                 battleFlow.EnemyLoadoutId,
-                enemyAttackIntervalFrames: tickRate * 5,
+                enemyAttackIntervalFrames: tickRate * 60,
                 battleFlow.EnemyAttackDamage,
                 battleFlow.EnemyProjectileSpeedScale,
                 battleFlow.EnemyProjectilesPerShot,
@@ -309,32 +327,25 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 playModeFlow);
         }
 
-        private static ShooterSveltoGameplayWaveConfig[] CreatePlayModeDefaultWaves(int tickRate)
+        private static ShooterSveltoGameplayWaveConfig[] CreatePlayModeDefaultWaves(int enemyBudget)
         {
-            return new[]
+            var waveCount = Math.Max(1, (enemyBudget + PlayModeEnemiesPerWave - 1) / PlayModeEnemiesPerWave);
+            var waves = new ShooterSveltoGameplayWaveConfig[waveCount];
+            var remainingEnemies = enemyBudget;
+            for (var i = 0; i < waves.Length; i++)
             {
-                new ShooterSveltoGameplayWaveConfig(
-                    waveId: 1,
+                var enemiesInWave = Math.Min(PlayModeEnemiesPerWave, remainingEnemies);
+                waves[i] = new ShooterSveltoGameplayWaveConfig(
+                    waveId: i + 1,
                     startFrame: 0,
-                    spawnFrameInterval: Math.Max(1, tickRate / 4),
-                    enemyCount: 18,
-                    enemyHp: 2,
-                    spawnRadius: 9f),
-                new ShooterSveltoGameplayWaveConfig(
-                    waveId: 2,
-                    startFrame: tickRate * 20,
-                    spawnFrameInterval: Math.Max(1, tickRate / 3),
-                    enemyCount: 18,
-                    enemyHp: 2,
-                    spawnRadius: 11f),
-                new ShooterSveltoGameplayWaveConfig(
-                    waveId: 3,
-                    startFrame: tickRate * 45,
-                    spawnFrameInterval: Math.Max(1, tickRate / 2),
-                    enemyCount: 18,
-                    enemyHp: 3,
-                    spawnRadius: 13f)
-            };
+                    spawnFrameInterval: 1,
+                    enemyCount: enemiesInWave,
+                    enemyHp: i < waves.Length / 2 ? 2 : 3,
+                    spawnRadius: 18f + i % 16);
+                remainingEnemies -= enemiesInWave;
+            }
+
+            return waves;
         }
 
         private static float Clamp01(float value)

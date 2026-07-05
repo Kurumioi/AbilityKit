@@ -79,7 +79,7 @@ flowchart TD
 
 ## 6. 为什么要保留 reason 参数
 
-`reasonKind` 和 `reasonParam` 看起来只是附加字段，但它们对后续分析很重要：
+`reasonKind` 和 `reasonParam` 是伤害事件的语义归因字段，支撑以下后续处理：
 
 - 表现层可以据此选择特效；
 - 回放可以根据原因重建事件；

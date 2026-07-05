@@ -22,8 +22,8 @@
     - [9.1 DefaultWorldFactory](#91-defaultworldfactory)
     - [9.2 WorldBlueprintWorldFactory](#92-worldblueprintworldfactory)
   - [10. 设计意图与解决的问题](#10-设计意图与解决的问题)
-  - [11. 新手常见误区](#11-新手常见误区)
-  - [12. 阅读路线](#12-阅读路线)
+  - [11. 边界判断](#11-边界判断)
+  - [12. 源码阅读路径](#12-源码阅读路径)
 
 ---
 
@@ -90,12 +90,12 @@ public interface IWorldManager
 }
 ```
 
-和早期占位文档相比，需要修正两点：
+当前接口边界包含两点：
 
-| 旧说法 | 当前源码事实 |
-|--------|--------------|
-| `GetAll()` 返回所有世界 | 当前通过 `IReadOnlyDictionary<WorldId, IWorld> Worlds` 暴露只读字典 |
-| 管理器负责启动/停止世界 | 管理器只有创建、Tick、销毁和全部释放；是否被驱动取决于 Host 或外部循环 |
+| 边界 | 当前源码事实 |
+|------|--------------|
+| 世界集合访问 | 当前通过 `IReadOnlyDictionary<WorldId, IWorld> Worlds` 暴露只读字典 |
+| 世界生命周期职责 | 管理器只有创建、Tick、销毁和全部释放；是否被驱动取决于 Host 或外部循环 |
 
 ---
 
@@ -179,15 +179,15 @@ flowchart TD
     Next --> Done{All worlds processed}
 ```
 
-重要细节：单个世界 Tick 异常不会终止整个管理器 Tick。源码会记录：
+异常隔离边界：单个世界 Tick 异常不会终止整个管理器 Tick。源码会记录：
 
 ```csharp
 Log.Exception(ex, $"[WorldManager] World.Tick failed: worldId={kv.Key}");
 ```
 
-这对多房间服务器很重要：一个房间逻辑报错，不应该直接阻断其他房间 Tick。
+该边界支撑多房间服务器的故障隔离：一个房间逻辑报错，不应该直接阻断其他房间 Tick。
 
-但也要注意：`WorldManager` 没有快照字典再遍历，也没有锁。如果在 Tick 遍历期间修改 `_worlds`，可能触发集合枚举问题。通常应由 Host 主线程或明确的调度点创建/销毁世界。
+并发修改边界：`WorldManager` 没有快照字典再遍历，也没有锁。如果在 Tick 遍历期间修改 `_worlds`，可能触发集合枚举问题。通常应由 Host 主线程或明确的调度点创建/销毁世界。
 
 ---
 
@@ -323,10 +323,10 @@ sequenceDiagram
 
 ---
 
-## 11. 新手常见误区
+## 11. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | `WorldManager` 是 Host | `WorldManager` 只管理世界；HostRuntime 才处理连接、Hook 和广播 |
 | `WorldManager` 有 `GetAll()` | 当前接口暴露 `Worlds` 只读字典 |
 | `Destroy` 会广播世界销毁消息 | 广播是 `HostRuntime.DestroyWorld` 的职责 |
@@ -336,15 +336,15 @@ sequenceDiagram
 
 ---
 
-## 12. 阅读路线
+## 12. 源码阅读路径
 
-1. 先读 `IWorldManager`，确认当前真实接口。
-2. 读 `WorldManager.Create`，理解校验、工厂创建和 Initialize 顺序。
-3. 读 `WorldManager.Tick`，理解多世界 Tick 的异常隔离。
-4. 读 `WorldManager.Destroy` 和 `DisposeAll`，理解释放边界。
-5. 回到 `HostRuntime.CreateWorld` 和 `DestroyWorld`，理解 Host 对管理器的包装。
-6. 读 `DefaultWorldFactory` 与 `WorldBlueprintWorldFactory`，理解 Host Builder 如何注入世界创建策略。
-7. 结合 [Host 运行时](./01-HostRuntime.md) 和 [Host 模块系统](./02-HostModules.md) 看完整 Host 层设计。
+1. `IWorldManager`：当前真实接口。
+2. `WorldManager.Create`：校验、工厂创建和 Initialize 顺序。
+3. `WorldManager.Tick`：多世界 Tick 的异常隔离。
+4. `WorldManager.Destroy` 与 `DisposeAll`：释放边界。
+5. `HostRuntime.CreateWorld` 与 `DestroyWorld`：Host 对管理器的包装。
+6. `DefaultWorldFactory` 与 `WorldBlueprintWorldFactory`：Host Builder 如何注入世界创建策略。
+7. [Host 运行时](./01-HostRuntime.md) 与 [Host 模块系统](./02-HostModules.md)：完整 Host 层设计。
 
 ---
 

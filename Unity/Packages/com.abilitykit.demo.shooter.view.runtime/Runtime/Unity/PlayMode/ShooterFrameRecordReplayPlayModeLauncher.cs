@@ -23,6 +23,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private bool startOnEnable = true;
         [SerializeField] private bool stopOnDisable = true;
 
+        [Header("Rendering")]
+        [SerializeField] private ShooterUnityViewRenderBackend renderBackend = ShooterUnityViewRenderBackendCatalog.DefaultBackend;
+
         [Header("Status")]
         [SerializeField] private bool isRunning;
         [SerializeField] private long stepCount;
@@ -32,9 +35,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private string selectedProfileName = string.Empty;
         [SerializeField] private string resolvedReplayPath = string.Empty;
         [SerializeField] private string lastError = string.Empty;
+        [SerializeField] private string effectiveRenderBackend = string.Empty;
 
         private ShooterFrameRecordInputSource? _inputSource;
-        private UnityShooterGameObjectViewSink? _viewSink;
+        private UnityShooterSwitchableViewSink? _viewSink;
         private ShooterPlaySessionRunner? _runner;
 
         private void OnEnable()
@@ -101,7 +105,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 resolvedReplayPath = ResolveReplayPath(replayPath);
                 var record = FrameRecordCodecs.Current.Load(resolvedReplayPath);
                 _inputSource = new ShooterFrameRecordInputSource(record, selectedProfile.ControlledPlayerId);
-                _viewSink = new UnityShooterGameObjectViewSink();
+                _viewSink = new UnityShooterSwitchableViewSink(ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend));
                 _runner = new ShooterPlaySessionRunner(_inputSource, _viewSink);
 
                 _runner.Start(selectedProfile.BuildSessionOptions());
@@ -169,6 +173,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             replayFrameCursor = _inputSource?.FrameCursor ?? 0;
             replayInputFrameCount = _inputSource?.InputFrameCount ?? 0;
             selectedProfileName = ResolveProfile()?.name ?? string.Empty;
+            effectiveRenderBackend = ShooterUnityViewRenderBackendCatalog.Get(_viewSink?.Backend ?? ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend)).DisplayName;
         }
 
         private static string ResolveReplayPath(string path)

@@ -11,13 +11,36 @@
   - [1. 系统定位](#1-系统定位)
   - [2. 源码模型总览](#2-源码模型总览)
   - [3. 属性注册与定义](#3-属性注册与定义)
+    - [3.1 `AttributeRegistry`：名称、定义、依赖图](#31-attributeregistry名称定义依赖图)
+    - [3.2 `AttributeDef`：属性元信息](#32-attributedef属性元信息)
+    - [3.3 冻结与循环依赖检测](#33-冻结与循环依赖检测)
   - [4. 属性运行时容器](#4-属性运行时容器)
+    - [4.1 `AttributeContext`：世界级运行上下文](#41-attributecontext世界级运行上下文)
+    - [4.2 `AttributeGroup`：按组组织属性实例](#42-attributegroup按组组织属性实例)
+    - [4.3 `AttributeInstance`：单属性的最终计算单元](#43-attributeinstance单属性的最终计算单元)
   - [5. 修改器引擎](#5-修改器引擎)
+    - [5.1 `ModifierData`：一个可生效的修改器实例](#51-modifierdata一个可生效的修改器实例)
+    - [5.2 `MagnitudeSource`：统一数值来源](#52-magnitudesource统一数值来源)
+    - [5.3 `ModifierCalculator`：缓存 + 计算核心](#53-modifiercalculator缓存--计算核心)
+    - [5.4 计算核心与操作组合](#54-计算核心与操作组合)
   - [6. 公式与约束](#6-公式与约束)
+    - [6.1 默认公式](#61-默认公式)
+    - [6.2 表达式公式](#62-表达式公式)
+    - [6.3 约束](#63-约束)
   - [7. MOBA 集成方式](#7-moba-集成方式)
+    - [7.1 `AttributeGroupComponent`](#71-attributegroupcomponent)
+    - [7.2 `MobaAttributeIds`](#72-mobaattributeids)
+    - [7.3 `MobaAttrs`](#73-mobaattrs)
+    - [7.4 配置与校验](#74-配置与校验)
   - [8. 典型运行流程](#8-典型运行流程)
+    - [8.1 修改基础值](#81-修改基础值)
+    - [8.2 添加修改器](#82-添加修改器)
+    - [8.3 依赖属性传播](#83-依赖属性传播)
+    - [8.4 时间衰减修改器](#84-时间衰减修改器)
   - [9. 扩展边界](#9-扩展边界)
-  - [下一步](#下一步)
+    - [9.1 适合扩展的点](#91-适合扩展的点)
+    - [9.2 需要谨慎的点](#92-需要谨慎的点)
+  - [10. 关联文档](#10-关联文档)
 
 ---
 
@@ -443,7 +466,7 @@ sequenceDiagram
 
 ---
 
-## 下一步
+## 10. 关联文档
 
 - [伤害计算](06-DamageCalculation.md) - 基于属性结果的伤害公式与减伤链路
 - [技能系统架构](01-SkillSystemArchitecture.md) - 技能如何读取属性并驱动战斗流程

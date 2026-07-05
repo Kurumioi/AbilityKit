@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     public static class ShooterRemoteStateSyncPlayModeHost
     {
         private static readonly UnityShooterPlayInputSource InputSource = new();
-        private static readonly UnityShooterGameObjectViewSink ViewSink = new();
+        private static readonly UnityShooterSwitchableViewSink ViewSink = new();
         private static ShooterRemoteStateSyncRuntimeState? _state;
         private static RemoteClientInputSubmitQueue<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>? _gatewayInputQueue;
         private static ShooterRemoteStateSyncLaunchOptions _options;
@@ -74,6 +74,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static long GatewayInputResyncRequestedCount => _gatewayInputQueue?.ResyncRequestedCount ?? 0L;
         public static long StepCount => _stepCount;
         public static long RenderCount => _renderCount;
+        public static ShooterUnityViewRenderBackend ViewBackend => ViewSink.Backend;
         public static SyncTimeAnchor LastLocalTimeAnchor => _timeAnchors?.LastLocalAnchor ?? default;
         public static SyncTimeAnchor LastRemoteTimeAnchor => _lastRemoteTimeAnchor;
         public static ShooterRemoteLatencyCompensationDiagnostics LastRemoteLatencyCompensationDiagnostics => _lastRemoteLatencyCompensationDiagnostics;
@@ -215,6 +216,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static void RebuildViews()
         {
             ViewSink.RebuildAll();
+        }
+
+        public static void SetViewBackend(ShooterUnityViewRenderBackend backend)
+        {
+            ViewSink.SetBackend(backend);
+            if (_state != null)
+            {
+                ViewSink.RebuildAll();
+            }
         }
 
         private static void Install()

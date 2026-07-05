@@ -1,5 +1,6 @@
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
@@ -66,6 +67,7 @@ namespace AbilityKit.Game.Flow
                 builder.RegisterInstance(new WorldInitData(createWorld.OpCode, createWorld.Payload));
             }
             builder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
+            builder.TryRegister<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
 
             if (authorityFramesSource != null)
             {

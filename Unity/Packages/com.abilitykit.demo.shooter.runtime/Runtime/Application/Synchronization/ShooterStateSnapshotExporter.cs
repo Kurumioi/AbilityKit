@@ -11,8 +11,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly ISveltoWorldContext _context;
-        private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
-
         public ShooterStateSnapshotExporter(ShooterBattleState state, IShooterEntityManager entities)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
@@ -24,35 +22,31 @@ namespace AbilityKit.Demo.Shooter.Runtime
         {
             var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> playerComponents, out _, out var playerCount);
-            var playerOrder = _orderBuffer.CreateSortedPlayerOrder(playerComponents, playerCount);
             var players = new ShooterPlayerSnapshot[playerCount];
             for (int i = 0; i < playerCount; i++)
             {
-                var player = playerComponents[playerOrder[i]];
+                var player = playerComponents[i];
                 players[i] = new ShooterPlayerSnapshot(player.PlayerId, player.X, player.Y, player.AimX, player.AimY, player.Hp, player.Score, player.Alive);
             }
 
             var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> projectileComponents, out _, out var projectileCount);
-            var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(projectileComponents, projectileCount);
             var bullets = new ShooterBulletSnapshot[projectileCount];
             for (int i = 0; i < projectileCount; i++)
             {
-                var bullet = projectileComponents[projectileOrder[i]];
+                var bullet = projectileComponents[i];
                 bullets[i] = new ShooterBulletSnapshot(bullet.BulletId, bullet.OwnerPlayerId, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.RemainingFrames);
             }
 
             var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
             enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
-            var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
             var enemies = new ShooterEnemySnapshot[enemyCount];
             for (int i = 0; i < enemyCount; i++)
             {
-                var enemyIndex = enemyOrder[i];
-                var transform = enemyTransforms[enemyIndex];
-                var health = enemyHealths[enemyIndex];
+                var transform = enemyTransforms[i];
+                var health = enemyHealths[i];
                 enemies[i] = new ShooterEnemySnapshot(
-                    checked((int)enemyIds[enemyIndex]),
+                    checked((int)enemyIds[i]),
                     transform.X,
                     transform.Y,
                     transform.DirectionX,

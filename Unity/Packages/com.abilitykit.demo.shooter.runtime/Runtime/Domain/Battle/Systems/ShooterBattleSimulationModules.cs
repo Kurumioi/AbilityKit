@@ -222,10 +222,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             ResolveEnemyHits(enemyTransforms, enemyHealths, players, playerCount);
-            for (var i = 0; i < _projectileRemovalBuffer.Count; i++)
-            {
-                _entities.RemoveProjectile(_projectileRemovalBuffer[i]);
-            }
+            RemoveCollectedProjectiles();
         }
 
         private bool TryCollectPlayerHit(in ShooterSveltoProjectileComponent bullet, NB<ShooterSveltoPlayerComponent> players, out int targetIndex)
@@ -316,6 +313,27 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
 
                 _events.AddEnemyHit(hit.OwnerPlayerId, hit.EnemyId, hit.BulletId, enemyTransforms[hit.EnemyIndex].X, enemyTransforms[hit.EnemyIndex].Y, damage);
+            }
+        }
+
+        private void RemoveCollectedProjectiles()
+        {
+            if (_projectileRemovalBuffer.Count == 0)
+            {
+                return;
+            }
+
+            _entities.BeginStructuralChanges();
+            try
+            {
+                for (var i = 0; i < _projectileRemovalBuffer.Count; i++)
+                {
+                    _entities.RemoveProjectile(_projectileRemovalBuffer[i]);
+                }
+            }
+            finally
+            {
+                _entities.EndStructuralChanges();
             }
         }
 

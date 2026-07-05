@@ -8,6 +8,8 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterSnapshotViewProjection
     {
         private readonly ShooterViewEntityStore _store;
+        private readonly HashSet<ShooterViewEntityKey> _presentEntities = new HashSet<ShooterViewEntityKey>();
+        private readonly List<ShooterViewEntityKey> _staleEntities = new List<ShooterViewEntityKey>();
 
         public ShooterSnapshotViewProjection()
             : this(new ShooterViewEntityStore())
@@ -26,6 +28,8 @@ namespace AbilityKit.Demo.Shooter.View
         public void Clear()
         {
             _store.Clear();
+            _presentEntities.Clear();
+            _staleEntities.Clear();
             LastApplyResult = ShooterViewProjectionApplyResult.Empty;
         }
  
@@ -81,30 +85,30 @@ namespace AbilityKit.Demo.Shooter.View
 
         private int RemoveEntitiesMissingFromFullSnapshot(in ShooterSnapshotViewBatch batch)
         {
-            var present = new HashSet<ShooterViewEntityKey>();
+            _presentEntities.Clear();
             var entityChanges = batch.EntityChanges;
             for (int i = 0; i < entityChanges.Count; i++)
             {
                 var change = entityChanges[i];
                 if (change.Alive)
                 {
-                    present.Add(change.Key);
+                    _presentEntities.Add(change.Key);
                 }
             }
 
-            var staleEntities = new List<ShooterViewEntityKey>();
+            _staleEntities.Clear();
             foreach (var key in _store.Entities.Keys)
             {
-                if (!present.Contains(key))
+                if (!_presentEntities.Contains(key))
                 {
-                    staleEntities.Add(key);
+                    _staleEntities.Add(key);
                 }
             }
 
             var removedCount = 0;
-            for (int i = 0; i < staleEntities.Count; i++)
+            for (int i = 0; i < _staleEntities.Count; i++)
             {
-                if (_store.RemoveEntity(staleEntities[i]))
+                if (_store.RemoveEntity(_staleEntities[i]))
                 {
                     removedCount++;
                 }

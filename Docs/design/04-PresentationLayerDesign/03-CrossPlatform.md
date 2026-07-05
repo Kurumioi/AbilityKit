@@ -49,7 +49,7 @@ flowchart TB
 | 对象绑定 | `BattleViewBinder` | Console entity display/cache | ET component/cache | 把逻辑实体映射到平台表现对象 |
 | 生命周期装配 | `BattleViewFeature` + SubFeature | Console app loop | ET component/system | Attach、Tick、Detach、Dispose |
 
-需要特别注意：Unity/MOBA View Runtime 代表当前更完整的表现层架构；ET 示例保留了不同形态的接口和数据结构，适合作为“外部框架如何适配 AbilityKit 数据”的参考，而不是当前 Unity 接口的一比一复制。
+Unity/MOBA View Runtime 代表当前更完整的表现层架构；ET 示例保留了不同形态的接口和数据结构，适合作为“外部框架如何适配 AbilityKit 数据”的参考，而不是当前 Unity 接口的一比一复制。
 
 ---
 
@@ -435,9 +435,9 @@ flowchart TB
 
 ---
 
-## 4.3.11 新平台接入建议
+## 4.3.11 新平台接入约束
 
-如果要为新平台接入表现层，不建议一开始复制 Unity 的完整 `BattleViewFeature`。更稳妥的顺序是：
+新平台接入表现层时，应先确定输入边界、平台 View Boundary、实体映射和生命周期，不应默认复制 Unity 的完整 `BattleViewFeature`。
 
 ```mermaid
 flowchart TB
@@ -466,9 +466,9 @@ flowchart TB
 
 ---
 
-## 4.3.12 常见误区
+## 4.3.12 边界判断
 
-| 误区 | 正确认知 |
+| 容易混淆的判断 | 设计边界 |
 | --- | --- |
 | 所有平台都必须实现 Unity 的 `IBattleViewEventSink` | 不需要。Console 使用自己的 `IConsoleBattleView`，ET 也有框架适配形态 |
 | `BattleViewBinder` 是逻辑世界的一部分 | 不是。它是 Unity View Runtime 的表现对象绑定层 |
@@ -493,4 +493,4 @@ flowchart LR
     Boundary --> Runtime[Platform Runtime]
 ```
 
-对新手来说，最重要的是不要把 Unity 的 `GameObject`、Console 的文本显示、ET 的 `EventSystem` 和服务端快照广播混在同一层。它们都是“表现边界之后”的平台实现，前面的逻辑数据和路由语义才是跨平台复用的核心。
+跨平台表现层的核心约束是不要把 Unity 的 `GameObject`、Console 的文本显示、ET 的 `EventSystem` 和服务端快照广播混在同一层。它们都是“表现边界之后”的平台实现，前面的逻辑数据和路由语义才是跨平台复用的核心。

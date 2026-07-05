@@ -515,12 +515,14 @@ flowchart LR
 | 输入比较只比较 OpCode、Player、Payload | 当前 `InputsEqual` 不比较其他外部状态 | 输入命令 payload 应包含决定模拟结果的全部参数 |
 | 恢复后表现层需要刷新 | 逻辑世界恢复不会自动重建所有 View 状态 | Shooter 在恢复后调用 `PublishRuntimeSnapshot()` |
 
-### 10.3 当前文档后续补缺方向
+### 10.3 相关专题边界
 
-- `01-FrameSync.md` 仍偏通用，后续应基于 `FramePacket`、`RemoteFrameAggregator`、`FrameSyncDriverModule`、Orleans battle host 重写。
-- `04-ReplaySystem.md` 仍待补充，应阅读 `com.abilitykit.record`、MOBA view runtime 的 `BattleRecordReplayDesign.md` 和运行时代码。
-- `05-SessionCoordination.md` 仍待补充，应阅读 `FramePacketNetAdapter`、Gateway、`RoomGrain`、`BattleLogicHostGrain`、Shooter smoke runner。
-- 回滚相关测试入口应继续补充到示例文档，尤其是 MOBA `ClientPredictionTestHarness` 与 Shooter frame sync controller 测试。
+| 专题 | 与回滚预测的关系 | 源码锚点 |
+|------|------------------|----------|
+| `01-FrameSync.md` | 回滚预测依赖输入帧的稳定编号、聚合和分发语义 | `FramePacket`、`RemoteFrameAggregator`、`FrameSyncDriverModule`、Orleans battle host |
+| `04-ReplaySystem.md` | 回放记录为回滚前后状态对账、复现和验收提供输入轨道 | `com.abilitykit.record`、MOBA view runtime、`BattleRecordReplayDesign.md` |
+| `05-SessionCoordination.md` | 会话协调决定帧包如何跨客户端、Gateway、Room 和 BattleHost 流动 | `FramePacketNetAdapter`、Gateway、`RoomGrain`、`BattleLogicHostGrain`、Shooter smoke runner |
+| 示例测试 | 示例测试验证预测窗口、输入不一致、哈希不一致和恢复后表现刷新 | MOBA `ClientPredictionTestHarness`、Shooter frame sync controller tests |
 
 ---
 

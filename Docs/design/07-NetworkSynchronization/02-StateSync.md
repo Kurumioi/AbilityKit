@@ -379,15 +379,15 @@ flowchart TD
 - 通用 `PredictionCoordinator` 具备预测/校验/回滚事件骨架，但复杂业务更适合接入业务专用输入历史和快照导入器。
 - MemoryPack 打包器只处理通用快照对象；跨语言或 Web 端需要额外协议映射。
 
-### 9.2 后续文档补齐建议
+### 9.2 关联专题边界
 
-- 在 [回滚预测](03-RollbackPrediction.md) 中进一步说明 `RollbackCoordinator`、`RollbackSnapshotRingBuffer` 与 `IRollbackStateProvider`。
-- 在 [会话协调](05-SessionCoordination.md) 中说明 Orleans `StateSyncObserverGrain` 如何把 `StateSyncPush` 通过 Gateway 推给账号连接。
-- 在 Shooter Demo 文档中补充 packed snapshot、pure state、兴趣管理和 smoke 测试闭环。
+- [回滚预测](03-RollbackPrediction.md) 负责说明 `RollbackCoordinator`、`RollbackSnapshotRingBuffer` 与 `IRollbackStateProvider`。
+- [会话协调](05-SessionCoordination.md) 负责说明 Orleans `StateSyncObserverGrain` 如何把 `StateSyncPush` 通过 Gateway 推给账号连接。
+- Shooter Demo 文档负责说明 packed snapshot、pure state、兴趣管理和 smoke 测试闭环。
 
 ---
 
-## 下一步
+## 10. 关联文档
 
 - [帧同步机制](01-FrameSync.md) - 理解输入帧如何推进逻辑。
 - [回滚预测](03-RollbackPrediction.md) - 理解快照恢复与输入重演。

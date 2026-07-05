@@ -195,7 +195,7 @@ sequenceDiagram
 5. 写入 `IntKeyConfigTable<TEntry>`。
 6. 提交后递增 `Version` 并发布 `ConfigReloadResult`。
 
-`Reload` 的失败路径同样值得注意：数据库在循环中先填充 `nextTables` 与 `nextDtoTables`，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitTables(nextTables, nextDtoTables)`。strict 模式下任一表缺失会立即发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
+`Reload` 的失败路径采用提交前构表策略：数据库在循环中先填充 `nextTables` 与 `nextDtoTables`，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitTables(nextTables, nextDtoTables)`。strict 模式下任一表缺失会立即发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
 
 `TryLoadFromSource` 的查找顺序是 bytes、fullPath text、原始 `definition.FilePath` text。这个 fallback 让 `basePath` 和裸表名两种资源组织方式可以共存，但也意味着同一张表在多个路径同时存在时，bytes 优先级最高，随后才是带 `basePath` 的文本。
 
@@ -488,9 +488,9 @@ flowchart TB
     J --> K["检查 PayloadField / Blackboard 引用"]
 ```
 
-特别重要的是 Action Schema 校验：如果配置里声明了某个动作 ID，但没有业务模块注册 Schema，验证器会报告 `moba.trigger.plan.action_schema_missing`。这能在启动阶段发现“配置引用了不存在动作”的问题，而不是等战斗中触发时才失败。
+Action Schema 校验是 TriggerPlan 的启动门禁：如果配置里声明了某个动作 ID，但没有业务模块注册 Schema，验证器会报告 `moba.trigger.plan.action_schema_missing`。这能在启动阶段发现“配置引用了不存在动作”的问题，而不是等战斗中触发时才失败。
 
-`ValidateActionArgs` 的执行顺序是先通过 `ActionSchemaRegistry.TryGet(action.Id, out schema)` 建立 Schema 门禁，再把 `ActionCallPlan.Args` 转成 `KeyValuePair<string, ActionArgValue>[]` 调用 `schema.TryValidateArgs`。如果老式 positional `Arg0` / `Arg1` 仍在使用，校验器会按 `arg0`、`arg1` 名称转换；最后还会逐个检查参数里的 `NumericValueRef`，确认 `PayloadField`、`Blackboard` 等引用在启动期不会明显失效。需要注意，Schema 是否能做深度参数校验取决于具体业务 Schema；自动生成 Schema 当前只提供存在性注册，不提供参数语义检查。
+`ValidateActionArgs` 的执行顺序是先通过 `ActionSchemaRegistry.TryGet(action.Id, out schema)` 建立 Schema 门禁，再把 `ActionCallPlan.Args` 转成 `KeyValuePair<string, ActionArgValue>[]` 调用 `schema.TryValidateArgs`。如果老式 positional `Arg0` / `Arg1` 仍在使用，校验器会按 `arg0`、`arg1` 名称转换；最后还会逐个检查参数里的 `NumericValueRef`，确认 `PayloadField`、`Blackboard` 等引用在启动期不会明显失效。深度参数校验取决于具体业务 Schema；自动生成 Schema 当前只提供存在性注册，不提供参数语义检查。
 
 ---
 
@@ -614,7 +614,7 @@ flowchart TB
 
 ### 11.2 新增配置驱动 Action
 
-推荐路径：
+显式 Schema 路径：
 
 1. 定义强类型 Args 结构体。
 2. 实现 `IActionSchema<TActionArgs, IWorldResolver>`，负责参数解析和验证。
@@ -627,7 +627,7 @@ flowchart TB
 
 ### 11.3 新增平台加载方式
 
-新增平台只需要实现或组合以下接口：
+新增平台通过以下接口实现或组合加载能力：
 
 - `ITextAssetLoader`：从平台资源系统读取文本。
 - `IConfigSource`：如需统一支持 bytes/text。
@@ -638,7 +638,7 @@ flowchart TB
 
 ---
 
-## 下一步
+## 12. 关联文档
 
 - [事件系统](01-EventSystem.md) - 配置热重载与 TriggerPlan 执行都依赖事件/发布订阅能力。
 - [触发器系统](../08-GameplayModules/02-TriggeringSystem.md) - 深入理解 TriggerPlan 如何执行。

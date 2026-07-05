@@ -7,10 +7,12 @@ using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Host.Transport;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Core.Logging;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.Shared.Assets;
 
 namespace AbilityKit.Game.Battle
 {
@@ -51,9 +53,11 @@ namespace AbilityKit.Game.Battle
             options.ServiceBuilder ??= AbilityKit.Ability.World.Services.WorldServiceContainerFactory.CreateDefaultOnly();
             options.ServiceBuilder.RegisterInstance(new WorldInitData(request.OpCode, request.Payload));
 
-            // Ensure SkillExecutor dependencies are resolvable in local/in-memory worlds.
+            // Ensure local/in-memory world dependencies are resolvable.
             // Server worlds typically register IFrameTime via ServerFrameTimeModule.
             options.ServiceBuilder.TryRegister<IFrameTime>(WorldLifetime.Singleton, _ => new FrameTime());
+            options.ServiceBuilder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
+            options.ServiceBuilder.TryRegister<IAssetProvider>(WorldLifetime.Singleton, _ => ResourcesAssetProvider.Shared);
 
             // Defensive: upstream may already have added MobaWorldBootstrapModule (possibly multiple times).
             // EntitasWorldComposer requires module types to be unique.

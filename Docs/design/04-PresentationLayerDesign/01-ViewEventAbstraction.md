@@ -1,6 +1,6 @@
 # 4.1 视图事件抽象：Sink、Adapter 与表现副作用边界
 
-> 本文基于当前 MOBA View Runtime 源码说明表现层事件抽象。当前主线不是旧文档中的通用 `ActorSpawnData` / `ActorMoveData` 事件接口，而是由 `IBattleViewEventSink` 承接快照路由与触发事件，再把表现副作用分发到 View Binder、VFX、浮字、区域表现和脏刷新处理器。
+> 本文基于当前 MOBA View Runtime 源码说明表现层事件抽象。当前主线由 `IBattleViewEventSink` 承接快照路由与触发事件，再把表现副作用分发到 View Binder、VFX、浮字、区域表现和脏刷新处理器。
 
 ---
 
@@ -59,7 +59,7 @@ public interface IBattleViewEventSink
 }
 ```
 
-这说明表现层不是围绕 `OnActorSpawn(in ActorSpawnData)` 这类旧通用事件设计的。当前主线把网络/同步层的 opCode payload 解码后交给 View Sink，Sink 再决定如何更新 Unity 表现对象、播放 VFX 或刷新可见实体。
+表现层事件边界不围绕 `OnActorSpawn(in ActorSpawnData)` 这类通用事件定义。当前主线把网络/同步层的 opCode payload 解码后交给 View Sink，Sink 再决定如何更新 Unity 表现对象、播放 VFX 或刷新可见实体。
 
 ---
 
@@ -278,7 +278,7 @@ flowchart TB
     ConsoleAdapter --> ConsoleView[ConsoleBattleView]
 ```
 
-注意：不同平台的接口形状可能不完全一致。Unity MOBA View Runtime 使用 `ISnapshotEnvelope + typed payload`；ET 示例中的 `ETBattleViewEventSink` 仍面向 `FrameSnapshotData`。这不是矛盾，而是不同演进阶段和平台适配层的结果。设计文档应该说明“共享意图”和“当前源码主线”，不要把某个平台的旧接口写成全框架统一接口。
+不同平台的接口形状可能不完全一致。Unity MOBA View Runtime 使用 `ISnapshotEnvelope + typed payload`；ET 示例中的 `ETBattleViewEventSink` 仍面向 `FrameSnapshotData`。这不是矛盾，而是不同演进阶段和平台适配层的结果。设计说明需要区分“共享意图”和“当前源码主线”，避免把某个平台的旧接口写成全框架统一接口。
 
 ---
 
@@ -308,10 +308,10 @@ flowchart TB
 
 ---
 
-## 12. 新手常见误区
+## 12. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | `IBattleViewEventSink` 是逻辑层服务 | 它是表现边界，应放在 View Runtime 或平台适配层 |
 | View Sink 可以改逻辑状态 | 不应该；它处理表现副作用和本地缓存 |
 | 快照分发器会主动收集世界状态 | 当前 `FrameSnapshotDispatcher` 只负责 `Feed` 后按 opCode 解码和分发 |
@@ -320,17 +320,17 @@ flowchart TB
 
 ---
 
-## 13. 阅读路线
+## 13. 源码阅读路径
 
-1. 先读 `IBattleViewEventSink`，理解当前 View Runtime 的事件入口。
-2. 再读 `BattleSnapshotViewAdapter`，理解快照 opCode 如何转成 Sink 方法。
-3. 再读 `BattleTriggerEventViewAdapter` 和 `BattleTriggerEventViewBridge`，理解 TriggerEvent 如何接入。
-4. 再读 `BattleViewEventSink`，看事件如何分发到具体 handler。
-5. 最后读 `BattleViewBinder`、Console View 和 ET Sink，理解不同平台如何落地。
+1. `IBattleViewEventSink`：当前 View Runtime 的事件入口。
+2. `BattleSnapshotViewAdapter`：快照 opCode 如何转成 Sink 方法。
+3. `BattleTriggerEventViewAdapter` 与 `BattleTriggerEventViewBridge`：TriggerEvent 如何接入。
+4. `BattleViewEventSink`：事件如何分发到具体 handler。
+5. `BattleViewBinder`、Console View 与 ET Sink：不同平台如何落地。
 
 ---
 
-## 下一步
+## 14. 关联文档
 
 - [快照分发](./02-SnapshotDispatch.md) - FrameSnapshotDispatcher 与 SnapshotPipeline
 - [跨平台实现](./03-CrossPlatform.md) - Unity、Console、ET、Server 表现边界

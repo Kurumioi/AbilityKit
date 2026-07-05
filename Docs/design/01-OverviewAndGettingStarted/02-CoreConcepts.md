@@ -1,21 +1,27 @@
 # 1.2 核心概念：从术语到源码边界
 
-> 本文是 AbilityKit 的术语入口。它不按“名词解释”孤立罗列概念，而是把 World、Entity、Frame、Input、Skill、Trigger、Context、Session、Adapter 等词放回真实源码链路中，帮助新手先建立整体地图，再进入后续专题文档。
+> 本文是 AbilityKit 的术语入口。它不按“名词解释”孤立罗列概念，而是把 World、Entity、Frame、Input、Skill、Trigger、Context、Session、Adapter 等词放回真实源码链路中，建立术语、源码入口和专题文档之间的对应关系。
 
 ---
 
 ## 目录
 
-1. [先看整体地图](#1-先看整体地图)
-2. [World：逻辑世界不是场景对象](#2-world逻辑世界不是场景对象)
-3. [Entity 与 Component：实体句柄和数据载体](#3-entity-与-component实体句柄和数据载体)
-4. [System 与 Feature：逻辑循环的两层组织方式](#4-system-与-feature逻辑循环的两层组织方式)
-5. [Frame、Input、Snapshot：同步层的三件事](#5-frameinputsnapshot同步层的三件事)
-6. [Skill、Pipeline、Runtime：一次施法如何被跟踪](#6-skillpipelineruntime一次施法如何被跟踪)
-7. [Trigger、Effect、Context：为什么要做上下文传播](#7-triggereffectcontext为什么要做上下文传播)
-8. [Session、Flow、Phase：一场战斗怎么启动](#8-sessionflowphase一场战斗怎么启动)
-9. [Adapter、Port、Sink：为什么同步和输入要抽象](#9-adapterportsink为什么同步和输入要抽象)
-10. [术语表与阅读路线](#10-术语表与阅读路线)
+- [1.2 核心概念：从术语到源码边界](#12-核心概念从术语到源码边界)
+  - [目录](#目录)
+  - [1. 先看整体地图](#1-先看整体地图)
+  - [2. World：逻辑世界不是场景对象](#2-world逻辑世界不是场景对象)
+  - [3. Entity 与 Component：实体句柄和数据载体](#3-entity-与-component实体句柄和数据载体)
+  - [4. System 与 Feature：逻辑循环的两层组织方式](#4-system-与-feature逻辑循环的两层组织方式)
+  - [5. Frame、Input、Snapshot：同步层的三件事](#5-frameinputsnapshot同步层的三件事)
+  - [6. Skill、Pipeline、Runtime：一次施法如何被跟踪](#6-skillpipelineruntime一次施法如何被跟踪)
+  - [7. Trigger、Effect、Context：为什么要做上下文传播](#7-triggereffectcontext为什么要做上下文传播)
+  - [8. Session、Flow、Phase：一场战斗怎么启动](#8-sessionflowphase一场战斗怎么启动)
+  - [9. Adapter、Port、Sink：为什么同步和输入要抽象](#9-adapterportsink为什么同步和输入要抽象)
+  - [10. 术语表与源码阅读路径](#10-术语表与源码阅读路径)
+    - [10.1 核心术语表](#101-核心术语表)
+    - [10.2 源码阅读路径](#102-源码阅读路径)
+    - [10.3 边界判断](#103-边界判断)
+  - [11. 关联文档](#11-关联文档)
 
 ---
 
@@ -90,7 +96,7 @@ flowchart LR
 
 ## 3. Entity 与 Component：实体句柄和数据载体
 
-AbilityKit 当前不是旧文档里那种 `ActorEntity + ActorTransformComponent + MobaMotionSystem` 的单一路径。真实源码里至少有三种实体视角：
+AbilityKit 当前实体模型不是单一 `ActorEntity + ActorTransformComponent + MobaMotionSystem` 路径。源码里至少有三种实体视角：
 
 | 视角 | 代表源码 | 用途 |
 |------|----------|------|
@@ -145,7 +151,7 @@ world.Query<Position, MoveSpeed>().ForEach((entity, position, speed) =>
 
 ## 4. System 与 Feature：逻辑循环的两层组织方式
 
-旧文档容易把 System 解释成统一接口，但源码里 System/Feature 是分层的。
+源码里的 System/Feature 是分层的，不由单一 System 接口统一承载。
 
 | 层次 | 例子 | 职责 |
 |------|------|------|
@@ -168,7 +174,7 @@ flowchart TB
     RuntimeWorld["IWorld"] --> EntitasSystems["WorldSystemBase systems"]
 ```
 
-为什么要这么分：
+分层原因：
 
 | 问题 | 设计处理 |
 |------|----------|
@@ -181,7 +187,7 @@ flowchart TB
 
 ## 5. Frame、Input、Snapshot：同步层的三件事
 
-帧同步层关注的是“在第几帧执行了什么输入，以及如何重放或校验结果”。真实输入命令不是旧文档里的 `EInputType` 枚举，而是 `FrameIndex + PlayerId + OpCode + Payload`。
+帧同步层关注的是“在第几帧执行了什么输入，以及如何重放或校验结果”。输入命令由 `FrameIndex + PlayerId + OpCode + Payload` 组成，框架层不固定业务输入枚举。
 
 ```csharp
 public readonly struct PlayerInputCommand
@@ -223,7 +229,7 @@ sequenceDiagram
 | `FrameSnapshot` | 用于回放/记录或同步分发的帧状态快照 |
 | `ActorStateSnapshot` | Console Demo 视图层使用的角色状态快照 |
 
-新手要注意：逻辑帧和渲染帧是两件事。同步适配器暴露 `LogicTimeSeconds` 和 `RenderTimeSeconds`，就是为了让逻辑推进和视图插值可以分开处理。
+逻辑帧和渲染帧是两件事。同步适配器暴露 `LogicTimeSeconds` 和 `RenderTimeSeconds`，用于让逻辑推进和视图插值分开处理。
 
 ---
 
@@ -367,12 +373,12 @@ flowchart TB
 
 ---
 
-## 10. 术语表与阅读路线
+## 10. 术语表与源码阅读路径
 
 ### 10.1 核心术语表
 
-| 术语 | 初学者理解 | 源码边界 |
-|------|------------|----------|
+| 术语 | 概念定位 | 源码边界 |
+|------|----------|----------|
 | AbilityKit | 战斗技能与同步能力集合 | 多包、多 Demo、多后端的框架族 |
 | World | 逻辑运行容器 | `IWorld`、`WorldManager`、`IWorldResolver`、`EntityWorld` |
 | Entity | 状态标识或句柄 | `IEntity`、`IEntityId`、Entitas entity、Demo actor/net id |
@@ -394,7 +400,7 @@ flowchart TB
 | Registry | ID/类型/函数注册表 | ComponentRegistry、FunctionRegistry、ActionRegistry |
 | Blackboard | 运行时共享数据区 | Trigger blackboard、Skill runtime blackboard |
 
-### 10.2 推荐阅读路线
+### 10.2 源码阅读路径
 
 ```mermaid
 flowchart TD
@@ -408,7 +414,7 @@ flowchart TD
     H --> I["09-ImplementationExamples"]
 ```
 
-建议先按下面顺序读源码：
+源码阅读路径：
 
 1. `src/AbilityKit.Demo.Moba.Console/Bootstrap/ConsoleBattleBootstrapper.cs`：看 Demo 如何把配置、世界、输入、同步、视图装起来。
 2. `src/AbilityKit.Demo.Moba.Console/Battle/Flow/BattleFlow.cs`：看战斗阶段怎么推进。
@@ -419,10 +425,10 @@ flowchart TD
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatContextSource.cs`：看技能、触发、效果之间如何传播来源。
 8. `Unity/Packages/com.abilitykit.triggering/Runtime/Context/TriggerContext.cs`：看触发器运行时依赖哪些服务。
 
-### 10.3 最容易踩的坑
+### 10.3 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 把 AbilityKit 当成单一技能系统 | 它同时覆盖世界、ECS、技能、触发、同步、表现、Demo 和测试外壳 |
 | 把 World 当 Unity Scene | World 是逻辑容器和服务边界，可以在 Console/服务器/测试环境运行 |
 | 把 Entity 当业务对象 | 轻量 ECS 中 Entity 是句柄，数据在组件表中 |
@@ -434,7 +440,7 @@ flowchart TD
 
 ---
 
-## 下一步
+## 11. 关联文档
 
 - [快速开始](./03-QuickStart.md) - 从构建、Demo、测试入口开始跑起来。
 - [逻辑世界概述](../02-LogicalWorldDesign/01-WorldOverview.md) - 深入理解 World、服务、模块和系统装配。

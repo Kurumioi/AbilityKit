@@ -183,7 +183,7 @@ public sealed class WorldClock : IWorldClock
 }
 ```
 
-它和真实时间计时器不同，只记录由 Host 或世界驱动传入的逻辑 `deltaTime`。这对帧同步、回放、测试很重要：逻辑时间来自外部驱动，不能偷偷读取系统时间。
+它和真实时间计时器不同，只记录由 Host 或世界驱动传入的逻辑 `deltaTime`。帧同步、回放和测试依赖这一边界：逻辑时间来自外部驱动，不能偷偷读取系统时间。
 
 ---
 
@@ -199,20 +199,20 @@ public sealed class WorldClock : IWorldClock
 
 ---
 
-## 11. 新手阅读路线
+## 11. 源码阅读路径
 
-1. 先读 `IWorld.cs`，确认世界接口只有身份、服务、初始化、Tick 和释放。
-2. 再读 `WorldManager.cs`，理解多世界的创建、查找、Tick 和销毁。
-3. 接着读 `WorldCreateOptions.cs`，理解世界创建时如何传入模块、服务构建器和扩展对象。
-4. 然后读 `WorldContainer.cs` 和 `WorldScope.cs`，理解 `Services` 背后的依赖注入模型。
-5. 最后回到 `HostRuntime.cs`，看 Host 如何驱动 `WorldManager.Tick(deltaTime)`。
+1. `IWorld.cs`：世界接口只有身份、服务、初始化、Tick 和释放。
+2. `WorldManager.cs`：多世界的创建、查找、Tick 和销毁。
+3. `WorldCreateOptions.cs`：世界创建时如何传入模块、服务构建器和扩展对象。
+4. `WorldContainer.cs` 与 `WorldScope.cs`：`Services` 背后的依赖注入模型。
+5. `HostRuntime.cs`：Host 如何驱动 `WorldManager.Tick(deltaTime)`。
 
 ---
 
-## 12. 常见误区
+## 12. 边界判断
 
-| 误区 | 正确认知 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | `IWorld` 应该暴露实体创建和查询 | 当前源码把世界运行时契约和 ECS 查询能力拆开，Host 不直接依赖实体接口 |
 | `WorldManager` 是业务系统调度器 | 它只管理世界实例，具体系统调度在具体世界内部完成 |
 | 世界时间应读取系统时钟 | 逻辑世界应由外部传入 `deltaTime`，避免破坏确定性 |

@@ -27,7 +27,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         }
     }
 
-    internal sealed class UnityShooterGameObjectViewSink : IShooterHostViewSink
+    internal sealed class UnityShooterGameObjectViewSink : IUnityShooterViewSink
     {
         private const string PlayerViewPrefabName = "ShooterPlayerViewPrefab";
         private const string BulletViewPrefabName = "ShooterBulletViewPrefab";
@@ -65,6 +65,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool _hasHudData;
         private bool _hasAuthorityProjection;
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
+        private ulong _lastClientSequence;
+        private ulong _lastAuthoritySequence;
+ 
+        public ShooterUnityViewRenderBackend Backend => ShooterUnityViewRenderBackend.GameObject;
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
@@ -74,7 +78,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             CaptureHudData(in frame);
 
             var clientBatch = frame.ClientBatch;
-            _clientProjection.Apply(in clientBatch);
+            if (clientBatch.Sequence != _lastClientSequence)
+            {
+                _clientProjection.Apply(in clientBatch);
+                _lastClientSequence = clientBatch.Sequence;
+            }
+
             RenderStore(
                 _clientProjection.Store,
                 frame.ControlledPlayerId,
@@ -88,7 +97,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (frame.HasAuthorityBatch)
             {
                 var authorityBatch = frame.AuthorityBatch;
-                _authorityProjection.Apply(in authorityBatch);
+                if (authorityBatch.Sequence != _lastAuthoritySequence)
+                {
+                    _authorityProjection.Apply(in authorityBatch);
+                    _lastAuthoritySequence = authorityBatch.Sequence;
+                }
+
                 _hasAuthorityProjection = true;
                 RenderStore(
                     _authorityProjection.Store,
@@ -197,6 +211,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             _clientProjection.Clear();
             _authorityProjection.Clear();
+            _lastClientSequence = 0ul;
+            _lastAuthoritySequence = 0ul;
             _hasAuthorityProjection = false;
             _hasHudData = false;
             _lastPlayerCount = 0;

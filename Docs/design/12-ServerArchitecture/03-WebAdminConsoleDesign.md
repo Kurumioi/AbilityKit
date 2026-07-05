@@ -50,7 +50,7 @@
 | 自定义 Hash Router | 页面数量有限，使用 hash 路由能适配 Gateway 静态目录 `/admin/`，刷新和部署更简单 |
 | 不引入 UI 框架 | 当前后台强调源码可控、调试清晰和低依赖，不把样式体系绑定到外部组件库 |
 
-这套选型的核心取舍是：后台先服务于开发、验收和运维闭环，避免过早引入路由、状态管理、UI 组件库等额外框架。等后台进入多人长期运营阶段，再按实际复杂度引入 Pinia、Vue Router、表格/图表组件或权限框架。
+这套选型的核心取舍是：后台优先覆盖开发、验收和运维闭环，依赖面保持在可直接审计的范围内。Pinia、Vue Router、表格/图表组件或权限框架属于复杂度触发型依赖，只有在页面规模、跨页面状态一致性、权限模型或数据可视化能力超过当前轻量实现边界时才进入选型范围。
 
 ### 3.2 开发与构建关系
 
@@ -138,7 +138,7 @@ flowchart LR
 2. 调用 `AdminDomainApis` 并统一记录 API 结果。
 3. 将后端 DTO 投影为页面所需的树、时间线、筛选项和诊断视图。
 
-当后台复杂度继续上升时，可以把它拆分为 session、rooms、skills、ops、cluster 等多个领域 store；但在当前页面规模下，单 store 能降低跨页面状态同步成本。
+领域 store 的拆分条件不是页面数量本身，而是状态所有权是否开始跨领域冲突。session、rooms、skills、ops、cluster 等状态出现独立刷新周期、独立错误处理或独立权限边界时，应拆分为领域 store；在现有页面规模下，单 store 能降低跨页面状态同步成本。
 
 ### 5.3 本地存储
 
@@ -155,7 +155,7 @@ flowchart LR
 | `/api/shooter-sandbox` | 演示用 Shooter 沙盒自动化入口 |
 | `/debug` | 开发者调试控制台，不承载正式后台模块 |
 
-这条边界很重要：后台不是复用玩家协议页面化，而是由 Gateway 提供后台语义的门面。这样可以让后台请求携带 region、serverId、roomType、sessionToken、operation reason 等管理上下文，也能让 Gateway 在服务端统一做默认值、限流、审计、错误映射和后续权限控制。
+这条边界决定了后台不是复用玩家协议页面化，而是由 Gateway 提供后台语义的门面。后台请求可以携带 region、serverId、roomType、sessionToken、operation reason 等管理上下文，Gateway 也能在服务端统一做默认值、限流、审计、错误映射和后续权限控制。
 
 ### 6.1 领域 API 分组
 
@@ -220,7 +220,7 @@ sequenceDiagram
 
 ### 8.1 进程运维
 
-`GatewayAdminOperations` 当前保存的是 Gateway 进程内状态：维护模式、排空模式、重启请求和最近操作信息。它适合演示、开发和单进程 Gateway 验收：
+`GatewayAdminOperations` 保存 Gateway 进程内状态：维护模式、排空模式、重启请求和最近操作信息。这个实现适用于演示、开发和单进程 Gateway 验收：
 
 | 能力 | 当前语义 |
 |------|----------|
@@ -233,7 +233,7 @@ sequenceDiagram
 
 ### 8.2 Orleans 集群诊断
 
-`GatewayClusterDiagnostics` 当前提供 Orleans Gateway Client 与 Local Silo 的配置探针。它已经预留 runtime metrics 文案，但深度指标尚未接入。后续应逐步补齐：
+`GatewayClusterDiagnostics` 提供 Orleans Gateway Client 与 Local Silo 的配置探针。源码中已经暴露 runtime metrics 的扩展位置，生产化诊断需要把该位置接入实际指标来源：
 
 | 指标 | 用途 |
 |------|------|
@@ -258,26 +258,26 @@ sequenceDiagram
 
 这部分让后台不只是“点按钮发请求”，而是能把 MOBA 技能链路、trace、验收产物和运行态事件组织成可分析的页面。
 
-## 9. 设计约束与演进方向
+## 9. 设计约束与治理边界
 
-| 约束 | 当前状态 | 后续方向 |
+| 约束 | 源码边界 | 治理要求 |
 |------|----------|----------|
-| 权限 | 主要依赖 sessionToken，有效后台权限边界尚未完整建模 | 引入 admin role、scope、操作审批和审计日志 |
-| 状态管理 | 单个 `adminConsoleStore.ts` 集中承载所有后台状态 | 页面规模扩大后拆成领域 store |
-| API 类型 | 前端 `types.ts` 手写 DTO | 从 Gateway DTO 或 OpenAPI 自动生成类型 |
-| 运维状态 | `GatewayAdminOperations` 使用进程内静态字段 | 持久化到 Grain/配置中心，并接入 Gateway pipeline |
-| 集群指标 | 当前主要是配置探针和占位 runtime metrics | 接入 Orleans metrics、Dashboard 或 OpenTelemetry |
-| UI 组件 | 自研页面和样式，无第三方组件库 | 表格/图表复杂后再引入局部组件库 |
-| 安全 | `/api/admin` 是清晰路径边界，但需要部署层鉴权 | Gateway middleware、反向代理鉴权、CSRF/审计/速率限制 |
+| 权限 | 后台请求主要依赖 sessionToken，`/api/admin` 已形成独立路径边界 | 管理员角色、scope、操作审批和审计日志应由 Gateway 统一建模 |
+| 状态管理 | `adminConsoleStore.ts` 集中承载后台状态、表单、刷新流程和 API 调用日志 | 领域状态出现独立生命周期或权限边界时拆分为 session、rooms、skills、ops、cluster 等 store |
+| API 类型 | 前端 `types.ts` 手写 DTO，与 Gateway HTTP DTO 需要人工保持一致 | Gateway DTO 或 OpenAPI 生成链路可作为类型一致性来源 |
+| 运维状态 | `GatewayAdminOperations` 使用进程内静态字段表达维护、排空和重启请求 | 多 Gateway 部署需要持久化到 Grain、配置中心或控制面，并接入 Gateway pipeline |
+| 集群指标 | `GatewayClusterDiagnostics` 已提供配置探针和 runtime metrics 扩展位置 | Orleans metrics、Dashboard 或 OpenTelemetry 是生产化指标来源 |
+| UI 组件 | 页面和样式由 Admin Console 自研，未绑定第三方组件库 | 表格、图表、筛选器和权限控件复杂度超过本地组件能力后再局部引入组件库 |
+| 安全 | `/api/admin` 是后台路径边界，部署层鉴权仍需外部配置配合 | Gateway middleware、反向代理鉴权、CSRF、审计和速率限制构成正式安全边界 |
 
-## 10. 推荐阅读顺序
+## 10. 源码阅读路径
 
-1. 先读 `Server/AdminConsole/README.md`，理解开发、构建和 Gateway 托管关系。
-2. 再读 `Server/AdminConsole/vite.config.ts`，确认 `/admin/` base、代理和构建输出。
-3. 读 `Server/AdminConsole/src/App.vue`、`adminNavigation.ts`、`adminRouter.ts`，理解页面结构。
-4. 读 `Server/AdminConsole/src/stores/adminConsoleStore.ts`，理解后台状态、刷新流程和操作反馈。
-5. 读 `Server/AdminConsole/src/services/domainApi.ts` 与 `adminApiBoundaries.ts`，确认 API 边界。
-6. 最后读 `Server/Orleans/src/AbilityKit.Orleans.Gateway/HttpApi/GatewayHttpApi.cs` 的 `MapGatewayAdminEndpoints`，把前端领域 API 对应到 Gateway 和 Orleans Grain 主链路。
+1. `Server/AdminConsole/README.md`：开发、构建和 Gateway 托管关系。
+2. `Server/AdminConsole/vite.config.ts`：`/admin/` base、开发代理和构建输出位置。
+3. `Server/AdminConsole/src/App.vue`、`adminNavigation.ts`、`adminRouter.ts`：页面结构、导航模型和 hash route 映射。
+4. `Server/AdminConsole/src/stores/adminConsoleStore.ts`：后台状态、刷新流程、操作反馈和 API 调用日志。
+5. `Server/AdminConsole/src/services/domainApi.ts` 与 `adminApiBoundaries.ts`：领域 API 分组和路径责任边界。
+6. `Server/Orleans/src/AbilityKit.Orleans.Gateway/HttpApi/GatewayHttpApi.cs` 的 `MapGatewayAdminEndpoints`：前端领域 API 到 Gateway 与 Orleans Grain 主链路的映射。
 
 ## 11. 与其他服务端文档的关系
 

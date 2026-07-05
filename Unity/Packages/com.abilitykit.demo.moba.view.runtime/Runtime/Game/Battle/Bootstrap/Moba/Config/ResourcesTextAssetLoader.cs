@@ -66,23 +66,24 @@ namespace AbilityKit.Demo.Moba.View.Config
             var normalizedDirectory = NormalizeResourcePath(directory);
             if (string.IsNullOrEmpty(normalizedDirectory)) return Array.Empty<string>();
 
+            var paths = new List<string>();
+
 #if UNITY_EDITOR
-            var editorPaths = GetEditorResourcePaths(normalizedDirectory, pattern);
-            if (editorPaths.Count > 0) return editorPaths;
+            paths.AddRange(GetEditorResourcePaths(normalizedDirectory, pattern));
 #endif
 
             var assets = _assets.LoadAll<TextAsset>(normalizedDirectory);
-            if (assets == null || assets.Length == 0) return Array.Empty<string>();
-
-            var paths = new List<string>(assets.Length);
-            for (int i = 0; i < assets.Length; i++)
+            if (assets != null && assets.Length > 0)
             {
-                var asset = assets[i];
-                if (asset == null || !MatchesPattern(asset.name, pattern)) continue;
+                for (int i = 0; i < assets.Length; i++)
+                {
+                    var asset = assets[i];
+                    if (asset == null || !MatchesPattern(asset.name, pattern)) continue;
 
-                var path = normalizedDirectory + "/" + asset.name;
-                _enumeratedAssets[path] = asset;
-                paths.Add(path);
+                    var path = normalizedDirectory + "/" + asset.name;
+                    _enumeratedAssets[path] = asset;
+                    paths.Add(path);
+                }
             }
 
             return paths.Distinct(StringComparer.Ordinal).ToArray();
@@ -113,9 +114,25 @@ namespace AbilityKit.Demo.Moba.View.Config
         private static IReadOnlyList<string> GetEditorResourcePaths(string normalizedDirectory, string pattern)
         {
             var result = new List<string>();
-            var resourcesRoots = Directory.GetDirectories(Application.dataPath, "Resources", SearchOption.AllDirectories);
             var searchPattern = string.IsNullOrEmpty(pattern) ? "*.json" : pattern.Replace("**/", string.Empty).Replace("**", "*");
 
+            AddEditorResourcePaths(result, Application.dataPath, "Assets", normalizedDirectory, searchPattern);
+
+            var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+            if (!string.IsNullOrEmpty(projectRoot))
+            {
+                var packagesRoot = Path.Combine(projectRoot, "Packages");
+                AddEditorResourcePaths(result, packagesRoot, "Packages", normalizedDirectory, searchPattern);
+            }
+
+            return result.Distinct(StringComparer.Ordinal).ToArray();
+        }
+
+        private static void AddEditorResourcePaths(List<string> result, string searchRoot, string assetRoot, string normalizedDirectory, string searchPattern)
+        {
+            if (result == null || string.IsNullOrEmpty(searchRoot) || !Directory.Exists(searchRoot)) return;
+
+            var resourcesRoots = Directory.GetDirectories(searchRoot, "Resources", SearchOption.AllDirectories);
             foreach (var root in resourcesRoots)
             {
                 var fullDirectory = Path.Combine(root, normalizedDirectory.Replace('/', Path.DirectorySeparatorChar));
@@ -133,14 +150,13 @@ namespace AbilityKit.Demo.Moba.View.Config
                         relative = relative.Substring(0, relative.Length - 5);
                     }
 
-                    if (AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/" + assetPath.Substring(Application.dataPath.Length + 1)) != null)
+                    var unityAssetPath = assetRoot + "/" + assetPath.Substring(searchRoot.Replace('\\', '/').Length + 1);
+                    if (AssetDatabase.LoadAssetAtPath<TextAsset>(unityAssetPath) != null)
                     {
                         result.Add(relative);
                     }
                 }
             }
-
-            return result.Distinct(StringComparer.Ordinal).ToArray();
         }
 #endif
     }

@@ -14,6 +14,8 @@ namespace AbilityKit.Game.Flow
     [CreateAssetMenu(menuName = "AbilityKit/Game/Battle Start Config", fileName = "BattleStartConfig")]
     public sealed class BattleStartConfig : ScriptableObject
     {
+        private const int DefaultBasicAttackSkillId = 1;
+
         public enum BattleRunMode
         {
             Normal = 0,
@@ -184,7 +186,7 @@ namespace AbilityKit.Game.Flow
                     var p = playersSo.Team1Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
 
-                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, p.BasicAttackSkillId, p.SkillIds);
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds);
                     slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
                 }
             }
@@ -196,7 +198,7 @@ namespace AbilityKit.Game.Flow
                     var p = playersSo.Team2Players[i];
                     if (p == null || string.IsNullOrEmpty(p.PlayerId)) continue;
 
-                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, p.BasicAttackSkillId, p.SkillIds);
+                    var ov = new MobaRoomLoadoutOverrides(p.Level, p.AttributeTemplateId, ResolveBasicAttackSkillId(p), p.SkillIds);
                     slots.Add(new MobaRoomPlayerSlot(new PlayerId(p.PlayerId), (int)p.TeamId, p.HeroId, p.SpawnIndex, in ov));
                 }
             }
@@ -303,7 +305,7 @@ namespace AbilityKit.Game.Flow
                         p.HeroId,
                         p.AttributeTemplateId,
                         p.Level,
-                        p.BasicAttackSkillId,
+                        ResolveBasicAttackSkillId(p),
                         p.SkillIds,
                         p.SpawnIndex,
                         (int)p.UnitSubType,
@@ -327,7 +329,7 @@ namespace AbilityKit.Game.Flow
                         p.HeroId,
                         p.AttributeTemplateId,
                         p.Level,
-                        p.BasicAttackSkillId,
+                        ResolveBasicAttackSkillId(p),
                         p.SkillIds,
                         p.SpawnIndex,
                         (int)p.UnitSubType,
@@ -340,6 +342,12 @@ namespace AbilityKit.Game.Flow
             }
 
             return list.Count == 0 ? null : list.ToArray();
+        }
+
+        private static int ResolveBasicAttackSkillId(BattlePlayersConfigSO.PlayerConfig player)
+        {
+            if (player == null) return DefaultBasicAttackSkillId;
+            return player.BasicAttackSkillId > 0 ? player.BasicAttackSkillId : DefaultBasicAttackSkillId;
         }
     }
 }

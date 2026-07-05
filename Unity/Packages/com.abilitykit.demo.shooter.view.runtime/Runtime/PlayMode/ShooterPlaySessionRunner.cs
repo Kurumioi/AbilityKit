@@ -13,6 +13,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     public sealed class ShooterPlaySessionRunner : IDisposable
     {
+        private const int MaxCatchUpTicksPerRender = 2;
+
         private readonly IShooterHostInputSource _inputSource;
         private readonly IShooterHostViewSink _viewSink;
         private ShooterAcceptanceSession? _session;
@@ -25,6 +27,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private long _stepCount;
         private long _renderCount;
         private ShooterTimeAnchorCoordinator? _timeAnchors;
+        private long _droppedCatchUpTicks;
+        private int _presentationSnapshotIntervalTicks = 1;
 
         public ShooterPlaySessionRunner(IShooterHostInputSource inputSource, IShooterHostViewSink viewSink)
         {
@@ -45,6 +49,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public long StepCount => _stepCount;
         public long RenderCount => _renderCount;
         public SyncTimeAnchor LastLocalTimeAnchor => _timeAnchors?.LastLocalAnchor ?? default;
+        public long DroppedCatchUpTicks => _droppedCatchUpTicks;
+        public int PresentationSnapshotIntervalTicks => _presentationSnapshotIntervalTicks;
 
         public ShooterAcceptanceSession Start(ShooterPlayModeSessionOptions options)
         {
@@ -84,6 +90,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _stepCount = 0;
             _renderCount = 0;
             _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(_options.TickRate);
+            _droppedCatchUpTicks = 0;
+            _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options);
             SessionChanged?.Invoke(_session);
             return _session;
         }
@@ -106,6 +114,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _stepCount = 0;
             _renderCount = 0;
             _timeAnchors = null;
+            _droppedCatchUpTicks = 0;
+            _presentationSnapshotIntervalTicks = 1;
             session.Dispose();
             _viewSink.Clear();
             SessionChanged?.Invoke(null);
@@ -121,11 +131,18 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var tickInterval = 1f / _options.TickRate;
             _accumulator += Math.Max(0f, deltaSeconds);
 
-            var guard = 0;
-            while (_accumulator >= tickInterval && guard++ < 8)
+            var ticksThisRender = 0;
+            while (_accumulator >= tickInterval && ticksThisRender++ < MaxCatchUpTicksPerRender)
             {
                 _accumulator -= tickInterval;
                 StepOnce(tickInterval);
+            }
+
+            if (_accumulator >= tickInterval)
+            {
+                var skippedTicks = (long)(_accumulator / tickInterval);
+                _droppedCatchUpTicks += skippedTicks;
+                _accumulator = 0f;
             }
 
             RenderLatest();
@@ -173,8 +190,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _lastAuthorityAcceptedInputs = _session.LastAuthorityDeliveredInputCount;
             }
 
-            var snapshot = _session.Runtime.GetSnapshot();
-            _session.Presentation.ApplyLocalAuthoritativeSnapshot(in snapshot);
+            if (ShouldPublishPresentationSnapshot())
+            {
+                var snapshot = _session.Runtime.GetSnapshot();
+                _session.Presentation.ApplyLocalAuthoritativeSnapshot(in snapshot);
+            }
         }
 
         private void RenderLatest()
@@ -213,6 +233,27 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.Presentation.LastPureStateResyncStateHash);
             _viewSink.Render(in frame);
             _renderCount++;
+        }
+
+        private bool ShouldPublishPresentationSnapshot()
+        {
+            return _stepCount <= 1 || (_stepCount % Math.Max(1, _presentationSnapshotIntervalTicks)) == 0;
+        }
+
+        private static int DeterminePresentationSnapshotIntervalTicks(ShooterPlayModeSessionOptions options)
+        {
+            var activeEnemies = options.GameplayScenario.BattleFlow.MaxActiveEnemies;
+            if (activeEnemies >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget)
+            {
+                return Math.Max(1, options.TickRate / 20);
+            }
+
+            if (activeEnemies >= ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget)
+            {
+                return Math.Max(1, options.TickRate / 30);
+            }
+
+            return 1;
         }
 
         private static ShooterPlayModeSessionOptions AlignWithGameplayScenario(ShooterPlayModeSessionOptions options)

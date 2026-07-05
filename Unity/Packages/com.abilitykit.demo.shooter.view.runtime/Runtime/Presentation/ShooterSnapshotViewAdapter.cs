@@ -65,6 +65,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotViewBatch Clear()
         {
+            _mapper.ClearTrackedState();
             _viewModel.Clear();
             return _viewModel.Current;
         }

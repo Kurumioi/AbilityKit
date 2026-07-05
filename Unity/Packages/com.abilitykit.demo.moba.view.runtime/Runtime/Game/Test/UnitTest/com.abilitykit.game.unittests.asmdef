@@ -20,6 +20,7 @@
         "AbilityKit.Game.View.Runtime",
         "AbilityKit.World.ECS",
         "AbilityKit.Protocol.Moba",
+        "AbilityKit.Protocol.MemoryPack",
         "AbilityKit.Triggering",
         "AbilityKit.Trace",
         "AbilityKit.Combat.Collision.Abstractions",

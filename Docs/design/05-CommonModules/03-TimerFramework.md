@@ -103,7 +103,7 @@ if (timer > 0.5f)
 }
 ```
 
-注意：`SystemTimer` 测的是真实系统时间，不是世界逻辑帧时间。帧同步、回放、确定性模拟不应依赖真实时间决定逻辑结果。
+`SystemTimer` 测量真实系统时间，不属于世界逻辑帧时间。帧同步、回放、确定性模拟不应依赖真实时间决定逻辑结果。
 
 ---
 
@@ -295,7 +295,7 @@ flowchart TB
 
 关键细节：它使用 `while (_elapsed >= _period)` 补执行周期回调。如果某一帧 `deltaTime` 很大，可能在同一个 Tick 中执行多次周期回调。
 
-这对逻辑正确性很重要：
+该行为影响逻辑正确性：
 
 - 好处：低帧率下不会永久丢失周期次数。
 - 风险：单帧可能集中执行多次回调，回调应保持轻量，并注意玩法上是否允许补帧。
@@ -366,7 +366,7 @@ sequenceDiagram
     Scheduler->>Scheduler: RemoveAt(i)
 ```
 
-注意：`CancelByName` 只是给任务打取消标记。真正从 `TaskList` 移除发生在下一次或当前 Tick 遍历检查时。
+`CancelByName` 只为任务写入取消标记。真正从 `TaskList` 移除发生在下一次或当前 Tick 遍历检查时。
 
 ---
 
@@ -400,7 +400,7 @@ sequenceDiagram
 
 ---
 
-## 13. 新手常见误区
+## 13. 边界判断
 
 ### 13.1 把 ITimer 当成调度器
 
@@ -424,14 +424,14 @@ sequenceDiagram
 
 ---
 
-## 14. 推荐阅读顺序
+## 14. 源码阅读路径
 
-1. 先读 `ITimer.cs` 和 `SystemTimer.cs`，明确计时器只是测量经过时间。
-2. 再读 `IScheduler.cs`，理解调度器公开能力。
-3. 再读 `DefaultScheduler.Tick` 和 `TaskList.RemoveAt`，理解任务更新和移除方式。
-4. 再读 `ScheduledTaskBase` 与 `TaskState`，理解状态和取消语义。
-5. 最后分别读 `DelayTask`、`PeriodicTask`、`ContinuousTask`，对照不同任务行为。
-6. 配合阅读 `IWorldClock` 和 `HostRuntime.Tick`，理解世界时间如何被外部驱动。
+1. `ITimer.cs` 与 `SystemTimer.cs`：计时器只测量经过时间。
+2. `IScheduler.cs`：调度器公开能力。
+3. `DefaultScheduler.Tick` 与 `TaskList.RemoveAt`：任务更新和移除方式。
+4. `ScheduledTaskBase` 与 `TaskState`：状态和取消语义。
+5. `DelayTask`、`PeriodicTask`、`ContinuousTask`：不同任务行为。
+6. `IWorldClock` 与 `HostRuntime.Tick`：世界时间如何被外部驱动。
 
 ---
 

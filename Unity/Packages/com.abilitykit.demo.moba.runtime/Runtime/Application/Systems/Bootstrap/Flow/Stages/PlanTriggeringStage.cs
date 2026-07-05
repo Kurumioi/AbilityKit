@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
@@ -143,7 +144,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 if (!argsType.IsClass)
                 {
-                    throw new InvalidOperationException($"Global trigger event args type must be a class. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
+                    runner.RegisterPlan<object, IWorldResolver>(new EventKey<object>(record.EventId), record.Plan);
+                    continue;
                 }
 
                 runner.RegisterPlan(record.EventId, argsType, record.Plan);

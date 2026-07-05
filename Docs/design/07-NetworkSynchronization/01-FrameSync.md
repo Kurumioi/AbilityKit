@@ -71,7 +71,7 @@ public readonly struct FrameIndex
 }
 ```
 
-`PlayerInputCommand` 也不是旧文档里的 `Type` 枚举模型，而是以 `OpCode` 加二进制 payload 表达不同输入：
+`PlayerInputCommand` 以 `OpCode` 加二进制 payload 表达不同输入，而不是在框架层固定输入类型枚举：
 
 ```csharp
 public readonly struct PlayerInputCommand
@@ -619,9 +619,9 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 
 ---
 
-## 7.1.16 常见误区
+## 7.1.16 边界判断
 
-| 误区 | 正确认知 |
+| 容易混淆的判断 | 设计边界 |
 | --- | --- |
 | 帧同步就是同步每帧完整状态 | AbilityKit 的帧同步核心是同步帧输入，快照是校准、表现或状态同步的补充 |
 | `PlayerInputCommand` 有固定 `EInputType` 枚举 | 当前源码使用 `OpCode` 和 `Payload`，输入语义由协议/Demo 定义 |
@@ -632,23 +632,21 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 
 ---
 
-## 7.1.17 新手阅读路线
+## 7.1.17 源码阅读路径
 
-建议按这个顺序读源码：
-
-1. `FrameIndex.cs` 和 `PlayerInputCommand.cs`：先理解帧号和输入命令的最小结构。
-2. `IWorldInputSink.cs`：理解 Host 和逻辑世界之间的输入边界。
-3. `FrameSyncDriverModule.cs`：重点读 `Install`、`SubmitInput`、`OnPreTick`、`OnPostTick`。
-4. `FramePacket.cs` 和 `FrameMessage.cs`：理解输入与快照如何打包广播。
-5. `ServerFrameTimeModule.cs`：理解 `IFrameTime` 如何跟随帧同步更新。
-6. `FramePacketNetAdapter.cs` 和 `RemoteFrameAggregator.cs`：理解客户端如何缓冲远端输入和快照。
-7. `BattleFrameSyncGrain.cs` 与 `FrameSyncModels.cs`：理解 Orleans 侧按 TickRate 推送输入帧的 relay 模型。
+1. `FrameIndex.cs` 与 `PlayerInputCommand.cs`：帧号和输入命令的最小结构。
+2. `IWorldInputSink.cs`：Host 和逻辑世界之间的输入边界。
+3. `FrameSyncDriverModule.cs`：`Install`、`SubmitInput`、`OnPreTick`、`OnPostTick` 的驱动流程。
+4. `FramePacket.cs` 与 `FrameMessage.cs`：输入与快照如何打包广播。
+5. `ServerFrameTimeModule.cs`：`IFrameTime` 如何跟随帧同步更新。
+6. `FramePacketNetAdapter.cs` 与 `RemoteFrameAggregator.cs`：客户端如何缓冲远端输入和快照。
+7. `BattleFrameSyncGrain.cs` 与 `FrameSyncModels.cs`：Orleans 侧按 TickRate 推送输入帧的 relay 模型。
 
 ---
 
-## 7.1.18 最小心智模型
+## 7.1.18 最小链路概括
 
-可以把 AbilityKit 当前帧同步理解成一句话：
+AbilityKit 当前帧同步链路可以概括为：
 
 > 客户端或网关提交 `PlayerInputCommand`；Host 的 `FrameSyncDriverModule` 在 `PreTick` 把某帧输入提交给 `IWorldInputSink`，世界 Tick 后在 `PostTick` 采集快照并广播 `FramePacket`；客户端通过 `FramePacketNetAdapter` 把输入写入缓冲并把快照喂给 dispatcher；Orleans 的 `BattleFrameSyncGrain` 则在分布式房间里按 TickRate 做输入帧 relay。
 
@@ -663,4 +661,4 @@ flowchart LR
     Input --> Orleans["BattleFrameSyncGrain Relay"]
 ```
 
-掌握这条链路后，再阅读状态同步、回滚预测和回放系统时，就能判断每个模块是在“生产输入”、“消费输入”、“保存帧状态”，还是“根据权威帧修正本地预测”。
+基于这条链路阅读状态同步、回滚预测和回放系统时，可以判断每个模块是在“生产输入”、“消费输入”、“保存帧状态”，还是“根据权威帧修正本地预测”。

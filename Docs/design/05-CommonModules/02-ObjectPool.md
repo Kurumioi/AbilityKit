@@ -420,7 +420,7 @@ flowchart TB
 
 ---
 
-## 13. 新手常见误区
+## 13. 边界判断
 
 ### 13.1 以为 `Pools.Release(obj)` 可以归还任何对象
 
@@ -444,13 +444,13 @@ flowchart TB
 
 ---
 
-## 14. 推荐阅读顺序
+## 14. 源码阅读路径
 
-1. 先读 `Pools.cs`，建立全局门面的 API 视图。
-2. 再读 `PoolScope.cs`，理解 scope、config 和 `PoolKey`。
-3. 再读 `ObjectPool.cs`，重点看 `Get()`、`Release()`、`Prewarm()`、`Trim()`。
-4. 再读 `PoolManager.cs`，理解为什么对象实例可以被 `TryRelease(object)` 反向归还。
-5. 最后读 `PoolConfigCenter.cs` 和 `PoolConfigModule.cs`，理解配置 provider 的优先级、注册顺序、强类型配置构建和诊断报告。
+1. `Pools.cs`：全局门面的 API 视图。
+2. `PoolScope.cs`：scope、config 和 `PoolKey`。
+3. `ObjectPool.cs`：`Get()`、`Release()`、`Prewarm()`、`Trim()` 的池对象生命周期。
+4. `PoolManager.cs`：对象实例如何通过 `TryRelease(object)` 反向归还。
+5. `PoolConfigCenter.cs` 与 `PoolConfigModule.cs`：配置 provider 的优先级、注册顺序、强类型配置构建和诊断报告。
 
 ---
 

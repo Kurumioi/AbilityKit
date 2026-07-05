@@ -20,7 +20,7 @@
   - [6. 设计约束与扩展点](#6-设计约束与扩展点)
     - [6.1 约束](#61-约束)
     - [6.2 扩展点](#62-扩展点)
-  - [下一步](#下一步)
+  - [7. 关联文档](#7-关联文档)
 
 ---
 
@@ -218,7 +218,7 @@ sequenceDiagram
 
 ---
 
-## 下一步
+## 7. 关联文档
 
 - [ECS 核心概念](./01-ECSCoreConcepts.md) - Entity/Component/System 的统一抽象
 - [Svelto 实现](./03-SveltoImplementation.md) - Svelto 上下文与模块适配

@@ -6,20 +6,27 @@
 
 ## 目录
 
-1. [能力定位](#1-能力定位)
-2. [源码入口](#2-源码入口)
-3. [真实模块接口](#3-真实模块接口)
-4. [安装与卸载顺序](#4-安装与卸载顺序)
-5. [Hook 是模块的运行入口](#5-hook-是模块的运行入口)
-6. [Feature 是模块间能力注册表](#6-feature-是模块间能力注册表)
-7. [真实内置模块](#7-真实内置模块)
-8. [FrameSyncDriverModule 流程](#8-framesyncdrivermodule-流程)
-9. [ServerFrameTimeModule 流程](#9-serverframetimemodule-流程)
-10. [WorldAutoStartModule 流程](#10-worldautostartmodule-流程)
-11. [自定义模块写法](#11-自定义模块写法)
-12. [设计意图与解决的问题](#12-设计意图与解决的问题)
-13. [新手常见误区](#13-新手常见误区)
-14. [阅读路线](#14-阅读路线)
+- [3.2 Host 模块系统：Install、Hook 与 Feature 协作](#32-host-模块系统installhook-与-feature-协作)
+  - [目录](#目录)
+  - [1. 能力定位](#1-能力定位)
+  - [2. 源码入口](#2-源码入口)
+  - [3. 真实模块接口](#3-真实模块接口)
+  - [4. 安装与卸载顺序](#4-安装与卸载顺序)
+    - [4.1 WorldHostBuilder 安装模块](#41-worldhostbuilder-安装模块)
+    - [4.2 HostRuntimeModuleHost 逆序卸载](#42-hostruntimemodulehost-逆序卸载)
+  - [5. Hook 是模块的运行入口](#5-hook-是模块的运行入口)
+  - [6. Feature 是模块间能力注册表](#6-feature-是模块间能力注册表)
+  - [7. 真实内置模块](#7-真实内置模块)
+  - [8. FrameSyncDriverModule 流程](#8-framesyncdrivermodule-流程)
+    - [8.1 安装流程](#81-安装流程)
+    - [8.2 Tick 前输入 flush](#82-tick-前输入-flush)
+    - [8.3 Tick 后广播帧包](#83-tick-后广播帧包)
+  - [9. ServerFrameTimeModule 流程](#9-serverframetimemodule-流程)
+  - [10. WorldAutoStartModule 流程](#10-worldautostartmodule-流程)
+  - [11. 自定义模块写法](#11-自定义模块写法)
+  - [12. 设计意图与解决的问题](#12-设计意图与解决的问题)
+  - [13. 边界判断](#13-边界判断)
+  - [14. 源码阅读路径](#14-源码阅读路径)
 
 ---
 
@@ -82,10 +89,10 @@ public interface IHostRuntimeModule
 }
 ```
 
-它没有下面这些成员：
+当前模块接口不包含名称、优先级或直接 Tick 成员：
 
-| 不存在的旧模型 | 当前源码事实 |
-|----------------|--------------|
+| 非接口成员 | 当前源码事实 |
+|------------|--------------|
 | `Name` | 模块没有统一名称属性 |
 | `Priority` | 模块没有统一优先级属性 |
 | `OnAttach` | 用 `Install` 替代 |
@@ -112,7 +119,7 @@ flowchart TD
     Snapshot --> Modules[Install modules in add order]
 ```
 
-安装顺序很重要，因为一些模块会读取前面模块注册的 Feature。
+安装顺序会影响 Feature 依赖解析：部分模块会读取前置模块注册的 Feature。
 
 | 例子 | 原因 |
 |------|------|
@@ -375,9 +382,9 @@ public sealed class DiagnosticsHostModule : IHostRuntimeModule
 }
 ```
 
-自定义模块建议遵循：
+自定义模块应遵循以下约束：
 
-| 建议 | 原因 |
+| 约束 | 原因 |
 |------|------|
 | 构造函数里缓存委托字段 | `Remove` 依赖同一个委托引用 |
 | `Install` 校验 runtime/options | 和内置模块行为一致 |
@@ -400,10 +407,10 @@ public sealed class DiagnosticsHostModule : IHostRuntimeModule
 
 ---
 
-## 13. 新手常见误区
+## 13. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 模块会自动每帧调用 `OnTick` | 当前没有 `OnTick`；模块通过 `PreTick` 或 `PostTick` Hook 运行 |
 | `Priority` 决定模块顺序 | 当前模块接口没有 `Priority`；安装顺序由 Builder 决定，Hook 内顺序由 `order` 决定 |
 | Feature 能替代 World DI | Feature 是 Host 级能力注册表，不负责世界服务生命周期 |
@@ -412,15 +419,15 @@ public sealed class DiagnosticsHostModule : IHostRuntimeModule
 
 ---
 
-## 14. 阅读路线
+## 14. 源码阅读路径
 
-1. 先读 `IHostRuntimeModule`，确认真实接口。
-2. 读 `HostRuntimeOptions` 和 `Hook`，理解模块如何挂入生命周期。
-3. 读 `HostRuntimeFeatures`，理解模块间能力发现。
-4. 读 `WorldHostBuilder.BuildWithOptions`，理解模块安装顺序。
-5. 读 `FrameSyncDriverModule`，学习完整模块实现。
-6. 读 `ServerFrameTimeModule`，学习依赖 Feature 的模块实现。
-7. 读 `WorldAutoStartModule`，学习通过世界服务扩展 Host 行为。
+1. `IHostRuntimeModule`：真实模块接口。
+2. `HostRuntimeOptions` 与 `Hook`：模块如何挂入生命周期。
+3. `HostRuntimeFeatures`：模块间能力发现。
+4. `WorldHostBuilder.BuildWithOptions`：模块安装顺序。
+5. `FrameSyncDriverModule`：完整模块实现。
+6. `ServerFrameTimeModule`：依赖 Feature 的模块实现。
+7. `WorldAutoStartModule`：通过世界服务扩展 Host 行为。
 
 ---
 

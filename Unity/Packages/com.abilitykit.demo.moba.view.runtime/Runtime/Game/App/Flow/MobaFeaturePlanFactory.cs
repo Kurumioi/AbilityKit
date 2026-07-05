@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
         public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBootFeaturePlan(int capacity = 2)
         {
             return new PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature>(capacity)
-                .Add("boot_menu", (in GamePhaseContext ctx) => _featureFactories.Create("boot_menu", in ctx))
+                .Add("demo_lobby", (in GamePhaseContext ctx) => _featureFactories.Create("demo_lobby", in ctx))
                 .Add("root_debug", (in GamePhaseContext ctx) => _featureFactories.Create("root_debug", in ctx));
         }
 

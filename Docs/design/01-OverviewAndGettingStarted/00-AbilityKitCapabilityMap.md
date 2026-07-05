@@ -128,9 +128,9 @@ mindmap
 
 ---
 
-## 3. 推荐组合与引入边界
+## 3. 能力组合与引入边界
 
-`Unity/Packages/README.md` 已经把内部推广顺序拆成组合。设计文档阅读也建议按同样顺序推进：
+`Unity/Packages/README.md` 已经把内部推广顺序拆成组合。设计文档按同一能力层次说明引入边界：
 
 | 组合 | 包含模块 | 适用场景 | 不适用场景 |
 |------|----------|----------|------------|
@@ -178,7 +178,7 @@ flowchart LR
 
 | 入口 | 作用 |
 |------|------|
-| `Unity/Packages/README.md` | 包级文档索引、推荐组合、内部推广分级 |
+| `Unity/Packages/README.md` | 包级文档索引、能力组合、内部推广分级 |
 | `Unity/Packages/packages-lock.json` | Unity embedded package 依赖图 |
 | `src/AbilityKit.sln` | .NET 工程、Demo、测试工程地图 |
 | `Server/Orleans/README.md` | Orleans 服务端运行说明 |
@@ -538,17 +538,17 @@ sequenceDiagram
 
 ---
 
-## 11. 后续文档补齐顺序
+## 11. 关联专题
 
-P0 文档完成后，推荐继续按下列顺序补齐：
+能力地图与下列专题共同构成从框架入口到工程验收的文档结构：
 
-1. 补齐 `Docs/design/07-NetworkSynchronization`：状态同步、回滚预测、回放、会话协调。
-2. 补齐 `Docs/design/09-ImplementationExamples`：ET、MOBA、Shooter 的真实闭环。
-3. 补齐 `Docs/design/00-Prologue.md`、`Docs/design/10-EngineeringQuality/01-TestingWorkflow.md`、`Docs/design/11-DocumentationCompletionPlan.md`：项目起因、测试流程和文档路线图。
+1. `Docs/design/07-NetworkSynchronization`：状态同步、回滚预测、回放、会话协调。
+2. `Docs/design/09-ImplementationExamples`：ET、MOBA、Shooter 的真实闭环。
+3. `Docs/design/00-Prologue.md`、`Docs/design/10-EngineeringQuality/01-TestingWorkflow.md`、`Docs/design/11-DocumentationCompletionPlan.md`：项目起因、测试流程和文档治理。
 
 ```mermaid
 flowchart LR
-    P0["P0 入门地图"] --> P1["P1 网络同步"]
-    P1 --> P2["P2 示例闭环"]
-    P2 --> P3["P3 工程质量和路线图"]
+    P0["入口能力地图"] --> P1["网络同步专题"]
+    P1 --> P2["示例闭环专题"]
+    P2 --> P3["工程质量与文档治理"]
 ```

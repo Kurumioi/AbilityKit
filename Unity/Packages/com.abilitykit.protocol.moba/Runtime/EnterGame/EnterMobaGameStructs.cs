@@ -11,17 +11,17 @@ namespace AbilityKit.Protocol.Moba
         [MemoryPackOrder(0), BinaryMember(0)] public readonly PlayerId PlayerId;
         [MemoryPackOrder(1), BinaryMember(1)] public readonly int TeamId;
         [MemoryPackOrder(2), BinaryMember(2)] public readonly int HeroId;
-        [MemoryPackOrder(3), BinaryMember(3)] public readonly int Level;
-        [MemoryPackOrder(4), BinaryMember(4)] public readonly int BasicAttackSkillId;
-        [MemoryPackOrder(5), BinaryMember(5)] public readonly int[] SkillIds;
-        [MemoryPackOrder(6), BinaryMember(6)] public readonly int SpawnIndex;
-        [MemoryPackOrder(7), BinaryMember(7)] public readonly int UnitSubType;
-        [MemoryPackOrder(8), BinaryMember(8)] public readonly int MainType;
-        [MemoryPackOrder(9), BinaryMember(9)] public readonly int HasSpawnPosition;
-        [MemoryPackOrder(10), BinaryMember(10)] public readonly float SpawnX;
-        [MemoryPackOrder(11), BinaryMember(11)] public readonly float SpawnY;
-        [MemoryPackOrder(12), BinaryMember(12)] public readonly float SpawnZ;
-        [MemoryPackOrder(13), BinaryMember(13)] public readonly int AttributeTemplateId;
+        [MemoryPackOrder(3), BinaryMember(3)] public readonly int AttributeTemplateId;
+        [MemoryPackOrder(4), BinaryMember(4)] public readonly int Level;
+        [MemoryPackOrder(5), BinaryMember(5)] public readonly int BasicAttackSkillId;
+        [MemoryPackOrder(6), BinaryMember(6)] public readonly int[] SkillIds;
+        [MemoryPackOrder(7), BinaryMember(7)] public readonly int SpawnIndex;
+        [MemoryPackOrder(8), BinaryMember(8)] public readonly int UnitSubType;
+        [MemoryPackOrder(9), BinaryMember(9)] public readonly int MainType;
+        [MemoryPackOrder(10), BinaryMember(10)] public readonly int HasSpawnPosition;
+        [MemoryPackOrder(11), BinaryMember(11)] public readonly float SpawnX;
+        [MemoryPackOrder(12), BinaryMember(12)] public readonly float SpawnY;
+        [MemoryPackOrder(13), BinaryMember(13)] public readonly float SpawnZ;
 
         [MemoryPackConstructor]
         public MobaPlayerLoadout(

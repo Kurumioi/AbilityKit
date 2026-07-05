@@ -208,9 +208,9 @@ sequenceDiagram
     Smoke->>Smoke: late join / reconnect projection checks
 ```
 
-## 10. 为什么烟测很重要
+## 10. Smoke 覆盖的协议风险
 
-Shooter 的 smoke 不只是集成测试，它覆盖了同步协议最容易出问题的点：
+Shooter smoke 不只是集成测试，它覆盖同步协议中最容易出问题的点：
 
 - 服务端和客户端帧号不一致；
 - hash 不一致；

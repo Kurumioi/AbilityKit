@@ -25,7 +25,7 @@
     - [9.1 发射流程](#91-发射流程)
     - [9.2 事件转译](#92-事件转译)
   - [10. 扩展点与约束](#10-扩展点与约束)
-  - [下一步](#下一步)
+  - [11. 关联文档](#11-关联文档)
 
 ---
 
@@ -299,7 +299,7 @@ flowchart LR
     F --> G["Rebuild Projectile list from pool"]
 ```
 
-需要注意：底层快照保存的是底层运行状态；Demo 层额外的演员链接、来源上下文、技能 retain handle 等，需要由 Demo 侧服务自行维护或在生命周期中重新绑定。
+底层快照保存的是底层运行状态；Demo 层额外的演员链接、来源上下文、技能 retain handle 等，需要由 Demo 侧服务自行维护或在生命周期中重新绑定。
 
 ---
 
@@ -378,7 +378,7 @@ flowchart TD
 
 ---
 
-## 下一步
+## 11. 关联文档
 
 - [属性系统](05-AttributeSystem.md) - Attributes 与 Modifiers
 - [伤害计算](06-DamageCalculation.md) - 伤害公式

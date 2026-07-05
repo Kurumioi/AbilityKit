@@ -25,7 +25,7 @@
 | 联机与单机差异 | 单机能跑，联机、回放、预测、回滚又要改一遍 | 后期改造代价大 |
 | 项目周期紧 | 没有时间停下来重构 | 补丁继续叠加 |
 
-最终形成的状态是：系统还能跑，但越来越依赖“知道历史的人”。新人很难接手，测试很难覆盖，跨项目复用几乎不可行。
+最终形成的状态是：系统还能跑，但越来越依赖隐性上下文。维护成本持续上升，测试覆盖困难，跨项目复用几乎不可行。
 
 ---
 
@@ -152,7 +152,7 @@ flowchart LR
 
 ### 5.1 GAS 带来的启发
 
-Unreal 的 Gameplay Ability System 是游戏战斗框架领域里很重要的参考。它证明了几件事：
+Unreal 的 Gameplay Ability System 是游戏战斗框架领域的关键参考。它证明了几件事：
 
 - Ability、Effect、Attribute、Tag 可以形成稳定的玩法表达模型；
 - 技能不是孤立逻辑，而是需要和属性、状态、标签、预测、网络复制协作；
@@ -273,7 +273,7 @@ MOBA/Shooter/Console/ET]
 | Unity package | `Unity/Packages/com.abilitykit.*` | 项目接入、运行时包、Unity 表现层、包内测试与 asmdef 组织 |
 | .NET projects | `src/AbilityKit.*` | 纯 C# 构建、单元测试、Demo runtime、Console/ET/Shooter 复用 |
 | Server projects | `Server/Orleans/src` | Gateway、RoomGrain、BattleGrain、FrameSyncGrain 与 smoke 验收 |
-| Design docs | `Docs/design` | 把源码入口、设计意图、运行流程、测试门禁组织成新手可读路线 |
+| Design docs | `Docs/design` | 把源码入口、设计意图、运行流程、测试门禁组织成稳定的阅读路径 |
 
 ```mermaid
 flowchart LR

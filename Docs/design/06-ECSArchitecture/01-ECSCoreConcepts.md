@@ -1,6 +1,6 @@
 # 6.1 ECS 核心概念：EntityWorld、IEntity 与组件索引
 
-> 本文用当前源码解释 AbilityKit 轻量 ECS 的核心模型。这里的 ECS 不是旧文档里的 `IECEntity` / `IECSystem` 接口模型，而是以 `EntityWorld` 为存储中心、`IEntity` 为值类型句柄、`IEntityId` 为版本化 ID、`EntityQuery` 为类型安全查询入口的一套轻量实体组件世界。
+> 本文档解释 AbilityKit 轻量 ECS 的核心模型：以 `EntityWorld` 为存储中心、`IEntity` 为值类型句柄、`IEntityId` 为版本化 ID、`EntityQuery` 为类型安全查询入口的轻量实体组件世界。
 
 ---
 
@@ -15,7 +15,7 @@ AbilityKit 同时存在几类 ECS/世界相关能力：
 | Svelto 适配 | `Unity/Packages/com.abilitykit.world.svelto/Runtime`、`src/AbilityKit.World.Svelto` | 接入 Svelto `EnginesRoot`、`EntitiesDB` 和性能模式 |
 | 逻辑世界 | `Unity/Packages/com.abilitykit.world/Runtime`、`src/AbilityKit.World` | 管理世界生命周期、模块、系统、服务容器和 Tick |
 
-本篇只讲“ECS 核心概念”本身，也就是轻量 ECS 如何表达实体和组件。Entitas 与 Svelto 的差异见后续专题。
+本篇聚焦“ECS 核心概念”本身，也就是轻量 ECS 如何表达实体和组件。Entitas 与 Svelto 的差异见后续专题。
 
 ---
 
@@ -272,7 +272,7 @@ sequenceDiagram
     World->>World: release snapshot list
 ```
 
-几个细节很重要：
+查询实现包含以下关键约束：
 
 | 细节 | 原因 |
 |------|------|
@@ -340,11 +340,11 @@ flowchart LR
 
 ---
 
-## 12. System 在 AbilityKit 中怎么理解
+## 12. System 在 AbilityKit 中的层次
 
-旧文档把 System 写成 `IECSystem` 接口，这是不符合当前源码的。当前 AbilityKit 里 System 有多个层次：
+当前 AbilityKit 的 System 模型不是轻量 ECS 内部的统一接口，而是由不同运行层承担：
 
-| 层次 | 真实形态 |
+| 层次 | 当前形态 |
 |------|----------|
 | 轻量 ECS | 提供实体、组件、查询，不定义统一 `IECSystem` |
 | 逻辑世界 | 由世界模块、系统安装器、生命周期和 Tick 管理具体系统 |
@@ -365,7 +365,7 @@ flowchart TB
     WorldSystemBase --> Contexts["IContexts"]
 ```
 
-所以新手应把本页的 ECS 核心理解为“数据和查询底座”，不要把它和 Entitas/Svelto 的系统调度混为一谈。
+因此，本页的 ECS 核心边界是“数据和查询底座”，不应和 Entitas/Svelto 的系统调度模型混为一谈。
 
 ---
 
@@ -434,10 +434,10 @@ actor.Destroy();
 
 ---
 
-## 15. 新手常见误区
+## 15. 边界判断
 
-| 误区 | 正确认知 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | `IEntity` 是保存组件数据的对象 | `IEntity` 是值类型句柄，数据在 `EntityWorld` 的组件数组里 |
 | 实体 ID 只要一个 int 就够 | 当前源码用 `Index + Version` 防止槽位复用导致旧引用误命中 |
 | `Has<T>()` 判断某个实体是否有组件 | 当前 `IEntity.Has<T>()` 委托到 `IECWorld.HasComponent<T>()`，语义更接近世界内是否存在该组件类型；单实体读取建议用 `TryGet<T>` |
@@ -449,16 +449,16 @@ actor.Destroy();
 
 ---
 
-## 16. 推荐阅读顺序
+## 16. 源码阅读路径
 
-1. 先读 `IEntityId`，理解版本化 ID 为什么存在。
-2. 读 `IEntity`，确认实体只是句柄。
-3. 读 `IECWorld`，建立实体生命周期、组件、查询、层级、事件 API 全貌。
-4. 读 `ComponentRegistry`，理解类型 ID 从哪里来。
-5. 读 `EntityWorld` 的 `Create`、`SetComponent`、`QueryImpl`、`Destroy`。
-6. 读 `EntityQuery`，理解查询 API 为什么只包了一层。
-7. 读 `WorldEvents` 和 `WorldEventBus`，理解观察点。
-8. 再进入 `02-EntitasImplementation.md`、`03-QueryAndIteration.md` 和 `03-SveltoImplementation.md` 对比不同 ECS 适配。
+1. `IEntityId`：版本化 ID 为什么存在。
+2. `IEntity`：实体只是句柄。
+3. `IECWorld`：实体生命周期、组件、查询、层级、事件 API 全貌。
+4. `ComponentRegistry`：类型 ID 来源。
+5. `EntityWorld` 的 `Create`、`SetComponent`、`QueryImpl`、`Destroy`：轻量 ECS 的核心读写路径。
+6. `EntityQuery`：查询 API 的外壳边界。
+7. `WorldEvents` 与 `WorldEventBus`：实体和组件变化的观察点。
+8. `02-EntitasImplementation.md`、`03-QueryAndIteration.md`、`03-SveltoImplementation.md`：不同 ECS 适配的差异。
 
 ---
 

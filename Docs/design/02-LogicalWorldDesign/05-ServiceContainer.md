@@ -15,8 +15,8 @@
 7. [生命周期回调与销毁顺序](#7-生命周期回调与销毁顺序)
 8. [属性扫描模块](#8-属性扫描模块)
 9. [设计意图与解决的问题](#9-设计意图与解决的问题)
-10. [新手常见误区](#10-新手常见误区)
-11. [推荐阅读顺序](#11-推荐阅读顺序)
+10. [边界判断](#10-边界判断)
+11. [源码阅读路径](#11-源码阅读路径)
 
 ---
 
@@ -108,7 +108,7 @@ var container = builder.Build();
 | `AddModule(module)` | 调用模块的 `Configure(builder)` 聚合注册逻辑 |
 | `Build()` | 把描述符集合固化为 `WorldContainer` |
 
-默认无生命周期重载注册为 scoped，这一点对新手很重要：如果没有显式传入 `WorldLifetime.Singleton` 或 `Transient`，服务往往是作用域级别的。
+默认无生命周期重载注册为 scoped：如果没有显式传入 `WorldLifetime.Singleton` 或 `Transient`，服务通常是作用域级别的。
 
 `WorldActivator` 的构造策略不是“必须有无参构造函数”。它会缓存类型计划，按参数数量从多到少检查 public 构造函数，只要构造函数的每个参数都能通过当前 resolver `TryResolve` 成功，就选中该构造函数创建实例；创建后再处理标记了 `[WorldInject]` 的字段和属性。
 
@@ -313,10 +313,10 @@ AbilityKit 的世界容器支持必要的构造函数选择和成员注入，但
 
 ---
 
-## 10. 新手常见误区
+## 10. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 以为有 `RegisterSingleton`、`RegisterTransient` | 源码使用 `Register(..., WorldLifetime.Singleton)` 或 `RegisterType(..., WorldLifetime.Transient)` |
 | 以为 `RegisterType` 只能调用无参构造函数 | 实际通过 `WorldActivator` 选择所有参数都可解析的 public 构造函数，并优先选择参数更多的候选 |
 | 在根容器解析 scoped 服务 | scoped 必须从 `WorldScope` 解析 |
@@ -328,14 +328,14 @@ AbilityKit 的世界容器支持必要的构造函数选择和成员注入，但
 
 ---
 
-## 11. 推荐阅读顺序
+## 11. 源码阅读路径
 
-1. 先读 `WorldContainerBuilder.cs`，确认真实注册 API。
-2. 再读 `WorldActivator.cs`，理解构造函数选择和 `[WorldInject]` 成员注入。
-3. 再读 `WorldContainer.cs`，理解根容器如何处理 singleton、transient 和禁止 root-scoped 解析。
-4. 再读 `WorldScope.cs`，理解 scoped 缓存、seeded 实例和作用域释放。
-5. 再读 `AttributeWorldServicesModule.cs`，理解框架默认服务如何批量注册。
-6. 最后结合 [逻辑世界概述](01-WorldOverview.md)、[系统设计](04-SystemDesign.md) 和 [Host 运行时](../03-LogicalWorldHostDesign/01-HostRuntime.md)，看容器如何接入世界创建、System 安装与 Tick。
+1. `WorldContainerBuilder.cs`：真实注册 API。
+2. `WorldActivator.cs`：构造函数选择和 `[WorldInject]` 成员注入。
+3. `WorldContainer.cs`：根容器如何处理 singleton、transient 和禁止 root-scoped 解析。
+4. `WorldScope.cs`：scoped 缓存、seeded 实例和作用域释放。
+5. `AttributeWorldServicesModule.cs`：框架默认服务如何批量注册。
+6. [逻辑世界概述](01-WorldOverview.md)、[系统设计](04-SystemDesign.md) 与 [Host 运行时](../03-LogicalWorldHostDesign/01-HostRuntime.md)：容器如何接入世界创建、System 安装与 Tick。
 
 ---
 

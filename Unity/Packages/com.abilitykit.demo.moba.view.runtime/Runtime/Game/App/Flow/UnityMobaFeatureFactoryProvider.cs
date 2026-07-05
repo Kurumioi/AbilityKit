@@ -19,6 +19,7 @@ namespace AbilityKit.Game.Flow
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             registry
+                .Register("demo_lobby", (in GamePhaseContext ctx) => new DemoLobbyOnGUIFeature())
                 .Register("boot_menu", (in GamePhaseContext ctx) => new BootMenuOnGUIFeature())
                 .Register("root_debug", (in GamePhaseContext ctx) => new RootDebugOnGUIFeature())
                 .Register("debug_ongui", (in GamePhaseContext ctx) => new BattleDebugOnGUIFeature());

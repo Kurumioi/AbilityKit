@@ -224,6 +224,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 && TryGetLivePlayer(targetPlayerId, out player);
         }
 
+        public bool TryGetOnlyLivePlayer(out ShooterSveltoPlayerComponent player)
+        {
+            player = default;
+            if (_records.Count != 1)
+            {
+                return false;
+            }
+
+            var record = _records[0];
+            if (!record.Player.Alive || record.Player.Hp <= 0)
+            {
+                return false;
+            }
+
+            player = record.Player;
+            return true;
+        }
+
         public bool TryFindNearestTarget(float selfX, float selfY, int selfPlayerId, out int targetPlayerId, out float targetX, out float targetY, out float targetDistanceSq)
         {
             targetPlayerId = 0;

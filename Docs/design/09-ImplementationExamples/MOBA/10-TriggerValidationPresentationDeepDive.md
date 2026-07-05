@@ -319,16 +319,16 @@ sequenceDiagram
 
 这说明表现层不是“监听逻辑类并手写特效”，而是消费稳定快照协议。
 
-## 11. 仍值得继续拆分的点
+## 11. 专题拆分边界
 
-本轮源码阅读后，MOBA 仍有几个可继续单拆的主题：
+MOBA Trigger、Validation 与 Presentation Cue 覆盖面较宽，以下主题适合按独立专题维护：
 
-| 候选专题 | 拆分理由 |
-|----------|----------|
+| 专题 | 拆分理由 |
+|------|----------|
 | PlanActions 全量模块 | AddBuff、GiveDamage、ShootProjectile、Dash、Blink、SetGameplayVar、PlayPresentation 等 Action schema 与执行上下文可以形成完整配置 DSL 文档 |
-| Continuous Runtime | Buff/Area/Projectile/Passive 等持续运行时的生命周期、context source boundary 与 query service 值得独立文档化 |
-| Runtime Validation 全量契约 | 当前文档只覆盖核心机制，所有默认 validator 可再按依赖、配置、主流程、健康度拆表 |
-| Presentation Cue Snapshot 协议 | Cue entry 到 view runtime 的消费路径可以和 Moba snapshot/presentation 文档进一步合并 |
+| Continuous Runtime | Buff/Area/Projectile/Passive 等持续运行时的生命周期、context source boundary 与 query service 需要独立说明 |
+| Runtime Validation 全量契约 | 默认 validator 可按依赖、配置、主流程、健康度拆表，避免单篇文档过长 |
+| Presentation Cue Snapshot 协议 | Cue entry 到 view runtime 的消费路径可以和 Moba snapshot/presentation 文档形成专门链路 |
 
 ## 12. 源码锚点
 

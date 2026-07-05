@@ -52,13 +52,32 @@ namespace AbilityKit.Game.Flow
         [LabelText("闃熶紞1鐜╁")]
         public List<PlayerConfig> Team1Players = new List<PlayerConfig>
         {
-            new PlayerConfig { PlayerId = "p1", TeamId = Team.Team1, HeroId = 10001, SpawnIndex = 0 }
+            new PlayerConfig
+            {
+                PlayerId = "p1",
+                TeamId = Team.Team1,
+                HeroId = 1001,
+                AttributeTemplateId = 1001,
+                BasicAttackSkillId = 1,
+                SkillIds = new[] { 10010101, 10010201, 10010301 },
+                SpawnIndex = 0
+            }
         };
 
         [LabelText("闃熶紞2鐜╁")]
         public List<PlayerConfig> Team2Players = new List<PlayerConfig>
         {
-            new PlayerConfig { PlayerId = "p2", TeamId = Team.Team2, HeroId = 10002, SpawnIndex = 0 }
+            new PlayerConfig
+            {
+                PlayerId = "p2",
+                TeamId = Team.Team2,
+                HeroId = 1002,
+                AttributeTemplateId = 1002,
+                BasicAttackSkillId = 1,
+                SkillIds = new[] { 10020101, 10020201, 10020301 },
+                SpawnIndex = 0,
+                SpawnPosition = new Vector3(6f, 0f, 0f)
+            }
         };
     }
 }

@@ -192,7 +192,7 @@ flowchart TB
 |------|------|
 | 监听者在回调中退订自己 | 多监听者路径遍历的是 snapshot，不会破坏正在遍历的列表；当前回调结束后订阅会被移除 |
 | 监听者在回调中退订别人 | 本次派发已经复制到 snapshot 的监听者仍可能继续执行，退订主要影响后续派发 |
-| `once = true` | 第一次执行后立即移除；如果多监听者 snapshot 已经生成，移除不会改变本轮 snapshot 的遍历结构 |
+| `once = true` | 第一次执行后立即移除；如果多监听者 snapshot 已经生成，移除不会改变当前发布周期 snapshot 的遍历结构 |
 | 只有一个监听者 | 不租借 snapshot 列表，走更短路径 |
 
 多监听者 snapshot 列表本身也来自对象池：
@@ -206,7 +206,7 @@ private static readonly ObjectPool<List<Listener<TArgs>>> _snapshotPool = Pools.
     collectionCheck: false);
 ```
 
-这说明事件系统和对象池不是孤立模块。事件派发为了遍历稳定性需要临时列表，但通过池化把临时分配控制住。这里的“稳定”指本轮派发的迭代集合稳定，不表示每次回调前都会重新检查监听者是否仍在 `_listeners`。
+这说明事件系统和对象池不是孤立模块。事件派发为了遍历稳定性需要临时列表，但通过池化把临时分配控制住。这里的“稳定”指当前发布周期的迭代集合稳定，不表示每次回调前都会重新检查监听者是否仍在 `_listeners`。
 
 ---
 
@@ -253,7 +253,7 @@ flowchart TB
     OnRelease --> End
 ```
 
-这条路径对新人很关键：
+这条路径需要明确以下约束：
 
 - 如果事件参数是池化对象，并且由 `Pools.Get` 或某个 `PoolScope.Get` 取出，`Pools.TryRelease` 可以把它归还到对应对象池。
 - 如果对象只实现 `IPoolable`，但没有被 `PoolManager` 记录归还句柄，则只会调用 `OnPoolRelease()`，不会进入某个具体池。
@@ -287,7 +287,7 @@ stateDiagram-v2
     Removed --> Removed: repeated dispose is ignored
 ```
 
-建议把订阅句柄绑定到拥有者生命周期：
+订阅句柄应绑定到拥有者生命周期：
 
 ```csharp
 private IEventSubscription _damageSubscription;
@@ -311,9 +311,9 @@ public void Dispose()
 
 ---
 
-## 9. 使用建议
+## 9. 使用约束
 
-| 建议 | 原因 |
+| 约束 | 原因 |
 |------|------|
 | 用常量保存事件名或事件 ID | 避免字符串拼写错误导致发布和订阅进入不同通道；字符串名最终会被稳定哈希成 int |
 | 事件参数类型保持稳定 | `EventKey` 包含 `typeof(TArgs)`，类型变化会改变通道 |
@@ -324,7 +324,7 @@ public void Dispose()
 
 ---
 
-## 10. 常见误区
+## 10. 边界判断
 
 ### 10.1 以为同一个 eventId 一定是同一类事件
 
@@ -344,19 +344,19 @@ dispatcher.Subscribe<HealEvent>(100, OnHeal);
 
 当前实现是同步派发：`Publish` 调用栈内直接执行监听者。需要排队、跨帧、网络传输时，应使用对应运行时模块。
 
-### 10.4 以为退订能阻止本轮 snapshot 中的后续回调
+### 10.4 以为退订能阻止当前 snapshot 中的后续回调
 
-多监听者路径会先复制 `_listeners` 到 snapshot，再遍历 snapshot。某个监听者在回调中退订另一个监听者时，被退订者如果已经在本轮 snapshot 中，仍可能在当前发布周期被调用。需要强制阻止本轮后续逻辑时，应在事件参数或监听者自身状态里加显式有效性判断。
+多监听者路径会先复制 `_listeners` 到 snapshot，再遍历 snapshot。某个监听者在回调中退订另一个监听者时，被退订者如果已经在当前 snapshot 中，仍可能在当前发布周期被调用。需要强制阻止当前发布周期的后续逻辑时，应在事件参数或监听者自身状态里加显式有效性判断。
 
 ---
 
-## 11. 阅读顺序
+## 11. 源码阅读路径
 
-1. 先读 `EventDispatcher.Subscribe<TArgs>`，理解事件 ID、`EventKey` 和 `Channel<TArgs>` 的关系。
-2. 再读 `Channel<TArgs>.Add`，理解优先级和订阅顺序。
-3. 再读 `Channel<TArgs>.Publish`，重点看单监听者快路径、多监听者 snapshot 和 once 移除。
-4. 最后读 `Publish<TArgs>` 的 `finally`，理解事件参数为什么会自动释放。
-5. 配合阅读 [对象池](./02-ObjectPool.md)，理解 `Pools.TryRelease` 和事件系统的关系。
+1. `EventDispatcher.Subscribe<TArgs>`：事件 ID、`EventKey` 和 `Channel<TArgs>` 的关系。
+2. `Channel<TArgs>.Add`：优先级和订阅顺序。
+3. `Channel<TArgs>.Publish`：单监听者快路径、多监听者 snapshot 和 once 移除。
+4. `Publish<TArgs>` 的 `finally`：事件参数为什么会自动释放。
+5. [对象池](./02-ObjectPool.md)：`Pools.TryRelease` 和事件系统的关系。
 
 ---
 

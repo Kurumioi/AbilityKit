@@ -22,7 +22,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         private static readonly PublishedHost Published = new();
         private static readonly UnityShooterPlayInputSource InputSource = new();
-        private static readonly UnityShooterGameObjectViewSink ViewSink = new();
+        private static readonly UnityShooterSwitchableViewSink ViewSink = new();
         private static ShooterPlaySessionRunner? _runner;
         private static bool _registered;
         private static bool _playerLoopInstalled;
@@ -40,6 +40,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static int LastAuthorityAcceptedInputs => _runner?.LastAuthorityAcceptedInputs ?? 0;
         public static long StepCount => _runner?.StepCount ?? 0L;
         public static long RenderCount => _runner?.RenderCount ?? 0L;
+        public static long DroppedCatchUpTicks => _runner?.DroppedCatchUpTicks ?? 0L;
+        public static ShooterUnityViewRenderBackend ViewBackend => ViewSink.Backend;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
@@ -95,6 +97,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static void RebuildViews()
         {
             ViewSink.RebuildAll();
+        }
+
+        public static void SetViewBackend(ShooterUnityViewRenderBackend backend)
+        {
+            ViewSink.SetBackend(backend);
+            if (_runner?.IsRunning == true)
+            {
+                ViewSink.RebuildAll();
+            }
         }
 
         private static void TickFromPlayerLoop()

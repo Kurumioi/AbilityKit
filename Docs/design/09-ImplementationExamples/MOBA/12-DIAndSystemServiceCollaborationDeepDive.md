@@ -133,7 +133,7 @@ sequenceDiagram
     Sys->>Diag: Sample / RecordDuration
 ```
 
-这意味着：
+该分工关系体现为：
 
 - System 是“什么时候执行、遍历哪些实体、如何处理异常边界”的问题。
 - Service 是“执行什么业务、维护什么状态、读取什么配置、输出什么事件”的问题。
@@ -153,14 +153,14 @@ sequenceDiagram
 - `IMobaSkillPipelineLibrary`
 - 可选的诊断和异常策略
 
-这种依赖形式让它非常适合做单元测试：
+这种依赖形式形成了稳定的单元测试边界：
 
 - 可以 mock `IWorldClock` 来控制时间。
 - 可以 mock `IUnitResolver` 来控制实体解析。
 - 可以替换 `IMobaSkillPipelineLibrary` 来验证不同技能管线。
 - 可以注入假的诊断和异常策略来检查日志与错误边界。
 
-换句话说，MOBA 的主业务不是散落在 System 里，而是尽量写在可组合、可替换、可测试的 Service 里。`MobaGameplayService` 维护 gameplay phase、elapsed time、配置解析和生命周期事件；`MobaEnterGameFlowService` 维护开局校验、Actor 生成、玩家映射、索引注册和 gameplay 启动；`MobaRuntimeValidationService` 维护验证器注册、执行、历史和报告。这些都比直接塞进某个 System 更适合测试和替换。
+MOBA 的主业务边界集中在可组合、可替换、可测试的 Service 中，而不是分散到 System 内部。`MobaGameplayService` 维护 gameplay phase、elapsed time、配置解析和生命周期事件；`MobaEnterGameFlowService` 维护开局校验、Actor 生成、玩家映射、索引注册和 gameplay 启动；`MobaRuntimeValidationService` 维护验证器注册、执行、历史和报告。相较于直接写入某个 System，这些服务边界更利于测试、替换和独立演进。
 
 ### 4.3 `GameServiceBase` 统一了服务基类能力
 
@@ -199,7 +199,7 @@ sequenceDiagram
 - `HandleException(...)`：统一异常包装、分域和降级处理。
 - `Sample(...)` / `RecordDuration(...)`：统一采样。
 
-这样做的优点是：
+该抽象的收益是：
 
 - System 代码里不会重复写一套日志和异常模板。
 - 诊断体系可以统一升级，不用逐个 System 改。
@@ -272,9 +272,9 @@ sequenceDiagram
 
 ---
 
-## 7. 为什么这种模式更适合测试和演进
+## 7. 测试与演进收益
 
-### 7.1 更容易做单元测试
+### 7.1 单元测试边界更清晰
 
 Service 层可以直接构造并注入 mock：
 
@@ -284,14 +284,14 @@ Service 层可以直接构造并注入 mock：
 - 配置可控。
 - 实体索引可控。
 
-所以测试往往可以绕开完整 World，直接验证：
+因此，测试可以绕开完整 World，直接验证：
 
 - 某个输入是否触发正确技能。
 - 某个 Buff 是否进入正确生命周期。
 - 某个异常是否被正确归类。
 - 某个诊断指标是否被采样。
 
-### 7.2 更容易替换实现
+### 7.2 实现替换成本更低
 
 因为 System 只依赖接口和少量门面，MOBA 可以：
 
@@ -310,7 +310,7 @@ Service 层可以直接构造并注入 mock：
 
 之间复用。
 
-### 7.3 更容易保持 System 顺序稳定
+### 7.3 System 顺序更稳定
 
 `MobaSystemOrder` 把执行顺序显式化，避免 System 之间靠“碰巧注册顺序”工作。
 
@@ -352,11 +352,11 @@ MOBA 的设计重点是把“运行时调度”和“业务规则执行”拆开
 - `Service` 负责技能、Buff、玩法阶段、开局流程、验证、诊断等主要逻辑。
 - `DI` 负责把这些能力组合成可替换、可测试、可分层复用的世界。
 
-这也是为什么 MOBA 的战斗代码看起来很多，但主逻辑没有全部堆进 System 中，而是集中在可组合的服务单元里；对于移动和投射物同步这类紧贴组件局部性的场景，System 则保留必要的实体写回和事件路由职责。
+MOBA 战斗逻辑没有全部堆进 System，而是集中在可组合的服务单元里；对于移动和投射物同步这类紧贴组件局部性的场景，System 保留必要的实体写回和事件路由职责。
 
 ---
 
-## 下一步
+## 10. 关联文档
 
 - [MOBA Demo 专题总览](./00-Overview.md)
 - [世界启动与运行时装配](./01-WorldAndBootstrap.md)

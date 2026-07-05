@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
@@ -108,13 +109,9 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
                 return false;
             }
 
-            if (!argsType.IsClass)
-            {
-                Log.Error($"[MobaGameplayTriggerBindingService] gameplay trigger event args type must be a class. gameplayId={gameplayId}, triggerId={triggerId}, eventName={record.EventName}, argsType={argsType.FullName}");
-                return false;
-            }
-
-            var registration = _runner.RegisterPlan(record.EventId, argsType, record.Plan);
+            var registration = argsType.IsClass
+                ? _runner.RegisterPlan(record.EventId, argsType, record.Plan)
+                : _runner.RegisterPlan<object, IWorldResolver>(new EventKey<object>(record.EventId), record.Plan);
 
             if (registration == null)
             {

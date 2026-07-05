@@ -20,8 +20,8 @@
   - [8. 连接、发送与广播](#8-连接发送与广播)
   - [9. Features 与模块协作](#9-features-与模块协作)
   - [10. 设计意图与解决的问题](#10-设计意图与解决的问题)
-  - [11. 新手常见误区](#11-新手常见误区)
-  - [12. 阅读路线](#12-阅读路线)
+  - [11. 边界判断](#11-边界判断)
+  - [12. 源码阅读路径](#12-源码阅读路径)
 
 ---
 
@@ -130,12 +130,12 @@ public interface IWorldHost
 }
 ```
 
-需要注意两点：
+接口边界包含两点：
 
-| 误解 | 源码事实 |
+| 边界 | 源码事实 |
 |------|----------|
-| Host 有 `Start()` / `Stop()` | 当前 `IWorldHost` 没有 Start/Stop；驱动由外部调用 `Tick` 或由 `FixedStepTimeDriver` 定时调用 |
-| Host 直接保存模块列表并每帧调 `OnTick` | 模块安装时把处理器挂到 `HostRuntimeOptions` 的 Hook 上，Host Tick 时只触发 Hook |
+| Host 启停入口 | 当前 `IWorldHost` 没有 Start/Stop；驱动由外部调用 `Tick` 或由 `FixedStepTimeDriver` 定时调用 |
+| 模块 Tick 入口 | 模块安装时把处理器挂到 `HostRuntimeOptions` 的 Hook 上，Host Tick 时只触发 Hook |
 
 ---
 
@@ -344,10 +344,10 @@ flowchart LR
 
 ---
 
-## 11. 新手常见误区
+## 11. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | HostRuntime 是游戏主循环本身 | HostRuntime 只是 Tick 入口；谁调用 Tick 由外部驱动决定 |
 | 模块有 Priority 并自动按优先级 Tick | 当前模块没有 Priority；安装顺序由 Builder 添加顺序决定，运行顺序由 Hook order 和 Hook 类型决定 |
 | `HostRuntimeOptions.OnPostTick` 和 `PostTick` 是二选一 | 源码同时支持 Hook 对象和旧式 delegate，Host Tick 会都调用 |
@@ -356,15 +356,15 @@ flowchart LR
 
 ---
 
-## 12. 阅读路线
+## 12. 源码阅读路径
 
-1. 先读 `IWorldHost`，确认 Host 对外边界。
-2. 读 `HostRuntime`，理解创建世界、Tick、连接广播三条主路径。
-3. 读 `HostRuntimeOptions` 和 `Hook`，理解模块接入点。
-4. 读 `HostRuntimeFeatures`，理解模块间共享能力。
-5. 读 `WorldHostBuilder`，理解推荐装配顺序。
-6. 接着读 [Host 模块系统](./02-HostModules.md)，看扩展模块如何使用 Hook 和 Features。
-7. 最后读 [World 管理器](./03-WorldManager.md)，把 Host 外层与世界生命周期底座连起来。
+1. `IWorldHost`：Host 对外边界。
+2. `HostRuntime`：创建世界、Tick、连接广播三条主路径。
+3. `HostRuntimeOptions` 与 `Hook`：模块接入点。
+4. `HostRuntimeFeatures`：模块间共享能力。
+5. `WorldHostBuilder`：推荐装配顺序。
+6. [Host 模块系统](./02-HostModules.md)：扩展模块如何使用 Hook 和 Features。
+7. [World 管理器](./03-WorldManager.md)：Host 外层与世界生命周期底座的关系。
 
 ---
 

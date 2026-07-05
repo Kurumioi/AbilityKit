@@ -27,6 +27,7 @@
         "AbilityKit.Record",
         "AbilityKit.World.Snapshot",
         "AbilityKit.World.NetworkFragments",
+        "AbilityKit.Combat.Collision.Abstractions",
         "AbilityKit.Demo.Moba.View.Abstractions",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Share",

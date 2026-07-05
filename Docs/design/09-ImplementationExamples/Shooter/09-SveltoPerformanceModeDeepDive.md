@@ -182,7 +182,7 @@ sequenceDiagram
     Runner->>Context: BuildResult
 ```
 
-每帧顺序很重要：
+每帧阶段顺序决定仿真语义：
 
 1. 先刷波次，保证本帧新增敌人可以被射手看到；
 2. 再让 shooter 查询 target 并发射子弹；

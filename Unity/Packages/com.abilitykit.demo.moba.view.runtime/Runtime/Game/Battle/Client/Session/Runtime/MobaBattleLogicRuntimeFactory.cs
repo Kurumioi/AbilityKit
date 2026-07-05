@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 
 namespace AbilityKit.Game.Battle
@@ -42,12 +43,15 @@ namespace AbilityKit.Game.Battle
             if (options.WorldServices != null) return options.WorldServices;
 
             var prefixes = options.NamespacePrefixes;
+            WorldContainerBuilder builder;
             if (options.ScanAllLoadedAssemblies)
             {
-                return WorldServiceContainerFactory.CreateWithAttributes(
+                builder = WorldServiceContainerFactory.CreateWithAttributes(
                     options.Profile,
                     true,
                     prefixes);
+                RegisterRequiredMobaServices(builder);
+                return builder;
             }
 
             var scanAssemblies = options.ScanAssemblies;
@@ -60,10 +64,19 @@ namespace AbilityKit.Game.Battle
                 };
             }
 
-            return WorldServiceContainerFactory.CreateWithAttributes(
+            builder = WorldServiceContainerFactory.CreateWithAttributes(
                 options.Profile,
                 scanAssemblies,
                 prefixes);
+            RegisterRequiredMobaServices(builder);
+            return builder;
+        }
+
+        private static void RegisterRequiredMobaServices(WorldContainerBuilder builder)
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+            builder.Register<ICollisionService>(WorldLifetime.Singleton, _ => new CollisionService());
         }
 
         private static IWorldManager CreateWorldManager()

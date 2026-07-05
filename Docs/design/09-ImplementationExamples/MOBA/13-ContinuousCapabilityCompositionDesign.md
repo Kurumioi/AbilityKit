@@ -214,7 +214,7 @@ stateDiagram-v2
 |------|--------------------|----------------------------------------|
 | 标准化 | 高，所有能力集中在 GE 资产 | 中高，生命周期统一，领域配置分散 |
 | 配置入口 | 单体效果资产为核心 | continuous process + domain config + trigger plan |
-| 上手路径 | 学会 GE 后路径统一 | 需要理解领域 runtime 与公共能力边界 |
+| 接入路径 | 学会 GE 后路径统一 | 需要理解领域 runtime 与公共能力边界 |
 | 领域清晰度 | 容易把不同语义压成 GE 字段 | Buff、Projectile、Motion、Skill Pipeline 语义保留 |
 | 扩展方式 | 扩 GE、Execution、MMC、Cue、ASC 等标准点 | 扩领域 runtime、handler、projector、validator、cue reporter |
 | 强定制能力 | 强，但会受 GAS 模型影响 | 更贴近项目战斗模型，但治理成本更高 |
@@ -224,7 +224,7 @@ stateDiagram-v2
 
 ## 9. 设计意图与取舍
 
-### 9.1 为什么不强制组合在一起
+### 9.1 不强制组合的边界
 
 不强制组合的原因不是为了减少功能，而是为了避免公共抽象吞掉领域边界。
 
@@ -275,29 +275,27 @@ stateDiagram-v2
 | 新 runtime 必须提供 query/debug 信息 | 便于 validation、trace、回放和线上诊断 |
 | 新配置字段必须进入 validator | 避免配置错误拖到战斗中才暴露 |
 
-## 11. 新手阅读路线
+## 11. 源码阅读路径
 
-建议按下面顺序理解这套设计：
+1. `Docs/design/09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md`：PlanAction 如何创建 continuous runtime。
+2. `Unity/Packages/com.abilitykit.core/Runtime/Continuous/DefaultContinuousManager.cs`：注册、激活、暂停、恢复、结束的基础语义。
+3. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTagRuleService.cs`：tag 如何影响生命周期。
+4. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTickProcessor.cs`：periodic 如何统一推进。
+5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` 与 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs`：stack 与 buff 生命周期。
+6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs`：非 Buff 领域如何组合 continuous 能力。
+7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs`：cue 如何从逻辑转成表现快照。
 
-1. 先读 `Docs/design/09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md`，理解 PlanAction 如何创建 continuous runtime。
-2. 再读 `Unity/Packages/com.abilitykit.core/Runtime/Continuous/DefaultContinuousManager.cs`，理解注册、激活、暂停、恢复、结束的基础语义。
-3. 再读 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTagRuleService.cs`，理解 tag 如何影响生命周期。
-4. 再读 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Continuous/MobaContinuousTickProcessor.cs`，理解 periodic 如何统一推进。
-5. 再读 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` 和 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs`，理解 stack 与 buff 生命周期。
-6. 再读 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs`，理解非 Buff 领域如何组合 continuous 能力。
-7. 最后读 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs`，理解 cue 如何从逻辑转成表现快照。
+## 12. 边界判断
 
-## 12. 常见误区
-
-| 误区 | 正确理解 |
-|------|----------|
-| continuous 就等于 Buff | Buff 只是 continuous 的一种领域 runtime |
-| 所有持续行为都应该放进 Buff 表 | 只有状态型效果适合 Buff 表，位移/投射物/召唤物应保留领域配置 |
-| 不像 GAS 集中就是能力不完整 | stack、periodic、cue、tag、modifier 都存在，只是按能力组合 |
-| tag 打断应该写在 motion 代码里 | motion 行为携带 tag requirements，由 continuous tag rule 统一判定 |
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
+| continuous 与 Buff 等价 | Buff 只是 continuous 的一种领域 runtime |
+| 所有持续行为都进入 Buff 表 | 只有状态型效果适合 Buff 表，位移、投射物和召唤物应保留领域配置 |
+| 能力没有集中到 GAS 形态就是不完整 | stack、periodic、cue、tag、modifier 都存在，只是按能力组合 |
+| tag 打断属于 motion 私有代码 | motion 行为携带 tag requirements，由 continuous tag rule 统一判定 |
 | periodic 只属于 Buff | periodic 是公共 continuous 能力，Buff 只是有自己的 interval handler |
-| cue 应该由逻辑系统直接播放特效 | cue 应输出 snapshot，由表现层消费 |
-| 灵活组合可以不做校验 | 强定制项目更需要 validator、模板、debug view 和源码锚点 |
+| cue 由逻辑系统直接播放特效 | cue 输出 snapshot，由表现层消费 |
+| 组合灵活性可以替代校验 | 强定制项目更需要 validator、模板、debug view 和源码锚点 |
 
 ## 13. 和其他模块的关系
 
@@ -312,17 +310,17 @@ stateDiagram-v2
 | Validation | 检查 trigger plan、context integrity、continuous runtime 和配置引用 |
 | Snapshot/Replay | runtime view、context source、cue snapshot 提供稳定观测面 |
 
-## 14. 后续演进建议
+## 14. 工程治理边界
 
-为了让组合式设计长期可维护，建议继续补齐以下工程能力：
+组合式设计的长期可维护性依赖以下工程约束：
 
-| 方向 | 建议 |
-|------|------|
-| 配置模板 | 为 Buff、ProjectileLaunch、Motion、TriggerInterval 分别提供 continuous process 模板 |
+| 方向 | 治理要求 |
+|------|----------|
+| 配置模板 | Buff、ProjectileLaunch、Motion、TriggerInterval 分别维护 continuous process 模板 |
 | Validator | 校验 continuous process 引用、interval trigger、tag template、modifier projector 是否存在 |
 | Debug view | 在 continuous runtime view 中清晰展示 stack、interval、tag rule、modifier source、context source |
 | 文档约束 | 新增领域 runtime 时必须说明是否接入 tags、modifiers、periodic、cue、owner-bound trigger |
 | 工具链 | 配置导出时标记领域配置与 common continuous config 的引用关系 |
-| 测试 | 增加 tag rule pause/resume/remove、periodic trigger、modifier cleanup、cue snapshot 的验收用例 |
+| 测试 | 覆盖 tag rule pause/resume/remove、periodic trigger、modifier cleanup、cue snapshot 的验收用例 |
 
 最终目标不是把 AbilityKit 变成 GAS 的形状，而是保留 AbilityKit 的组合式能力边界：框架提供统一生命周期和通用玩法能力，MOBA 项目按自己的战斗模型决定如何组合。

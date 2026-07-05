@@ -23,8 +23,8 @@
     - [9.4 System/Service 分层让业务能力可复用](#94-systemservice-分层让业务能力可复用)
     - [9.5 WorldSystemBase 把生命周期差异收敛到模板方法](#95-worldsystembase-把生命周期差异收敛到模板方法)
     - [9.6 多 ECS 路径保持开放](#96-多-ecs-路径保持开放)
-  - [10. 新手常见误区](#10-新手常见误区)
-  - [11. 推荐阅读顺序](#11-推荐阅读顺序)
+  - [10. 边界判断](#10-边界判断)
+  - [11. 源码阅读路径](#11-源码阅读路径)
 
 ---
 
@@ -211,7 +211,7 @@ flowchart TD
     Feature --> AddFeatures[add features in phase order]
 ```
 
-排序规则很重要：
+排序规则直接决定系统执行顺序：
 
 1. 先按 `WorldSystemPhase` 排序。
 2. 再按 `Order` 排序。
@@ -352,10 +352,10 @@ AbilityKit 没有把所有业务强行塞进一个系统接口，而是让基础
 
 ---
 
-## 10. 新手常见误区
+## 10. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 以为存在统一 `IECSystem` 接口 | 当前主线是 Entitas 生命周期接口和 `WorldSystemBase` |
 | 只看 order，不看 phase | 自动安装先按 phase 排，再按 order 排 |
 | 系统可以任意构造函数 | 自动安装要求 `(Entitas.IContexts, IWorldResolver)` 构造函数 |
@@ -367,13 +367,13 @@ AbilityKit 没有把所有业务强行塞进一个系统接口，而是让基础
 
 ---
 
-## 11. 推荐阅读顺序
+## 11. 源码阅读路径
 
-1. 先读 `WorldSystemAttribute.cs`，理解 `Phase` 和 `Order`。
-2. 再读 `WorldSystemBase.cs`，掌握系统生命周期模板方法。
-3. 再读 `AutoSystemInstaller.cs`，理解发现、排序、构造和加入 `Entitas.Systems` 的流程。
-4. 再读 `MobaSystemOrder.cs` 和 MOBA `Application/Systems` 目录，观察业务项目如何划分系统顺序。
-5. 最后结合 [服务容器](05-ServiceContainer.md) 和 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)，理解系统如何解析服务并读写实体状态。
+1. `WorldSystemAttribute.cs`：`Phase` 和 `Order`。
+2. `WorldSystemBase.cs`：系统生命周期模板方法。
+3. `AutoSystemInstaller.cs`：发现、排序、构造和加入 `Entitas.Systems` 的流程。
+4. `MobaSystemOrder.cs` 与 MOBA `Application/Systems` 目录：业务项目如何划分系统顺序。
+5. [服务容器](05-ServiceContainer.md) 与 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：系统如何解析服务并读写实体状态。
 
 ---
 

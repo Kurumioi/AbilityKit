@@ -154,7 +154,7 @@ flowchart TD
 
 ## 5. 投影：从 ViewBatch 到 ViewEntityStore
 
-`ShooterSnapshotViewProjection.Apply` 把 `ShooterSnapshotViewBatch` 应用到表现侧实体存储。顺序很重要：
+`ShooterSnapshotViewProjection.Apply` 把 `ShooterSnapshotViewBatch` 应用到表现侧实体存储。应用顺序决定表现状态一致性：
 
 1. 如果 batch 要求 full replace，则删除 full snapshot 中缺失的实体；
 2. 应用显式 removed entities；

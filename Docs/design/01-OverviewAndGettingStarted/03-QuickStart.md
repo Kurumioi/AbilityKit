@@ -1,20 +1,20 @@
 # 1.3 快速开始：从源码到第一个可运行闭环
 
-> 本文面向第一次接触 AbilityKit 的开发者。目标不是一次读完所有模块，而是先建立“代码在哪里、怎么运行、运行后看什么、下一步改哪里”的最短路径。本文结论来自 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`src/AbilityKit.sln`、Console Demo 启动链路和 P0 相关测试工程。
+> 本文用于建立 AbilityKit 从源码位置、构建入口、Console Demo、测试项目到第一个功能改动的最短运行闭环。本文结论来自 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`src/AbilityKit.sln`、Console Demo 启动链路和 P0 相关测试工程。
 
 ---
 
 ## 1. 快速开始的定位
 
-AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、服务端和 Demo 中复用的框架包。第一次上手最容易迷路的原因，是仓库里同时存在三类入口：
+AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、服务端和 Demo 中复用的框架包。仓库中同时存在三类工程入口：
 
-| 入口 | 作用 | 新手应该怎么用 |
-|------|------|----------------|
+| 入口 | 作用 | 使用边界 |
+|------|------|----------|
 | `Unity/Packages` | 唯一源码位置，也是 Unity Package 入口 | 阅读和修改框架源码从这里开始 |
 | `src` | .NET SDK 工程，用于构建、测试、Console Demo | 先用它跑通最小闭环 |
 | `Server/Orleans` | Orleans 网关、房间、战斗宿主和 Smoke 验证 | 理解多人服务端链路时再进入 |
 
-推荐第一天的目标很具体：
+最小闭环目标：
 
 1. 知道源码和工程引用关系。
 2. 跑通一个 Console Demo 或测试。
@@ -23,7 +23,7 @@ AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、
 
 ---
 
-## 2. 新手上手路线图
+## 2. 最小闭环路径
 
 ```mermaid
 flowchart TD
@@ -39,18 +39,18 @@ flowchart TD
     G -- 学示例落地 --> K["MOBA / Shooter / ET / Orleans"]
 ```
 
-这条路线的核心思想是：先跑起来，再读源码；先读一条闭环，再扩展到所有模块。
+这条路径的核心思想是：先跑通运行闭环，再沿一条源码链路扩展到相关模块。
 
 ---
 
 ## 3. 环境与工程入口
 
-### 3.1 推荐先检查这些文件
+### 3.1 工程入口清单
 
 | 文件/目录 | 说明 |
 |-----------|------|
-| `README.md` | 仓库级定位、端到端能力管线、推荐阅读路径 |
-| `Unity/Packages/README.md` | Package 分级、推荐组合、模块文档索引 |
+| `README.md` | 仓库级定位、端到端能力管线、文档阅读路径 |
+| `Unity/Packages/README.md` | Package 分级、能力组合、模块文档索引 |
 | `.cursor/rules/src-unity-packages-relation.mdc` | 明确 `Unity/Packages` 是唯一源码位置，`src` 通过项目文件引用源码 |
 | `.cursor/rules/ability-package-structure.mdc` | Runtime、Editor、Samples、package 命名和包结构约束 |
 | `src/AbilityKit.sln` | .NET 解决方案入口，包含框架、Demo、测试项目 |
@@ -165,7 +165,7 @@ flowchart TD
     H --> I["FeatureHost.Tick + runtimeWorld.Tick + SyncAdapter.Tick"]
 ```
 
-运行后建议观察三类输出：
+运行后关注三类输出：
 
 | 输出 | 用来判断什么 |
 |------|--------------|
@@ -197,7 +197,7 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 
 ---
 
-## 5. 第一次读源码建议追的五条链路
+## 5. 源码阅读链路
 
 ### 5.1 Core 事件链路
 
@@ -244,7 +244,7 @@ flowchart TD
     K --> L["播种 per-battle/per-stage 输入"]
 ```
 
-新手需要先记住一句话：`WorldContainer` 管根生命周期，`WorldScope` 管一次世界或一次阶段内的局部生命周期，播种对象由外部持有，不由 scope 释放。
+`WorldContainer` 管根生命周期，`WorldScope` 管一次世界或一次阶段内的局部生命周期，播种对象由外部持有，不由 scope 释放。
 
 ### 5.3 Host Tick 链路
 
@@ -318,10 +318,10 @@ flowchart TD
 
 ---
 
-## 6. 新人容易混淆的概念
+## 6. 边界判断
 
-| 概念 | 正确认知 | 常见误解 |
-|------|----------|----------|
+| 概念 | 设计边界 | 容易混淆的判断 |
+|------|----------|----------------|
 | `Unity/Packages` | 框架源码唯一位置 | 以为 `src` 也有一份源码可以直接改 |
 | `src` | 构建、测试、Console Demo 工程 | 以为它是 Unity 运行时源码根目录 |
 | `World` | 逻辑世界和系统执行容器 | 以为它等同 Unity Scene |
@@ -347,7 +347,7 @@ flowchart TD
     B -- 示例接入问题 --> I["demo.moba / demo.shooter / Server/Orleans"]
 ```
 
-修改前建议先找三件事：
+功能改动前需要定位三类入口：
 
 1. 对应 Package 的 `Runtime` 源码。
 2. 对应 `src` 工程或测试工程。
@@ -357,9 +357,9 @@ flowchart TD
 
 ---
 
-## 8. 建议的第一周阅读顺序
+## 8. 分阶段阅读路径
 
-| 天数 | 阅读目标 | 推荐文档 |
+| 阶段 | 阅读目标 | 关联文档 |
 |------|----------|----------|
 | 第 1 天 | 建立全局地图，跑通 Demo | `Docs/design/00-index.md`、`Docs/design/01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md`、本文 |
 | 第 2 天 | 读 World、DI、Host | `Docs/design/02-LogicalWorldDesign/*`、`Docs/design/03-LogicalWorldHostDesign/*` |
@@ -373,7 +373,7 @@ flowchart TD
 
 ## 9. 快速开始小结
 
-新手不要从所有包逐个扫起。更有效的方式是：
+快速开始的核心路径是从可运行闭环进入源码，再回到设计文档校验边界：
 
 ```mermaid
 flowchart LR
@@ -384,4 +384,4 @@ flowchart LR
     E --> F["改一个小点并跑测试"]
 ```
 
-只要理解 `Unity/Packages`、`src`、`World`、`DI`、`Host`、`Snapshot`、`Demo` 这七个入口，后续阅读 Triggering、Ability、Combat、Network 时就不会迷路。
+理解 `Unity/Packages`、`src`、`World`、`DI`、`Host`、`Snapshot`、`Demo` 这七个入口后，再阅读 Triggering、Ability、Combat、Network 会更容易对齐源码边界。

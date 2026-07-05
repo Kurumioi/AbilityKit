@@ -137,6 +137,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void Reset()
         {
+            ReleaseStoredBatches();
             Array.Clear(_buffer, 0, _buffer.Length);
             _start = 0;
             _count = 0;
@@ -178,8 +179,9 @@ namespace AbilityKit.Demo.Shooter.View
             var insertIndex = (_start + _count) % _buffer.Length;
             if (_count == _buffer.Length)
             {
+                insertIndex = _start;
+                _buffer[insertIndex].ReleasePooledResources();
                 _start = (_start + 1) % _buffer.Length;
-                insertIndex = (_start + _count - 1) % _buffer.Length;
             }
             else
             {
@@ -187,6 +189,14 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _buffer[insertIndex] = batch;
+        }
+
+        private void ReleaseStoredBatches()
+        {
+            for (var i = 0; i < _count; i++)
+            {
+                GetAt(i).ReleasePooledResources();
+            }
         }
 
         private ShooterSnapshotViewBatch GetAt(int index)

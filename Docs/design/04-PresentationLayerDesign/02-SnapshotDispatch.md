@@ -89,7 +89,7 @@ public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegis
 | `FrameReceived` | 收到任意 envelope 时触发 | 适合统计、录制、调试、原始帧观察 |
 | `SnapshotReceived` | envelope 内有 `WorldStateSnapshot` 时触发 | `SnapshotPipeline` 依赖这个事件继续执行有序阶段 |
 
-旧文档里的伪接口类似这样：
+分发器边界不包含快照采集和统一订阅者接口。以下接口形态不属于当前模型：
 
 ```csharp
 public interface IFrameSnapshotDispatcher
@@ -101,7 +101,7 @@ public interface IFrameSnapshotDispatcher
 }
 ```
 
-这不是当前源码模型。当前模型没有 `CollectSnapshot`，也没有统一的 `ISnapshotSubscriber`。正确理解是：
+当前模型通过外部 `Feed` 输入和按 `OpCode` 路由的 typed subscriber 完成分发：
 
 ```mermaid
 sequenceDiagram
@@ -171,7 +171,7 @@ flowchart TB
     SubType -->|No| SubError[Throw type mismatch]
 ```
 
-这种防御对多人项目很重要：协议层新增一个 `OpCode` 后，如果表现层用错 payload 类型，会在注册或订阅时失败，而不是在战斗中随机出现空表现或强转异常。
+这种防御服务于多人项目的协议演进：协议层新增一个 `OpCode` 后，如果表现层用错 payload 类型，会在注册或订阅时失败，而不是在战斗中随机出现空表现或强转异常。
 
 ---
 
@@ -510,21 +510,19 @@ flowchart TB
 
 ---
 
-## 4.2.12 新手阅读路线
+## 4.2.12 源码阅读路径
 
-建议按下面顺序阅读源码：
-
-1. 先读 `FrameSnapshotDispatcher.cs`，理解 `Feed -> FrameReceived -> SnapshotReceived -> Route.Dispatch`。
-2. 再读 `SnapshotPipeline.cs`，理解它为什么订阅 `SnapshotReceived`，以及 `order` 如何控制 stage 顺序。
-3. 再读 `SnapshotRoutingBuilder.cs`，理解 dispatcher、pipeline、cmd handler 和 registry 如何一起装配。
-4. 再读 `BattleContext.Snapshot.cs`，看战斗上下文如何保存这套路由对象。
-5. 最后读 `BattleSnapshotViewAdapter.cs`，看 MOBA 表现层如何把 `OpCode` 订阅到 `IBattleViewEventSink`。
+1. `FrameSnapshotDispatcher.cs`：`Feed -> FrameReceived -> SnapshotReceived -> Route.Dispatch`。
+2. `SnapshotPipeline.cs`：订阅 `SnapshotReceived` 的方式，以及 `order` 如何控制 stage 顺序。
+3. `SnapshotRoutingBuilder.cs`：dispatcher、pipeline、cmd handler 和 registry 如何一起装配。
+4. `BattleContext.Snapshot.cs`：战斗上下文如何保存这套路由对象。
+5. `BattleSnapshotViewAdapter.cs`：MOBA 表现层如何把 `OpCode` 订阅到 `IBattleViewEventSink`。
 
 ---
 
-## 4.2.13 常见误区
+## 4.2.13 边界判断
 
-| 误区 | 正确认知 |
+| 容易混淆的判断 | 设计边界 |
 | --- | --- |
 | `FrameSnapshotDispatcher` 会从 `IWorld` 采集快照 | 它只接收 `ISnapshotEnvelope`，采集和传输在外部完成 |
 | 每个表现系统都应该直接订阅网络包 | 表现侧应通过 dispatcher/pipeline 或 adapter 消费强类型 payload |

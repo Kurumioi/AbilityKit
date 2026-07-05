@@ -2,19 +2,33 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Pooling;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
     public sealed class ShooterSnapshotViewModelMapper
     {
-        private readonly List<ShooterViewEntityChange> _entityChanges = new List<ShooterViewEntityChange>();
-        private readonly List<ShooterViewEntityKey> _removedEntities = new List<ShooterViewEntityKey>();
-        private readonly List<ShooterViewTransformComponentChange> _transformChanges = new List<ShooterViewTransformComponentChange>();
-        private readonly List<ShooterViewHealthComponentChange> _healthChanges = new List<ShooterViewHealthComponentChange>();
-        private readonly List<ShooterViewScoreComponentChange> _scoreChanges = new List<ShooterViewScoreComponentChange>();
-        private readonly List<ShooterViewProjectileLifetimeComponentChange> _projectileLifetimeChanges = new List<ShooterViewProjectileLifetimeComponentChange>();
-        private readonly List<ShooterEventSnapshot> _events = new List<ShooterEventSnapshot>();
+        private const int DefaultPooledListCapacity = 256;
+        private const int MaxPooledListsPerType = 128;
+
+        private static readonly ObjectPool<List<ShooterViewEntityChange>> EntityChangePool = CreateListPool<ShooterViewEntityChange>();
+        private static readonly ObjectPool<List<ShooterViewEntityKey>> RemovedEntityPool = CreateListPool<ShooterViewEntityKey>();
+        private static readonly ObjectPool<List<ShooterViewTransformComponentChange>> TransformChangePool = CreateListPool<ShooterViewTransformComponentChange>();
+        private static readonly ObjectPool<List<ShooterViewHealthComponentChange>> HealthChangePool = CreateListPool<ShooterViewHealthComponentChange>();
+        private static readonly ObjectPool<List<ShooterViewScoreComponentChange>> ScoreChangePool = CreateListPool<ShooterViewScoreComponentChange>();
+        private static readonly ObjectPool<List<ShooterViewProjectileLifetimeComponentChange>> ProjectileLifetimeChangePool = CreateListPool<ShooterViewProjectileLifetimeComponentChange>();
+        private static readonly ObjectPool<List<ShooterEventSnapshot>> EventPool = CreateListPool<ShooterEventSnapshot>();
+
+        private List<ShooterViewEntityChange>? _entityChanges;
+        private List<ShooterViewEntityKey>? _removedEntities;
+        private List<ShooterViewTransformComponentChange>? _transformChanges;
+        private List<ShooterViewHealthComponentChange>? _healthChanges;
+        private List<ShooterViewScoreComponentChange>? _scoreChanges;
+        private List<ShooterViewProjectileLifetimeComponentChange>? _projectileLifetimeChanges;
+        private List<ShooterEventSnapshot>? _events;
+        private HashSet<ShooterViewEntityKey> _localAuthoritativePreviousLiveEntities = new HashSet<ShooterViewEntityKey>();
+        private HashSet<ShooterViewEntityKey> _localAuthoritativeCurrentLiveEntities = new HashSet<ShooterViewEntityKey>();
         private ulong _nextSequence;
 
         public ShooterSnapshotViewBatch Map(in ShooterStateSnapshotPayload snapshot)
@@ -26,6 +40,12 @@ namespace AbilityKit.Demo.Shooter.View
         {
             BeginSnapshot();
 
+            var trackLocalAuthoritativeEntities = source == ShooterViewBatchSource.LocalAuthoritative;
+            if (trackLocalAuthoritativeEntities)
+            {
+                _localAuthoritativeCurrentLiveEntities.Clear();
+            }
+
             if (snapshot.Players != null)
             {
                 for (int i = 0; i < snapshot.Players.Length; i++)
@@ -33,6 +53,7 @@ namespace AbilityKit.Demo.Shooter.View
                     var player = snapshot.Players[i];
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, player.PlayerId);
                     AddEntity(key, 0, player.Alive);
+                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, player.Alive);
                     AddTransform(key, player.X, player.Y, player.AimX, player.AimY, 0f, 0f);
                     AddHealth(key, player.Hp);
                     AddScore(key, player.Score);
@@ -47,6 +68,7 @@ namespace AbilityKit.Demo.Shooter.View
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, bullet.BulletId);
                     var alive = bullet.RemainingFrames > 0;
                     AddEntity(key, bullet.OwnerPlayerId, alive);
+                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, alive);
                     AddTransform(key, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.VelocityX, bullet.VelocityY);
                     AddProjectileLifetime(key, bullet.RemainingFrames);
                 }
@@ -59,20 +81,26 @@ namespace AbilityKit.Demo.Shooter.View
                     var enemy = snapshot.Enemies[i];
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, enemy.EnemyId);
                     AddEntity(key, 0, enemy.Alive);
+                    TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, enemy.Alive);
                     AddTransform(key, enemy.X, enemy.Y, enemy.FacingX, enemy.FacingY, 0f, 0f);
                     AddHealth(key, enemy.Hp);
                 }
             }
 
+            if (trackLocalAuthoritativeEntities)
+            {
+                AddLocalAuthoritativeMissingEntityRemovals();
+            }
+
             if (snapshot.Events != null)
             {
-                _events.AddRange(snapshot.Events);
+                _events!.AddRange(snapshot.Events);
             }
 
             return CompleteSnapshot(
                 0UL,
                 snapshot.Frame,
-                ShooterViewSnapshotKind.Full,
+                trackLocalAuthoritativeEntities ? ShooterViewSnapshotKind.Delta : ShooterViewSnapshotKind.Full,
                 source);
         }
 
@@ -346,25 +374,54 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        public void ClearTrackedState()
+        {
+            _localAuthoritativePreviousLiveEntities.Clear();
+            _localAuthoritativeCurrentLiveEntities.Clear();
+        }
+
         private void BeginSnapshot()
         {
-            _entityChanges.Clear();
-            _removedEntities.Clear();
-            _transformChanges.Clear();
-            _healthChanges.Clear();
-            _scoreChanges.Clear();
-            _projectileLifetimeChanges.Clear();
-            _events.Clear();
+            _entityChanges = EntityChangePool.Get();
+            _removedEntities = RemovedEntityPool.Get();
+            _transformChanges = TransformChangePool.Get();
+            _healthChanges = HealthChangePool.Get();
+            _scoreChanges = ScoreChangePool.Get();
+            _projectileLifetimeChanges = ProjectileLifetimeChangePool.Get();
+            _events = EventPool.Get();
         }
 
         private void AddEntity(ShooterViewEntityKey key, int ownerEntityId, bool alive)
         {
-            _entityChanges.Add(new ShooterViewEntityChange(key, ownerEntityId, alive));
+            _entityChanges!.Add(new ShooterViewEntityChange(key, ownerEntityId, alive));
+        }
+
+        private void TrackLocalAuthoritativeLiveEntity(bool enabled, ShooterViewEntityKey key, bool alive)
+        {
+            if (enabled && alive)
+            {
+                _localAuthoritativeCurrentLiveEntities.Add(key);
+            }
+        }
+
+        private void AddLocalAuthoritativeMissingEntityRemovals()
+        {
+            foreach (var key in _localAuthoritativePreviousLiveEntities)
+            {
+                if (!_localAuthoritativeCurrentLiveEntities.Contains(key))
+                {
+                    RemoveEntity(key);
+                }
+            }
+
+            var previous = _localAuthoritativePreviousLiveEntities;
+            _localAuthoritativePreviousLiveEntities = _localAuthoritativeCurrentLiveEntities;
+            _localAuthoritativeCurrentLiveEntities = previous;
         }
 
         private void RemoveEntity(ShooterViewEntityKey key)
         {
-            _removedEntities.Add(key);
+            _removedEntities!.Add(key);
         }
 
         private void AddTransform(
@@ -376,22 +433,22 @@ namespace AbilityKit.Demo.Shooter.View
             float velocityX,
             float velocityY)
         {
-            _transformChanges.Add(new ShooterViewTransformComponentChange(key, x, y, facingX, facingY, velocityX, velocityY));
+            _transformChanges!.Add(new ShooterViewTransformComponentChange(key, x, y, facingX, facingY, velocityX, velocityY));
         }
 
         private void AddHealth(ShooterViewEntityKey key, int hp)
         {
-            _healthChanges.Add(new ShooterViewHealthComponentChange(key, hp));
+            _healthChanges!.Add(new ShooterViewHealthComponentChange(key, hp));
         }
 
         private void AddScore(ShooterViewEntityKey key, int score)
         {
-            _scoreChanges.Add(new ShooterViewScoreComponentChange(key, score));
+            _scoreChanges!.Add(new ShooterViewScoreComponentChange(key, score));
         }
 
         private void AddProjectileLifetime(ShooterViewEntityKey key, int remainingFrames)
         {
-            _projectileLifetimeChanges.Add(new ShooterViewProjectileLifetimeComponentChange(key, remainingFrames));
+            _projectileLifetimeChanges!.Add(new ShooterViewProjectileLifetimeComponentChange(key, remainingFrames));
         }
 
         private ShooterSnapshotViewBatch CompleteSnapshot(
@@ -400,19 +457,40 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterViewSnapshotKind snapshotKind,
             ShooterViewBatchSource source)
         {
-            return new ShooterSnapshotViewBatch(
+            var batch = new ShooterSnapshotViewBatch(
                 worldId,
                 frame,
                 ++_nextSequence,
                 snapshotKind,
                 source,
-                _entityChanges.ToArray(),
-                _removedEntities.ToArray(),
-                _transformChanges.ToArray(),
-                _healthChanges.ToArray(),
-                _scoreChanges.ToArray(),
-                _projectileLifetimeChanges.ToArray(),
-                _events.ToArray());
+                _entityChanges!,
+                _removedEntities!,
+                _transformChanges!,
+                _healthChanges!,
+                _scoreChanges!,
+                _projectileLifetimeChanges!,
+                _events!);
+
+            _entityChanges = null;
+            _removedEntities = null;
+            _transformChanges = null;
+            _healthChanges = null;
+            _scoreChanges = null;
+            _projectileLifetimeChanges = null;
+            _events = null;
+
+            return batch;
+        }
+
+        private static ObjectPool<List<T>> CreateListPool<T>()
+        {
+            return Pools.GetPool(
+                () => new List<T>(DefaultPooledListCapacity),
+                onGet: static list => list.Clear(),
+                onRelease: static list => list.Clear(),
+                defaultCapacity: 0,
+                maxSize: MaxPooledListsPerType,
+                collectionCheck: false);
         }
 
         private static bool IsControlledPlayerTransform(ShooterViewEntityKey key, int controlledPlayerId)

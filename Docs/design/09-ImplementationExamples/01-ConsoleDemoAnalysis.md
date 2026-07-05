@@ -109,7 +109,7 @@ sequenceDiagram
     CLI->>Mode: StartTestMode / StartRecordingMode / StartReplayMode / StartSkillTestMode
 ```
 
-实际源码不是旧文档里的 `ConsoleBattleBootstrapper.Run()`，也没有在这里直接通过 `WorldHostBuilder.Create()` 启动 Host。当前 Demo 的组合根是 `ConsoleBattleBootstrapper`，runtime world 的创建被封装在 `CreateRuntimeWorld()` 内部。
+Console Demo 的组合根是 `ConsoleBattleBootstrapper`，入口不会直接通过 `WorldHostBuilder.Create()` 启动 Host；runtime world 的创建被封装在 `CreateRuntimeWorld()` 内部。
 
 ---
 
@@ -221,7 +221,7 @@ flowchart TB
 | `InitializeBattleState` | 将 `ConsoleBattleContext.State` 改成 `InMatch`，设置 `IsInitialized` |
 | `NotifyBattleStarted` | 输出战斗开始日志并触发 `BattleStarted` 事件 |
 
-新手阅读时要注意：`BattleEntityFeature` 必须最先加入 FeatureHost，因为后续 `SpawnCharacter()` 依赖它注入的 `EntityFactory` 和 `EntityQuery`。
+`BattleEntityFeature` 必须最先加入 FeatureHost，因为后续 `SpawnCharacter()` 依赖它注入的 `EntityFactory` 和 `EntityQuery`。
 
 ---
 
@@ -318,7 +318,7 @@ flowchart TB
     Lockstep --> FrameEvent[OnFrameSync]
 ```
 
-`FrameSyncAdapter.Tick()` 不会像旧文档描述的那样调用 `WaitForInputs()` 或 `ProcessLogicFrame()`。当前实现的职责更窄：
+`FrameSyncAdapter.Tick()` 不负责调用 `WaitForInputs()` 或 `ProcessLogicFrame()`。当前实现的职责边界是：
 
 1. 如果未初始化或未连接，则跳过。
 2. 从 `ConsoleBattleContext.LastFrame` 读取当前帧。
@@ -349,13 +349,13 @@ flowchart TB
     Binder --> Record[Optional snapshot recording]
 ```
 
-和旧占位文档相比，当前真实顺序有三个重要差异：
+当前主循环顺序体现出三个关键边界：
 
-| 旧理解 | 当前源码 |
-|--------|----------|
-| 同步适配器等待输入后推进逻辑帧 | Bootstrapper 先推进 context 帧号和时间，再 tick 阶段、runtime world、view、sync |
-| 快照由伪 `_snapshotDispatcher.Publish()` 发布 | 共享快照通过 `FrameSnapshotDispatcher` 订阅 OpCode 后进入 `ConsoleBattleViewEventSink` |
-| Demo 只验证帧同步 | Demo 同时覆盖输入、同步适配、runtime world、表现事件、自动测试和回放 |
+| 边界 | 当前源码 |
+|------|----------|
+| 逻辑帧推进位置 | Bootstrapper 先推进 context 帧号和时间，再 tick 阶段、runtime world、view、sync |
+| 快照分发入口 | 共享快照通过 `FrameSnapshotDispatcher` 订阅 OpCode 后进入 `ConsoleBattleViewEventSink` |
+| Demo 覆盖范围 | 同时覆盖输入、同步适配、runtime world、表现事件、自动测试和回放 |
 
 ---
 
@@ -465,26 +465,24 @@ flowchart LR
 
 ---
 
-## 16. 新手阅读路线
+## 16. 源码阅读路径
 
-建议按下面顺序读源码：
-
-1. 先读 `Program.Main`，理解 CLI 模式和 Demo 生命周期。
-2. 再读 `ConsoleBattleBootstrapper` 构造函数、`Start()`、`SetupBattle()`、`Tick()`。
-3. 读 `BattleStartConfig.BuildPlan()` 和 `BuildLaunchSpec()`，理解配置如何进入 runtime。
-4. 读 `BattleFlow` 和 `InMatchPhase`，理解阶段流和四步初始化。
-5. 读 `BattleEntityFeature` 和 `BattleEntityFactory`，理解 Console 本地 ECS 如何产生角色实体。
-6. 读 `ConsoleInputHandler`、`ConsoleInputFeature`、`DirectCallInputSink`，理解输入从按键到 `PlayerInputCommand` 的路径。
-7. 读 `SyncAdapterFactory` 和 `FrameSyncAdapter`，理解同步适配器在 Console 中的职责边界。
-8. 读 `ConsoleBattleViewEventSink` 和 `ConsoleBattleView`，理解共享事件如何驱动 Console 表现。
-9. 最后读 `AutoTestRunner`，理解 Demo 如何变成自动化验收入口。
+1. `Program.Main`：CLI 模式和 Demo 生命周期入口。
+2. `ConsoleBattleBootstrapper` 构造函数、`Start()`、`SetupBattle()`、`Tick()`：平台对象、阶段流、runtime world 和主循环装配。
+3. `BattleStartConfig.BuildPlan()` 与 `BuildLaunchSpec()`：配置如何进入 runtime。
+4. `BattleFlow` 与 `InMatchPhase`：阶段流和四步初始化。
+5. `BattleEntityFeature` 与 `BattleEntityFactory`：Console 本地 ECS 如何产生角色实体。
+6. `ConsoleInputHandler`、`ConsoleInputFeature`、`DirectCallInputSink`：输入从按键到 `PlayerInputCommand` 的路径。
+7. `SyncAdapterFactory` 与 `FrameSyncAdapter`：同步适配器在 Console 中的职责边界。
+8. `ConsoleBattleViewEventSink` 与 `ConsoleBattleView`：共享事件如何驱动 Console 表现。
+9. `AutoTestRunner`：Demo 如何成为自动化验收入口。
 
 ---
 
-## 17. 常见误区
+## 17. 边界判断
 
-| 误区 | 正确认知 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | Console Demo 只是打印日志 | 它会创建阶段流、本地 ECS、runtime world、输入链路、同步适配器和表现事件 sink |
 | `ConsoleBattleBootstrapper.Run()` 是启动入口 | 当前源码没有这个方法，启动由 `Program.Main` 调用 `Initialize()`、`Start()`、`SetupBattle()` 完成 |
 | 帧循环由同步适配器推进 | 当前帧号和逻辑时间在 `ConsoleBattleBootstrapper.Tick()` 中推进，`FrameSyncAdapter` 主要镜像和广播同步状态 |

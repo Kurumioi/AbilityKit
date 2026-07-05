@@ -2,16 +2,19 @@
 
 using System;
 using AbilityKit.World.Svelto;
+using Svelto.DataStructures;
 using Svelto.ECS;
+using Svelto.ECS.Internal;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
     internal sealed class ShooterEnemyWaveCombatModule
     {
+        private const int MaxEnemyAttackEventsPerFrame = 64;
+
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
         private readonly ShooterCombatEventBuffer _events;
-        private readonly ShooterSpatialTargetIndex _targetIndex = new();
         private readonly ISveltoWorldContext _context;
         private readonly int _attackIntervalFrames;
         private readonly int _attackDamage;
@@ -39,29 +42,110 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            _targetIndex.Rebuild(_context, _state.CurrentFrame);
+            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>(ShooterSveltoGroups.Players);
+            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
+            if (playerCount == 0)
+            {
+                return;
+            }
+
+            var emittedEvents = 0;
             var (transforms, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+            if (ShooterSveltoPlayerTargetSelector.TryGetOnlyLivePlayer(players, playerCount, out var onlyPlayerIndex, out _))
+            {
+                AttackSinglePlayer(players, onlyPlayerIndex, transforms, healths, ids, count, ref emittedEvents);
+                return;
+            }
+
+            AttackNearestPlayers(players, playerCount, transforms, healths, ids, count, ref emittedEvents);
+        }
+
+        private void AttackSinglePlayer(
+            NB<ShooterSveltoPlayerComponent> players,
+            int playerIndex,
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoHealthComponent> healths,
+            NativeEntityIDs ids,
+            int count,
+            ref int emittedEvents)
+        {
+            if (playerIndex < 0 || !players[playerIndex].Alive || players[playerIndex].Hp <= 0)
+            {
+                return;
+            }
+
+            var damage = 0;
+            var playerId = players[playerIndex].PlayerId;
             for (var i = 0; i < count; i++)
             {
-                if (healths[i].Alive == 0)
+                if (healths[i].Alive == 0 || healths[i].Current <= 0)
                 {
                     continue;
                 }
 
-                if (!_targetIndex.TryGetLivePlayerByPosition(transforms[i].X, transforms[i].Y, out var player))
-                {
-                    continue;
-                }
-
-                player.Hp = Math.Max(0, player.Hp - _attackDamage);
-                if (player.Hp == 0)
-                {
-                    player.Alive = false;
-                }
-
-                _entities.SetPlayer(in player);
-                _events.AddEnemyAttack(ids[i], player.PlayerId, transforms[i].X, transforms[i].Y, _attackDamage);
+                damage += _attackDamage;
+                AddEnemyAttackEvent(ids[i], playerId, transforms[i].X, transforms[i].Y, ref emittedEvents);
             }
+
+            ApplyDamage(ref players[playerIndex], damage);
+        }
+
+        private void AttackNearestPlayers(
+            NB<ShooterSveltoPlayerComponent> players,
+            int playerCount,
+            NB<ShooterSveltoTransformComponent> transforms,
+            NB<ShooterSveltoHealthComponent> healths,
+            NativeEntityIDs ids,
+            int count,
+            ref int emittedEvents)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                if (healths[i].Alive == 0 || healths[i].Current <= 0)
+                {
+                    continue;
+                }
+
+                if (!ShooterSveltoPlayerTargetSelector.TryFindNearestLivePlayer(
+                    players,
+                    playerCount,
+                    transforms[i].X,
+                    transforms[i].Y,
+                    out var playerIndex,
+                    out var player,
+                    out _))
+                {
+                    continue;
+                }
+
+                ApplyDamage(ref players[playerIndex], _attackDamage);
+                AddEnemyAttackEvent(ids[i], player.PlayerId, transforms[i].X, transforms[i].Y, ref emittedEvents);
+            }
+        }
+
+        private void ApplyDamage(ref ShooterSveltoPlayerComponent player, int damage)
+        {
+            if (damage <= 0 || !player.Alive || player.Hp <= 0)
+            {
+                return;
+            }
+
+            player.Hp = Math.Max(0, player.Hp - damage);
+            if (player.Hp == 0)
+            {
+                player.Alive = false;
+            }
+        }
+
+        private void AddEnemyAttackEvent(uint enemyId, int playerId, float x, float y, ref int emittedEvents)
+        {
+            if (emittedEvents >= MaxEnemyAttackEventsPerFrame)
+            {
+                return;
+            }
+
+            emittedEvents++;
+            _events.AddEnemyAttack(enemyId, playerId, x, y, _attackDamage);
         }
     }
 }

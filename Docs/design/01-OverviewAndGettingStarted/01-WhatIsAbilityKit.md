@@ -9,15 +9,15 @@
 - [1.1 AbilityKit 是什么](#11-abilitykit-是什么)
   - [目录](#目录)
   - [1. 一句话定位](#1-一句话定位)
-  - [2. 它不是什么](#2-它不是什么)
+  - [2. 边界判断](#2-边界判断)
   - [3. 它解决的核心问题](#3-它解决的核心问题)
   - [4. 能力分层](#4-能力分层)
   - [5. 源码工程如何组织](#5-源码工程如何组织)
-  - [6. 推荐组合](#6-推荐组合)
+  - [6. 能力组合](#6-能力组合)
   - [7. 适用边界](#7-适用边界)
   - [8. 和行业方案的差异](#8-和行业方案的差异)
-  - [9. 新手应该怎么开始](#9-新手应该怎么开始)
-  - [下一步](#下一步)
+  - [9. 源码阅读路径](#9-源码阅读路径)
+  - [10. 关联文档](#10-关联文档)
 
 ---
 
@@ -60,12 +60,12 @@ demo.moba + demo.shooter + Console]
 
 ---
 
-## 2. 它不是什么
+## 2. 边界判断
 
-先排除几个常见误解，可以减少后续阅读成本。
+下列边界用于区分 AbilityKit 的框架定位、示例定位和适用范围。
 
-| 误解 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | AbilityKit 是完整 MOBA 游戏框架 | MOBA Demo 是最佳实践示例，框架本身是通用战斗工具集合 |
 | 所有项目都要引入所有包 | 推荐按 Foundation、SkillCore、BattleRuntime、SyncRuntime、ServerRuntime 逐级组合 |
 | 它只能在 Unity 中跑 | 核心逻辑以纯 C# runtime 组织，可被 `src`、Console、服务器和测试工程复用 |
@@ -175,7 +175,7 @@ UPM 包源码] --> Unity[Unity Editor/Player]
 
 | 目录 | 定位 | 阅读建议 |
 |------|------|----------|
-| `Unity/Packages` | UPM 包源码和包级文档 | 优先读这里，理解真实模块边界 |
+| `Unity/Packages` | UPM 包源码和包级文档 | 核心模块边界以这里为准 |
 | `src` | .NET 解决方案、Console Demo、测试工程 | 用来验证纯 C# 构建和示例运行 |
 | `Server/Orleans` | 房间、网关、战斗宿主等服务端实验 | 关注联机、权威服和 Smoke 验证 |
 | `Docs/design` | 跨模块设计文档 | 用来建立地图，再回到源码核对 |
@@ -186,9 +186,9 @@ UPM 包源码] --> Unity[Unity Editor/Player]
 
 ---
 
-## 6. 推荐组合
+## 6. 能力组合
 
-官方包级索引已经给出了按复杂度推广的组合方式。入门时建议按下表理解，不要一开始从完整 Demo 反推所有项目都需要的架构。
+官方包级索引已经给出了按复杂度推广的组合方式。下表用于说明各组合的引入边界，避免从完整 Demo 反推所有项目都需要的架构。
 
 | 组合 | 包含模块 | 适用场景 | 验收标准 |
 |------|----------|----------|----------|
@@ -212,7 +212,7 @@ flowchart LR
     R -.适合.-> Server[房间/网关/权威服]
 ```
 
-这条路线的价值在于可控引入：项目可以只停在 SkillCore，也可以继续扩展到 BattleRuntime 或 SyncRuntime。Demo 包只作为参考，不应该成为默认依赖。
+这种组合方式的价值在于可控引入：项目可以只停在 SkillCore，也可以继续扩展到 BattleRuntime 或 SyncRuntime。Demo 包只作为参考，不应该成为默认依赖。
 
 ---
 
@@ -275,9 +275,9 @@ AbilityKit 的优势不在“把每个模块都做成最终形态”，而在于
 
 ---
 
-## 9. 新手应该怎么开始
+## 9. 源码阅读路径
 
-不要从全部包开始看。建议按“入口文档 -> 可运行 Demo -> 单个能力源码 -> 专题文档”的顺序推进。
+源码阅读可按“入口文档 -> 可运行 Demo -> 单个能力源码 -> 专题文档”的顺序推进。
 
 ```mermaid
 flowchart TD
@@ -292,7 +292,7 @@ flowchart TD
     F --> J[Host / Server / Orleans]
 ```
 
-推荐最小阅读路径：
+最小阅读路径：
 
 1. `Docs/design/01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md`：先看能力边界。
 2. `Docs/design/01-OverviewAndGettingStarted/02-CoreConcepts.md`：理解术语和源码边界。
@@ -319,11 +319,11 @@ flowchart TD
 
 ---
 
-## 下一步
+## 10. 关联文档
 
 - [能力地图](./00-AbilityKitCapabilityMap.md) - 从源码包和能力域看整体结构。
 - [核心概念](./02-CoreConcepts.md) - 理解 World、Entity、Frame、Skill、Trigger、Context、Adapter 等术语。
-- [快速开始](./03-QuickStart.md) - 跑起来再读源码。
+- [快速开始](./03-QuickStart.md) - 从构建、Demo 和测试入口理解运行闭环。
 - [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) - 从一个完整可运行外壳理解装配链路。
 
 ---

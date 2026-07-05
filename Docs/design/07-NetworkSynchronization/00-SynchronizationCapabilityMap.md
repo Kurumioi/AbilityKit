@@ -14,7 +14,7 @@
 6. [能力选型](#6-能力选型)
 7. [设计意图](#7-设计意图)
 8. [风险与检查点](#8-风险与检查点)
-9. [继续阅读路线](#9-继续阅读路线)
+9. [源码阅读路径](#9-源码阅读路径)
 
 ---
 
@@ -456,16 +456,14 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 
 ---
 
-## 9. 继续阅读路线
+## 9. 源码阅读路径
 
-建议顺序：
-
-1. `07-NetworkSynchronization/01-FrameSync.md`：理解帧号、输入源和基础帧同步。
-2. `07-NetworkSynchronization/02-StateSync.md`：理解快照和状态修正。
-3. `07-NetworkSynchronization/03-RollbackPrediction.md`：理解预测、回滚和确认帧。
-4. `07-NetworkSynchronization/05-SessionCoordination.md`：理解客户端会话和 Orleans Room/Battle。
-5. `07-NetworkSynchronization/04-ReplaySystem.md`：理解如何记录和复现同步过程。
-6. `09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md` 与 `09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md`：看 Shooter 远端闭环如何验收。
+1. `07-NetworkSynchronization/01-FrameSync.md`：帧号、输入源和基础帧同步。
+2. `07-NetworkSynchronization/02-StateSync.md`：快照和状态修正。
+3. `07-NetworkSynchronization/03-RollbackPrediction.md`：预测、回滚和确认帧。
+4. `07-NetworkSynchronization/05-SessionCoordination.md`：客户端会话和 Orleans Room/Battle。
+5. `07-NetworkSynchronization/04-ReplaySystem.md`：同步过程的记录和复现。
+6. `09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md` 与 `09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md`：Shooter 远端闭环验收。
 
 ---
 

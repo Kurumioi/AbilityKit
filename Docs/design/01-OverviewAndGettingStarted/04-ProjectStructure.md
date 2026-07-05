@@ -1,6 +1,6 @@
 # 1.4 项目结构：Unity Package、.NET 工程、Server 与 Demo 的关系
 
-> 本文解释 AbilityKit 仓库为什么这样组织，以及新人应该如何从目录结构判断“源码在哪里、构建从哪里跑、示例从哪里看、服务端从哪里接”。本文依据 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`.cursor/rules/ability-package-structure.mdc`、`src/AbilityKit.sln`、`src/*.csproj` 和 `Server/Orleans/src` 当前目录核对。
+> 本文解释 AbilityKit 仓库为什么这样组织，以及如何从目录结构判断源码位置、构建入口、示例入口和服务端接入边界。本文依据 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`.cursor/rules/ability-package-structure.mdc`、`src/AbilityKit.sln`、`src/*.csproj` 和 `Server/Orleans/src` 当前目录核对。
 
 ---
 
@@ -24,7 +24,7 @@ flowchart TB
     Csproj --> Console[Console Demo]
     Server --> Orleans[Orleans Host/Gateway]
     Server --> Smoke[Shooter Smoke]
-    Docs --> ReadPath[源码阅读路线]
+    Docs --> ReadPath[源码入口索引]
 ```
 
 这种结构同时满足三件事：Unity 项目按 Package 依赖接入，核心逻辑脱离 Unity Editor 用 `.NET` 快速构建测试，服务端和 Demo 复用同一套框架源码。
@@ -60,7 +60,7 @@ flowchart LR
 
 ## 3. `Unity/Packages`：按能力拆分的唯一源码层
 
-AbilityKit 的包按能力逐层组合，不要求业务项目一次性全量接入。`Unity/Packages/README.md` 当前推荐的组合是：
+AbilityKit 的包按能力逐层组合，不要求业务项目一次性全量接入。`Unity/Packages/README.md` 当前定义的组合是：
 
 ```mermaid
 flowchart TD
@@ -131,9 +131,9 @@ flowchart TB
 | 运行 Network Runtime 测试 | `dotnet test src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj` |
 | 运行 Game View Runtime 测试 | `dotnet test src/AbilityKit.Game.View.Runtime.Tests/AbilityKit.Game.View.Runtime.Tests.csproj` |
 
-适合新手优先阅读的目录：
+源码阅读入口：
 
-| 目录 | 推荐原因 |
+| 目录 | 设计用途 |
 |------|----------|
 | `src/AbilityKit.Demo.Moba.Console` | 启动链路完整，能看到配置、世界、输入、技能、快照、表现、自动测试、回放 |
 | `src/AbilityKit.World.DI.Tests` | 理解服务生命周期最直接 |
@@ -184,7 +184,7 @@ flowchart TD
     Gateway --> Client
 ```
 
-推荐顺序是先理解 Host、FrameSync、Snapshot，再进入 Orleans：先读 `Docs/design/07-NetworkSynchronization/*`，再读 `Docs/design/09-ImplementationExamples/Shooter/*`，最后读 `Server/Orleans/src`。
+Orleans 链路依赖 Host、FrameSync 与 Snapshot 的前置概念；源码阅读路径可以从 `Docs/design/07-NetworkSynchronization/*` 到 `Docs/design/09-ImplementationExamples/Shooter/*`，再进入 `Server/Orleans/src`。
 
 ---
 
@@ -192,7 +192,7 @@ flowchart TD
 
 Demo 不是业务项目必须复制的模板，而是框架能力的落地样板和验收场景。
 
-| Demo | 证明什么 | 推荐文档 |
+| Demo | 证明什么 | 关联文档 |
 |------|----------|----------|
 | Console Demo | 纯 C# 下跑战斗流程、自动测试、回放 | `Docs/design/09-ImplementationExamples/01-ConsoleDemoAnalysis.md` |
 | MOBA Demo | 技能、Buff、Projectile、Damage、Snapshot、Prediction 的完整战斗闭环 | `Docs/design/09-ImplementationExamples/03-MOBA%20Demo%20Analysis.md`、`Docs/design/09-ImplementationExamples/MOBA/00-Overview.md` |
@@ -202,7 +202,7 @@ Demo 不是业务项目必须复制的模板，而是框架能力的落地样板
 
 ```mermaid
 flowchart LR
-    A[先读专题总览] --> B[找源码入口]
+    A[专题总览] --> B[源码入口]
     B --> C[追启动流程]
     C --> D[追一帧输入]
     D --> E[追输出快照]
@@ -241,7 +241,7 @@ flowchart TB
 
 | 文档域 | 主要源码域 |
 |--------|------------|
-| `01-OverviewAndGettingStarted` | 全局入口、仓库结构、学习路径 |
+| `01-OverviewAndGettingStarted` | 全局入口、仓库结构、源码阅读路径 |
 | `02-LogicalWorldDesign` | `world.di`、`world.ecs`、世界抽象 |
 | `03-LogicalWorldHostDesign` | `host`、`host.extension` |
 | `04-PresentationLayerDesign` | `world.snapshot`、Demo View Runtime |
@@ -254,7 +254,7 @@ flowchart TB
 
 ---
 
-## 9. 一次功能改动的推荐工作流
+## 9. 功能改动工作流
 
 ```mermaid
 sequenceDiagram
@@ -273,14 +273,14 @@ sequenceDiagram
     Dev->>Docs: 更新设计说明/流程图/约束
 ```
 
-这个流程的关键不是“所有修改都必须更新文档”，而是当你改变能力边界、生命周期、协议、同步流程、Demo 验收路径时，设计文档需要同步更新，否则新人会按旧路径读错源码。
+这个流程的关键不是“所有修改都必须更新文档”，而是当能力边界、生命周期、协议、同步流程或 Demo 验收路径改变时，设计文档需要同步更新，否则文档会指向过期源码路径。
 
 ---
 
-## 10. 常见目录误区
+## 10. 目录边界判断
 
-| 误区 | 正确做法 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 在 `src` 里新增框架源码 | 应在 `Unity/Packages/com.abilitykit.*` 新增，再让 `.csproj` 引用 |
 | 把 Demo 包当成业务项目必须依赖 | Demo 是参考实现，业务可按 Foundation/SkillCore/BattleRuntime/SyncRuntime 分级接入 |
 | 只看 Unity 目录，不跑 `.NET` 测试 | 核心逻辑应优先用 `dotnet test` 快速验证 |
@@ -306,4 +306,4 @@ flowchart LR
     D --> F
 ```
 
-新人只要先记住这条主线，就能在面对几十个 package、多个 Demo、测试工程和服务端目录时保持方向感。
+这条主线用于把几十个 package、多个 Demo、测试工程和服务端目录统一到同一套源码组织关系中。

@@ -91,19 +91,19 @@ sequenceDiagram
     View->>Pipeline: 解码并分发到表现阶段
 ```
 
-## 4. 建议阅读顺序
+## 4. 源码阅读路径
 
-1. 先读 [01-世界启动与运行时装配](01-WorldAndBootstrap.md)，理解 MOBA world 如何出现。
-2. 再读 [12-DI 与 System/Service 协作深潜](12-DIAndSystemServiceCollaborationDeepDive.md)，理解服务注册、System 调度和业务服务分层。
-3. 再读 [02-技能执行深潜](05-SkillExecutionDeepDive.md)，理解输入如何变成技能释放。
-4. 再读 [03-配置、实体索引与生成深潜](06-ConfigEntitySpawnDeepDive.md)，理解配置、索引与生成如何支撑战斗。
-5. 再读 [03-Buff、Projectile 与 Damage 管线](03-BuffProjectileDamage.md)，理解技能效果如何落到战斗状态。
-6. 再读 [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md)，理解效果执行如何携带来源、父子 trace 与验收结构。
-7. 再读 [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md)，理解触发器订阅、运行时校验、阶段触发与表现 Cue。
-8. 再读 [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md)，理解配置动作 DSL、强类型 action module、持续运行时查询与上下文边界。
-9. 再读 [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md)，理解 stack、periodic、cue、tag、modifier 如何按领域 runtime 组合。
-10. 再读 [14-四英雄技能正式实现设计](14-HeroSkillFormalDesign.md)，理解廉颇、小乔、赵云、墨子如何通过 TriggerPlan、Buff、Projectile、Counter 与通用 predicate 落地。
-11. 最后读 [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)，理解逻辑结果如何同步到客户端表现。
+1. [01-世界启动与运行时装配](01-WorldAndBootstrap.md)：MOBA world 的创建、模块装配和生命周期入口。
+2. [12-DI 与 System/Service 协作深潜](12-DIAndSystemServiceCollaborationDeepDive.md)：服务注册、System 调度和业务服务分层。
+3. [02-技能执行深潜](05-SkillExecutionDeepDive.md)：输入如何转换为技能释放请求。
+4. [03-配置、实体索引与生成深潜](06-ConfigEntitySpawnDeepDive.md)：配置、索引与生成如何支撑战斗实体。
+5. [03-Buff、Projectile 与 Damage 管线](03-BuffProjectileDamage.md)：技能效果如何落到 Buff、Projectile 和 Damage 状态变化。
+6. [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md)：效果执行的来源、父子 trace 与验收结构。
+7. [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md)：触发器订阅、运行时校验、阶段触发与表现 Cue。
+8. [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md)：配置动作 DSL、强类型 action module、持续运行时查询与上下文边界。
+9. [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md)：stack、periodic、cue、tag、modifier 与领域 runtime 的组合边界。
+10. [14-四英雄技能正式实现设计](14-HeroSkillFormalDesign.md)：廉颇、小乔、赵云、墨子如何通过 TriggerPlan、Buff、Projectile、Counter 与通用 predicate 落地。
+11. [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)：逻辑结果如何同步到客户端表现。
 
 ## 5. 关键源码入口
 

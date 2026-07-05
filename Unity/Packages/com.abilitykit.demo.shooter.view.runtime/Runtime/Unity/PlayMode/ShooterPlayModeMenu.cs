@@ -14,10 +14,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private const float Width = 440f;
         private const float TextFieldWidth = 180f;
         private const string DefaultTemplateId = "predict-rollback-authority";
+        private static readonly string[] EnemyBudgetLabels =
+        {
+            "Playable 512",
+            "Stress 2k",
+            "Extreme 8k"
+        };
 
         [Header("GUI")]
         [SerializeField] private bool showMenu = true;
-        [SerializeField] private Rect windowRect = new Rect(12f, 12f, Width, 680f);
+        [SerializeField] private Rect windowRect = new Rect(12f, 12f, Width, 720f);
 
         [Header("Session")]
         [SerializeField] private string templateId = DefaultTemplateId;
@@ -25,6 +31,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
         [SerializeField] private float worldScale = 1f;
+        [SerializeField] private int enemyBudget = ShooterPlayModeSessionOptions.PlayModeDefaultEnemyBudget;
+        [SerializeField] private bool enableAuthorityComparison;
+
+        [Header("Rendering")]
+        [SerializeField] private ShooterUnityViewRenderBackend renderBackend = ShooterUnityViewRenderBackendCatalog.DefaultBackend;
 
         [Header("Gateway")]
         [SerializeField] private string host = ShooterRemoteStateSyncDefaults.DefaultHost;
@@ -70,6 +81,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUILayout.BeginVertical();
 
             DrawSessionSettings();
+            DrawRenderingSettings();
             DrawLocalControls();
             DrawGatewayControls();
             DrawRemoteControls();
@@ -98,6 +110,35 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             playerCount = Math.Max(1, IntField("Players", playerCount));
             controlledPlayerId = Math.Min(Math.Max(1, IntField("Player", controlledPlayerId)), playerCount);
             worldScale = Math.Max(0.01f, FloatField("Scale", worldScale));
+            enableAuthorityComparison = GUILayout.Toggle(enableAuthorityComparison, "Authority comparison");
+            enemyBudget = EnemyBudgetForIndex(GUILayout.SelectionGrid(
+                EnemyBudgetIndex(enemyBudget),
+                EnemyBudgetLabels,
+                EnemyBudgetLabels.Length));
+            GUILayout.Label($"Enemies: {enemyBudget}");
+        }
+
+        private void DrawRenderingSettings()
+        {
+            GUILayout.Space(6f);
+            GUILayout.Label("Rendering");
+            var selected = GUILayout.SelectionGrid(
+                ShooterUnityViewRenderBackendCatalog.IndexOf(renderBackend),
+                ShooterUnityViewRenderBackendCatalog.GetDisplayNames(),
+                Math.Max(1, ShooterUnityViewRenderBackendCatalog.Count));
+            var selectedDescriptor = ShooterUnityViewRenderBackendCatalog.Get(selected);
+            renderBackend = selectedDescriptor.Backend;
+            var effectiveBackend = ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend);
+            var effectiveDescriptor = ShooterUnityViewRenderBackendCatalog.Get(effectiveBackend);
+
+            GUILayout.Label($"Selected: {selectedDescriptor.DisplayName}");
+            GUILayout.Label(selectedDescriptor.CapabilitySummary);
+            GUILayout.Label($"Density: {(selectedDescriptor.IsHighDensity ? "High" : "Debug")}  DOTS packages: {(selectedDescriptor.RequiresDotsPackages ? "Required" : "Not required")}");
+            GUILayout.Label(selectedDescriptor.IsAvailable
+                ? $"Effective: {effectiveDescriptor.DisplayName}"
+                : $"Effective: {effectiveDescriptor.DisplayName} until DOTS packages are installed");
+            GUILayout.Label($"Local Backend: {ShooterUnityViewRenderBackendCatalog.Get(ShooterPlayModeSessionHost.ViewBackend).DisplayName}");
+            GUILayout.Label($"Remote Backend: {ShooterUnityViewRenderBackendCatalog.Get(ShooterRemoteStateSyncPlayModeHost.ViewBackend).DisplayName}");
         }
 
         private void DrawLocalControls()
@@ -119,13 +160,19 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             if (GUILayout.Button("Rebuild Views"))
             {
+                var effectiveBackend = ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend);
+                ShooterPlayModeSessionHost.SetViewBackend(effectiveBackend);
+                ShooterRemoteStateSyncPlayModeHost.SetViewBackend(effectiveBackend);
                 ShooterPlayModeSessionHost.RebuildViews();
-                SetStatus("Local views rebuilt.");
+                ShooterRemoteStateSyncPlayModeHost.RebuildViews();
+                SetStatus("Views rebuilt.");
             }
 
             GUI.enabled = true;
             GUILayout.EndHorizontal();
-            GUILayout.Label($"Local: {(ShooterPlayModeSessionHost.IsRunning ? "Running" : "Stopped")} Step={ShooterPlayModeSessionHost.StepCount} Render={ShooterPlayModeSessionHost.RenderCount}");
+            GUILayout.Label($"Local: {(ShooterPlayModeSessionHost.IsRunning ? "Running" : "Stopped")} Step={ShooterPlayModeSessionHost.StepCount} Render={ShooterPlayModeSessionHost.RenderCount} Drop={ShooterPlayModeSessionHost.DroppedCatchUpTicks}");
+            GUILayout.Label("Controls: WASD / Arrow Keys move, mouse aims.");
+            GUILayout.Label("Fire: Space / Left Mouse / J primary, K spread, L twin.");
         }
 
         private void DrawGatewayControls()
@@ -269,6 +316,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void StartLocal()
         {
             ShooterRemoteStateSyncPlayModeHost.Stop();
+            ShooterPlayModeSessionHost.SetViewBackend(ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend));
             ShooterPlayModeSessionHost.Start(BuildSessionOptions());
             SetStatus("Local frame-sync session started.");
         }
@@ -334,6 +382,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private async Task StartRemoteAsync(ShooterRemoteStateSyncLaunchMode mode, string selectedRoomId)
         {
             ShooterPlayModeSessionHost.Stop();
+            ShooterRemoteStateSyncPlayModeHost.SetViewBackend(ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend));
 
             var sessionOptions = BuildSessionOptions();
             var options = new ShooterRemoteStateSyncLaunchOptions(
@@ -395,7 +444,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 Math.Max(1, playerCount),
                 templateOptions.RandomSeed,
                 templateOptions.ControlledPlayerId,
-                templateOptions.EnableAuthoritativeWorld,
+                enableAuthorityComparison,
                 templateOptions.LatencyMs,
                 templateOptions.JitterMs,
                 templateOptions.PacketLossRate,
@@ -404,7 +453,27 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 templateOptions.WorldScale,
                 templateOptions.NetworkName,
                 templateOptions.SyncTemplateId,
-                templateOptions.GameplayScenario);
+                ShooterPlayModeSessionOptions.CreatePlayModeScenario(enemyBudget));
+        }
+
+        private static int EnemyBudgetIndex(int value)
+        {
+            if (value >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget)
+            {
+                return 2;
+            }
+
+            return value >= ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget ? 1 : 0;
+        }
+
+        private static int EnemyBudgetForIndex(int index)
+        {
+            return index switch
+            {
+                1 => ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget,
+                2 => ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget,
+                _ => ShooterPlayModeSessionOptions.PlayModeDefaultEnemyBudget
+            };
         }
 
         private ShooterRoomLaunchSpec BuildRoomLaunchSpec(ShooterPlayModeSessionOptions sessionOptions)

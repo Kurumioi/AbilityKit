@@ -22,8 +22,8 @@
     - [9.3 第一个组件作为查询入口](#93-第一个组件作为查询入口)
     - [9.4 组件事件不直接驱动业务](#94-组件事件不直接驱动业务)
     - [9.5 引用组件和确定性状态分层](#95-引用组件和确定性状态分层)
-  - [10. 新手常见误区](#10-新手常见误区)
-  - [11. 推荐阅读顺序](#11-推荐阅读顺序)
+  - [10. 边界判断](#10-边界判断)
+  - [11. 源码阅读路径](#11-源码阅读路径)
 
 ---
 
@@ -295,10 +295,10 @@ if (actor.TryGet<HealthComponent>(out var health))
 
 ---
 
-## 10. 新手常见误区
+## 10. 边界判断
 
-| 误区 | 正确理解 |
-|------|----------|
+| 容易混淆的判断 | 设计边界 |
+|----------------|----------|
 | 组件必须实现 `IECComponent` | 当前基础 ECS 没有这个接口要求，struct/class 类型通过泛型 API 注册 |
 | `HasComponent<T>(id)` 检查某个实体 | 源码里的 `HasComponent<T>()` 是世界级存在性检查；实体侧 `Has<T>()` 目前也转发到该方法，使用前要理解这一点 |
 | 修改 struct 组件字段后自动写回 | struct 是值复制，修改后需要再次 `SetComponent` 或 `With` |
@@ -308,13 +308,13 @@ if (actor.TryGet<HealthComponent>(out var health))
 
 ---
 
-## 11. 推荐阅读顺序
+## 11. 源码阅读路径
 
-1. 先读 `ComponentRegistry.cs`，理解类型到 type id 的映射。
-2. 再读 `IECWorld.cs` 的组件 API，确认值类型和引用类型两条路径。
-3. 再读 `EntityWorld.cs` 的 `SetComponentInternal` 和 `RemoveComponentById`。
-4. 再读 `EntityQuery.cs` 和 `EntityWorld.QueryImpl`，理解组件索引如何驱动查询。
-5. 最后读 [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)，看查询成本、snapshot 和存活校验细节。
+1. `ComponentRegistry.cs`：类型到 type id 的映射。
+2. `IECWorld.cs` 的组件 API：值类型和引用类型两条路径。
+3. `EntityWorld.cs` 的 `SetComponentInternal` 与 `RemoveComponentById`：组件写入和移除流程。
+4. `EntityQuery.cs` 与 `EntityWorld.QueryImpl`：组件索引如何驱动查询。
+5. [查询与遍历源码深潜](../06-ECSArchitecture/03-QueryAndIteration.md)：查询成本、snapshot 和存活校验细节。
 
 ---
 
