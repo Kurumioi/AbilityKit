@@ -94,7 +94,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 create.NumericRoomId,
                 battleId,
                 start.WorldId,
-                playerId,
+                SelectPlayerId(join.CurrentPlayerId, playerId),
                 SelectWorldStartAnchor(start.WorldStartAnchor, join.WorldStartAnchor),
                 start.ServerNowTicks,
                 RoomGatewaySessionEntryKind.TeamLobby,
@@ -136,7 +136,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                     join.NumericRoomId,
                     join.BattleId,
                     join.WorldId,
-                    playerId,
+                    SelectPlayerId(join.CurrentPlayerId, playerId),
                     join.WorldStartAnchor,
                     join.ServerNowTicks,
                     join.JoinKind,
@@ -186,7 +186,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 join.NumericRoomId,
                 battleId,
                 start.WorldId,
-                playerId,
+                SelectPlayerId(join.CurrentPlayerId, playerId),
                 SelectWorldStartAnchor(start.WorldStartAnchor, join.WorldStartAnchor),
                 start.ServerNowTicks,
                 RoomGatewaySessionEntryKind.TeamLobby,
@@ -238,7 +238,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 restored.NumericRoomId,
                 restored.BattleId,
                 restored.WorldId,
-                playerId,
+                SelectPlayerId(restored.CurrentPlayerId, playerId),
                 restored.WorldStartAnchor,
                 restored.ServerNowTicks,
                 restored.JoinKind,
@@ -248,6 +248,11 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 subscribe.Message,
                 restored.Status,
                 restored.ErrorCode);
+        }
+
+        private static uint SelectPlayerId(uint serverPlayerId, uint fallbackPlayerId)
+        {
+            return serverPlayerId == 0u ? fallbackPlayerId : serverPlayerId;
         }
 
         private static RoomGatewayWorldStartAnchor SelectWorldStartAnchor(RoomGatewayWorldStartAnchor startAnchor, RoomGatewayWorldStartAnchor joinAnchor)
@@ -554,8 +559,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly RoomGatewaySessionEntryKind JoinKind;
         public readonly long ServerNowTicks;
         public readonly ulong WorldId;
+        public readonly uint CurrentPlayerId;
 
-        public RoomGatewayJoinResult(bool success, string roomId, ulong numericRoomId, RoomGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, RoomGatewaySessionEntryKind joinKind, long serverNowTicks, ulong worldId)
+        public RoomGatewayJoinResult(bool success, string roomId, ulong numericRoomId, RoomGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, RoomGatewaySessionEntryKind joinKind, long serverNowTicks, ulong worldId, uint currentPlayerId = 0u)
         {
             Success = success;
             RoomId = roomId ?? string.Empty;
@@ -567,6 +573,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             JoinKind = joinKind;
             ServerNowTicks = serverNowTicks;
             WorldId = worldId;
+            CurrentPlayerId = currentPlayerId;
         }
     }
 
@@ -636,8 +643,9 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly ulong WorldId;
         public readonly RoomGatewaySessionRestoreStatus Status;
         public readonly RoomGatewaySessionRestoreErrorCode ErrorCode;
+        public readonly uint CurrentPlayerId;
 
-        public RoomGatewayRestoreRoomResult(bool success, bool hasActiveRoom, bool isInBattle, string roomId, ulong numericRoomId, RoomGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, RoomGatewaySessionEntryKind joinKind, long serverNowTicks, ulong worldId, RoomGatewaySessionRestoreStatus status, RoomGatewaySessionRestoreErrorCode errorCode)
+        public RoomGatewayRestoreRoomResult(bool success, bool hasActiveRoom, bool isInBattle, string roomId, ulong numericRoomId, RoomGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, RoomGatewaySessionEntryKind joinKind, long serverNowTicks, ulong worldId, RoomGatewaySessionRestoreStatus status, RoomGatewaySessionRestoreErrorCode errorCode, uint currentPlayerId = 0u)
         {
             Success = success;
             HasActiveRoom = hasActiveRoom;
@@ -653,6 +661,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             WorldId = worldId;
             Status = status;
             ErrorCode = errorCode;
+            CurrentPlayerId = currentPlayerId;
         }
     }
 

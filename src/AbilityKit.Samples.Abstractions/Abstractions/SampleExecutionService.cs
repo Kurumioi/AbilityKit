@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AbilityKit.Samples.Abstractions
 {
     /// <summary>
-    /// Runs catalog entries for hosts that manage samples through buttons, lists, or menus.
+    /// 为通过按钮、列表或菜单管理示例的宿主运行目录项。
     /// </summary>
     public sealed class SampleExecutionService
     {
@@ -14,7 +14,7 @@ namespace AbilityKit.Samples.Abstractions
         private readonly IResourceProvider? _resources;
 
         /// <summary>
-        /// Creates an execution service.
+        /// 创建执行服务。
         /// </summary>
         public SampleExecutionService(
             SampleCatalog catalog,
@@ -29,7 +29,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Runs samples from a host-neutral request.
+        /// 根据宿主无关的请求运行示例。
         /// </summary>
         public IReadOnlyList<SampleExecutionResult> Run(SampleRunRequest request, ILogger output)
         {
@@ -63,7 +63,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Runs a sample by display index.
+        /// 按显示索引运行示例。
         /// </summary>
         public SampleExecutionResult RunByIndex(int index, ILogger output, SampleRunOptions? options = null)
         {
@@ -74,7 +74,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Runs a sample by stable id.
+        /// 按稳定 ID 运行示例。
         /// </summary>
         public SampleExecutionResult RunById(string id, ILogger output, SampleRunOptions? options = null)
         {
@@ -85,7 +85,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Starts a sample by stable id and returns a host-driven run handle.
+        /// 按稳定 ID 启动示例，并返回由宿主驱动的运行句柄。
         /// </summary>
         public SampleRunHandle StartById(string id, ILogger output, SampleRunOptions? options = null)
         {
@@ -96,7 +96,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Starts a sample by display index and returns a host-driven run handle.
+        /// 按显示索引启动示例，并返回由宿主驱动的运行句柄。
         /// </summary>
         public SampleRunHandle StartByIndex(int index, ILogger output, SampleRunOptions? options = null)
         {
@@ -107,7 +107,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Runs a catalog entry with host-provided output and options.
+        /// 使用宿主提供的输出和选项运行目录项。
         /// </summary>
         public SampleExecutionResult Run(SampleCatalogEntry entry, ILogger output, SampleRunOptions? options = null)
         {
@@ -116,7 +116,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Starts a catalog entry and keeps its environment available for host-driven ticks.
+        /// 启动目录项，并保留其环境供宿主驱动 Tick。
         /// </summary>
         public SampleRunHandle Start(SampleCatalogEntry entry, ILogger output, SampleRunOptions? options = null)
         {

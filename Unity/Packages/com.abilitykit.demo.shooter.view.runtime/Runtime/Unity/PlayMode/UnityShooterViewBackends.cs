@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using UnityEngine;
 
@@ -203,12 +204,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     internal sealed class UnityShooterGpuInstancedViewSink : IUnityShooterViewSink
     {
         private const int MaxInstancesPerDraw = 1023;
+        private static readonly bool DrawAuthorityOverlay = false;
         private readonly ShooterSnapshotViewProjection _clientProjection = new();
         private readonly ShooterSnapshotViewProjection _authorityProjection = new();
         private readonly Matrix4x4[] _playerMatrices = new Matrix4x4[MaxInstancesPerDraw];
         private readonly Matrix4x4[] _bulletMatrices = new Matrix4x4[MaxInstancesPerDraw];
         private readonly Matrix4x4[] _enemyMatrices = new Matrix4x4[MaxInstancesPerDraw];
+        private readonly InstanceBuffer _clientInstances = new();
+        private readonly InstanceBuffer _authorityInstances = new();
         private readonly MaterialPropertyBlock _properties = new();
+        private readonly GUIContent[] _hudLines = CreateHudLineCache(9);
         private Transform? _viewRoot;
         private Camera? _camera;
         private Light? _light;
@@ -223,33 +228,51 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private Material? _authorityMaterial;
         private int _lastControlledPlayerId;
         private float _lastWorldScale = 1f;
-        private int _lastPlayerCount;
-        private int _lastBulletCount;
-        private int _lastEnemyCount;
+        private int _lastBatchPlayerCount;
+        private int _lastBatchBulletCount;
+        private int _lastBatchEnemyCount;
+        private int _lastBatchRemovedEntityCount;
+        private int _lastStorePlayerCount;
+        private int _lastStoreBulletCount;
+        private int _lastStoreEnemyCount;
+        private int _lastDrawPlayerCount;
+        private int _lastDrawBulletCount;
+        private int _lastDrawEnemyCount;
         private int _lastControlledHp = -1;
         private bool _hasHudData;
+        private bool _hudDirty;
         private bool _hasAuthorityProjection;
+        private ShooterViewProjectionApplyResult _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
         private ulong _lastClientSequence;
         private ulong _lastAuthoritySequence;
+        private bool _clientInstancesDirty = true;
+        private bool _authorityInstancesDirty = true;
 
         public ShooterUnityViewRenderBackend Backend => ShooterUnityViewRenderBackend.GpuInstancedDotsReady;
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
             EnsureResources();
+            var viewKeyChanged = frame.ControlledPlayerId != _lastControlledPlayerId || Mathf.Abs(frame.WorldScale - _lastWorldScale) > 0.0001f;
             _lastControlledPlayerId = frame.ControlledPlayerId;
             _lastWorldScale = frame.WorldScale;
-            CaptureHudData(in frame);
-
             var clientBatch = frame.ClientBatch;
             if (clientBatch.Sequence != _lastClientSequence)
             {
-                _clientProjection.Apply(in clientBatch);
+                _lastClientApplyResult = _clientProjection.Apply(in clientBatch);
                 _lastClientSequence = clientBatch.Sequence;
+                _clientInstancesDirty = true;
             }
 
-            DrawStore(_clientProjection.Store, frame.ControlledPlayerId, frame.WorldScale, isAuthority: false);
+            if (_clientInstancesDirty || viewKeyChanged)
+            {
+                RebuildInstanceBuffer(_clientProjection.Store, _clientInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: false);
+                _clientInstancesDirty = false;
+            }
+
+            var clientDrawCounts = DrawBuffer(_clientInstances, isAuthority: false);
+            CaptureHudData(in frame, in clientDrawCounts);
 
             if (frame.HasAuthorityBatch)
             {
@@ -258,14 +281,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 {
                     _authorityProjection.Apply(in authorityBatch);
                     _lastAuthoritySequence = authorityBatch.Sequence;
+                    _authorityInstancesDirty = true;
+                }
+
+                if (_authorityInstancesDirty || viewKeyChanged)
+                {
+                    RebuildInstanceBuffer(_authorityProjection.Store, _authorityInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: true);
+                    _authorityInstancesDirty = false;
                 }
 
                 _hasAuthorityProjection = true;
-                DrawStore(_authorityProjection.Store, frame.ControlledPlayerId, frame.WorldScale, isAuthority: true);
+                if (DrawAuthorityOverlay)
+                {
+                    DrawBuffer(_authorityInstances, isAuthority: true);
+                }
             }
             else
             {
                 _authorityProjection.Clear();
+                _authorityInstances.Clear();
+                _authorityInstancesDirty = true;
                 _hasAuthorityProjection = false;
             }
         }
@@ -274,14 +309,27 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             _clientProjection.Clear();
             _authorityProjection.Clear();
+            _clientInstances.Clear();
+            _authorityInstances.Clear();
             _hasAuthorityProjection = false;
             _hasHudData = false;
+            _hudDirty = false;
             _lastClientSequence = 0UL;
             _lastAuthoritySequence = 0UL;
-            _lastPlayerCount = 0;
-            _lastBulletCount = 0;
-            _lastEnemyCount = 0;
+            _clientInstancesDirty = true;
+            _authorityInstancesDirty = true;
+            _lastBatchPlayerCount = 0;
+            _lastBatchBulletCount = 0;
+            _lastBatchEnemyCount = 0;
+            _lastBatchRemovedEntityCount = 0;
+            _lastStorePlayerCount = 0;
+            _lastStoreBulletCount = 0;
+            _lastStoreEnemyCount = 0;
+            _lastDrawPlayerCount = 0;
+            _lastDrawBulletCount = 0;
+            _lastDrawEnemyCount = 0;
             _lastControlledHp = -1;
+            _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
             _lastCrossLayerDiagnostics = default;
 
             if (_viewRoot != null)
@@ -308,21 +356,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             EnsureResources();
         }
 
-        private void CaptureHudData(in ShooterHostPresentationFrame frame)
+        private void CaptureHudData(in ShooterHostPresentationFrame frame, in DrawCounts clientDrawCounts)
         {
             CaptureHudCountsAndHealth(frame.ClientBatch, frame.ControlledPlayerId);
+            _lastDrawPlayerCount = clientDrawCounts.PlayerCount;
+            _lastDrawBulletCount = clientDrawCounts.BulletCount;
+            _lastDrawEnemyCount = clientDrawCounts.EnemyCount;
+            _lastStorePlayerCount = _lastDrawPlayerCount;
+            _lastStoreBulletCount = _lastDrawBulletCount;
+            _lastStoreEnemyCount = _lastDrawEnemyCount;
             _lastCrossLayerDiagnostics = frame.CrossLayerDiagnostics;
             _hasHudData = true;
+            _hudDirty = true;
         }
 
-        private void DrawStore(ShooterViewEntityStore store, int controlledPlayerId, float worldScale, bool isAuthority)
+        private void RebuildInstanceBuffer(ShooterViewEntityStore store, InstanceBuffer buffer, int controlledPlayerId, float worldScale, bool isAuthority)
         {
-            var playerCount = 0;
-            var bulletCount = 0;
-            var enemyCount = 0;
-            var hasControlledPlayer = false;
-            var controlledPlayerMatrix = Matrix4x4.identity;
-
+            buffer.Clear();
             foreach (var kvp in store.Entities)
             {
                 var entity = kvp.Value;
@@ -339,71 +389,74 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
                 if (!isAuthority && kind == ShooterViewEntityKind.Player && entity.EntityId == controlledPlayerId)
                 {
-                    controlledPlayerMatrix = matrix;
-                    hasControlledPlayer = true;
+                    buffer.ControlledPlayerMatrix = matrix;
+                    buffer.HasControlledPlayer = true;
+                    buffer.PlayerCount++;
                     continue;
                 }
 
-                AddMatrix(kind, isAuthority, in matrix, ref playerCount, ref bulletCount, ref enemyCount);
-            }
-
-            FlushIfNeeded(ShooterViewEntityKind.Enemy, _enemyMatrices, enemyCount, isAuthority);
-            FlushIfNeeded(ShooterViewEntityKind.Bullet, _bulletMatrices, bulletCount, isAuthority);
-            FlushIfNeeded(ShooterViewEntityKind.Player, _playerMatrices, playerCount, isAuthority);
-
-            if (hasControlledPlayer)
-            {
-                _playerMatrices[0] = controlledPlayerMatrix;
-                Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial, _playerMatrices, 1);
+                AddCachedMatrix(kind, in matrix, buffer);
             }
         }
 
-        private void AddMatrix(
-            ShooterViewEntityKind kind,
-            bool isAuthority,
-            in Matrix4x4 matrix,
-            ref int playerCount,
-            ref int bulletCount,
-            ref int enemyCount)
+        private static void AddCachedMatrix(ShooterViewEntityKind kind, in Matrix4x4 matrix, InstanceBuffer buffer)
         {
             switch (kind)
             {
                 case ShooterViewEntityKind.Player:
-                    _playerMatrices[playerCount++] = matrix;
-                    if (playerCount == MaxInstancesPerDraw)
-                    {
-                        Flush(ShooterViewEntityKind.Player, isAuthority, _playerMatrices, playerCount);
-                        playerCount = 0;
-                    }
-
+                    buffer.Players.Add(matrix);
+                    buffer.PlayerCount++;
                     break;
                 case ShooterViewEntityKind.Bullet:
-                    _bulletMatrices[bulletCount++] = matrix;
-                    if (bulletCount == MaxInstancesPerDraw)
-                    {
-                        Flush(ShooterViewEntityKind.Bullet, isAuthority, _bulletMatrices, bulletCount);
-                        bulletCount = 0;
-                    }
-
+                    buffer.Bullets.Add(matrix);
+                    buffer.BulletCount++;
                     break;
                 case ShooterViewEntityKind.Enemy:
-                    _enemyMatrices[enemyCount++] = matrix;
-                    if (enemyCount == MaxInstancesPerDraw)
-                    {
-                        Flush(ShooterViewEntityKind.Enemy, isAuthority, _enemyMatrices, enemyCount);
-                        enemyCount = 0;
-                    }
-
+                    buffer.Enemies.Add(matrix);
+                    buffer.EnemyCount++;
                     break;
             }
         }
 
-        private void FlushIfNeeded(ShooterViewEntityKind kind, Matrix4x4[] matrices, int count, bool isAuthority)
+        private DrawCounts DrawBuffer(InstanceBuffer buffer, bool isAuthority)
         {
-            if (count > 0)
+            DrawInstances(ShooterViewEntityKind.Enemy, buffer.Enemies, isAuthority);
+            DrawInstances(ShooterViewEntityKind.Bullet, buffer.Bullets, isAuthority);
+            DrawInstances(ShooterViewEntityKind.Player, buffer.Players, isAuthority);
+
+            if (buffer.HasControlledPlayer)
             {
-                Flush(kind, isAuthority, matrices, count);
+                _playerMatrices[0] = buffer.ControlledPlayerMatrix;
+                Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial, _playerMatrices, 1);
             }
+
+            return new DrawCounts(buffer.PlayerCount, buffer.BulletCount, buffer.EnemyCount);
+        }
+
+        private void DrawInstances(ShooterViewEntityKind kind, List<Matrix4x4> matrices, bool isAuthority)
+        {
+            var sourceOffset = 0;
+            var remaining = matrices.Count;
+            var drawBuffer = BufferFor(kind);
+            while (remaining > 0)
+            {
+                var drawCount = remaining > MaxInstancesPerDraw ? MaxInstancesPerDraw : remaining;
+                matrices.CopyTo(sourceOffset, drawBuffer, 0, drawCount);
+                Flush(kind, isAuthority, drawBuffer, drawCount);
+                sourceOffset += drawCount;
+                remaining -= drawCount;
+            }
+        }
+
+        private Matrix4x4[] BufferFor(ShooterViewEntityKind kind)
+        {
+            return kind switch
+            {
+                ShooterViewEntityKind.Player => _playerMatrices,
+                ShooterViewEntityKind.Bullet => _bulletMatrices,
+                ShooterViewEntityKind.Enemy => _enemyMatrices,
+                _ => _playerMatrices
+            };
         }
 
         private void Flush(ShooterViewEntityKind kind, bool isAuthority, Matrix4x4[] matrices, int count)
@@ -508,17 +561,45 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            var descriptor = ShooterUnityViewRenderBackendCatalog.Get(Backend);
-            GUI.Box(new Rect(12f, 12f, 380f, 214f), "Shooter GPU Instanced HUD");
-            GUILayout.BeginArea(new Rect(24f, 40f, 356f, 178f));
-            GUILayout.Label($"Backend: {descriptor.DisplayName}");
-            GUILayout.Label($"战场 玩家/子弹/怪物: {_lastPlayerCount}/{_lastBulletCount}/{_lastEnemyCount}");
-            GUILayout.Label(_lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A");
-            GUILayout.Label($"客户端投影实体: {_clientProjection.Store.Entities.Count}");
-            GUILayout.Label($"权威投影: {(_hasAuthorityProjection ? _authorityProjection.Store.Entities.Count.ToString() : "关闭")}");
-            GUILayout.Label($"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}");
-            GUILayout.Label($"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}");
+            if (_hudDirty)
+            {
+                UpdateHudLineCache();
+                _hudDirty = false;
+            }
+
+            GUI.Box(new Rect(12f, 12f, 460f, 274f), "Shooter GPU Instanced HUD");
+            GUILayout.BeginArea(new Rect(24f, 40f, 436f, 238f));
+            for (var i = 0; i < _hudLines.Length; i++)
+            {
+                GUILayout.Label(_hudLines[i]);
+            }
+
             GUILayout.EndArea();
+        }
+
+        private void UpdateHudLineCache()
+        {
+            var descriptor = ShooterUnityViewRenderBackendCatalog.Get(Backend);
+            _hudLines[0].text = $"Backend: {descriptor.DisplayName}";
+            _hudLines[1].text = $"批次 玩家/子弹/怪物: {_lastBatchPlayerCount}/{_lastBatchBulletCount}/{_lastBatchEnemyCount} remove={_lastBatchRemovedEntityCount}";
+            _hudLines[2].text = $"投影 玩家/子弹/怪物: {_lastStorePlayerCount}/{_lastStoreBulletCount}/{_lastStoreEnemyCount} total={_clientProjection.Store.Entities.Count}";
+            _hudLines[3].text = $"绘制 玩家/子弹/怪物: {_lastDrawPlayerCount}/{_lastDrawBulletCount}/{_lastDrawEnemyCount}";
+            _hudLines[4].text = $"投影移除: total={_lastClientApplyResult.RemovedEntities} explicit={_lastClientApplyResult.ExplicitEntityRemovals} dead={_lastClientApplyResult.DeadEntityRemovals}";
+            _hudLines[5].text = _lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A";
+            _hudLines[6].text = $"权威投影: {(_hasAuthorityProjection ? _authorityProjection.Store.Entities.Count.ToString() : "关闭")} draw={(DrawAuthorityOverlay ? "on" : "off")}";
+            _hudLines[7].text = $"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}";
+            _hudLines[8].text = $"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}";
+        }
+
+        private static GUIContent[] CreateHudLineCache(int count)
+        {
+            var lines = new GUIContent[count];
+            for (var i = 0; i < lines.Length; i++)
+            {
+                lines[i] = new GUIContent(string.Empty);
+            }
+
+            return lines;
         }
 
         private void CaptureHudCountsAndHealth(in ShooterSnapshotViewBatch batch, int controlledPlayerId)
@@ -547,9 +628,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
             }
 
-            _lastPlayerCount = playerCount;
-            _lastBulletCount = bulletCount;
-            _lastEnemyCount = enemyCount;
+            _lastBatchPlayerCount = playerCount;
+            _lastBatchBulletCount = bulletCount;
+            _lastBatchEnemyCount = enemyCount;
+            _lastBatchRemovedEntityCount = batch.RemovedEntityCount;
             _lastControlledHp = -1;
             if (controlledPlayerId <= 0)
             {
@@ -606,6 +688,47 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 UnityEngine.Object.Destroy(obj);
                 obj = null;
             }
+        }
+
+        private sealed class InstanceBuffer
+        {
+            public readonly List<Matrix4x4> Players = new();
+            public readonly List<Matrix4x4> Bullets = new();
+            public readonly List<Matrix4x4> Enemies = new();
+
+            public bool HasControlledPlayer;
+            public Matrix4x4 ControlledPlayerMatrix = Matrix4x4.identity;
+            public int PlayerCount;
+            public int BulletCount;
+            public int EnemyCount;
+
+            public void Clear()
+            {
+                Players.Clear();
+                Bullets.Clear();
+                Enemies.Clear();
+                HasControlledPlayer = false;
+                ControlledPlayerMatrix = Matrix4x4.identity;
+                PlayerCount = 0;
+                BulletCount = 0;
+                EnemyCount = 0;
+            }
+        }
+
+        private readonly struct DrawCounts
+        {
+            public DrawCounts(int playerCount, int bulletCount, int enemyCount)
+            {
+                PlayerCount = playerCount;
+                BulletCount = bulletCount;
+                EnemyCount = enemyCount;
+            }
+
+            public int PlayerCount { get; }
+
+            public int BulletCount { get; }
+
+            public int EnemyCount { get; }
         }
 
         private sealed class HudBehaviour : MonoBehaviour

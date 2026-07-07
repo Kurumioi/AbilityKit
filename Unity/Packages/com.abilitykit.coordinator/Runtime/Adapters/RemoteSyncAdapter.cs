@@ -5,16 +5,16 @@ using AbilityKit.Ability.World.Abstractions;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Remote Sync Adapter (Server Authority Mode)
+    /// 远程同步适配器（服务端权威模式）。
     ///
-    /// Design:
-    /// - Server is authoritative for all game state
-    /// - Client sends inputs to server
-    /// - Client receives snapshots from server and renders
+    /// 设计：
+    /// - 服务端对全部游戏状态保持权威。
+    /// - 客户端将输入发送到服务端。
+    /// - 客户端接收服务端快照并进行渲染。
     ///
-    /// Use Case:
-    /// - Online multiplayer with dedicated server
-    /// - Authoritative server model
+    /// 适用场景：
+    /// - 带专用服务器的在线多人玩法。
+    /// - 服务端权威模型。
     /// </summary>
     public sealed class RemoteSyncAdapter : IRemoteSyncAdapter
     {
@@ -31,10 +31,10 @@ namespace AbilityKit.Coordinator
         private long _roomId;
         private long _playerId;
 
-        // Snapshot storage
+        // 快照存储。
         private readonly List<SnapshotEntityState> _lastSnapshot = new();
 
-        // ============== ISyncAdapter Implementation ==============
+        // ============== ISyncAdapter 实现 ==============
 
         public Core.SyncMode Mode => _runtimePolicy.EffectiveSyncMode;
 
@@ -48,7 +48,7 @@ namespace AbilityKit.Coordinator
 
         public event Action<int, double> OnFrameSync;
 
-        // ============== IRemoteSyncAdapter Implementation ==============
+        // ============== IRemoteSyncAdapter 实现 ==============
 
         public bool IsConnected => _transport?.IsConnected == true;
 
@@ -102,7 +102,7 @@ namespace AbilityKit.Coordinator
 
         public void Tick(float deltaTime)
         {
-            // Update render time
+            // 更新渲染时间。
             _renderTime += deltaTime;
 
             _transport?.Tick(deltaTime);
@@ -117,7 +117,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Feed a snapshot from server (called by network handler).
+        /// 写入来自服务端的快照（由网络处理器调用）。
         /// </summary>
         public void FeedServerSnapshot(int serverFrame, SnapshotEntityState[] states)
         {

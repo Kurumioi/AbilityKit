@@ -120,8 +120,8 @@ namespace AbilityKit.Game.Editor
                 var predicted = predictedFrame.Value;
                 var deltaPredictedToConfirmed = predicted - confirmed;
 
-                // Third frame: best-effort authoritative latest frame from jitter buffer (if wired).
-                // If not available, fall back to confirmed.
+                // 第三类帧：尽力从抖动缓冲读取权威最新帧（如果已接入）。
+                // 如果不可用，则回退到已确认帧。
                 var jb = BattleFlowDebugProvider.JitterBufferStats;
                 var authoritative = jb != null ? jb.MaxReceivedFrame : confirmed;
                 var deltaAuthoritativeToConfirmed = authoritative - confirmed;

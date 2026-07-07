@@ -12,11 +12,20 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         var playModeHost = ReadUnityPackageSource(
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "Unity", "PlayMode", "ShooterRemoteStateSyncPlayModeHost.cs");
+        var inputSubmitStrategy = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemoteInputSubmitStrategy.cs");
 
-        Assert.Contains("state.CoordinatorInputBridge.SubmitAcceptedInputAsync(local, timeout)", playModeHost);
+        Assert.Contains("_inputSubmitStrategy = ShooterRemoteInputSubmitStrategy.Create(state.CoordinatorInputBridge, launchOptions.Timeout);", playModeHost);
+        Assert.Contains("inputSubmitStrategy?.SubmitOrQueue(in submitResult);", ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemoteInputPump.cs"));
+        Assert.Contains("inputBridge.SubmitAcceptedInputAsync(local, requestTimeout)", inputSubmitStrategy);
+        Assert.Contains("RemoteClientInputSubmitQueue<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>", inputSubmitStrategy);
         Assert.Contains("ShooterCoordinatorInputBridge.Create(", playModeHost);
         Assert.Contains("state.CoordinatorInputBridge.Tick(deltaSeconds)", playModeHost);
         Assert.Contains("CoordinatorInputBridge.Dispose();", playModeHost);
+        Assert.DoesNotContain("state.CoordinatorInputBridge.SubmitAcceptedInputAsync(local, timeout)", playModeHost);
         Assert.DoesNotContain("state.Launch.Battle.SubmitAcceptedInputToGatewayAsync(local, timeout)", playModeHost);
     }
 
@@ -26,20 +35,39 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         var playModeHost = ReadUnityPackageSource(
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "Unity", "PlayMode", "ShooterRemoteStateSyncPlayModeHost.cs");
+        var reconnectLaunchOptionsBuilder = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterReconnectLaunchOptionsBuilder.cs");
+
+        var initialFullStateSync = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterInitialFullStateSyncCoordinator.cs");
+        var connectionFlow = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "PlayMode", "ShooterRemoteStateSyncConnectionFlow.cs");
 
         Assert.Contains("public static bool IsPaused => _isPaused;", playModeHost);
         Assert.Contains("public static bool IsAutoReconnecting => _isAutoReconnecting;", playModeHost);
         Assert.Contains("public static void PauseForReconnectValidation()", playModeHost);
         Assert.Contains("state.Launcher.Close();", playModeHost);
-        Assert.Contains("_gatewayInputQueue?.Reset();", playModeHost);
+        Assert.Contains("_inputSubmitStrategy?.Reset();", playModeHost);
         Assert.Contains("if (state == null || _isPaused || _isAutoReconnecting)", playModeHost);
         Assert.Contains("public static Task<ShooterClientNetworkLaunchResult> ResumeFromPauseAsync()", playModeHost);
         Assert.Contains("TryBeginAutoReconnectAfterSocketLoss(state)", playModeHost);
         Assert.Contains("connection.State == ConnectionState.Connected", playModeHost);
         Assert.Contains("connection.State == ConnectionState.Connecting", playModeHost);
-        Assert.Contains("_ = ResumeAfterSocketLossAsync(_pausedResumeOptions);", playModeHost);
-        Assert.Contains("ShooterRemoteStateSyncLaunchMode.RestoreOnly", playModeHost);
-        Assert.Contains("RequestInitialFullStateSyncIfNeededAsync(", playModeHost);
+        Assert.Contains("_ = ResumeAfterSocketLossAsync(_pausedResumeOptions, _lifecycleGeneration);", playModeHost);
+        Assert.Contains("if (!IsCurrentLifecycle(sourceGeneration))", playModeHost);
+        Assert.Contains("ThrowIfStaleLifecycle(generation);", playModeHost);
+        Assert.Contains("ShooterReconnectLaunchOptionsBuilder.RestoreOnly(_options", playModeHost);
+        Assert.Contains("ShooterRemoteStateSyncLaunchMode.RestoreOnly", reconnectLaunchOptionsBuilder);
+        Assert.Contains("new ShooterInitialFullStateSyncCoordinator(", playModeHost);
+        Assert.Contains("NotifyStateChangedIfCurrent(generation)).RequestIfNeededAsync(", playModeHost);
+        Assert.Contains("RequiresInitialFullStateSync => EntryKind == ShooterRoomGatewayEntryKind.LateJoin", connectionFlow);
+        Assert.Contains("SnapshotPushDispatched += OnSnapshotPushDispatched", initialFullStateSync);
+        Assert.Contains("while (!snapshotApplied)", initialFullStateSync);
+        Assert.Contains("IsApplied(result, session)", initialFullStateSync);
+        Assert.Contains("LastInitialFullStateSyncApplyResult", playModeHost);
     }
 
     [Fact]
@@ -55,6 +83,9 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         Assert.Contains("RunAsync(\"resume remote\", ResumeRemoteAsync);", playModeMenu);
         Assert.Contains("ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync()", playModeMenu);
         Assert.Contains("IsAutoReconnecting", playModeMenu);
+        Assert.Contains("IsWaitingForInitialFullStateSync", playModeMenu);
+        Assert.Contains("LastInitialFullStateSyncApplyResult", playModeMenu);
+        Assert.Contains("return \"Syncing Latest State\";", playModeMenu);
         Assert.Contains("return \"Auto Reconnecting\";", playModeMenu);
         Assert.Contains("return \"Paused\";", playModeMenu);
     }
@@ -85,15 +116,69 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "Hosting", "ShooterGatewayCoordinatorInputTransport.cs");
 
+        var frameworkBridge = ReadUnityPackageSource(
+            "com.abilitykit.coordinator",
+            "Runtime", "Transport", "CoordinatorInputSubmitBridge.cs");
+
         Assert.Contains("public sealed class ShooterGatewayCoordinatorInputTransport : IRemoteBattleSyncTransport", transport);
+        Assert.Contains("CoordinatorInputSubmitBridge<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>", transport);
         Assert.Contains("public bool SubmitInput(PlayerInput input)", transport);
-        Assert.Contains("var frameLocal = local.WithRequestedFrame(input.Frame);", transport);
-        Assert.Contains("_submitAsync(frameLocal, timeout, cancellationToken)", transport);
-        Assert.Contains("var input = new PlayerInput(", transport);
+        Assert.Contains("return _submitBridge.TrySubmit(input);", transport);
+        Assert.Contains("CreateCoordinatorInput", transport);
+        Assert.Contains("BindCoordinatorInput", transport);
         Assert.Contains("local.Packet.Command.PlayerId", transport);
         Assert.Contains("local.Packet.OpCode", transport);
         Assert.Contains("local.Packet.Payload ?? Array.Empty<byte>()", transport);
-        Assert.Contains("coordinator.SubmitLocalInput(input);", transport);
+        Assert.DoesNotContain("_pendingLocal", transport);
+        Assert.DoesNotContain("_pendingTask", transport);
+        Assert.Contains("public sealed class CoordinatorInputSubmitBridge<TLocalSubmitResult, TRemoteSubmitResult>", frameworkBridge);
+        Assert.Contains("coordinator.SubmitLocalInput(input);", frameworkBridge);
+        Assert.Contains("public bool TrySubmit(PlayerInput input)", frameworkBridge);
+    }
+
+    [Fact]
+    public void RestoreFirstConnectionUsesFrameworkPolicy()
+    {
+        var connectionFlow = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "PlayMode", "ShooterRemoteStateSyncConnectionFlow.cs");
+        var restoreFirstPolicy = ReadUnityPackageSource(
+            "com.abilitykit.host.extension",
+            "Runtime", "Session", "RoomGatewayRestoreFirstConnectionPolicy.cs");
+
+        Assert.Contains("RoomGatewayRestoreFirstConnectionPolicy.ConnectAsync", connectionFlow);
+        Assert.Contains("RestoreRoomAsLaunchAsync", connectionFlow);
+        Assert.DoesNotContain("catch (Exception ex) when (launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.RestoreFirst)", connectionFlow);
+        Assert.Contains("public static class RoomGatewayRestoreFirstConnectionPolicy", restoreFirstPolicy);
+        Assert.Contains("allowFallbackCreate", restoreFirstPolicy);
+        Assert.Contains("UsedFallbackCreate", restoreFirstPolicy);
+        Assert.Contains("RestoreFailure", restoreFirstPolicy);
+    }
+
+    [Fact]
+    public void InputCoordinatorUsesFrameSyncControllerAsFormalDependency()
+    {
+        var inputCoordinator = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Client", "Session", "ShooterClientInputCoordinator.cs");
+        var syncCore = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Client", "Synchronization", "ShooterClientSyncCore.cs");
+        var predictRollback = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Client", "Synchronization", "ShooterClientPredictRollbackSyncController.cs");
+        var authoritativeInterpolation = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Client", "Synchronization", "ShooterClientAuthoritativeInterpolationSyncController.cs");
+
+        Assert.Contains("private readonly ShooterClientFrameSyncController _frameSync;", inputCoordinator);
+        Assert.Contains("public ShooterClientInputCoordinator(ShooterClientFrameSyncController frameSync", inputCoordinator);
+        Assert.DoesNotContain("public ShooterClientInputCoordinator(ShooterClientFrameSyncCoordinator", inputCoordinator);
+        Assert.Contains("new ShooterClientInputCoordinator(_frameSync.Controller, gateway)", syncCore);
+        Assert.Contains("private readonly ShooterClientSyncCore _core;", predictRollback);
+        Assert.Contains("private readonly ShooterClientSyncCore _core;", authoritativeInterpolation);
+        Assert.DoesNotContain("new ShooterClientInputCoordinator(_frameSync.Controller, gateway)", predictRollback);
+        Assert.DoesNotContain("new ShooterClientInputCoordinator(_frameSync.Controller, gateway)", authoritativeInterpolation);
     }
 
     [Fact]

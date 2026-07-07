@@ -5,11 +5,11 @@ using AbilityKit.Ability.Host;
 namespace AbilityKit.Core.Snapshots.Routing
 {
     /// <summary>
-    /// Dispatches snapshot envelopes by opCode.
+    /// 按 opCode 派发快照信封。
     ///
-    /// Notes:
-    /// - This type is transport/session agnostic. Call <see cref="Feed"/> to push envelopes into it.
-    /// - Decoding is registered per opCode, and handlers subscribe to typed payloads.
+    /// 说明：
+    /// - 该类型与传输层和会话无关，调用 <see cref="Feed"/> 将信封推入派发器。
+    /// - 解码器按 opCode 注册，处理器订阅类型化载荷。
     /// </summary>
     public sealed class FrameSnapshotDispatcher : IDisposable, ISnapshotDecoderRegistry, ISnapshotDispatcher
     {
@@ -64,7 +64,7 @@ namespace AbilityKit.Core.Snapshots.Routing
 
         public void Dispose()
         {
-            // No external subscription to cleanup. Keep for symmetry.
+            // 没有需要清理的外部订阅；保留该方法以保持生命周期对称。
         }
 
         public void Feed(ISnapshotEnvelope envelope)

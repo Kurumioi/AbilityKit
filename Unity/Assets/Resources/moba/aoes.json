@@ -2,7 +2,7 @@
   {
     "Id": 1,
     "Name": "AOE-圆形",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 0,
     "OffsetX": 0,
@@ -17,7 +17,7 @@
   {
     "Id": 40010201,
     "Name": "廉颇-熔岩重击-蓄力爆破区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -33,7 +33,7 @@
   {
     "Id": 40010301,
     "Name": "廉颇-天崩地裂-第一段区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -49,7 +49,7 @@
   {
     "Id": 40010311,
     "Name": "廉颇-天崩地裂-第二段区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -65,7 +65,7 @@
   {
     "Id": 40010321,
     "Name": "廉颇-天崩地裂-第三段区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -82,7 +82,7 @@
   {
     "Id": 40020201,
     "Name": "小乔-甜蜜恋风-目标点击飞区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 0,
     "OffsetX": 0,
@@ -97,7 +97,7 @@
   {
     "Id": 40030201,
     "Name": "赵云-破云之龙-前方突刺区域",
-    "ModelId": 0,
+    "ModelId": 90000102,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -113,7 +113,7 @@
   {
     "Id": 40030202,
     "Name": "赵云-破云之龙-二档增强区域",
-    "ModelId": 0,
+    "ModelId": 90000102,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -129,7 +129,7 @@
   {
     "Id": 40030203,
     "Name": "赵云-破云之龙-三档增强区域",
-    "ModelId": 0,
+    "ModelId": 90000102,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,
@@ -145,7 +145,7 @@
   {
     "Id": 40030301,
     "Name": "赵云-天翔之龙-跳跃落地区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 0,
     "OffsetX": 0,
@@ -162,7 +162,7 @@
   {
     "Id": 40030302,
     "Name": "赵云-天翔之龙-三档增强落地区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 0,
     "OffsetX": 0,
@@ -179,7 +179,7 @@
   {
     "Id": 40040301,
     "Name": "墨子-墨守成规-机关屏障区域",
-    "ModelId": 0,
+    "ModelId": 90000101,
     "VfxId": 0,
     "AttachMode": 1,
     "OffsetX": 0,

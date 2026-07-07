@@ -6,7 +6,7 @@ using Orleans;
 namespace AbilityKit.Orleans.Gateway.Handlers;
 
 /// <summary>
-/// Lists rooms for the binary room gateway used by Unity Shooter lobby flows.
+/// 为 Unity Shooter 大厅流程使用的二进制房间网关列出房间。
 /// </summary>
 [Core.GatewayHandler(RoomGatewayOpCodes.ListRooms)]
 public sealed partial class ListRoomsHandler : GatewayRequestHandlerBase

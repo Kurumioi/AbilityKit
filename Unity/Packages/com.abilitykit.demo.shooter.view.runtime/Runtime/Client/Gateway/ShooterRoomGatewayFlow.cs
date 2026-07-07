@@ -237,7 +237,8 @@ namespace AbilityKit.Demo.Shooter.View
                     result.CanStart,
                     ToRoomEntryKind(result.JoinKind),
                     result.ServerNowTicks,
-                    result.WorldId);
+                    result.WorldId,
+                    result.CurrentPlayerId);
             }
 
             public async Task<RoomGatewayReadyResult> SetReadyAsync(RoomGatewayReadyRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -302,7 +303,8 @@ namespace AbilityKit.Demo.Shooter.View
                     result.ServerNowTicks,
                     result.WorldId,
                     ToRoomRestoreStatus(result.Status),
-                    ToRoomRestoreErrorCode(result.ErrorCode));
+                    ToRoomRestoreErrorCode(result.ErrorCode),
+                    result.CurrentPlayerId);
             }
         }
     }

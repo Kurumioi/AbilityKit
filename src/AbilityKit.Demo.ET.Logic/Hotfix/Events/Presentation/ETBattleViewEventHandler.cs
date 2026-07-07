@@ -4,23 +4,23 @@ using ET.AbilityKit.Demo.ET.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// Battle view event handler
-    /// Subscribes to logic layer events and creates Logic layer units
+    /// 战斗视图事件处理器。
+    /// 订阅逻辑层事件并创建 Logic 层单位。
     ///
-    /// Design:
-    /// - These handlers receive events that were published by ETBattleViewEventSink
-    /// - Handlers should ONLY update Logic layer data, NOT re-publish events
-    /// - View layer receives events directly from ETBattleViewEventSink
-    /// - Re-publishing events would cause View layer to receive duplicates
+    /// 设计：
+    /// - 这些处理器接收由 ETBattleViewEventSink 发布的事件。
+    /// - 处理器只更新 Logic 层数据，不重新发布事件。
+    /// - View 层直接从 ETBattleViewEventSink 接收事件。
+    /// - 重新发布事件会导致 View 层收到重复事件。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_EventHandler: AEvent<Scene, ActorSpawnEvent>
     {
         protected override async ETTask Run(Scene scene, ActorSpawnEvent args)
         {
-            // Note: ETUnit creation is handled by TriggerEnterGameSnapshot in ETMobaBattleDriver
-            // This handler only handles view-layer concerns, not Logic layer unit creation
-            // ActorSpawnEvent is now only used for view rendering (ETUnitViewComponent)
+            // 注意：ETUnit 创建由 ETMobaBattleDriver 中的 TriggerEnterGameSnapshot 处理。
+            // 该处理器只处理视图层关注点，不处理 Logic 层单位创建。
+            // ActorSpawnEvent 当前只用于视图渲染（ETUnitViewComponent）。
             Log.Debug($"[ETBattleView] ActorSpawnEvent received: {args.Name} (ActorId={args.ActorId}) - view layer rendering handled elsewhere");
 
             await ETTask.CompletedTask;
@@ -28,8 +28,8 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// Unit move event handler
-    /// Updates Logic layer unit position (DO NOT re-publish - View receives from Sink directly)
+    /// 单位移动事件处理器。
+    /// 更新 Logic 层单位位置（不要重新发布，View 直接从 Sink 接收）。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorMove_Handler: AEvent<Scene, ActorMoveEvent>
@@ -38,8 +38,8 @@ namespace ET.Logic
 
         protected override async ETTask Run(Scene scene, ActorMoveEvent args)
         {
-            // Update Logic layer unit position only
-            // DO NOT re-publish - View layer receives ActorMoveEvent from ETBattleViewEventSink directly
+            // 只更新 Logic 层单位位置。
+            // 不要重新发布，View 层会直接从 ETBattleViewEventSink 接收 ActorMoveEvent。
             var unitComponent = scene.GetComponent<ETUnitComponent>();
             if (unitComponent != null)
             {
@@ -61,15 +61,15 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// Unit damage event handler
-    /// DO NOT re-publish - View receives from Sink directly
+    /// 单位伤害事件处理器。
+    /// 不要重新发布，View 直接从 Sink 接收。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorDamage_Handler: AEvent<Scene, ActorDamageEvent>
     {
         protected override async ETTask Run(Scene scene, ActorDamageEvent args)
         {
-            // Update Logic layer unit HP
+            // 更新 Logic 层单位生命值。
             var unitComponent = scene.GetComponent<ETUnitComponent>();
             if (unitComponent != null)
             {
@@ -80,21 +80,21 @@ namespace ET.Logic
                     unit.MaxHp = args.MaxHp;
                 }
             }
-            // DO NOT re-publish - View layer receives ActorDamageEvent from ETBattleViewEventSink directly
+            // 不要重新发布，View 层会直接从 ETBattleViewEventSink 接收 ActorDamageEvent。
             await ETTask.CompletedTask;
         }
     }
 
     /// <summary>
-    /// Unit dead event handler
-    /// DO NOT re-publish - View receives from Sink directly
+    /// 单位死亡事件处理器。
+    /// 不要重新发布，View 直接从 Sink 接收。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_ActorDead_Handler: AEvent<Scene, ActorDeadEvent>
     {
         protected override async ETTask Run(Scene scene, ActorDeadEvent args)
         {
-            // Update Logic layer unit state
+            // 更新 Logic 层单位状态。
             var unitComponent = scene.GetComponent<ETUnitComponent>();
             if (unitComponent != null)
             {
@@ -104,13 +104,13 @@ namespace ET.Logic
                     unit.Hp = 0;
                 }
             }
-            // DO NOT re-publish - View layer receives ActorDeadEvent from ETBattleViewEventSink directly
+            // 不要重新发布，View 层会直接从 ETBattleViewEventSink 接收 ActorDeadEvent。
             await ETTask.CompletedTask;
         }
     }
 
     /// <summary>
-    /// Battle start event handler
+    /// 战斗开始事件处理器。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_BattleStart_Handler: AEvent<Scene, BattleStartEvent>
@@ -123,7 +123,7 @@ namespace ET.Logic
     }
 
     /// <summary>
-    /// Battle end event handler
+    /// 战斗结束事件处理器。
     /// </summary>
     [Event(SceneType.DemoBattle)]
     public class ETBattleView_BattleEnd_Handler: AEvent<Scene, BattleEndEvent>

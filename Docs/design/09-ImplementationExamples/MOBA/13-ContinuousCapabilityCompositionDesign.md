@@ -284,6 +284,7 @@ stateDiagram-v2
 5. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Runtime/BuffContinuousRuntime.cs` 与 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Buffs/Core/BuffStackingPolicyApplier.cs`：stack 与 buff 生命周期。
 6. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs`：非 Buff 领域如何组合 continuous 能力。
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaPresentationCueSnapshotService.cs`：cue 如何从逻辑转成表现快照。
+8. `Docs/design/09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md`：Motion source、motion.hit、Summon 生命周期与 gameplay trigger 绑定的源码级落地。
 
 ## 12. 边界判断
 
@@ -304,11 +305,12 @@ stateDiagram-v2
 | Triggering | PlanAction 创建或刷新领域 runtime，interval/owner-bound trigger 回到 trigger gateway 执行 |
 | Buff | 使用 continuous 生命周期承载 duration、stack、periodic、cue、tag、modifier |
 | Projectile | 发射过程接入 continuous，但弹体飞行、命中和物理仍归 projectile 领域 |
-| Motion | 位移过程可接入 continuous tag/lifecycle，但位移合成和优先级仍归 motion pipeline |
+| Motion | 位移过程可接入 continuous tag/lifecycle，但位移合成、优先级和 motion.hit 触发仍归 motion pipeline 与 Motion 领域服务 |
 | Attribute/Skill Param | modifier 通过 projector 投射到属性或技能参数，生命周期由 binder 管理 |
 | Presentation | cue 和 snapshot 把逻辑事件转成表现层可消费数据 |
 | Validation | 检查 trigger plan、context integrity、continuous runtime 和配置引用 |
 | Snapshot/Replay | runtime view、context source、cue snapshot 提供稳定观测面 |
+| Domain Runtime Deep Dive | `16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md` 展开 Motion 与 Summon 的源码链路，避免本文承载过多领域细节 |
 
 ## 14. 工程治理边界
 

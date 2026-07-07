@@ -6,7 +6,7 @@ using AbilityKit.Demo.Moba.Console.Platform;
 namespace AbilityKit.Demo.Moba.Console.Replay
 {
     /// <summary>
-    /// 输入录制写入器接�?
+    /// 输入录制写入器接口。
     /// </summary>
     public interface IInputRecordWriter : IDisposable
     {
@@ -16,12 +16,12 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         void Append(in PlayerInputCommand command);
 
         /// <summary>
-        /// 写入帧快�?
+        /// 写入帧快照。
         /// </summary>
         void WriteSnapshot(in FrameSnapshot snapshot);
 
         /// <summary>
-        /// 关闭并保存文�?
+        /// 关闭并保存文件。
         /// </summary>
         void Close();
 
@@ -31,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         int CurrentFrame { get; }
 
         /// <summary>
-        /// 是否已关�?
+        /// 是否已关闭。
         /// </summary>
         bool IsClosed { get; }
     }
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
                 MapName = "default"
             };
 
-            // 生成文件�?
+            // 生成文件名。
             var dir = Path.GetDirectoryName(outputPath) ?? ".";
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
@@ -87,7 +87,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
                 // 定期写入快照
                 if (_snapshotInterval > 0 && _currentFrame % _snapshotInterval == 0)
                 {
-                    // 快照将在Flush时基于当前状态生�?
+                    // 快照将在 Flush 时基于当前状态生成。
                 }
             }
         }
@@ -150,7 +150,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
 
         private static uint ComputeSimpleHash(int frame, int actorCount)
         {
-            // 简单的哈希函数用于状态校�?
+            // 简单的哈希函数用于状态校验。
             unchecked
             {
                 uint hash = 17;
@@ -162,7 +162,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     }
 
     /// <summary>
-    /// 空写入器（不录制�?
+    /// 空写入器（不录制）。
     /// </summary>
     public sealed class NullRecordWriter : IInputRecordWriter
     {

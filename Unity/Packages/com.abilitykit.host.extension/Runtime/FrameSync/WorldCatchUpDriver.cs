@@ -39,12 +39,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                 if (provider != null && feed != null && maxSnapshotsPerStep > 0)
                 {
-                    for (int i = 0; i < maxSnapshotsPerStep; i++)
-                    {
-                        if (!provider.TryGetSnapshot(frameIndex, out var s)) break;
-                        var packet = new FramePacket(worldId, frameIndex, Array.Empty<PlayerInputCommand>(), s);
-                        feed(packet);
-                    }
+                    SnapshotProviderDrain.DrainSnapshots(provider, worldId, frameIndex, maxSnapshotsPerStep, feed);
                 }
 
                 lastTickedFrame = nextFrame;

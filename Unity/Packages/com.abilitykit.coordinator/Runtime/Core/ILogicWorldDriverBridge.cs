@@ -1,47 +1,47 @@
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Generic logic-world driver bridge used by sync adapters.
+    /// 同步适配器使用的通用逻辑世界驱动桥接接口。
     /// </summary>
     public interface ILogicWorldDriverBridge
     {
         /// <summary>
-        /// Current logic frame number.
+        /// 当前逻辑帧号。
         /// </summary>
         int CurrentFrame { get; }
 
         /// <summary>
-        /// Logic time in seconds.
+        /// 逻辑时间，单位为秒。
         /// </summary>
         double LogicTimeSeconds { get; }
 
         /// <summary>
-        /// Is the driver running.
+        /// 驱动器是否正在运行。
         /// </summary>
         bool IsRunning { get; }
 
         /// <summary>
-        /// Start the driver lifecycle.
+        /// 启动驱动器生命周期。
         /// </summary>
         void Start();
 
         /// <summary>
-        /// Stop the driver lifecycle.
+        /// 停止驱动器生命周期。
         /// </summary>
         void Stop();
 
         /// <summary>
-        /// Submit inputs for processing.
+        /// 提交输入以供处理。
         /// </summary>
         void SubmitInputs(PlayerInput[] inputs);
 
         /// <summary>
-        /// Advance one logic frame.
+        /// 推进一个逻辑帧。
         /// </summary>
         void AdvanceFrame(float deltaTime);
 
         /// <summary>
-        /// Get all entity states for rendering or state sync.
+        /// 获取用于渲染或状态同步的全部实体状态。
         /// </summary>
         SnapshotEntityState[] GetAllEntityStates();
     }

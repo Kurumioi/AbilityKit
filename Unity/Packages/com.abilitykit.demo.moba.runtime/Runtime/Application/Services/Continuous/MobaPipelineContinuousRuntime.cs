@@ -7,8 +7,8 @@ using AbilityKit.Pipeline;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Wraps a long-running pipeline run as a continuous runtime so lifecycle, tags and modifiers stay owned by Continuous.
-    /// Domain logic remains inside the pipeline phases or the domain manager invoked by those phases.
+    /// 将长时间运行的 pipeline 封装为 continuous runtime，使生命周期、标签和 modifier 仍由 Continuous 持有。
+    /// 领域逻辑保留在 pipeline 阶段内，或保留在这些阶段调用的领域 manager 中。
     /// </summary>
     public sealed class MobaPipelineContinuousRuntime<TCtx> : MobaContinuousRuntimeBase,
         IMobaTickableContinuous,

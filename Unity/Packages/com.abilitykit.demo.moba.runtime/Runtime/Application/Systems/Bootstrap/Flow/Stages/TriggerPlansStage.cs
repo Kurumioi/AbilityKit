@@ -13,7 +13,7 @@ using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// TriggerPlans Stage
+    /// 触发器计划阶段
     /// 注册触发器计划相关的服务
     /// </summary>
     [MobaBootstrapStage]
@@ -128,7 +128,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 var loadedDb = directoryLoader.LoadDirectory(entry.Path, pattern, options);
                 if (loadedDb != null && loadedDb.Records != null)
                 {
-                    // Directory trigger files are the actively maintained source of truth and must override stale compiled records.
+                    // 目录中的触发器文件是当前维护的事实来源，必须覆盖陈旧的编译记录。
                     db.MergeFrom(loadedDb, replaceExisting: true);
                     MobaRuntimeLog.Info(MobaRuntimeLogModule.Bootstrap, MobaRuntimeLogPurpose.Configuration, nameof(MobaTriggerPlanDatabaseFactory), $"{entry.Name} merged with override enabled. total records={db.Records?.Count ?? 0}");
                 }
@@ -141,7 +141,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         }
 
         /// <summary>
-        /// Text asset adapter for trigger plan loading.
+        /// 用于加载触发器计划的文本资源适配器。
         /// </summary>
         private sealed class EtFileSystemAdapter :
             AbilityKit.Ability.Triggering.Json.ITextLoader,

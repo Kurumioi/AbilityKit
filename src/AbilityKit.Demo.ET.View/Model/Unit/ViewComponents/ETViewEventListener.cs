@@ -8,7 +8,7 @@ namespace ET.AbilityKit.Demo.View
     /// 视图层事件监听器
     /// 监听实体创建销毁等事件
     ///
-    /// Design:
+    /// 设计：
     /// - 纯数据 Component
     /// - Handler 更新数据
     /// - 双字典设计：
@@ -18,10 +18,10 @@ namespace ET.AbilityKit.Demo.View
     [ComponentOf(typeof(Scene))]
     public class ETViewEventListener: Entity, IAwake
     {
-        // Unit view data dictionary: ActorId -> ETUnitViewComponent
+        // 单位视图数据字典：ActorId -> ETUnitViewComponent。
         private readonly Dictionary<int, ETUnitViewComponent> _unitViews = new();
 
-        // EntityId to ActorId mapping for ET internal operations
+        // 用于 ET 内部操作的 EntityId 到 ActorId 映射。
         private readonly Dictionary<long, int> _entityIdToActorId = new();
 
         public IReadOnlyDictionary<int, ETUnitViewComponent> UnitViews => _unitViews;
@@ -31,7 +31,7 @@ namespace ET.AbilityKit.Demo.View
         }
 
         /// <summary>
-        /// Add unit view with EntityId mapping
+        /// 添加带 EntityId 映射的单位视图。
         /// </summary>
         public void AddUnitView(int actorId, ETUnitViewComponent view, long entityId = 0)
         {
@@ -44,12 +44,12 @@ namespace ET.AbilityKit.Demo.View
         }
 
         /// <summary>
-        /// Remove unit view
+        /// 移除单位视图。
         /// </summary>
         public void RemoveUnitView(int actorId)
         {
             _unitViews.Remove(actorId);
-            // Also remove from entityId mapping
+            // 同时从 EntityId 映射中移除。
             long entityIdToRemove = 0;
             foreach (var kv in _entityIdToActorId)
             {
@@ -66,7 +66,7 @@ namespace ET.AbilityKit.Demo.View
         }
 
         /// <summary>
-        /// Get unit view by ActorId (moba.core logic layer ID)
+        /// 通过 ActorId 获取单位视图（moba.core 逻辑层 ID）。
         /// </summary>
         public ETUnitViewComponent GetUnitView(int actorId)
         {
@@ -74,7 +74,7 @@ namespace ET.AbilityKit.Demo.View
         }
 
         /// <summary>
-        /// Get unit view by EntityId (ET framework internal ID)
+        /// 通过 EntityId 获取单位视图（ET 框架内部 ID）。
         /// </summary>
         public ETUnitViewComponent GetUnitViewByEntityId(long entityId)
         {
@@ -86,7 +86,7 @@ namespace ET.AbilityKit.Demo.View
         }
 
         /// <summary>
-        /// Get ActorId by EntityId
+        /// 通过 EntityId 获取 ActorId。
         /// </summary>
         public int GetActorId(long entityId)
         {

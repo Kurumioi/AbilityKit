@@ -5,13 +5,13 @@ using ET.AbilityKit.Demo.ET.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// ET Battle View Event Sink
-    /// Bridges IBattleViewEventSink events to ET event system
-    /// Also updates the entity cache component for ET.View queries
+    /// ET 战斗视图事件接收器。
+    /// 将 IBattleViewEventSink 事件桥接到 ET 事件系统。
+    /// 同时更新实体缓存组件，供 ET.View 查询。
     ///
-    /// Design:
-    /// - Uses virtual methods to allow extension in subclasses
-    /// - Keeps ET-side presentation cache updates local to this adapter
+    /// 设计：
+    /// - 使用虚方法允许子类扩展。
+    /// - 将 ET 侧表现缓存更新限制在该适配器内部。
     /// </summary>
     public class ETBattleViewEventSink : IBattleViewEventSink
     {
@@ -24,7 +24,7 @@ namespace ET.Logic
             _cacheComponent = cacheComponent;
         }
 
-        #region Unit Events
+        #region 单位事件
 
         public void OnEnterGameSnapshot(in FrameSnapshotData snapshot)
         {
@@ -145,7 +145,7 @@ namespace ET.Logic
 
         #endregion
 
-        #region Battle Events
+        #region 战斗事件
 
         public void OnBattleStart(int frameIndex)
         {
@@ -172,7 +172,7 @@ namespace ET.Logic
 
         #endregion
 
-        #region Extended Events
+        #region 扩展事件
 
         public virtual void OnProjectileEventSnapshot(in FrameSnapshotData snapshot)
         {

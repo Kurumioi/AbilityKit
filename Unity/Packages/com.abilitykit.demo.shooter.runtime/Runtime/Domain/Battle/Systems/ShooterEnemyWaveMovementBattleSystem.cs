@@ -10,10 +10,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
     internal sealed class ShooterEnemyWaveMovementBattleSystem : IShooterBattleSystem
     {
         private const float StopDistance = 0.75f;
+        private const float StopDistanceSquared = StopDistance * StopDistance;
         private readonly ShooterBattleState _state;
         private readonly ISveltoWorldContext _context;
         private readonly ShooterEnemyWaveOptions _options;
         private readonly ShooterArenaGameplayOptions _arenaOptions;
+        private readonly ShooterSpatialTargetIndex _targetIndex = new();
 
         public ShooterEnemyWaveMovementBattleSystem(IShooterBattleServiceResolver services)
         {
@@ -49,13 +51,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
             enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out _, out var enemyCount);
-            if (ShooterSveltoPlayerTargetSelector.TryGetOnlyLivePlayer(players, playerCount, out _, out var onlyPlayer))
+            _targetIndex.Rebuild(players, playerCount);
+            if (_targetIndex.TryGetOnlyLivePlayer(out var onlyPlayer))
             {
                 MoveEnemiesTowardSingleTarget(enemyTransforms, enemyHealths, enemyCount, onlyPlayer.X, onlyPlayer.Y, deltaTime);
                 return;
             }
 
-            MoveEnemiesTowardNearestPlayer(enemyTransforms, enemyHealths, enemyCount, players, playerCount, deltaTime);
+            MoveEnemiesTowardNearestPlayer(enemyTransforms, enemyHealths, enemyCount, deltaTime);
         }
 
         private void MoveEnemiesTowardSingleTarget(
@@ -74,10 +77,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
 
                 ref var enemyTransform = ref enemyTransforms[i];
-                var directionX = targetX - enemyTransform.X;
-                var directionY = targetY - enemyTransform.Y;
-                var distanceSquared = directionX * directionX + directionY * directionY;
-                MoveEnemyTowardTarget(ref enemyTransform, targetX, targetY, distanceSquared, deltaTime);
+                MoveEnemyTowardTarget(ref enemyTransform, targetX, targetY, deltaTime);
             }
         }
 
@@ -85,8 +85,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
             NB<ShooterSveltoTransformComponent> enemyTransforms,
             NB<ShooterSveltoHealthComponent> enemyHealths,
             int enemyCount,
-            NB<ShooterSveltoPlayerComponent> players,
-            int playerCount,
             float deltaTime)
         {
             for (var i = 0; i < enemyCount; i++)
@@ -97,11 +95,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
 
                 ref var enemyTransform = ref enemyTransforms[i];
-                if (!ShooterSveltoPlayerTargetSelector.TryFindNearestLivePlayer(
-                    players,
-                    playerCount,
+                if (!_targetIndex.TryFindNearestPlayer(
                     enemyTransform.X,
                     enemyTransform.Y,
+                    selfPlayerId: 0,
                     out _,
                     out var player,
                     out var distanceSquared))
@@ -113,19 +110,33 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
+        private void MoveEnemyTowardTarget(ref ShooterSveltoTransformComponent enemyTransform, float targetX, float targetY, float deltaTime)
+        {
+            var directionX = targetX - enemyTransform.X;
+            var directionY = targetY - enemyTransform.Y;
+            var distanceSquared = directionX * directionX + directionY * directionY;
+            MoveEnemyAlongDirection(ref enemyTransform, directionX, directionY, distanceSquared, deltaTime);
+        }
+
         private void MoveEnemyTowardTarget(ref ShooterSveltoTransformComponent enemyTransform, float targetX, float targetY, float distanceSquared, float deltaTime)
         {
             var directionX = targetX - enemyTransform.X;
             var directionY = targetY - enemyTransform.Y;
-            ShooterBattleMath.Normalize(ref directionX, ref directionY);
-            enemyTransform.DirectionX = directionX;
-            enemyTransform.DirectionY = directionY;
+            MoveEnemyAlongDirection(ref enemyTransform, directionX, directionY, distanceSquared, deltaTime);
+        }
 
-            var distance = MathF.Sqrt(distanceSquared);
-            if (distance <= StopDistance)
+        private void MoveEnemyAlongDirection(ref ShooterSveltoTransformComponent enemyTransform, float directionX, float directionY, float distanceSquared, float deltaTime)
+        {
+            if (distanceSquared <= StopDistanceSquared)
             {
                 return;
             }
+
+            var distance = MathF.Sqrt(distanceSquared);
+            directionX /= distance;
+            directionY /= distance;
+            enemyTransform.DirectionX = directionX;
+            enemyTransform.DirectionY = directionY;
 
             var moveDistance = MathF.Min(distance - StopDistance, ShooterBattleTuning.EnemySpeed * deltaTime);
             enemyTransform.X += directionX * moveDistance;

@@ -117,7 +117,16 @@ namespace AbilityKit.Game.Flow
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
                 new Vector2(160f, 160f),
-                new Color(0.2f, 0.75f, 1f, 0.18f),
+                new Color(0.2f, 0.75f, 1f, 0.16f),
+                raycastTarget: false).Rect;
+            var range = _images.Create(
+                "Range",
+                indicatorGo.transform,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(120f, 120f),
+                new Color(0.15f, 0.95f, 0.75f, 0.2f),
                 raycastTarget: false).Rect;
             var dot = _images.Create(
                 "Dot",
@@ -126,11 +135,11 @@ namespace AbilityKit.Game.Flow
                 new Vector2(0.5f, 0.5f),
                 Vector2.zero,
                 new Vector2(42f, 42f),
-                new Color(0.2f, 0.75f, 1f, 0.65f),
+                new Color(0.2f, 0.75f, 1f, 0.62f),
                 raycastTarget: false).Rect;
 
             var indicator = indicatorGo.AddComponent<SkillAimIndicatorView>();
-            indicator.Initialize(ring, dot);
+            indicator.Initialize(ring, dot, range);
             return indicator;
         }
 

@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         protected override void OnExecute(SkillPipelineContext context)
         {
-            // 等待 OnUpdate 推进时间轴。
+            OnUpdate(context, 0f);
         }
 
         public override void OnUpdate(SkillPipelineContext context, float deltaTime)

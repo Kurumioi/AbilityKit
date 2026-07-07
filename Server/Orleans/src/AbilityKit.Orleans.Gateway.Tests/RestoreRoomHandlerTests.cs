@@ -18,7 +18,7 @@ public sealed class RestoreRoomHandlerTests
                 new List<string> { accountId },
                 new List<RoomPlayerSnapshot>
                 {
-                    new(accountId, 1, true, 1001, 1, 1, 1, 1, null)
+                    new(accountId, 1, true, 1001, 1, 1, 1, 1, null, 1u)
                 },
                 true,
                 null,

@@ -6,17 +6,17 @@ using AbilityKit.Ability.World.Abstractions;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Local Sync Adapter (Lockstep Mode)
+    /// 本地同步适配器（锁步模式）。
     ///
-    /// Design:
-    /// - All clients run the same simulation locally
-    /// - Inputs are shared and deterministic
-    /// - No server authority required
+    /// 设计：
+    /// - 所有客户端在本地运行相同模拟。
+    /// - 输入共享且保持确定性。
+    /// - 不需要服务端权威。
     ///
-    /// Use Case:
-    /// - Single player
-    /// - LAN multiplayer
-    /// - Offline mode
+    /// 适用场景：
+    /// - 单人玩法。
+    /// - 局域网多人玩法。
+    /// - 离线模式。
     /// </summary>
     public sealed class LocalSyncAdapter : ILocalSyncAdapter
     {
@@ -32,11 +32,11 @@ namespace AbilityKit.Coordinator
         private double _logicTime;
         private readonly List<PlayerInput> _pendingInputs = new();
 
-        // ============== ISyncAdapter Implementation ==============
+        // ============== ISyncAdapter 实现 ==============
 
         public Core.SyncMode Mode => Core.SyncMode.Lockstep;
 
-        public bool IsConnected => true; // Local mode always connected
+        public bool IsConnected => true; // 本地模式始终已连接。
 
         public int CurrentFrame => _driverHost?.CurrentFrame ?? _currentFrame;
 
@@ -77,10 +77,10 @@ namespace AbilityKit.Coordinator
 
         public void Tick(float deltaTime)
         {
-            // Update render time
+            // 更新渲染时间。
             _renderTime += deltaTime;
 
-            // Check if it's time for next logic frame
+            // 检查是否到达下一逻辑帧时间。
             double currentTime = GetTimeSeconds();
             double frameInterval = 1.0 / _config.TickRate;
 
@@ -116,11 +116,11 @@ namespace AbilityKit.Coordinator
             OnFrameSync = null;
         }
 
-        // ============== Private Methods ==============
+        // ============== 私有方法 ==============
 
         private void ProcessLogicFrame(float deltaTime)
         {
-            // Flush pending inputs
+            // 刷新待提交输入。
             PlayerInput[] inputsToSubmit;
             lock (_pendingInputs)
             {
@@ -133,7 +133,7 @@ namespace AbilityKit.Coordinator
                 return;
             }
 
-            // Submit inputs through driver host
+            // 通过驱动宿主提交输入。
             if (_driverHost != null && inputsToSubmit.Length > 0)
             {
                 _driverHost.SubmitInputs(inputsToSubmit);
@@ -154,7 +154,7 @@ namespace AbilityKit.Coordinator
                 _logicTime += deltaTime;
             }
 
-            // Trigger frame sync event
+            // 触发帧同步事件。
             OnFrameSync?.Invoke(CurrentFrame, LogicTimeSeconds);
         }
 

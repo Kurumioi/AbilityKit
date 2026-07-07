@@ -11,7 +11,7 @@ namespace AbilityKit.Combat.Projectile
         public readonly int LifetimeFrames;
         public readonly int CollisionLayerMask;
 
-        // Stay events are emitted every N frames (0 disables Stay events).
+        // 每 N 帧发送一次 Stay 事件（0 表示禁用 Stay 事件）。
         public readonly int StayIntervalFrames;
 
         public AreaSpawnParams(int ownerId, in Vec3 center, float radius, int lifetimeFrames, int collisionLayerMask, int stayIntervalFrames)

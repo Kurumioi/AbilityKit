@@ -1,7 +1,7 @@
 namespace AbilityKit.Demo.Host.Console;
 
 /// <summary>
-/// Channel-based logger for demo console hosts.
+/// 面向 Demo Console 宿主的基于通道的日志器。
 /// </summary>
 public sealed class ConsoleLog
 {
@@ -10,32 +10,32 @@ public sealed class ConsoleLog
     private IConsoleOutput _output;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConsoleLog"/> class.
+    /// 初始化 <see cref="ConsoleLog"/> 类的新实例。
     /// </summary>
-    /// <param name="output">Primary output target.</param>
+    /// <param name="output">主输出目标。</param>
     public ConsoleLog(IConsoleOutput output)
     {
         _output = output ?? throw new ArgumentNullException(nameof(output));
     }
 
     /// <summary>
-    /// Gets the primary output target.
+    /// 获取主输出目标。
     /// </summary>
     public IConsoleOutput Output => _output;
 
     /// <summary>
-    /// Replaces the primary output target.
+    /// 替换主输出目标。
     /// </summary>
-    /// <param name="output">New output target.</param>
+    /// <param name="output">新的输出目标。</param>
     public void SetOutput(IConsoleOutput output)
     {
         _output = output ?? throw new ArgumentNullException(nameof(output));
     }
 
     /// <summary>
-    /// Adds a log sink.
+    /// 添加日志接收器。
     /// </summary>
-    /// <param name="sink">Sink to add.</param>
+    /// <param name="sink">要添加的接收器。</param>
     public void AddSink(IConsoleLogSink sink)
     {
         if (sink == null)
@@ -53,9 +53,9 @@ public sealed class ConsoleLog
     }
 
     /// <summary>
-    /// Removes a log sink.
+    /// 移除日志接收器。
     /// </summary>
-    /// <param name="sink">Sink to remove.</param>
+    /// <param name="sink">要移除的接收器。</param>
     public void RemoveSink(IConsoleLogSink sink)
     {
         if (sink == null)
@@ -70,10 +70,10 @@ public sealed class ConsoleLog
     }
 
     /// <summary>
-    /// Writes one log message.
+    /// 写入一条日志消息。
     /// </summary>
-    /// <param name="channel">Output channel.</param>
-    /// <param name="message">Message text.</param>
+    /// <param name="channel">输出通道。</param>
+    /// <param name="message">消息文本。</param>
     public void Write(ConsoleOutputChannel channel, string message)
     {
         _output.Write(channel, message);
@@ -81,32 +81,32 @@ public sealed class ConsoleLog
     }
 
     /// <summary>
-    /// Writes one formatted log message.
+    /// 写入一条格式化日志消息。
     /// </summary>
-    /// <param name="channel">Output channel.</param>
-    /// <param name="format">Composite format string.</param>
-    /// <param name="args">Format arguments.</param>
+    /// <param name="channel">输出通道。</param>
+    /// <param name="format">复合格式字符串。</param>
+    /// <param name="args">格式参数。</param>
     public void WriteFormat(ConsoleOutputChannel channel, string format, params object[] args)
     {
         Write(channel, string.Format(format, args));
     }
 
-    /// <summary>Writes a system message.</summary>
+    /// <summary>写入系统消息。</summary>
     public void System(string message) => Write(ConsoleOutputChannel.System, message);
 
-    /// <summary>Writes a battle message.</summary>
+    /// <summary>写入战斗消息。</summary>
     public void Battle(string message) => Write(ConsoleOutputChannel.Battle, message);
 
-    /// <summary>Writes a view message.</summary>
+    /// <summary>写入视图消息。</summary>
     public void View(string message) => Write(ConsoleOutputChannel.View, message);
 
-    /// <summary>Writes an input message.</summary>
+    /// <summary>写入输入消息。</summary>
     public void Input(string message) => Write(ConsoleOutputChannel.Input, message);
 
-    /// <summary>Writes a warning message.</summary>
+    /// <summary>写入警告消息。</summary>
     public void Warn(string message) => Write(ConsoleOutputChannel.Warning, message);
 
-    /// <summary>Writes an error message.</summary>
+    /// <summary>写入错误消息。</summary>
     public void Error(string message) => Write(ConsoleOutputChannel.Error, message);
 
     private void PublishToSinks(ConsoleOutputChannel channel, string message)

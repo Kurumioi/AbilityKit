@@ -24,7 +24,7 @@ namespace AbilityKit.Ability.Config
 
         private readonly IConfigTableRegistry _registry;
         private readonly IConfigDeserializer _deserializer;
-        // Use TypeNameComparer to work around IL2CPP Type.Equals() identity issues
+        // 使用 TypeNameComparer 规避 IL2CPP 下 Type.Equals() 身份判断不稳定的问题。
         private readonly Dictionary<Type, object> _tables = new Dictionary<Type, object>(TypeNameComparer.Instance);
         private readonly Dictionary<Type, object> _dtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
         private long _version;
@@ -245,15 +245,15 @@ namespace AbilityKit.Ability.Config
                     var dto = dtos.GetValue(i);
                     if (dto == null) continue;
 
-                    // Create entry directly using constructor
+                    // 直接通过构造函数创建条目。
                     var entry = Activator.CreateInstance(entryType, dto);
                     if (entry == null) continue;
 
-                    // Use the Add method directly
+                    // 直接调用 Add 方法。
                     var addMethod = tableType.GetMethod("Add", BindingFlags.Instance | BindingFlags.Public);
                     if (addMethod == null) throw new InvalidOperationException($"Add not found on {tableType.FullName}");
 
-                    // Read the Id from the dto
+                    // 从 DTO 读取 Id。
                     var id = ReadIdFromDto(dto);
                     addMethod.Invoke(table, new[] { id, entry });
                 }
@@ -273,7 +273,7 @@ namespace AbilityKit.Ability.Config
             var property = type.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
             if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
 
-            // Fallback: try "Code" field (used by Luban DR* types)
+            // 回退：尝试读取 Code 字段（Luban DR* 类型会使用该字段）。
             field = type.GetField("Code", BindingFlags.Public | BindingFlags.Instance);
             if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
 
@@ -481,7 +481,7 @@ namespace AbilityKit.Ability.Config
             var nextTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
             var nextDtoTables = new Dictionary<Type, object>(TypeNameComparer.Instance);
 
-            // Process all config tables by group
+            // 按配置组处理全部配置表。
             for (int gi = 0; gi < groups.Count; gi++)
             {
                 var group = groups[gi];
@@ -490,10 +490,10 @@ namespace AbilityKit.Ability.Config
                 {
                     var entry = group.Tables[i];
 
-                    // Try to load config data from this group
+                    // 尝试从当前组加载配置数据。
                     if (!group.Loader.TryLoad(entry.FilePath, out var bytes, out var text))
                     {
-                        // If this group doesn't have the config, try next groups
+                        // 如果当前组没有该配置，则继续尝试后续组。
                         bool found = false;
                         for (int gj = gi + 1; gj < groups.Count; gj++)
                         {
@@ -513,7 +513,7 @@ namespace AbilityKit.Ability.Config
                         }
                     }
 
-                    // Deserialize
+                    // 反序列化。
                     Array arr;
                     try
                     {
@@ -541,7 +541,7 @@ namespace AbilityKit.Ability.Config
                         return fail;
                     }
 
-                    // Create tables
+                    // 创建配置表。
                     var dtoTable = CreateDtoTableFromDtos(entry.DtoType, arr);
                     nextDtoTables[entry.DtoType] = dtoTable;
 
@@ -757,7 +757,7 @@ namespace AbilityKit.Ability.Config
             {
                 var change = changes[changeIndex];
 
-                // Find the table definition
+                // 查找配置表定义。
                 ConfigTableDefinition definition = null;
                 for (int i = 0; i < tables.Count; i++)
                 {
@@ -793,16 +793,16 @@ namespace AbilityKit.Ability.Config
                         }
                     }
 
-                    // Update or remove the table entry
+                    // 更新或移除配置表条目。
                     if (_tables.TryGetValue(definition.EntryType, out var existingObj)
                         && _dtoTables.TryGetValue(definition.DtoType, out var existingDtoObj))
                     {
                         if (change.IsDeleted)
                         {
-                            // Remove entries
+                            // 移除条目。
                             if (existingDtoObj is IDtoTable<object> dtoTable)
                             {
-                                // Can't modify internal table, we'll need to rebuild
+                                // 无法直接修改内部表，需要完整重建。
                                 var fail = ConfigReloadResult.Fail(DefaultKey, _version,
                                     $"Table deletion requires full reload: {change.TableName}");
                                 ConfigReloadBus.Publish(fail);
@@ -811,13 +811,13 @@ namespace AbilityKit.Ability.Config
                         }
                         else
                         {
-                            // Update entries with new data
+                            // 使用新数据更新条目。
                             UpdateTableEntries(definition, arr, allChangedIds);
                         }
                     }
                     else if (!change.IsDeleted)
                     {
-                        // Create new table
+                        // 创建新表。
                         var dtoTable = CreateDtoTableFromDtos(definition.DtoType, arr);
                         _dtoTables[definition.DtoType] = dtoTable;
 
@@ -860,8 +860,8 @@ namespace AbilityKit.Ability.Config
                 }
             }
 
-            // Note: Runtime registry modification requires registry to support this
-            // This is a forward-declaration; actual implementation depends on registry
+            // 注意：运行时修改注册表需要 registry 本身提供支持。
+            // 这里是前置声明，实际实现取决于 registry。
         }
 
         private void UpdateTableEntries(ConfigTableDefinition definition, Array newEntries, HashSet<int> changedIds)
@@ -869,11 +869,11 @@ namespace AbilityKit.Ability.Config
             if (_dtoTables.TryGetValue(definition.DtoType, out var dtoTableObj)
                 && _tables.TryGetValue(definition.EntryType, out var tableObj))
             {
-                // Re-populate the table with new entries
+                // 使用新条目重新填充配置表。
                 var dtoTableType = typeof(DtoTable<>).MakeGenericType(definition.DtoType);
                 var tableType = typeof(IntKeyConfigTable<>).MakeGenericType(definition.EntryType);
 
-                // Clear and repopulate DTO table
+                // 清空并重新填充 DTO 表。
                 var dtoClearMethod = dtoTableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
                 dtoClearMethod?.Invoke(dtoTableObj, null);
 
@@ -886,7 +886,7 @@ namespace AbilityKit.Ability.Config
                     }
                 }
 
-                // Repopulate entry table
+                // 重新填充条目表。
                 var clearMethod = tableType.GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public);
                 clearMethod?.Invoke(tableObj, null);
 
@@ -951,7 +951,7 @@ namespace AbilityKit.Ability.Config
                 var property = type.GetProperty("Id");
                 if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
 
-                // Fallback: try "Code" field (used by Luban DR* types)
+                // 回退：尝试读取 Code 字段（Luban DR* 类型会使用该字段）。
                 field = type.GetField("Code");
                 if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
                 property = type.GetProperty("Code");

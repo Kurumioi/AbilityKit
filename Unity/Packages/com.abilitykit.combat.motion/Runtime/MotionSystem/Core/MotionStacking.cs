@@ -4,10 +4,10 @@ namespace AbilityKit.Combat.MotionSystem.Core
     {
         Additive = 0,
 
-        // Only the highest-priority source in the group is allowed to tick and contribute.
+        // 同组内只允许最高优先级来源执行并产生贡献。
         ExclusiveHighestPriority = 1,
 
-        // Same as ExclusiveHighestPriority for now, but semantically used for "suppresses lower" cases.
+        // 当前与 ExclusiveHighestPriority 相同，但语义上用于“压制低优先级”的场景。
         OverrideLowerPriority = 2,
     }
 }

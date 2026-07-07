@@ -1,6 +1,8 @@
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Core.Serialization;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -61,10 +63,31 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 aimPosition = skillContext.AimPos;
                 aimDirection = skillContext.AimDir;
-                return aimPosition.SqrMagnitude > 0f || aimDirection.SqrMagnitude > 0f;
+                return HasAim(in aimPosition, in aimDirection);
+            }
+
+            if (payload is IEffectContext effectContext && effectContext.TryGetSkill(out var skill))
+            {
+                aimPosition = skill.AimPos;
+                aimDirection = skill.AimDir;
+                return HasAim(in aimPosition, in aimDirection);
+            }
+
+            if (payload is IAbilityPipelineContext abilityContext)
+            {
+                var hasAimPosition = abilityContext.TryGetData(AbilityContextKeys.AimPos.ToKeyString(), out aimPosition)
+                                     && aimPosition.SqrMagnitude > 0f;
+                var hasAimDirection = abilityContext.TryGetData(AbilityContextKeys.AimDir.ToKeyString(), out aimDirection)
+                                      && aimDirection.SqrMagnitude > 0f;
+                return hasAimPosition || hasAimDirection;
             }
 
             return false;
+        }
+
+        private static bool HasAim(in Vec3 aimPosition, in Vec3 aimDirection)
+        {
+            return aimPosition.SqrMagnitude > 0f || aimDirection.SqrMagnitude > 0f;
         }
 
         public static MobaEffectActionInput AssembleEffect(in MobaPlanActionInput core)

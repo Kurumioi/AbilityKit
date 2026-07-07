@@ -14,7 +14,10 @@ public sealed class ShooterClientGatewayLauncherTests
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
-        var transport = new ScriptedShooterGatewayLaunchTransport();
+        var transport = new ScriptedShooterGatewayLaunchTransport
+        {
+            JoinCurrentPlayerId = 41u
+        };
         var launcher = new ShooterClientGatewayLauncher(transport);
         var start = new ShooterStartGamePayload(
             "launcher-session",
@@ -84,7 +87,8 @@ public sealed class ShooterClientGatewayLauncherTests
         var presentation = new ShooterPresentationFacade();
         var transport = new ScriptedShooterGatewayLaunchTransport
         {
-            StartServerNowTicks = 123456L + 1500000L
+            StartServerNowTicks = 123456L + 1500000L,
+            JoinCurrentPlayerId = 41u
         };
         var launcher = new ShooterClientGatewayLauncher(transport);
         var start = new ShooterStartGamePayload(
@@ -136,7 +140,8 @@ public sealed class ShooterClientGatewayLauncherTests
             JoinWorldId = 9101ul,
             JoinCanStart = false,
             StartFrame = 18,
-            JoinServerNowTicks = 123456L + 1000000L
+            JoinServerNowTicks = 123456L + 1000000L,
+            JoinCurrentPlayerId = 41u
         };
         var launcher = new ShooterClientGatewayLauncher(transport);
 
@@ -196,7 +201,8 @@ public sealed class ShooterClientGatewayLauncherTests
             JoinWorldId = 9201ul,
             JoinCanStart = false,
             StartFrame = 24,
-            JoinServerNowTicks = 123456L + 2000000L
+            JoinServerNowTicks = 123456L + 2000000L,
+            JoinCurrentPlayerId = 42u
         };
         var launcher = new ShooterClientGatewayLauncher(transport);
 

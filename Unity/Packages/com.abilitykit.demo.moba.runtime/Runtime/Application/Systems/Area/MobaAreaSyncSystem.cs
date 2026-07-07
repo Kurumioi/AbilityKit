@@ -13,7 +13,6 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
-using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Core.Eventing;
@@ -123,36 +122,38 @@ namespace AbilityKit.Demo.Moba.Systems.Area
 
         private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
-            if (_eventBus == null) return;
             if (string.IsNullOrEmpty(eventId)) return;
 
-            var eid = TriggeringIdUtil.GetEventEid(eventId);
-            var payload = new AreaEventArgs
+            if (_eventBus != null)
             {
-                EventId = eventId,
-                AreaId = areaId,
-                TemplateId = templateId,
-                OwnerActorId = ownerActorId,
-                TargetActorId = targetActorId,
-                Frame = frame,
-                TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.AreaSpawn,
-                Center = center,
-                Radius = radius,
-                Collider = collider,
-                CollisionLayerMask = collisionLayerMask,
-                MaxTargets = maxTargets,
-                SourceContextId = info.SourceContextId,
-                RootContextId = info.RootContextId,
-                OwnerContextId = info.OwnerContextId,
-                Raw = raw,
-            };
+                var eid = TriggeringIdUtil.GetEventEid(eventId);
+                var payload = new AreaEventArgs
+                {
+                    EventId = eventId,
+                    AreaId = areaId,
+                    TemplateId = templateId,
+                    OwnerActorId = ownerActorId,
+                    TargetActorId = targetActorId,
+                    Frame = frame,
+                    TraceKind = traceKind != MobaTraceKind.None ? traceKind : MobaTraceKind.AreaSpawn,
+                    Center = center,
+                    Radius = radius,
+                    Collider = collider,
+                    CollisionLayerMask = collisionLayerMask,
+                    MaxTargets = maxTargets,
+                    SourceContextId = info.SourceContextId,
+                    RootContextId = info.RootContextId,
+                    OwnerContextId = info.OwnerContextId,
+                    Raw = raw,
+                };
 
-            _eventBus.Publish(new EventKey<AreaEventArgs>(eid), in payload);
-            var objectKey = new EventKey<object>(eid);
-            if (_eventBus.HasSubscribers(objectKey))
-            {
-                object boxed = payload;
-                _eventBus.Publish(objectKey, in boxed);
+                _eventBus.Publish(new EventKey<AreaEventArgs>(eid), in payload);
+                var objectKey = new EventKey<object>(eid);
+                if (_eventBus.HasSubscribers(objectKey))
+                {
+                    object boxed = payload;
+                    _eventBus.Publish(objectKey, in boxed);
+                }
             }
 
             _stageTriggers?.ExecuteAreaStage(eventId, areaId, templateId, raw, in info, ownerActorId, targetActorId, frame, in center, radius, collider, collisionLayerMask, maxTargets);

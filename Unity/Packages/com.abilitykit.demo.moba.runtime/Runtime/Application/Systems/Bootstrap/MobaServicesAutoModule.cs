@@ -7,8 +7,8 @@ using AbilityKit.Core.Logging;
 namespace AbilityKit.Demo.Moba.Systems
 {
     /// <summary>
-    /// Aggregates the runtime service registration modules used by the MOBA logic world.
-    /// Keep this as the stable entry point for hosts while the internal groups stay replaceable.
+    /// 聚合 MOBA 逻辑世界使用的 runtime 服务注册模块。
+    /// 作为 host 的稳定入口保留，同时内部模块组仍可替换。
     /// </summary>
     public sealed class MobaServicesAutoModule : IWorldModule
     {

@@ -233,7 +233,7 @@ namespace AbilityKit.Core.Mathematics
                 }
                 case ColliderShapeType.Aabb:
                 {
-                    // If rotated, treat as OBB and conservatively convert to world AABB.
+                    // 如果存在旋转，则按 OBB 处理并保守转换为世界 AABB。
                     var aabb = ToWorldAabbConservative(in t, in local.Aabb);
                     return ColliderShape.CreateAabb(aabb);
                 }
@@ -252,7 +252,7 @@ namespace AbilityKit.Core.Mathematics
 
         private static Aabb ToWorldAabbConservative(in Transform3 t, in Aabb local)
         {
-            // Transform the 8 corners and take min/max.
+            // 变换 8 个角点后取 min/max。
             var min = local.Min;
             var max = local.Max;
 

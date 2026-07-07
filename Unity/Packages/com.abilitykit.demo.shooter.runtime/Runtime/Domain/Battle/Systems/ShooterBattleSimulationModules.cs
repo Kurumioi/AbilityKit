@@ -139,6 +139,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterCombatEventBuffer _events;
         private readonly List<int> _projectileRemovalBuffer = new(32);
         private readonly List<ShooterPendingEnemyHit> _pendingEnemyHits = new(32);
+        private readonly List<int> _explosionCandidateBuffer = new(32);
         private readonly ShooterSpatialHitIndex _enemyHitIndex;
         private readonly ShooterSpatialPlayerHitIndex _playerHitIndex;
         private readonly ISveltoWorldContext _context;
@@ -169,12 +170,39 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             var projectileCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var count);
-            var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
-            playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
-            _playerHitIndex.Rebuild(players, playerCount);
-            var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-            enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out NativeEntityIDs enemyIds, out var enemyCount);
-            _enemyHitIndex.Rebuild(enemyTransforms, enemyHealths, enemyCount);
+            if (count == 0)
+            {
+                return;
+            }
+
+            var canHitEnemies = _entities.EnemyCount > 0;
+            var canHitPlayers = _entities.PlayerCount > 1;
+            NB<ShooterSveltoPlayerComponent> players = default;
+            var playerCount = 0;
+            if (canHitPlayers || canHitEnemies)
+            {
+                var playerCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
+                playerCollection.Deconstruct(out players, out _, out playerCount);
+                canHitPlayers = playerCount > 1;
+                if (canHitPlayers)
+                {
+                    _playerHitIndex.Rebuild(players, playerCount);
+                }
+            }
+
+            NB<ShooterSveltoTransformComponent> enemyTransforms = default;
+            NB<ShooterSveltoHealthComponent> enemyHealths = default;
+            NativeEntityIDs enemyIds = default;
+            if (canHitEnemies)
+            {
+                var enemyCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
+                enemyCollection.Deconstruct(out enemyTransforms, out enemyHealths, out enemyIds, out var enemyCount);
+                canHitEnemies = enemyCount > 0;
+                if (canHitEnemies)
+                {
+                    _enemyHitIndex.Rebuild(enemyTransforms, enemyHealths, enemyCount);
+                }
+            }
 
             for (var i = count - 1; i >= 0; i--)
             {
@@ -188,19 +216,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                if (TryCollectPlayerHit(in bullets[i], players, out var targetIndex))
+                if (canHitPlayers && TryCollectPlayerHit(in bullets[i], players, out var targetIndex))
                 {
                     ApplyPlayerHit(in bullets[i], players, playerCount, targetIndex);
                     _projectileRemovalBuffer.Add(bullets[i].BulletId);
                     continue;
                 }
 
-                if (TryCollectEnemyHit(in bullets[i], i, enemyTransforms, enemyHealths, enemyIds, out var enemyHit))
+                if (canHitEnemies && TryCollectEnemyHit(in bullets[i], i, enemyTransforms, enemyHealths, enemyIds, out var enemyHit))
                 {
                     _pendingEnemyHits.Add(enemyHit);
                     if (IsExplosive(in bullets[i]))
                     {
-                        CollectExplosionEnemyHits(in bullets[i], enemyHit.EnemyIndex, enemyTransforms, enemyHealths, enemyIds, enemyCount);
+                        CollectExplosionEnemyHits(in bullets[i], enemyHit.EnemyIndex, enemyTransforms, enemyHealths, enemyIds);
                         _projectileRemovalBuffer.Add(bullets[i].BulletId);
                         continue;
                     }
@@ -221,7 +249,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
             }
 
-            ResolveEnemyHits(enemyTransforms, enemyHealths, players, playerCount);
+            if (_pendingEnemyHits.Count > 0)
+            {
+                ResolveEnemyHits(enemyTransforms, enemyHealths, players, playerCount);
+            }
+
             RemoveCollectedProjectiles();
         }
 
@@ -266,12 +298,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int directHitEnemyIndex,
             NB<ShooterSveltoTransformComponent> transforms,
             NB<ShooterSveltoHealthComponent> healths,
-            NativeEntityIDs ids,
-            int enemyCount)
+            NativeEntityIDs ids)
         {
-            var radiusSquared = bullet.ExplosionRadius * bullet.ExplosionRadius;
-            for (var i = 0; i < enemyCount; i++)
+            _enemyHitIndex.CollectCandidates(bullet.X, bullet.Y, bullet.ExplosionRadius, _explosionCandidateBuffer);
+            if (_explosionCandidateBuffer.Count == 0)
             {
+                return;
+            }
+
+            _explosionCandidateBuffer.Sort();
+            var radiusSquared = bullet.ExplosionRadius * bullet.ExplosionRadius;
+            for (var candidate = 0; candidate < _explosionCandidateBuffer.Count; candidate++)
+            {
+                var i = _explosionCandidateBuffer[candidate];
                 if (i == directHitEnemyIndex || healths[i].Alive == 0)
                 {
                     continue;
@@ -308,6 +347,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 if (defeated)
                 {
                     enemyHealths[hit.EnemyIndex].Alive = 0;
+                    _state.QueueDefeatedEnemyRemoval(checked((int)hit.EnemyId));
                     _state.DefeatedEnemies++;
                     IncrementPlayerScore(hit.OwnerPlayerId, players, playerCount);
                 }

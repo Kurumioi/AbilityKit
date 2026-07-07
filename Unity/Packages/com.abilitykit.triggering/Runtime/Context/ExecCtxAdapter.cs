@@ -9,8 +9,8 @@ using BlackboardResolver = AbilityKit.Triggering.Runtime.Abstractions.IBlackboar
 namespace AbilityKit.Triggering.Runtime.Context
 {
     /// <summary>
-    /// ExecCtx 适配器：�?ExecCtx 中的服务适配�?ActionContext 可用的接�?
-    /// 作为 IServiceProvider �?ActionContext 提供服务
+    /// ExecCtx 适配器：将 ExecCtx 中的服务适配为 ActionContext 可用的接口。
+    /// 作为 IServiceProvider 为 ActionContext 提供服务。
     /// </summary>
     internal sealed class ExecCtxAdapter : IServiceProvider
     {

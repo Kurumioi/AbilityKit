@@ -85,6 +85,11 @@ namespace AbilityKit.Game.Flow
             return _models.CreateAoeModel(GetOrLoadConfigs(), modelId);
         }
 
+        public GameObject CreateAoeRangeGo(int templateId, float radius, int delayMs)
+        {
+            return _models.CreateAoeRange(templateId, radius, delayMs);
+        }
+
         public GameObject CreateVfxGo(int vfxId)
         {
             return _vfx.CreateAoeVfx(GetOrLoadVfxDb(), vfxId);

@@ -106,17 +106,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public Vec3 ResolveDashOrBlinkDirection(int directionMode, int selfActorId)
         {
-            if (directionMode == 0 && TryGetAimDirection(out var aimDirection))
+            if (directionMode == 0)
             {
-                return aimDirection;
+                return TryGetAimDirection(out var aimDirection) ? aimDirection : Vec3.Zero;
             }
 
-            if (directionMode == 1 && TryGetDirectionToTarget(selfActorId, out var targetDirection))
+            if (directionMode == 1)
             {
-                return targetDirection;
+                return TryGetDirectionToTarget(selfActorId, out var targetDirection) ? targetDirection : Vec3.Zero;
             }
 
-            return Vec3.Forward;
+            return Vec3.Zero;
         }
 
         public Vec3 ResolvePullDirection(int directionMode, int targetActorId)

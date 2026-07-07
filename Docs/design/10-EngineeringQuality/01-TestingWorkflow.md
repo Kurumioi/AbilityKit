@@ -1,6 +1,6 @@
 # AbilityKit 正式测试流程、单元测试与冒烟测试设计
 
-> 本文说明 AbilityKit 项目的正式测试代码流程：如何把纯 C# 单元测试、Unity Editor/PlayMode 测试、DemoHarness 矩阵、MOBA/ET/Shooter 冒烟测试和验收脚本组合成一套分层质量门禁。目标不是追求单一“大而全”的测试，而是让不同风险在最便宜、最稳定、最可定位的层级被拦截。
+> 本文说明 AbilityKit 项目的正式测试代码流程：如何把纯 C# 单元测试、Unity Editor/PlayMode 测试、DemoHarness 矩阵、MOBA/ET/Shooter 冒烟测试和验收脚本组合成一套分层质量门禁。目标不是追求单一“大而全”的测试，而是让不同风险在最便宜、最稳定、最可定位的层级被拦截。MOBA/Shooter 示例级工业化细节见 [03-MOBA 与 Shooter 示例工业化流程](03-MobaShooterIndustrializationFlow.md)。
 
 ---
 

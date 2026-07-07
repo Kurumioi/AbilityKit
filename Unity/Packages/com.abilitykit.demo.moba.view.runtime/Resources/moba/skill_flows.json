@@ -5,15 +5,6 @@
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
-      {
         "Type": 2,
         "Timeline": {
           "DurationMs": 650,
@@ -30,15 +21,6 @@
     "Name": "廉颇-熔岩重击",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
-      {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
       {
         "Type": 2,
         "Timeline": {

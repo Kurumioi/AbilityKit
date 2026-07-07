@@ -20,6 +20,15 @@ namespace AbilityKit.Game.Flow
             return CreateAndPlace(modelId, createVfx: false, attach, in position);
         }
 
+        public GameObject CreateRange(int templateId, float radius, int delayMs, Transform attach, in Vector3 position)
+        {
+            var go = _resources.CreateAoeRangeGo(templateId, radius, delayMs);
+            if (go == null) return null;
+
+            _placer.Place(go, attach, in position);
+            return go;
+        }
+
         public GameObject CreateVfx(int vfxId, Transform attach, in Vector3 position)
         {
             return CreateAndPlace(vfxId, createVfx: true, attach, in position);
@@ -27,8 +36,6 @@ namespace AbilityKit.Game.Flow
 
         private GameObject CreateAndPlace(int viewId, bool createVfx, Transform attach, in Vector3 position)
         {
-            if (viewId <= 0) return null;
-
             var go = createVfx
                 ? _resources.CreateVfxGo(viewId)
                 : _resources.CreateModelGo(viewId);

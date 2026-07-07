@@ -42,7 +42,7 @@ namespace AbilityKit.Core.Mathematics
 
             var u = Vec3.Cross(f, r);
 
-            // Rotation matrix columns: r,u,f
+            // 旋转矩阵列：r,u,f。
             var m00 = r.X; var m01 = u.X; var m02 = f.X;
             var m10 = r.Y; var m11 = u.Y; var m12 = f.Y;
             var m20 = r.Z; var m21 = u.Z; var m22 = f.Z;
@@ -109,7 +109,7 @@ namespace AbilityKit.Core.Mathematics
         {
             get
             {
-                // For unit quaternions, inverse == conjugate.
+                // 对单位四元数，inverse == conjugate。
                 var lenSq = X * X + Y * Y + Z * Z + W * W;
                 if (lenSq <= MathUtil.Epsilon) return Identity;
                 var inv = 1f / lenSq;
@@ -128,7 +128,7 @@ namespace AbilityKit.Core.Mathematics
 
         public Vec3 Rotate(in Vec3 v)
         {
-            // q * (v,0) * q^-1
+            // q * (v,0) * q^-1。
             var qv = new Quat(v.X, v.Y, v.Z, 0f);
             var r = this * qv * Inverse;
             return new Vec3(r.X, r.Y, r.Z);

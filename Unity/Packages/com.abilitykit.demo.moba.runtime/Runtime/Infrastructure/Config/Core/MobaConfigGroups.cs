@@ -5,14 +5,14 @@ using AbilityKit.Demo.Moba.Share.Config;
 namespace AbilityKit.Demo.Moba.Config.Core
 {
     /// <summary>
-    /// MOBA config group declarations and table membership.
+    /// MOBA 配置组声明和表归属关系。
     /// </summary>
     public static class MobaConfigGroups
     {
         private static readonly LegacyJsonConfigGroupDeserializer _legacyJsonDeserializer = LegacyJsonConfigGroupDeserializer.Instance;
 
         /// <summary>
-        /// Legacy JSON group for tables that use the standard JSON DTO format.
+        /// 使用标准 JSON DTO 格式的表所属的 legacy JSON 配置组。
         /// </summary>
         public static readonly ConfigGroup LegacyJson = new ConfigGroup(
             ConfigGroupNames.LegacyJson,
@@ -45,12 +45,12 @@ namespace AbilityKit.Demo.Moba.Config.Core
         );
 
         /// <summary>
-        /// Gets all config groups.
+        /// 获取全部配置组。
         /// </summary>
         public static IReadOnlyList<IConfigGroup> All => new IConfigGroup[] { LegacyJson };
 
         /// <summary>
-        /// Gets a config group by name.
+        /// 按名称获取配置组。
         /// </summary>
         public static IConfigGroup GetByName(string name)
         {
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
         }
 
         /// <summary>
-        /// Gets the table definition for a table file name.
+        /// 按表文件名获取表定义。
         /// </summary>
         public static ConfigTableDefinition GetTableEntry(string tableName)
         {

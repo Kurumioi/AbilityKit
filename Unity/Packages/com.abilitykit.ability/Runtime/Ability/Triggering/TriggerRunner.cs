@@ -71,7 +71,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 }
 
                 var evt = new TriggerEvent(instance.EventId, payload, args);
-                // WorldTriggerContextFactory reads source/target from evt.Args, so ensure they exist.
+                // WorldTriggerContextFactory 会从 evt.Args 读取 source/target，因此这里确保参数存在。
                 if (evt.Args is Dictionary<string, object> dictArgs)
                 {
                     dictArgs[EffectTriggering.Args.Source] = source;
@@ -79,7 +79,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                 }
                 else if (evt.Args != null)
                 {
-                    // Args is read-only; fall back to putting source/target into local vars.
+                    // Args 只读时，回退为将 source/target 写入局部变量。
                     localVars[EffectTriggering.Args.Source] = source;
                     localVars[EffectTriggering.Args.Target] = target;
                 }
@@ -231,7 +231,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
                         return;
                     }
 
-                    // Snapshot to avoid issues if handlers list is modified during dispatch.
+                    // 创建快照，避免分发过程中处理器列表被修改。
                     var snapshot = new List<IEventHandler>(handlers);
                     for (int i = 0; i < snapshot.Count; i++)
                     {

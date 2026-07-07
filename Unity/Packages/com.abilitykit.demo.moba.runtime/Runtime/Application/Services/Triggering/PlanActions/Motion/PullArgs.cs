@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float DurationMs;
 
         /// <summary>
-        /// 拉取方向模式：0=从目标拉向技能释放者，1=从目标拉到指定距离，2=垂直向上拉。
+        /// 拉取方向模式：0=从目标拉向技能释放者，1=从目标拉到指定距离，2=垂直击飞并回落。
         /// </summary>
         public readonly int DirectionMode;
 

@@ -29,10 +29,19 @@ namespace AbilityKit.Game.Battle.Vfx
             }
             else
             {
-                go = _primitives.CreateVfxFallback();
+                go = CreatePlaceholder(vfxId);
             }
 
             go.name = $"Vfx_{vfxId}";
+            return go;
+        }
+
+        public GameObject CreatePlaceholder(int vfxId)
+        {
+            var go = BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId)
+                ? _primitives.CreateProjectileFallback(vfxId)
+                : _primitives.CreateVfxFallback(vfxId);
+            go.name = $"VfxPlaceholder_{vfxId}";
             return go;
         }
     }

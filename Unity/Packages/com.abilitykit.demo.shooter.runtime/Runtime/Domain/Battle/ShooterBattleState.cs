@@ -25,6 +25,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public List<ShooterEventSnapshot> Events { get; } = new List<ShooterEventSnapshot>(16);
 
+        public List<int> PendingDefeatedEnemyRemovals { get; } = new List<int>(32);
+ 
         public ShooterBattleMatchState MatchState { get; private set; }
 
         public int MatchCompletedFrame { get; private set; }
@@ -56,6 +58,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _entities.Clear();
             InputBuffer.Clear();
             Events.Clear();
+            PendingDefeatedEnemyRemovals.Clear();
             _nextBulletId = 1;
             CurrentFrame = 0;
             MatchCompletedFrame = 0;
@@ -144,6 +147,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _nextBulletId = bulletId + 1;
             }
         }
+        public void QueueDefeatedEnemyRemoval(int enemyId)
+        {
+            if (enemyId > 0)
+            {
+                PendingDefeatedEnemyRemovals.Add(enemyId);
+            }
+        }
+
         private ShooterEventSnapshot CreateMatchResultEvent(ShooterBattleMatchState resultState)
         {
             return new ShooterEventSnapshot(

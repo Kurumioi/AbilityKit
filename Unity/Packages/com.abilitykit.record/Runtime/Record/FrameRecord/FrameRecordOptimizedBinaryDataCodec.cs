@@ -101,12 +101,12 @@ namespace AbilityKit.Core.Recording.FrameRecord
     }
 
     /// <summary>
-    /// 优化的二进制录像写入�?
+    /// 优化的二进制录像写入器。
     /// </summary>
     public sealed class FrameRecordOptimizedBinaryWriter : IFrameRecordWriter
     {
         private const uint Magic = 0x52464B41; // 'AKFR'
-        private const int Version = 3; // 版本3，压�?+ 变长整数
+        private const int Version = 3; // 版本3，压缩 + 变长整数
         private static readonly PoolKey DataPoolKey = new PoolKey("record.frame.optimized.binary.data");
 
         private readonly string _outputPath;
@@ -335,7 +335,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
 
                 WriteSignedVarInt(bw, frame - prevFrame);
 
-                // 增量编码哈希�?
+                // 增量编码哈希值
                 int hashDelta = (int)(hash - prevHash);
                 WriteSignedVarInt(bw, hashDelta);
 
@@ -439,7 +439,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
     }
 
     /// <summary>
-    /// 优化的二进制录像读取�?
+    /// 优化的二进制录像读取器。
     /// </summary>
     public static class FrameRecordOptimizedBinaryReader
     {
@@ -498,7 +498,7 @@ namespace AbilityKit.Core.Recording.FrameRecord
             var count = br.ReadInt32();
             if (count < 0) count = 0;
 
-            // 读取 PlayerId �?
+            // 读取 PlayerId 表
             var playerCount = br.ReadInt32();
             var playerTable = new string[playerCount];
             for (int i = 0; i < playerCount; i++)

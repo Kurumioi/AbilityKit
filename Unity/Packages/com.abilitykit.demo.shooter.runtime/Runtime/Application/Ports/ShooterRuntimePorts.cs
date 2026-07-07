@@ -58,7 +58,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int baselineFrame = 0,
             uint baselineHash = 0,
             ShooterPureStateInterestScope? interestScope = null,
-            AoiInterestSet? aoiInterestSet = null);
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true);
     }
 
     public readonly struct ShooterPureStateInterestScope

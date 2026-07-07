@@ -142,7 +142,7 @@ namespace AbilityKit.Ability.World.Services.Attributes
             for (int i = 0; i < registrations.Length; i++)
             {
                 var r = registrations[i];
-                // Always use TryRegisterType to respect existing registrations
+                // 始终使用 TryRegisterType，以尊重已有注册。
                 builder.TryRegisterType(r.ServiceType, r.ImplType, r.Lifetime);
             }
         }

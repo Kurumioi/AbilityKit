@@ -80,9 +80,9 @@ namespace AbilityKit.Ability.Triggering.Json
 
         private static void ApplyLegacyMigrations(string json)
         {
-            // NOTE: This method intentionally mutates trigger data by migrating deprecated fields.
-            // Legacy: AllowExternal=false was used as a shortcut for filtering external events.
-            // New: express via explicit condition arg_eq(key='common.is_external', value=0).
+            // 注意：此方法会通过迁移废弃字段主动修改触发器数据。
+            // 旧版：AllowExternal=false 曾作为过滤外部事件的快捷写法。
+            // 新版：通过显式条件 arg_eq(key='common.is_external', value=0) 表达。
             if (string.IsNullOrEmpty(json)) return;
 
             JObject root;
@@ -102,12 +102,12 @@ namespace AbilityKit.Ability.Triggering.Json
             {
                 if (triggers[i] is not JObject t) continue;
 
-                // Read legacy flag if present.
+                // 如果存在旧版标记，则读取它。
                 var allowExternalToken = t["AllowExternal"];
                 if (allowExternalToken == null) continue;
 
                 var allowExternal = allowExternalToken.Type == JTokenType.Boolean && allowExternalToken.Value<bool>();
-                // Remove deprecated field.
+                // 移除废弃字段。
                 t.Remove("AllowExternal");
 
                 if (allowExternal)
@@ -122,7 +122,7 @@ namespace AbilityKit.Ability.Triggering.Json
                     t["Conditions"] = conditions;
                 }
 
-                // Avoid inserting duplicates.
+                // 避免插入重复条件。
                 var already = false;
                 for (int c = 0; c < conditions.Count; c++)
                 {
@@ -148,7 +148,7 @@ namespace AbilityKit.Ability.Triggering.Json
                     }
                 };
 
-                // Prepend for clarity.
+                // 前置插入，让迁移后的过滤条件更清晰。
                 conditions.Insert(0, migrated);
             }
         }
@@ -256,7 +256,7 @@ namespace AbilityKit.Ability.Triggering.Json
                 return fail;
             }
 
-            // Apply migrations for deprecated fields before deserialization.
+            // 反序列化前先迁移废弃字段。
             ApplyLegacyMigrations(json);
 
             AbilityTriggerDatabaseDTO dto;

@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
         void ExecuteProjectileHit(in ProjectileHitEvent evt, int hitActorId);
     }
 
+    [WorldService(typeof(IMobaStageTriggerService))]
     [WorldService(typeof(MobaStageTriggerService))]
     public sealed class MobaStageTriggerService : IService, IMobaStageTriggerService, IDisposable
     {
@@ -48,9 +49,23 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 
         public void ExecuteAreaStage(string eventId, int areaId, int templateId, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
         {
-            if (_triggers == null || _configs == null) return;
-            if (templateId <= 0 || string.IsNullOrEmpty(eventId)) return;
-            if (!_configs.TryGetAoe(templateId, out var aoe) || aoe == null) return;
+            if (_triggers == null || _configs == null)
+            {
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing service eventId={eventId} areaId={areaId} templateId={templateId} hasTriggers={_triggers != null} hasConfigs={_configs != null}");
+                return;
+            }
+
+            if (templateId <= 0 || string.IsNullOrEmpty(eventId))
+            {
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped invalid args eventId={eventId} areaId={areaId} templateId={templateId}");
+                return;
+            }
+
+            if (!_configs.TryGetAoe(templateId, out var aoe) || aoe == null)
+            {
+                Log.Warning($"[MobaStageTriggerService] area.stage skipped missing aoe eventId={eventId} areaId={areaId} templateId={templateId}");
+                return;
+            }
 
             var triggerIds = ResolveAreaTriggerIds(eventId, aoe);
             if (triggerIds == null || triggerIds.Length == 0) return;
@@ -293,6 +308,13 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             return targetActorId > 0
                 ? $"{eventId}:{projectileId.Value}:{targetActorId}:{frame}"
                 : $"{eventId}:{projectileId.Value}:{frame}";
+        }
+
+        private static string FormatTriggerIds(int[] triggerIds)
+        {
+            if (triggerIds == null) return "<null>";
+            if (triggerIds.Length == 0) return "<empty>";
+            return string.Join(",", triggerIds);
         }
 
         private static int[] ResolveAreaTriggerIds(string eventId, AoeMO aoe)

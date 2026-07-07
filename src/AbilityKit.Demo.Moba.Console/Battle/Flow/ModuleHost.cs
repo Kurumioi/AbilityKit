@@ -5,8 +5,8 @@ using AbilityKit.Demo.Moba.Console.Platform;
 namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 {
     /// <summary>
-    /// Module host for managing sub-modules within a Feature
-    /// 对齐 Unity ModuleHost
+    /// 用于管理 Feature 内子模块的模块宿主。
+    /// 对齐 Unity ModuleHost。
     /// </summary>
     public sealed class ModuleHost<TContext, TModule> : IDisposable
         where TContext : class
@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         private TContext? _context;
 
         /// <summary>
-        /// Add a module to the host
+        /// 向宿主添加模块。
         /// </summary>
         public ModuleHost<TContext, TModule> Add(TModule module)
         {
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Add multiple modules
+        /// 添加多个模块。
         /// </summary>
         public ModuleHost<TContext, TModule> AddRange(IEnumerable<TModule> modules)
         {
@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Get a module by Id
+        /// 按 ID 获取模块。
         /// </summary>
         public TModule? Get(string moduleId)
         {
@@ -60,12 +60,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Check if a module exists
+        /// 检查模块是否存在。
         /// </summary>
         public bool Has(string moduleId) => _moduleById.ContainsKey(moduleId);
 
         /// <summary>
-        /// Try to sort modules by dependencies
+        /// 尝试按依赖关系排序模块。
         /// </summary>
         public bool TrySort()
         {
@@ -114,7 +114,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Attach all modules to the context
+        /// 将所有模块挂载到上下文。
         /// </summary>
         public void Attach(in TContext context)
         {
@@ -154,7 +154,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Detach all modules from the context (in reverse order)
+        /// 按反向顺序从上下文解绑所有模块。
         /// </summary>
         public void Detach(in TContext context)
         {
@@ -188,7 +188,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Tick all modules that support tick
+        /// Tick 所有支持 Tick 的模块。
         /// </summary>
         public void Tick(in TContext context, float deltaTime)
         {
@@ -212,7 +212,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Rebind all modules
+        /// 重新绑定所有模块。
         /// </summary>
         public void RebindAll(in TContext context)
         {
@@ -238,12 +238,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         }
 
         /// <summary>
-        /// Number of modules
+        /// 模块数量。
         /// </summary>
         public int Count => _modules.Count;
 
         /// <summary>
-        /// Whether the host is attached
+        /// 宿主是否已挂载。
         /// </summary>
         public bool IsAttached => _attached;
 

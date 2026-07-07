@@ -4,22 +4,22 @@ using MemoryPack;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Transport-friendly snapshot entity envelope.
+    /// 便于传输的快照实体信封。
     /// </summary>
     public readonly struct SnapshotEntityState
     {
         /// <summary>
-        /// Entity identifier in the logic world.
+        /// 逻辑世界中的实体标识。
         /// </summary>
         public readonly int EntityId;
 
         /// <summary>
-        /// Application-defined state type.
+        /// 应用层定义的状态类型。
         /// </summary>
         public readonly int StateType;
 
         /// <summary>
-        /// Serialized application-defined state payload.
+        /// 序列化后的应用层状态载荷。
         /// </summary>
         public readonly byte[] Payload;
 
@@ -54,63 +54,63 @@ namespace AbilityKit.Coordinator
     }
 
     /// <summary>
-    /// Default entity-state payload retained as a convenience model.
+    /// 默认实体状态载荷，作为便捷模型保留。
     /// </summary>
     [MemoryPackable]
     public partial struct EntityState
     {
         /// <summary>
-        /// Entity identifier.
+        /// 实体标识。
         /// </summary>
         [MemoryPackOrder(0)] public int EntityId;
 
         /// <summary>
-        /// Position X.
+        /// X 轴位置。
         /// </summary>
         [MemoryPackOrder(1)] public float X;
 
         /// <summary>
-        /// Position Y.
+        /// Y 轴位置。
         /// </summary>
         [MemoryPackOrder(2)] public float Y;
 
         /// <summary>
-        /// Position Z.
+        /// Z 轴位置。
         /// </summary>
         [MemoryPackOrder(3)] public float Z;
 
         /// <summary>
-        /// Rotation around Y-axis.
+        /// 绕 Y 轴旋转。
         /// </summary>
         [MemoryPackOrder(4)] public float Rotation;
 
         /// <summary>
-        /// Velocity X.
+        /// X 轴速度。
         /// </summary>
         [MemoryPackOrder(5)] public float VelocityX;
 
         /// <summary>
-        /// Velocity Z.
+        /// Z 轴速度。
         /// </summary>
         [MemoryPackOrder(6)] public float VelocityZ;
 
         /// <summary>
-        /// Current HP.
+        /// 当前生命值。
         /// </summary>
         [MemoryPackOrder(7)] public float Hp;
 
         /// <summary>
-        /// Maximum HP.
+        /// 最大生命值。
         /// </summary>
         [MemoryPackOrder(8)] public float HpMax;
 
         /// <summary>
-        /// Team identifier.
+        /// 队伍标识。
         /// </summary>
         [MemoryPackOrder(9)] public int TeamId;
 
         /// <summary>
-        /// Is entity dead.
+        /// 实体是否死亡。
         /// </summary>
         [MemoryPackOrder(10)] public bool IsDead;
 

@@ -13,16 +13,16 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private static readonly SyncHealthEvent[] EmptyHealthEvents = Array.Empty<SyncHealthEvent>();
 
-        private readonly ShooterClientFrameSyncCoordinator _frameSync;
+        private readonly ShooterClientFrameSyncController _frameSync;
         private readonly IShooterRoomGatewayClient? _gateway;
         private SyncHealthEvent[] _lastHealthEvents = EmptyHealthEvents;
 
-        public ShooterClientInputCoordinator(ShooterClientFrameSyncCoordinator frameSync)
+        public ShooterClientInputCoordinator(ShooterClientFrameSyncController frameSync)
             : this(frameSync, null)
         {
         }
 
-        public ShooterClientInputCoordinator(ShooterClientFrameSyncCoordinator frameSync, IShooterRoomGatewayClient? gateway)
+        public ShooterClientInputCoordinator(ShooterClientFrameSyncController frameSync, IShooterRoomGatewayClient? gateway)
         {
             _frameSync = frameSync ?? throw new ArgumentNullException(nameof(frameSync));
             _gateway = gateway;

@@ -1,5 +1,8 @@
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Combat.MotionSystem.Collision;
+using AbilityKit.Combat.MotionSystem.Constraints;
 using AbilityKit.Combat.MotionSystem.Core;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Motion;
 using AbilityKit.Ability.World.DI;
@@ -12,7 +15,11 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
     [WorldSystem(order: MobaSystemOrder.MotionInit, Phase = WorldSystemPhase.PreExecute)]
     public sealed class MobaMotionInitSystem : WorldSystemBase
     {
+        private const int CollisionLayerUnit = 1 << 0;
+        private const float DefaultActorCollisionRadius = 0.5f;
+
         private global::Entitas.IGroup<global::ActorEntity> _group;
+        private IMotionSolver _defaultSolver;
 
         public MobaMotionInitSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -54,7 +61,8 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     pipeline.Policy ??= MobaMotionGroupConfigResolver.CreatePolicy(Services);
                 }
 
-                if (m.Solver != null) pipeline.Solver = m.Solver;
+                var solver = m.Solver ?? ResolveDefaultSolver();
+                if (solver != null) pipeline.Solver = solver;
                 if (m.Events != null) pipeline.Events = m.Events;
 
                 var state = m.State;
@@ -71,12 +79,41 @@ namespace AbilityKit.Demo.Moba.Systems.Motion
                     newPipeline: pipeline,
                     newState: state,
                     newOutput: output,
-                    newSolver: m.Solver,
+                    newSolver: solver,
                     newPolicy: m.Policy,
                     newEvents: m.Events,
                     newInitialized: true,
                     newHitTriggerRuntime: m.HitTriggerRuntime);
             }
+        }
+
+        private IMotionSolver ResolveDefaultSolver()
+        {
+            if (_defaultSolver != null) return _defaultSolver;
+
+            if (!Services.TryResolve<ICollisionService>(out var collisionService) || collisionService == null || collisionService.World == null)
+            {
+                return null;
+            }
+
+            Services.TryResolve<MobaActorRegistry>(out var actors);
+            var motionWorld = new MobaMotionCollisionWorldAdapter(collisionService.World, actors);
+            _defaultSolver = new ConfigurableMotionSolver(motionWorld, ResolveDefaultConstraints);
+            return _defaultSolver;
+        }
+
+        private static MotionConstraints ResolveDefaultConstraints(int moverId, in MotionState state, in MotionOutput input, float dt)
+        {
+            var collision = new MotionCollisionConstraints(
+                enable: true,
+                allowPassThrough: false,
+                endOverlapPolicy: MotionEndOverlapPolicy.AllowInside,
+                radius: DefaultActorCollisionRadius,
+                skin: 0f,
+                obstacleMask: CollisionLayerUnit,
+                ignoreMask: 0);
+
+            return new MotionConstraints(collision, MotionLeashConstraints.Disabled);
         }
     }
 }

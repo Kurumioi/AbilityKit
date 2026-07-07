@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Protocol.Moba;
 using UnityEngine;
 
@@ -45,6 +46,8 @@ namespace AbilityKit.Game.Flow
             _inputUi = _uiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick);
             _inputEvents.Bind(_inputUi);
         }
+
+        public IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> SkillSpecs => _templateBinder.SkillSpecs;
 
         public void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
         {

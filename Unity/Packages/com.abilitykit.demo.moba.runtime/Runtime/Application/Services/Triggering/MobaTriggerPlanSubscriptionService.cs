@@ -117,18 +117,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             {
                 var record = records[i];
                 if (record.TriggerId <= 0) continue;
+                if (record.Scope != TriggerPlanScope.OwnerBound) continue;
                 if (string.IsNullOrEmpty(record.EventName)) continue;
                 if (!_eventRegistry.TryGetArgsType(record.EventName, out var argsType) || argsType == null)
                 {
                     throw new InvalidOperationException($"Owner-bound trigger event is not registered. triggerId={record.TriggerId} eventName={record.EventName}");
                 }
 
-                if (!argsType.IsClass)
-                {
-                    throw new InvalidOperationException($"Owner-bound trigger event args type must be a class. triggerId={record.TriggerId} eventName={record.EventName} argsType={argsType.FullName}");
-                }
-
-                _argsTypeByTriggerId[record.TriggerId] = argsType;
+                _argsTypeByTriggerId[record.TriggerId] = argsType.IsClass ? argsType : typeof(object);
             }
         }
 

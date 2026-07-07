@@ -45,7 +45,7 @@ namespace AbilityKit.Core.Mathematics
 
         public Vec3 TransformDirection(in Vec3 localDir)
         {
-            // Direction ignores translation; scale applies.
+            // 方向向量忽略平移，但会应用缩放。
             var scaled = new Vec3(localDir.X * Scale.X, localDir.Y * Scale.Y, localDir.Z * Scale.Z);
             return Rotation.Rotate(scaled);
         }
@@ -74,7 +74,7 @@ namespace AbilityKit.Core.Mathematics
 
                 var invScale = new Vec3(ix, iy, iz);
 
-                // Inverse translation: -(R^-1 * (P)) / S
+                // 逆平移：-(R^-1 * (P)) / S。
                 var p = invRot.Rotate(-Position);
                 p = new Vec3(p.X * ix, p.Y * iy, p.Z * iz);
 

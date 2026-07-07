@@ -248,6 +248,42 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void MediumDensityPlayModeProjectionRemovesExpiredBulletsAndDefeatedEnemiesAfterLongRun()
+    {
+        var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;
+        var input = new MutableInputSource(new ShooterHostFrameInput(0f, 0f, 1f, 0f, false));
+        var view = new AggregatingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        var options = ShooterPlayModeSessionOptions.Default.WithGameplayScenario(
+            ShooterPlayModeSessionOptions.CreatePlayModeScenario(ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget));
+        runner.Start(options);
+
+        var totalTicks = tickRate * 12;
+        for (var tick = 0; tick < totalTicks; tick++)
+        {
+            var snapshot = runner.Session!.Runtime.GetSnapshot();
+            input.Current = TryCreateAimAtNearestEnemy(in snapshot, runner.Options.ControlledPlayerId, out var aimX, out var aimY)
+                ? new ShooterHostFrameInput(0f, 0f, aimX, aimY, true)
+                : new ShooterHostFrameInput(0f, 0f, 1f, 0f, false);
+
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        var finalSnapshot = runner.Session!.Runtime.GetSnapshot();
+        Assert.Equal(totalTicks, runner.StepCount);
+        Assert.Equal(totalTicks, view.RenderCount);
+        Assert.Equal(ShooterBattleMatchState.Running, runner.Session.Runtime.MatchState);
+        var observedEnemyActivity = view.MaxEnemyCount + view.TotalExplicitEntityRemovals + view.TotalDeadEntityRemovals;
+        Assert.True(
+            observedEnemyActivity >= ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget,
+            $"Expected the 2K PlayMode scenario to spawn or remove at least {ShooterPlayModeSessionOptions.PlayModeMediumEnemyBudget} enemies, but max={view.MaxEnemyCount}, explicitRemovals={view.TotalExplicitEntityRemovals}, deadRemovals={view.TotalDeadEntityRemovals}.");
+        Assert.True(view.TotalExplicitEntityRemovals > 0 || view.TotalDeadEntityRemovals > 0, "Expected the local-authoritative projection to remove bullets or defeated enemies during the long run.");
+        Assert.True(view.ProjectedBulletCount <= finalSnapshot.Bullets.Length + tickRate, $"Projected bullets appear to be retained after runtime removal. projected={view.ProjectedBulletCount} runtime={finalSnapshot.Bullets.Length}");
+        Assert.True(view.ProjectedEnemyCount <= finalSnapshot.Enemies.Length + tickRate, $"Projected enemies appear to be retained after runtime removal. projected={view.ProjectedEnemyCount} runtime={finalSnapshot.Enemies.Length}");
+        Assert.True(finalSnapshot.Bullets.Length <= tickRate * 4, $"Runtime projectile count grew beyond the expected lifetime window. bullets={finalSnapshot.Bullets.Length}");
+    }
+
+    [Fact]
     public void LocalMenuDefaultSessionContinuesAfterEnemyHit()
     {
         var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;
@@ -303,7 +339,7 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.Equal(totalTicks, runner.StepCount);
         Assert.Equal(totalTicks, view.Frames.Count);
         Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame);
-        Assert.Contains(view.Frames, frame => frame.ClientBatch.Frame > enemyHitFrame && CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
+        Assert.True(ProjectionContainsEnemyAfterFrame(view.Frames, enemyHitFrame));
 
         var firstHit = Assert.IsType<ShooterEventSnapshot>(firstPresentationHit);
         var projection = new ShooterSnapshotViewProjection();
@@ -706,6 +742,28 @@ public sealed class ShooterPlaySessionRunnerTests
         return count;
     }
 
+    private static bool ProjectionContainsEnemyAfterFrame(IReadOnlyList<ShooterHostPresentationFrame> frames, int minFrame)
+    {
+        var projection = new ShooterSnapshotViewProjection();
+        ulong lastSequence = 0;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            var batch = frames[i].ClientBatch;
+            if (batch.Sequence != lastSequence)
+            {
+                projection.Apply(in batch);
+                lastSequence = batch.Sequence;
+            }
+
+            if (batch.Frame > minFrame && projection.Store.EnemyCount > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static ShooterSveltoGameplayScenarioConfig CreateCloseEnemyHitScenario(int tickRate)
     {
         return new ShooterSveltoGameplayScenarioConfig(
@@ -937,20 +995,46 @@ public sealed class ShooterPlaySessionRunnerTests
 
     private sealed class AggregatingViewSink : IShooterPlayViewSink
     {
+        private readonly ShooterSnapshotViewProjection _projection = new();
+        private ulong _lastClientSequence;
+
         public int RenderCount { get; private set; }
 
         public int MaxEnemyCount { get; private set; }
 
+        public int ProjectedBulletCount => _projection.Store.BulletCount;
+
+        public int ProjectedEnemyCount => _projection.Store.EnemyCount;
+
+        public int TotalExplicitEntityRemovals { get; private set; }
+
+        public int TotalDeadEntityRemovals { get; private set; }
+
         public void Render(in ShooterHostPresentationFrame frame)
         {
             RenderCount++;
-            MaxEnemyCount = Math.Max(MaxEnemyCount, CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy));
+            var clientBatch = frame.ClientBatch;
+            if (clientBatch.Sequence == _lastClientSequence)
+            {
+                MaxEnemyCount = Math.Max(MaxEnemyCount, _projection.Store.EnemyCount);
+                return;
+            }
+
+            var result = _projection.Apply(in clientBatch);
+            _lastClientSequence = clientBatch.Sequence;
+            MaxEnemyCount = Math.Max(MaxEnemyCount, _projection.Store.EnemyCount);
+            TotalExplicitEntityRemovals += result.ExplicitEntityRemovals;
+            TotalDeadEntityRemovals += result.DeadEntityRemovals;
         }
 
         public void Clear()
         {
             RenderCount = 0;
             MaxEnemyCount = 0;
+            TotalExplicitEntityRemovals = 0;
+            TotalDeadEntityRemovals = 0;
+            _lastClientSequence = 0;
+            _projection.Clear();
         }
     }
 

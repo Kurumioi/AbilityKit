@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
+using AbilityKit.Combat.MotionSystem.Trajectory;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
@@ -99,25 +100,72 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var velocity = pullDir * args.Speed;
             var duration = args.DurationMs / 1000f;
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Control, args.Priority, 12);
-            var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
+            var sourceDuration = duration;
+            IMotionSource source;
+            var motionKind = "PullMotion";
+
+            if (args.DirectionMode == 2)
+            {
+                var height = args.Speed * duration;
+                var trajectory = new KnockupTrajectory(height, duration);
+                sourceDuration = trajectory.Duration + (1f / 30f);
+                source = new TrajectoryMotionSource(trajectory, group.Priority, group.GroupId, group.Stacking);
+                motionKind = "KnockupMotion";
+            }
+            else
+            {
+                var velocity = pullDir * args.Speed;
+                source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
+            }
 
             if (!MobaMotionContinuousActionRuntime.TryActivate(
                     ctx,
                     input,
-                    "PullMotion",
+                    motionKind,
                     input.CasterActorId,
                     targetId,
                     targetId,
-                    duration,
+                    sourceDuration,
                     source,
                     args.Continuous,
                     default,
                     out var rejectReason))
             {
                 LogRejected(ctx, rejectReason);
+            }
+        }
+
+        private sealed class KnockupTrajectory : ITrajectory3D
+        {
+            private readonly float _height;
+            private readonly float _ascentDuration;
+            private readonly float _duration;
+
+            public KnockupTrajectory(float height, float ascentDuration)
+            {
+                _height = height > 0f ? height : 0f;
+                _ascentDuration = ascentDuration > 0.0001f ? ascentDuration : 0.0001f;
+                _duration = _ascentDuration * 2f;
+            }
+
+            public float Duration => _duration;
+
+            public Vec3 SamplePosition(float time)
+            {
+                if (time <= 0f || _height <= 0f) return Vec3.Zero;
+                if (time >= _duration) return Vec3.Zero;
+
+                var normalized = time / _duration;
+                var heightFactor = 1f - (2f * normalized - 1f) * (2f * normalized - 1f);
+                return Vec3.Up * (_height * heightFactor);
+            }
+
+            public bool TrySampleForward(float time, out Vec3 forward)
+            {
+                forward = new Vec3(0f, 0f, 1f);
+                return false;
             }
         }
     }

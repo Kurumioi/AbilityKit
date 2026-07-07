@@ -25,9 +25,9 @@ namespace AbilityKit.Demo.Shooter.View
     {
         ShooterClientFrameSyncController FrameSync { get; }
 
-        ShooterClientFrameSyncCoordinator FrameSyncCoordinator { get; }
-
         ShooterClientInputCoordinator InputCoordinator { get; }
+
+        ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics { get; }
 
         ShooterClientReconciliationResult LastReconciliationResult { get; }
 
@@ -77,7 +77,7 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
-        ShooterClientFrameTickResult Tick(float deltaTime);
+        new ShooterClientFrameTickResult Tick(float deltaTime);
 
         ShooterClientFrameTickResult CatchUpToFrame(int targetFrame);
 

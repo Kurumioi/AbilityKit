@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace AbilityKit.Context
 {
     /// <summary>
-    /// Runtime value provider registry for context ids.
-    /// Providers are used before stored properties so systems can expose live data without mirroring it into ContextRegistry.
+    /// 上下文 ID 的运行时值提供器注册表。
+    /// 提供器会先于已存储属性被使用，使系统可以暴露实时数据，而无需镜像写入 ContextRegistry。
     /// </summary>
     public sealed class ContextRealtimeProviderRegistry
     {

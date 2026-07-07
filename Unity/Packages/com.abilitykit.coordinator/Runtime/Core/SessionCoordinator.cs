@@ -9,47 +9,47 @@ using AbilityKit.Core.Logging;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Session Coordinator Implementation
+    /// 会话协调器实现。
     ///
-    /// Design:
-    /// - Manages session lifecycle and coordination
-    /// - Coordinates World, SyncAdapter, and SubFeatures
-    /// - Provides unified access to session resources
+    /// 设计：
+    /// - 管理会话生命周期和协调流程。
+    /// - 协调 World、SyncAdapter 和 SubFeatures。
+    /// - 提供会话资源的统一访问入口。
     /// </summary>
     public sealed class SessionCoordinator : ISessionCoordinator
     {
-        // ============== State ==============
+        // ============== 状态 ==============
 
         private SessionConfig _config;
         private SessionRuntimePolicy _runtimePolicy;
         private ISessionCoordinatorHost _host;
         private SessionState _state = SessionState.Idle;
 
-        // ============== World ==============
+        // ============== 世界 ==============
 
         private IWorldHost _worldHost;
         private IWorld _world;
         private IWorldResolver _worldResolver;
 
-        // ============== Sync ==============
+        // ============== 同步 ==============
 
         private ISyncAdapter _syncAdapter;
         private ILogicWorldDriverBridge _driverHost;
         private Timeline.IViewTimeline _viewTimeline;
 
-        // ============== View ==============
+        // ============== 视图 ==============
 
         private IViewEventSink _viewEventSink;
 
-        // ============== SubFeatures ==============
+        // ============== 子功能 ==============
 
         private readonly List<SubFeatures.ISessionSubFeature> _subFeatures = new List<SubFeatures.ISessionSubFeature>();
 
-        // ============== Hooks ==============
+        // ============== 钩子 ==============
 
         private readonly SessionHooks _hooks = new SessionHooks();
 
-        // ============== Properties ==============
+        // ============== 属性 ==============
 
         public SessionId SessionId => _config.SessionId;
         public SessionConfig Config => _config;
@@ -67,7 +67,7 @@ namespace AbilityKit.Coordinator
 
         public SessionHooks Hooks => _hooks;
 
-        // ============== Constructor ==============
+        // ============== 构造 ==============
 
         public SessionCoordinator()
         {
@@ -76,7 +76,7 @@ namespace AbilityKit.Coordinator
             _state = SessionState.Idle;
         }
 
-        // ============== Lifecycle ==============
+        // ============== 生命周期 ==============
 
         public void Initialize(SessionConfig config, ISessionCoordinatorHost host)
         {
@@ -96,36 +96,36 @@ namespace AbilityKit.Coordinator
 
             try
             {
-                // Create WorldHost
+                // 创建 WorldHost。
                 _worldHost = host.CreateWorldHost(_config);
 
-                // Create World
+                // 创建 World。
                 var worldOptions = CreateWorldOptions(_config);
                 _host.ConfigureWorldCreateOptions(in _config, worldOptions);
                 _world = _worldHost.CreateWorld(worldOptions);
                 _world.Initialize();
                 _worldResolver = _world.Services;
 
-                // Load config
+                // 加载配置。
                 host.LoadConfig(_world, _config);
 
-                // Register services
+                // 注册服务。
                 host.RegisterServices(_world, _config);
 
-                // Create ViewTimeline
+                // 创建 ViewTimeline。
                 _viewTimeline = new Timeline.ViewTimeline();
 
-                // Create SyncAdapter
+                // 创建 SyncAdapter。
                 _syncAdapter = SyncAdapterFactory.Create(_world, _config);
                 _syncAdapter.Attach(this);
 
-                // Attach driver host if available
+                // 如果已设置驱动宿主，则挂接到同步适配器。
                 if (_driverHost != null)
                 {
                     _syncAdapter.SetLogicWorldDriver(_driverHost);
                 }
 
-                // Invoke hooks
+                // 触发钩子。
                 _hooks.InvokeSessionStarting(_config);
 
                 _state = SessionState.Idle;
@@ -153,10 +153,10 @@ namespace AbilityKit.Coordinator
                 CreatePlayerSpawns(spawns);
             }
 
-            // Start SyncAdapter
+            // 启动 SyncAdapter。
             _syncAdapter?.Attach(this, _driverHost);
 
-            // Invoke hooks
+            // 触发钩子。
             _hooks.InvokeSessionStarted(_config);
             _hooks.InvokeFirstFrameReceived();
         }
@@ -171,7 +171,7 @@ namespace AbilityKit.Coordinator
             _state = SessionState.Stopping;
             _hooks.InvokeSessionStopping();
 
-            // Detach subfeatures
+            // 分离子功能。
             foreach (var sf in _subFeatures)
             {
                 sf.OnDetach();
@@ -186,15 +186,15 @@ namespace AbilityKit.Coordinator
         {
             Stop();
 
-            // Dispose SyncAdapter
+            // 释放 SyncAdapter。
             _syncAdapter?.Dispose();
             _syncAdapter = null;
 
-            // Dispose ViewTimeline
+            // 释放 ViewTimeline。
             _viewTimeline?.Dispose();
             _viewTimeline = null;
 
-            // Dispose World
+            // 释放 World。
             if (_worldHost != null && _world != null)
             {
                 _worldHost.DestroyWorld(_world.Id);
@@ -204,13 +204,13 @@ namespace AbilityKit.Coordinator
             _worldHost = null;
             _worldResolver = null;
 
-            // Clear hooks
+            // 清理钩子。
             _hooks.Clear();
 
             _state = SessionState.Idle;
         }
 
-        // ============== Driver & View ==============
+        // ============== 驱动与视图 ==============
 
         public void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost)
         {
@@ -227,8 +227,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of battle start
-        /// Called by sync adapters or directly by application
+        /// 通知视图事件接收器战斗开始。
+        /// 由同步适配器或应用层直接调用。
         /// </summary>
         public void NotifyBattleStart(int frame)
         {
@@ -236,8 +236,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of battle end
-        /// Called by sync adapters or directly by application
+        /// 通知视图事件接收器战斗结束。
+        /// 由同步适配器或应用层直接调用。
         /// </summary>
         public void NotifyBattleEnd(int frame, int winTeamId)
         {
@@ -245,8 +245,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of frame sync complete
-        /// Called by sync adapters after each frame
+        /// 通知视图事件接收器帧同步完成。
+        /// 由同步适配器在每帧结束后调用。
         /// </summary>
         public void NotifyFrameSyncComplete(int frame)
         {
@@ -254,8 +254,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of enter game snapshot
-        /// Called when entering game with initial state
+        /// 通知视图事件接收器收到进入游戏快照。
+        /// 携带初始状态进入游戏时调用。
         /// </summary>
         public void NotifyEnterGameSnapshot(in FrameSnapshotData snapshot)
         {
@@ -263,8 +263,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of actor transform snapshot
-        /// Called when actor positions change
+        /// 通知视图事件接收器收到 Actor 变换快照。
+        /// Actor 位置变化时调用。
         /// </summary>
         public void NotifyActorTransformSnapshot(in FrameSnapshotData snapshot)
         {
@@ -272,8 +272,8 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of damage events
-        /// Called when damage occurs
+        /// 通知视图事件接收器收到伤害事件。
+        /// 发生伤害时调用。
         /// </summary>
         public void NotifyDamageSnapshot(in FrameSnapshotData snapshot)
         {
@@ -281,22 +281,22 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Notify view event sink of custom event
-        /// Called for game-specific events
+        /// 通知视图事件接收器收到自定义事件。
+        /// 用于游戏专属事件。
         /// </summary>
         public void NotifyCustomEvent(string eventType, int entityId, byte[] customData)
         {
             _viewEventSink?.OnCustomEvent(eventType, entityId, customData);
         }
 
-        // ============== Input ==============
+        // ============== 输入 ==============
 
         public void SubmitLocalInput(PlayerInput input)
         {
             _syncAdapter?.SubmitInput(input);
         }
 
-        // ============== Service Resolution ==============
+        // ============== 服务解析 ==============
 
         public T Resolve<T>() where T : class
         {
@@ -317,7 +317,7 @@ namespace AbilityKit.Coordinator
             return _worldResolver.TryResolve(out service);
         }
 
-        // ============== Tick ==============
+        // ============== 帧更新 ==============
 
         public void Tick(float deltaTime)
         {
@@ -328,7 +328,7 @@ namespace AbilityKit.Coordinator
 
             _hooks.InvokePreTick(deltaTime);
 
-            // SubFeature PreTick
+            // 子功能 PreTick。
             foreach (var sf in _subFeatures)
             {
                 if (sf is SubFeatures.ISessionPreTickSubFeature preTick)
@@ -337,16 +337,16 @@ namespace AbilityKit.Coordinator
                 }
             }
 
-            // SyncAdapter Tick
+            // SyncAdapter 帧更新。
             _syncAdapter?.Tick(deltaTime);
 
-            // World Tick
+            // World 帧更新。
             if (CanDriveLogicWorld(deltaTime))
             {
                 _worldHost?.Tick(deltaTime);
             }
 
-            // SubFeature PostTick
+            // 子功能 PostTick。
             foreach (var sf in _subFeatures)
             {
                 if (sf is SubFeatures.ISessionPostTickSubFeature postTick)
@@ -358,7 +358,7 @@ namespace AbilityKit.Coordinator
             _hooks.InvokePostTick(deltaTime);
         }
 
-        // ============== SubFeature Management ==============
+        // ============== 子功能管理 ==============
 
         public void AddSubFeature(SubFeatures.ISessionSubFeature subFeature)
         {
@@ -373,7 +373,7 @@ namespace AbilityKit.Coordinator
             _subFeatures.Remove(subFeature);
         }
 
-        // ============== Private Methods ==============
+        // ============== 私有方法 ==============
 
         private bool CanDriveLogicWorld(float deltaTime)
         {
@@ -417,7 +417,7 @@ namespace AbilityKit.Coordinator
             Log.Warning($"[SessionCoordinator] ISpawnService not found, {spawns.Length} spawns not created");
         }
 
-        // ============== IDisposable ==============
+        // ============== 资源释放 ==============
 
         public void Dispose()
         {

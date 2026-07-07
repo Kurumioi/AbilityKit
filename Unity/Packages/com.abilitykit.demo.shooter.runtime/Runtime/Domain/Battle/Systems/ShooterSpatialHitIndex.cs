@@ -56,7 +56,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return false;
             }
 
-            _candidateBuffer.Clear();
             CollectCandidates(x, y, radius, _candidateBuffer);
             if (_candidateBuffer.Count == 0)
             {
@@ -93,8 +92,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return true;
         }
 
-        private void CollectCandidates(float x, float y, float radius, List<int> target)
+        public void CollectCandidates(float x, float y, float radius, List<int> target)
         {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+
+            target.Clear();
+            if (_grid.CellCount == 0)
+            {
+                return;
+            }
+
             _grid.CollectAabb(x, y, radius, target);
         }
     }

@@ -80,7 +80,7 @@ namespace AbilityKit.Ability.Config
             var property = type.GetProperty("Id");
             if (property != null && property.PropertyType == typeof(int)) return (int)property.GetValue(dto);
 
-            // Fallback: try "Code" field (used by Luban DR* types like DRCharacters)
+            // 回退：尝试读取 Code 字段（例如 Luban DRCharacters 等 DR* 类型会使用该字段）。
             field = type.GetField("Code");
             if (field != null && field.FieldType == typeof(int)) return (int)field.GetValue(dto);
             property = type.GetProperty("Code");

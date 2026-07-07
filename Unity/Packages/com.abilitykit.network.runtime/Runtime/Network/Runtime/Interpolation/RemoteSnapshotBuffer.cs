@@ -6,15 +6,14 @@ using System.Collections.Generic;
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// Gameplay-agnostic ordered buffer of remote authoritative snapshots keyed by a monotonic
-    /// timeline value (typically server ticks). Used by <see cref="NetworkSyncModel.AuthoritativeInterpolation"/>
-    /// style controllers to retain a short history of remote state so the presentation layer can
-    /// play back delayed, smoothly interpolated entity state instead of snapping to the latest push.
+    /// 玩法无关的远端权威快照有序缓冲区，以单调递增的时间线值（通常是服务器 tick）作为键。
+    /// <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 风格的控制器会使用它保留一小段远端状态历史，
+    /// 让表现层可以延迟播放并平滑插值实体状态，而不是直接跳到最新推送。
     ///
-    /// The buffer keeps samples sorted by <see cref="IRemoteSnapshotSample.TimelineTicks"/> ascending,
-    /// drops out-of-order or duplicate samples, and trims old samples beyond a bounded capacity.
+    /// 缓冲区会按 <see cref="IRemoteSnapshotSample.TimelineTicks"/> 升序保存样本，丢弃乱序或重复样本，
+    /// 并按有界容量裁剪旧样本。
     /// </summary>
-    /// <typeparam name="TSnapshot">The remote snapshot payload type.</typeparam>
+    /// <typeparam name="TSnapshot">远端快照载荷类型。</typeparam>
     public sealed class RemoteSnapshotBuffer<TSnapshot>
         where TSnapshot : IRemoteSnapshotSample
     {
@@ -46,20 +45,20 @@ namespace AbilityKit.Network.Runtime
         public bool IsEmpty => _samples.Count == 0;
 
         /// <summary>
-        /// The newest buffered timeline value, or <c>null</c> when the buffer is empty.
+        /// 已缓冲的最新时间线值；缓冲区为空时为 <c>null</c>。
         /// </summary>
         public long? NewestTimelineTicks => _samples.Count == 0 ? (long?)null : _samples[_samples.Count - 1].TimelineTicks;
 
         /// <summary>
-        /// The oldest buffered timeline value, or <c>null</c> when the buffer is empty.
+        /// 已缓冲的最旧时间线值；缓冲区为空时为 <c>null</c>。
         /// </summary>
         public long? OldestTimelineTicks => _samples.Count == 0 ? (long?)null : _samples[0].TimelineTicks;
 
         /// <summary>
-        /// Adds a snapshot to the buffer. Snapshots whose timeline value is older than or equal to
-        /// the newest buffered sample are rejected as stale, keeping the buffer strictly increasing.
+        /// 将快照加入缓冲区。时间线值小于或等于最新已缓冲样本的快照会被视为过期并拒绝，
+        /// 从而保持缓冲区严格递增。
         /// </summary>
-        /// <returns><c>true</c> when the snapshot was accepted, <c>false</c> when it was stale/duplicate.</returns>
+        /// <returns>快照被接受时返回 <c>true</c>；快照过期或重复时返回 <c>false</c>。</returns>
         public bool TryAdd(TSnapshot snapshot)
         {
             if (_samples.Count > 0 && snapshot.TimelineTicks <= _samples[_samples.Count - 1].TimelineTicks)
@@ -73,10 +72,9 @@ namespace AbilityKit.Network.Runtime
         }
 
         /// <summary>
-        /// Selects the two samples bracketing the requested timeline value and the interpolation
-        /// factor between them. When the target falls before the oldest sample the result clamps to
-        /// the oldest sample; when it falls after the newest sample the result reports extrapolation
-        /// against the newest sample.
+        /// 选择包围目标时间线值的两个样本，并计算二者之间的插值系数。
+        /// 当目标早于最旧样本时，结果会钳制到最旧样本；当目标晚于最新样本时，
+        /// 结果会基于最新样本报告外推距离。
         /// </summary>
         public bool TrySample(long targetTimelineTicks, out RemoteSnapshotInterpolation<TSnapshot> interpolation)
         {
@@ -124,7 +122,7 @@ namespace AbilityKit.Network.Runtime
                 }
             }
 
-            // Should be unreachable given the bracketing checks above, but stay safe.
+            // 根据上面的包围检查理论上不可达，这里保留兜底逻辑。
             interpolation = new RemoteSnapshotInterpolation<TSnapshot>(newest, newest, 0f, 0L);
             return true;
         }
@@ -152,9 +150,8 @@ namespace AbilityKit.Network.Runtime
     }
 
     /// <summary>
-    /// Contract for a remote snapshot stored in a <see cref="RemoteSnapshotBuffer{TSnapshot}"/>.
-    /// The timeline value must be monotonically increasing across snapshots; server ticks are the
-    /// canonical source in the Shooter sample.
+    /// 存储在 <see cref="RemoteSnapshotBuffer{TSnapshot}"/> 中的远端快照契约。
+    /// 快照之间的时间线值必须单调递增；Shooter 示例中以服务器 tick 作为标准来源。
     /// </summary>
     public interface IRemoteSnapshotSample
     {
@@ -162,9 +159,8 @@ namespace AbilityKit.Network.Runtime
     }
 
     /// <summary>
-    /// The result of sampling a <see cref="RemoteSnapshotBuffer{TSnapshot}"/> at a target timeline
-    /// value: the bracketing snapshots, the interpolation factor between them and, when the target is
-    /// ahead of the newest sample, how far the playback would have to extrapolate.
+    /// 在目标时间线值上采样 <see cref="RemoteSnapshotBuffer{TSnapshot}"/> 的结果：
+    /// 包围目标的快照、二者之间的插值系数，以及当目标晚于最新样本时播放需要外推的距离。
     /// </summary>
     public readonly struct RemoteSnapshotInterpolation<TSnapshot>
         where TSnapshot : IRemoteSnapshotSample
@@ -177,26 +173,25 @@ namespace AbilityKit.Network.Runtime
             ExtrapolationTicks = extrapolationTicks;
         }
 
-        /// <summary>The earlier bracketing snapshot.</summary>
+        /// <summary>包围目标的较早快照。</summary>
         public TSnapshot From { get; }
 
-        /// <summary>The later bracketing snapshot. Equals <see cref="From"/> when clamped/extrapolating.</summary>
+        /// <summary>包围目标的较晚快照。钳制或外推时等于 <see cref="From"/>。</summary>
         public TSnapshot To { get; }
 
-        /// <summary>Interpolation factor in [0,1] between <see cref="From"/> and <see cref="To"/>.</summary>
+        /// <summary><see cref="From"/> 与 <see cref="To"/> 之间的 [0,1] 插值系数。</summary>
         public float Alpha { get; }
 
         /// <summary>
-        /// How far past the newest sample the target time fell, in timeline ticks. Zero when the
-        /// target was inside the buffered range. Positive values indicate the playback is starved and
-        /// holding on the newest sample (an extrapolation policy may choose to act on this).
+        /// 目标时间超过最新样本的距离，单位为时间线 tick。目标位于缓冲范围内时为零。
+        /// 正数表示播放已缺样并停留在最新样本上（外推策略可以据此采取动作）。
         /// </summary>
         public long ExtrapolationTicks { get; }
 
-        /// <summary>Whether the sample is a genuine interpolation between two distinct snapshots.</summary>
+        /// <summary>该采样是否是在两个不同快照之间进行的真实插值。</summary>
         public bool IsInterpolating => !ReferenceEquals(From, To) && ExtrapolationTicks == 0L && Alpha > 0f && Alpha < 1f;
 
-        /// <summary>Whether the target time is ahead of the newest buffered snapshot.</summary>
+        /// <summary>目标时间是否晚于最新已缓冲快照。</summary>
         public bool IsExtrapolating => ExtrapolationTicks > 0L;
     }
 }

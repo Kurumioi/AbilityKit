@@ -6,8 +6,8 @@ using AbilityKit.Demo.Moba.Services;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// TargetingAndSkills Stage
-    /// 注册事件订阅与触发器索引服务
+    /// TargetingAndSkills 阶段。
+    /// 注册事件订阅与触发器索引服务。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class TargetingAndSkillsStage : MobaBootstrapStageBase

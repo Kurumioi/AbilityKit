@@ -114,7 +114,7 @@ namespace AbilityKit.Modifiers.Examples
     }
 
     /// <summary>
-    /// 状态修改���结果
+    /// 状态修改结果。
     /// </summary>
     public readonly struct StateModifyResult
     {

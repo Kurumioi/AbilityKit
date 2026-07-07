@@ -3,32 +3,32 @@ using System;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Frame snapshot data.
+    /// 帧快照数据。
     /// </summary>
     public readonly struct FrameSnapshotData
     {
         /// <summary>
-        /// Frame index.
+        /// 帧索引。
         /// </summary>
         public int FrameIndex { get; }
 
         /// <summary>
-        /// Timestamp in seconds.
+        /// 以秒为单位的时间戳。
         /// </summary>
         public double Timestamp { get; }
 
         /// <summary>
-        /// Snapshot type.
+        /// 快照类型。
         /// </summary>
         public SnapshotType Type { get; }
 
         /// <summary>
-        /// Application-defined entity states in this frame.
+        /// 当前帧中由应用定义的实体状态。
         /// </summary>
         public SnapshotEntityState[] Entities { get; }
 
         /// <summary>
-        /// Custom data payload in an application-specific format.
+        /// 应用特定格式的自定义数据载荷。
         /// </summary>
         public byte[] CustomPayload { get; }
 
@@ -130,28 +130,28 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create an empty snapshot.
+        /// 创建空快照。
         /// </summary>
         public static FrameSnapshotData Empty => default;
     }
 
     /// <summary>
-    /// Snapshot type.
+    /// 快照类型。
     /// </summary>
     public enum SnapshotType
     {
         /// <summary>
-        /// Full snapshot with all entities.
+        /// 包含所有实体的完整快照。
         /// </summary>
         Full = 0,
 
         /// <summary>
-        /// Delta snapshot with only changed entities.
+        /// 仅包含变化实体的增量快照。
         /// </summary>
         Delta = 1,
 
         /// <summary>
-        /// Key frame snapshot.
+        /// 关键帧快照。
         /// </summary>
         KeyFrame = 2,
     }

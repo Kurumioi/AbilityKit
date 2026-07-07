@@ -27,7 +27,7 @@ namespace AbilityKit.Combat.Projectile
                 return;
             }
 
-            // Deterministic scatter around Vec3.Up axis (yaw). For pitch scatter, extend here later.
+            // 围绕 Vec3.Up 轴（偏航）做确定性散射；如需俯仰散射，后续在这里扩展。
             var rng = new XorShift32(_seed == 0 ? 1u : _seed);
 
             for (int i = 0; i < _count; i++)
@@ -63,7 +63,7 @@ namespace AbilityKit.Combat.Projectile
 
             public float NextFloat01()
             {
-                // 24-bit mantissa precision
+                // 24 位尾数精度。
                 return (NextUInt() & 0x00FFFFFFu) / 16777215f;
             }
         }

@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float Value;
         public int Priority;
 
-        // 0/Fixed keeps existing configs compatible. Other values map to AbilityKit.Modifiers.MagnitudeSourceType.
+        // 0/Fixed 保持与现有配置兼容。其他值映射到 AbilityKit.Modifiers.MagnitudeSourceType。
         public int MagnitudeSourceType;
         public float MagnitudeBaseValue;
         public float MagnitudeCoefficient;
@@ -22,8 +22,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public string MagnitudeContextKey;
         public float[] MagnitudeCurve;
 
-        // 0/Realtime recalculates from the source whenever the target value is recomputed.
-        // 1/OnApplySnapshot evaluates once when the continuous modifier is projected, then stores a fixed value.
+        // 0/Realtime 在目标值每次重算时从来源重新计算。
+        // 1/OnApplySnapshot 在 continuous modifier 投影时计算一次，然后存储固定值。
         public int EvaluationPolicy;
     }
 

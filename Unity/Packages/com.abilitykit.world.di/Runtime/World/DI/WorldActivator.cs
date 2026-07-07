@@ -114,9 +114,8 @@ namespace AbilityKit.Ability.World.DI
         }
 
         /// <summary>
-        /// Resolve and assign all <c>[WorldInject]</c> fields/properties on an already-created instance.
-        /// Intended for tests: build an instance manually (e.g. via parameterless ctor), then push mocks
-        /// in through the same injection path the container uses at runtime.
+        /// 解析并写入已创建实例上的所有 <c>[WorldInject]</c> 字段/属性。
+        /// 主要用于测试：手动构造实例（例如通过无参构造函数），再通过容器运行时使用的同一注入路径注入 mock。
         /// </summary>
         internal static void InjectMembersInto(object instance, IWorldResolver resolver)
         {
@@ -188,7 +187,7 @@ namespace AbilityKit.Ability.World.DI
                 });
             }
 
-            // Prefer more specific constructors first (more parameters).
+            // 优先尝试更具体的构造函数（参数更多）。
             plans.Sort((a, b) => b.ParamTypes.Length.CompareTo(a.ParamTypes.Length));
 
             return new TypePlan

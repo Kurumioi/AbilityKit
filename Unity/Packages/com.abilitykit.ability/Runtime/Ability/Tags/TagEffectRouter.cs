@@ -73,7 +73,7 @@ namespace AbilityKit.Ability.Tags
                 }
                 catch
                 {
-                    // keep router resilient
+                    // 保持路由器具备容错能力。
                 }
             }
         }

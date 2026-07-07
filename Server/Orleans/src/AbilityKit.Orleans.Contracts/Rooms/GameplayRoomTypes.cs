@@ -1,7 +1,7 @@
 namespace AbilityKit.Orleans.Contracts.Rooms;
 
 /// <summary>
-/// Shared gameplay room type identifiers used by gateway, room grains and battle runtime selection.
+/// 网关、房间 Grain 和战斗运行时选择共享的玩法房间类型标识。
 /// </summary>
 public static class GameplayRoomTypes
 {

@@ -233,17 +233,32 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 var frame = session.PendingFrame.Value > 0 ? session.PendingFrame : currentFrame;
                 var inputs = session.PendingInputsArray ?? Array.Empty<PlayerInputCommand>();
 
-                WorldStateSnapshot? state = null;
+                var broadcasted = false;
                 if (session.HasWorld && world.Services != null && world.Services.TryResolve<AbilityKit.Ability.Host.IWorldStateSnapshotProvider>(out var provider) && provider != null)
                 {
-                    if (provider.TryGetSnapshot(frame, out var snapshot))
+                    if (provider is AbilityKit.Ability.Host.IWorldStateSnapshotBatchProvider batchProvider)
                     {
-                        state = snapshot;
+                        var snapshots = new List<WorldStateSnapshot>(16);
+                        var count = batchProvider.CollectSnapshots(frame, snapshots, 32);
+                        var snapshotCount = Math.Min(count, snapshots.Count);
+                        for (int i = 0; i < snapshotCount; i++)
+                        {
+                            var packetInputs = i == 0 ? inputs : Array.Empty<PlayerInputCommand>();
+                            _runtime.Broadcast(new FrameMessage(new FramePacket(worldId, frame, packetInputs, snapshots[i])));
+                            broadcasted = true;
+                        }
+                    }
+                    else if (provider.TryGetSnapshot(frame, out var snapshot))
+                    {
+                        _runtime.Broadcast(new FrameMessage(new FramePacket(worldId, frame, inputs, snapshot)));
+                        broadcasted = true;
                     }
                 }
 
-                var packet = new FramePacket(worldId, frame, inputs, state);
-                _runtime.Broadcast(new FrameMessage(packet));
+                if (!broadcasted)
+                {
+                    _runtime.Broadcast(new FrameMessage(new FramePacket(worldId, frame, inputs, default)));
+                }
 
                 session.PendingInputsArray = null;
                 session.PendingFrame = default;

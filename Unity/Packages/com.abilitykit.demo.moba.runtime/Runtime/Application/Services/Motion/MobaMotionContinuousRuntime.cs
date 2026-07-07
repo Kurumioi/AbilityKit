@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Continuous;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.GameplayTags;
 
@@ -76,22 +77,26 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         {
             if (_actors == null || _motionSource == null || OwnerActorId <= 0)
             {
+                Log.Warning($"[MobaMotionContinuousRuntime] activate rejected. kind={Kind}, owner={OwnerActorId}, hasActors={_actors != null}, hasSource={_motionSource != null}");
                 return false;
             }
 
             if (!_actors.TryGet(OwnerActorId, out var entity) || entity == null || !entity.hasMotion)
             {
+                Log.Warning($"[MobaMotionContinuousRuntime] activate rejected. kind={Kind}, owner={OwnerActorId}, actorFound={entity != null}, hasMotion={entity != null && entity.hasMotion}");
                 return false;
             }
 
             var motion = entity.motion;
             if (!motion.Initialized || motion.Pipeline == null)
             {
+                Log.Warning($"[MobaMotionContinuousRuntime] activate rejected. kind={Kind}, owner={OwnerActorId}, initialized={motion.Initialized}, hasPipeline={motion.Pipeline != null}");
                 return false;
             }
 
             motion.Pipeline.AddSource(_motionSource);
             _sourceAdded = true;
+            Log.Info($"[MobaMotionContinuousRuntime] source added. kind={Kind}, owner={OwnerActorId}, sourceActive={_motionSource.IsActive}");
 
             if (_hitTriggerRuntime.IsValid)
             {
@@ -126,13 +131,6 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             AdvanceElapsed(deltaTimeSeconds);
 
             if (_motionSource == null || !_motionSource.IsActive)
-            {
-                End(ContinuousEndReason.Completed);
-                return;
-            }
-
-            var duration = _config.DurationSeconds;
-            if (duration.HasValue && ElapsedSeconds >= duration.Value)
             {
                 End(ContinuousEndReason.Completed);
             }

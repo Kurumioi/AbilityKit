@@ -6,19 +6,19 @@ using System.Text;
 namespace AbilityKit.Samples.Abstractions
 {
     /// <summary>
-    /// Reusable catalog for console, file, UI, Unity, MonoGame, or custom hosts.
+    /// 可复用于 Console、文件、UI、Unity、MonoGame 或自定义宿主的示例目录。
     /// </summary>
     public sealed class SampleCatalog
     {
         private readonly List<SampleCatalogEntry> _entries = new();
 
         /// <summary>
-        /// Entries in host display order.
+        /// 按宿主显示顺序排列的目录项。
         /// </summary>
         public IReadOnlyList<SampleCatalogEntry> Entries => _entries;
 
         /// <summary>
-        /// Registers a sample type and creates its catalog entry.
+        /// 注册示例类型并创建对应目录项。
         /// </summary>
         public SampleCatalogEntry Register(
             Type sampleType,
@@ -89,7 +89,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Finds an entry by display index.
+        /// 按显示索引查找目录项。
         /// </summary>
         public bool TryGetByIndex(int index, out SampleCatalogEntry entry)
         {
@@ -104,7 +104,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Finds an entry by stable id.
+        /// 按稳定 ID 查找目录项。
         /// </summary>
         public bool TryGetById(string id, out SampleCatalogEntry entry)
         {
@@ -113,7 +113,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Groups entries for menus, tabs, or tree views.
+        /// 为菜单、标签页或树形视图分组目录项。
         /// </summary>
         public IReadOnlyDictionary<SampleCategory, IReadOnlyList<SampleCatalogEntry>> GroupByCategory()
         {
@@ -126,7 +126,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Creates a stable id from category and title.
+        /// 根据分类和标题创建稳定 ID。
         /// </summary>
         public static string CreateStableId(SampleCategory category, string title)
         {

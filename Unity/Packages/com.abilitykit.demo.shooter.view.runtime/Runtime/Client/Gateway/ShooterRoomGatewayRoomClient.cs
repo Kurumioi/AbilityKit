@@ -195,7 +195,8 @@ namespace AbilityKit.Demo.Shooter.View
                 wire.Snapshot.CanStart,
                 ToJoinKind(wire.JoinKind),
                 wire.ServerNowTicks,
-                wire.Snapshot.WorldId);
+                wire.Snapshot.WorldId,
+                wire.CurrentPlayerId);
         }
 
         public async Task<ShooterGatewayRoomSnapshotResult> SetReadyAsync(
@@ -332,7 +333,8 @@ namespace AbilityKit.Demo.Shooter.View
                 wire.ServerNowTicks,
                 wire.Snapshot.WorldId,
                 ToRestoreStatus(wire.Status),
-                ToRestoreErrorCode(wire.ErrorCode));
+                ToRestoreErrorCode(wire.ErrorCode),
+                wire.CurrentPlayerId);
         }
 
         private static void ValidateGuestLogin(in ShooterGatewayGuestLoginRequest request)
@@ -925,13 +927,14 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly ShooterGatewayRoomJoinKind JoinKind;
         public readonly long ServerNowTicks;
         public readonly ulong WorldId;
+        public readonly uint CurrentPlayerId;
 
         public ShooterGatewayJoinRoomResult(bool success, string roomId, ulong numericRoomId, in ShooterGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart)
-            : this(success, roomId, numericRoomId, in worldStartAnchor, message, battleId, canStart, ShooterGatewayRoomJoinKind.TeamLobby, 0L, 0ul)
+            : this(success, roomId, numericRoomId, in worldStartAnchor, message, battleId, canStart, ShooterGatewayRoomJoinKind.TeamLobby, 0L, 0ul, 0u)
         {
         }
 
-        public ShooterGatewayJoinRoomResult(bool success, string roomId, ulong numericRoomId, in ShooterGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, ShooterGatewayRoomJoinKind joinKind, long serverNowTicks, ulong worldId)
+        public ShooterGatewayJoinRoomResult(bool success, string roomId, ulong numericRoomId, in ShooterGatewayWorldStartAnchor worldStartAnchor, string message, string battleId, bool canStart, ShooterGatewayRoomJoinKind joinKind, long serverNowTicks, ulong worldId, uint currentPlayerId = 0u)
         {
             Success = success;
             RoomId = roomId ?? string.Empty;
@@ -943,6 +946,7 @@ namespace AbilityKit.Demo.Shooter.View
             JoinKind = joinKind;
             ServerNowTicks = serverNowTicks;
             WorldId = worldId;
+            CurrentPlayerId = currentPlayerId;
         }
     }
 
@@ -962,6 +966,7 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly ulong WorldId;
         public readonly ShooterGatewayRoomRestoreStatus Status;
         public readonly ShooterGatewayRoomRestoreErrorCode ErrorCode;
+        public readonly uint CurrentPlayerId;
 
         public ShooterGatewayRestoreRoomResult(
             bool success,
@@ -976,7 +981,7 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewayRoomJoinKind joinKind,
             long serverNowTicks,
             ulong worldId)
-            : this(success, hasActiveRoom, isInBattle, roomId, numericRoomId, in worldStartAnchor, message, battleId, canStart, joinKind, serverNowTicks, worldId, ShooterGatewayRoomRestoreStatus.Restored, ShooterGatewayRoomRestoreErrorCode.None)
+            : this(success, hasActiveRoom, isInBattle, roomId, numericRoomId, in worldStartAnchor, message, battleId, canStart, joinKind, serverNowTicks, worldId, ShooterGatewayRoomRestoreStatus.Restored, ShooterGatewayRoomRestoreErrorCode.None, 0u)
         {
         }
 
@@ -994,7 +999,8 @@ namespace AbilityKit.Demo.Shooter.View
             long serverNowTicks,
             ulong worldId,
             ShooterGatewayRoomRestoreStatus status,
-            ShooterGatewayRoomRestoreErrorCode errorCode)
+            ShooterGatewayRoomRestoreErrorCode errorCode,
+            uint currentPlayerId = 0u)
         {
             Success = success;
             HasActiveRoom = hasActiveRoom;
@@ -1010,6 +1016,7 @@ namespace AbilityKit.Demo.Shooter.View
             WorldId = worldId;
             Status = status;
             ErrorCode = errorCode;
+            CurrentPlayerId = currentPlayerId;
         }
     }
 

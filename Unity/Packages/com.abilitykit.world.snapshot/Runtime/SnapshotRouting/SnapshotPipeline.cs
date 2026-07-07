@@ -5,9 +5,9 @@ using AbilityKit.Ability.Host;
 namespace AbilityKit.Core.Snapshots.Routing
 {
     /// <summary>
-    /// A typed, ordered pipeline for handling snapshots.
+    /// 用于处理快照的类型化有序管线。
     ///
-    /// Register opCode decoders first, then add one or more ordered stages.
+    /// 先注册 opCode 解码器，再添加一个或多个有序阶段。
     /// </summary>
     public sealed class SnapshotPipeline : IDisposable, ISnapshotDecoderRegistry, ISnapshotPipelineStageRegistry
     {

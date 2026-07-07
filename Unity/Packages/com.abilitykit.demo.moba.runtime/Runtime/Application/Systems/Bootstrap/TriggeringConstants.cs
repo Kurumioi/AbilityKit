@@ -51,12 +51,12 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string AddGameplayVar = "add_gameplay_var";
             public const string AdvanceGameplayCounter = "advance_gameplay_counter";
 
-            // Motion Actions
+            // 位移类 Action。
             public const string Dash = "dash";
             public const string Blink = "blink";
             public const string Pull = "pull";
 
-            // Resource Actions
+            // 资源类 Action。
             public const string ConsumeResource = "consume_resource";
             public const string ModifyResource = "modify_resource";
             public const string ConvertResourceToHeal = "convert_resource_to_heal";
@@ -152,12 +152,12 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId AddGameplayVarId => GetActionId(Actions.AddGameplayVar);
         public static ActionId AdvanceGameplayCounterId => GetActionId(Actions.AdvanceGameplayCounter);
 
-        // Motion Action IDs
+        // 位移类 Action ID。
         public static ActionId DashId => GetActionId(Actions.Dash);
         public static ActionId BlinkId => GetActionId(Actions.Blink);
         public static ActionId PullId => GetActionId(Actions.Pull);
 
-        // Resource Action IDs
+        // 资源类 Action ID。
         public static ActionId ConsumeResourceId => GetActionId(Actions.ConsumeResource);
         public static ActionId ModifyResourceId => GetActionId(Actions.ModifyResource);
         public static ActionId ConvertResourceToHealId => GetActionId(Actions.ConvertResourceToHeal);

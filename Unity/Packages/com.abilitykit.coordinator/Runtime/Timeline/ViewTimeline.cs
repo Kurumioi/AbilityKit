@@ -4,12 +4,12 @@ using System.Collections.Generic;
 namespace AbilityKit.Coordinator.Timeline
 {
     /// <summary>
-    /// Default View Timeline Implementation
+    /// 默认视图时间线实现。
     ///
-    /// Design:
-    /// - Manages entity interpolation states
-    /// - Provides frame-based rendering with smooth interpolation
-    /// - Supports frame seeking for replay
+    /// 设计：
+    /// - 管理实体插值状态。
+    /// - 基于帧提供平滑插值渲染。
+    /// - 支持回放时按帧跳转。
     /// </summary>
     public sealed class ViewTimeline : IViewTimeline
     {
@@ -20,7 +20,7 @@ namespace AbilityKit.Coordinator.Timeline
         public double InterpolationBackTimeSeconds { get; set; } = 0.1;
         public bool IsActive { get; private set; }
 
-        // ============== Lifecycle ==============
+        // ============== 生命周期 ==============
 
         public void Start()
         {
@@ -39,7 +39,7 @@ namespace AbilityKit.Coordinator.Timeline
             _interpolationStates.Clear();
         }
 
-        // ============== Entity State Management ==============
+        // ============== 实体状态管理 ==============
 
         private EntityInterpolationState GetOrCreateState(int entityId)
         {
@@ -89,7 +89,7 @@ namespace AbilityKit.Coordinator.Timeline
             _interpolationStates.Remove(entityId);
         }
 
-        // ============== Interpolation Update ==============
+        // ============== 插值更新 ==============
 
         public void UpdateInterpolation(double renderTime)
         {
@@ -103,7 +103,7 @@ namespace AbilityKit.Coordinator.Timeline
                 var state = kvp.Value;
                 if (state.IsDead) continue;
 
-                // Interpolate position
+                // 插值位置。
                 if (((IVectorSampleBuffer)state.PositionBuffer).TryEvaluate(targetTime, out float x, out float y, out float z))
                 {
                     state.RenderX = x;
@@ -117,7 +117,7 @@ namespace AbilityKit.Coordinator.Timeline
                     state.RenderZ = state.CurrentZ;
                 }
 
-                // Interpolate rotation
+                // 插值旋转。
                 if (state.RotationBuffer.TryEvaluate(targetTime, out float rotation))
                 {
                     state.RenderRotation = rotation;
@@ -129,7 +129,7 @@ namespace AbilityKit.Coordinator.Timeline
             }
         }
 
-        // ============== Frame Seeking ==============
+        // ============== 帧跳转 ==============
 
         public void SeekToFrame(int frame, float secondsPerFrame = 1f / 30f)
         {
@@ -141,7 +141,7 @@ namespace AbilityKit.Coordinator.Timeline
             {
                 var state = kvp.Value;
 
-                // Seek position
+                // 跳转位置。
                 if (((IVectorSampleBuffer)state.PositionBuffer).TryEvaluate(targetTime, out float x, out float y, out float z))
                 {
                     state.RenderX = state.CurrentX = x;
@@ -149,7 +149,7 @@ namespace AbilityKit.Coordinator.Timeline
                     state.RenderZ = state.CurrentZ = z;
                 }
 
-                // Seek rotation
+                // 跳转旋转。
                 if (state.RotationBuffer.TryEvaluate(targetTime, out float rotation))
                 {
                     state.RenderRotation = state.CurrentRotation = rotation;
@@ -159,7 +159,7 @@ namespace AbilityKit.Coordinator.Timeline
             RenderTimeSeconds = targetTime;
         }
 
-        // ============== State Query ==============
+        // ============== 状态查询 ==============
 
         public bool TryGetRenderPosition(int entityId, out float x, out float y, out float z)
         {
@@ -210,7 +210,7 @@ namespace AbilityKit.Coordinator.Timeline
             return false;
         }
 
-        // ============== IDisposable ==============
+        // ============== 资源释放 ==============
 
         public void Dispose()
         {
@@ -222,10 +222,10 @@ namespace AbilityKit.Coordinator.Timeline
         }
     }
 
-    // ============== Sample Buffer Implementations ==============
+    // ============== 采样缓冲区实现 ==============
 
     /// <summary>
-    /// Scalar Sample Buffer (for rotation)
+    /// 标量采样缓冲区（用于旋转）。
     /// </summary>
     public sealed class ScalarSampleBuffer : ISampleBuffer
     {
@@ -311,7 +311,7 @@ namespace AbilityKit.Coordinator.Timeline
     }
 
     /// <summary>
-    /// Vector Sample Buffer (for position)
+    /// 向量采样缓冲区（用于位置）。
     /// </summary>
     public sealed class VectorSampleBuffer : IVectorSampleBuffer
     {

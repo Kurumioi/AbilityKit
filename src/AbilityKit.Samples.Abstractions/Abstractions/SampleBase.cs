@@ -33,12 +33,12 @@ namespace AbilityKit.Samples.Abstractions
         protected IConfigProvider? Config { get; private set; }
 
         /// <summary>
-        /// Resource provider supplied by the current host.
+        /// 当前宿主提供的资源提供器。
         /// </summary>
         protected IResourceProvider? Resources { get; private set; }
 
         /// <summary>
-        /// Current runtime context.
+        /// 当前运行时上下文。
         /// </summary>
         protected SampleRuntimeContext Context => _context ?? throw new InvalidOperationException("Runtime context not initialized");
 
@@ -69,7 +69,7 @@ namespace AbilityKit.Samples.Abstractions
         }
 
         /// <summary>
-        /// Initializes the sample with explicit output and environment services.
+        /// 使用显式输出和环境服务初始化示例。
         /// </summary>
         public void Initialize(ILogger logger, ISampleEnvironment environment)
         {

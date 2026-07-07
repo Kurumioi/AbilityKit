@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using AbilityKit.Ability.Host.Extensions.Session;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Shooter;
 
@@ -28,6 +29,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public ShooterRoomGatewayEntryKind EntryKind { get; }
         public bool UsedFallbackCreate { get; }
         public Exception? RestoreFailure { get; }
+        public bool RequiresInitialFullStateSync => EntryKind == ShooterRoomGatewayEntryKind.LateJoin
+            || EntryKind == ShooterRoomGatewayEntryKind.Reconnect;
     }
 
     public sealed class ShooterRemoteStateSyncConnectionFlow
@@ -92,40 +95,50 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     null);
             }
 
-            try
-            {
-                var restored = await RestoreRoomAsync(
+            var restoreFirst = await RoomGatewayRestoreFirstConnectionPolicy.ConnectAsync(
+                () => RestoreRoomAsLaunchAsync(
                     launcher,
                     runtime,
                     presentationSession,
                     launchOptions,
                     startGame,
                     launchSpec,
-                    playerId).ConfigureAwait(false);
-                return new ShooterRemoteStateSyncConnectionResult(
-                    restored,
-                    launchOptions.LaunchMode,
-                    restored.Flow.EntryKind,
-                    false,
-                    null);
-            }
-            catch (Exception ex) when (launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.RestoreFirst)
-            {
-                var created = await CreateReadyStartAndSubscribeAsync(
+                    playerId),
+                () => CreateReadyStartAndSubscribeAsync(
                     launcher,
                     runtime,
                     presentationSession,
                     launchOptions,
                     startGame,
                     launchSpec,
-                    playerId).ConfigureAwait(false);
-                return new ShooterRemoteStateSyncConnectionResult(
-                    created,
-                    launchOptions.LaunchMode,
-                    created.Flow.EntryKind,
-                    true,
-                    ex);
-            }
+                    playerId),
+                launchOptions.LaunchMode == ShooterRemoteStateSyncLaunchMode.RestoreFirst).ConfigureAwait(false);
+
+            return new ShooterRemoteStateSyncConnectionResult(
+                restoreFirst.Result,
+                launchOptions.LaunchMode,
+                restoreFirst.Result.Flow.EntryKind,
+                restoreFirst.UsedFallbackCreate,
+                restoreFirst.RestoreFailure);
+        }
+
+        private static async Task<ShooterClientNetworkLaunchResult> RestoreRoomAsLaunchAsync(
+            ShooterClientNetworkLauncher launcher,
+            IShooterBattleRuntimePort runtime,
+            ShooterPresentationSessionContext presentationSession,
+            ShooterRemoteStateSyncLaunchOptions launchOptions,
+            ShooterStartGamePayload startGame,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId)
+        {
+            return await RestoreRoomAsync(
+                launcher,
+                runtime,
+                presentationSession,
+                launchOptions,
+                startGame,
+                launchSpec,
+                playerId).ConfigureAwait(false);
         }
 
         private static Task<ShooterClientNetworkRestoreResult> RestoreRoomAsync(

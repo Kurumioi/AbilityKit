@@ -61,7 +61,8 @@ public sealed class ShooterRoomGatewayRoomClientTests
             },
             Message = "joined",
             JoinKind = WireRoomJoinKind.Reconnect,
-            ServerNowTicks = 523456L
+            ServerNowTicks = 523456L,
+            CurrentPlayerId = 121u
         });
         var join = await roomClient.JoinRoomAsync(new ShooterGatewayJoinRoomRequest("session-token", "cn", "server-a", "room-1"));
         Assert.Equal(RoomGatewayOpCodes.JoinRoom, transport.LastOpCode);
@@ -76,6 +77,7 @@ public sealed class ShooterRoomGatewayRoomClientTests
         Assert.Equal(ShooterGatewayRoomJoinKind.Reconnect, join.JoinKind);
         Assert.Equal(523456L, join.ServerNowTicks);
         Assert.Equal(9001ul, join.WorldId);
+        Assert.Equal(121u, join.CurrentPlayerId);
         Assert.Equal(123456L, join.WorldStartAnchor.StartServerTicks);
         Assert.Equal(12, join.WorldStartAnchor.StartFrame);
 

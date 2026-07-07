@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Combat.MotionSystem.Generic;
+using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Ability.World.DI;
@@ -60,7 +61,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var dir = input.ResolveDashOrBlinkDirection(args.DirectionMode, actorId);
-            if (dir.SqrMagnitude <= 0f)
+            var fallbackToForward = dir.SqrMagnitude <= 0f;
+            if (fallbackToForward)
             {
                 dir = entity.hasTransform ? entity.transform.Value.Forward : Vec3.Forward;
             }
@@ -69,6 +71,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var duration = args.DurationMs / 1000f;
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
             var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
+
+            Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), speed={args.Speed:F3}, duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
 
             var hitTriggerRuntime = default(MobaMotionHitTriggerRuntime);
             if (args.HitTriggerPlanId > 0 && input.ActionInput.HasTraceScope)
@@ -94,7 +98,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     out var rejectReason))
             {
                 LogRejected(ctx, rejectReason);
+                return;
             }
+
+            Log.Info($"[DashPlanActionModule] activated actorId={actorId}, duration={duration:F3}, sourceActive={source.IsActive}");
         }
 
     }

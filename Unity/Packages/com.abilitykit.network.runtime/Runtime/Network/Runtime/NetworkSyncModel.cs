@@ -1,61 +1,61 @@
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// Describes the network synchronization strategy used by a session or gameplay sample.
-    /// This is intentionally gameplay-agnostic so samples can share the same sync vocabulary.
+    /// 描述会话或玩法示例使用的网络同步策略。
+    /// 该枚举保持玩法无关，便于不同示例共享同一套同步术语。
     /// </summary>
     public enum NetworkSyncModel
     {
         /// <summary>
-        /// No explicit network synchronization model has been selected.
+        /// 尚未选择明确的网络同步模型。
         /// </summary>
         Unspecified = 0,
 
         /// <summary>
-        /// Deterministic input synchronization without client rollback recovery.
-        /// Not implemented yet — reserved for a future lockstep sync strategy.
+        /// 确定性输入同步，不包含客户端回滚恢复。
+        /// 尚未实现，预留给未来的 Lockstep 同步策略。
         /// </summary>
         Lockstep = 1,
 
         /// <summary>
-        /// Local prediction, authoritative snapshots, rollback, replay and reconciliation.
-        /// Implemented (see the predict-rollback client sync strategy).
+        /// 本地预测、权威快照、回滚、重放和校正。
+        /// 已实现，见预测回滚客户端同步策略。
         /// </summary>
         PredictRollback = 2,
 
         /// <summary>
-        /// Server authoritative entity state snapshots consumed through interpolation or extrapolation.
-        /// Implemented (see the authoritative-interpolation client sync strategy).
+        /// 通过插值或外推消费的服务器权威实体状态快照。
+        /// 已实现，见权威插值客户端同步策略。
         /// </summary>
         AuthoritativeInterpolation = 3,
 
         /// <summary>
-        /// Server authoritative state updates published in low-frequency batches.
-        /// Not implemented yet — reserved for a future batched state-sync strategy.
+        /// 以低频批次发布的服务器权威状态更新。
+        /// 尚未实现，预留给未来的批量状态同步策略。
         /// </summary>
         BatchStateSync = 4,
 
         /// <summary>
-        /// Large-scale server authoritative synchronization with interest management and LOD policies.
-        /// Not implemented yet — reserved for a future mass-battle LOD sync strategy.
+        /// 带兴趣管理和 LOD 策略的大规模服务器权威同步。
+        /// 尚未实现，预留给未来的大规模战斗 LOD 同步策略。
         /// </summary>
         MassBattleLodSync = 5,
 
         /// <summary>
-        /// Mixed strategy, usually local hero prediction plus remote interpolation and batched ordinary units.
-        /// Not implemented yet — reserved for a future hybrid hero-prediction strategy.
+        /// 混合同步策略，通常用于本地主角预测、远端插值以及普通单位批量同步。
+        /// 尚未实现，预留给未来的主角预测混合同步策略。
         /// </summary>
         HybridHeroPrediction = 6,
 
         /// <summary>
-        /// Fast reconnect and state restoration flow built around targeted snapshots.
-        /// Not implemented yet — reserved for a future fast-reconnect strategy.
+        /// 基于定向快照的快速重连和状态恢复流程。
+        /// 尚未实现，预留给未来的快速重连策略。
         /// </summary>
         FastReconnect = 7,
 
         /// <summary>
-        /// Server-side rewind of authoritative history for latency-compensated hit validation.
-        /// Implemented by the server rewind lag compensation helper.
+        /// 对服务器权威历史进行回溯，用于带延迟补偿的命中验证。
+        /// 已由服务器回溯延迟补偿辅助组件实现。
         /// </summary>
         ServerRewindLagCompensation = 8
     }

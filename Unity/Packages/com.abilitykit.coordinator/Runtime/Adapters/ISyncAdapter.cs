@@ -3,151 +3,151 @@ using System;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Sync Adapter Interface
+    /// 同步适配器接口。
     ///
-    /// Design:
-    /// - Base interface for all sync adapters
-    /// - Provides common properties and methods
-    /// - Mode-specific behavior via marker interfaces
+    /// 设计：
+    /// - 作为全部同步适配器的基础接口。
+    /// - 提供通用属性和方法。
+    /// - 通过标记接口承载模式专属行为。
     /// </summary>
     public interface ISyncAdapter : IDisposable
     {
-        // ============== Core Properties ==============
+        // ============== 核心属性 ==============
 
         /// <summary>
-        /// Current synchronization mode
+        /// 当前同步模式。
         /// </summary>
         Core.SyncMode Mode { get; }
 
         /// <summary>
-        /// Current logic frame number
+        /// 当前逻辑帧号。
         /// </summary>
         int CurrentFrame { get; }
 
         /// <summary>
-        /// Logic time in seconds
+        /// 逻辑时间（秒）。
         /// </summary>
         double LogicTimeSeconds { get; }
 
         /// <summary>
-        /// Render time in seconds (for view interpolation)
+        /// 渲染时间（秒，用于视图插值）。
         /// </summary>
         double RenderTimeSeconds { get; }
 
         /// <summary>
-        /// Local player identifier
+        /// 本地玩家标识。
         /// </summary>
         int LocalPlayerId { get; }
 
-        // ============== Core Events ==============
+        // ============== 核心事件 ==============
 
         /// <summary>
-        /// Frame synchronization event (triggered each frame)
+        /// 帧同步事件（每帧触发）。
         /// </summary>
         event Action<int, double> OnFrameSync;
 
-        // ============== Core Methods ==============
+        // ============== 核心方法 ==============
 
         /// <summary>
-        /// Attach to session coordinator
+        /// 附加到会话协调器。
         /// </summary>
         void Attach(ISessionCoordinator coordinator);
 
         /// <summary>
-        /// Attach to session coordinator with driver host
+        /// 携带驱动宿主附加到会话协调器。
         /// </summary>
         void Attach(ISessionCoordinator coordinator, ILogicWorldDriverBridge driverHost);
 
         /// <summary>
-        /// Set the logic-world driver after initial attachment.
+        /// 初次附加后设置逻辑世界驱动。
         /// </summary>
         void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost);
 
         /// <summary>
-        /// Frame update (called by tick loop)
+        /// 帧更新（由 tick 循环调用）。
         /// </summary>
         void Tick(float deltaTime);
 
         /// <summary>
-        /// Submit local player input
+        /// 提交本地玩家输入。
         /// </summary>
         void SubmitInput(PlayerInput input);
 
         /// <summary>
-        /// Get all entity states for rendering.
+        /// 获取用于渲染的全部实体状态。
         /// </summary>
         SnapshotEntityState[] GetAllEntityStates();
     }
 
-    // ============== Mode-Specific Interfaces ==============
+    // ============== 模式专属接口 ==============
 
     /// <summary>
-    /// Local Sync Adapter (Lockstep mode)
-    /// Marker interface for local-only sync adapters
+    /// 本地同步适配器（Lockstep 模式）。
+    /// 仅本地同步适配器使用的标记接口。
     /// </summary>
     public interface ILocalSyncAdapter : ISyncAdapter
     {
         /// <summary>
-        /// Always returns true for local mode
+        /// 本地模式始终返回 true。
         /// </summary>
         bool IsConnected { get; }
     }
 
     /// <summary>
-    /// Remote Sync Adapter (StateSync/Hybrid modes)
-    /// Marker interface for adapters requiring network connection
+    /// 远程同步适配器（StateSync/Hybrid 模式）。
+    /// 需要网络连接的适配器使用的标记接口。
     /// </summary>
     public interface IRemoteSyncAdapter : ISyncAdapter
     {
         /// <summary>
-        /// Is connected to remote server
+        /// 是否已连接到远程服务器。
         /// </summary>
         bool IsConnected { get; }
 
         /// <summary>
-        /// Connection state changed event
+        /// 连接状态变化事件。
         /// </summary>
         event Action<bool> OnConnectionChanged;
 
         /// <summary>
-        /// Entity state snapshot event triggered when server snapshot received.
+        /// 收到服务器快照时触发的实体状态快照事件。
         /// </summary>
         event Action<SnapshotEntityState[]> OnServerSnapshot;
 
         /// <summary>
-        /// Connect to remote server
+        /// 连接到远程服务器。
         /// </summary>
         void Connect(NetworkEndpoint endpoint, long roomId, long playerId);
 
         /// <summary>
-        /// Disconnect from remote server
+        /// 断开远程服务器连接。
         /// </summary>
         void Disconnect();
     }
 
     /// <summary>
-    /// Prediction Support Interface
-    /// For adapters that support client-side prediction
+    /// 预测支持接口。
+    /// 用于支持客户端预测的适配器。
     /// </summary>
     public interface IPredictionSyncAdapter : IRemoteSyncAdapter
     {
         /// <summary>
-        /// Is prediction enabled
+        /// 是否启用预测。
         /// </summary>
         bool IsPredictionEnabled { get; }
 
         /// <summary>
-        /// Enable/disable prediction
+        /// 启用或禁用预测。
         /// </summary>
         void SetPredictionEnabled(bool enabled);
 
         /// <summary>
-        /// Get prediction ahead frames
+        /// 获取预测超前帧数。
         /// </summary>
         int PredictionAheadFrames { get; }
 
         /// <summary>
-        /// Trigger reconciliation (rollback).
+        /// 触发校正（回滚）。
         /// </summary>
         void TriggerReconciliation(int confirmedFrame, SnapshotEntityState[] serverState);
     }

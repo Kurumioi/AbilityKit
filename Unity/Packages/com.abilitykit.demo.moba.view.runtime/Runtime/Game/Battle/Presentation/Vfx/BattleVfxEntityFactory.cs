@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Flow;
 using UnityEngine;
 using EC = AbilityKit.World.ECS;
 
@@ -31,15 +32,25 @@ namespace AbilityKit.Game.Battle.Vfx
             if (!parent.IsValid) return false;
             if (vfxId <= 0) return false;
 
-            if (!_db.TryGet(vfxId, out var dto) || dto == null || string.IsNullOrEmpty(dto.Resource))
+            var durationMs = 650;
+            GameObject go;
+            if (BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId))
             {
-                return false;
+                go = _gameObjects.CreatePlaceholder(vfxId);
+            }
+            else if (_db.TryGet(vfxId, out var dto) && dto != null && !string.IsNullOrEmpty(dto.Resource))
+            {
+                go = _gameObjects.Create(vfxId, dto.Resource);
+                durationMs = dto.DurationMs;
+            }
+            else
+            {
+                go = _gameObjects.CreatePlaceholder(vfxId);
             }
 
-            var go = _gameObjects.Create(vfxId, dto.Resource);
             go.transform.position = position;
 
-            entity = _entities.Create(world, parent, vfxId, followTarget, go, dto.DurationMs);
+            entity = _entities.Create(world, parent, vfxId, followTarget, go, durationMs);
             return true;
         }
     }

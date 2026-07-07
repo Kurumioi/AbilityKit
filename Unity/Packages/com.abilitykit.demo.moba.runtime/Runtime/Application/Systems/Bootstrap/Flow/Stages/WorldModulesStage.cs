@@ -17,7 +17,7 @@ using AbilityKit.Triggering.Variables.Numeric.Domains;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// Registers MOBA world modules and triggering runtime services.
+    /// 注册 MOBA 世界模块和触发器运行时服务。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class WorldModulesStage : MobaBootstrapStageBase

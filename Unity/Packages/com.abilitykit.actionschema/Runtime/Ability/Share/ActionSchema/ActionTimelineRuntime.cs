@@ -18,7 +18,7 @@ namespace AbilityKit.ActionSchema
         {
             if (string.IsNullOrEmpty(json)) return null;
 
-            // Extra fields like "$type" will be ignored by default.
+            // 默认忽略类似 "$type" 的额外字段。
             return JsonConvert.DeserializeObject<SkillAssetDto>(json);
         }
     }
@@ -71,7 +71,7 @@ namespace AbilityKit.ActionSchema
                     {
                         if (clip == null) continue;
 
-                        // Only fire once.
+                        // 每个片段只触发一次。
                         var key = MakeClipKey(group, track, clip);
                         if (_fired.Contains(key)) continue;
 
@@ -86,7 +86,7 @@ namespace AbilityKit.ActionSchema
 
         private static string MakeClipKey(GroupDto group, TrackDto track, ClipDto clip)
         {
-            // Stable enough for runtime in-memory; avoids needing IDs.
+            // 对运行时内存态足够稳定，可避免额外依赖 ID。
             return (group.name ?? string.Empty) + "|" + (track.name ?? string.Empty) + "|" + (clip.type ?? string.Empty) + "|" + clip.start.ToString("R") + "|" + clip.length.ToString("R");
         }
 
@@ -94,7 +94,7 @@ namespace AbilityKit.ActionSchema
         {
             if (_sink == null) return;
 
-            // Current test case
+            // 当前测试用例。
             if (IsTriggerLog(clip.type))
             {
                 string msg = null;

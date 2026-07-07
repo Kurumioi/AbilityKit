@@ -218,7 +218,7 @@ namespace AbilityKit.Ability.World.DI
         {
             if (_resolveStack == null || _resolveStack.Count == 0) return "<empty>";
 
-            // Stack enumerates from top to bottom; reverse to show root -> leaf.
+            // Stack 默认从栈顶到栈底枚举；反转后按 root -> leaf 展示。
             var arr = _resolveStack.ToArray();
             if (arr == null || arr.Length == 0) return "<empty>";
 

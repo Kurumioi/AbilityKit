@@ -206,7 +206,7 @@ namespace AbilityKit.Combat.Projectile
                     continue;
                 }
 
-                // Return-to-launcher logic (server-authoritative).
+                // 返回发射者逻辑（服务器权威）。
                 if (!p.IsReturning && p.ReturnAfterFrames > 0 && frame - p.SpawnFrame >= p.ReturnAfterFrames)
                 {
                     p.IsReturning = true;
@@ -262,15 +262,15 @@ namespace AbilityKit.Combat.Projectile
                 var prev = p.Position;
                 var remaining = move;
 
-                // Within a single tick, allow multiple hits (pierce). Keep deterministic upper bound.
+                // 单帧内允许多次命中（穿透），同时保持确定性上限。
                 const int maxHitsPerStep = 8;
                 const float epsilonAdvance = 0.001f;
                 var hitCount = 0;
                 var origin = prev;
 
-                // Prevent duplicate hit callbacks against the same collider within the same frame.
-                // This keeps "return can hit same target multiple times" behavior across frames,
-                // while avoiding doubled triggers caused by multiple raycast steps inside one tick.
+                // 防止同一帧内对同一个碰撞体重复触发命中回调。
+                // 这样可保留“返回过程可跨帧多次命中同一目标”的行为，
+                // 同时避免单帧内多段射线检测造成重复触发。
                 var hitCollidersThisTick = new ColliderId[maxHitsPerStep];
                 var hitColliderCount = 0;
 
@@ -278,7 +278,7 @@ namespace AbilityKit.Combat.Projectile
                 {
                     if (!TryRaycastSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, p.IgnoreCollider, out var hit))
                     {
-                        // No hit in remaining segment.
+                        // 剩余线段内没有命中。
                         origin = origin + dir * remaining;
                         remaining = 0f;
                         break;
@@ -286,7 +286,7 @@ namespace AbilityKit.Combat.Projectile
 
                     var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0);
 
-                    // Hit filter + per-collider cooldown.
+                    // 命中过滤和按碰撞体冷却。
                     if (p.HitFilter != null && !p.HitFilter.ShouldHit(p.OwnerId, hit.Collider, frame))
                     {
                         origin = hit.Point + dir * epsilonAdvance;
@@ -361,13 +361,13 @@ namespace AbilityKit.Combat.Projectile
                         goto NextProjectile;
                     }
 
-                    // Continue after hit: advance to just past hit point.
+                    // 命中后继续推进到命中点之后。
                     origin = hit.Point + dir * epsilonAdvance;
                     remaining -= hit.Distance + epsilonAdvance;
                     hitCount++;
                     if (hitCount >= maxHitsPerStep || remaining <= 0f)
                     {
-                        // Avoid infinite loops; stop for this frame.
+                        // 避免无限循环，本帧停止处理。
                         remaining = 0f;
                         break;
                     }
@@ -376,7 +376,7 @@ namespace AbilityKit.Combat.Projectile
                 p.Position = origin;
                 p.LifetimeFramesLeft--;
 
-                // Periodic tick event (after movement).
+                // 移动后发送周期性 Tick 事件。
                 if (p.TickIntervalFrames > 0)
                 {
                     if (p.NextTickFrame <= 0) p.NextTickFrame = frame;
@@ -423,7 +423,7 @@ namespace AbilityKit.Combat.Projectile
 
         private bool TryRaycastSkippingIgnored(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId ignored, out RaycastHit hit)
         {
-            // Keep it deterministic and avoid infinite loops: fixed number of retries.
+            // 使用固定重试次数，保持确定性并避免无限循环。
             const int maxAttempts = 4;
             const float epsilonAdvance = 0.001f;
 
@@ -444,7 +444,7 @@ namespace AbilityKit.Combat.Projectile
                     return true;
                 }
 
-                // Skip ignored hit and try again from slightly past the hit point.
+                // 跳过被忽略的命中点，并从命中点稍后位置继续尝试。
                 o = hit.Point + dir * epsilonAdvance;
                 remaining -= hit.Distance + epsilonAdvance;
                 if (remaining <= 0f)

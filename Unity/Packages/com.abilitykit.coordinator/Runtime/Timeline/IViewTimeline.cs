@@ -3,156 +3,156 @@ using System;
 namespace AbilityKit.Coordinator.Timeline
 {
     /// <summary>
-    /// View Timeline Interface
+    /// 视图时间线接口。
     ///
-    /// Design:
-    /// - Manages entity interpolation states
-    /// - Provides frame-based rendering with smooth interpolation
-    /// - Supports frame seeking for replay
+    /// 设计：
+    /// - 管理实体插值状态。
+    /// - 基于帧提供平滑插值渲染。
+    /// - 支持回放时按帧跳转。
     /// </summary>
     public interface IViewTimeline : IDisposable
     {
-        // ============== Properties ==============
+        // ============== 属性 ==============
 
         /// <summary>
-        /// Current render time in seconds
+        /// 当前渲染时间，单位为秒。
         /// </summary>
         double RenderTimeSeconds { get; }
 
         /// <summary>
-        /// Interpolation delay (back time) in seconds
+        /// 插值延迟（回退时间），单位为秒。
         /// </summary>
         double InterpolationBackTimeSeconds { get; set; }
 
         /// <summary>
-        /// Is timeline active
+        /// 时间线是否处于激活状态。
         /// </summary>
         bool IsActive { get; }
 
-        // ============== Lifecycle ==============
+        // ============== 生命周期 ==============
 
         /// <summary>
-        /// Start the timeline
+        /// 启动时间线。
         /// </summary>
         void Start();
 
         /// <summary>
-        /// Stop the timeline
+        /// 停止时间线。
         /// </summary>
         void Stop();
 
         /// <summary>
-        /// Reset the timeline
+        /// 重置时间线。
         /// </summary>
         void Reset();
 
-        // ============== Entity State Management ==============
+        // ============== 实体状态管理 ==============
 
         /// <summary>
-        /// Add a position sample for an entity
+        /// 为实体添加位置采样。
         /// </summary>
         void AddPositionSample(int entityId, double time, float x, float y, float z);
 
         /// <summary>
-        /// Add a rotation sample for an entity
+        /// 为实体添加旋转采样。
         /// </summary>
         void AddRotationSample(int entityId, double time, float rotation);
 
         /// <summary>
-        /// Mark entity as dead
+        /// 标记实体是否死亡。
         /// </summary>
         void SetEntityDead(int entityId, bool isDead);
 
         /// <summary>
-        /// Remove entity state
+        /// 移除实体状态。
         /// </summary>
         void RemoveEntity(int entityId);
 
-        // ============== Interpolation Update ==============
+        // ============== 插值更新 ==============
 
         /// <summary>
-        /// Update interpolation (call every frame)
+        /// 更新插值（每帧调用）。
         /// </summary>
         void UpdateInterpolation(double renderTime);
 
-        // ============== Frame Seeking ==============
+        // ============== 帧跳转 ==============
 
         /// <summary>
-        /// Seek all entities to a specific frame
+        /// 将所有实体跳转到指定帧。
         /// </summary>
         void SeekToFrame(int frame, float secondsPerFrame);
 
-        // ============== State Query ==============
+        // ============== 状态查询 ==============
 
         /// <summary>
-        /// Get interpolated render position
+        /// 获取插值后的渲染位置。
         /// </summary>
         bool TryGetRenderPosition(int entityId, out float x, out float y, out float z);
 
         /// <summary>
-        /// Get interpolated render rotation
+        /// 获取插值后的渲染旋转。
         /// </summary>
         bool TryGetRenderRotation(int entityId, out float rotation);
 
         /// <summary>
-        /// Get current (confirmed) position
+        /// 获取当前（已确认）位置。
         /// </summary>
         bool TryGetCurrentPosition(int entityId, out float x, out float y, out float z);
     }
 
     /// <summary>
-    /// Entity Interpolation State
-    /// Stores position and rotation samples for interpolation
+    /// 实体插值状态。
+    /// 存储用于插值的位置和旋转采样。
     /// </summary>
     public class EntityInterpolationState
     {
         /// <summary>
-        /// Entity ID
+        /// 实体 ID。
         /// </summary>
         public int EntityId { get; set; }
 
         /// <summary>
-        /// Position sample buffer
+        /// 位置采样缓冲区。
         /// </summary>
         public IVectorSampleBuffer PositionBuffer { get; set; }
 
         /// <summary>
-        /// Rotation sample buffer
+        /// 旋转采样缓冲区。
         /// </summary>
         public ISampleBuffer RotationBuffer { get; set; }
 
         /// <summary>
-        /// Current (confirmed) position
+        /// 当前（已确认）位置。
         /// </summary>
         public float CurrentX { get; set; }
         public float CurrentY { get; set; }
         public float CurrentZ { get; set; }
 
         /// <summary>
-        /// Current (confirmed) rotation
+        /// 当前（已确认）旋转。
         /// </summary>
         public float CurrentRotation { get; set; }
 
         /// <summary>
-        /// Render (interpolated) position
+        /// 渲染（插值后）位置。
         /// </summary>
         public float RenderX { get; set; }
         public float RenderY { get; set; }
         public float RenderZ { get; set; }
 
         /// <summary>
-        /// Render (interpolated) rotation
+        /// 渲染（插值后）旋转。
         /// </summary>
         public float RenderRotation { get; set; }
 
         /// <summary>
-        /// Is entity dead
+        /// 实体是否死亡。
         /// </summary>
         public bool IsDead { get; set; }
     }
 
     /// <summary>
-    /// Sample Buffer Interface
+    /// 采样缓冲区接口。
     /// </summary>
     public interface ISampleBuffer
     {
@@ -163,7 +163,7 @@ namespace AbilityKit.Coordinator.Timeline
     }
 
     /// <summary>
-    /// Vector Sample Buffer Interface (for position)
+    /// 向量采样缓冲区接口（用于位置）。
     /// </summary>
     public interface IVectorSampleBuffer
     {

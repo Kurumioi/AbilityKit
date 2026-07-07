@@ -58,7 +58,8 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
                 Level: 1,
                 AttributeTemplateId: 0,
                 BasicAttackSkillId: 0,
-                SkillIds: null));
+                SkillIds: null,
+                PlayerId: (uint)index));
         }
 
         return players;

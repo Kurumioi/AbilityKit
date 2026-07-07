@@ -29,6 +29,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private ShooterTimeAnchorCoordinator? _timeAnchors;
         private long _droppedCatchUpTicks;
         private int _presentationSnapshotIntervalTicks = 1;
+        private bool _usePureStatePresentationSnapshots;
+        private ShooterPureStateSyncSettings _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
 
         public ShooterPlaySessionRunner(IShooterHostInputSource inputSource, IShooterHostViewSink viewSink)
         {
@@ -92,6 +94,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(_options.TickRate);
             _droppedCatchUpTicks = 0;
             _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options);
+            _usePureStatePresentationSnapshots = ShouldUsePureStatePresentationSnapshots(_options);
+            _presentationPureStateSettings = CreatePresentationPureStateSettings(_options);
             SessionChanged?.Invoke(_session);
             return _session;
         }
@@ -116,6 +120,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _timeAnchors = null;
             _droppedCatchUpTicks = 0;
             _presentationSnapshotIntervalTicks = 1;
+            _usePureStatePresentationSnapshots = false;
+            _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
             session.Dispose();
             _viewSink.Clear();
             SessionChanged?.Invoke(null);
@@ -192,9 +198,30 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             if (ShouldPublishPresentationSnapshot())
             {
-                var snapshot = _session.Runtime.GetSnapshot();
-                _session.Presentation.ApplyLocalAuthoritativeSnapshot(in snapshot);
+                PublishPresentationSnapshot();
             }
+        }
+
+        private void PublishPresentationSnapshot()
+        {
+            if (_session == null)
+            {
+                return;
+            }
+
+            if (_usePureStatePresentationSnapshots)
+            {
+                var snapshot = _session.Runtime.ExportPureStateSnapshot(
+                    worldId: 0,
+                    isFullBaseline: true,
+                    settings: _presentationPureStateSettings,
+                    computeStateHash: false);
+                _session.Presentation.ApplyPureStateSnapshot(in snapshot);
+                return;
+            }
+
+            var fullSnapshot = _session.Runtime.GetSnapshot();
+            _session.Presentation.ApplyLocalAuthoritativeSnapshot(in fullSnapshot);
         }
 
         private void RenderLatest()
@@ -254,6 +281,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             return 1;
+        }
+
+        private static bool ShouldUsePureStatePresentationSnapshots(ShooterPlayModeSessionOptions options)
+        {
+            return options.GameplayScenario.BattleFlow.MaxActiveEnemies >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget;
+        }
+
+        private static ShooterPureStateSyncSettings CreatePresentationPureStateSettings(ShooterPlayModeSessionOptions options)
+        {
+            var maxEntities = Math.Max(ShooterPureStateSyncSettings.Default.MaxEntityCount, options.GameplayScenario.BattleFlow.MaxActiveEnemies + options.PlayerCount + 1024);
+            return new ShooterPureStateSyncSettings(
+                maxEntities,
+                maxEntities,
+                Math.Max(1, options.TickRate),
+                1,
+                Math.Max(1, options.TickRate / 2),
+                1);
         }
 
         private static ShooterPlayModeSessionOptions AlignWithGameplayScenario(ShooterPlayModeSessionOptions options)

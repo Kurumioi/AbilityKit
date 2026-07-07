@@ -11,7 +11,10 @@ public sealed class ShooterRoomGatewayFlowTests
     [Fact]
     public async Task RoomGatewayFlowCreatesReadyStartsSubscribesAndBuildsBattleInputContext()
     {
-        var roomClient = new ScriptedShooterRoomClient();
+        var roomClient = new ScriptedShooterRoomClient
+        {
+            JoinCurrentPlayerId = 121u
+        };
         var flow = new ShooterRoomGatewayFlow(roomClient);
         var launchSpec = new ShooterRoomLaunchSpec(
             "local",
@@ -78,7 +81,7 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal(1001ul, result.NumericRoomId);
         Assert.Equal("battle-1", result.BattleId);
         Assert.Equal(9001ul, result.WorldId);
-        Assert.Equal(21u, result.PlayerId);
+        Assert.Equal(121u, result.PlayerId);
         Assert.True(result.CanStart);
         Assert.True(result.Started);
         Assert.True(result.Subscribed);
@@ -94,13 +97,16 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal("battle-1", inputContext.BattleId);
         Assert.Equal(9001ul, inputContext.WorldId);
         Assert.Equal(8, inputContext.Frame);
-        Assert.Equal(21u, inputContext.PlayerId);
+        Assert.Equal(121u, inputContext.PlayerId);
     }
 
     [Fact]
     public async Task RoomGatewayFlowJoinsExistingRoomWithoutCreate()
     {
-        var roomClient = new ScriptedShooterRoomClient();
+        var roomClient = new ScriptedShooterRoomClient
+        {
+            JoinCurrentPlayerId = 131u
+        };
         var flow = new ShooterRoomGatewayFlow(roomClient);
 
         var result = await flow.JoinReadyStartAndSubscribeAsync(
@@ -116,7 +122,7 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.Equal("subscribe:existing-room:battle-1", roomClient.Calls[3]);
         Assert.Equal("existing-room", result.RoomId);
         Assert.Equal("battle-1", result.BattleId);
-        Assert.Equal(31u, result.PlayerId);
+        Assert.Equal(131u, result.PlayerId);
         Assert.Equal(30, result.WorldStartAnchor.StartFrame);
         Assert.Equal(33, result.TargetFrame);
         Assert.Equal(ShooterRoomGatewayEntryKind.TeamLobby, result.EntryKind);
@@ -132,7 +138,8 @@ public sealed class ShooterRoomGatewayFlowTests
             JoinWorldId = 9101ul,
             JoinServerNowTicks = 1123456L,
             JoinWorldStartAnchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 18, 1d / 30d),
-            JoinCanStart = false
+            JoinCanStart = false,
+            JoinCurrentPlayerId = 141u
         };
         var flow = new ShooterRoomGatewayFlow(roomClient);
 
@@ -156,6 +163,7 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.False(result.CanStart);
         Assert.True(result.Started);
         Assert.True(result.Subscribed);
+        Assert.Equal(141u, result.PlayerId);
     }
 
     [Fact]
@@ -168,7 +176,8 @@ public sealed class ShooterRoomGatewayFlowTests
             JoinWorldId = 9201ul,
             JoinServerNowTicks = 2123456L,
             JoinWorldStartAnchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 24, 1d / 30d),
-            JoinCanStart = false
+            JoinCanStart = false,
+            JoinCurrentPlayerId = 142u
         };
         var flow = new ShooterRoomGatewayFlow(roomClient);
 
@@ -190,5 +199,6 @@ public sealed class ShooterRoomGatewayFlowTests
         Assert.False(result.CanStart);
         Assert.True(result.Started);
         Assert.True(result.Subscribed);
+        Assert.Equal(142u, result.PlayerId);
     }
 }

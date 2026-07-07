@@ -369,12 +369,12 @@ function Invoke-UnityEditModeStep {
         }
     }
 
-    $record.resultsFileExists = $hasResultsFile
-    $record.testRunnerStarted = $testRunnerStarted
-    $record.batchmodeQuitInvoked = $batchmodeQuitInvoked
-    $record.savedResultsPathFromLog = $savedResultsPathFromLog
-    $record.recoveredResultsFrom = $recoveredResultsFrom
-    $record.testPlatform = $testPlatform
+    $record | Add-Member -NotePropertyName resultsFileExists -NotePropertyValue $hasResultsFile -Force
+    $record | Add-Member -NotePropertyName testRunnerStarted -NotePropertyValue $testRunnerStarted -Force
+    $record | Add-Member -NotePropertyName batchmodeQuitInvoked -NotePropertyValue $batchmodeQuitInvoked -Force
+    $record | Add-Member -NotePropertyName savedResultsPathFromLog -NotePropertyValue $savedResultsPathFromLog -Force
+    $record | Add-Member -NotePropertyName recoveredResultsFrom -NotePropertyValue $recoveredResultsFrom -Force
+    $record | Add-Member -NotePropertyName testPlatform -NotePropertyValue $testPlatform -Force
     $record.failureReason = $failureReason
     $record.status = if ($null -eq $failureReason) { 'Passed' } else { 'Failed' }
 

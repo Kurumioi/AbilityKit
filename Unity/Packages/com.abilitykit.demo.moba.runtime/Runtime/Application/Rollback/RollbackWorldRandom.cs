@@ -29,7 +29,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             _seed = seed;
 
-            // SplitMix32-like scrambling to produce a non-zero internal state.
+            // 使用类似 SplitMix32 的扰动生成非零内部状态。
             unchecked
             {
                 uint x = (uint)seed;
@@ -55,7 +55,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         public float NextFloat01()
         {
-            // Use 24 bits to construct a float in [0, 1).
+            // 使用 24 位构造 [0, 1) 范围内的 float。
             var v = NextUInt();
             var mantissa = v & 0x00FFFFFFu;
             return mantissa / 16777216f;
@@ -63,7 +63,7 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         private uint NextUInt()
         {
-            // xorshift32
+            // xorshift32。
             unchecked
             {
                 var x = _state;

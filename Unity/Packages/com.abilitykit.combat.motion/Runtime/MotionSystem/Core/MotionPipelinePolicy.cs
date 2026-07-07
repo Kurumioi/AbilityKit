@@ -15,9 +15,9 @@ namespace AbilityKit.Combat.MotionSystem.Core
         public static MotionPipelinePolicy CreateDefault()
         {
             var p = new MotionPipelinePolicy();
-            // Active ability movement should own locomotion while it runs.
+            // 主动技能位移运行期间应接管常规移动。
             p.SetSuppressedGroups(MotionGroups.Ability, MotionGroups.Locomotion);
-            // Hard control displacements suppress active movement, but allow passive displacement sources to compose.
+            // 硬控位移会压制主动移动，但允许被动位移来源继续叠加。
             p.SetSuppressedGroups(MotionGroups.Control, MotionGroups.Locomotion, MotionGroups.Ability, MotionGroups.Path);
             return p;
         }

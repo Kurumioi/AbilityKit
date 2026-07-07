@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
         public int TemplateId { get; set; }
         public GameObject ModelGo { get; set; }
         public GameObject VfxGo { get; set; }
+        public GameObject RangeGo { get; set; }
 
         public void Destroy()
         {
@@ -15,6 +16,12 @@ namespace AbilityKit.Game.Flow
             {
                 Object.Destroy(ModelGo);
                 ModelGo = null;
+            }
+
+            if (RangeGo != null)
+            {
+                Object.Destroy(RangeGo);
+                RangeGo = null;
             }
 
             if (VfxGo != null)

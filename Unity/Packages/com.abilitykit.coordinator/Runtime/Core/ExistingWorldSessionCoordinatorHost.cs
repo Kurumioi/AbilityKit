@@ -12,7 +12,7 @@ namespace AbilityKit.Coordinator
     public delegate void SessionConfigConfigurator(ref SessionConfig config);
 
     /// <summary>
-    /// Adapts an already-created world to the SessionCoordinator host contract.
+    /// 将已创建的世界适配为 SessionCoordinator 主机契约。
     /// </summary>
     public sealed class ExistingWorldSessionCoordinatorHost : ISessionCoordinatorHost, ISessionCoordinatorConfigPolicy
     {

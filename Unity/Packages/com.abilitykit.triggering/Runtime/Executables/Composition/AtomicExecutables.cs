@@ -7,7 +7,7 @@ using AbilityKit.Triggering.Runtime.Context;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
-    /// 空行�?
+    /// 空操作行为。
     /// </summary>
     public sealed class NoOpExecutable : IAtomicExecutable, ISimpleExecutable
     {

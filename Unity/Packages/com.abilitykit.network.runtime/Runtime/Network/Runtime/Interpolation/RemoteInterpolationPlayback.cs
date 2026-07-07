@@ -5,13 +5,13 @@ using System;
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// Gameplay-agnostic orchestration for <see cref="NetworkSyncModel.AuthoritativeInterpolation"/>
-    /// style remote playback. It owns the <see cref="RemoteSnapshotBuffer{TSnapshot}"/> +
-    /// <see cref="InterpolationTimeline"/> pair and the extrapolation/starvation policy, so each demo
-    /// only has to: (1) decode an incoming push into a <typeparamref name="TSample"/> and feed it via
-    /// <see cref="Observe"/>, and (2) project + apply the sampled interpolation to its presentation.
+    /// 用于 <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 风格远端播放的玩法无关编排器。
+    /// 它持有 <see cref="RemoteSnapshotBuffer{TSnapshot}"/> 与 <see cref="InterpolationTimeline"/>，
+    /// 并管理外推/缺样策略，因此每个 Demo 只需要：
+    /// (1) 将传入推送解码为 <typeparamref name="TSample"/> 并通过 <see cref="Observe"/> 输入；
+    /// (2) 将采样得到的插值结果投影并应用到表现层。
     ///
-    /// Typical per-frame usage:
+    /// 典型逐帧用法：
     /// <code>
     /// playback.Advance(deltaSeconds);
     /// if (playback.TrySample(out var interpolation))
@@ -21,7 +21,7 @@ namespace AbilityKit.Network.Runtime
     /// }
     /// </code>
     /// </summary>
-    /// <typeparam name="TSample">The buffered remote snapshot sample type.</typeparam>
+    /// <typeparam name="TSample">已缓冲的远端快照样本类型。</typeparam>
     public sealed class RemoteInterpolationPlayback<TSample>
         where TSample : IRemoteSnapshotSample
     {
@@ -41,32 +41,30 @@ namespace AbilityKit.Network.Runtime
             _maxExtrapolationTicks = config.MaxExtrapolationTicks;
         }
 
-        /// <summary>Number of remote authoritative snapshots currently buffered for interpolation.</summary>
+        /// <summary>当前为插值缓冲的远端权威快照数量。</summary>
         public int BufferedSampleCount => _buffer.Count;
 
-        /// <summary>The current delayed remote playback time, in timeline ticks.</summary>
+        /// <summary>当前延迟后的远端播放时间，单位为时间线 tick。</summary>
         public long PlaybackTicks => _timeline.PlaybackTicks;
 
-        /// <summary>The current local estimate of authoritative server time, in timeline ticks.</summary>
+        /// <summary>当前本地权威服务器时间估计值，单位为时间线 tick。</summary>
         public long EstimatedServerTicks => _timeline.EstimatedServerTicks;
 
-        /// <summary>Whether at least one remote interpolation sample has been produced via <see cref="TrySample"/>.</summary>
+        /// <summary>是否已通过 <see cref="TrySample"/> 产出过至少一个远端插值样本。</summary>
         public bool HasPublished { get; private set; }
 
         /// <summary>
-        /// Whether the most recent <see cref="TrySample"/> found the delayed playback time running past
-        /// the newest buffered snapshot by more than <see cref="InterpolationConfig.MaxExtrapolationTicks"/>.
-        /// Indicates the buffer is starved (e.g. snapshots stopped arriving) and playback is holding the
-        /// last authoritative pose rather than extrapolating further.
+        /// 最近一次 <see cref="TrySample"/> 是否发现延迟播放时间已经超过最新缓冲快照，
+        /// 且超出距离大于 <see cref="InterpolationConfig.MaxExtrapolationTicks"/>。
+        /// 这表示缓冲区缺样（例如快照停止到达），播放会停留在最后一个权威姿态，而不是继续外推。
         /// </summary>
         public bool IsStarved { get; private set; }
 
         /// <summary>
-        /// Buffers a decoded remote authoritative sample and folds its server time into the timeline.
-        /// Stale/duplicate samples (timeline value not strictly ahead of the newest buffered sample) are
-        /// rejected and do not advance the timeline.
+        /// 缓冲已解码的远端权威样本，并将其服务器时间合入时间线。
+        /// 过期或重复样本（时间线值未严格晚于最新已缓冲样本）会被拒绝，且不会推进时间线。
         /// </summary>
-        /// <returns><c>true</c> when the sample was accepted, <c>false</c> when it was stale/duplicate.</returns>
+        /// <returns>样本被接受时返回 <c>true</c>；样本过期或重复时返回 <c>false</c>。</returns>
         public bool Observe(TSample sample)
         {
             if (!_buffer.TryAdd(sample))
@@ -78,22 +76,19 @@ namespace AbilityKit.Network.Runtime
             return true;
         }
 
-        /// <summary>Advances the delayed playback timeline by a frame delta.</summary>
+        /// <summary>按帧增量推进延迟播放时间线。</summary>
         public void Advance(float deltaSeconds)
         {
             _timeline.Advance(deltaSeconds);
         }
 
         /// <summary>
-        /// Samples the buffer at the current delayed playback time. Returns <c>false</c> until at least
-        /// one authoritative time has been observed and the buffer is non-empty. On success it updates
-        /// <see cref="IsStarved"/> (per the extrapolation policy) and marks <see cref="HasPublished"/>.
+        /// 在当前延迟播放时间上采样缓冲区。至少观测到一个权威时间且缓冲区非空之前返回 <c>false</c>。
+        /// 成功时会按外推策略更新 <see cref="IsStarved"/>，并标记 <see cref="HasPublished"/>。
         ///
-        /// Extrapolation policy: when the delayed playback time runs past the newest buffered snapshot
-        /// the buffer is starved. Remote poses are deliberately not extrapolated forward (that would
-        /// invent unauthoritative motion); the returned interpolation holds the newest sample. Once the
-        /// gap exceeds the configured tolerance the playback is additionally flagged as starved so
-        /// callers can react (e.g. surface a connection-quality hint).
+        /// 外推策略：当延迟播放时间超过最新已缓冲快照时，缓冲区处于缺样状态。
+        /// 远端姿态不会被刻意向前外推（那会制造非权威运动）；返回的插值结果会停留在最新样本上。
+        /// 一旦间隔超过配置容忍值，播放还会被标记为缺样，供调用方响应（例如显示连接质量提示）。
         /// </summary>
         public bool TrySample(out RemoteSnapshotInterpolation<TSample> interpolation)
         {
@@ -113,7 +108,7 @@ namespace AbilityKit.Network.Runtime
             return true;
         }
 
-        /// <summary>Captures the current interpolation playback health for diagnostics / smoke output.</summary>
+        /// <summary>捕获当前插值播放健康状态，用于诊断或冒烟输出。</summary>
         public InterpolationDiagnostics GetDiagnostics()
         {
             return new InterpolationDiagnostics(
@@ -124,7 +119,7 @@ namespace AbilityKit.Network.Runtime
                 isRemotePlaybackStarved: IsStarved);
         }
 
-        /// <summary>Clears the buffer and resets the timeline and playback flags.</summary>
+        /// <summary>清空缓冲区，并重置时间线和播放标志。</summary>
         public void Reset()
         {
             _buffer.Clear();

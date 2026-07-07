@@ -7,8 +7,8 @@ using AbilityKit.Demo.Moba.Share;
 namespace ET.Logic
 {
     /// <summary>
-    /// Coordinates the demo scene flow between login and the local MOBA battle scene.
-    /// The process explicitly prepares room state, player loadouts, battle runtime, and demo/smoke automation.
+    /// 协调登录场景与本地 MOBA 战斗场景之间的 Demo 流程。
+    /// 该流程会显式准备房间状态、玩家配置、战斗运行时以及 Demo/冒烟自动化。
     /// </summary>
     [EntitySystemOf(typeof(DemoProcessComponent))]
     [FriendOf(typeof(DemoProcessComponent))]
@@ -26,7 +26,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// Switches to the login scene.
+        /// 切换到登录场景。
         /// </summary>
         public static async ETTask ChangeToLoginScene(this DemoProcessComponent self)
         {
@@ -39,14 +39,14 @@ namespace ET.Logic
 
             DisposeActiveChildScenes(root);
 
-            // Create login scene.
+            // 创建登录场景。
             var loginScene = EntitySceneFactory.CreateScene(root,
                 IdGenerater.Instance.GenerateId(),
                 IdGenerater.Instance.GenerateInstanceId(),
                 SceneType.DemoLogin,
                 "DemoLogin");
 
-            // Attach login component.
+            // 挂载登录组件。
             self.LoginComponent = loginScene.AddComponent<DemoLoginComponent>();
             Log.Info($"[DemoProcess] Created DemoLoginComponent: {self.LoginComponent.Id}");
 
@@ -65,7 +65,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// Switches to the battle scene and prepares the local room state before starting runtime world initialization.
+        /// 切换到战斗场景，并在启动运行时世界初始化前准备本地房间状态。
         /// </summary>
         public static async ETTask ChangeToBattleScene(this DemoProcessComponent self, long playerId, string playerName)
         {
@@ -78,20 +78,20 @@ namespace ET.Logic
 
             DisposeActiveChildScenes(root);
 
-            // Create battle scene.
+            // 创建战斗场景。
             var battleScene = EntitySceneFactory.CreateScene(root,
                 IdGenerater.Instance.GenerateId(),
                 IdGenerater.Instance.GenerateInstanceId(),
                 SceneType.DemoBattle,
                 "DemoBattle");
 
-            // ========== Step 1: Create config loader ==========
+            // ========== 步骤 1：创建配置加载器 ==========
             var textAssetLoader = new ETTextAssetLoader();
 
-            // ========== Step 2: Create room component ==========
+            // ========== 步骤 2：创建房间组件 ==========
             var roomComponent = battleScene.AddComponent<ETMobaRoomComponent>();
 
-            // ========== Step 3: Initialize room ==========
+            // ========== 步骤 3：初始化房间 ==========
             var scenarioConfig = self.GetScenarioConfig();
             string matchId = scenarioConfig.CreateMatchId(playerId);
 
@@ -106,17 +106,17 @@ namespace ET.Logic
                 scenarioConfig.MinPlayers);
             Log.Info($"[DemoProcess] Room initialized: MatchId={matchId}, MaxPlayers={scenarioConfig.MaxPlayers}");
 
-            // ========== Step 4: Prepare local demo players and loadouts ==========
-            // Production multiplayer flows should provide these values through room synchronization.
+            // ========== 步骤 4：准备本地 Demo 玩家和配置 ==========
+            // 生产环境的多人流程应通过房间同步提供这些值。
             ETLocalMobaScenarioInitializer.SetupRoom(roomComponent, scenarioConfig);
 
             var roomPlayers = roomComponent.GetPlayers();
             var playerSpawnList = PlayerSpawnBuilder.BuildSpawnListFromRoomPlayers(roomPlayers, roomComponent.LocalPlayerId, scenarioConfig.SpawnLayout, scenarioConfig.LocalTeamId);
 
-            // ========== Step 5: Create battle component ==========
+            // ========== 步骤 5：创建战斗组件 ==========
             var battleComponent = battleScene.AddComponent<ETBattleComponent>();
 
-            // Create battle start plan.
+            // 创建战斗启动计划。
             var plan = new BattleStartPlan(
                 mapId: scenarioConfig.MapId,
                 worldId: scenarioConfig.WorldId,
@@ -133,27 +133,27 @@ namespace ET.Logic
                 inputDelayFrames: scenarioConfig.InputDelayFrames,
                 gameplayId: scenarioConfig.GameplayId);
 
-            // Initialize the formal battle runtime. Demo/smoke automation is installed explicitly below.
+            // 初始化正式战斗运行时。Demo/冒烟自动化会在下方显式安装。
             battleComponent.AutomationOptions = scenarioConfig.AutomationOptions ?? ETBattleAutomationOptions.CreateDisabled();
             battleComponent.InitializeBattle(plan, textAssetLoader, playerSpawnList);
             ETBattleAutomationInstaller.Install(battleScene, battleComponent.AutomationOptions);
 
-            // ========== Step 6: Create view event sink ==========
-            // ETViewEventSink bridges AbilityKit events into the ET event system.
+            // ========== 步骤 6：创建视图事件接收器 ==========
+            // ETViewEventSink 将 AbilityKit 事件桥接到 ET 事件系统。
             var viewSink = new ETViewEventSink(battleScene);
             battleComponent.ViewSink = viewSink;
 
             Log.Info($"[DemoProcess] View event sink created");
 
-            // ========== Step 7: Bind room-ready event ==========
+            // ========== 步骤 7：绑定房间就绪事件 ==========
             roomComponent.OnAllPlayersReady += () =>
             {
                 Log.Info($"[DemoProcess] All players ready! Starting battle...");
                 TriggerBattleStart(battleComponent, roomComponent, scenarioConfig);
             };
 
-            // ========== Step 8: Start immediately when the local room is already ready ==========
-            // Local scenario setup is completed before world initialization; the ready event may already have fired.
+            // ========== 步骤 8：本地房间已就绪时立即启动 ==========
+            // 本地场景设置会在世界初始化前完成，就绪事件可能已经触发。
             if (roomComponent.CanStartBattle)
             {
                 TriggerBattleStart(battleComponent, roomComponent, scenarioConfig);
@@ -207,7 +207,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// Starts the battle using the latest room player state.
+        /// 使用最新房间玩家状态启动战斗。
         /// </summary>
         private static void TriggerBattleStart(ETBattleComponent battleComponent, ETMobaRoomComponent roomComponent, ETLocalMobaScenarioConfig scenarioConfig)
         {
@@ -224,7 +224,7 @@ namespace ET.Logic
             Log.Info($"[DemoProcess] ========== TriggerBattleStart ==========");
             Log.Info($"[DemoProcess] Players count: {players.Length}");
 
-            // Resolve ET battle host.
+            // 解析 ET 战斗宿主。
             var battleHost = battleComponent.BattleHost;
             if (battleHost == null)
             {
@@ -232,7 +232,7 @@ namespace ET.Logic
                 return;
             }
 
-            // Rebuild spawn data from the current room state.
+            // 根据当前房间状态重建出生数据。
             var playerSpawnList = PlayerSpawnBuilder.BuildSpawnListFromRoomPlayers(players, roomComponent.LocalPlayerId, scenarioConfig.SpawnLayout, scenarioConfig.LocalTeamId);
 
             Log.Info($"[DemoProcess] Calling battleHost.OnAllPlayersReady with {playerSpawnList.Count} players");

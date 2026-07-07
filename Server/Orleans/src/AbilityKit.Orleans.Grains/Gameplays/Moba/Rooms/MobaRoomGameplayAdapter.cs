@@ -100,7 +100,8 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
                 slot.Level,
                 slot.AttributeTemplateId,
                 slot.BasicAttackSkillId,
-                slot.SkillIds == null ? null : slot.SkillIds.ToList()));
+                slot.SkillIds == null ? null : slot.SkillIds.ToList(),
+                (uint)(players.Count + 1)));
         }
 
         return players;

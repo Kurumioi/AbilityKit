@@ -5,124 +5,124 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Session configuration
+    /// 会话配置。
     /// </summary>
     public struct SessionConfig
     {
-        // ============== Identity ==============
+        // ============== 标识 ==============
 
         /// <summary>
-        /// Session identifier
+        /// 会话标识。
         /// </summary>
         public SessionId SessionId;
 
         /// <summary>
-        /// Map or level identifier
+        /// 地图或关卡标识。
         /// </summary>
         public int MapId;
 
         /// <summary>
-        /// World identifier
+        /// 世界标识。
         /// </summary>
         public int WorldId;
 
         /// <summary>
-        /// World blueprint type (e.g. moba "battle")
+        /// 世界蓝图类型（例如 moba 的 "battle"）。
         /// </summary>
         public string WorldType;
 
-        // ============== Player ==============
+        // ============== 玩家 ==============
 
         /// <summary>
-        /// Local player identifier
+        /// 本地玩家标识。
         /// </summary>
         public int LocalPlayerId;
 
         /// <summary>
-        /// Client identifier
+        /// 客户端标识。
         /// </summary>
         public int ClientId;
 
-        // ============== Sync Mode ==============
+        // ============== 同步模式 ==============
 
         /// <summary>
-        /// Synchronization mode
+        /// 同步模式。
         /// </summary>
         public SyncMode SyncMode;
 
         /// <summary>
-        /// Host mode
+        /// 主机模式。
         /// </summary>
         public HostMode HostMode;
 
         /// <summary>
-        /// Target frame rate (frames per second)
+        /// 目标帧率（每秒帧数）。
         /// </summary>
         public int TickRate;
 
-        // ============== Features ==============
+        // ============== 功能 ==============
 
         /// <summary>
-        /// Require an ILogicWorldDriveGate before the coordinator or local sync adapter can drive the logic world.
+        /// 要求协调器或本地同步适配器驱动逻辑世界前必须存在 ILogicWorldDriveGate。
         /// </summary>
         public bool RequireLogicWorldDriveGate;
 
         /// <summary>
-        /// Create player spawns through ISpawnService when the coordinator starts.
+        /// 协调器启动时通过 ISpawnService 创建玩家生成点。
         /// </summary>
         public bool UseCoordinatorSpawnService;
 
         /// <summary>
-        /// Enable replay recording
+        /// 启用回放录制。
         /// </summary>
         public bool EnableReplayRecording;
 
         /// <summary>
-        /// Enable replay playback
+        /// 启用回放播放。
         /// </summary>
         public bool EnableReplayPlayback;
 
         /// <summary>
-        /// Enable client-side prediction
+        /// 启用客户端预测。
         /// </summary>
         public bool EnableClientPrediction;
 
         /// <summary>
-        /// Maximum prediction ahead frames
+        /// 最大预测超前帧数。
         /// </summary>
         public int MaxPredictionAheadFrames;
 
-        // ============== Network ==============
+        // ============== 网络 ==============
 
         /// <summary>
-        /// Server endpoint for remote connections
+        /// 远程连接使用的服务器端点。
         /// </summary>
         public NetworkEndpoint ServerEndpoint;
 
         /// <summary>
-        /// Room identifier
+        /// 房间标识。
         /// </summary>
         public long RoomId;
 
-        // ============== SubFeature Config ==============
+        // ============== 子功能配置 ==============
 
         /// <summary>
-        /// SubFeature configuration list
+        /// 子功能配置列表。
         /// </summary>
         public List<SubFeatureConfigItem> SubFeatures;
 
         /// <summary>
-        /// Resolve the effective runtime policy from user-facing session options.
+        /// 根据面向用户的会话选项解析实际运行时策略。
         /// </summary>
         public SessionRuntimePolicy ResolveRuntimePolicy()
         {
             return SessionRuntimePolicy.FromConfig(in this);
         }
 
-        // ============== Factory Methods ==============
+        // ============== 工厂方法 ==============
 
         /// <summary>
-        /// Default configuration with 30 FPS tick rate
+        /// 默认配置，Tick 率为 30 FPS。
         /// </summary>
         public static SessionConfig Default => new SessionConfig
         {
@@ -141,7 +141,7 @@ namespace AbilityKit.Coordinator
         };
 
         /// <summary>
-        /// Create local single-player configuration
+        /// 创建本地单人配置。
         /// </summary>
         public static SessionConfig CreateLocal(int playerId, int mapId = 1, int tickRate = 30)
         {
@@ -166,7 +166,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create state sync configuration for client
+        /// 创建客户端状态同步配置。
         /// </summary>
         public static SessionConfig CreateStateSyncClient(int playerId, string serverHost, int serverPort, long roomId = 0)
         {
@@ -190,7 +190,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create hybrid multiplayer configuration (client prediction)
+        /// 创建混合多人配置（客户端预测）。
         /// </summary>
         public static SessionConfig CreateHybrid(int playerId, string serverHost, int serverPort, long roomId = 0)
         {
@@ -214,7 +214,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create host configuration (for LAN multiplayer)
+        /// 创建主机配置（用于局域网多人）。
         /// </summary>
         public static SessionConfig CreateHost(int playerId, int mapId = 1, int tickRate = 30)
         {
@@ -240,7 +240,7 @@ namespace AbilityKit.Coordinator
     }
 
     /// <summary>
-    /// Effective runtime policy derived from SessionConfig.
+    /// 从 SessionConfig 派生出的实际运行时策略。
     /// </summary>
     public readonly struct SessionRuntimePolicy
     {
@@ -298,22 +298,22 @@ namespace AbilityKit.Coordinator
     }
 
     /// <summary>
-    /// SubFeature configuration item
+    /// 子功能配置项。
     /// </summary>
     public struct SubFeatureConfigItem
     {
         /// <summary>
-        /// SubFeature type name
+        /// 子功能类型名称。
         /// </summary>
         public string TypeName;
 
         /// <summary>
-        /// Is enabled
+        /// 是否启用。
         /// </summary>
         public bool Enabled;
 
         /// <summary>
-        /// Configuration data (JSON serialized)
+        /// 配置数据（JSON 序列化）。
         /// </summary>
         public string ConfigJson;
 

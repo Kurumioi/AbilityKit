@@ -92,7 +92,7 @@
     "Category": 3,
     "SkillType": 2,
     "Tags": [301],
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 2,
     "LevelTableId": 10030101,
     "PreCastFlowId": 0,
     "CastFlowId": 10030101
@@ -134,7 +134,7 @@
     "Category": 4,
     "SkillType": 2,
     "Tags": [401],
-    "SkillButtonTemplateId": 1,
+    "SkillButtonTemplateId": 2,
     "LevelTableId": 10040101,
     "PreCastFlowId": 0,
     "CastFlowId": 10040101
@@ -162,7 +162,7 @@
     "Category": 4,
     "SkillType": 4,
     "Tags": [403],
-    "SkillButtonTemplateId": 3,
+    "SkillButtonTemplateId": 1,
     "LevelTableId": 10040301,
     "PreCastFlowId": 0,
     "CastFlowId": 10040301

@@ -5,18 +5,18 @@ using AbilityKit.Ability.World.Abstractions;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Hybrid Sync Adapter (Client Prediction Mode)
+    /// 混合同步适配器（客户端预测模式）。
     ///
-    /// Design:
-    /// - Client runs prediction locally
-    /// - Inputs are sent to server
-    /// - Server validates and sends corrections
-    /// - Client reconciles prediction with server state
+    /// 设计：
+    /// - 客户端在本地执行预测。
+    /// - 输入发送到服务端。
+    /// - 服务端校验并发送校正。
+    /// - 客户端根据服务端状态校正预测结果。
     ///
-    /// Use Case:
-    /// - Online multiplayer with client-side prediction
-    /// - Reduced perceived latency
-    /// - Server is still authoritative
+    /// 适用场景：
+    /// - 带客户端预测的在线多人玩法。
+    /// - 降低感知延迟。
+    /// - 服务端仍保持权威。
     /// </summary>
     public sealed class HybridSyncAdapter : IPredictionSyncAdapter
     {
@@ -34,19 +34,19 @@ namespace AbilityKit.Coordinator
         private long _roomId;
         private long _playerId;
 
-        // Input buffer for prediction
+        // 用于预测的输入缓冲区。
         private readonly Queue<PlayerInput> _inputBuffer = new();
 
-        // Prediction state
+        // 预测状态。
         private int _lastConfirmedFrame;
         private int _predictedFrame;
         private readonly List<SnapshotEntityState> _confirmedSnapshot = new();
 
-        // Reconciliation
+        // 校正状态。
         private bool _needsReconciliation;
         private SnapshotEntityState[] _serverCorrection;
 
-        // ============== ISyncAdapter Implementation ==============
+        // ============== ISyncAdapter 实现 ==============
 
         public Core.SyncMode Mode => Core.SyncMode.Hybrid;
 
@@ -58,17 +58,17 @@ namespace AbilityKit.Coordinator
 
         public int LocalPlayerId => _localPlayerId;
 
-        // ============== IRemoteSyncAdapter Implementation ==============
+        // ============== IRemoteSyncAdapter 实现 ==============
 
         public bool IsConnected => _transport?.IsConnected == true;
 
-        // ============== IPredictionSyncAdapter Implementation ==============
+        // ============== IPredictionSyncAdapter 实现 ==============
 
         public bool IsPredictionEnabled => _predictionEnabled;
 
         public int PredictionAheadFrames => _predictionEnabled ? _runtimePolicy.MaxPredictionAheadFrames : 0;
 
-        // ============== Events ==============
+        // ============== 事件 ==============
 
         public event Action<int, double> OnFrameSync;
         public event Action<bool> OnConnectionChanged;
@@ -104,7 +104,7 @@ namespace AbilityKit.Coordinator
             _driverHost = driverHost;
         }
 
-        // ============== IPredictionSyncAdapter Methods ==============
+        // ============== IPredictionSyncAdapter 方法 ==============
 
         public void SetPredictionEnabled(bool enabled)
         {
@@ -124,7 +124,7 @@ namespace AbilityKit.Coordinator
             }
         }
 
-        // ============== IRemoteSyncAdapter Methods ==============
+        // ============== IRemoteSyncAdapter 方法 ==============
 
         public void Connect(NetworkEndpoint endpoint, long roomId, long playerId)
         {
@@ -146,7 +146,7 @@ namespace AbilityKit.Coordinator
             _inputBuffer.Clear();
         }
 
-        // ============== Input Handling ==============
+        // ============== 输入处理 ==============
 
         public void SubmitInput(PlayerInput input)
         {
@@ -155,25 +155,25 @@ namespace AbilityKit.Coordinator
                 _inputBuffer.Enqueue(input);
             }
 
-            // Local prediction
+            // 本地预测。
             if (_predictionEnabled)
             {
                 _predictedFrame++;
-                // TODO: Apply input to local prediction state
+                // TODO: 将输入应用到本地预测状态。
             }
 
-            // Send to server
+            // 发送到服务端。
             if (_transport?.IsConnected == true)
             {
                 _transport.SubmitInput(input);
             }
         }
 
-        // ============== Tick ==============
+        // ============== 帧更新 ==============
 
         public void Tick(float deltaTime)
         {
-            // Update render time
+            // 更新渲染时间。
             _renderTime += deltaTime;
 
             _transport?.Tick(deltaTime);
@@ -181,13 +181,13 @@ namespace AbilityKit.Coordinator
             if (_transport?.IsConnected != true)
                 return;
 
-            // Process local prediction
+            // 处理本地预测。
             if (_predictionEnabled)
             {
-                // TODO: Run local simulation for prediction
+                // TODO: 为预测执行本地模拟。
             }
 
-            // Check for reconciliation
+            // 检查是否需要校正。
             if (_needsReconciliation)
             {
                 Reconcile();
@@ -199,13 +199,13 @@ namespace AbilityKit.Coordinator
             if (_serverCorrection == null || _coordinator == null)
                 return;
 
-            // Find and correct discrepancies
+            // 查找并校正差异。
             foreach (var serverState in _serverCorrection)
             {
                 if (serverState.EntityId == _localPlayerId)
                 {
-                    // Local player state - check for desync.
-                    // TODO: Compare with predicted state and correct if needed.
+                    // 本地玩家状态，检查是否不同步。
+                    // TODO: 与预测状态比较，并在需要时校正。
                     _lastConfirmedFrame = _predictedFrame;
                     break;
                 }
@@ -216,7 +216,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Feed server confirmation (called by network handler).
+        /// 写入服务端确认（由网络处理器调用）。
         /// </summary>
         public void FeedServerConfirmation(int serverFrame, SnapshotEntityState[] states)
         {
@@ -237,7 +237,7 @@ namespace AbilityKit.Coordinator
                 return _confirmedSnapshot.ToArray();
             }
 
-            // TODO: Return predicted snapshot when prediction is implemented.
+            // TODO: 预测实现后返回预测快照。
             return _confirmedSnapshot.ToArray();
         }
 

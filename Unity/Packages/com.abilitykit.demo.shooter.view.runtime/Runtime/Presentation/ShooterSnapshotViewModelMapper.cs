@@ -29,6 +29,9 @@ namespace AbilityKit.Demo.Shooter.View
         private List<ShooterEventSnapshot>? _events;
         private HashSet<ShooterViewEntityKey> _localAuthoritativePreviousLiveEntities = new HashSet<ShooterViewEntityKey>();
         private HashSet<ShooterViewEntityKey> _localAuthoritativeCurrentLiveEntities = new HashSet<ShooterViewEntityKey>();
+        private readonly Dictionary<ShooterViewEntityKey, int> _localAuthoritativeHealth = new Dictionary<ShooterViewEntityKey, int>();
+        private readonly Dictionary<ShooterViewEntityKey, int> _localAuthoritativeScore = new Dictionary<ShooterViewEntityKey, int>();
+        private readonly Dictionary<ShooterViewEntityKey, int> _localAuthoritativeProjectileLifetime = new Dictionary<ShooterViewEntityKey, int>();
         private ulong _nextSequence;
 
         public ShooterSnapshotViewBatch Map(in ShooterStateSnapshotPayload snapshot)
@@ -52,11 +55,11 @@ namespace AbilityKit.Demo.Shooter.View
                 {
                     var player = snapshot.Players[i];
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, player.PlayerId);
-                    AddEntity(key, 0, player.Alive);
+                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, player.Alive);
                     TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, player.Alive);
                     AddTransform(key, player.X, player.Y, player.AimX, player.AimY, 0f, 0f);
-                    AddHealth(key, player.Hp);
-                    AddScore(key, player.Score);
+                    AddHealthIfChanged(trackLocalAuthoritativeEntities, key, player.Hp);
+                    AddScoreIfChanged(trackLocalAuthoritativeEntities, key, player.Score);
                 }
             }
 
@@ -67,10 +70,10 @@ namespace AbilityKit.Demo.Shooter.View
                     var bullet = snapshot.Bullets[i];
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, bullet.BulletId);
                     var alive = bullet.RemainingFrames > 0;
-                    AddEntity(key, bullet.OwnerPlayerId, alive);
+                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, bullet.OwnerPlayerId, alive);
                     TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, alive);
                     AddTransform(key, bullet.X, bullet.Y, bullet.VelocityX, bullet.VelocityY, bullet.VelocityX, bullet.VelocityY);
-                    AddProjectileLifetime(key, bullet.RemainingFrames);
+                    AddProjectileLifetimeIfChanged(trackLocalAuthoritativeEntities, key, bullet.RemainingFrames);
                 }
             }
 
@@ -80,10 +83,10 @@ namespace AbilityKit.Demo.Shooter.View
                 {
                     var enemy = snapshot.Enemies[i];
                     var key = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, enemy.EnemyId);
-                    AddEntity(key, 0, enemy.Alive);
+                    AddEntityIfNeeded(trackLocalAuthoritativeEntities, key, 0, enemy.Alive);
                     TrackLocalAuthoritativeLiveEntity(trackLocalAuthoritativeEntities, key, enemy.Alive);
                     AddTransform(key, enemy.X, enemy.Y, enemy.FacingX, enemy.FacingY, 0f, 0f);
-                    AddHealth(key, enemy.Hp);
+                    AddHealthIfChanged(trackLocalAuthoritativeEntities, key, enemy.Hp);
                 }
             }
 
@@ -378,6 +381,9 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _localAuthoritativePreviousLiveEntities.Clear();
             _localAuthoritativeCurrentLiveEntities.Clear();
+            _localAuthoritativeHealth.Clear();
+            _localAuthoritativeScore.Clear();
+            _localAuthoritativeProjectileLifetime.Clear();
         }
 
         private void BeginSnapshot()
@@ -396,6 +402,19 @@ namespace AbilityKit.Demo.Shooter.View
             _entityChanges!.Add(new ShooterViewEntityChange(key, ownerEntityId, alive));
         }
 
+        private void AddEntityIfNeeded(bool localAuthoritativeDelta, ShooterViewEntityKey key, int ownerEntityId, bool alive)
+        {
+            if (!localAuthoritativeDelta || !alive || !_localAuthoritativePreviousLiveEntities.Contains(key))
+            {
+                AddEntity(key, ownerEntityId, alive);
+            }
+
+            if (localAuthoritativeDelta && !alive)
+            {
+                RemoveTrackedLocalAuthoritativeComponents(key);
+            }
+        }
+
         private void TrackLocalAuthoritativeLiveEntity(bool enabled, ShooterViewEntityKey key, bool alive)
         {
             if (enabled && alive)
@@ -411,6 +430,7 @@ namespace AbilityKit.Demo.Shooter.View
                 if (!_localAuthoritativeCurrentLiveEntities.Contains(key))
                 {
                     RemoveEntity(key);
+                    RemoveTrackedLocalAuthoritativeComponents(key);
                 }
             }
 
@@ -441,14 +461,69 @@ namespace AbilityKit.Demo.Shooter.View
             _healthChanges!.Add(new ShooterViewHealthComponentChange(key, hp));
         }
 
+        private void AddHealthIfChanged(bool localAuthoritativeDelta, ShooterViewEntityKey key, int hp)
+        {
+            if (!localAuthoritativeDelta)
+            {
+                AddHealth(key, hp);
+                return;
+            }
+
+            if (!_localAuthoritativeHealth.TryGetValue(key, out var previous) || previous != hp)
+            {
+                AddHealth(key, hp);
+            }
+
+            _localAuthoritativeHealth[key] = hp;
+        }
+
         private void AddScore(ShooterViewEntityKey key, int score)
         {
             _scoreChanges!.Add(new ShooterViewScoreComponentChange(key, score));
         }
 
+        private void AddScoreIfChanged(bool localAuthoritativeDelta, ShooterViewEntityKey key, int score)
+        {
+            if (!localAuthoritativeDelta)
+            {
+                AddScore(key, score);
+                return;
+            }
+
+            if (!_localAuthoritativeScore.TryGetValue(key, out var previous) || previous != score)
+            {
+                AddScore(key, score);
+            }
+
+            _localAuthoritativeScore[key] = score;
+        }
+
         private void AddProjectileLifetime(ShooterViewEntityKey key, int remainingFrames)
         {
             _projectileLifetimeChanges!.Add(new ShooterViewProjectileLifetimeComponentChange(key, remainingFrames));
+        }
+
+        private void AddProjectileLifetimeIfChanged(bool localAuthoritativeDelta, ShooterViewEntityKey key, int remainingFrames)
+        {
+            if (!localAuthoritativeDelta)
+            {
+                AddProjectileLifetime(key, remainingFrames);
+                return;
+            }
+
+            if (!_localAuthoritativeProjectileLifetime.TryGetValue(key, out var previous) || previous != remainingFrames)
+            {
+                AddProjectileLifetime(key, remainingFrames);
+            }
+
+            _localAuthoritativeProjectileLifetime[key] = remainingFrames;
+        }
+
+        private void RemoveTrackedLocalAuthoritativeComponents(ShooterViewEntityKey key)
+        {
+            _localAuthoritativeHealth.Remove(key);
+            _localAuthoritativeScore.Remove(key);
+            _localAuthoritativeProjectileLifetime.Remove(key);
         }
 
         private ShooterSnapshotViewBatch CompleteSnapshot(

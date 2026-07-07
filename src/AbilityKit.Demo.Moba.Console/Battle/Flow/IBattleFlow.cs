@@ -64,12 +64,12 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
         Action<string> PhaseEntered { get; set; }
 
         /// <summary>
-        /// 阶段退出事�?
+        /// 阶段退出事件。
         /// </summary>
         Action<string> PhaseExited { get; set; }
 
         /// <summary>
-        /// 战斗开始事�?
+        /// 战斗开始事件。
         /// </summary>
         Action BattleStarted { get; set; }
 

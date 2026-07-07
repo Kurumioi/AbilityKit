@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                go = _primitives.CreateActorFallback();
+                go = _primitives.CreateActorFallback(actorId, modelId);
             }
 
             go.name = $"Actor_{actorId}";
@@ -42,7 +42,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateAoeModel(MobaConfigDatabase configs, int modelId)
         {
-            if (modelId <= 0) return null;
+            if (modelId <= 0) return _primitives.CreateAoeModelFallback();
 
             var model = _prefabs.Resolve(configs, modelId);
 
@@ -57,6 +57,13 @@ namespace AbilityKit.Game.Flow
             }
 
             go.name = $"AoeModel_{modelId}";
+            return go;
+        }
+
+        public GameObject CreateAoeRange(int templateId, float radius, int delayMs)
+        {
+            var go = _primitives.CreateAoeRangeFallback(templateId, radius, delayMs);
+            go.name = $"AoeRange_{templateId}";
             return go;
         }
     }

@@ -235,7 +235,7 @@ namespace AbilityKit.Ability.Tags
             GameplayTagContainer added = null;
             GameplayTagContainer removed = null;
 
-            // Remove first.
+            // 先移除标签。
             if (template.RemoveTags != null && template.RemoveTags.Count > 0)
             {
                 foreach (var t in template.RemoveTags)
@@ -251,7 +251,7 @@ namespace AbilityKit.Ability.Tags
                 }
             }
 
-            // Grant.
+            // 再授予标签。
             if (template.GrantTags != null && template.GrantTags.Count > 0)
             {
                 foreach (var t in template.GrantTags)
@@ -343,7 +343,7 @@ namespace AbilityKit.Ability.Tags
             {
                 state.Refs.Remove(tagId);
 
-                // No sources remain.
+                // 已无任何来源持有该标签。
                 becameAbsent = true;
             }
 
@@ -358,7 +358,7 @@ namespace AbilityKit.Ability.Tags
 
             if (!state.Refs.TryGetValue(tagId, out var bySource) || bySource == null || bySource.Count == 0)
             {
-                // If we don't have refs but tag exists, remove it anyway.
+                // 如果没有引用记录但标签仍存在，也一并移除。
                 if (state.Tags.HasTagExact(GameplayTag.FromId(tagId)))
                 {
                     becameAbsent = true;

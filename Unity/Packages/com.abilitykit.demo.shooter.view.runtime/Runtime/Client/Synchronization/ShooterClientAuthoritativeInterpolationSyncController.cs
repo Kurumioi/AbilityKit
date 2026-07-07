@@ -21,8 +21,7 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterClientAuthoritativeInterpolationSyncController : IShooterClientSyncController, IInterpolationDiagnosticsProvider
     {
         private readonly IShooterBattleRuntimePort _runtime;
-        private readonly ShooterClientFrameSyncCoordinator _frameSync;
-        private readonly ShooterClientInputCoordinator _input;
+        private readonly ShooterClientSyncCore _core;
         private readonly ShooterPresentationFacade _presentation;
         private readonly ShooterGatewaySnapshotDecoder _decoder;
         private readonly RemoteInterpolationPlayback<ShooterRemoteSnapshotSample> _playback;
@@ -63,8 +62,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
-            _frameSync = new ShooterClientFrameSyncCoordinator(_runtime, presentation, tickRate, decoder);
-            _input = new ShooterClientInputCoordinator(_frameSync, gateway);
+            _core = new ShooterClientSyncCore(_runtime, presentation, tickRate, decoder, gateway);
             _decoder = decoder ?? new ShooterGatewaySnapshotDecoder();
             _playback = new RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>(config);
             _syncModel = syncModel;
@@ -72,38 +70,37 @@ namespace AbilityKit.Demo.Shooter.View
 
         public NetworkSyncModel SyncModel => _syncModel;
 
-        public bool IsStarted => _frameSync.IsStarted;
+        public bool IsStarted => _core.IsStarted;
 
-        public int CurrentFrame => _frameSync.CurrentFrame;
+        public int CurrentFrame => _core.CurrentFrame;
 
-        public ShooterClientFrameSyncController FrameSync => _frameSync.Controller;
+        public ShooterClientFrameSyncController FrameSync => _core.FrameSync;
 
-        public ShooterClientFrameSyncCoordinator FrameSyncCoordinator => _frameSync;
+        public ShooterClientInputCoordinator InputCoordinator => _core.InputCoordinator;
 
-        public ShooterClientInputCoordinator InputCoordinator => _input;
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _core.FrameworkSnapshotPipelineDiagnostics;
 
-        public ShooterClientReconciliationResult LastReconciliationResult => _frameSync.LastReconciliationResult;
+        public ShooterClientReconciliationResult LastReconciliationResult => _core.LastReconciliationResult;
 
-        public bool NeedsFullSnapshotResync => _frameSync.NeedsFullSnapshotResync;
+        public bool NeedsFullSnapshotResync => _core.NeedsFullSnapshotResync;
 
-        public ShooterClientRecoveryState RecoveryState => _frameSync.RecoveryState;
+        public ShooterClientRecoveryState RecoveryState => _core.RecoveryState;
 
-        public AbilityKit.Network.Runtime.Sync.FastReconnectPhase FastReconnectPhase => _frameSync.FastReconnectPhase;
+        public AbilityKit.Network.Runtime.Sync.FastReconnectPhase FastReconnectPhase => _core.FastReconnectPhase;
 
-        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents
-            => MergeHealthEvents(_frameSync.LastFastReconnectHealthEvents, _input.LastHealthEvents);
+        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _core.LastFastReconnectHealthEvents;
 
-        public ShooterClientResyncReason LastResyncReason => _frameSync.LastResyncReason;
+        public ShooterClientResyncReason LastResyncReason => _core.LastResyncReason;
 
-        public int LastResyncClientFrame => _frameSync.LastResyncClientFrame;
+        public int LastResyncClientFrame => _core.LastResyncClientFrame;
 
-        public int LastResyncAuthoritativeFrame => _frameSync.LastResyncAuthoritativeFrame;
+        public int LastResyncAuthoritativeFrame => _core.LastResyncAuthoritativeFrame;
 
-        public uint LastResyncClientStateHash => _frameSync.LastResyncClientStateHash;
+        public uint LastResyncClientStateHash => _core.LastResyncClientStateHash;
 
-        public uint LastResyncAuthoritativeStateHash => _frameSync.LastResyncAuthoritativeStateHash;
+        public uint LastResyncAuthoritativeStateHash => _core.LastResyncAuthoritativeStateHash;
 
-        public bool HasGateway => _input.HasGateway;
+        public bool HasGateway => _core.HasGateway;
 
         /// <summary>当前为插值缓冲的远端权威快照数量。</summary>
         public int BufferedRemoteSnapshotCount => _playback.BufferedSampleCount;
@@ -128,7 +125,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool StartGame(in ShooterStartGamePayload startGame)
         {
-            return _frameSync.StartGame(in startGame);
+            return _core.StartGame(in startGame);
         }
 
         public ShooterClientInputSubmitResult SubmitLocalInput(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
@@ -139,7 +136,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientInputSubmitResult SubmitLocalInput(in ShooterPlayerCommand command)
         {
-            var result = _input.SubmitLocalInput(in command);
+            var result = _core.SubmitLocalInput(in command);
             if (command.PlayerId > 0)
             {
                 _lastPredictedCommand = command;
@@ -155,7 +152,7 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            return _input.SubmitLocalInputToGatewayAsync(context, command, timeout, cancellationToken);
+            return _core.SubmitLocalInputToGatewayAsync(context, command, timeout, cancellationToken);
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
@@ -164,12 +161,12 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            return _input.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
+            return _core.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
         }
 
         public ShooterClientFrameTickResult Tick(float deltaTime)
         {
-            var result = _frameSync.Tick(deltaTime);
+            var result = _core.Tick(deltaTime);
             RefreshPredictedPose(_lastPredictedCommand.PlayerId, result.Frame, EstimatedServerTicks);
             _playback.Advance(deltaTime);
             PublishInterpolatedRemoteFrame();
@@ -178,12 +175,12 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientFrameTickResult CatchUpToFrame(int targetFrame)
         {
-            return _frameSync.CatchUpToFrame(targetFrame);
+            return _core.CatchUpToFrame(targetFrame);
         }
 
         public bool TryEnterCatchUp(int authoritativeFrame)
         {
-            return _frameSync.TryEnterCatchUp(authoritativeFrame);
+            return _core.TryEnterCatchUp(authoritativeFrame);
         }
 
         /// <summary>

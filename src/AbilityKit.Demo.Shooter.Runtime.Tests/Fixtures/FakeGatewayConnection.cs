@@ -17,7 +17,9 @@ internal sealed class FakeGatewayConnection : IConnection
     public bool IsConnected => State == ConnectionState.Connected;
 
     public bool AutoRespondRoomGateway { get; set; }
-
+ 
+    public uint JoinCurrentPlayerId { get; set; } = 121u;
+ 
     public string OpenHost { get; private set; } = string.Empty;
 
     public int OpenPort { get; private set; }
@@ -112,7 +114,8 @@ internal sealed class FakeGatewayConnection : IConnection
                     },
                     Message = "joined",
                     JoinKind = WireRoomJoinKind.TeamLobby,
-                    ServerNowTicks = 123456L
+                    ServerNowTicks = 123456L,
+                    CurrentPlayerId = JoinCurrentPlayerId
                 });
                 break;
             case RoomGatewayOpCodes.SetReady:

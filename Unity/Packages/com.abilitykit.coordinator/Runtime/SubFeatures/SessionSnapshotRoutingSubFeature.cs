@@ -5,17 +5,17 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator.SubFeatures
 {
     /// <summary>
-    /// Session Snapshot Routing SubFeature
+    /// 会话快照路由 SubFeature。
     ///
-    /// Design:
-    /// - Handles frame snapshot routing
-    /// - Updates view timeline with entity states
-    /// - Manages entity spawn/despawn events
+    /// 设计：
+    /// - 处理帧快照路由。
+    /// - 使用实体状态更新视图时间线。
+    /// - 管理实体出生和销毁事件。
     /// </summary>
     public sealed class SessionSnapshotRoutingSubFeature : ISessionSubFeature
     {
         public string Name => "SnapshotRouting";
-        public int Priority => 300; // Medium priority
+        public int Priority => 300; // 中等优先级。
 
         private ISessionHost _host;
         private readonly HashSet<int> _knownEntities = new();
@@ -27,7 +27,7 @@ namespace AbilityKit.Coordinator.SubFeatures
             _knownEntities.Clear();
             _lastFrame = 0;
 
-            // Subscribe to snapshot events
+            // 订阅快照事件。
             _host.Hooks.OnFirstFrameReceived += OnFirstFrameReceived;
         }
 
@@ -50,7 +50,7 @@ namespace AbilityKit.Coordinator.SubFeatures
         }
 
         /// <summary>
-        /// Route snapshot to view timeline
+        /// 将快照路由到视图时间线。
         /// </summary>
         public void RouteSnapshot(int frame, SnapshotEntityState[] states, double timeSeconds)
         {
@@ -63,7 +63,7 @@ namespace AbilityKit.Coordinator.SubFeatures
                 if (isNew)
                 {
                     _knownEntities.Add(state.EntityId);
-                    // TODO: Trigger entity spawn event
+                    // TODO：触发实体出生事件。
                 }
 
             }
@@ -72,7 +72,7 @@ namespace AbilityKit.Coordinator.SubFeatures
         }
 
         /// <summary>
-        /// Get all known entity IDs
+        /// 获取所有已知实体 ID。
         /// </summary>
         public IReadOnlyCollection<int> GetKnownEntities() => _knownEntities;
     }

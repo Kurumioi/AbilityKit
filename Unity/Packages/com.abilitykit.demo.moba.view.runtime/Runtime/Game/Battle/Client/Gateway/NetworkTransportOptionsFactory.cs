@@ -45,7 +45,7 @@ namespace AbilityKit.Game.Battle
                 OpSubmitInput = OpCodes.SubmitFrameInput,
                 OpFramePushed = OpCodes.FramePushed,
 
-                // Not wired yet (room flow will own these later).
+                // 尚未接线，后续由 room flow 持有这些操作。
                 OpCreateWorld = 0,
                 OpJoin = 0,
                 OpLeave = 0,

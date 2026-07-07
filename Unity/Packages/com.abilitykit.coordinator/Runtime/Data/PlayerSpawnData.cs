@@ -1,42 +1,42 @@
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Player spawn data
+    /// 玩家出生数据。
     /// </summary>
     public struct PlayerSpawnData
     {
         /// <summary>
-        /// Player identifier
+        /// 玩家标识。
         /// </summary>
         public int PlayerId;
 
         /// <summary>
-        /// Character identifier
+        /// 角色标识。
         /// </summary>
         public int CharacterId;
 
         /// <summary>
-        /// Team identifier
+        /// 队伍标识。
         /// </summary>
         public int TeamId;
 
         /// <summary>
-        /// Spawn position X
+        /// 出生位置 X。
         /// </summary>
         public float X;
 
         /// <summary>
-        /// Spawn position Y
+        /// 出生位置 Y。
         /// </summary>
         public float Y;
 
         /// <summary>
-        /// Spawn position Z
+        /// 出生位置 Z。
         /// </summary>
         public float Z;
 
         /// <summary>
-        /// Player name (optional)
+        /// 玩家名称（可选）。
         /// </summary>
         public string Name;
 

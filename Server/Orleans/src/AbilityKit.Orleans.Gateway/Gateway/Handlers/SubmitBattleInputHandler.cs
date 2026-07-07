@@ -1,4 +1,5 @@
 ﻿using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -42,6 +43,20 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
             }
 
+            var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
+            var roomId = await mapping.TryGetAccountRoomAsync(accountId);
+            if (string.IsNullOrWhiteSpace(roomId))
+            {
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+            }
+
+            var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
+            var snapshot = await room.GetSnapshotAsync();
+            if (!CanSubmitInput(snapshot, req.BattleId, req.WorldId, accountId, req.PlayerId))
+            {
+                return GatewayResponse.Error(request.Seq, GatewayStatusCode.BadRequest);
+            }
+
             var battle = _clusterClient.GetGrain<IBattleLogicHostGrain>(req.BattleId);
             var submit = await battle.SubmitInputAsync(req.WorldId, req.Frame, new BattleInputItem
             {
@@ -68,6 +83,21 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
         {
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.InternalError);
         }
+    }
+
+    internal static bool CanSubmitInput(RoomSnapshot? snapshot, string? battleId, ulong worldId, string? accountId, uint playerId)
+    {
+        if (snapshot == null || string.IsNullOrWhiteSpace(battleId) || worldId == 0 || string.IsNullOrWhiteSpace(accountId) || playerId == 0)
+        {
+            return false;
+        }
+
+        if (!string.Equals(snapshot.BattleId, battleId, StringComparison.Ordinal) || snapshot.WorldId != worldId)
+        {
+            return false;
+        }
+
+        return RoomGatewayWireMapper.ResolvePlayerId(snapshot, accountId) == playerId;
     }
 }
 

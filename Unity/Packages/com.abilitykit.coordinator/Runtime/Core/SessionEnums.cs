@@ -3,89 +3,89 @@ using System;
 namespace AbilityKit.Coordinator.Core
 {
     /// <summary>
-    /// Session state enumeration
+    /// 会话状态枚举。
     /// </summary>
     public enum SessionState
     {
         /// <summary>
-        /// Session created but not started
+        /// 会话已创建但尚未启动。
         /// </summary>
         Idle,
 
         /// <summary>
-        /// Session is initializing
+        /// 会话正在初始化。
         /// </summary>
         Initializing,
 
         /// <summary>
-        /// Session is running
+        /// 会话正在运行。
         /// </summary>
         Running,
 
         /// <summary>
-        /// Session is paused
+        /// 会话已暂停。
         /// </summary>
         Paused,
 
         /// <summary>
-        /// Session is stopping
+        /// 会话正在停止。
         /// </summary>
         Stopping,
 
         /// <summary>
-        /// Session has stopped
+        /// 会话已停止。
         /// </summary>
         Stopped,
 
         /// <summary>
-        /// Session encountered an error
+        /// 会话遇到错误。
         /// </summary>
         Error
     }
 
     /// <summary>
-    /// Sync mode enumeration
+    /// 同步模式枚举。
     /// </summary>
     public enum SyncMode
     {
         /// <summary>
-        /// Local lockstep simulation (single player or LAN)
+        /// 本地锁步模拟（单机或局域网）。
         /// </summary>
         Lockstep = 0,
 
         /// <summary>
-        /// Server authoritative with snapshots
+        /// 服务端权威快照模式。
         /// </summary>
         SnapshotAuthority = 1,
 
         /// <summary>
-        /// State synchronization from server
+        /// 从服务端同步状态。
         /// </summary>
         StateSync = 2,
 
         /// <summary>
-        /// Client prediction with server reconciliation
+        /// 客户端预测并由服务端校正。
         /// </summary>
         Hybrid = 3
     }
 
     /// <summary>
-    /// Host mode enumeration
+    /// 宿主模式枚举。
     /// </summary>
     public enum HostMode
     {
         /// <summary>
-        /// Single player or offline mode
+        /// 单人或离线模式。
         /// </summary>
         Local = 0,
 
         /// <summary>
-        /// Host player in multiplayer
+        /// 多人模式中的主机玩家。
         /// </summary>
         Host = 1,
 
         /// <summary>
-        /// Client player in multiplayer
+        /// 多人模式中的客户端玩家。
         /// </summary>
         Client = 2
     }

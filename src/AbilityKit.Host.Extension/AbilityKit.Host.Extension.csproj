@@ -21,7 +21,10 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Server\BattleHost\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Client\FrameSync\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\FrameSync\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Rollback\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Session\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Time\*.cs" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\WorldStart\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\Struct\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\CreateWorld\*.cs" />
     <Compile Include="..\..\Unity\Packages\com.abilitykit.host.extension\Runtime\Moba\Shared\StartSources\*.cs" />

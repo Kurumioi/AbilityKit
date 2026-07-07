@@ -1,36 +1,36 @@
 namespace AbilityKit.Demo.Host.Console;
 
 /// <summary>
-/// Describes a fixed-rate console host loop.
+/// 描述固定频率的 Console 宿主循环。
 /// </summary>
 public readonly struct ConsoleHostOptions
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConsoleHostOptions"/> struct.
+    /// 初始化 <see cref="ConsoleHostOptions"/> 结构的新实例。
     /// </summary>
-    /// <param name="targetFrameRate">Target frame rate for the loop.</param>
+    /// <param name="targetFrameRate">循环目标帧率。</param>
     public ConsoleHostOptions(int targetFrameRate)
     {
         TargetFrameRate = targetFrameRate > 0 ? targetFrameRate : 30;
     }
 
     /// <summary>
-    /// Gets default host options.
+    /// 获取默认宿主选项。
     /// </summary>
     public static ConsoleHostOptions Default { get; } = new ConsoleHostOptions(30);
 
     /// <summary>
-    /// Gets the target frame rate.
+    /// 获取目标帧率。
     /// </summary>
     public int TargetFrameRate { get; }
 
     /// <summary>
-    /// Gets the fixed delta time in seconds.
+    /// 获取以秒为单位的固定增量时间。
     /// </summary>
     public float FixedDeltaSeconds => 1f / TargetFrameRate;
 
     /// <summary>
-    /// Gets the target frame duration.
+    /// 获取目标帧时长。
     /// </summary>
     public TimeSpan FrameDuration => TimeSpan.FromSeconds(1d / TargetFrameRate);
 }

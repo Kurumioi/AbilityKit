@@ -1,14 +1,14 @@
 namespace AbilityKit.Demo.Moba.Console.Battle.Flow
 {
     /// <summary>
-    /// Module context interface
+    /// 模块上下文接口。
     /// </summary>
     public interface IModuleContext
     {
     }
 
     /// <summary>
-    /// Module interface
+    /// 模块接口。
     /// </summary>
     public interface IGameModule<TContext> where TContext : class
     {
@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     }
 
     /// <summary>
-    /// Tick module interface
+    /// Tick 模块接口。
     /// </summary>
     public interface IGameModuleTick<TContext> : IGameModule<TContext> where TContext : class
     {
@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     }
 
     /// <summary>
-    /// Rebind module interface
+    /// 重绑定模块接口。
     /// </summary>
     public interface IGameModuleRebind<TContext> : IGameModule<TContext> where TContext : class
     {
@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     }
 
     /// <summary>
-    /// Module Id interface
+    /// 模块 ID 接口。
     /// </summary>
     public interface IModuleId
     {
@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Flow
     }
 
     /// <summary>
-    /// Module dependencies interface
+    /// 模块依赖接口。
     /// </summary>
     public interface IModuleDependencies
     {

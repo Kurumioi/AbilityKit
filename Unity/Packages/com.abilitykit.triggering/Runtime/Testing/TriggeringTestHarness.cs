@@ -11,8 +11,8 @@ using AbilityKit.Triggering.Runtime.Plan;
 namespace AbilityKit.Triggering.Testing
 {
     /// <summary>
-    /// Reusable test harness for building a deterministic TriggerRunner test environment.
-    /// It hides the repetitive EventBus / FunctionRegistry / ActionRegistry / scheduler setup.
+    /// 用于构建确定性 TriggerRunner 测试环境的可复用测试夹具。
+    /// 隐藏重复的 EventBus / FunctionRegistry / ActionRegistry / scheduler 搭建过程。
     /// </summary>
     public sealed class TriggeringTestHarness<TCtx> : IDisposable
     {
@@ -193,7 +193,7 @@ namespace AbilityKit.Triggering.Testing
                 }
                 catch
                 {
-                    // Test harness cleanup should be best-effort only.
+                    // 测试夹具清理只做尽力而为处理。
                 }
             }
 

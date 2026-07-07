@@ -4,9 +4,9 @@ using AbilityKit.Ability.World.Services;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Environment-provided transport for remote battle synchronization.
-    /// Coordinator owns sync orchestration; concrete environments own grain calls,
-    /// gateway requests, sockets, or test doubles behind this port.
+    /// 由环境提供的远程战斗同步传输端口。
+    /// Coordinator 负责同步编排，具体环境通过该端口承载 grain 调用、
+    /// gateway 请求、socket 或测试替身。
     /// </summary>
     public interface IRemoteBattleSyncTransport : IService
     {
@@ -28,8 +28,8 @@ namespace AbilityKit.Coordinator
     }
 
     /// <summary>
-    /// Explicit no-transport implementation used when an environment has not provided
-    /// remote networking yet. It keeps remote adapters deterministic and disconnected.
+    /// 显式的空传输实现，用于环境尚未提供远程网络时。
+    /// 它让远程适配器保持确定性且处于断开状态。
     /// </summary>
     public sealed class NullRemoteBattleSyncTransport : IRemoteBattleSyncTransport
     {

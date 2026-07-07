@@ -5,17 +5,17 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator.SubFeatures
 {
     /// <summary>
-    /// Session TickLoop SubFeature
+    /// 会话 TickLoop SubFeature。
     ///
-    /// Design:
-    /// - Manages the main frame tick loop
-    /// - Calls World.Tick() at configured rate
-    /// - Drives the session forward
+    /// 设计：
+    /// - 管理主帧 tick 循环。
+    /// - 按配置频率调用 World.Tick()。
+    /// - 驱动会话推进。
     /// </summary>
     public sealed class SessionTickLoopSubFeature : ISessionSubFeature, ISessionPreTickSubFeature, ISessionPostTickSubFeature
     {
         public string Name => "TickLoop";
-        public int Priority => 500; // High priority - tick should run early
+        public int Priority => 500; // 高优先级，tick 应较早执行。
 
         private ISessionHost _host;
         private double _lastTickTime;
@@ -31,7 +31,7 @@ namespace AbilityKit.Coordinator.SubFeatures
             _frameInterval = 1.0 / host.Config.TickRate;
             _lastTickTime = GetTimeSeconds();
 
-            // Subscribe to lifecycle
+            // 订阅生命周期事件。
             _host.Hooks.OnSessionStarted += HandleSessionStarted;
             _host.Hooks.OnSessionStopping += OnSessionStopping;
         }
@@ -57,7 +57,7 @@ namespace AbilityKit.Coordinator.SubFeatures
             if (currentTime - _lastTickTime >= _frameInterval)
             {
                 _lastTickTime = currentTime;
-                // Tick is handled by the session coordinator
+                // Tick 由 session coordinator 处理。
             }
         }
 

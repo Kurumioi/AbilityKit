@@ -55,8 +55,8 @@ namespace AbilityKit.Combat.Projectile
 
         public ProjectileId Spawn(in ProjectileSpawnParams p)
         {
-            // Spawn event is a lifecycle hook. Frame is unknown here; producer should prefer ScheduleEmit
-            // when exact frame is important. Use 0 as default.
+            // Spawn 事件是生命周期钩子。这里无法得知精确帧；如果帧号很重要，生产者应优先使用 ScheduleEmit。
+            // 默认使用 0。
             var id = _world.Spawn(in p);
             _spawnEvents.Add(new ProjectileSpawnEvent(id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, frame: 0, p.Position, p.Direction));
             return id;
@@ -337,7 +337,7 @@ namespace AbilityKit.Combat.Projectile
         {
             _world.ImportRollback(frame, payload);
 
-            // Rollback restore should also clear pending transient events.
+            // 回滚恢复时也应清理待处理的瞬态事件。
             _spawnEvents.Clear();
             _hitEvents.Clear();
             _exitEvents.Clear();
@@ -349,7 +349,7 @@ namespace AbilityKit.Combat.Projectile
             _areaExitEvents.Clear();
             _areaExpireEvents.Clear();
 
-            // Scheduled emissions are transient controller state; clear on rollback restore.
+            // 定时发射属于瞬态控制器状态，回滚恢复时清理。
             _schedules.Clear();
         }
 

@@ -8,8 +8,8 @@ using AbilityKit.Demo.Moba.Config.Core;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// Config Stage
-    /// 注册配置相关的服务
+    /// 配置阶段。
+    /// 注册配置相关的服务。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class ConfigStage : MobaBootstrapStageBase

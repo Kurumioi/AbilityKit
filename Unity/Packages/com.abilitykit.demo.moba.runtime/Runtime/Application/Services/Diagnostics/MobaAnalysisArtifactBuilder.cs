@@ -7,7 +7,7 @@ using AbilityKit.Trace;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Options for building the Web-facing MOBA analysis artifact.
+    /// 构建面向 Web 的 MOBA 分析产物时使用的选项。
     /// </summary>
     public readonly struct MobaAnalysisBuildOptions
     {
@@ -45,7 +45,7 @@ namespace AbilityKit.Demo.Moba.Services
     }
 
     /// <summary>
-    /// Builds the unified abilitykit-analysis.v1 artifact from MOBA diagnostics and trace snapshots.
+    /// 从 MOBA diagnostics 和 trace 快照构建统一的 abilitykit-analysis.v1 产物。
     /// </summary>
     public static class MobaAnalysisArtifactBuilder
     {

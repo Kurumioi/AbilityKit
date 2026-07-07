@@ -3,6 +3,7 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
+using AbilityKit.Game.Flow;
 using AbilityKit.Protocol.Moba.StateSync;
 using UnityEngine;
 using AbstractBattleProjectileTriggerHitInput = AbilityKit.Demo.Moba.View.Abstractions.Battle.View.BattleProjectileTriggerHitInput;
@@ -44,7 +45,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxIds = ToVfxIds(projectile);
             if (!_resolver.TryResolveTriggerHit(in abstractInput, in vfxIds, out var abstractSpec)) return false;
 
-            vfxId = abstractSpec.VfxId;
+            vfxId = abstractSpec.VfxId > 0 ? abstractSpec.VfxId : BattleViewPlaceholderIds.ProjectileHitVfx;
             position = ToUnityVector3(abstractSpec.Position);
             return true;
         }
@@ -54,7 +55,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (templateId <= 0) return 0;
 
             var projectile = _resources.TryGetProjectile(templateId);
-            return _snapshotVfxIds.Resolve(projectile, kind);
+            var vfxId = _snapshotVfxIds.Resolve(projectile, kind);
+            if (vfxId > 0) return vfxId;
+
+            return kind switch
+            {
+                (int)ProjectileEventKind.Spawn => BattleViewPlaceholderIds.ProjectileSpawnVfx,
+                (int)ProjectileEventKind.Hit => BattleViewPlaceholderIds.ProjectileHitVfx,
+                (int)ProjectileEventKind.Exit => BattleViewPlaceholderIds.ProjectileExpireVfx,
+                _ => BattleViewPlaceholderIds.ProjectileVfx,
+            };
         }
 
         public Vector3 ResolveSnapshotPosition(float x, float y, float z)

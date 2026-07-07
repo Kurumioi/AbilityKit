@@ -8,6 +8,15 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         Point = 1,
     }
 
+    public enum SkillAimIndicatorShape
+    {
+        Hidden = 0,
+        DirectionLine = 1,
+        TargetCircle = 2,
+        SelfCircle = 3,
+        Sector = 4,
+    }
+
     public enum SkillUsePointMode
     {
         None = 0,
@@ -29,6 +38,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public float SelectRange;
         public bool FaceToAim;
 
+        public SkillAimIndicatorShape IndicatorShape;
+        public float IndicatorLengthPixels;
+        public float IndicatorWidthPixels;
+
         public static SkillButtonConfig Default => new SkillButtonConfig
         {
             LongPressSeconds = 0.35f,
@@ -41,6 +54,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             UsePointMode = SkillUsePointMode.None,
             SelectRange = 0f,
             FaceToAim = false,
+
+            IndicatorShape = SkillAimIndicatorShape.Hidden,
+            IndicatorLengthPixels = 180f,
+            IndicatorWidthPixels = 52f,
         };
     }
 }

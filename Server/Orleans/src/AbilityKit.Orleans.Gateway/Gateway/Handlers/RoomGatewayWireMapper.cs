@@ -22,10 +22,10 @@ internal static class RoomGatewayWireMapper
 
     public static WireJoinRoomRes ToJoinRoomRes(RoomSnapshot snapshot, string message = "")
     {
-        return ToJoinRoomRes(new JoinRoomResponse(snapshot, RoomJoinKind.TeamLobby, DateTime.UtcNow.Ticks), message);
+        return ToJoinRoomRes(new JoinRoomResponse(snapshot, RoomJoinKind.TeamLobby, DateTime.UtcNow.Ticks), null, message);
     }
 
-    public static WireJoinRoomRes ToJoinRoomRes(JoinRoomResponse response, string message = "")
+    public static WireJoinRoomRes ToJoinRoomRes(JoinRoomResponse response, string? accountId = null, string message = "")
     {
         var snapshot = response.Snapshot;
         var roomId = snapshot.Summary?.RoomId ?? string.Empty;
@@ -38,11 +38,12 @@ internal static class RoomGatewayWireMapper
             WorldStartAnchor = ToWireAnchor(snapshot.WorldStartAnchor),
             Message = message ?? string.Empty,
             JoinKind = ToWireJoinKind(response.JoinKind),
-            ServerNowTicks = response.ServerNowTicks
+            ServerNowTicks = response.ServerNowTicks,
+            CurrentPlayerId = ResolvePlayerId(snapshot, accountId)
         };
     }
 
-    public static WireRestoreRoomRes ToRestoreRoomRes(RestoreRoomResponse response, string message = "")
+    public static WireRestoreRoomRes ToRestoreRoomRes(RestoreRoomResponse response, string? accountId = null, string message = "")
     {
         var snapshot = response.Snapshot;
         var roomId = snapshot.Summary?.RoomId ?? string.Empty;
@@ -59,7 +60,8 @@ internal static class RoomGatewayWireMapper
             JoinKind = ToWireJoinKind(response.JoinKind),
             ServerNowTicks = response.ServerNowTicks,
             Status = ToWireRestoreStatus(response.Status),
-            ErrorCode = ToWireRestoreErrorCode(response.ErrorCode)
+            ErrorCode = ToWireRestoreErrorCode(response.ErrorCode),
+            CurrentPlayerId = ResolvePlayerId(snapshot, accountId)
         };
     }
 
@@ -219,6 +221,24 @@ internal static class RoomGatewayWireMapper
         };
     }
 
+    public static uint ResolvePlayerId(RoomSnapshot? snapshot, string? accountId)
+    {
+        if (snapshot?.Players == null || string.IsNullOrWhiteSpace(accountId))
+        {
+            return 0u;
+        }
+
+        foreach (var player in snapshot.Players)
+        {
+            if (string.Equals(player.AccountId, accountId, StringComparison.Ordinal))
+            {
+                return player.PlayerId;
+            }
+        }
+
+        return 0u;
+    }
+
     public static WireRoomSummary ToWireSummary(RoomSummary? summary)
     {
         if (summary == null)
@@ -263,7 +283,8 @@ internal static class RoomGatewayWireMapper
                 Level = player.Level,
                 AttributeTemplateId = player.AttributeTemplateId,
                 BasicAttackSkillId = player.BasicAttackSkillId,
-                SkillIds = player.SkillIds == null ? null : new List<int>(player.SkillIds)
+                SkillIds = player.SkillIds == null ? null : new List<int>(player.SkillIds),
+                PlayerId = player.PlayerId
             });
         }
 

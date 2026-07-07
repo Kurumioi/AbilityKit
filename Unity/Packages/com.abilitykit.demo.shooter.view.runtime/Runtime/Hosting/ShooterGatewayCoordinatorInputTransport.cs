@@ -12,19 +12,19 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
     /// </summary>
     public sealed class ShooterGatewayCoordinatorInputTransport : IRemoteBattleSyncTransport
     {
-        private readonly Func<ShooterClientInputSubmitResult, TimeSpan?, CancellationToken, Task<ShooterClientGatewayInputSubmitResult>> _submitAsync;
+        private readonly CoordinatorInputSubmitBridge<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult> _submitBridge;
         private readonly object _sync = new();
         private bool _connected;
-        private ShooterClientInputSubmitResult _pendingLocal;
-        private TimeSpan? _pendingTimeout;
-        private CancellationToken _pendingCancellationToken;
-        private bool _hasPendingLocal;
-        private Task<ShooterClientGatewayInputSubmitResult>? _pendingTask;
 
         public ShooterGatewayCoordinatorInputTransport(
             Func<ShooterClientInputSubmitResult, TimeSpan?, CancellationToken, Task<ShooterClientGatewayInputSubmitResult>> submitAsync)
         {
-            _submitAsync = submitAsync ?? throw new ArgumentNullException(nameof(submitAsync));
+            if (submitAsync == null) throw new ArgumentNullException(nameof(submitAsync));
+
+            _submitBridge = new CoordinatorInputSubmitBridge<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>(
+                CreateCoordinatorInput,
+                BindCoordinatorInput,
+                submitAsync);
         }
 
         public bool IsConnected
@@ -59,36 +59,12 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
 
         public bool SubmitInput(PlayerInput input)
         {
-            ShooterClientInputSubmitResult local;
-            lock (_sync)
+            if (!IsConnected)
             {
-                if (!_connected || !_hasPendingLocal)
-                {
-                    return false;
-                }
-
-                local = _pendingLocal;
-                _hasPendingLocal = false;
+                return false;
             }
 
-            TimeSpan? timeout;
-            CancellationToken cancellationToken;
-            lock (_sync)
-            {
-                timeout = _pendingTimeout;
-                cancellationToken = _pendingCancellationToken;
-                _pendingTimeout = null;
-                _pendingCancellationToken = default;
-            }
-
-            var frameLocal = local.WithRequestedFrame(input.Frame);
-            var task = _submitAsync(frameLocal, timeout, cancellationToken);
-            lock (_sync)
-            {
-                _pendingTask = task;
-            }
-
-            return true;
+            return _submitBridge.TrySubmit(input);
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputViaCoordinatorAsync(
@@ -99,38 +75,12 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
         {
             if (coordinator == null) throw new ArgumentNullException(nameof(coordinator));
 
-            var input = new PlayerInput(
-                local.RequestedFrame,
-                local.Packet.Command.PlayerId,
-                local.Packet.OpCode,
-                local.Packet.Payload ?? Array.Empty<byte>());
-
-            lock (_sync)
+            if (!IsConnected)
             {
-                if (!_connected)
-                {
-                    throw new InvalidOperationException("Shooter coordinator input transport is not connected.");
-                }
-
-                _pendingLocal = local;
-                _pendingTimeout = timeout;
-                _pendingCancellationToken = cancellationToken;
-                _hasPendingLocal = true;
-                _pendingTask = null;
+                throw new InvalidOperationException("Shooter coordinator input transport is not connected.");
             }
 
-            coordinator.SubmitLocalInput(input);
-
-            Task<ShooterClientGatewayInputSubmitResult>? task;
-            lock (_sync)
-            {
-                task = _pendingTask;
-                _pendingTask = null;
-                _hasPendingLocal = false;
-            }
-
-            return task ?? Task.FromException<ShooterClientGatewayInputSubmitResult>(
-                new InvalidOperationException("Coordinator did not submit Shooter input to the Gateway transport."));
+            return _submitBridge.SubmitViaCoordinatorAsync(coordinator, local, timeout, cancellationToken);
         }
 
         public void Dispose()
@@ -154,10 +104,7 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
 
                 if (!connected)
                 {
-                    _pendingTimeout = null;
-                    _pendingCancellationToken = default;
-                    _hasPendingLocal = false;
-                    _pendingTask = null;
+                    _submitBridge.Reset();
                 }
             }
 
@@ -165,6 +112,22 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
             {
                 OnConnectionChanged?.Invoke(connected);
             }
+        }
+
+        private static PlayerInput CreateCoordinatorInput(ShooterClientInputSubmitResult local)
+        {
+            return new PlayerInput(
+                local.RequestedFrame,
+                local.Packet.Command.PlayerId,
+                local.Packet.OpCode,
+                local.Packet.Payload ?? Array.Empty<byte>());
+        }
+
+        private static ShooterClientInputSubmitResult BindCoordinatorInput(
+            ShooterClientInputSubmitResult local,
+            PlayerInput input)
+        {
+            return local.WithRequestedFrame(input.Frame);
         }
     }
 }

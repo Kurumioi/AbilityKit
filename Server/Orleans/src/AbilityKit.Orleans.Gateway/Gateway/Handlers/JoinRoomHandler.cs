@@ -42,7 +42,7 @@ public sealed partial class JoinRoomHandler : GatewayRequestHandlerBase
             var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
             await mapping.BindAccountRoomAsync(accountId, req.RoomId);
 
-            var wire = RoomGatewayWireMapper.ToJoinRoomRes(join);
+            var wire = RoomGatewayWireMapper.ToJoinRoomRes(join, accountId);
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 
             context.RoomId = req.RoomId;

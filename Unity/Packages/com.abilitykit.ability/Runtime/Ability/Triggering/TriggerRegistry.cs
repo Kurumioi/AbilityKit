@@ -95,7 +95,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
 
             try
             {
-                // Support factories that need registry (e.g. SequenceActionFactory).
+                // 支持需要注入 registry 的工厂（例如 SequenceActionFactory）。
                 var ctorWithRegistry = type.GetConstructor(new[] { typeof(TriggerRegistry) });
                 if (ctorWithRegistry != null)
                 {

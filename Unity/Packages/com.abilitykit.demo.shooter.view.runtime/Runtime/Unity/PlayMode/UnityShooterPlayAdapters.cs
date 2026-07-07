@@ -46,6 +46,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private readonly Queue<GameObject> _playerPool = new();
         private readonly Queue<GameObject> _bulletPool = new();
         private readonly Queue<GameObject> _enemyPool = new();
+        private readonly List<int> _staleViewIds = new();
+        private readonly GUIContent[] _hudLines = CreateHudLineCache(13);
         private readonly MaterialPropertyBlock _tintPropertyBlock = new();
         private Transform? _viewRoot;
         private Transform? _clientRoot;
@@ -63,6 +65,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private int _lastEnemyCount;
         private int _lastControlledHp = -1;
         private bool _hasHudData;
+        private bool _hudDirty;
         private bool _hasAuthorityProjection;
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
         private ulong _lastClientSequence;
@@ -132,6 +135,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastControlledHp = TryGetControlledPlayerHp(frame.ClientBatch, frame.ControlledPlayerId);
             _lastCrossLayerDiagnostics = frame.CrossLayerDiagnostics;
             _hasHudData = true;
+            _hudDirty = true;
         }
 
         private static int CountEntities(in ShooterSnapshotViewBatch batch, ShooterViewEntityKind kind)
@@ -215,6 +219,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastAuthoritySequence = 0ul;
             _hasAuthorityProjection = false;
             _hasHudData = false;
+            _hudDirty = false;
             _lastPlayerCount = 0;
             _lastBulletCount = 0;
             _lastEnemyCount = 0;
@@ -247,27 +252,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
+            if (_hudDirty)
+            {
+                UpdateHudLineCache();
+                _hudDirty = false;
+            }
             GUI.Box(new Rect(12f, 12f, 360f, 316f), "Shooter HUD");
             GUILayout.BeginArea(new Rect(24f, 40f, 336f, 284f));
-            GUILayout.Label($"战场 玩家/子弹/怪物: {_lastPlayerCount}/{_lastBulletCount}/{_lastEnemyCount}");
-            GUILayout.Label(_lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A");
-            GUILayout.Label($"客户端视图 玩家/子弹/怪物: {_playerViews.Count}/{_bulletViews.Count}/{_enemyViews.Count}");
-            GUILayout.Label($"权威视图 玩家/子弹/怪物: {_authorityPlayerViews.Count}/{_authorityBulletViews.Count}/{_authorityEnemyViews.Count}");
-            GUILayout.Label($"池化 玩家/子弹/怪物: {_playerPool.Count}/{_bulletPool.Count}/{_enemyPool.Count}");
-            GUILayout.Label($"权威投影: {(_hasAuthorityProjection ? "开启" : "关闭")}");
-            GUILayout.Space(6f);
-            GUILayout.Label($"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}");
-            GUILayout.Label($"快照 Packed/Pure: {_lastCrossLayerDiagnostics.FrameworkPackedSnapshotCount}/{_lastCrossLayerDiagnostics.FrameworkPureStateSnapshotCount}");
-            GUILayout.Label($"最近框架帧: {_lastCrossLayerDiagnostics.LastFrameworkFrame} op={_lastCrossLayerDiagnostics.LastFrameworkPayloadOpCode}");
-            GUILayout.Label($"框架世界: {(_lastCrossLayerDiagnostics.HasFrameworkSnapshot ? _lastCrossLayerDiagnostics.LastFrameworkWorldId : "N/A")}");
-            GUILayout.Label(_lastCrossLayerDiagnostics.HasSnapshotApplyResult
-                ? $"网关应用: {_lastCrossLayerDiagnostics.SnapshotApplyResult}"
-                : "网关应用: N/A");
-            GUILayout.Label(_lastCrossLayerDiagnostics.HasRemoteLatencyResult
-                ? $"远端延迟/权威差: {_lastCrossLayerDiagnostics.RemoteInputDelayFrames}/{_lastCrossLayerDiagnostics.RemoteAuthoritativeFrameGap}f"
-                : "远端延迟/权威差: N/A");
-            GUILayout.Label($"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}");
-            GUILayout.Label($"PureState 基线: {(_lastCrossLayerDiagnostics.NeedsPureStateBaselineResync ? "等待" : "正常")}");
+            for (var i = 0; i < _hudLines.Length; i++)
+            {
+                if (i == 6)
+                {
+                    GUILayout.Space(6f);
+                }
+
+                GUILayout.Label(_hudLines[i]);
+            }
+
             GUILayout.EndArea();
         }
 
@@ -464,20 +465,52 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            var stale = new List<int>();
+            _staleViewIds.Clear();
             foreach (var kvp in views)
             {
                 if (!alive.Contains(kvp.Key))
                 {
-                    stale.Add(kvp.Key);
+                    _staleViewIds.Add(kvp.Key);
                 }
             }
 
-            for (var i = 0; i < stale.Count; i++)
+            for (var i = 0; i < _staleViewIds.Count; i++)
             {
-                ReleaseView(views[stale[i]], pool);
-                views.Remove(stale[i]);
+                ReleaseView(views[_staleViewIds[i]], pool);
+                views.Remove(_staleViewIds[i]);
             }
+        }
+
+        private void UpdateHudLineCache()
+        {
+            _hudLines[0].text = $"战场 玩家/子弹/怪物: {_lastPlayerCount}/{_lastBulletCount}/{_lastEnemyCount}";
+            _hudLines[1].text = _lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A";
+            _hudLines[2].text = $"客户端视图 玩家/子弹/怪物: {_playerViews.Count}/{_bulletViews.Count}/{_enemyViews.Count}";
+            _hudLines[3].text = $"权威视图 玩家/子弹/怪物: {_authorityPlayerViews.Count}/{_authorityBulletViews.Count}/{_authorityEnemyViews.Count}";
+            _hudLines[4].text = $"池化 玩家/子弹/怪物: {_playerPool.Count}/{_bulletPool.Count}/{_enemyPool.Count}";
+            _hudLines[5].text = $"权威投影: {(_hasAuthorityProjection ? "开启" : "关闭")}";
+            _hudLines[6].text = $"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}";
+            _hudLines[7].text = $"快照 Packed/Pure: {_lastCrossLayerDiagnostics.FrameworkPackedSnapshotCount}/{_lastCrossLayerDiagnostics.FrameworkPureStateSnapshotCount}";
+            _hudLines[8].text = $"最近框架帧: {_lastCrossLayerDiagnostics.LastFrameworkFrame} op={_lastCrossLayerDiagnostics.LastFrameworkPayloadOpCode}";
+            _hudLines[9].text = $"框架世界: {(_lastCrossLayerDiagnostics.HasFrameworkSnapshot ? _lastCrossLayerDiagnostics.LastFrameworkWorldId.ToString() : "N/A")}";
+            _hudLines[10].text = _lastCrossLayerDiagnostics.HasSnapshotApplyResult
+                ? $"网关应用: {_lastCrossLayerDiagnostics.SnapshotApplyResult}"
+                : "网关应用: N/A";
+            _hudLines[11].text = _lastCrossLayerDiagnostics.HasRemoteLatencyResult
+                ? $"远端延迟/权威差: {_lastCrossLayerDiagnostics.RemoteInputDelayFrames}/{_lastCrossLayerDiagnostics.RemoteAuthoritativeFrameGap}f"
+                : "远端延迟/权威差: N/A";
+            _hudLines[12].text = $"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame} baseline={(_lastCrossLayerDiagnostics.NeedsPureStateBaselineResync ? "等待" : "正常")}";
+        }
+
+        private static GUIContent[] CreateHudLineCache(int count)
+        {
+            var lines = new GUIContent[count];
+            for (var i = 0; i < lines.Length; i++)
+            {
+                lines[i] = new GUIContent(string.Empty);
+            }
+
+            return lines;
         }
 
         private sealed class HudBehaviour : MonoBehaviour

@@ -19,7 +19,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext? _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
+        private readonly Dictionary<AoiEntityKey, int> _candidateIndexByKey = new Dictionary<AoiEntityKey, int>();
+        private readonly List<ShooterPureStateEntityDelta> _aoiSelectedEntities = new List<ShooterPureStateEntityDelta>();
+        private readonly List<ShooterPureStateVisibilityHint> _aoiSelectedHints = new List<ShooterPureStateVisibilityHint>();
+        private readonly AoiSampleBufferView _aoiSampleView = new AoiSampleBufferView();
         private ShooterPureStateCandidate[] _candidateBuffer = Array.Empty<ShooterPureStateCandidate>();
+        private AoiEntitySample[] _aoiSampleBuffer = Array.Empty<AoiEntitySample>();
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -48,7 +53,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int baselineFrame = 0,
             uint baselineHash = 0,
             ShooterPureStateInterestScope? interestScope = null,
-            AoiInterestSet? aoiInterestSet = null)
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true)
         {
             var activeSettings = NormalizeSettings(settings ?? ShooterPureStateSyncSettings.Default);
             var frame = _state.CurrentFrame;
@@ -58,7 +64,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var candidateCount = _context != null
                 ? BuildCandidates(_context, isFullBaseline, isLowFrequencyFrame, interestScope)
                 : BuildCandidatesFromSnapshot(isFullBaseline, isLowFrequencyFrame, interestScope, out frame);
-            if (candidateCount > 1)
+            var requiresPriorityOrder = !isFullBaseline || maxEntities < candidateCount || interestScope.HasValue || aoiInterestSet != null;
+            if (requiresPriorityOrder && candidateCount > 1)
             {
                 Array.Sort(_candidateBuffer, 0, candidateCount, ShooterPureStateCandidateComparer.Instance);
             }
@@ -67,7 +74,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var entities = selection.Entities;
             var visibilityHints = selection.VisibilityHints;
 
-            var stateHash = _stateHashProvider.ComputeStateHash();
+            var stateHash = computeStateHash ? _stateHashProvider.ComputeStateHash() : 0u;
             return new ShooterPureStateSnapshotPayload(
                 ShooterPureStateSyncCodec.CurrentVersion,
                 worldId,
@@ -337,7 +344,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return new ShooterPureStateSelection(selectedEntities, selectedHints);
             }
 
-            var samples = new AoiEntitySample[candidateCount];
+            var samples = EnsureAoiSampleCapacity(candidateCount);
             for (var i = 0; i < candidateCount; i++)
             {
                 var candidate = _candidateBuffer[i];
@@ -351,16 +358,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     candidate.Entity.Flags);
             }
 
-            var evaluation = aoiInterestSet.Evaluate(samples, interestScope.Value.ToAoiScope(), isFullBaseline);
-            var entities = new List<ShooterPureStateEntityDelta>(Math.Min(maxEntities, evaluation.Changes.Count));
-            var hints = new List<ShooterPureStateVisibilityHint>(Math.Min(maxEntities, evaluation.Changes.Count));
+            _aoiSampleView.Reset(samples, candidateCount);
+            BuildCandidateIndex(candidateCount);
+            var evaluation = aoiInterestSet.Evaluate(_aoiSampleView, interestScope.Value.ToAoiScope(), isFullBaseline);
+            _aoiSelectedEntities.Clear();
+            _aoiSelectedHints.Clear();
             var visibleCount = 0;
             for (var i = 0; i < evaluation.Changes.Count; i++)
             {
                 var change = evaluation.Changes[i];
                 if (change.Transition == AoiInterestTransition.Leave)
                 {
-                    entities.Add(CreateDespawnDelta(change));
+                    _aoiSelectedEntities.Add(CreateDespawnDelta(change));
                     continue;
                 }
 
@@ -379,23 +388,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ? ShooterPureStateDeltaKinds.Spawn
                     : CreateDeltaKind(isFullBaseline);
                 entity.Flags = (byte)(entity.Flags | ShooterPureStateEntityFlags.Visible);
-                entities.Add(entity);
-                hints.Add(candidate.VisibilityHint);
+                _aoiSelectedEntities.Add(entity);
+                _aoiSelectedHints.Add(candidate.VisibilityHint);
                 visibleCount++;
             }
 
-            return new ShooterPureStateSelection(entities.ToArray(), hints.ToArray());
+            return new ShooterPureStateSelection(_aoiSelectedEntities.ToArray(), _aoiSelectedHints.ToArray());
         }
 
         private bool TryFindCandidate(AoiEntityKey key, int candidateCount, out ShooterPureStateCandidate candidate)
         {
-            for (var i = 0; i < candidateCount; i++)
+            if (_candidateIndexByKey.TryGetValue(key, out var index) && index < candidateCount)
             {
-                candidate = _candidateBuffer[i];
-                if (candidate.AoiKey.Equals(key))
-                {
-                    return true;
-                }
+                candidate = _candidateBuffer[index];
+                return true;
             }
 
             candidate = default;
@@ -420,6 +426,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 (byte)(change.Flags & ~ShooterPureStateEntityFlags.Alive));
         }
 
+        private void BuildCandidateIndex(int candidateCount)
+        {
+            _candidateIndexByKey.Clear();
+            for (var i = 0; i < candidateCount; i++)
+            {
+                _candidateIndexByKey[_candidateBuffer[i].AoiKey] = i;
+            }
+        }
+
         private ShooterPureStateCandidate[] EnsureCandidateCapacity(int count)
         {
             if (_candidateBuffer.Length >= count)
@@ -435,6 +450,23 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             _candidateBuffer = new ShooterPureStateCandidate[newCapacity];
             return _candidateBuffer;
+        }
+ 
+        private AoiEntitySample[] EnsureAoiSampleCapacity(int count)
+        {
+            if (_aoiSampleBuffer.Length >= count)
+            {
+                return _aoiSampleBuffer;
+            }
+
+            var newCapacity = _aoiSampleBuffer.Length == 0 ? 16 : _aoiSampleBuffer.Length;
+            while (newCapacity < count)
+            {
+                newCapacity = checked(newCapacity * 2);
+            }
+
+            _aoiSampleBuffer = new AoiEntitySample[newCapacity];
+            return _aoiSampleBuffer;
         }
  
         private static int ResolveMaxEntities(ShooterPureStateSyncSettings settings, int entityBudget, ShooterPureStateInterestScope? interestScope)
@@ -648,6 +680,46 @@ namespace AbilityKit.Demo.Shooter.Runtime
             public float Y { get; }
 
             public AoiEntityKey AoiKey { get; }
+        }
+
+        private sealed class AoiSampleBufferView : IReadOnlyList<AoiEntitySample>
+        {
+            private AoiEntitySample[] _buffer = Array.Empty<AoiEntitySample>();
+            private int _count;
+
+            public int Count => _count;
+
+            public AoiEntitySample this[int index]
+            {
+                get
+                {
+                    if ((uint)index >= (uint)_count)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(index));
+                    }
+
+                    return _buffer[index];
+                }
+            }
+
+            public void Reset(AoiEntitySample[] buffer, int count)
+            {
+                _buffer = buffer ?? Array.Empty<AoiEntitySample>();
+                _count = Math.Max(0, Math.Min(count, _buffer.Length));
+            }
+
+            public IEnumerator<AoiEntitySample> GetEnumerator()
+            {
+                for (var i = 0; i < _count; i++)
+                {
+                    yield return _buffer[i];
+                }
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
         }
 
         private readonly struct ShooterPureStateSelection

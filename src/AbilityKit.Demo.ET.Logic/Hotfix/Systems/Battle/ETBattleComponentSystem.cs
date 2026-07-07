@@ -7,8 +7,8 @@ using BattleStartPlan = AbilityKit.Demo.Moba.Share.BattleStartPlan;
 namespace ET.Logic
 {
     /// <summary>
-    /// ETBattleComponent system.
-    /// Drives the ET-hosted MOBA battle loop through the ET host facade and framework MOBA driver host.
+    /// ETBattleComponent 系统。
+    /// 通过 ET 宿主门面和框架 MOBA 驱动宿主驱动由 ET 承载的 MOBA 战斗循环。
     /// </summary>
     [EntitySystemOf(typeof(ETBattleComponent))]
     [FriendOf(typeof(ETBattleComponent))]
@@ -18,7 +18,7 @@ namespace ET.Logic
     [FriendOf(typeof(ETMobaBattleDriver))]
     public static partial class ETBattleComponentSystem
     {
-        #region Lifecycle
+        #region 生命周期
 
         [EntitySystem]
         private static void Awake(this ETBattleComponent self)
@@ -29,18 +29,18 @@ namespace ET.Logic
         [EntitySystem]
         private static void Update(this ETBattleComponent self)
         {
-            // Only update when battle is in progress
+            // 仅在战斗进行中更新。
             if (self.State != BattleState.InProgress)
                 return;
 
-            // Tick the battle driver through the framework MOBA driver host.
+            // 通过框架 MOBA 驱动宿主推进战斗驱动器。
             if (self.BattleDriver != null)
             {
                 float deltaTime = 1f / self.TickRate;
                 self.BattleDriver.Tick(deltaTime);
             }
 
-            // Advance frame (check battle end, send tick event)
+            // 推进帧（检查战斗结束并发送 Tick 事件）。
             self.AdvanceFrame();
         }
 
@@ -66,15 +66,15 @@ namespace ET.Logic
 
         #endregion
 
-        #region Init
+        #region 初始化
 
         /// <summary>
-        /// Initialize battle
+        /// 初始化战斗。
         /// </summary>
-        /// <param name="self">Battle component</param>
-        /// <param name="plan">Battle start plan</param>
-        /// <param name="textAssetLoader">Config loader for View layer</param>
-        /// <param name="playerSpawnData">Explicit player loadouts required by formal MOBA world startup.</param>
+        /// <param name="self">战斗组件。</param>
+        /// <param name="plan">战斗启动计划。</param>
+        /// <param name="textAssetLoader">View 层配置加载器。</param>
+        /// <param name="playerSpawnData">正式 MOBA 世界启动所需的显式玩家配置。</param>
         public static void InitializeBattle(this ETBattleComponent self, BattleStartPlan plan, ITextAssetLoader textAssetLoader, IReadOnlyList<ETPlayerSpawnData> playerSpawnData = null)
         {
             self.BattleId = IdGenerater.Instance.GenerateId();
@@ -86,11 +86,11 @@ namespace ET.Logic
 
             var scene = self.Scene();
 
-            // Create runtime components used by the active ET battle loop.
+            // 创建活动 ET 战斗循环使用的运行时组件。
             scene.AddComponent<ETUnitComponent>();
             scene.AddComponent<ETInputComponent>();
 
-            // Create ET host component and platform-independent battle driver adapter.
+            // 创建 ET 宿主组件和平台无关的战斗驱动适配器。
             var battleHost = scene.AddComponent<ETMobaBattleDriver>();
             self.BattleHost = battleHost;
             self.BattleDriver = new ETMobaBattleRuntimeDriver(battleHost);
@@ -109,10 +109,10 @@ namespace ET.Logic
                 Log.Info($"[ETBattle] Built default player spawn data from config: Count={battleHost.PlayerSpawnData.Count}");
             }
 
-            // Create Entity Cache Component for ET.View
+            // 为 ET.View 创建实体缓存组件。
             var cacheComponent = scene.AddComponent<ETBattleEntityCacheComponent>();
 
-            // Create ET view sink and optional demo automation sink, then pass the composed output to the driver.
+            // 创建 ET 视图接收器和可选 Demo 自动化接收器，再将组合后的输出传给驱动器。
             var viewSink = new ETBattleViewEventSink(self, cacheComponent);
             IBattleViewEventSink runtimeSink = self.AutomationOptions?.HasAnyAutomationEnabled == true
                 ? new ETCompositeBattleViewEventSink(viewSink, new ETBattleAutomationSnapshotSink(scene, self))
@@ -122,7 +122,7 @@ namespace ET.Logic
             self.State = BattleState.Ready;
             Log.Info($"[ETBattle] Battle {self.BattleId} ready!");
 
-            // Publish battle init event
+            // 发布战斗初始化事件。
             EventSystem.Instance.Publish<Scene, BattleSceneInitFinish>(
                 scene,
                 new BattleSceneInitFinish
@@ -134,10 +134,10 @@ namespace ET.Logic
 
         #endregion
 
-        #region Battle
+        #region 战斗
 
         /// <summary>
-        /// Start battle
+        /// 启动战斗。
         /// </summary>
         public static void StartBattle(this ETBattleComponent self)
         {
@@ -155,7 +155,7 @@ namespace ET.Logic
 
             self.State = BattleState.InProgress;
 
-            // Start battle driver. Runtime view sink owns battle lifecycle notifications.
+            // 启动战斗驱动器。运行时视图接收器负责战斗生命周期通知。
             self.BattleDriver?.Start();
 
             Log.Info($"[ETBattle] Battle {self.BattleId} started!");
@@ -163,7 +163,7 @@ namespace ET.Logic
         }
 
         /// <summary>
-        /// End battle
+        /// 结束战斗。
         /// </summary>
         public static void EndBattle(this ETBattleComponent self, bool isVictory)
         {
@@ -172,7 +172,7 @@ namespace ET.Logic
 
             self.State = BattleState.Ended;
 
-            // Stop battle driver. Runtime view sink owns battle lifecycle notifications.
+            // 停止战斗驱动器。运行时视图接收器负责战斗生命周期通知。
             self.BattleDriver?.Stop();
 
             Log.Info("====================================");
@@ -184,10 +184,10 @@ namespace ET.Logic
 
         #endregion
 
-        #region Frame
+        #region 帧
 
         /// <summary>
-        /// Advance frame
+        /// 推进帧。
         /// </summary>
         public static void AdvanceFrame(this ETBattleComponent self)
         {
@@ -197,19 +197,19 @@ namespace ET.Logic
             if (self.BattleDriver == null)
                 return;
 
-            // Send frame tick event
+            // 发送帧 Tick 事件。
             self.ViewSink?.OnFrameTick(new FrameTickEvent()
             {
                 Frame = self.BattleDriver.CurrentFrame,
                 TimeSeconds = (float)self.BattleDriver.LogicTimeSeconds
             });
 
-            // Check battle end
+            // 检查战斗结束。
             self.CheckBattleEnd();
         }
 
         /// <summary>
-        /// Check battle end
+        /// 检查战斗结束。
         /// </summary>
         public static void CheckBattleEnd(this ETBattleComponent self)
         {

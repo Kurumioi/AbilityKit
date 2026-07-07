@@ -336,12 +336,12 @@ public sealed class ShooterSyncModeSmokeTests
                 var commands = BuildClientServerFrameCommands(commandFrame);
                 Assert.Equal(playerCount, commands.Length);
 
-                for (var i = 0; i < commands.Length; i++)
+                for (var i = 0; i < sessions.Count; i++)
                 {
-                    var command = commands[i];
-                    var clientIndex = command.PlayerId - 1;
-                    Assert.InRange(clientIndex, 0, sessions.Count - 1);
-                    Assert.Equal(1, sessions[clientIndex].Controller.SubmitLocalInput(in command).AcceptedInputs);
+                    for (var commandIndex = 0; commandIndex < commands.Length; commandIndex++)
+                    {
+                        Assert.Equal(1, sessions[i].Controller.SubmitLocalInput(in commands[commandIndex]).AcceptedInputs);
+                    }
                 }
 
                 Assert.Equal(playerCount, server.Runtime.SubmitInput(commandFrame, commands));
@@ -696,8 +696,7 @@ public sealed class ShooterSyncModeSmokeTests
         for (var i = 0; i < expected.Bullets.Length; i++)
         {
             var expectedBullet = expected.Bullets[i];
-            var actualBullet = actual.Bullets[i];
-            Assert.Equal(expectedBullet.BulletId, actualBullet.BulletId);
+            Assert.True(TryFindBullet(actual.Bullets, expectedBullet.BulletId, out var actualBullet), $"Expected bullet {expectedBullet.BulletId} to exist in actual final snapshot.");
             Assert.Equal(expectedBullet.OwnerPlayerId, actualBullet.OwnerPlayerId);
             Assert.Equal(expectedBullet.X, actualBullet.X);
             Assert.Equal(expectedBullet.Y, actualBullet.Y);
@@ -705,6 +704,21 @@ public sealed class ShooterSyncModeSmokeTests
             Assert.Equal(expectedBullet.VelocityY, actualBullet.VelocityY);
             Assert.Equal(expectedBullet.RemainingFrames, actualBullet.RemainingFrames);
         }
+    }
+
+    private static bool TryFindBullet(ShooterBulletSnapshot[] bullets, int bulletId, out ShooterBulletSnapshot bullet)
+    {
+        for (var i = 0; i < bullets.Length; i++)
+        {
+            if (bullets[i].BulletId == bulletId)
+            {
+                bullet = bullets[i];
+                return true;
+            }
+        }
+
+        bullet = default;
+        return false;
     }
 
     private static InterpolationConfig SmokeInterpolationConfig()

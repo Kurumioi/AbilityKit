@@ -3,7 +3,7 @@ using System;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Network endpoint for remote connections
+    /// 远程连接使用的网络端点。
     /// </summary>
     public readonly struct NetworkEndpoint : IEquatable<NetworkEndpoint>
     {

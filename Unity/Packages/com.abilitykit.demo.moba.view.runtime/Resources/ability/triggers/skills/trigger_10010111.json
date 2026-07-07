@@ -11,13 +11,6 @@
       "conditions": [],
       "actions": [
         {
-          "type": "give_damage",
-          "damage_value": 160,
-          "damage_type": 1,
-          "reason_param": 10010101,
-          "target_max_count": 1
-        },
-        {
           "type": "pull",
           "speed": 7.0,
           "duration_ms": 300,
@@ -26,6 +19,13 @@
           "priority": 100,
           "motion_group_id": 3,
           "continuous_tag_template_id": 10000001
+        },
+        {
+          "type": "give_damage",
+          "damage_value": 160,
+          "damage_type": 1,
+          "reason_param": 10010101,
+          "target_max_count": 1
         },
         {
           "type": "debug_log",

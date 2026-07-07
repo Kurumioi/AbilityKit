@@ -7,12 +7,12 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Sync Adapter Factory
+    /// 同步适配器工厂。
     ///
-    /// Design:
-    /// - Creates appropriate sync adapter based on configuration
-    /// - Centralized adapter instantiation logic
-    /// - Returns strongly typed interfaces for mode-specific behavior
+    /// 设计：
+    /// - 根据配置创建合适的同步适配器。
+    /// - 集中管理适配器实例化逻辑。
+    /// - 为不同模式的行为返回强类型接口。
     /// </summary>
     public delegate ISyncAdapter SyncAdapterCreator(IWorld world, in SessionConfig config);
 
@@ -78,7 +78,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create a sync adapter based on sync mode.
+        /// 根据同步模式创建同步适配器。
         /// </summary>
         public static ISyncAdapter Create(IWorld world, in SessionConfig config)
         {
@@ -86,7 +86,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create a local sync adapter (Lockstep mode)
+        /// 创建本地同步适配器（Lockstep 模式）。
         /// </summary>
         public static ILocalSyncAdapter CreateLocalSyncAdapter(IWorld world, in SessionConfig config)
         {
@@ -94,7 +94,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create a remote sync adapter (Server authority mode)
+        /// 创建远程同步适配器（服务器权威模式）。
         /// </summary>
         public static IRemoteSyncAdapter CreateRemoteSyncAdapter(IWorld world, in SessionConfig config)
         {
@@ -102,17 +102,17 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Create a hybrid sync adapter (Client prediction mode)
+        /// 创建混合同步适配器（客户端预测模式）。
         /// </summary>
         public static IPredictionSyncAdapter CreateHybridSyncAdapter(IWorld world, in SessionConfig config)
         {
             return new HybridSyncAdapter(world, config);
         }
 
-        // ============== Utility Methods ==============
+        // ============== 工具方法 ==============
 
         /// <summary>
-        /// Get sync adapter type name from mode
+        /// 根据模式获取同步适配器类型名。
         /// </summary>
         public static string GetAdapterTypeName(Core.SyncMode mode)
         {
@@ -127,7 +127,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Check if sync adapter requires network connection
+        /// 检查同步适配器是否需要网络连接。
         /// </summary>
         public static bool RequiresNetwork(Core.SyncMode mode)
         {
@@ -142,7 +142,7 @@ namespace AbilityKit.Coordinator
         }
 
         /// <summary>
-        /// Check if sync adapter supports client prediction
+        /// 检查同步适配器是否支持客户端预测。
         /// </summary>
         public static bool SupportsPrediction(Core.SyncMode mode)
         {

@@ -12,8 +12,8 @@ using AbilityKit.Triggering.Runtime.Config.Plans;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// PlanTriggering Install Stage
-    /// 安装计划触发系统
+    /// PlanTriggering 安装阶段。
+    /// 安装计划触发系统。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class PlanTriggeringStage : MobaBootstrapStageBase
@@ -28,8 +28,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
         protected internal override void Configure(WorldContainerBuilder builder)
         {
-            // Plan action modules live under Application/Services/Triggering/PlanActions.
-            // This bootstrap stage only triggers installation after service modules are configured.
+            // Plan action 模块位于 Application/Services/Triggering/PlanActions 下。
+            // 此 bootstrap 阶段只在服务模块配置完成后触发安装。
         }
 
         protected internal override void Install(

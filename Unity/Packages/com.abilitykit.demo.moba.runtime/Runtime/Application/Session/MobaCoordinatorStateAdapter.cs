@@ -5,7 +5,7 @@ using AbilityKit.Coordinator;
 namespace AbilityKit.Demo.Moba.Session
 {
     /// <summary>
-    /// Converts logic-world entity state snapshots into coordinator-facing state records.
+    /// 将逻辑世界实体状态快照转换为面向 coordinator 的状态记录。
     /// </summary>
     public sealed class MobaCoordinatorStateAdapter
     {

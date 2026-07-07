@@ -13,7 +13,8 @@ namespace AbilityKit.Game.Flow
             if (meta.Kind != BattleEntityKind.Projectile) return 0;
 
             var projectile = TryGet(configs, meta.EntityCode);
-            return projectile != null ? projectile.VfxId : 0;
+            if (projectile == null) return BattleViewPlaceholderIds.ProjectileVfx;
+            return projectile.VfxId > 0 ? projectile.VfxId : BattleViewPlaceholderIds.ProjectileVfx;
         }
 
         public ProjectileMO TryGet(MobaConfigDatabase configs, int templateId)

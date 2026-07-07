@@ -28,7 +28,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             }
             else
             {
-                // Be defensive: if worldId mismatch occurs, reset all worlds to avoid being stuck in replay.
+                // 防御性处理：如果 worldId 不匹配，则重置所有世界，避免卡在回放状态。
                 foreach (var kv in _contexts)
                 {
                     if (kv.Value != null) ResetReconcileInternal(kv.Value);
@@ -42,7 +42,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ctx.AuthoritativeHashes?.Clear();
             ctx.Reconciler?.Clear();
 
-            // Also exit replay mode to avoid getting stuck after debug mismatch toggles.
+            // 同时退出回放模式，避免调试强制不一致开关后卡住。
             ctx.Mode = ReplayMode.Normal;
             ctx.ReplayTo = ctx.PredictedFrame;
             ctx.LastRollbackFrame = new FrameIndex(0);
@@ -575,7 +575,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (ctx.PredictedHashes == null || !ctx.PredictedHashes.TryGet(frame, out var predictedAtFrame))
             {
                 _totalAuthoritativeHashSkippedNoPredictedHash++;
-                // We'll retry comparison when predicted hash for this frame is recorded.
+                // 等该帧预测哈希记录完成后再重试比对。
                 return;
             }
             else
@@ -595,7 +595,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (!_contexts.TryGetValue(worldId, out var ctx) || ctx == null) return;
             if (!_enableRollback || ctx.Rollback == null) return;
 
-            // Avoid rollback storms (e.g. debug forced mismatch) and avoid re-entering while replaying.
+            // 避免回滚风暴（例如调试强制不一致），并避免在回放期间重入。
             if (ctx.Mode == ReplayMode.Replaying) return;
             if (ctx.LastRollbackFrame.Value >= mismatchFrame.Value) return;
 
@@ -662,19 +662,19 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                 var localBatch = Array.Empty<LocalPlayerInputEvent>();
 
-                // Exactly one Submit per HostRuntime.Tick.
+                // 每次 HostRuntime.Tick 只提交一次。
 
-                // Compute ideal frame limit from time synchronization (if available).
+                // 从时间同步计算理想帧上限（如果可用）。
                 var ideal = _resolveIdealFrameLimit != null ? _resolveIdealFrameLimit(worldId) : 0;
                 _currentIdealFrameLimit = ideal;
                 ctx.IdealFrameLimit = ideal;
                 ctx.IdealFrameStalled = false;
                 ctx.IdealFrameCappedWindow = false;
 
-                // Compute adaptive prediction window.
-                // - Hard cap: _maxPredictionAheadFrames
-                // - Dynamic window: based on authoritative backlog (TargetFrame - ConfirmedFrame)
-                // - Smooth backlog via EWMA to avoid jittery window.
+                // 计算自适应预测窗口。
+                // - 硬上限：_maxPredictionAheadFrames
+                // - 动态窗口：基于权威积压帧数（TargetFrame - ConfirmedFrame）
+                // - 通过 EWMA 平滑积压帧数，避免窗口抖动。
                 var rawBacklog = remote != null ? (remote.TargetFrame - ctx.ConfirmedFrame.Value) : 0;
                 if (rawBacklog < 0) rawBacklog = 0;
 
@@ -726,7 +726,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                // Step 0: always enqueue one local batch (may be empty) so delay queue advances.
+                // 步骤 0：始终入队一个本地批次（可为空），确保延迟队列向前推进。
                 if (local != null)
                 {
                     var evts = Array.Empty<LocalPlayerInputEvent>();
@@ -747,7 +747,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                // Step 1 (preferred): apply authoritative input for next confirmed frame if available.
+                // 步骤 1（优先）：如果下一确认帧有权威输入，则应用它。
                 if (remote != null && ctx.Mode == ReplayMode.Normal)
                 {
                     var nextConfirmed = ctx.ConfirmedFrame.Value + 1;
@@ -755,7 +755,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     {
                         var frame = new FrameIndex(nextConfirmed);
 
-                        // Peek first: decide whether to rollback.
+                        // 先窥探输入，用于判断是否需要回滚。
                         PlayerInputCommand[] authInputs;
                         if (!remote.TryGet(nextConfirmed, out authInputs) || authInputs == null)
                         {
@@ -793,11 +793,11 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
                         if (ctx.Mode == ReplayMode.Replaying)
                         {
-                            // fall through to replay logic below
+                            // 继续落入下方回放逻辑。
                         }
                         else
                         {
-                            // Consume and apply authoritative.
+                            // 消费并应用权威输入。
                             if (!remote.TryConsume(nextConfirmed, out var consumed) || consumed == null)
                             {
                                 consumed = Array.Empty<PlayerInputCommand>();
@@ -821,7 +821,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                 }
 
-                // Replay: deterministic re-sim until ReplayTo.
+                // 回放：确定性重新模拟，直到 ReplayTo。
                 if (ctx.Mode == ReplayMode.Replaying)
                 {
                     _isReplaying = true;
@@ -837,8 +837,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         continue;
                     }
 
-                    // Plan A (convergence-first): only replay when authoritative input for this frame is available.
-                    // Otherwise, exit replay and return to Normal prediction to avoid tug-of-war.
+                    // 方案 A（收敛优先）：只有该帧权威输入可用时才回放。
+                    // 否则退出回放并返回 Normal 预测，避免来回拉扯。
                     PlayerInputCommand[] inputs = null;
                     if (ctx.AuthoritativeInputs.TryGet(next, out var auth) && auth != null)
                     {
@@ -859,7 +859,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     }
                     else
                     {
-                        // No authoritative input yet for this frame -> pause replay (do not submit predicted inputs).
+                        // 该帧尚无权威输入，暂停回放（不提交预测输入）。
                         ctx.ReplayWaitTicks++;
                         if (ctx.ReplayWaitTicks >= ReplayWaitTimeoutTicks)
                         {
@@ -885,7 +885,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     continue;
                 }
 
-                // Step 2 (A: responsiveness-first): do one predicted step using current tick local inputs.
+                // 步骤 2（方案 A：响应优先）：使用当前 tick 本地输入执行一次预测步。
                 {
                     if (_currentPredictionWindow == 0)
                     {
@@ -992,7 +992,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         ctx.Reconciler.RecordPredictedHash(ctx.PredictedFrame, hash);
                         _totalPredictedHashRecorded++;
 
-                        // If authoritative hash for this frame arrived earlier, compare now.
+                        // 如果该帧权威哈希已提前到达，现在执行比对。
                         if (ctx.AuthoritativeHashes != null && ctx.AuthoritativeHashes.TryGet(ctx.PredictedFrame, out var authAtFrame))
                         {
                             _lastReconcileComparedFrame = ctx.PredictedFrame;

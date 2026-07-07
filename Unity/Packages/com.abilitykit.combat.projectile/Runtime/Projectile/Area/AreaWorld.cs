@@ -79,7 +79,7 @@ namespace AbilityKit.Combat.Projectile
 
                 if (a.LifetimeFramesLeft <= 0)
                 {
-                    // Emit exit for all currently inside.
+                    // 为当前仍在范围内的目标发送退出事件。
                     var prev = a.GetPrevList();
                     for (int k = 0; k < prev.Count; k++)
                     {
@@ -92,7 +92,7 @@ namespace AbilityKit.Combat.Projectile
                     continue;
                 }
 
-                // Query current overlaps.
+                // 查询当前重叠目标。
                 var curr = a.GetCurrListAndClear();
                 var count = _collision.OverlapSphere(new Sphere(a.Center, a.Radius), a.LayerMask, curr);
                 if (count > 1)
@@ -100,7 +100,7 @@ namespace AbilityKit.Combat.Projectile
                     curr.Sort(CompareCollider);
                 }
 
-                // Diff prev vs curr to produce enter/exit.
+                // 对比上一帧和当前帧，生成进入/退出事件。
                 var prevList = a.GetPrevList();
                 var pi = 0;
                 var ci = 0;
@@ -109,7 +109,7 @@ namespace AbilityKit.Combat.Projectile
                 {
                     if (pi >= prevList.Count)
                     {
-                        // Remaining curr are enters.
+                        // 剩余当前项都是进入目标。
                         for (; ci < curr.Count; ci++)
                         {
                             enterEvents?.Add(new AreaEnterEvent(a.Id, a.OwnerId, curr[ci], frame));
@@ -119,7 +119,7 @@ namespace AbilityKit.Combat.Projectile
 
                     if (ci >= curr.Count)
                     {
-                        // Remaining prev are exits.
+                        // 剩余上一帧项都是退出目标。
                         for (; pi < prevList.Count; pi++)
                         {
                             exitEvents?.Add(new AreaExitEvent(a.Id, a.OwnerId, prevList[pi], frame));
@@ -147,7 +147,7 @@ namespace AbilityKit.Combat.Projectile
                     ci++;
                 }
 
-                // Stay events (interval).
+                // 按间隔发送 Stay 事件。
                 if (a.StayIntervalFrames > 0 && frame >= a.NextStayFrame)
                 {
                     for (int k = 0; k < curr.Count; k++)
@@ -158,7 +158,7 @@ namespace AbilityKit.Combat.Projectile
                     a.NextStayFrame = frame + a.StayIntervalFrames;
                 }
 
-                // Swap prev/curr for next tick.
+                // 交换上一帧和当前帧列表，供下一帧使用。
                 a.SwapLists();
 
                 a.LifetimeFramesLeft--;

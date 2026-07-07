@@ -93,21 +93,31 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
 
         private static SessionConfig CreateConfig(ShooterRoomGatewayFlowResult flow, ShooterClientNetworkEndpoint endpoint, int tickRate)
         {
-            var worldId = flow.WorldId > int.MaxValue ? 1 : (int)flow.WorldId;
-            var roomId = flow.NumericRoomId > long.MaxValue ? 0L : (long)flow.NumericRoomId;
-            var playerId = flow.PlayerId > int.MaxValue ? 0 : (int)flow.PlayerId;
+            var worldId = ToPositiveInt(flow.WorldId, nameof(flow.WorldId));
+            var roomId = ToPositiveLong(flow.NumericRoomId, nameof(flow.NumericRoomId));
+            var playerId = ToPositiveInt(flow.PlayerId, nameof(flow.PlayerId));
+            var resolvedTickRate = tickRate <= 0 ? ShooterGameplay.DefaultTickRate : tickRate;
+            if (string.IsNullOrWhiteSpace(endpoint.Host))
+            {
+                throw new ArgumentException("Coordinator input endpoint host is required.", nameof(endpoint));
+            }
+
+            if (endpoint.Port <= 0 || endpoint.Port > 65535)
+            {
+                throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Port, "Coordinator input endpoint port must be in 1..65535.");
+            }
 
             return new SessionConfig
             {
                 SessionId = SessionId.New(),
                 MapId = 1,
-                WorldId = worldId <= 0 ? 1 : worldId,
+                WorldId = worldId,
                 WorldType = ShooterGameplay.WorldType,
                 LocalPlayerId = playerId,
                 ClientId = playerId,
                 SyncMode = SyncMode.StateSync,
                 HostMode = HostMode.Client,
-                TickRate = tickRate <= 0 ? ShooterGameplay.DefaultTickRate : tickRate,
+                TickRate = resolvedTickRate,
                 RequireLogicWorldDriveGate = true,
                 UseCoordinatorSpawnService = false,
                 EnableReplayRecording = false,
@@ -117,6 +127,26 @@ namespace AbilityKit.Demo.Shooter.View.Hosting
                 ServerEndpoint = new NetworkEndpoint(endpoint.Host, endpoint.Port),
                 RoomId = roomId
             };
+        }
+
+        private static int ToPositiveInt(ulong value, string name)
+        {
+            if (value == 0ul || value > int.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(name, value, $"{name} must be in 1..{int.MaxValue} for SessionCoordinator config.");
+            }
+
+            return (int)value;
+        }
+
+        private static long ToPositiveLong(ulong value, string name)
+        {
+            if (value == 0ul || value > long.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(name, value, $"{name} must be in 1..{long.MaxValue} for SessionCoordinator config.");
+            }
+
+            return (long)value;
         }
 
         private void ThrowIfDisposed()

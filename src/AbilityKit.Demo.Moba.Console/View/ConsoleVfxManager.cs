@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AbilityKit.Demo.Moba.Console.View
 {
     /// <summary>
-    /// Console VFX entry
+    /// Console VFX 条目。
     /// </summary>
     public sealed class ConsoleVfxEntry
     {
@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Console.View
     }
 
     /// <summary>
-    /// Console VFX database (placeholder)
+    /// Console VFX 数据库（占位实现）。
     /// </summary>
     public sealed class ConsoleVfxDatabase
     {
@@ -50,8 +50,8 @@ namespace AbilityKit.Demo.Moba.Console.View
     }
 
     /// <summary>
-    /// Console VFX manager (placeholder implementation)
-    /// Manages VFX lifecycle in Console environment
+    /// Console VFX 管理器（占位实现）。
+    /// 管理 Console 环境中的 VFX 生命周期。
     /// </summary>
     public sealed class ConsoleVfxManager : IDisposable
     {
@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Update logic time for VFX lifecycle
+        /// 更新用于 VFX 生命周期的逻辑时间。
         /// </summary>
         public void SetLogicTime(double seconds)
         {
@@ -79,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Create VFX
+        /// 创建 VFX。
         /// </summary>
         public int CreateVfx(int vfxTemplateId, int ownerActorId, float x, float y, float z, float duration = 2f)
         {
@@ -111,7 +111,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Sync VFX follow position
+        /// 同步 VFX 跟随位置。
         /// </summary>
         public void SyncFollow(int vfxId, float x, float y, float z)
         {
@@ -126,7 +126,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Destroy VFX
+        /// 销毁 VFX。
         /// </summary>
         public void DestroyVfx(int vfxId)
         {
@@ -139,7 +139,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Update VFX (Console placeholder implementation)
+        /// 更新 VFX（Console 占位实现）。
         /// </summary>
         public void Tick(float deltaTime)
         {
@@ -168,7 +168,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Clear all VFX
+        /// 清理所有 VFX。
         /// </summary>
         public void Clear()
         {
@@ -180,7 +180,7 @@ namespace AbilityKit.Demo.Moba.Console.View
         }
 
         /// <summary>
-        /// Get all active VFX
+        /// 获取所有活动 VFX。
         /// </summary>
         public IEnumerable<ConsoleVfxEntry> GetActiveVfx()
         {

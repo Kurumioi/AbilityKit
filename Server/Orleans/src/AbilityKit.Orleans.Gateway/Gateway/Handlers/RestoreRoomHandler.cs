@@ -56,7 +56,7 @@ public sealed partial class RestoreRoomHandler : GatewayRequestHandlerBase
                 await mapping.ClearAccountRoomAsync(accountId, roomId);
             }
 
-            var wire = RoomGatewayWireMapper.ToRestoreRoomRes(restore);
+            var wire = RoomGatewayWireMapper.ToRestoreRoomRes(restore, accountId);
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
 
             context.RoomId = roomId;

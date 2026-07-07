@@ -14,7 +14,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         public void Configure(SkillButtonConfig config)
         {
-            _config = config.LongPressSeconds > 0f ? config : SkillButtonConfig.Default;
+            _config = config;
+            if (_config.DragThreshold <= 0f) _config.DragThreshold = SkillButtonConfig.Default.DragThreshold;
         }
 
         public void Reset()
@@ -31,6 +32,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         {
             if (!_pointer.Pressed) return false;
             if (_pointer.LongPressFired) return false;
+            if (_config.LongPressSeconds <= 0f) return false;
             if (now - _pointer.PressTime < _config.LongPressSeconds) return false;
 
             _pointer.MarkLongPressFired();

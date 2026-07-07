@@ -232,9 +232,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int baselineFrame = 0,
             uint baselineHash = 0,
             ShooterPureStateInterestScope? interestScope = null,
-            AoiInterestSet? aoiInterestSet = null)
+            AoiInterestSet? aoiInterestSet = null,
+            bool computeStateHash = true)
         {
-            return _pureStateSnapshotExporter.Export(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet);
+            return _pureStateSnapshotExporter.Export(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet, computeStateHash);
         }
 
         public bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player)

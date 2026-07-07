@@ -10,7 +10,7 @@ using AbilityKit.Triggering.Variables.Numeric.Expression;
 namespace AbilityKit.Triggering.Runtime
 {
     /// <summary>
-    /// Holds runtime services needed to build trigger execution contexts.
+    /// 持有构建触发器执行上下文所需的运行时服务。
     /// </summary>
     internal sealed class TriggerRunnerRuntimeServices<TCtx>
     {

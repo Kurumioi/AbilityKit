@@ -12,8 +12,8 @@ using AbilityKit.Demo.Moba.Services;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// Tags Stage
-    /// 注册 GameplayTag 相关服务
+    /// Tags 阶段。
+    /// 注册 GameplayTag 相关服务。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class TagsStage : MobaBootstrapStageBase

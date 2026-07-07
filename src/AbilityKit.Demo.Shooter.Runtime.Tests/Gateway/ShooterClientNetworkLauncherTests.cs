@@ -20,7 +20,7 @@ public sealed class ShooterClientNetworkLauncherTests
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
-        var connection = new FakeGatewayConnection { AutoRespondRoomGateway = true };
+        var connection = new FakeGatewayConnection { AutoRespondRoomGateway = true, JoinCurrentPlayerId = 51u };
         connection.Close();
         using var launcher = new ShooterClientNetworkLauncher(connection);
         var start = new ShooterStartGamePayload(
@@ -94,7 +94,7 @@ public sealed class ShooterClientNetworkLauncherTests
     [Fact]
     public async Task ClientNetworkLauncherCanBeCreatedFromConnectionFactoryAndEndpoint()
     {
-        var connection = new FakeGatewayConnection { AutoRespondRoomGateway = true };
+        var connection = new FakeGatewayConnection { AutoRespondRoomGateway = true, JoinCurrentPlayerId = 61u };
         connection.Close();
         var factory = new ShooterClientConnectionFactory(() => connection);
         using var launcher = ShooterClientNetworkLauncher.Create(factory);

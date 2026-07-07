@@ -5,25 +5,21 @@ using System;
 namespace AbilityKit.Network.Runtime
 {
     /// <summary>
-    /// Gameplay-agnostic interpolation timeline for <see cref="NetworkSyncModel.AuthoritativeInterpolation"/>
-    /// style playback. It advances a local estimate of server time from frame delta time, folds in
-    /// authoritative server ticks observed on incoming snapshots, and exposes the delayed playback
-    /// time used to sample a <see cref="RemoteSnapshotBuffer{TSnapshot}"/>.
+    /// 用于 <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 风格播放的玩法无关插值时间线。
+    /// 它会根据帧增量推进本地服务器时间估计，吸收传入快照中观测到的权威服务器 tick，
+    /// 并暴露用于采样 <see cref="RemoteSnapshotBuffer{TSnapshot}"/> 的延迟播放时间。
     ///
-    /// The timeline intentionally keeps remote playback a fixed <see cref="InterpolationDelayTicks"/>
-    /// behind the newest authoritative sample so that, under normal jitter, the target time falls
-    /// between two buffered snapshots and remote entities move smoothly instead of snapping.
+    /// 时间线会有意让远端播放固定落后最新权威样本 <see cref="InterpolationDelayTicks"/>，
+    /// 使目标时间在正常抖动下落在两个已缓冲快照之间，让远端实体平滑移动而不是跳变。
     ///
-    /// Two correction behaviours are supported. With the default (<see cref="MaxCatchUpRate"/> == 0)
-    /// the local estimate snaps directly to the authoritative target, which is simple and fully
-    /// deterministic. With a positive catch-up rate the estimate instead converges toward the
-    /// authoritative target over several frames at a bounded rate, so clock drift between the local
-    /// frame clock and the server tick stream is absorbed smoothly rather than via a visible jump.
+    /// 支持两种校正行为。默认模式（<see cref="MaxCatchUpRate"/> == 0）会把本地估计直接吸附到权威目标，
+    /// 简单且完全确定；正数追赶速率则会让估计值在若干帧内以有界速率收敛到权威目标，
+    /// 从而平滑吸收本地帧时钟与服务器 tick 流之间的时钟漂移，避免可见跳变。
     /// </summary>
     public sealed class InterpolationTimeline
     {
-        // Authoritative target time: advanced by frame delta and corrected (forward only) by observed
-        // server ticks. The estimate trails this in soft catch-up mode and equals it in snap mode.
+        // 权威目标时间：由帧增量推进，并通过观测到的服务器 tick 仅向前校正。
+        // 软追赶模式下估计值会落后于该目标；吸附模式下二者相等。
         private double _targetTicks;
         private double _estimatedTicks;
         private bool _hasServerTime;
@@ -34,13 +30,12 @@ namespace AbilityKit.Network.Runtime
         {
         }
 
-        /// <param name="ticksPerSecond">Timeline resolution: how many ticks represent one second.</param>
-        /// <param name="interpolationDelayTicks">How far behind the newest authoritative time playback is held.</param>
+        /// <param name="ticksPerSecond">时间线分辨率：一秒对应的 tick 数。</param>
+        /// <param name="interpolationDelayTicks">播放时间落后最新权威时间的距离。</param>
         /// <param name="maxCatchUpRate">
-        /// The maximum extra fraction of a frame's advance that may be spent closing the gap between the
-        /// estimate and the authoritative target each frame. <c>0</c> snaps the estimate to the target;
-        /// e.g. <c>0.1</c> lets the estimate catch up at up to 10% faster (or slower) than real time so
-        /// drift is absorbed smoothly. Values are clamped to <c>[0, 1]</c>.
+        /// 每帧可用于缩小估计值与权威目标差距的最大额外推进比例。<c>0</c> 会将估计值吸附到目标；
+        /// 例如 <c>0.1</c> 允许估计值最多以比真实时间快（或慢）10% 的速度追赶，从而平滑吸收漂移。
+        /// 取值会被限制在 <c>[0, 1]</c>。
         /// </param>
         public InterpolationTimeline(long ticksPerSecond, long interpolationDelayTicks, double maxCatchUpRate)
         {
@@ -54,33 +49,30 @@ namespace AbilityKit.Network.Runtime
             _maxCatchUpRate = maxCatchUpRate < 0d ? 0d : (maxCatchUpRate > 1d ? 1d : maxCatchUpRate);
         }
 
-        /// <summary>Timeline resolution: how many ticks represent one second of server time.</summary>
+        /// <summary>时间线分辨率：一秒服务器时间对应的 tick 数。</summary>
         public long TicksPerSecond { get; }
 
-        /// <summary>How far behind the newest authoritative time playback is held, in ticks.</summary>
+        /// <summary>播放时间落后最新权威时间的距离，单位为 tick。</summary>
         public long InterpolationDelayTicks { get; }
 
         /// <summary>
-        /// The bounded soft catch-up rate. Zero means the estimate snaps to the authoritative target;
-        /// a positive value means the estimate converges smoothly toward it.
+        /// 有界软追赶速率。零表示估计值吸附到权威目标；正数表示估计值会平滑收敛到目标。
         /// </summary>
         public double MaxCatchUpRate => _maxCatchUpRate;
 
-        /// <summary>Whether the timeline has observed at least one authoritative server time.</summary>
+        /// <summary>时间线是否已观测到至少一个权威服务器时间。</summary>
         public bool HasServerTime => _hasServerTime;
 
-        /// <summary>The current local estimate of server time, in ticks.</summary>
+        /// <summary>当前本地服务器时间估计值，单位为 tick。</summary>
         public long EstimatedServerTicks => (long)_estimatedTicks;
 
         /// <summary>
-        /// The authoritative target server time the estimate is converging toward, in ticks. In snap
-        /// mode this equals <see cref="EstimatedServerTicks"/>.
+        /// 估计值正在收敛的权威目标服务器时间，单位为 tick。吸附模式下等于 <see cref="EstimatedServerTicks"/>。
         /// </summary>
         public long TargetServerTicks => (long)_targetTicks;
 
         /// <summary>
-        /// The delayed playback time used to sample the remote snapshot buffer. This is the estimated
-        /// server time minus the interpolation delay, never negative.
+        /// 用于采样远端快照缓冲区的延迟播放时间。它等于估计服务器时间减去插值延迟，且不会为负。
         /// </summary>
         public long PlaybackTicks
         {
@@ -92,10 +84,9 @@ namespace AbilityKit.Network.Runtime
         }
 
         /// <summary>
-        /// Folds an authoritative server time (from a received snapshot) into the timeline. The first
-        /// observation seeds both the target and the estimate. Later observations move the target
-        /// forward only (stale times are ignored). In snap mode the estimate is pulled forward with the
-        /// target; in soft catch-up mode the estimate is left to converge during <see cref="Advance"/>.
+        /// 将权威服务器时间（来自收到的快照）合入时间线。首次观测会同时初始化目标值和估计值。
+        /// 后续观测只会向前推进目标值（忽略过期时间）。吸附模式下估计值会随目标一起前移；
+        /// 软追赶模式下估计值会在 <see cref="Advance"/> 中继续收敛。
         /// </summary>
         public void ObserveServerTicks(long serverTicks)
         {
@@ -119,10 +110,9 @@ namespace AbilityKit.Network.Runtime
         }
 
         /// <summary>
-        /// Advances the local server time estimate by a frame delta. No-op until the first
-        /// authoritative server time has been observed. The authoritative target advances at real time;
-        /// in soft catch-up mode the estimate advances at real time plus a bounded correction toward the
-        /// target so accumulated drift is absorbed gradually.
+        /// 按帧增量推进本地服务器时间估计。在首次观测到权威服务器时间前不执行任何操作。
+        /// 权威目标按真实时间推进；软追赶模式下估计值会在真实时间推进量上叠加朝向目标的有界校正，
+        /// 从而逐步吸收累计漂移。
         /// </summary>
         public void Advance(float deltaSeconds)
         {

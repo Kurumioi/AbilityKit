@@ -31,8 +31,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
                 context.BulletsPerShot,
                 context.RequestFanAngleDeg);
 
-            // Launch requests are created during the current logic frame after projectile ticking may have already run.
-            // Schedule the first emit for the next frame so one-shot launches cannot miss their only spawn window.
+            // 发射请求会在当前逻辑帧内创建，此时 projectile tick 可能已经执行过。
+            // 因此将首次发射排到下一帧，避免一次性发射错过唯一的生成窗口。
             var firstEmitFrame = context.StartFrame + 1;
             var schedule = context.RepeatCount == 1
                 ? ProjectileScheduleParams.Once(firstEmitFrame)

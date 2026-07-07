@@ -83,6 +83,7 @@ namespace AbilityKit.Game.Flow
 
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
+            _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
             _aimPreview.Tick(_ctx);
         }
 
@@ -114,6 +115,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_ctx == null) return;
             _inputController?.ApplySkillButtonTemplates(res, _ctx.Plan.World.PlayerId);
+            _aimPreview?.SetSkillSpecs(_inputController?.SkillSpecs);
         }
 
         private void OnDamageEventSnapshot(MobaDamageEventSnapshotEntry[] entries)

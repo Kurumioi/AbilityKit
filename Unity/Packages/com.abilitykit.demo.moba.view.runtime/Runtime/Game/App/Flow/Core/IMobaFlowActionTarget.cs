@@ -1,8 +1,8 @@
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Decouples <c>MobaFlowActionExecutor</c> and <c>MobaFlowSwitchExecutor</c>
-    /// from the concrete flow domain so that dispatch logic can be tested in isolation.
+    /// 将 <c>MobaFlowActionExecutor</c> 和 <c>MobaFlowSwitchExecutor</c>
+    /// 与具体 flow domain 解耦，使派发逻辑可以独立测试。
     /// </summary>
     internal interface IMobaFlowActionTarget
     {

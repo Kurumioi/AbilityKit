@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ISveltoWorldContext _context;
         private readonly int _attackIntervalFrames;
         private readonly int _attackDamage;
+        private readonly ShooterSpatialTargetIndex _targetIndex = new();
 
         public ShooterEnemyWaveCombatModule(ShooterBattleState state, IShooterEntityManager entities)
             : this(state, entities, ShooterEnemyWaveOptions.DefaultEnabled)
@@ -51,13 +52,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             var emittedEvents = 0;
             var (transforms, healths, ids, count) = _context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-            if (ShooterSveltoPlayerTargetSelector.TryGetOnlyLivePlayer(players, playerCount, out var onlyPlayerIndex, out _))
+            _targetIndex.Rebuild(players, playerCount);
+            if (_targetIndex.TryGetOnlyLivePlayer(out var onlyPlayerIndex, out _))
             {
                 AttackSinglePlayer(players, onlyPlayerIndex, transforms, healths, ids, count, ref emittedEvents);
                 return;
             }
 
-            AttackNearestPlayers(players, playerCount, transforms, healths, ids, count, ref emittedEvents);
+            AttackNearestPlayers(players, transforms, healths, ids, count, ref emittedEvents);
         }
 
         private void AttackSinglePlayer(
@@ -92,7 +94,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private void AttackNearestPlayers(
             NB<ShooterSveltoPlayerComponent> players,
-            int playerCount,
             NB<ShooterSveltoTransformComponent> transforms,
             NB<ShooterSveltoHealthComponent> healths,
             NativeEntityIDs ids,
@@ -106,11 +107,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     continue;
                 }
 
-                if (!ShooterSveltoPlayerTargetSelector.TryFindNearestLivePlayer(
-                    players,
-                    playerCount,
+                if (!_targetIndex.TryFindNearestPlayer(
                     transforms[i].X,
                     transforms[i].Y,
+                    selfPlayerId: 0,
                     out var playerIndex,
                     out var player,
                     out _))

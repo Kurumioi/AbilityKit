@@ -99,13 +99,11 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientFrameSyncController FrameSync => _syncController.FrameSync;
 
-        public ShooterClientFrameSyncCoordinator FrameSyncCoordinator => _syncController.FrameSyncCoordinator;
-
         public ShooterClientInputCoordinator InputCoordinator => _syncController.InputCoordinator;
 
         public ShooterClientReconciliationResult LastReconciliationResult => _syncController.LastReconciliationResult;
 
-        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _syncController.FrameSyncCoordinator.FrameworkSnapshotPipelineDiagnostics;
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _syncController.FrameworkSnapshotPipelineDiagnostics;
 
         public bool NeedsFullSnapshotResync => _syncController.NeedsFullSnapshotResync;
 

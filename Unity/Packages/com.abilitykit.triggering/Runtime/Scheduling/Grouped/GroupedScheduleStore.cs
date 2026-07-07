@@ -7,7 +7,7 @@ using AbilityKit.Triggering.Runtime.Schedule.Data;
 namespace AbilityKit.Triggering.Runtime.Schedule
 {
     /// <summary>
-    /// Owns grouped schedule item storage and keeps item/effect/callback arrays aligned.
+    /// 持有分组调度项存储，并保持 item/effect/callback 数组对齐。
     /// </summary>
     internal sealed class GroupedScheduleStore
     {

@@ -28,7 +28,7 @@ namespace AbilityKit.Combat.Projectile
             if (systems == null) throw new ArgumentNullException(nameof(systems));
             if (services == null) throw new ArgumentNullException(nameof(services));
 
-            // Ensure ProjectileTickSystem is present even if AutoSystemInstaller is not used.
+            // 即使未使用 AutoSystemInstaller，也确保 ProjectileTickSystem 已安装。
             systems.Add(new ProjectileTickSystem(contexts, services));
         }
     }

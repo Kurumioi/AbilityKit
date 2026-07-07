@@ -30,7 +30,7 @@
         {
           "type": "spawn_area",
           "area_id": 40010201,
-          "position_mode": 1,
+          "position_mode": 0,
           "radius": 3.5,
           "duration_ms": 700
         },

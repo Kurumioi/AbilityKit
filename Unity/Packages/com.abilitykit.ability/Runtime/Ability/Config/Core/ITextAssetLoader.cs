@@ -27,7 +27,7 @@ namespace AbilityKit.Ability.Config
     }
 
     /// <summary>
-    /// Optional capability for text asset loaders that can enumerate files under a directory.
+    /// TextAsset 加载器的可选能力，用于枚举目录下的文件。
     /// </summary>
     public interface ITextAssetDirectoryLoader
     {

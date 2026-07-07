@@ -7,23 +7,23 @@ using AbilityKit.Triggering.Runtime.Executable;
 namespace AbilityKit.Triggering.Runtime.Executable
 {
     /// <summary>
-    /// Executable 转换策略接口
-    /// 定义�?Config 转换�?Executable 的抽�?
+    /// Executable 转换策略接口。
+    /// 定义从 Config 转换到 Executable 的抽象边界。
     /// </summary>
     public interface IExecutableConverterStrategy
     {
         /// <summary>
-        /// 此策略处理的类型 ID�? 表示不通过 ID 处理�?
+        /// 此策略处理的类型 ID；0 表示不通过 ID 处理。
         /// </summary>
         int TypeId { get; }
 
         /// <summary>
-        /// 此策略处理的类型名称（null 表示不通过名称处理�?
+        /// 此策略处理的类型名称（null 表示不通过名称处理）。
         /// </summary>
         string TypeName { get; }
 
         /// <summary>
-        /// 是否可以处理此配�?
+        /// 是否可以处理此配置。
         /// </summary>
         bool CanHandle(ExecutableConfig config);
 
@@ -79,7 +79,7 @@ namespace AbilityKit.Triggering.Runtime.Executable
     }
 
     /// <summary>
-    /// 复合行为转换策略基类（用�?Sequence, Selector, Parallel 等）
+    /// 复合行为转换策略基类（用于 Sequence、Selector、Parallel 等）。
     /// </summary>
     public abstract class CompositeExecutableStrategyBase : ExecutableConverterStrategyBase
     {

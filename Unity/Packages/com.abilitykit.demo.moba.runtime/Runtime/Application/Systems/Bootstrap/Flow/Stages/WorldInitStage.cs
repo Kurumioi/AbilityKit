@@ -14,8 +14,8 @@ using AbilityKit.Protocol.Moba;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// World initialization stage.
-    /// Decodes and validates the create-world request before deterministic battle startup.
+    /// 世界初始化阶段。
+    /// 在确定性战斗启动前解码并验证创建世界请求。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class WorldInitStage : MobaBootstrapStageBase
@@ -80,7 +80,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
             Log.Info("[WorldInitStage] WorldInitData decoded; battle game start spec stored");
  
-            // Seed deterministic world random as early as possible.
+            // 尽早为确定性世界随机数设置种子。
             if (!services.TryResolve<IWorldRandom>(out var random) || random is not RollbackWorldRandom rr)
             {
                 throw new InvalidOperationException("WorldInitStage requires RollbackWorldRandom for deterministic battle startup.");

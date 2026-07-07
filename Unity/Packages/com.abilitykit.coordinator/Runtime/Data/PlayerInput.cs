@@ -4,27 +4,27 @@ using MemoryPack;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Player input command.
+    /// 玩家输入命令。
     /// </summary>
     public struct PlayerInput
     {
         /// <summary>
-        /// Input frame.
+        /// 输入帧。
         /// </summary>
         public int Frame;
 
         /// <summary>
-        /// Player identifier.
+        /// 玩家标识。
         /// </summary>
         public int PlayerId;
 
         /// <summary>
-        /// Operation code.
+        /// 操作码。
         /// </summary>
         public int OpCode;
 
         /// <summary>
-        /// Serialized payload data.
+        /// 序列化后的载荷数据。
         /// </summary>
         public byte[] Payload;
 
@@ -135,7 +135,7 @@ namespace AbilityKit.Coordinator
     }
 
     /// <summary>
-    /// Standard input operation codes.
+    /// 标准输入操作码。
     /// </summary>
     public static class InputOpCodes
     {

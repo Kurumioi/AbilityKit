@@ -60,9 +60,9 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientFrameSyncController FrameSync => _rollback.FrameSync;
 
-        public ShooterClientFrameSyncCoordinator FrameSyncCoordinator => _rollback.FrameSyncCoordinator;
-
         public ShooterClientInputCoordinator InputCoordinator => _rollback.InputCoordinator;
+
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _rollback.FrameworkSnapshotPipelineDiagnostics;
 
         public ShooterClientReconciliationResult LastReconciliationResult => _rollback.LastReconciliationResult;
 

@@ -35,6 +35,7 @@ namespace AbilityKit.Game.Flow
             var handle = _handles.Create(in evt);
 
             handle.ModelGo = _objects.CreateModel(aoe.ModelId, attach, in pos);
+            handle.RangeGo = _objects.CreateRange(evt.TemplateId, aoe.Radius, aoe.DelayMs, attach, in pos);
             handle.VfxGo = _objects.CreateVfx(aoe.VfxId, attach, in pos);
             return handle;
         }

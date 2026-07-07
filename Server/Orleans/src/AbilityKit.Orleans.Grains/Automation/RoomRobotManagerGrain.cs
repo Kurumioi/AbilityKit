@@ -128,7 +128,7 @@ public sealed class RoomRobotManagerGrain : Grain, IRoomRobotManagerGrain
         }
         catch (InvalidOperationException)
         {
-            // Late-joining a running battle has no lobby ready phase.
+            // 运行中的战斗没有大厅准备阶段，后加入时忽略该状态设置。
         }
     }
 

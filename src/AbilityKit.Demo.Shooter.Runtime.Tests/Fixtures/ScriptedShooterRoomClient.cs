@@ -29,7 +29,9 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
     public ulong JoinWorldId { get; set; } = 0ul;
 
     public long JoinServerNowTicks { get; set; } = 223456L;
-
+ 
+    public uint JoinCurrentPlayerId { get; set; } = 121u;
+ 
     public bool JoinCanStart { get; set; } = true;
 
     public ShooterGatewayWorldStartAnchor JoinWorldStartAnchor { get; set; } = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 12, 1d / 30d);
@@ -74,7 +76,8 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
             JoinCanStart,
             JoinKind,
             JoinServerNowTicks,
-            JoinWorldId));
+            JoinWorldId,
+            JoinCurrentPlayerId));
     }
 
     public Task<ShooterGatewayRoomSnapshotResult> SetReadyAsync(ShooterGatewayReadyRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -122,6 +125,9 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
             JoinCanStart,
             JoinKind,
             JoinServerNowTicks,
-            JoinWorldId));
+            JoinWorldId,
+            ShooterGatewayRoomRestoreStatus.Restored,
+            ShooterGatewayRoomRestoreErrorCode.None,
+            JoinCurrentPlayerId));
     }
 }

@@ -108,6 +108,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public string Message { get; set; }
         [MemoryPackOrder(6)] public WireRoomJoinKind JoinKind { get; set; }
         [MemoryPackOrder(7)] public long ServerNowTicks { get; set; }
+        [MemoryPackOrder(8)] public uint CurrentPlayerId { get; set; }
     }
 
     [MemoryPackable]
@@ -153,6 +154,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(9)] public long ServerNowTicks { get; set; }
         [MemoryPackOrder(10)] public WireRoomRestoreStatus Status { get; set; }
         [MemoryPackOrder(11)] public WireRoomRestoreErrorCode ErrorCode { get; set; }
+        [MemoryPackOrder(12)] public uint CurrentPlayerId { get; set; }
     }
 
     [MemoryPackable]
@@ -337,6 +339,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(6)] public int AttributeTemplateId { get; set; }
         [MemoryPackOrder(7)] public int BasicAttackSkillId { get; set; }
         [MemoryPackOrder(8)] public List<int>? SkillIds { get; set; }
+        [MemoryPackOrder(9)] public uint PlayerId { get; set; }
     }
 
     [MemoryPackable]

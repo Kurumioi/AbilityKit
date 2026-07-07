@@ -214,7 +214,7 @@ namespace AbilityKit.Triggering.Runtime.Factory
     }
 
     /// <summary>
-    /// 条件行为解析器接�?
+    /// 条件行为解析器接口。
     /// </summary>
     public interface IConditionalBehaviorResolver
     {

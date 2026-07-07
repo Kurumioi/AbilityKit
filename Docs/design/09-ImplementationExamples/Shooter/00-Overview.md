@@ -4,7 +4,7 @@
 
 ## 1. 拆分理由
 
-Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步、网络模块、Svelto 性能模式、表现会话/视图管线、插值/混合预测与服务端验收深潜：
+Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步、网络模块、Svelto 性能模式、表现会话/视图管线、插值/混合预测、逻辑层流程、战斗玩法内核与服务端验收深潜：
 
 | 专题 | 关注点 | 文档 |
 |------|--------|------|
@@ -16,6 +16,8 @@ Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步
 | 表现会话与视图管线 | PresentationFacade、Session、Stream、Projection、Binder、Reconnect 驱动 | [10-PresentationSessionAndViewDeepDive.md](10-PresentationSessionAndViewDeepDive.md) |
 | 插值与混合预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor | [11-InterpolationAndPredictionDeepDive.md](11-InterpolationAndPredictionDeepDive.md) |
 | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 | [12-逻辑层流程与单机/多人模式](12-LogicLayerFlowSingleAndMultiplayer.md) |
+| 战斗玩法内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI、胜负状态 | [13-战斗玩法内核深潜](13-BattleGameplayKernelDeepDive.md) |
+| 工业化流程 | runtime/acceptance/sync 测试、Orleans smoke、replay artifact、DSL/配置环境测试 | [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) |
 | Gateway/Orleans/Smoke | room flow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、SmokeRunner | [05-服务端流程与 Smoke 深潜](05-ServerFlowAndSmokeDeepDive.md) |
 
 ## 2. 总体架构
@@ -129,7 +131,9 @@ Shooter 示例适合作为以下能力的参考实现：
 - Svelto struct component 批处理与大规模实体预算压测；
 - 延迟补偿、网络质量模拟与快速重连；
 - 表现层会话、快照流、插值播放与权威对比验收；
-- Authoritative Interpolation、Hybrid Hero Prediction、DOTS View Binder 与时间锚点诊断。
+- Authoritative Interpolation、Hybrid Hero Prediction、DOTS View Binder 与时间锚点诊断；
+- 一帧战斗玩法管线、敌人波次、projectile 命中、空间索引、Bot AI 输入源和胜负状态裁决；
+- runtime/acceptance/sync 测试、Orleans smoke、replay artifact 与 DSL/配置环境测试组成的工业化验收链路。
 
 ## 5. 源码入口
 
@@ -137,6 +141,13 @@ Shooter 示例适合作为以下能力的参考实现：
 |------|------|
 | Runtime Port | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Runtime/ShooterBattleRuntimePort.cs` |
 | Simulation | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/ShooterBattleSimulation.cs` |
+| Battle Pipeline | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Factories/ShooterBattlePipelineFactory.cs` |
+| Battle Systems | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterBattleSystem.cs` |
+| Player/Projectile Modules | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterBattleSimulationModules.cs` |
+| Combat Event Buffer | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterCombatEventBuffer.cs` |
+| Enemy Wave | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterEnemyWaveBattleSystem.cs` |
+| Spatial Index | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterSpatialHashGrid.cs` |
+| Bot AI | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/AI/ShooterBotAiRuntime.cs` |
 | Packed Snapshot | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPackedSnapshotExporter.cs` |
 | Pure State Snapshot | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPureStateSnapshotExporter.cs` |
 | Lag Compensation | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterLagCompensationService.cs` |
@@ -159,3 +170,5 @@ Shooter 示例适合作为以下能力的参考实现：
 | RoomGrain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` |
 | Battle Adapter | `Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Battle/ShooterBattleRuntimeAdapter.cs` |
 | Smoke Runner | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs` |
+| Shooter Runtime Tests | `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`、`src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs` |
+| Shooter Smoke Script | `Server/Orleans/tools/run_shooter_smoke.ps1` |

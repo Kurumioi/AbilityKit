@@ -3,78 +3,78 @@ using System;
 namespace AbilityKit.Coordinator.Core
 {
     /// <summary>
-    /// Session Hooks
+    /// 会话钩子。
     ///
-    /// Provides callback hooks for session lifecycle events.
-    /// SubFeatures can subscribe to these hooks for coordination.
+    /// 提供会话生命周期事件的回调钩子。
+    /// SubFeature 可订阅这些钩子完成协作。
     /// </summary>
     public class SessionHooks
     {
-        // ============== Session Lifecycle Hooks ==============
+        // ============== 会话生命周期钩子 ==============
 
         /// <summary>
-        /// Called before session starts
+        /// 会话启动前调用。
         /// </summary>
         public Action<SessionConfig> OnSessionStarting;
 
         /// <summary>
-        /// Called when session starts
+        /// 会话启动时调用。
         /// </summary>
         public Action<SessionConfig> OnSessionStarted;
 
         /// <summary>
-        /// Called when session stops
+        /// 会话开始停止时调用。
         /// </summary>
         public Action OnSessionStopping;
 
         /// <summary>
-        /// Called when session ends
+        /// 会话停止完成时调用。
         /// </summary>
         public Action OnSessionStopped;
 
         /// <summary>
-        /// Called when session encounters an error
+        /// 会话遇到错误时调用。
         /// </summary>
         public Action<Exception> OnSessionFailed;
 
-        // ============== Frame Sync Hooks ==============
+        // ============== 帧同步钩子 ==============
 
         /// <summary>
-        /// Called before each frame tick
+        /// 每帧 Tick 之前调用。
         /// </summary>
         public Action<float> OnPreTick;
 
         /// <summary>
-        /// Called after each frame tick
+        /// 每帧 Tick 之后调用。
         /// </summary>
         public Action<float> OnPostTick;
 
         /// <summary>
-        /// Called when first frame is received
+        /// 收到第一帧时调用。
         /// </summary>
         public Action OnFirstFrameReceived;
 
-        // ============== View Hooks ==============
+        // ============== 视图钩子 ==============
 
         /// <summary>
-        /// Called when view binder is ready
+        /// 视图绑定器就绪时调用。
         /// </summary>
         public Action<int> OnViewBinderReady;
 
         /// <summary>
-        /// Called when views are rebound
+        /// 视图重新绑定时调用。
         /// </summary>
         public Action OnViewsRebound;
 
         /// <summary>
-        /// Called when frame is aligned for rendering
+        /// 帧对齐到渲染时调用。
         /// </summary>
         public Action<int> OnViewFrameAligned;
 
-        // ============== Helper Methods ==============
+        // ============== 辅助方法 ==============
 
         /// <summary>
-        /// Invoke session starting hook
+        /// 触发会话即将启动钩子。
         /// </summary>
         public void InvokeSessionStarting(SessionConfig config)
         {
@@ -82,7 +82,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke session started hook
+        /// 触发会话已启动钩子。
         /// </summary>
         public void InvokeSessionStarted(SessionConfig config)
         {
@@ -90,7 +90,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke session stopping hook
+        /// 触发会话即将停止钩子。
         /// </summary>
         public void InvokeSessionStopping()
         {
@@ -98,7 +98,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke session stopped hook
+        /// 触发会话已停止钩子。
         /// </summary>
         public void InvokeSessionStopped()
         {
@@ -106,7 +106,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke session failed hook
+        /// 触发会话失败钩子。
         /// </summary>
         public void InvokeSessionFailed(Exception ex)
         {
@@ -114,7 +114,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke pre tick hook
+        /// 触发 PreTick 钩子。
         /// </summary>
         public void InvokePreTick(float deltaTime)
         {
@@ -122,7 +122,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke post tick hook
+        /// 触发 PostTick 钩子。
         /// </summary>
         public void InvokePostTick(float deltaTime)
         {
@@ -130,7 +130,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke first frame received hook
+        /// 触发收到第一帧钩子。
         /// </summary>
         public void InvokeFirstFrameReceived()
         {
@@ -138,7 +138,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke view binder ready hook
+        /// 触发视图绑定器就绪钩子。
         /// </summary>
         public void InvokeViewBinderReady(int frame)
         {
@@ -146,7 +146,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke views rebound hook
+        /// 触发视图重新绑定钩子。
         /// </summary>
         public void InvokeViewsRebound()
         {
@@ -154,7 +154,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Invoke view frame aligned hook
+        /// 触发视图帧对齐钩子。
         /// </summary>
         public void InvokeViewFrameAligned(int frame)
         {
@@ -162,7 +162,7 @@ namespace AbilityKit.Coordinator.Core
         }
 
         /// <summary>
-        /// Clear all hooks
+        /// 清理所有钩子。
         /// </summary>
         public void Clear()
         {

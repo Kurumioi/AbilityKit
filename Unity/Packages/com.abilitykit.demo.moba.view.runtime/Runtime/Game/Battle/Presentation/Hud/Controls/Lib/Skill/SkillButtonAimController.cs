@@ -58,7 +58,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
                     out var to,
                     out var radius))
             {
-                _indicator.SetFromTo(from, to, maxRadius: radius);
+                _indicator.SetFromTo(from, to, maxRadius: radius, _config);
             }
         }
 

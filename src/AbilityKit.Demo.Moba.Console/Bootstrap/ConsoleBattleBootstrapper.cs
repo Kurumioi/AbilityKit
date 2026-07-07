@@ -55,8 +55,8 @@ using ViewBinderNamespace = AbilityKit.Demo.Moba.Console.View;
 namespace AbilityKit.Demo.Moba.Console
 {
     /// <summary>
-    /// Console Battle bootstrapper
-    /// Orchestrates initialization and lifecycle of all presentation layer components
+    /// Console 战斗启动器。
+    /// 编排所有表现层组件的初始化和生命周期。
     /// </summary>
     public sealed class ConsoleBattleBootstrapper : IBattleBootstrapper, IBattleStartConfigProvider
     {

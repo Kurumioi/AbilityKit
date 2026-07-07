@@ -5,12 +5,12 @@ using AbilityKit.Ability.World.Abstractions;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Session Coordinator Host Interface
+    /// Session Coordinator 主机接口。
     ///
-    /// Design:
-    /// - Provides platform-specific implementations
-    /// - Creates WorldHost, registers services, loads config
-    /// - Implemented by application or game integration layers.
+    /// 设计：
+    /// - 提供平台相关实现。
+    /// - 创建 WorldHost、注册服务并加载配置。
+    /// - 由应用层或游戏集成层实现。
     /// </summary>
     public interface ISessionCoordinatorConfigPolicy
     {
@@ -20,27 +20,27 @@ namespace AbilityKit.Coordinator
     public interface ISessionCoordinatorHost
     {
         /// <summary>
-        /// Create a world host instance
+        /// 创建世界主机实例。
         /// </summary>
         IWorldHost CreateWorldHost(SessionConfig config);
 
         /// <summary>
-        /// Configure world create options before the coordinator creates the world
+        /// 在 coordinator 创建世界前配置世界创建选项。
         /// </summary>
         void ConfigureWorldCreateOptions(in SessionConfig config, WorldCreateOptions options);
 
         /// <summary>
-        /// Register services to the world
+        /// 向世界注册服务。
         /// </summary>
         void RegisterServices(IWorld world, SessionConfig config);
 
         /// <summary>
-        /// Load session configuration
+        /// 加载会话配置。
         /// </summary>
         void LoadConfig(IWorld world, SessionConfig config);
 
         /// <summary>
-        /// Create player spawn data
+        /// 创建玩家出生数据。
         /// </summary>
         PlayerSpawnData[] CreatePlayerSpawnData(SessionConfig config);
     }

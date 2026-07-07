@@ -9,16 +9,14 @@ using AbilityKit.Network.Protocol;
 namespace AbilityKit.Network.Runtime.Conditioning
 {
     /// <summary>
-    /// A reproducible network environment simulator that plugs into the middleware chain.
-    /// It applies a <see cref="NetworkConditionProfile"/> (latency, jitter, loss, reorder) to both
-    /// inbound and outbound packets so any sync model can be exercised under controlled, repeatable
-    /// adverse conditions.
+    /// 可复现的网络环境模拟器，可接入中间件链。
+    /// 它会将 <see cref="NetworkConditionProfile"/>（延迟、抖动、丢包、乱序）应用到入站和出站包，
+    /// 让任意同步模型都能在受控且可重复的不利网络条件下运行。
     ///
-    /// Delivery is time-driven and deterministic: a packet that is not dropped is buffered with a
-    /// scheduled delivery time, and is released to the next stage only when <see cref="Advance"/> is
-    /// called with a clock value at or past that time. Supplying a fixed <paramref name="seed"/> and an
-    /// injectable clock makes "sync model x network profile" comparisons fully replayable in tests
-    /// without real waiting.
+    /// 投递由时间驱动且具备确定性：未被丢弃的包会按计划投递时间进入缓冲，
+    /// 只有在使用达到或超过该时间的时钟值调用 <see cref="Advance"/> 时，才会释放到下一阶段。
+    /// 固定的 <paramref name="seed"/> 与可注入时钟让“同步模型 x 网络配置”的对比能在测试中完全重放，
+    /// 且不需要真实等待。
     /// </summary>
     public sealed class NetworkConditioningMiddleware : INetworkMiddleware
     {
@@ -49,14 +47,13 @@ namespace AbilityKit.Network.Runtime.Conditioning
         private long _outboundReordered;
 
         /// <summary>
-        /// Creates a conditioning middleware.
+        /// 创建网络调理中间件。
         /// </summary>
-        /// <param name="profile">The network conditions to apply.</param>
+        /// <param name="profile">要应用的网络条件。</param>
         /// <param name="clockMs">
-        /// Monotonic clock returning the current time in milliseconds. Injectable so tests can drive a
-        /// virtual clock. When null, a real wall clock is used.
+        /// 返回当前毫秒时间的单调时钟。可注入该时钟以便测试驱动虚拟时钟；为 null 时使用真实墙钟。
         /// </param>
-        /// <param name="seed">Seed for the deterministic random source backing jitter, loss and reorder.</param>
+        /// <param name="seed">用于抖动、丢包和乱序的确定性随机源种子。</param>
         public NetworkConditioningMiddleware(NetworkConditionProfile profile, Func<long>? clockMs = null, int seed = 0)
         {
             _profile = profile;
@@ -77,14 +74,12 @@ namespace AbilityKit.Network.Runtime.Conditioning
         }
 
         /// <summary>
-        /// Releases every buffered packet whose scheduled delivery time is at or before
-        /// <paramref name="nowMs"/>, in delivery-time order. Call this from the host loop (or a test)
-        /// with the current clock value to flush due packets.
+        /// 按投递时间顺序释放所有计划投递时间早于或等于 <paramref name="nowMs"/> 的缓冲包。
+        /// 宿主循环（或测试）应使用当前时钟值调用该方法，以冲刷到期包。
         /// </summary>
         public void Advance(long nowMs)
         {
-            // Stable order: by delivery time, then by original enqueue sequence so equal times keep
-            // arrival order unless explicitly reordered at schedule time.
+            // 稳定顺序：先按投递时间，再按原始入队序号；除非调度时显式乱序，否则相同时间保持到达顺序。
             _pending.Sort(static (a, b) =>
             {
                 int byTime = a.DeliverAtMs.CompareTo(b.DeliverAtMs);
@@ -131,14 +126,14 @@ namespace AbilityKit.Network.Runtime.Conditioning
             long delay = _profile.BaseLatencyMs;
             if (_profile.JitterMs > 0)
             {
-                // Symmetric jitter in [-JitterMs, +JitterMs].
+                // 对称抖动范围为 [-JitterMs, +JitterMs]。
                 delay += _random.Next(-_profile.JitterMs, _profile.JitterMs + 1);
             }
 
             bool reordered = false;
             if (_profile.ReorderRate > 0d && _random.NextDouble() < _profile.ReorderRate)
             {
-                // Pull the packet earlier so it can overtake a neighbour scheduled before it.
+                // 将包提前，使其可以越过原本排在它前面的相邻包。
                 long pullForward = _profile.BaseLatencyMs + _profile.JitterMs + 1;
                 delay -= pullForward;
                 reordered = true;
@@ -148,7 +143,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
             if (delay < 0) delay = 0;
 
-            // Copy the payload because the caller's buffer may be reused after this call returns.
+            // 复制载荷，因为调用方缓冲区可能在该调用返回后被复用。
             var copy = new byte[payload.Count];
             if (payload.Count > 0)
             {
@@ -168,8 +163,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
         private static long DefaultClock()
         {
-            // Environment.TickCount64 is unavailable under Unity's C# profile, so derive a monotonic
-            // millisecond clock from the high-resolution timer instead (no 32-bit wraparound).
+            // Unity 的 C# profile 下不可用 Environment.TickCount64，因此改从高精度计时器推导单调毫秒时钟，避免 32 位回绕。
             return Stopwatch.GetTimestamp() * 1000L / Stopwatch.Frequency;
         }
     }

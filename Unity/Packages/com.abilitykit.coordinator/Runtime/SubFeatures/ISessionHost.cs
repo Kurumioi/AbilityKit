@@ -3,55 +3,55 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator.SubFeatures
 {
     /// <summary>
-    /// Session Host Interface
+    /// 会话主机接口。
     ///
-    /// Design:
-    /// - SubFeatures access session functionality through this interface
-    /// - Provides dependency injection point for SubFeatures
+    /// 设计：
+    /// - SubFeature 通过该接口访问会话功能。
+    /// - 为 SubFeature 提供依赖注入入口。
     /// </summary>
     public interface ISessionHost
     {
-        // ============== Session Properties ==============
+        // ============== 会话属性 ==============
 
         /// <summary>
-        /// Session state
+        /// 会话状态。
         /// </summary>
         SessionState State { get; }
 
         /// <summary>
-        /// Current frame number
+        /// 当前帧号。
         /// </summary>
         int CurrentFrame { get; }
 
         /// <summary>
-        /// Current logic time in seconds
+        /// 当前逻辑时间，单位为秒。
         /// </summary>
         double LogicTimeSeconds { get; }
 
         /// <summary>
-        /// Session configuration
+        /// 会话配置。
         /// </summary>
         SessionConfig Config { get; }
 
         /// <summary>
-        /// Session hooks
+        /// 会话钩子。
         /// </summary>
         SessionHooks Hooks { get; }
 
-        // ============== SubFeature Management ==============
+        // ============== SubFeature 管理 ==============
 
         /// <summary>
-        /// Get a service from the session
+        /// 从会话中获取服务。
         /// </summary>
         T GetService<T>() where T : class;
 
         /// <summary>
-        /// Try to get a service from the session
+        /// 尝试从会话中获取服务。
         /// </summary>
         bool TryGetService<T>(out T service) where T : class;
 
         /// <summary>
-        /// Register a service
+        /// 注册服务。
         /// </summary>
         void RegisterService<T>(T service) where T : class;
     }

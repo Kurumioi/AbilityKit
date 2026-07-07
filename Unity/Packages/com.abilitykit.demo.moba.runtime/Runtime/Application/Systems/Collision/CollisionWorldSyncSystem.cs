@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
         {
             _validIds.Clear();
 
-            // Add / Update all active colliders.
+            // 添加或更新所有活跃碰撞体。
             var entities = _withShape.GetEntities();
             for (int i = 0; i < entities.Length; i++)
             {
@@ -69,7 +69,7 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
                 }
             }
 
-            // Remove colliders that are no longer valid (lost Transform/Collider).
+            // 移除已经失效的碰撞体（丢失 Transform/Collider）。
             var withIds = _withCollisionId.GetEntities();
             for (int i = 0; i < withIds.Length; i++)
             {
@@ -85,11 +85,10 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
                 }
             }
 
-            // Mark-and-sweep cleanup:
-            // Some entities may be destroyed/disabled and no longer appear in groups,
-            // which would leave stale collider entries in the collision world.
-            // We conservatively remove any collider ids that are not associated with
-            // currently active (Transform+Collider) entities.
+            // 标记-清扫式清理：
+            // 部分实体可能已销毁或禁用，不再出现在分组中，
+            // 这会在碰撞世界中留下陈旧的碰撞体条目。
+            // 这里保守移除所有未关联到当前活跃（Transform+Collider）实体的碰撞体 ID。
             if (_world is ICollisionWorldDebugView debugView)
             {
                 debugView.CopyWorldShapes(_worldShapes);

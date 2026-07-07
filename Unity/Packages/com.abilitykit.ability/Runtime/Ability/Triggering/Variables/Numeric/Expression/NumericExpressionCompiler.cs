@@ -59,7 +59,7 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                     continue;
                 }
 
-                // number
+                // 数字。
                 if (char.IsDigit(c) || c == '.')
                 {
                     if (!TryReadNumber(expr, ref i, out var num)) return false;
@@ -68,15 +68,15 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                     continue;
                 }
 
-                // identifier: domain.key (required)
+                // 标识符：domain.key（必需）。
                 if (IsIdentStart(c))
                 {
                     if (!TryReadIdentifier(expr, ref i, out var ident)) return false;
 
-                    // function call: name(...)
+                    // 函数调用：name(...)
                     if (i < expr.Length && expr[i] == '(')
                     {
-                        // parse call arguments with recursion by compiling each arg into output then append func token.
+                        // 递归编译每个参数并写入输出，最后追加函数 token。
                         if (!TryParseFunctionCall(expr, ref i, ident, output, ops)) return false;
                         prevWasValue = true;
                         continue;
@@ -101,7 +101,7 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
 
                 if (c == ')')
                 {
-                    // pop until lparen
+                    // 弹出运算符直到遇到左括号。
                     var found = false;
                     while (ops.Count > 0)
                     {
@@ -121,7 +121,7 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
 
                 if (IsOperator(c))
                 {
-                    // unary minus => 0 - x
+                    // 一元负号转换为 0 - x。
                     if (c == '-' && !prevWasValue)
                     {
                         output.Add(NumericRpnToken.NumberToken(0d));
@@ -163,9 +163,9 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
 
         private static bool TryParseFunctionCall(string expr, ref int i, string funcName, List<NumericRpnToken> output, Stack<Op> ops)
         {
-            // current char is '('
+            // 当前字符是 '('。
             if (i >= expr.Length || expr[i] != '(') return false;
-            i++; // consume '('
+            i++; // 消费 '('
 
             var argCount = 0;
             var start = i;
@@ -179,10 +179,10 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                 {
                     if (depth == 0)
                     {
-                        // last arg
+                        // 最后一个参数。
                         if (!TryCompileSegment(expr, start, i - start, output)) return false;
                         if (i > start || argCount > 0) argCount++;
-                        i++; // consume ')'
+                        i++; // 消费 ')'
                         output.Add(NumericRpnToken.FuncToken(funcName, argCount));
                         return true;
                     }
@@ -192,7 +192,7 @@ namespace AbilityKit.Ability.Triggering.Variables.Numeric.Expression
                 {
                     if (!TryCompileSegment(expr, start, i - start, output)) return false;
                     argCount++;
-                    i++; // consume ','
+                    i++; // 消费 ','
                     start = i;
                     continue;
                 }

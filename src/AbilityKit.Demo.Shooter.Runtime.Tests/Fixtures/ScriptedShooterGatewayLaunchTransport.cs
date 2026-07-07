@@ -28,7 +28,9 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
     public ulong JoinWorldId { get; set; }
 
     public bool JoinCanStart { get; set; } = true;
-
+ 
+    public uint JoinCurrentPlayerId { get; set; } = 121u;
+ 
     public WireRoomJoinKind JoinKind { get; set; } = WireRoomJoinKind.TeamLobby;
 
     public ArraySegment<byte> LastPayload { get; private set; }
@@ -58,7 +60,8 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
                     WorldStartAnchor = CreateAnchor(),
                     Message = "joined",
                     JoinKind = JoinKind,
-                    ServerNowTicks = JoinServerNowTicks
+                    ServerNowTicks = JoinServerNowTicks,
+                    CurrentPlayerId = JoinCurrentPlayerId
                 }));
             case RoomGatewayOpCodes.SetReady:
                 return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomSnapshotRes

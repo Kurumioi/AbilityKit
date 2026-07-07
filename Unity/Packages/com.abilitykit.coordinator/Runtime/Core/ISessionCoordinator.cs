@@ -7,126 +7,126 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Session Coordinator Interface
+    /// 会话协调器接口。
     ///
-    /// Design:
-    /// - Main interface for session coordination
-    /// - Manages world lifecycle, sync adapters, and subfeatures
-    /// - Provides unified access to session resources
+    /// 设计：
+    /// - 作为会话协调的主接口。
+    /// - 管理世界生命周期、同步适配器和子功能。
+    /// - 提供会话资源的统一访问入口。
     /// </summary>
     public interface ISessionCoordinator : IDisposable
     {
-        // ============== Identity ==============
+        // ============== 标识 ==============
 
         /// <summary>
-        /// Session identifier
+        /// 会话标识。
         /// </summary>
         SessionId SessionId { get; }
 
         /// <summary>
-        /// Session configuration
+        /// 会话配置。
         /// </summary>
         SessionConfig Config { get; }
 
         /// <summary>
-        /// Current session state
+        /// 当前会话状态。
         /// </summary>
         SessionState State { get; }
 
-        // ============== World Access ==============
+        // ============== 世界访问 ==============
 
         /// <summary>
-        /// World host instance
+        /// 世界宿主实例。
         /// </summary>
         IWorldHost WorldHost { get; }
 
         /// <summary>
-        /// Current world instance
+        /// 当前世界实例。
         /// </summary>
         IWorld World { get; }
 
         /// <summary>
-        /// World resolver for service access
+        /// 用于服务访问的世界解析器。
         /// </summary>
         IWorldResolver WorldResolver { get; }
 
-        // ============== Sync ==============
+        // ============== 同步 ==============
 
         /// <summary>
-        /// Sync adapter instance
+        /// 同步适配器实例。
         /// </summary>
         ISyncAdapter SyncAdapter { get; }
 
         /// <summary>
-        /// View timeline for interpolation
+        /// 用于插值的视图时间线。
         /// </summary>
         Timeline.IViewTimeline ViewTimeline { get; }
 
-        // ============== Driver & View ==============
+        // ============== 驱动与视图 ==============
 
         /// <summary>
-        /// Set the logic-world driver bridge.
+        /// 设置逻辑世界驱动桥接器。
         /// </summary>
         void SetLogicWorldDriver(ILogicWorldDriverBridge driverHost);
 
         /// <summary>
-        /// Get the logic-world driver bridge.
+        /// 获取逻辑世界驱动桥接器。
         /// </summary>
         ILogicWorldDriverBridge? LogicWorldDriver { get; }
 
         /// <summary>
-        /// Set the view event sink
+        /// 设置视图事件接收器。
         /// </summary>
         void SetViewEventSink(IViewEventSink sink);
 
         /// <summary>
-        /// Get the view event sink
+        /// 获取视图事件接收器。
         /// </summary>
         IViewEventSink? ViewEventSink { get; }
 
-        // ============== Lifecycle ==============
+        // ============== 生命周期 ==============
 
         /// <summary>
-        /// Initialize the session coordinator
+        /// 初始化会话协调器。
         /// </summary>
         void Initialize(SessionConfig config, ISessionCoordinatorHost host);
 
         /// <summary>
-        /// Start the session
+        /// 启动会话。
         /// </summary>
         void Start();
 
         /// <summary>
-        /// Stop the session
+        /// 停止会话。
         /// </summary>
         void Stop();
 
         /// <summary>
-        /// Destroy the session and release resources
+        /// 销毁会话并释放资源。
         /// </summary>
         void Destroy();
 
-        // ============== Input ==============
+        // ============== 输入 ==============
 
         /// <summary>
-        /// Submit local player input
+        /// 提交本地玩家输入。
         /// </summary>
         void SubmitLocalInput(PlayerInput input);
 
-        // ============== SubFeature Access ==============
+        // ============== 子功能访问 ==============
 
         /// <summary>
-        /// Get session hooks for event subscription
+        /// 获取用于事件订阅的会话钩子。
         /// </summary>
         SessionHooks Hooks { get; }
 
         /// <summary>
-        /// Resolve a service from the world
+        /// 从世界中解析服务。
         /// </summary>
         T Resolve<T>() where T : class;
 
         /// <summary>
-        /// Try to resolve a service from the world
+        /// 尝试从世界中解析服务。
         /// </summary>
         bool TryResolve<T>(out T service) where T : class;
     }

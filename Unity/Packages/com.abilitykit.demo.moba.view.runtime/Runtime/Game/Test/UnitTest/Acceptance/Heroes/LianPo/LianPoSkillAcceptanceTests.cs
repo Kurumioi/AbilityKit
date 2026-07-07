@@ -1,5 +1,7 @@
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.GameplayTags;
 using NUnit.Framework;
 
@@ -44,6 +46,60 @@ namespace AbilityKit.Game.Test.UnitTest
 
             MobaAcceptanceTraceAssert.AssertSingleTargetDamageInRoot(records, 0, 10010101, expectedHitCount: 1, "Lian Po skill 1 dash collision should damage exactly one target once during motion hit detection.");
             MobaAcceptanceTraceAssert.AssertTraceNodeKindInRoot(records, 0, "EffectAction", -13684592, "Lian Po skill 1 hit should execute the configured knock-up pull action with a valid target.");
+        }
+
+        [Test]
+        public void Skill10010101_ShouldMoveCasterForwardDuringDash()
+        {
+            using (var harness = MobaSkillConfigTestHarness.CreateForSinglePlayer(new[] { 10010101, 10010201, 10010301 }, heroId: 1, attributeTemplateId: 1001))
+            {
+                harness.EnterGameAndWarmup(reason: "lian po skill 1 dash movement contract");
+
+                var actorId = harness.AssertPlayerActorBound();
+                var entity = harness.AssertActorEntity(actorId);
+                Assert.IsTrue(entity.hasTransform, "Lian Po actor must have a transform before casting skill 1.");
+                Assert.IsTrue(entity.hasMotion, "Lian Po actor must have motion before casting skill 1.");
+                Assert.IsTrue(entity.motion.Initialized, "Lian Po motion must be initialized before casting skill 1.");
+                Assert.IsTrue(HasMotionPipeline(entity), "Lian Po motion pipeline must exist before casting skill 1.");
+
+                var start = entity.transform.Value.Position;
+                var sourceCountBeforeCast = GetMotionSourceCount(entity);
+
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var castResult = skills.TryCastBySlot(actorId, slot: 1, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(castResult.Success, $"Lian Po skill 1 cast should succeed before asserting dash movement. failReason={castResult.FailReason}");
+
+                harness.Tick(1);
+
+                harness.AssertSkillCastTrace(10010101);
+                var effectTrace = harness.AssertEffectExecutionTrace(10010101);
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
+
+                entity = harness.AssertActorEntity(actorId);
+                Assert.IsTrue(entity.hasMotion, "Lian Po actor must still have motion after the skill action frame.");
+                Assert.IsTrue(HasMotionPipeline(entity), "Lian Po motion pipeline must still exist after the skill action frame.");
+                var sourceCountAfterActionFrame = GetMotionSourceCount(entity);
+                Assert.Greater(sourceCountAfterActionFrame, sourceCountBeforeCast, $"Lian Po skill 1 dash action should add a motion source. before={sourceCountBeforeCast}, afterActionFrame={sourceCountAfterActionFrame}, state={harness.DescribeSkillRuntimeState(actorId, 1)}");
+
+                harness.Tick(1);
+
+                entity = harness.AssertActorEntity(actorId);
+                Assert.IsTrue(entity.hasTransform, "Lian Po actor must still have a transform after the first motion tick.");
+                Assert.IsTrue(entity.hasMotion, "Lian Po actor must still have motion after the first motion tick.");
+                var firstMotionEnd = entity.transform.Value.Position;
+                var firstMotionDelta = new Vec3(firstMotionEnd.X - start.X, 0f, firstMotionEnd.Z - start.Z);
+                Assert.Greater(firstMotionDelta.Magnitude, 0.01f, $"Lian Po skill 1 dash motion source should be consumed by MotionTick on the frame after it is added. start={start}, firstMotionEnd={firstMotionEnd}, delta={firstMotionDelta}, motionOutput={DescribeMotionOutput(entity)}, sourceCount={GetMotionSourceCount(entity)}");
+
+                harness.Tick(23);
+
+                entity = harness.AssertActorEntity(actorId);
+                Assert.IsTrue(entity.hasTransform, "Lian Po actor must still have a transform after casting skill 1.");
+                var end = entity.transform.Value.Position;
+                var planarDelta = new Vec3(end.X - start.X, 0f, end.Z - start.Z);
+
+                Assert.Greater(planarDelta.Magnitude, 1f, $"Lian Po skill 1 dash should move the caster on the XZ plane. start={start}, end={end}, delta={planarDelta}");
+                Assert.Greater(end.X - start.X, 1f, $"Lian Po skill 1 dash should follow the supplied +X aim direction. start={start}, end={end}");
+            }
         }
 
         [Test]
@@ -250,6 +306,42 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             Assert.Fail("Skill pipeline did not stop within the expected test window. " + harness.DescribeSkillRuntimeState(actorId, slot));
+        }
+
+        private static bool HasMotionPipeline(ActorEntity entity)
+        {
+            return GetMotionPipeline(entity) != null;
+        }
+
+        private static int GetMotionSourceCount(ActorEntity entity)
+        {
+            var pipeline = GetMotionPipeline(entity);
+            if (pipeline == null) return -1;
+
+            var sourceCountProperty = pipeline.GetType().GetProperty("SourceCount");
+            return sourceCountProperty != null ? (int)sourceCountProperty.GetValue(pipeline, null) : -1;
+        }
+
+        private static string DescribeMotionOutput(ActorEntity entity)
+        {
+            if (entity == null || !entity.hasMotion) return "<no motion>";
+
+            var motion = (object)entity.motion;
+            var output = motion.GetType().GetField("Output")?.GetValue(motion);
+            if (output == null) return "<no output>";
+
+            var outputType = output.GetType();
+            var desired = outputType.GetField("DesiredDelta")?.GetValue(output);
+            var applied = outputType.GetField("AppliedDelta")?.GetValue(output);
+            return $"desiredDelta={desired}, appliedDelta={applied}";
+        }
+
+        private static object GetMotionPipeline(ActorEntity entity)
+        {
+            if (entity == null || !entity.hasMotion) return null;
+
+            var motion = (object)entity.motion;
+            return motion.GetType().GetField("Pipeline")?.GetValue(motion);
         }
 
         private static DamageResult ExecutePipelineDamage(MobaSkillConfigTestHarness harness, int attackerActorId, int targetActorId, float baseDamage)

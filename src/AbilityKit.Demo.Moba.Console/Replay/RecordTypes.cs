@@ -46,7 +46,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     }
 
     /// <summary>
-    /// 帧状态快照（用于校验�?
+    /// 帧状态快照（用于校验）。
     /// </summary>
     [MemoryPackable]
     public readonly partial struct FrameSnapshot
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
     }
 
     /// <summary>
-    /// 录像文件�?
+    /// 录像文件头。
     /// </summary>
     public sealed class RecordFileHeader
     {
@@ -199,7 +199,7 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         None,
         Recording,
         Replaying,
-        SkillTest  // 技能测试模�?
+        SkillTest  // 技能测试模式。
     }
 
     /// <summary>
@@ -211,6 +211,6 @@ namespace AbilityKit.Demo.Moba.Console.Replay
         public string OutputPath { get; set; } = "Records";
         public string InputFilePath { get; set; } = "";
         public bool AutoRecord { get; set; } = false;
-        public int SnapshotIntervalFrames { get; set; } = 300; // �?00帧保存一次状态快�?
+        public int SnapshotIntervalFrames { get; set; } = 300; // 每 300 帧保存一次状态快照。
     }
 }

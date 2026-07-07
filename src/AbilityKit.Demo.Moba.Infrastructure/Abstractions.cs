@@ -1,10 +1,10 @@
-// Infrastructure abstractions for MOBA demo
-// This project provides abstractions that can be implemented for different platforms (Unity, Console, etc.)
+// MOBA Demo 的基础设施抽象。
+// 该项目提供可由不同平台实现的抽象（Unity、Console 等）。
 
 namespace AbilityKit.Demo.Moba.Infrastructure
 {
     /// <summary>
-    /// Logger interface for platform-agnostic logging
+    /// 平台无关日志接口。
     /// </summary>
     public interface ILogger
     {
@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Infrastructure
     }
 
     /// <summary>
-    /// Text resource loader interface
+    /// 文本资源加载接口。
     /// </summary>
     public interface ITextResourceProvider
     {
@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Infrastructure
     }
 
     /// <summary>
-    /// Binary resource loader interface
+    /// 二进制资源加载接口。
     /// </summary>
     public interface IBinaryResourceProvider
     {
@@ -31,7 +31,7 @@ namespace AbilityKit.Demo.Moba.Infrastructure
     }
 
     /// <summary>
-    /// Config source interface for loading configuration data
+    /// 用于加载配置数据的配置源接口。
     /// </summary>
     public interface IConfigSource
     {
@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Infrastructure
     }
 
     /// <summary>
-    /// Simple config loader interface
+    /// 简单配置加载接口。
     /// </summary>
     public interface IConfigLoader
     {

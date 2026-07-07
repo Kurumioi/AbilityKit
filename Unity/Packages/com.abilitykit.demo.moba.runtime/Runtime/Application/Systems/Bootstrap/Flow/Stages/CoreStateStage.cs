@@ -6,8 +6,8 @@ using AbilityKit.Demo.Moba.Rollback;
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
     /// <summary>
-    /// CoreState Stage
-    /// 注册核心状态服务和基础服务
+    /// CoreState 阶段。
+    /// 注册核心状态服务和基础服务。
     /// </summary>
     [MobaBootstrapStage]
     public sealed class CoreStateStage : MobaBootstrapStageBase
@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.AddModule(new DefaultWorldServicesModule());
             AttributeWorldServicesModule.ClearCache();
 
-            // Deterministic + rollbackable RNG (override default world random)
+            // 确定性且可回滚的 RNG，覆盖默认世界随机数。
             builder.Register<IWorldRandom>(WorldLifetime.Scoped, _ => new RollbackWorldRandom());
         }
     }

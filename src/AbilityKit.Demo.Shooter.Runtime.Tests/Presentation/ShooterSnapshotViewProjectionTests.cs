@@ -594,6 +594,51 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void LocalAuthoritativeMapperDeltaOmitsUnchangedEntityAndStaticComponents()
+    {
+        var mapper = new ShooterSnapshotViewModelMapper();
+        var projection = new ShooterSnapshotViewProjection();
+        var player = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1);
+        var bullet = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, 100);
+        var enemy = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 200);
+        var firstSnapshot = new ShooterStateSnapshotPayload(
+            10,
+            new[] { new ShooterPlayerSnapshot(1, 0f, 0f, 1f, 0f, 100, 3, alive: true) },
+            new[] { new ShooterBulletSnapshot(100, 1, 1f, 0f, 1f, 0f, remainingFrames: 30) },
+            Array.Empty<ShooterEventSnapshot>(),
+            matchState: 0,
+            timeLimitFrames: 0,
+            remainingTimeFrames: 0,
+            enemies: new[] { new ShooterEnemySnapshot(200, 2f, 0f, -1f, 0f, 20, 20, alive: true) });
+        var secondSnapshot = new ShooterStateSnapshotPayload(
+            11,
+            new[] { new ShooterPlayerSnapshot(1, 0.1f, 0f, 1f, 0f, 100, 3, alive: true) },
+            new[] { new ShooterBulletSnapshot(100, 1, 1.2f, 0f, 1f, 0f, remainingFrames: 29) },
+            Array.Empty<ShooterEventSnapshot>(),
+            matchState: 0,
+            timeLimitFrames: 0,
+            remainingTimeFrames: 0,
+            enemies: new[] { new ShooterEnemySnapshot(200, 2.1f, 0f, -1f, 0f, 20, 20, alive: true) });
+
+        var first = mapper.Map(in firstSnapshot, ShooterViewBatchSource.LocalAuthoritative);
+        projection.Apply(in first);
+        var second = mapper.Map(in secondSnapshot, ShooterViewBatchSource.LocalAuthoritative);
+        var result = projection.Apply(in second);
+
+        Assert.Equal(ShooterViewSnapshotKind.Delta, second.SnapshotKind);
+        Assert.Empty(second.EntityChanges);
+        Assert.Empty(second.HealthChanges);
+        Assert.Empty(second.ScoreChanges);
+        Assert.Equal(3, second.TransformChanges.Count);
+        Assert.Single(second.ProjectileLifetimeChanges);
+        Assert.Equal(29, second.ProjectileLifetimeChanges[0].RemainingFrames);
+        Assert.True(projection.Store.ContainsEntity(player));
+        Assert.True(projection.Store.ContainsEntity(bullet));
+        Assert.True(projection.Store.ContainsEntity(enemy));
+        Assert.Equal(4, result.ComponentUpdates);
+    }
+
+    [Fact]
     public void ProjectedSinkPublishesStoreAfterApplyingBatch()
     {
         var recordingSink = new RecordingProjectedViewSink();

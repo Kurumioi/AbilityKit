@@ -4,17 +4,17 @@ using AbilityKit.Coordinator.Core;
 namespace AbilityKit.Coordinator.SubFeatures
 {
     /// <summary>
-    /// Session Events SubFeature
+    /// 会话事件 SubFeature。
     ///
-    /// Design:
-    /// - Handles session lifecycle events
-    /// - Manages state transitions
-    /// - Notifies hooks of lifecycle changes
+    /// 设计：
+    /// - 处理会话生命周期事件。
+    /// - 管理状态转换。
+    /// - 通知生命周期钩子。
     /// </summary>
     public sealed class SessionEventsSubFeature : ISessionLifecycleSubFeature
     {
         public string Name => "SessionEvents";
-        public int Priority => 1000; // Highest priority - events should fire first
+        public int Priority => 1000; // 最高优先级，事件应最先触发。
 
         private ISessionHost _host;
         private SessionState _lastState;
@@ -24,7 +24,7 @@ namespace AbilityKit.Coordinator.SubFeatures
             _host = host;
             _lastState = host.State;
 
-            // Subscribe to state changes
+            // 订阅状态变化。
             _host.Hooks.OnSessionStarting += (config) => OnSessionStarting();
             _host.Hooks.OnSessionStarted += OnSessionStarted;
             _host.Hooks.OnSessionStopping += OnSessionStopping;

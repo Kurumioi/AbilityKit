@@ -6,10 +6,9 @@ using System.Collections.Generic;
 namespace AbilityKit.Ability.FrameSync
 {
     /// <summary>
-    /// Generic frame-indexed command storage for lockstep/frame-sync style runtimes.
-    /// It owns the reusable mechanics of frame bucketing, retention windows,
-    /// deterministic copying, and trimming while leaving domain-specific latest-input
-    /// or edge-trigger semantics to callers.
+    /// 面向锁步/帧同步运行时的通用按帧索引命令存储。
+    /// 负责可复用的帧分桶、保留窗口、确定性复制和裁剪机制，
+    /// 将特定领域的最新输入或边沿触发语义留给调用方处理。
     /// </summary>
     public sealed class FrameCommandBuffer<TKey, TCommand>
         where TKey : notnull

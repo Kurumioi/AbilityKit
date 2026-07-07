@@ -4,20 +4,20 @@ using AbilityKit.Ability.World.Services;
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Session spawn service interface
+    /// 会话出生服务接口。
     ///
-    /// Design:
-    /// - Abstracts player spawn logic from SessionCoordinator
-    /// - Implemented by game projects (moba.runtime) to create entities
-    /// - Keeps Coordinator package game-agnostic
+    /// 设计：
+    /// - 从 SessionCoordinator 中抽象玩家出生逻辑。
+    /// - 由游戏项目（moba.runtime）实现，用于创建实体。
+    /// - 保持 Coordinator 包与具体游戏无关。
     /// </summary>
     public interface ISpawnService : IService
     {
         /// <summary>
-        /// Create player spawns based on spawn data
+        /// 根据出生数据创建玩家实体。
         /// </summary>
-        /// <param name="spawns">Player spawn data from host</param>
-        /// <returns>True if spawns were created successfully</returns>
+        /// <param name="spawns">来自主机的玩家出生数据</param>
+        /// <returns>如果成功创建出生实体，则返回 true</returns>
         bool CreateSpawns(PlayerSpawnData[] spawns);
     }
 }

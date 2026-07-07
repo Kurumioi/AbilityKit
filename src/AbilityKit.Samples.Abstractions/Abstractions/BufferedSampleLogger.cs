@@ -4,46 +4,46 @@ using System.Collections.Generic;
 namespace AbilityKit.Samples.Abstractions
 {
     /// <summary>
-    /// Stable output protocol metadata shared by sample hosts and exporters.
+    /// 示例宿主和导出器共享的稳定输出协议元数据。
     /// </summary>
     public static class SampleOutputContract
     {
-        /// <summary>Current structured output schema version.</summary>
+        /// <summary>当前结构化输出协议版本。</summary>
         public const string SchemaVersion = "sample-output.v1";
     }
 
     /// <summary>
-    /// Structured log record kind.
+    /// 结构化日志记录类型。
     /// </summary>
     public enum SampleLogKind
     {
-        /// <summary>Plain informational text.</summary>
+        /// <summary>普通信息文本。</summary>
         Info,
-        /// <summary>Warning text.</summary>
+        /// <summary>警告文本。</summary>
         Warn,
-        /// <summary>Error text.</summary>
+        /// <summary>错误文本。</summary>
         Error,
-        /// <summary>Section title.</summary>
+        /// <summary>分节标题。</summary>
         Section,
-        /// <summary>Blank line.</summary>
+        /// <summary>空行。</summary>
         Line,
-        /// <summary>Visual divider.</summary>
+        /// <summary>可视分隔线。</summary>
         Divider,
-        /// <summary>Bullet item.</summary>
+        /// <summary>项目符号项。</summary>
         Bullet,
-        /// <summary>Numbered item.</summary>
+        /// <summary>编号项。</summary>
         Numbered,
-        /// <summary>Key/value pair.</summary>
+        /// <summary>键值对。</summary>
         KeyValue
     }
 
     /// <summary>
-    /// Structured log entry captured by <see cref="BufferedSampleLogger"/>.
+    /// 由 <see cref="BufferedSampleLogger"/> 捕获的结构化日志项。
     /// </summary>
     public readonly struct SampleLogEntry
     {
         /// <summary>
-        /// Creates a structured log entry.
+        /// 创建结构化日志项。
         /// </summary>
         public SampleLogEntry(SampleLogKind kind, string text, string? key = null, int? number = null, int sequence = 0)
         {
@@ -54,20 +54,20 @@ namespace AbilityKit.Samples.Abstractions
             Sequence = sequence;
         }
 
-        /// <summary>Record kind.</summary>
+        /// <summary>记录类型。</summary>
         public SampleLogKind Kind { get; }
-        /// <summary>Main text.</summary>
+        /// <summary>主体文本。</summary>
         public string Text { get; }
-        /// <summary>Optional key for key/value records.</summary>
+        /// <summary>键值记录的可选键。</summary>
         public string Key { get; }
-        /// <summary>Optional item number for numbered records.</summary>
+        /// <summary>编号记录的可选序号。</summary>
         public int? Number { get; }
-        /// <summary>Stable zero-based order within one sample run.</summary>
+        /// <summary>单次示例运行内从零开始的稳定顺序。</summary>
         public int Sequence { get; }
     }
 
     /// <summary>
-    /// Logger that stores structured records for UI hosts.
+    /// 为 UI 宿主存储结构化记录的日志器。
     /// </summary>
     public sealed class BufferedSampleLogger : ILogger
     {
@@ -75,7 +75,7 @@ namespace AbilityKit.Samples.Abstractions
         private int _nextSequence;
 
         /// <summary>
-        /// Captured records.
+        /// 已捕获的记录。
         /// </summary>
         public IReadOnlyList<SampleLogEntry> Entries => _entries;
 
@@ -101,7 +101,7 @@ namespace AbilityKit.Samples.Abstractions
         public void Flush() { }
 
         /// <summary>
-        /// Clears all captured records.
+        /// 清理所有已捕获记录。
         /// </summary>
         public void Clear()
         {

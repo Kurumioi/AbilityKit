@@ -1,7 +1,7 @@
 namespace AbilityKit.Pipeline
 {
     /// <summary>
-    /// 可被中断的管线接�?
+    /// 可被中断的管线接口。
     /// </summary>
     public interface IPipelineInterruptible
     {

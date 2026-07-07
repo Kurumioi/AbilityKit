@@ -135,7 +135,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     internal sealed class ShooterEnemyLifecycleCleanupBattleSystem : IShooterBattleSystem
     {
         private readonly IShooterEntityManager _entities;
-        private readonly ISveltoWorldContext _context;
+        private readonly ShooterBattleState _state;
         private readonly List<int> _removalBuffer = new List<int>();
 
         public ShooterEnemyLifecycleCleanupBattleSystem(IShooterBattleServiceResolver services)
@@ -143,7 +143,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (services == null) throw new ArgumentNullException(nameof(services));
 
             _entities = services.Resolve<IShooterEntityManager>();
-            _context = services.Resolve<ISveltoWorldContext>();
+            _state = services.Resolve<ShooterBattleState>();
         }
 
         public int Order => ShooterBattleSystemOrder.EnemyLifecycleCleanup;
@@ -153,21 +153,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public void Step(in float deltaTime)
         {
             _removalBuffer.Clear();
-
-            var healthCollection = _context.EntitiesDB.QueryEntities<ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
-            healthCollection.Deconstruct(out NB<ShooterSveltoHealthComponent> healths, out NativeEntityIDs ids, out var count);
-            for (int i = 0; i < count; i++)
-            {
-                if (healths[i].Alive == 0 || healths[i].Current <= 0)
-                {
-                    _removalBuffer.Add(checked((int)ids[i]));
-                }
-            }
-
-            if (_removalBuffer.Count == 0)
+            if (_state.PendingDefeatedEnemyRemovals.Count == 0)
             {
                 return;
             }
+
+            _removalBuffer.AddRange(_state.PendingDefeatedEnemyRemovals);
+            _state.PendingDefeatedEnemyRemovals.Clear();
 
             _entities.BeginStructuralChanges();
             try

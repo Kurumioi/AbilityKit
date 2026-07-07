@@ -6,7 +6,7 @@ namespace AbilityKit.Core.Mathematics
     {
         public static bool Raycast(in Ray3 ray, in Sphere sphere, out float distance, out Vec3 normal)
         {
-            // Solve |o + t d - c|^2 = r^2
+            // 求解 |o + t d - c|^2 = r^2。
             var oc = ray.Origin - sphere.Center;
             var a = Vec3.Dot(ray.Direction, ray.Direction);
             var b = 2f * Vec3.Dot(oc, ray.Direction);
@@ -44,7 +44,7 @@ namespace AbilityKit.Core.Mathematics
 
         public static bool Raycast(in Ray3 ray, in Aabb aabb, out float distance, out Vec3 normal)
         {
-            // Slabs method
+            // 分层裁剪方法。
             var tmin = float.NegativeInfinity;
             var tmax = float.PositiveInfinity;
             normal = Vec3.Zero;
@@ -115,7 +115,7 @@ namespace AbilityKit.Core.Mathematics
 
         public static bool Overlap(in Sphere sphere, in Aabb aabb)
         {
-            // Closest point on AABB to sphere center
+            // AABB 上距离球心最近的点。
             var cx = MathUtil.Clamp(sphere.Center.X, aabb.Min.X, aabb.Max.X);
             var cy = MathUtil.Clamp(sphere.Center.Y, aabb.Min.Y, aabb.Max.Y);
             var cz = MathUtil.Clamp(sphere.Center.Z, aabb.Min.Z, aabb.Max.Z);
@@ -158,9 +158,9 @@ namespace AbilityKit.Core.Mathematics
 
         public static bool Raycast(in Ray3 ray, in Capsule capsule, out float distance, out Vec3 normal)
         {
-            // Approximation: ray vs capsule = ray vs swept sphere along segment.
-            // For now: sample closest approach to segment; if ray intersects the infinite cylinder + end spheres is complex.
-            // Provide a conservative fallback by raycasting against end spheres and AABB of capsule.
+            // 近似处理：ray vs capsule 等价为 ray vs 沿线段扫掠的 sphere。
+            // 当前先采样到线段的最近接近点；完整求解无限圆柱与两端球体相交较复杂。
+            // 这里通过检测两端球体和 capsule 的 AABB 提供保守回退。
             var min = Vec3.Min(capsule.A, capsule.B) - new Vec3(capsule.Radius, capsule.Radius, capsule.Radius);
             var max = Vec3.Max(capsule.A, capsule.B) + new Vec3(capsule.Radius, capsule.Radius, capsule.Radius);
             if (!Raycast(ray, new Aabb(min, max), out var dAabb, out _))
@@ -190,7 +190,7 @@ namespace AbilityKit.Core.Mathematics
 
             if (!hit)
             {
-                // AABB hit but no end spheres hit -> accept AABB hit with placeholder normal
+                // 命中 AABB 但未命中两端球体时，接受 AABB 命中并使用占位法线。
                 hit = true;
                 bestD = dAabb;
                 bestN = Vec3.Zero;

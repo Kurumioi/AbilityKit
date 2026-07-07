@@ -10,8 +10,9 @@ namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSnapshotRouter))]
     [WorldService(typeof(IWorldStateSnapshotProvider))]
+    [WorldService(typeof(IWorldStateSnapshotBatchProvider))]
     [WorldService(typeof(IMobaSnapshotHealthProvider))]
-    public sealed class MobaSnapshotRouter : IWorldStateSnapshotProvider, IMobaSnapshotBatchProvider, IMobaSnapshotHealthProvider, IWorldInitializable
+    public sealed class MobaSnapshotRouter : IWorldStateSnapshotBatchProvider, IMobaSnapshotBatchProvider, IMobaSnapshotHealthProvider, IWorldInitializable
     {
         private const string WarningNoEmitters = "snapshot.no.emitters";
 

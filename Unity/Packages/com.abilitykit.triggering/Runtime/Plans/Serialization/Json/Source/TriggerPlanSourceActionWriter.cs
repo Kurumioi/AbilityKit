@@ -383,8 +383,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         {
             return string.Equals(argName, "target_payload_field", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(argName, "targetPayloadField", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "target_payload_field_id", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "targetPayloadFieldId", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(argName, "target_actor_payload_field", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(argName, "targetActorPayloadField", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(argName, "targetActorPayloadField", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "target_actor_payload_field_id", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(argName, "targetActorPayloadFieldId", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryMapLegacyEnumLiteral(string argName, string value, out int enumValue)

@@ -72,7 +72,8 @@ public sealed record RoomPlayerSnapshot(
     [property: Id(5)] int Level,
     [property: Id(6)] int AttributeTemplateId,
     [property: Id(7)] int BasicAttackSkillId,
-    [property: Id(8)] List<int>? SkillIds);
+    [property: Id(8)] List<int>? SkillIds,
+    [property: Id(9)] uint PlayerId);
 
 [GenerateSerializer]
 public sealed record RoomSnapshot(

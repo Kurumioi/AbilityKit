@@ -31,19 +31,23 @@ namespace AbilityKit.Game.Flow
             return _loadouts.TryFind(res, playerId, out loadout);
         }
 
-        public bool TryResolveTemplate(
+        public bool TryResolveSkill(
             in MobaPlayerLoadout loadout,
             int slot,
-            out SkillButtonTemplateMO template)
+            out SkillMO skill,
+            out SkillButtonTemplateMO template,
+            out BattleHudSkillPresentationSpec spec)
         {
+            skill = null;
             template = null;
+            spec = default;
             if (slot <= 0) return false;
 
             var skills = loadout.SkillIds;
             if (skills == null || skills.Length < slot) return false;
 
             var skillId = skills[slot - 1];
-            return _templates.TryResolve(skillId, out template);
+            return _templates.TryResolve(skillId, out skill, out template, out spec);
         }
     }
 }

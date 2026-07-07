@@ -78,7 +78,7 @@ public sealed class ShooterClientSessionTests
 
         Assert.IsType<ShooterClientPredictRollbackSyncController>(session.SyncController);
         Assert.Equal(NetworkSyncModel.PredictRollback, session.SyncController.SyncModel);
-        Assert.Same(session.SyncController.FrameSyncCoordinator, session.FrameSyncCoordinator);
+        Assert.Same(session.SyncController.FrameSync, session.FrameSync);
         Assert.Same(session.SyncController.InputCoordinator, session.InputCoordinator);
     }
 

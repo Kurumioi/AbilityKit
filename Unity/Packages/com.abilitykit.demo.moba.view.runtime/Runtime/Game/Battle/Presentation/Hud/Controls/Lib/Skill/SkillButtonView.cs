@@ -21,7 +21,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             get => _config;
             set
             {
-                _config = value.LongPressSeconds > 0f ? value : SkillButtonConfig.Default;
+                _config = value;
+                NormalizeConfig(ref _config);
                 _gesture.Configure(_config);
                 ConfigureAim();
             }
@@ -44,7 +45,8 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             _uiRootRect = uiRootRect;
             _canvas = canvas;
             _aimIndicator = aimIndicator;
-            _config = config.LongPressSeconds > 0f ? config : SkillButtonConfig.Default;
+            _config = config;
+            NormalizeConfig(ref _config);
             _gesture.Configure(_config);
 
             RefreshReferences();
@@ -53,7 +55,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void Awake()
         {
-            if (_config.LongPressSeconds <= 0f) _config = SkillButtonConfig.Default;
+            NormalizeConfig(ref _config);
             _gesture.Configure(_config);
             RefreshReferences();
 
@@ -72,6 +74,16 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private void ConfigureAim()
         {
             _aim.Configure(_buttonRect, _uiRootRect, _uiCamera, _aimIndicator, _config);
+        }
+
+        private static void NormalizeConfig(ref SkillButtonConfig config)
+        {
+            var defaults = SkillButtonConfig.Default;
+            if (config.LongPressSeconds < 0f) config.LongPressSeconds = defaults.LongPressSeconds;
+            if (config.DragThreshold <= 0f) config.DragThreshold = defaults.DragThreshold;
+            if (config.AimMaxRadius <= 0f) config.AimMaxRadius = defaults.AimMaxRadius;
+            if (config.IndicatorLengthPixels <= 0f) config.IndicatorLengthPixels = defaults.IndicatorLengthPixels;
+            if (config.IndicatorWidthPixels <= 0f) config.IndicatorWidthPixels = defaults.IndicatorWidthPixels;
         }
 
         private void OnDisable()
@@ -96,6 +108,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (_buttonRect == null) return;
 
             _gesture.Begin(eventData.pointerId, eventData.position, Time.unscaledTime);
+            if (ShouldPreviewImmediately())
+            {
+                BeginAim(eventData.position);
+            }
         }
 
         public void OnDrag(PointerEventData eventData)
@@ -141,6 +157,11 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             var aim = _aim.Calculate(currentScreen);
             OnAimStart?.Invoke(aim);
             _aim.Show(currentScreen);
+        }
+
+        private bool ShouldPreviewImmediately()
+        {
+            return _config.EnableAim && _config.IndicatorShape == SkillAimIndicatorShape.SelfCircle;
         }
 
         private void EndAim()

@@ -166,6 +166,7 @@ flowchart TB
 | [01-视图事件抽象](04-PresentationLayerDesign/01-ViewEventAbstraction.md) | 表现事件 | IBattleViewEventSink、BattleViewEventSink、Snapshot/Trigger Adapter、ViewEventAdapterLifecycle 与 View Binder 边界 |
 | [02-快照分发](04-PresentationLayerDesign/02-SnapshotDispatch.md) | 快照路由 | FrameSnapshotDispatcher、SnapshotPipeline、SnapshotRoutingBuilder、OpCode 路由、类型保护与 MOBA 快照订阅 |
 | [03-跨平台实现](04-PresentationLayerDesign/03-CrossPlatform.md) | 跨端适配 | Unity View Feature、ConsoleBattleView、ETBattleViewEventSink、Server/Headless 观察边界与跨平台适配原则 |
+| [04-客户端游戏流程与表现层阶段架构](04-PresentationLayerDesign/04-ClientGameFlowAndPhaseArchitecture.md) | 客户端流程 | 顶层 phase/HFSM、状态 feature binding、module/feature/subfeature/handler 分层、Flow 分工与 ET/GameFramework 对比 |
 
 ### 05 通用模块
 
@@ -233,6 +234,10 @@ flowchart TB
 | [03.13-MOBA DI 与 System/Service 协作深潜](09-ImplementationExamples/MOBA/12-DIAndSystemServiceCollaborationDeepDive.md) | DI 协作 | MobaServicesAutoModule、WorldService、WorldInject、WorldActivator、MobaGameplayTickSystem、MobaSkillPipelineStepSystem、MobaBuffCommandDrainSystem、Service + ECS System 协作边界 |
 | [03.14-MOBA 持续行为能力组合设计](09-ImplementationExamples/MOBA/13-ContinuousCapabilityCompositionDesign.md) | 持续行为组合 | stack、periodic、cue、tag、modifier 与 Buff、Projectile、Motion、Skill Pipeline 等领域 runtime 的组合边界 |
 | [03.15-MOBA 四英雄技能正式实现设计](09-ImplementationExamples/MOBA/14-HeroSkillFormalDesign.md) | 英雄技能设计 | 廉颇、小乔、赵云、墨子的技能/被动需求映射、TriggerPlan、Buff、Projectile、Counter、通用 predicate 与验证路径 |
+| [03.16-MOBA 联机会话与协议契约](09-ImplementationExamples/MOBA/15-OnlineSessionAndProtocolContract.md) | 联机会话 | Gateway room、EnterGame、BattleSessionFeature、RuntimePort、远程驱动世界与确认权威世界的契约边界 |
+| [03.17-MOBA 领域连续运行时与临时实体生命周期](09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) | 领域运行时 | Motion source、motion.hit、Summon owner/root-owner、容量策略、trace、despawn 与 gameplay trigger 绑定 |
+| [03.18-MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计](09-ImplementationExamples/MOBA/17-ActivePassiveBuffProjectileAoeTriggerEffects.md) | 触发效果链路 | 主动技能、被动 owner-bound、Buff 生命周期、Projectile stage、AOE stage 到 TriggerPlan 与领域服务的完整链路 |
+| [03.19-MOBA 技能 Flow 与 Pipeline 配置设计](09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) | 技能 Flow 配置 | skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | Shooter 总览 | Shooter Runtime/Svelto、packed/pure-state snapshot、客户端同步控制器、Unity PlayMode 远程宿主、连接恢复、Gateway/Orleans 与 Smoke/replay 验收 |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | Shooter 示例拆分阅读入口 |
 | [04.2-Shooter Runtime、Svelto 与战斗模拟](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 模拟 | RuntimePort、Svelto EntityManager、Simulation Tick |
@@ -246,12 +251,15 @@ flowchart TB
 | [04.10-Shooter Svelto 性能模式深潜](09-ImplementationExamples/Shooter/09-SveltoPerformanceModeDeepDive.md) | 性能模式 | struct component、ExclusiveGroup、ScenarioRunner、Benchmark 与大规模预算诊断 |
 | [04.11-Shooter 表现会话与视图管线深潜](09-ImplementationExamples/Shooter/10-PresentationSessionAndViewDeepDive.md) | 表现会话 | PresentationFacade、Session、Stream、Projection、Binder、Reconnect 驱动 |
 | [04.12-Shooter 插值、混合预测与诊断深潜](09-ImplementationExamples/Shooter/11-InterpolationAndPredictionDeepDive.md) | 插值与预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor |
+| [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 |
+| [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI 与胜负状态 |
 
 ### 10 工程质量与测试
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-正式测试流程、单元测试与冒烟测试](10-EngineeringQuality/01-TestingWorkflow.md) | 测试门禁 | 真实测试工程入口、xUnit 分层、DemoHarness 指标、Shooter 30 场景验收矩阵、Orleans Gateway/Grain 测试、Smoke 结果字段、ET/Shooter 命令与 P0/P1/P2 门禁 |
+| [03-MOBA 与 Shooter 示例工业化流程](10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) | 示例工业化 | MOBA/Shooter 单元测试、Console/Orleans smoke、DSL/配置环境测试、trace/replay artifact 与 CI 分层放大路径 |
 
 ### 11 文档工程计划
 
@@ -284,6 +292,7 @@ flowchart TB
 | Triggering | `Unity/Packages/com.abilitykit.triggering/Runtime` | `src/AbilityKit.Triggering` | - |
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
 | Flow | `Unity/Packages/com.abilitykit.flow/Runtime` | `src/AbilityKit.Flow` | Demo battle host loads runtime assemblies |
+| Game View Flow | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding and battle scope tests |
 | HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `Unity/AbilityKit.HFSM.Tests.csproj` | Unity package and tests |
 | Combat | `Unity/Packages/com.abilitykit.combat.*` | `src/AbilityKit.Combat.*` | Demo battle logic host |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime` | `src/AbilityKit.Record` | Smoke/replay tools |
@@ -330,6 +339,13 @@ flowchart TB
 | 2026-07-04 | 2.25 | 服务端架构专题：Orleans 服务端运行面、能力地图、运行时部署、Gateway/Room/Battle 主链路与源码锚点 |
 | 2026-07-04 | 2.26 | Web 后台专题：Admin Console 技术选型、页面职责、状态/API 边界、Gateway 静态托管和 /api/admin 运维诊断门面 |
 | 2026-07-05 | 2.27 | 通用运行时补漏：Flow 流程引擎、HFSM 分层状态机、事件唤醒、阶段贡献、exit-time 转移、Unity Graph Asset 与导出链路 |
+| 2026-07-05 | 2.28 | MOBA 联机会话与协议契约：Gateway room、EnterGame、BattleSessionFeature、RuntimePort、远程驱动世界与确认权威世界 |
+| 2026-07-06 | 2.29 | MOBA 领域连续运行时与临时实体生命周期：Motion source、motion.hit、Summon owner/root-owner、容量策略、trace、despawn 与 gameplay trigger 绑定 |
+| 2026-07-06 | 2.30 | Shooter 战斗玩法内核：一帧管线、敌人波次、projectile 命中、空间索引、Bot AI 与胜负状态 |
+| 2026-07-06 | 2.31 | MOBA/Shooter 示例工业化流程：单元测试、Console/Orleans smoke、DSL/配置环境测试、trace/replay artifact 与 CI 分层门禁 |
+| 2026-07-06 | 2.32 | 客户端游戏流程与表现层阶段架构：顶层 phase/HFSM、状态 feature binding、module/feature/subfeature/handler 分层、Flow 分工与 ET/GameFramework 对比 |
+| 2026-07-06 | 2.33 | MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计：触发源分类、direct/owner-bound 执行、StageTrigger、PlanAction 副作用和 source context 继承 |
+| 2026-07-06 | 2.34 | MOBA 技能 Flow 与 Pipeline 配置设计：skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil、Pipeline 持续标签模板与废弃 Checks 治理 |
 
 ---
 

@@ -19,8 +19,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// </summary>
     public sealed class ShooterClientPredictRollbackSyncController : IShooterClientSyncController
     {
-        private readonly ShooterClientFrameSyncCoordinator _frameSync;
-        private readonly ShooterClientInputCoordinator _input;
+        private readonly ShooterClientSyncCore _core;
 
         public ShooterClientPredictRollbackSyncController(
             IShooterBattleRuntimePort runtime,
@@ -29,58 +28,56 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway)
         {
-            _frameSync = new ShooterClientFrameSyncCoordinator(runtime, presentation, tickRate, decoder);
-            _input = new ShooterClientInputCoordinator(_frameSync, gateway);
+            _core = new ShooterClientSyncCore(runtime, presentation, tickRate, decoder, gateway);
         }
 
         public NetworkSyncModel SyncModel => NetworkSyncModel.PredictRollback;
 
-        public bool IsStarted => _frameSync.IsStarted;
+        public bool IsStarted => _core.IsStarted;
 
-        public int CurrentFrame => _frameSync.CurrentFrame;
+        public int CurrentFrame => _core.CurrentFrame;
 
-        public ShooterClientFrameSyncController FrameSync => _frameSync.Controller;
+        public ShooterClientFrameSyncController FrameSync => _core.FrameSync;
 
-        public ShooterClientFrameSyncCoordinator FrameSyncCoordinator => _frameSync;
+        public ShooterClientInputCoordinator InputCoordinator => _core.InputCoordinator;
 
-        public ShooterClientInputCoordinator InputCoordinator => _input;
+        public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _core.FrameworkSnapshotPipelineDiagnostics;
 
-        public ShooterClientReconciliationResult LastReconciliationResult => _frameSync.LastReconciliationResult;
+        public ShooterClientReconciliationResult LastReconciliationResult => _core.LastReconciliationResult;
 
-        public bool NeedsFullSnapshotResync => _frameSync.NeedsFullSnapshotResync;
+        public bool NeedsFullSnapshotResync => _core.NeedsFullSnapshotResync;
 
-        public ShooterClientRecoveryState RecoveryState => _frameSync.RecoveryState;
+        public ShooterClientRecoveryState RecoveryState => _core.RecoveryState;
 
-        public AbilityKit.Network.Runtime.Sync.FastReconnectPhase FastReconnectPhase => _frameSync.FastReconnectPhase;
+        public AbilityKit.Network.Runtime.Sync.FastReconnectPhase FastReconnectPhase => _core.FastReconnectPhase;
 
-        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents
-            => MergeHealthEvents(_frameSync.LastFastReconnectHealthEvents, _input.LastHealthEvents);
+        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents => _core.LastFastReconnectHealthEvents;
 
-        public ShooterClientResyncReason LastResyncReason => _frameSync.LastResyncReason;
+        public ShooterClientResyncReason LastResyncReason => _core.LastResyncReason;
 
-        public int LastResyncClientFrame => _frameSync.LastResyncClientFrame;
+        public int LastResyncClientFrame => _core.LastResyncClientFrame;
 
-        public int LastResyncAuthoritativeFrame => _frameSync.LastResyncAuthoritativeFrame;
+        public int LastResyncAuthoritativeFrame => _core.LastResyncAuthoritativeFrame;
 
-        public uint LastResyncClientStateHash => _frameSync.LastResyncClientStateHash;
+        public uint LastResyncClientStateHash => _core.LastResyncClientStateHash;
 
-        public uint LastResyncAuthoritativeStateHash => _frameSync.LastResyncAuthoritativeStateHash;
+        public uint LastResyncAuthoritativeStateHash => _core.LastResyncAuthoritativeStateHash;
 
-        public bool HasGateway => _input.HasGateway;
+        public bool HasGateway => _core.HasGateway;
 
         public bool StartGame(in ShooterStartGamePayload startGame)
         {
-            return _frameSync.StartGame(in startGame);
+            return _core.StartGame(in startGame);
         }
 
         public ShooterClientInputSubmitResult SubmitLocalInput(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
         {
-            return _input.SubmitLocalInput(playerId, moveX, moveY, aimX, aimY, fire);
+            return _core.SubmitLocalInput(playerId, moveX, moveY, aimX, aimY, fire);
         }
 
         public ShooterClientInputSubmitResult SubmitLocalInput(in ShooterPlayerCommand command)
         {
-            return _input.SubmitLocalInput(in command);
+            return _core.SubmitLocalInput(in command);
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(
@@ -89,7 +86,7 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            return _input.SubmitLocalInputToGatewayAsync(context, command, timeout, cancellationToken);
+            return _core.SubmitLocalInputToGatewayAsync(context, command, timeout, cancellationToken);
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitAcceptedInputToGatewayAsync(
@@ -98,55 +95,27 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            return _input.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
+            return _core.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken);
         }
 
         public ShooterClientFrameTickResult Tick(float deltaTime)
         {
-            return _frameSync.Tick(deltaTime);
+            return _core.Tick(deltaTime);
         }
 
         public ShooterClientFrameTickResult CatchUpToFrame(int targetFrame)
         {
-            return _frameSync.CatchUpToFrame(targetFrame);
+            return _core.CatchUpToFrame(targetFrame);
         }
 
         public bool TryEnterCatchUp(int authoritativeFrame)
         {
-            return _frameSync.TryEnterCatchUp(authoritativeFrame);
+            return _core.TryEnterCatchUp(authoritativeFrame);
         }
 
         public ShooterSnapshotApplyResult ApplyGatewayPush(uint opCode, ArraySegment<byte> payload)
         {
-            return _frameSync.ApplyGatewayPush(opCode, payload);
-        }
-
-        private static IReadOnlyList<SyncHealthEvent> MergeHealthEvents(
-            IReadOnlyList<SyncHealthEvent> primary,
-            IReadOnlyList<SyncHealthEvent> secondary)
-        {
-            if (primary.Count == 0)
-            {
-                return secondary;
-            }
-
-            if (secondary.Count == 0)
-            {
-                return primary;
-            }
-
-            var merged = new SyncHealthEvent[primary.Count + secondary.Count];
-            for (int i = 0; i < primary.Count; i++)
-            {
-                merged[i] = primary[i];
-            }
-
-            for (int i = 0; i < secondary.Count; i++)
-            {
-                merged[primary.Count + i] = secondary[i];
-            }
-
-            return merged;
+            return _core.ApplyGatewayPush(opCode, payload);
         }
 
         // --- IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample> ---

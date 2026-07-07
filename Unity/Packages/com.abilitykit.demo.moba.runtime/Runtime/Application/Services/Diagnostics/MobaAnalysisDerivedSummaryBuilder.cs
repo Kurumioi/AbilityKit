@@ -6,7 +6,7 @@ using AbilityKit.Diagnostics.Analysis;
 namespace AbilityKit.Demo.Moba.Services
 {
     /// <summary>
-    /// Builds MOBA-specific derived summaries on top of the generic Web analysis contract.
+    /// 在通用 Web 分析契约之上构建 MOBA 专用派生摘要。
     /// </summary>
     public static class MobaAnalysisDerivedSummaryBuilder
     {

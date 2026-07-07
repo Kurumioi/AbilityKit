@@ -42,9 +42,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private int port = ShooterRemoteStateSyncDefaults.DefaultPort;
         [SerializeField] private string region = ShooterRemoteStateSyncDefaults.DefaultRegion;
         [SerializeField] private string serverId = ShooterRemoteStateSyncDefaults.DefaultServerId;
-        [SerializeField] private string sessionToken = ShooterRemoteStateSyncDefaults.DefaultSessionToken;
-        [SerializeField] private string guestId = "unity-guest";
-        [SerializeField] private string accountId = "unity-account";
+        [SerializeField] private string sessionToken = string.Empty;
+        [SerializeField] private string guestId = string.Empty;
+        [SerializeField] private string accountId = string.Empty;
         [SerializeField] private int timeoutSeconds = 5;
 
         [Header("Room")]
@@ -53,13 +53,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private int maxPlayers = 4;
         [SerializeField] private int roomListLimit = 10;
 
-        private readonly List<ShooterGatewayRoomSummary> _rooms = new List<ShooterGatewayRoomSummary>();
+        private readonly ShooterPlayModeAccountState _accountState = new ShooterPlayModeAccountState();
+        private readonly ShooterPlayModeRoomState _roomState = new ShooterPlayModeRoomState();
         private string _status = "Ready";
         private string _error = string.Empty;
-        private string _loggedAccountId = string.Empty;
-        private int _selectedRoomIndex = -1;
-        private int _roomListOffset;
         private bool _busy;
+
+        private void Awake()
+        {
+            EnsureUniqueDefaultIdentity();
+        }
 
         private void OnGUI()
         {
@@ -183,19 +186,22 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             port = Math.Max(1, IntField("Port", port));
             region = TextField("Region", region);
             serverId = TextField("Server", serverId);
-            sessionToken = TextField("Token", sessionToken);
-            guestId = TextField("Guest", guestId);
-            accountId = TextField("Account", accountId);
+            var nextAccountId = TextField("Account", accountId);
+            if (!string.Equals(NormalizeOrDefault(nextAccountId, string.Empty), NormalizeOrDefault(accountId, string.Empty), StringComparison.Ordinal))
+            {
+                accountId = nextAccountId;
+                ClearSession();
+            }
+            else
+            {
+                accountId = nextAccountId;
+            }
             timeoutSeconds = Math.Max(1, IntField("Timeout", timeoutSeconds));
+            GUILayout.Label(HasSessionToken() ? "Session: logged in" : "Session: login required");
 
             GUILayout.BeginHorizontal();
             GUI.enabled = !_busy;
-            if (GUILayout.Button("Guest Login"))
-            {
-                RunAsync("guest login", GuestLoginAsync);
-            }
-
-            if (GUILayout.Button("Account Login"))
+            if (GUILayout.Button("Login Account"))
             {
                 RunAsync("account login", AccountLoginAsync);
             }
@@ -208,7 +214,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUI.enabled = true;
             GUILayout.EndHorizontal();
 
-            GUILayout.Label(string.IsNullOrWhiteSpace(_loggedAccountId) ? "Login: none" : $"Login: {_loggedAccountId}");
+            GUILayout.Label(string.IsNullOrWhiteSpace(_accountState.LoggedAccountId) ? $"Account: {NormalizeOrDefault(accountId, CreateDefaultAccountId())}" : $"Account: {_accountState.LoggedAccountId}");
         }
 
         private void DrawRemoteControls()
@@ -222,12 +228,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             GUILayout.BeginHorizontal();
             GUI.enabled = !_busy;
-            if (GUILayout.Button("Create Room + Start"))
+            if (GUILayout.Button("Create Room"))
             {
                 RunAsync("create room", () => StartRemoteAsync(ShooterRemoteStateSyncLaunchMode.CreateNew, string.Empty));
             }
 
-            if (GUILayout.Button("Join Room"))
+            if (GUILayout.Button("Join Room Id"))
             {
                 RunAsync("join room", () => StartRemoteAsync(ShooterRemoteStateSyncLaunchMode.JoinRoom, roomId));
             }
@@ -267,24 +273,25 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUI.enabled = true;
             GUILayout.EndHorizontal();
             GUILayout.Label($"Remote: {RemoteStateLabel()}");
+            GUILayout.Label($"Initial Sync: {ShooterRemoteStateSyncPlayModeHost.LastInitialFullStateSyncApplyResult}");
         }
 
         private void DrawRoomList()
         {
             GUILayout.Space(6f);
-            GUILayout.Label($"Rooms ({_rooms.Count})");
+            GUILayout.Label($"Rooms ({_roomState.Count})");
 
-            if (_rooms.Count == 0)
+            if (_roomState.Count == 0)
             {
                 GUILayout.Label("No rooms loaded.");
                 return;
             }
 
-            for (var i = 0; i < _rooms.Count; i++)
+            for (var i = 0; i < _roomState.Rooms.Count; i++)
             {
-                var room = _rooms[i];
+                var room = _roomState.Rooms[i];
                 GUILayout.BeginHorizontal();
-                var selected = _selectedRoomIndex == i;
+                var selected = _roomState.SelectedIndex == i;
                 if (GUILayout.Toggle(selected, string.Empty, GUILayout.Width(20f)) != selected)
                 {
                     SelectRoom(i);
@@ -323,8 +330,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private async Task GuestLoginAsync()
         {
+            EnsureUniqueDefaultIdentity();
             var result = await WithRoomClient(client => client.GuestLoginAsync(
-                new ShooterGatewayGuestLoginRequest(NormalizeOrDefault(guestId, "unity-guest")),
+                new ShooterGatewayGuestLoginRequest(NormalizeOrDefault(guestId, CreateDefaultGuestId())),
                 Timeout()));
 
             if (!result.Success)
@@ -333,14 +341,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             sessionToken = result.SessionToken;
-            _loggedAccountId = result.AccountId;
+            _accountState.RecordLogin(result.AccountId);
             SetStatus($"Guest login ok: {result.AccountId}");
         }
 
         private async Task AccountLoginAsync()
         {
+            EnsureUniqueDefaultIdentity();
             var result = await WithRoomClient(client => client.AccountLoginAsync(
-                new ShooterGatewayAccountLoginRequest(NormalizeOrDefault(accountId, "unity-account")),
+                new ShooterGatewayAccountLoginRequest(NormalizeOrDefault(accountId, CreateDefaultAccountId())),
                 Timeout()));
 
             if (!result.Success)
@@ -349,14 +358,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             sessionToken = result.SessionToken;
-            _loggedAccountId = result.AccountId;
+            _accountState.RecordLogin(result.AccountId);
             SetStatus($"Account login ok: {result.AccountId}");
         }
 
         private async Task ListRoomsAsync()
         {
+            await EnsureAccountLoginAsync();
             var result = await WithRoomClient(client => client.ListRoomsAsync(
-                new ShooterGatewayListRoomsRequest(SessionToken(), Region(), ServerId(), _roomListOffset, Math.Max(1, roomListLimit)),
+                new ShooterGatewayListRoomsRequest(SessionToken(), Region(), ServerId(), _roomState.NextOffset, Math.Max(1, roomListLimit)),
                 Timeout()));
 
             if (!result.Success)
@@ -364,23 +374,18 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 throw new InvalidOperationException(result.Message);
             }
 
-            _rooms.Clear();
-            _rooms.AddRange(result.Rooms);
-            _roomListOffset = result.NextOffset;
-            if (_rooms.Count > 0)
+            _roomState.ReplaceRooms(result.Rooms, result.NextOffset);
+            if (_roomState.Count > 0)
             {
                 SelectRoom(0);
             }
-            else
-            {
-                _selectedRoomIndex = -1;
-            }
 
-            SetStatus($"Loaded {_rooms.Count} room(s).");
+            SetStatus($"Loaded {_roomState.Count} room(s).");
         }
 
         private async Task StartRemoteAsync(ShooterRemoteStateSyncLaunchMode mode, string selectedRoomId)
         {
+            await EnsureAccountLoginAsync();
             ShooterPlayModeSessionHost.Stop();
             ShooterRemoteStateSyncPlayModeHost.SetViewBackend(ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend));
 
@@ -412,6 +417,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private static string RemoteStateLabel()
         {
+            if (ShooterRemoteStateSyncPlayModeHost.IsWaitingForInitialFullStateSync)
+            {
+                return "Syncing Latest State";
+            }
+
             if (ShooterRemoteStateSyncPlayModeHost.IsStarting)
             {
                 return "Starting";
@@ -531,14 +541,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void SelectRoom(int index)
         {
-            if (index < 0 || index >= _rooms.Count)
+            if (_roomState.TrySelect(index, out var room))
             {
-                _selectedRoomIndex = -1;
-                return;
+                roomId = room.RoomId;
             }
-
-            _selectedRoomIndex = index;
-            roomId = _rooms[index].RoomId;
         }
 
         private void RunSync(string actionName, Action action)
@@ -604,7 +610,55 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private string SessionToken()
         {
-            return NormalizeOrDefault(sessionToken, ShooterRemoteStateSyncDefaults.DefaultSessionToken);
+            return NormalizeOrDefault(sessionToken, string.Empty);
+        }
+
+        private async Task EnsureAccountLoginAsync()
+        {
+            EnsureUniqueDefaultIdentity();
+            if (HasSessionToken())
+            {
+                return;
+            }
+
+            var result = await WithRoomClient(client => client.AccountLoginAsync(
+                new ShooterGatewayAccountLoginRequest(NormalizeOrDefault(accountId, CreateDefaultAccountId())),
+                Timeout()));
+
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.Message);
+            }
+
+            sessionToken = result.SessionToken;
+            _accountState.RecordLogin(result.AccountId);
+            SetStatus($"Account login ok: {result.AccountId}");
+        }
+
+        private bool HasSessionToken()
+        {
+            return _accountState.HasSessionToken(SessionToken(), NormalizeOrDefault(accountId, CreateDefaultAccountId()));
+        }
+
+        private void ClearSession()
+        {
+            sessionToken = string.Empty;
+            _accountState.ClearSession();
+        }
+
+        private void EnsureUniqueDefaultIdentity()
+        {
+            _accountState.EnsureUniqueDefaultIdentity(ref accountId, ref guestId);
+        }
+
+        private string CreateDefaultAccountId()
+        {
+            return _accountState.CreateDefaultAccountId();
+        }
+
+        private string CreateDefaultGuestId()
+        {
+            return _accountState.CreateDefaultGuestId();
         }
 
         private string Region()

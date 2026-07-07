@@ -1,7 +1,7 @@
 namespace AbilityKit.Coordinator
 {
     /// <summary>
-    /// Gameplay-level gate that decides whether a logic world may advance.
+    /// 游戏玩法层的门控，用于决定逻辑世界是否可以推进。
     /// </summary>
     public interface ILogicWorldDriveGate
     {

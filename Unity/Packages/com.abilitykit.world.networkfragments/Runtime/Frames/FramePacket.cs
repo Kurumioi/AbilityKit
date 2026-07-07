@@ -36,15 +36,28 @@ namespace AbilityKit.Ability.Host
             if (feed == null) return 0;
             if (maxSnapshotsPerStep <= 0) return 0;
 
-            var drained = 0;
+            if (provider is IWorldStateSnapshotBatchProvider batchProvider)
+            {
+                var snapshots = new List<WorldStateSnapshot>(Math.Min(maxSnapshotsPerStep, 32));
+                var count = batchProvider.CollectSnapshots(frame, snapshots, maxSnapshotsPerStep);
+                var drained = Math.Min(count, snapshots.Count);
+                for (int i = 0; i < drained; i++)
+                {
+                    feed(new FramePacket(worldId, frame, Array.Empty<PlayerInputCommand>(), snapshots[i]));
+                }
+
+                return drained;
+            }
+
+            var fallbackDrained = 0;
             for (int i = 0; i < maxSnapshotsPerStep; i++)
             {
                 if (!provider.TryGetSnapshot(frame, out var s)) break;
                 feed(new FramePacket(worldId, frame, Array.Empty<PlayerInputCommand>(), s));
-                drained++;
+                fallbackDrained++;
             }
 
-            return drained;
+            return fallbackDrained;
         }
     }
 }
