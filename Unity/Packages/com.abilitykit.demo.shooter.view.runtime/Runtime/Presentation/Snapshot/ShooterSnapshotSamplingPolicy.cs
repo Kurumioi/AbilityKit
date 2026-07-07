@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Shooter.View
             out bool isContinuousSample)
         {
             isContinuousSample = false;
-            if (from.Sequence == to.Sequence || from.Frame >= to.Frame || playbackFrame <= from.Frame)
+            if (IsSameBatch(in from, in to) || from.Frame >= to.Frame || playbackFrame <= from.Frame)
             {
                 return from;
             }
@@ -127,6 +127,14 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             return copy;
+        }
+
+        private static bool IsSameBatch(in ShooterSnapshotViewBatch from, in ShooterSnapshotViewBatch to)
+        {
+            return from.Sequence == to.Sequence &&
+                from.Frame == to.Frame &&
+                from.Source == to.Source &&
+                from.SnapshotKind == to.SnapshotKind;
         }
 
         private static float Lerp(float from, float to, float t)

@@ -16,8 +16,8 @@ namespace AbilityKit.Demo.Shooter.View
         private int _start;
         private int _count;
         private float _playbackFrame;
-        private ulong _lastSampledSequence;
-        private bool _hasLastSampledSequence;
+        private ShooterSnapshotViewBatchKey _lastSampledBatchKey;
+        private bool _hasLastSampledBatchKey;
         private bool _playbackInitialized;
 
         public ShooterSnapshotStream()
@@ -125,13 +125,14 @@ namespace AbilityKit.Demo.Shooter.View
                 return true;
             }
 
-            if (_hasLastSampledSequence && batch.Sequence == _lastSampledSequence)
+            var batchKey = ShooterSnapshotViewBatchKey.From(in batch);
+            if (_hasLastSampledBatchKey && batchKey.Equals(_lastSampledBatchKey))
             {
                 return false;
             }
 
-            _lastSampledSequence = batch.Sequence;
-            _hasLastSampledSequence = true;
+            _lastSampledBatchKey = batchKey;
+            _hasLastSampledBatchKey = true;
             return true;
         }
 
@@ -142,8 +143,8 @@ namespace AbilityKit.Demo.Shooter.View
             _start = 0;
             _count = 0;
             _playbackFrame = 0f;
-            _lastSampledSequence = 0ul;
-            _hasLastSampledSequence = false;
+            _lastSampledBatchKey = default;
+            _hasLastSampledBatchKey = false;
             _playbackInitialized = false;
         }
 
@@ -202,6 +203,48 @@ namespace AbilityKit.Demo.Shooter.View
         private ShooterSnapshotViewBatch GetAt(int index)
         {
             return _buffer[(_start + index) % _buffer.Length];
+        }
+
+        private readonly struct ShooterSnapshotViewBatchKey : IEquatable<ShooterSnapshotViewBatchKey>
+        {
+            private ShooterSnapshotViewBatchKey(ulong sequence, int frame, ShooterViewBatchSource source, ShooterViewSnapshotKind snapshotKind)
+            {
+                Sequence = sequence;
+                Frame = frame;
+                Source = source;
+                SnapshotKind = snapshotKind;
+            }
+
+            private ulong Sequence { get; }
+
+            private int Frame { get; }
+
+            private ShooterViewBatchSource Source { get; }
+
+            private ShooterViewSnapshotKind SnapshotKind { get; }
+
+            public static ShooterSnapshotViewBatchKey From(in ShooterSnapshotViewBatch batch)
+            {
+                return new ShooterSnapshotViewBatchKey(batch.Sequence, batch.Frame, batch.Source, batch.SnapshotKind);
+            }
+
+            public bool Equals(ShooterSnapshotViewBatchKey other)
+            {
+                return Sequence == other.Sequence &&
+                    Frame == other.Frame &&
+                    Source == other.Source &&
+                    SnapshotKind == other.SnapshotKind;
+            }
+
+            public override bool Equals(object? obj)
+            {
+                return obj is ShooterSnapshotViewBatchKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(Sequence, Frame, Source, SnapshotKind);
+            }
         }
     }
 }

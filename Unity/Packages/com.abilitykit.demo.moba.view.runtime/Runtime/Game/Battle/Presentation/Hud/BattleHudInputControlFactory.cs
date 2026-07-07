@@ -72,11 +72,32 @@ namespace AbilityKit.Game.Flow
             cfg.EnableAim = true;
             cfg.AimMaxRadius = 220f;
             cfg.AimMode = slot == 1 ? SkillAimMode.Direction : SkillAimMode.Point;
+            cfg.IndicatorShape = ResolveDefaultIndicatorShape(slot);
+            cfg.IndicatorLengthPixels = slot == 1 ? 220f : 150f;
+            cfg.IndicatorWidthPixels = slot == 1 ? 52f : 110f;
 
+            var cooldownLayer = CreateCooldownLayer(element.GameObject.transform, name + "CooldownLayer");
+            var cooldownOverlay = CreateCooldownOverlay(cooldownLayer, name + "CooldownOverlay");
+            var cooldownText = CreateCooldownText(cooldownLayer, name + "CooldownText");
             var indicator = CreateSkillAimIndicator(parent, name + "AimIndicator");
             var view = element.GameObject.AddComponent<SkillButtonView>();
-            view.Initialize(element.Rect, root, canvas, cfg, indicator);
+            view.Initialize(element.Rect, root, canvas, cfg, indicator, cooldownOverlay, cooldownText);
             return view;
+        }
+
+        private static SkillAimIndicatorShape ResolveDefaultIndicatorShape(int slot)
+        {
+            switch (slot)
+            {
+                case 1:
+                    return SkillAimIndicatorShape.DirectionLine;
+                case 2:
+                    return SkillAimIndicatorShape.SelfCircle;
+                case 3:
+                    return SkillAimIndicatorShape.TargetCircle;
+                default:
+                    return SkillAimIndicatorShape.DirectionLine;
+            }
         }
 
         public Button CreateInfoButton(Transform parent, Vector2 anchoredPos, Action clicked)
@@ -99,6 +120,63 @@ namespace AbilityKit.Game.Flow
             }
 
             return btn;
+        }
+
+        private static Transform CreateCooldownLayer(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Canvas));
+            go.transform.SetParent(parent, worldPositionStays: false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var canvas = go.GetComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 10;
+            return go.transform;
+        }
+
+        private Image CreateCooldownOverlay(Transform parent, string name)
+        {
+            var overlay = _images.Create(
+                name,
+                parent,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(110f, 110f),
+                new Color(0f, 0f, 0f, 0.58f),
+                raycastTarget: false).GameObject.GetComponent<Image>();
+            overlay.type = Image.Type.Filled;
+            overlay.fillMethod = Image.FillMethod.Radial360;
+            overlay.fillOrigin = (int)Image.Origin360.Top;
+            overlay.fillClockwise = false;
+            overlay.fillAmount = 0f;
+            overlay.gameObject.SetActive(false);
+            return overlay;
+        }
+
+        private Text CreateCooldownText(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            go.transform.SetParent(parent, worldPositionStays: false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+
+            var text = go.GetComponent<Text>();
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 30;
+            text.fontStyle = FontStyle.Bold;
+            text.raycastTarget = false;
+            text.gameObject.SetActive(false);
+            return text;
         }
 
         private SkillAimIndicatorView CreateSkillAimIndicator(Transform parent, string name)

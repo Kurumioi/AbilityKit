@@ -66,12 +66,13 @@ namespace AbilityKit.Game.Flow
 
         public void SubmitHudSkillAim(int slot, float aimDx, float aimDz)
         {
-            var aimDir = new Vector3(aimDx, 0f, aimDz);
-            var aimPos = aimDir;
-
+            var aimOffset = new Vector3(aimDx, 0f, aimDz);
+            var aimDir = aimOffset.sqrMagnitude > 0.0001f ? aimOffset.normalized : Vector3.zero;
+            var aimPos = aimOffset;
+ 
             if (TryResolveLocalActorWorldPos(out var casterPos))
             {
-                aimPos = casterPos + aimDir;
+                aimPos = casterPos + aimOffset;
             }
 
             _hudInput.SubmitSkillAim(
@@ -96,8 +97,7 @@ namespace AbilityKit.Game.Flow
             pos = default;
             if (EntityQuery == null) return false;
             if (LocalActorId <= 0) return false;
-            if (!EntityQuery.TryResolve(new AbilityKit.Game.Battle.Entity.BattleNetId(LocalActorId), out var caster)) return false;
-            if (!caster.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent transform) || transform == null) return false;
+            if (!EntityQuery.TryGetTransform(new AbilityKit.Game.Battle.Entity.BattleNetId(LocalActorId), out var transform) || transform == null) return false;
 
             pos = transform.Position;
             return true;

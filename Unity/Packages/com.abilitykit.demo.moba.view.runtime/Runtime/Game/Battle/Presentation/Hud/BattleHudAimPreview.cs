@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.View.Lib.Skill;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -48,10 +49,57 @@ namespace AbilityKit.Game.Flow
 
         private bool TryGetSpec(int slot, out BattleHudSkillPresentationSpec spec)
         {
-            spec = default;
-            return _skillSpecs != null
-                && _skillSpecs.TryGetValue(slot, out spec)
-                && spec.PreviewShape != BattleHudSkillPreviewShape.None;
+            if (_skillSpecs != null &&
+                _skillSpecs.TryGetValue(slot, out spec) &&
+                spec.PreviewShape != BattleHudSkillPreviewShape.None)
+            {
+                return true;
+            }
+
+            return TryGetDefaultSpec(slot, out spec);
+        }
+
+        private static bool TryGetDefaultSpec(int slot, out BattleHudSkillPresentationSpec spec)
+        {
+            switch (slot)
+            {
+                case 1:
+                    spec = new BattleHudSkillPresentationSpec(
+                        0,
+                        "DefaultDirection",
+                        BattleHudSkillPreviewShape.DirectionLine,
+                        SkillAimIndicatorShape.DirectionLine,
+                        7f,
+                        1.8f,
+                        0f,
+                        new Color(0.95f, 0.55f, 0.18f, 0.34f));
+                    return true;
+                case 2:
+                    spec = new BattleHudSkillPresentationSpec(
+                        0,
+                        "DefaultSelfCircle",
+                        BattleHudSkillPreviewShape.SelfCircle,
+                        SkillAimIndicatorShape.SelfCircle,
+                        0f,
+                        0f,
+                        4.2f,
+                        new Color(0.95f, 0.34f, 0.18f, 0.32f));
+                    return true;
+                case 3:
+                    spec = new BattleHudSkillPresentationSpec(
+                        0,
+                        "DefaultTargetCircle",
+                        BattleHudSkillPreviewShape.TargetCircle,
+                        SkillAimIndicatorShape.TargetCircle,
+                        8f,
+                        0f,
+                        3.4f,
+                        new Color(0.95f, 0.68f, 0.18f, 0.3f));
+                    return true;
+                default:
+                    spec = default;
+                    return false;
+            }
         }
 
         private void Hide()
@@ -88,25 +136,20 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleHudAimPreviewPositionResolver
     {
+        private bool _hasLastCasterPosition;
+        private Vector3 _lastCasterPosition;
+
         public bool TryResolve(BattleContext ctx, out BattleHudAimPreviewState state)
         {
             state = default;
-            if (ctx == null || ctx.EntityQuery == null) return false;
+            if (ctx == null) return false;
 
             if (!ctx.TryReadHudSkillAim(out var slot, out var aimDx, out var aimDz))
             {
                 return false;
             }
 
-            var casterId = ctx.LocalActorId;
-            if (casterId <= 0) return false;
-
-            if (!ctx.EntityQuery.TryResolve(new BattleNetId(casterId), out var caster))
-            {
-                return false;
-            }
-
-            if (!caster.TryGetRef(out AbilityKit.Game.Battle.Component.BattleTransformComponent transform) || transform == null)
+            if (!TryResolveCasterPosition(ctx, out var casterPosition))
             {
                 return false;
             }
@@ -114,8 +157,33 @@ namespace AbilityKit.Game.Flow
             var aim = new Vector3(aimDx, 0f, aimDz);
             var distance = aim.magnitude;
             var direction = distance > 0.001f ? aim / distance : Vector3.forward;
-            state = new BattleHudAimPreviewState(slot, transform.Position, direction, distance);
+            state = new BattleHudAimPreviewState(slot, casterPosition, direction, distance);
             return true;
+        }
+
+        private bool TryResolveCasterPosition(BattleContext ctx, out Vector3 position)
+        {
+            position = default;
+            if (ctx == null || ctx.EntityQuery == null) return TryUseLastCasterPosition(out position);
+
+            var casterId = ctx.LocalActorId;
+            if (casterId <= 0) return TryUseLastCasterPosition(out position);
+
+            if (ctx.EntityQuery.TryGetTransform(new BattleNetId(casterId), out var transform) && transform != null)
+            {
+                position = transform.Position;
+                _lastCasterPosition = position;
+                _hasLastCasterPosition = true;
+                return true;
+            }
+
+            return TryUseLastCasterPosition(out position);
+        }
+
+        private bool TryUseLastCasterPosition(out Vector3 position)
+        {
+            position = _lastCasterPosition;
+            return _hasLastCasterPosition;
         }
     }
 
@@ -130,8 +198,10 @@ namespace AbilityKit.Game.Flow
             var circle = CreatePrimitive(root.transform, "Circle", PrimitiveType.Cylinder);
             var dot = CreatePrimitive(root.transform, "Dot", PrimitiveType.Sphere);
             var sector = CreateSector(root.transform, "Sector", segments: 36, degrees: 90f);
+            var casterRing = CreateRing(root.transform, "CasterRing", segments: 72, thickness01: 0.18f);
+            var edgeRing = CreateRing(root.transform, "EdgeRing", segments: 72, thickness01: 0.12f);
 
-            var preview = new BattleHudAimPreviewObject(root, line, circle, dot, sector);
+            var preview = new BattleHudAimPreviewObject(root, line, circle, dot, sector, casterRing, edgeRing);
             preview.SetVisible(false);
             return preview;
         }
@@ -171,6 +241,19 @@ namespace AbilityKit.Game.Flow
             return go;
         }
 
+        private static GameObject CreateRing(Transform parent, string name, int segments, float thickness01)
+        {
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            go.hideFlags = HideFlags.DontSave;
+            go.transform.SetParent(parent, false);
+
+            var mesh = BuildRingMesh(Mathf.Max(8, segments), Mathf.Clamp01(thickness01));
+            mesh.hideFlags = HideFlags.DontSave;
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            go.GetComponent<MeshRenderer>().material = CreateMaterial(new Color(0.2f, 0.75f, 1f, 0.42f));
+            return go;
+        }
+
         private static Mesh BuildSectorMesh(int segments, float degrees)
         {
             var vertices = new Vector3[segments + 2];
@@ -200,6 +283,43 @@ namespace AbilityKit.Game.Flow
             return mesh;
         }
 
+        private static Mesh BuildRingMesh(int segments, float thickness01)
+        {
+            var vertices = new Vector3[segments * 2];
+            var triangles = new int[segments * 6];
+            var inner = Mathf.Clamp01(1f - thickness01);
+            for (var i = 0; i < segments; i++)
+            {
+                var angle = Mathf.PI * 2f * i / segments;
+                var direction = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+                vertices[i * 2] = direction * inner;
+                vertices[i * 2 + 1] = direction;
+            }
+
+            for (var i = 0; i < segments; i++)
+            {
+                var next = (i + 1) % segments;
+                var ti = i * 6;
+                var inner0 = i * 2;
+                var outer0 = inner0 + 1;
+                var inner1 = next * 2;
+                var outer1 = inner1 + 1;
+                triangles[ti] = inner0;
+                triangles[ti + 1] = outer0;
+                triangles[ti + 2] = outer1;
+                triangles[ti + 3] = inner0;
+                triangles[ti + 4] = outer1;
+                triangles[ti + 5] = inner1;
+            }
+
+            var mesh = new Mesh { name = "SkillAimPreviewRing" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+            return mesh;
+        }
+
         private static Material CreateMaterial(Color color)
         {
             var material = new Material(Shader.Find("Sprites/Default"));
@@ -217,16 +337,27 @@ namespace AbilityKit.Game.Flow
         private readonly GameObject _circle;
         private readonly GameObject _dot;
         private readonly GameObject _sector;
+        private readonly GameObject _casterRing;
+        private readonly GameObject _edgeRing;
 
         public GameObject Root { get; }
 
-        public BattleHudAimPreviewObject(GameObject root, GameObject line, GameObject circle, GameObject dot, GameObject sector)
+        public BattleHudAimPreviewObject(
+            GameObject root,
+            GameObject line,
+            GameObject circle,
+            GameObject dot,
+            GameObject sector,
+            GameObject casterRing,
+            GameObject edgeRing)
         {
             Root = root;
             _line = line;
             _circle = circle;
             _dot = dot;
             _sector = sector;
+            _casterRing = casterRing;
+            _edgeRing = edgeRing;
         }
 
         public void Apply(in BattleHudAimPreviewState state, in BattleHudSkillPresentationSpec spec)
@@ -242,30 +373,63 @@ namespace AbilityKit.Game.Flow
             switch (spec.PreviewShape)
             {
                 case BattleHudSkillPreviewShape.DirectionLine:
+                    ShowCasterRing(state.CasterPosition, Mathf.Max(0.65f, spec.Width * 0.65f));
                     ShowLine(state.CasterPosition, direction, range, spec.Width);
-                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.25f, spec.Width * 0.35f));
+                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.32f, spec.Width * 0.42f));
+                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.45f, spec.Width * 0.52f));
+                    HideCircle();
+                    HideSector();
+                    break;
+                case BattleHudSkillPreviewShape.DashLine:
+                    ShowCasterRing(state.CasterPosition, Mathf.Max(0.85f, spec.Width * 0.58f));
+                    ShowLine(state.CasterPosition, direction, range, Mathf.Max(0.45f, spec.Width));
+                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.42f, spec.Width * 0.46f));
+                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.75f, spec.Width * 0.62f));
                     HideCircle();
                     HideSector();
                     break;
                 case BattleHudSkillPreviewShape.TargetCircle:
+                    ShowCasterRing(state.CasterPosition, 0.85f);
                     HideLine();
                     ShowCircle(target, Mathf.Max(0.25f, spec.Radius));
-                    ShowDot(target, Mathf.Max(0.25f, spec.Radius * 0.18f));
+                    ShowDot(target, Mathf.Max(0.28f, spec.Radius * 0.2f));
+                    ShowEdgeRing(target, Mathf.Max(0.35f, spec.Radius));
+                    HideSector();
+                    break;
+                case BattleHudSkillPreviewShape.LockProjectile:
+                    ShowCasterRing(state.CasterPosition, 0.8f);
+                    ShowLine(state.CasterPosition, direction, Mathf.Max(0.1f, distance), Mathf.Max(0.22f, spec.Width * 0.18f));
+                    ShowCircle(target, Mathf.Max(0.45f, spec.Radius));
+                    ShowDot(target, Mathf.Max(0.35f, spec.Radius * 0.28f));
+                    ShowEdgeRing(target, Mathf.Max(0.55f, spec.Radius * 0.72f));
                     HideSector();
                     break;
                 case BattleHudSkillPreviewShape.SelfCircle:
+                    ShowCasterRing(state.CasterPosition, 0.95f);
                     HideLine();
                     ShowCircle(state.CasterPosition, Mathf.Max(0.25f, spec.Radius));
                     HideDot();
+                    ShowEdgeRing(state.CasterPosition, Mathf.Max(0.35f, spec.Radius));
                     HideSector();
                     break;
                 case BattleHudSkillPreviewShape.Sector:
+                    ShowCasterRing(state.CasterPosition, 0.85f);
                     HideLine();
                     HideCircle();
-                    HideDot();
+                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.3f, spec.Width * 0.32f));
                     ShowSector(state.CasterPosition, direction, range);
+                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.4f, spec.Width * 0.5f));
+                    break;
+                case BattleHudSkillPreviewShape.FanArea:
+                    ShowCasterRing(state.CasterPosition, 0.75f);
+                    ShowLine(state.CasterPosition, direction, range, Mathf.Max(0.18f, spec.Width * 0.22f));
+                    HideCircle();
+                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.32f, spec.Width * 0.28f));
+                    ShowSector(state.CasterPosition, direction, range);
+                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.45f, spec.Width * 0.46f));
                     break;
                 default:
+                    HideAllParts();
                     SetVisible(false);
                     break;
             }
@@ -273,6 +437,11 @@ namespace AbilityKit.Game.Flow
 
         public void SetVisible(bool visible)
         {
+            if (!visible)
+            {
+                HideAllParts();
+            }
+
             if (Root != null)
             {
                 Root.SetActive(visible);
@@ -313,6 +482,27 @@ namespace AbilityKit.Game.Flow
             _dot.transform.localScale = Vector3.one * diameter;
         }
 
+        private void ShowCasterRing(Vector3 center, float radius)
+        {
+            ShowRing(_casterRing, center, radius, HeightOffset + 0.075f);
+        }
+
+        private void ShowEdgeRing(Vector3 center, float radius)
+        {
+            ShowRing(_edgeRing, center, radius, HeightOffset + 0.095f);
+        }
+
+        private static void ShowRing(GameObject ring, Vector3 center, float radius, float height)
+        {
+            if (ring == null) return;
+
+            var diameter = Mathf.Max(0.1f, radius * 2f);
+            ring.SetActive(true);
+            ring.transform.position = center + Vector3.up * height;
+            ring.transform.rotation = Quaternion.identity;
+            ring.transform.localScale = new Vector3(diameter, 1f, diameter);
+        }
+
         private void ShowSector(Vector3 start, Vector3 direction, float length)
         {
             if (_sector == null) return;
@@ -344,12 +534,38 @@ namespace AbilityKit.Game.Flow
             if (_sector != null) _sector.SetActive(false);
         }
 
+        private void HideRings()
+        {
+            if (_casterRing != null) _casterRing.SetActive(false);
+            if (_edgeRing != null) _edgeRing.SetActive(false);
+        }
+
+        private void HideAllParts()
+        {
+            HideLine();
+            HideCircle();
+            HideDot();
+            HideSector();
+            HideRings();
+        }
+
         private void SetColor(Color color)
         {
             SetColor(_line, color);
             SetColor(_circle, color);
-            SetColor(_dot, color);
+            SetColor(_dot, Brighter(color, 1.35f, 0.9f));
             SetColor(_sector, color);
+            SetColor(_casterRing, Brighter(color, 1.25f, 0.86f));
+            SetColor(_edgeRing, Brighter(color, 1.45f, 0.78f));
+        }
+
+        private static Color Brighter(Color color, float factor, float alpha)
+        {
+            return new Color(
+                Mathf.Clamp01(color.r * factor),
+                Mathf.Clamp01(color.g * factor),
+                Mathf.Clamp01(color.b * factor),
+                Mathf.Clamp01(alpha));
         }
 
         private static void SetColor(GameObject go, Color color)

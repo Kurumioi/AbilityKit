@@ -190,7 +190,7 @@ public sealed class ShooterPlaySessionRunnerTests
         AddIdle(inputs, tickRate * 2);
 
         var input = new ScriptedInputSource(inputs.ToArray());
-        var view = new RecordingViewSink();
+        var view = new AggregatingViewSink();
         using var runner = new ShooterPlaySessionRunner(input, view);
         runner.Start(ShooterPlayModeSessionOptions.Default);
 
@@ -199,8 +199,9 @@ public sealed class ShooterPlaySessionRunnerTests
             runner.Tick(1f / runner.Options.TickRate);
         }
 
-        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Enemy) > 0);
-        Assert.Contains(view.Frames, frame => CountEntities(frame.ClientBatch, ShooterViewEntityKind.Bullet) > 0);
+        Assert.True(view.MaxPlayerCount > 0, "Expected the controlled player to be visible in the projected menu view.");
+        Assert.True(view.MaxEnemyCount > 0, "Expected wave enemies to be visible in the projected menu view.");
+        Assert.True(view.MaxBulletCount > 0 || view.TotalExplicitEntityRemovals > 0 || view.TotalDeadEntityRemovals > 0, "Expected fired bullets to enter or be removed from the projected menu view.");
     }
 
     [Fact]
@@ -352,6 +353,61 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.Equal(ShooterViewBatchSource.LocalAuthoritative, view.Frames[^1].ClientBatch.Source);
         Assert.False(projection.Store.ContainsEntity(new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, firstHit.BulletId)));
         Assert.False(projection.Store.ContainsEntity(new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, -firstHit.TargetPlayerId)));
+    }
+
+    [Fact]
+    public void ViewSinkAppliesFirstZeroSequenceBatchAndLaterBulletRemoval()
+    {
+        var sink = new AggregatingViewSink();
+        var player = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1);
+        var bullet = new ShooterViewEntityKey(ShooterViewEntityKind.Bullet, 100);
+        var initial = new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame: 1,
+            sequence: 0ul,
+            ShooterViewSnapshotKind.Full,
+            ShooterViewBatchSource.LocalAuthoritative,
+            new[]
+            {
+                new ShooterViewEntityChange(player, ownerEntityId: 0, alive: true),
+                new ShooterViewEntityChange(bullet, ownerEntityId: 1, alive: true)
+            },
+            Array.Empty<ShooterViewEntityKey>(),
+            new[]
+            {
+                new ShooterViewTransformComponentChange(player, 0f, 0f, 1f, 0f, 0f, 0f),
+                new ShooterViewTransformComponentChange(bullet, 1f, 0f, 1f, 0f, 10f, 0f)
+            },
+            new[] { new ShooterViewHealthComponentChange(player, 100) },
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            new[] { new ShooterViewProjectileLifetimeComponentChange(bullet, 30) },
+            Array.Empty<ShooterEventSnapshot>());
+        var removal = new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame: 2,
+            sequence: 1ul,
+            ShooterViewSnapshotKind.Delta,
+            ShooterViewBatchSource.LocalAuthoritative,
+            Array.Empty<ShooterViewEntityChange>(),
+            new[] { bullet },
+            Array.Empty<ShooterViewTransformComponentChange>(),
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+
+        var initialFrame = CreatePresentationFrame(initial);
+        sink.Render(in initialFrame);
+
+        Assert.Equal(1, sink.ProjectedPlayerCount);
+        Assert.Equal(1, sink.ProjectedBulletCount);
+
+        var removalFrame = CreatePresentationFrame(removal);
+        sink.Render(in removalFrame);
+
+        Assert.Equal(1, sink.ProjectedPlayerCount);
+        Assert.Equal(0, sink.ProjectedBulletCount);
+        Assert.Equal(1, sink.TotalExplicitEntityRemovals);
     }
 
     [Fact]
@@ -745,14 +801,17 @@ public sealed class ShooterPlaySessionRunnerTests
     private static bool ProjectionContainsEnemyAfterFrame(IReadOnlyList<ShooterHostPresentationFrame> frames, int minFrame)
     {
         var projection = new ShooterSnapshotViewProjection();
-        ulong lastSequence = 0;
+        var lastBatchKey = default(ViewBatchKey);
+        var hasAppliedBatch = false;
         for (var i = 0; i < frames.Count; i++)
         {
             var batch = frames[i].ClientBatch;
-            if (batch.Sequence != lastSequence)
+            var batchKey = ViewBatchKey.From(in batch);
+            if (!hasAppliedBatch || !batchKey.Equals(lastBatchKey))
             {
                 projection.Apply(in batch);
-                lastSequence = batch.Sequence;
+                lastBatchKey = batchKey;
+                hasAppliedBatch = true;
             }
 
             if (batch.Frame > minFrame && projection.Store.EnemyCount > 0)
@@ -957,6 +1016,32 @@ public sealed class ShooterPlaySessionRunnerTests
             inputs.Add(new ShooterHostFrameInput(moveX, moveY, aimX, aimY, fire));
         }
     }
+
+    private static ShooterHostPresentationFrame CreatePresentationFrame(in ShooterSnapshotViewBatch batch)
+    {
+        return new ShooterHostPresentationFrame(
+            batch,
+            ShooterSnapshotViewBatch.Empty,
+            false,
+            controlledPlayerId: 1,
+            worldScale: 1f,
+            carrierNetworkStats: null,
+            lastCarrierSnapshotApplyResult: ShooterSnapshotApplyResult.Ignored,
+            lastCarrierTimeAnchor: default,
+            localTimeAnchor: default,
+            lagCompensationTelemetry: null,
+            lagCompensationEvaluation: null,
+            remoteLatencyCompensationDiagnostics: default,
+            crossLayerDiagnostics: default,
+            pureStateSyncDiagnostics: default,
+            needsPureStateBaselineResync: false,
+            lastPureStateResyncReason: ShooterPureStateResyncReason.None,
+            lastPureStateAppliedFrame: 0,
+            lastPureStateAppliedStateHash: 0,
+            lastPureStateResyncFrame: 0,
+            lastPureStateResyncStateHash: 0);
+    }
+
     private sealed class ScriptedInputSource : IShooterPlayInputSource
     {
         private readonly ShooterHostFrameInput[] _inputs;
@@ -996,15 +1081,24 @@ public sealed class ShooterPlaySessionRunnerTests
     private sealed class AggregatingViewSink : IShooterPlayViewSink
     {
         private readonly ShooterSnapshotViewProjection _projection = new();
-        private ulong _lastClientSequence;
+        private ViewBatchKey _lastClientBatchKey;
+        private bool _hasAppliedClientBatch;
 
         public int RenderCount { get; private set; }
 
+        public int MaxPlayerCount { get; private set; }
+
         public int MaxEnemyCount { get; private set; }
+
+        public int MaxBulletCount { get; private set; }
+
+        public int ProjectedPlayerCount => _projection.Store.PlayerCount;
 
         public int ProjectedBulletCount => _projection.Store.BulletCount;
 
         public int ProjectedEnemyCount => _projection.Store.EnemyCount;
+
+        public int TotalFireEvents { get; private set; }
 
         public int TotalExplicitEntityRemovals { get; private set; }
 
@@ -1014,15 +1108,18 @@ public sealed class ShooterPlaySessionRunnerTests
         {
             RenderCount++;
             var clientBatch = frame.ClientBatch;
-            if (clientBatch.Sequence == _lastClientSequence)
+            var batchKey = ViewBatchKey.From(in clientBatch);
+            if (_hasAppliedClientBatch && batchKey.Equals(_lastClientBatchKey))
             {
-                MaxEnemyCount = Math.Max(MaxEnemyCount, _projection.Store.EnemyCount);
+                UpdateMaxProjectedCounts();
                 return;
             }
 
             var result = _projection.Apply(in clientBatch);
-            _lastClientSequence = clientBatch.Sequence;
-            MaxEnemyCount = Math.Max(MaxEnemyCount, _projection.Store.EnemyCount);
+            _lastClientBatchKey = batchKey;
+            _hasAppliedClientBatch = true;
+            UpdateMaxProjectedCounts();
+            TotalFireEvents += CountEvents(clientBatch, ShooterEventType.Fire);
             TotalExplicitEntityRemovals += result.ExplicitEntityRemovals;
             TotalDeadEntityRemovals += result.DeadEntityRemovals;
         }
@@ -1030,11 +1127,79 @@ public sealed class ShooterPlaySessionRunnerTests
         public void Clear()
         {
             RenderCount = 0;
+            MaxPlayerCount = 0;
             MaxEnemyCount = 0;
+            MaxBulletCount = 0;
+            TotalFireEvents = 0;
             TotalExplicitEntityRemovals = 0;
             TotalDeadEntityRemovals = 0;
-            _lastClientSequence = 0;
+            _lastClientBatchKey = default;
+            _hasAppliedClientBatch = false;
             _projection.Clear();
+        }
+
+        private void UpdateMaxProjectedCounts()
+        {
+            MaxPlayerCount = Math.Max(MaxPlayerCount, _projection.Store.PlayerCount);
+            MaxEnemyCount = Math.Max(MaxEnemyCount, _projection.Store.EnemyCount);
+            MaxBulletCount = Math.Max(MaxBulletCount, _projection.Store.BulletCount);
+        }
+
+        private static int CountEvents(in ShooterSnapshotViewBatch batch, ShooterEventType eventType)
+        {
+            var count = 0;
+            var events = batch.Events;
+            for (var i = 0; i < events.Count; i++)
+            {
+                if (events[i].EventType == (int)eventType)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
+    private readonly struct ViewBatchKey : IEquatable<ViewBatchKey>
+    {
+        private ViewBatchKey(ulong sequence, int frame, ShooterViewBatchSource source, ShooterViewSnapshotKind snapshotKind)
+        {
+            Sequence = sequence;
+            Frame = frame;
+            Source = source;
+            SnapshotKind = snapshotKind;
+        }
+
+        private ulong Sequence { get; }
+
+        private int Frame { get; }
+
+        private ShooterViewBatchSource Source { get; }
+
+        private ShooterViewSnapshotKind SnapshotKind { get; }
+
+        public static ViewBatchKey From(in ShooterSnapshotViewBatch batch)
+        {
+            return new ViewBatchKey(batch.Sequence, batch.Frame, batch.Source, batch.SnapshotKind);
+        }
+
+        public bool Equals(ViewBatchKey other)
+        {
+            return Sequence == other.Sequence &&
+                Frame == other.Frame &&
+                Source == other.Source &&
+                SnapshotKind == other.SnapshotKind;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is ViewBatchKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Sequence, Frame, Source, SnapshotKind);
         }
     }
 

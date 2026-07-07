@@ -4,6 +4,7 @@
     {
         public int SkillId;
         public int Level;
+        public int CooldownDurationMs;
         public long CooldownEndTimeMs;
     }
 
@@ -11,6 +12,7 @@
     {
         public int PassiveSkillId;
         public int Level;
+        public int CooldownDurationMs;
         public long CooldownEndTimeMs;
     }
 }

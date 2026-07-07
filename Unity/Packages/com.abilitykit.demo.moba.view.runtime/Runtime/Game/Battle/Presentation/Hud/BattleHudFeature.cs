@@ -1,3 +1,4 @@
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
@@ -45,6 +46,7 @@ namespace AbilityKit.Game.Flow
 
             _binder = _controllers.CreateBinder(_config, _canvasController.Root, _camera, _ctx);
             CreateInputController();
+            ApplyLaunchSpecSkillTemplates();
             SubscribeEntityLifecycle();
             SubscribeSnapshots();
         }
@@ -81,6 +83,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_binder == null) return;
 
+            EnsureSnapshotSubscription();
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
@@ -99,6 +102,30 @@ namespace AbilityKit.Game.Flow
             _inputController.Ensure();
         }
 
+        private void ApplyLaunchSpecSkillTemplates()
+        {
+            if (_ctx == null) return;
+            var launchSpec = _ctx.Plan.LaunchSpec;
+            if (launchSpec.Players == null || launchSpec.Players.Length == 0) return;
+
+            var playerId = ResolveLocalPlayerId();
+            var worldId = !string.IsNullOrEmpty(_ctx.Plan.World.WorldId)
+                ? _ctx.Plan.World.WorldId
+                : launchSpec.WorldId;
+
+            var res = new EnterMobaGameRes(
+                new WorldId(worldId),
+                launchSpec.LocalPlayerId,
+                _ctx.LocalActorId,
+                launchSpec.RandomSeed,
+                launchSpec.TickRate,
+                launchSpec.InputDelayFrames,
+                playersLoadout: launchSpec.Players);
+
+            _inputController?.ApplySkillButtonTemplates(res, playerId);
+            _aimPreview?.SetSkillSpecs(_inputController?.SkillSpecs);
+        }
+
         private void SubscribeEntityLifecycle()
         {
             _entityLifecycle ??= _controllers.CreateEntityLifecycle();
@@ -108,13 +135,25 @@ namespace AbilityKit.Game.Flow
         private void SubscribeSnapshots()
         {
             _snapshotController = _controllers.CreateSnapshots();
-            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot);
+            EnsureSnapshotSubscription();
+        }
+
+        private void EnsureSnapshotSubscription()
+        {
+            if (_snapshotController == null || _snapshotController.IsBound) return;
+
+            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot, OnSkillStateSnapshot);
         }
 
         private void OnEnterGameSnapshot(EnterMobaGameRes res)
         {
             if (_ctx == null) return;
-            _inputController?.ApplySkillButtonTemplates(res, _ctx.Plan.World.PlayerId);
+            if (res.LocalActorId > 0 && _ctx.LocalActorId <= 0)
+            {
+                _ctx.LocalActorId = res.LocalActorId;
+            }
+
+            _inputController?.ApplySkillButtonTemplates(res, ResolveLocalPlayerId(res));
             _aimPreview?.SetSkillSpecs(_inputController?.SkillSpecs);
         }
 
@@ -122,6 +161,35 @@ namespace AbilityKit.Game.Flow
         {
             if (entries == null || entries.Length == 0) return;
             _binder?.OnDamageEvents(entries);
+        }
+
+        private void OnSkillStateSnapshot(MobaSkillStateSnapshotEntry[] entries)
+        {
+            if (_ctx == null || entries == null || entries.Length == 0) return;
+            var localActorId = ResolveLocalActorId(entries);
+            if (localActorId > 0 && _ctx.LocalActorId <= 0)
+            {
+                _ctx.LocalActorId = localActorId;
+            }
+
+            _inputController?.ApplySkillStates(entries, localActorId);
+        }
+
+        private string ResolveLocalPlayerId(EnterMobaGameRes res = default)
+        {
+            if (_ctx == null) return string.Empty;
+            if (!string.IsNullOrEmpty(_ctx.Plan.World.PlayerId)) return _ctx.Plan.World.PlayerId;
+            if (!string.IsNullOrEmpty(res.PlayerId.Value)) return res.PlayerId.Value;
+            return _ctx.Plan.LaunchSpec.LocalPlayerId.Value;
+        }
+
+        private int ResolveLocalActorId(MobaSkillStateSnapshotEntry[] entries)
+        {
+            if (_ctx == null) return 0;
+            if (_ctx.LocalActorId > 0) return _ctx.LocalActorId;
+            return _inputController != null
+                ? _inputController.ResolveActorIdFromSkillStates(entries)
+                : 0;
         }
 
     }

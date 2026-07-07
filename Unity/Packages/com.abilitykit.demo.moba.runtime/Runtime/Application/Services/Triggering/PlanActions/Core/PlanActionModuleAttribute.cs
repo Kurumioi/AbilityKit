@@ -42,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int Blink = 14;
         public const int RemoveBuff = 14;
         public const int Pull = 15;
+        public const int Jump = 16;
 
         public const int AddShield = 19;
         public const int AddBuff = 20;

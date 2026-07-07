@@ -48,6 +48,11 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateVfxFallback(int vfxId)
         {
+            if (vfxId == BattleViewPlaceholderIds.LianPoSkill2CircleVfx)
+            {
+                return CreateLianPoSkill2CircleVfxFallback(vfxId);
+            }
+
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.transform.localScale = Vector3.one * 0.5f;
             ApplyColor(go, ResolveVfxColor(vfxId));
@@ -69,6 +74,16 @@ namespace AbilityKit.Game.Flow
             mesh.hideFlags = HideFlags.DontSave;
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
             ApplyColor(go, ResolveAoeColor(modelId, delayMs: 0));
+            return go;
+        }
+
+        private static GameObject CreateLianPoSkill2CircleVfxFallback(int vfxId)
+        {
+            var go = new GameObject("LianPoSkill2CircleVfxFallback", typeof(MeshFilter), typeof(MeshRenderer));
+            var mesh = BuildRingMesh(innerRadius: 3.28f, outerRadius: 3.5f, segments: 96, y: 0.08f);
+            mesh.hideFlags = HideFlags.DontSave;
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            ApplyColor(go, ResolveVfxColor(vfxId));
             return go;
         }
 
@@ -102,6 +117,44 @@ namespace AbilityKit.Game.Flow
             return mesh;
         }
 
+        private static Mesh BuildRingMesh(float innerRadius, float outerRadius, int segments, float y)
+        {
+            var safeSegments = Mathf.Max(8, segments);
+            var inner = Mathf.Max(0.01f, Mathf.Min(innerRadius, outerRadius));
+            var outer = Mathf.Max(inner + 0.01f, outerRadius);
+            var vertices = new Vector3[(safeSegments + 1) * 2];
+            var triangles = new int[safeSegments * 6];
+
+            for (var i = 0; i <= safeSegments; i++)
+            {
+                var angle = Mathf.PI * 2f * i / safeSegments;
+                var sin = Mathf.Sin(angle);
+                var cos = Mathf.Cos(angle);
+                var vi = i * 2;
+                vertices[vi] = new Vector3(sin * inner, y, cos * inner);
+                vertices[vi + 1] = new Vector3(sin * outer, y, cos * outer);
+            }
+
+            for (var i = 0; i < safeSegments; i++)
+            {
+                var vi = i * 2;
+                var ti = i * 6;
+                triangles[ti] = vi;
+                triangles[ti + 1] = vi + 1;
+                triangles[ti + 2] = vi + 2;
+                triangles[ti + 3] = vi + 1;
+                triangles[ti + 4] = vi + 3;
+                triangles[ti + 5] = vi + 2;
+            }
+
+            var mesh = new Mesh { name = "LianPoSkill2CircleVfxFallbackMesh" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+            return mesh;
+        }
+
         private static void ApplyColor(GameObject go, Color color)
         {
             if (go == null) return;
@@ -111,6 +164,7 @@ namespace AbilityKit.Game.Flow
             var shader = Shader.Find("Standard") ?? Shader.Find("Diffuse");
             var material = shader != null ? new Material(shader) : new Material(renderer.sharedMaterial);
             material.color = color;
+            if (material.HasProperty("_Cull")) material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
             ConfigureTransparency(material, color.a);
             renderer.material = material;
         }
@@ -144,6 +198,11 @@ namespace AbilityKit.Game.Flow
 
         private static Color ResolveVfxColor(int vfxId)
         {
+            if (vfxId == BattleViewPlaceholderIds.LianPoSkill2CircleVfx)
+            {
+                return new Color(1f, 0.42f, 0.12f, 0.72f);
+            }
+
             return PickColor(vfxId, 0.8f);
         }
 
@@ -176,10 +235,12 @@ namespace AbilityKit.Game.Flow
         public const int PresentationCueVfx = 90000005;
         public const int AoeCircleModel = 90000101;
         public const int AoeSectorModel = 90000102;
+        public const int LianPoSkill2CircleVfx = 90001001;
 
         public static bool IsPlaceholderVfx(int vfxId)
         {
-            return vfxId >= ProjectileVfx && vfxId <= PresentationCueVfx;
+            return (vfxId >= ProjectileVfx && vfxId <= PresentationCueVfx)
+                || vfxId == LianPoSkill2CircleVfx;
         }
     }
 }

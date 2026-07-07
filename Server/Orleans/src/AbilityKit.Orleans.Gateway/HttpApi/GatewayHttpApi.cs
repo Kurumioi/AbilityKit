@@ -273,6 +273,23 @@ internal static class GatewayHttpApi
             .WithName("Gateway.AdminSkillAnalysisModel")
             .Produces<AdminSkillAnalysisModelHttpResponse>(StatusCodes.Status200OK);
 
+        group.MapGet("/skills/analysis-artifacts/directories", () =>
+            Results.Ok(GatewaySkillAnalysisArtifacts.ListArtifactDirectories()))
+            .WithName("Gateway.AdminSkillAnalysisArtifactDirectories")
+            .Produces<AdminSkillAnalysisArtifactDirectoryListHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/analysis-artifacts", (string? artifactDirectory) =>
+            Results.Ok(GatewaySkillAnalysisArtifacts.ListArtifacts(artifactDirectory)))
+            .WithName("Gateway.AdminSkillAnalysisArtifacts")
+            .Produces<AdminSkillAnalysisArtifactListHttpResponse>(StatusCodes.Status200OK);
+
+        group.MapGet("/skills/analysis-artifacts/{fileName}", (string fileName, string? artifactDirectory) =>
+            GatewaySkillAnalysisArtifacts.GetArtifact(fileName, artifactDirectory))
+            .WithName("Gateway.AdminSkillAnalysisArtifact")
+            .Produces<AdminSkillAnalysisArtifactHttpResponse>(StatusCodes.Status200OK)
+            .Produces<AdminSkillAnalysisArtifactHttpResponse>(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status400BadRequest);
+
         group.MapGet("/skills/acceptance/artifact-directories", () =>
             Results.Ok(GatewaySkillAcceptanceArtifacts.ListArtifactDirectories()))
             .WithName("Gateway.AdminSkillAcceptanceArtifactDirectories")

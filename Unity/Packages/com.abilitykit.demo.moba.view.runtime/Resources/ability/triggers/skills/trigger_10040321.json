@@ -1,26 +1,26 @@
 {
-  "triggers": [
-    {
-      "id": 10040321,
-      "name": "墨子-墨守成规-屏障进入眩晕",
-      "event": "",
-      "enabled": true,
-      "allowExternal": false,
-      "phase": "immediate",
-      "priority": 50,
-      "conditions": [],
-      "actions": [
-        {
-          "type": "add_buff",
-          "buffIds": [10040002],
-          "duration_ms": 500
-        },
-        {
-          "type": "debug_log",
-          "message": "墨子三技能屏障：敌人进入机关屏障区域时被眩晕",
-          "dump_args": false
-        }
-      ]
-    }
-  ]
+    "id":  10040321,
+    "name":  "墨子-墨守成规-进入屏障控制",
+    "event":  "",
+    "enabled":  true,
+    "allowExternal":  false,
+    "phase":  "immediate",
+    "priority":  50,
+    "conditions":  [
+
+                   ],
+    "actions":  [
+                    {
+                        "type":  "add_buff",
+                        "buffIds":  [
+                                        10040002
+                                    ],
+                        "duration_ms":  500
+                    },
+                    {
+                        "type":  "debug_log",
+                        "message":  "墨子三技能：敌人进入屏障时受到短暂控制",
+                        "dump_args":  false
+                    }
+                ]
 }

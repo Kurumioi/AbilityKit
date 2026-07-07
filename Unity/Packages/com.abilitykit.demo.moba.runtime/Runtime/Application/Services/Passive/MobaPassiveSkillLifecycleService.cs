@@ -138,6 +138,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
             var cooldownMs = binding.PassiveSkill.CooldownMs;
             if (cooldownMs <= 0) return;
 
+            binding.Runtime.CooldownDurationMs = cooldownMs;
             binding.Runtime.CooldownEndTimeMs = GetCurrentTimeMs() + cooldownMs;
         }
 

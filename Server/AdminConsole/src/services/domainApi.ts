@@ -1,5 +1,5 @@
 import { AdminApiClient } from './adminApiClient';
-import type { AddRoomRobotsResponse, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics } from '../types';
+import type { AddRoomRobotsResponse, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisArtifact, AdminSkillAnalysisArtifactDirectoryList, AdminSkillAnalysisArtifactList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, CreateRoomResponse, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics } from '../types';
 
 export class AdminDashboardApi {
   public constructor(private readonly client: AdminApiClient) {}
@@ -50,6 +50,18 @@ export class AdminSkillApi {
 
   public analysisModel() {
     return this.client.request<AdminSkillAnalysisModel>('/api/admin/skills/analysis-model', undefined, 'GET');
+  }
+
+  public analysisArtifactDirectories() {
+    return this.client.request<AdminSkillAnalysisArtifactDirectoryList>('/api/admin/skills/analysis-artifacts/directories', undefined, 'GET');
+  }
+
+  public analysisArtifacts(query: string) {
+    return this.client.request<AdminSkillAnalysisArtifactList>(`/api/admin/skills/analysis-artifacts${query}`, undefined, 'GET');
+  }
+
+  public analysisArtifact(fileName: string, query: string) {
+    return this.client.request<AdminSkillAnalysisArtifact>(`/api/admin/skills/analysis-artifacts/${encodeURIComponent(fileName)}${query}`, undefined, 'GET');
   }
 
   public acceptanceArtifactDirectories() {

@@ -33,10 +33,16 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateAoeVfx(VfxDatabase db, int vfxId)
         {
             if (vfxId <= 0) return null;
-            if (db == null) return null;
 
-            if (!db.TryGet(vfxId, out var dto) || dto == null || string.IsNullOrEmpty(dto.Resource))
+            if (db == null || !db.TryGet(vfxId, out var dto) || dto == null || string.IsNullOrEmpty(dto.Resource))
             {
+                if (BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId))
+                {
+                    var fallback = _primitives.CreateVfxFallback(vfxId);
+                    fallback.name = $"AoeVfx_{vfxId}";
+                    return fallback;
+                }
+
                 return null;
             }
 
@@ -48,7 +54,7 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                go = _primitives.CreateVfxFallback();
+                go = _primitives.CreateVfxFallback(vfxId);
             }
 
             go.name = $"AoeVfx_{vfxId}";

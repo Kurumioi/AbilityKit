@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         private readonly Dictionary<int, MobaAreaRuntimeInfo> _areas = new Dictionary<int, MobaAreaRuntimeInfo>();
         private readonly Dictionary<int, List<int>> _areasByOwner = new Dictionary<int, List<int>>();
         private readonly Dictionary<int, List<int>> _areasByTemplate = new Dictionary<int, List<int>>();
+        private readonly HashSet<int> _delayTriggeredAreas = new HashSet<int>();
         private readonly List<int> _queryBuffer = new List<int>(32);
 
         public int ActiveCount => _areas.Count;
@@ -34,6 +35,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             int collisionLayerMask,
             int maxTargets,
             int frame,
+            int delayFrames,
             long sourceContextId,
             long rootContextId,
             long ownerContextId)
@@ -54,6 +56,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
                 collisionLayerMask,
                 maxTargets,
                 frame,
+                delayFrames > 0 ? frame + delayFrames : frame,
                 sourceContextId,
                 rootContextId != 0L ? rootContextId : sourceContextId,
                 ownerContextId != 0L ? ownerContextId : sourceContextId);
@@ -64,6 +67,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             }
 
             _areas[areaId.Value] = info;
+            _delayTriggeredAreas.Remove(areaId.Value);
             Index(_areasByOwner, ownerActorId, areaId.Value);
             Index(_areasByTemplate, templateId, areaId.Value);
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Area, ActiveCount, frame);
@@ -75,6 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             if (!_areas.TryGetValue(areaId.Value, out var info)) return false;
 
             _areas.Remove(areaId.Value);
+            _delayTriggeredAreas.Remove(areaId.Value);
             Unindex(info);
             EndAreaTrace(in info, TraceLifecycleReason.Completed);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
@@ -90,6 +95,25 @@ namespace AbilityKit.Demo.Moba.Services.Area
             }
 
             return _areas.TryGetValue(areaId, out info);
+        }
+
+        public int CollectDueDelayAreas(int frame, List<MobaAreaRuntimeInfo> results)
+        {
+            if (results == null) return 0;
+            results.Clear();
+
+            foreach (var kv in _areas)
+            {
+                var areaId = kv.Key;
+                var info = kv.Value;
+                if (_delayTriggeredAreas.Contains(areaId)) continue;
+                if (info.DelayTriggerFrame > frame) continue;
+
+                _delayTriggeredAreas.Add(areaId);
+                results.Add(info);
+            }
+
+            return results.Count;
         }
 
         public bool TryGetAreas(List<MobaAreaRuntimeInfo> results, int ownerActorId = 0, int templateId = 0)
@@ -142,6 +166,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _areasByOwner.Clear();
             _areasByTemplate.Clear();
             _queryBuffer.Clear();
+            _delayTriggeredAreas.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Area, 0, CurrentFrame);
         }
 
@@ -257,6 +282,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         public readonly int CollisionLayerMask;
         public readonly int MaxTargets;
         public readonly int SpawnFrame;
+        public readonly int DelayTriggerFrame;
         public readonly long SourceContextId;
         public readonly long RootContextId;
         public readonly long OwnerContextId;
@@ -270,6 +296,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             int collisionLayerMask,
             int maxTargets,
             int spawnFrame,
+            int delayTriggerFrame,
             long sourceContextId,
             long rootContextId,
             long ownerContextId)
@@ -282,6 +309,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             CollisionLayerMask = collisionLayerMask;
             MaxTargets = maxTargets;
             SpawnFrame = spawnFrame;
+            DelayTriggerFrame = delayTriggerFrame;
             SourceContextId = sourceContextId;
             RootContextId = rootContextId;
             OwnerContextId = ownerContextId;

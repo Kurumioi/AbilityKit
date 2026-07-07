@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var frameTime = ResolveFrameTime(ctx, input.CasterActorId, skillId, skillSlot, args.CooldownMs);
             var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(frameTime);
             var cooldownEndTimeMs = now + args.CooldownMs;
-            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs))
+            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, input.CasterActorId, skillSlot, skillId, cooldownEndTimeMs, args.CooldownMs))
             {
                 throw new InvalidOperationException($"[Plan] start_cooldown failed: active skill not found. actorId={input.CasterActorId}, skillId={skillId}, slot={skillSlot}, cooldownMs={args.CooldownMs}");
             }

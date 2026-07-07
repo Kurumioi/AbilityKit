@@ -57,7 +57,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 var id = skillIds[i];
                 if (id <= 0) continue;
-                list.Add(new ActiveSkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new ActiveSkillRuntime { SkillId = id, Level = 1, CooldownDurationMs = 0, CooldownEndTimeMs = 0L });
             }
 
             return list.Count == 0 ? Array.Empty<ActiveSkillRuntime>() : list.ToArray();
@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 var id = passiveSkillIds[i];
                 if (id <= 0) continue;
-                list.Add(new PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownDurationMs = 0, CooldownEndTimeMs = 0L });
             }
 
             return list.Count == 0 ? Array.Empty<PassiveSkillRuntime>() : list.ToArray();

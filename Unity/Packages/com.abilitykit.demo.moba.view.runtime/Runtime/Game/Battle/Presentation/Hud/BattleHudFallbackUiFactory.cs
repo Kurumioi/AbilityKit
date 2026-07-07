@@ -39,7 +39,7 @@ namespace AbilityKit.Game.Flow
             var tgo = new GameObject("Text");
             tgo.transform.SetParent(root.transform, worldPositionStays: false);
             var text = tgo.AddComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.alignment = TextAnchor.MiddleCenter;
             text.text = "0";
             text.color = Color.white;

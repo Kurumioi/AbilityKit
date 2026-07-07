@@ -163,9 +163,9 @@
     "Id": 10020111,
     "Name": "小乔-绽放之舞-命中伤害",
     "EffectType": 1,
-    "BaseDamage": 120,
+    "BaseDamage": 500,
     "DamageType": 2,
-    "AttackRatio": 0.5,
+    "AttackRatio": 0.8,
     "TargetPolicy": 1,
     "Radius": 0
   },

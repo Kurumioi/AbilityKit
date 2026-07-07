@@ -26,6 +26,35 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaMotionHitTriggerRuntime hitTriggerRuntime,
             out string rejectReason)
         {
+            return TryActivate(
+                ctx,
+                input,
+                kind,
+                sourceActorId,
+                targetActorId,
+                ownerActorId,
+                durationSeconds,
+                motionSource,
+                settings,
+                hitTriggerRuntime,
+                default,
+                out rejectReason);
+        }
+
+        public static bool TryActivate(
+            ExecCtx<IWorldResolver> ctx,
+            MobaMovementActionInput input,
+            string kind,
+            int sourceActorId,
+            int targetActorId,
+            int ownerActorId,
+            float durationSeconds,
+            IMotionSource motionSource,
+            MobaMotionContinuousSettings settings,
+            MobaMotionHitTriggerRuntime hitTriggerRuntime,
+            MobaMotionLandingTriggerRuntime landingTriggerRuntime,
+            out string rejectReason)
+        {
             rejectReason = null;
             if (ctx.Context == null)
             {
@@ -80,7 +109,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 intervalSeconds,
                 intervalTriggerIds,
                 source,
-                hitTriggerRuntime);
+                hitTriggerRuntime,
+                landingTriggerRuntime,
+                ResolveLandingTriggerService(ctx.Context, landingTriggerRuntime));
 
             if (continuous.TryActivate(runtime))
             {
@@ -129,6 +160,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             triggerIds = process.TriggerIds ?? Array.Empty<int>();
             intervalSeconds = process.IntervalMs > 0 ? process.IntervalMs / 1000f : 0f;
             intervalTriggerIds = process.IntervalTriggerIds ?? Array.Empty<int>();
+        }
+
+        private static MobaMotionLandingTriggerService ResolveLandingTriggerService(IWorldResolver services, in MobaMotionLandingTriggerRuntime runtime)
+        {
+            if (!runtime.IsValid || services == null)
+            {
+                return null;
+            }
+
+            return services.TryResolve<MobaMotionLandingTriggerService>(out var service) ? service : null;
         }
 
         private static ContinuousTagRequirements ResolveProcessRequirements(IWorldResolver services, ContinuousProcessMO process)

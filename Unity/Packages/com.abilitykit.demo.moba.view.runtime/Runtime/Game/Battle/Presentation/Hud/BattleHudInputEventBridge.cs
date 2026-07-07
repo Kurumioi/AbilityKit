@@ -27,6 +27,11 @@ namespace AbilityKit.Game.Flow
             _binding.Unbind();
         }
 
+        public void SetSkillSpecs(System.Collections.Generic.IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> skillSpecs)
+        {
+            _events.SetSkillSpecs(skillSpecs);
+        }
+
         public void ResetHudAim()
         {
             _events.ResetHudAim();

@@ -23,6 +23,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int DirectionMode;
 
         /// <summary>
+        /// 是否按技能选点计算水平位移，移动到 AimPosition 的平面投影。
+        /// </summary>
+        public readonly bool MoveToAimPosition;
+
+        /// <summary>
         /// 优先级；高优先级会打断低优先级运动。
         /// </summary>
         public readonly int Priority;
@@ -44,11 +49,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         public readonly MobaMotionContinuousSettings Continuous;
 
-        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, MobaMotionContinuousSettings continuous = default)
+        public DashArgs(float speed, float durationMs, int directionMode = 0, int priority = 10, bool applyToCaster = true, int hitTriggerPlanId = 0, int motionGroupId = 0, bool moveToAimPosition = false, MobaMotionContinuousSettings continuous = default)
         {
             Speed = speed;
             DurationMs = durationMs;
             DirectionMode = directionMode;
+            MoveToAimPosition = moveToAimPosition;
             Priority = priority;
             ApplyToCaster = applyToCaster;
             HitTriggerPlanId = hitTriggerPlanId;
@@ -56,6 +62,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             Continuous = continuous;
         }
 
-        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, MobaMotionContinuousSettings.Empty);
+        public static DashArgs Default => new DashArgs(0f, 0f, 0, 10, true, 0, 0, false, MobaMotionContinuousSettings.Empty);
     }
 }

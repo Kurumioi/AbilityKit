@@ -25,9 +25,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, DashArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (args.Speed <= 0f || args.DurationMs <= 0f)
+            if ((!args.MoveToAimPosition && args.Speed <= 0f) || args.DurationMs <= 0f)
             {
-                LogRejected(ctx, $"requires positive speed and duration. speed={args.Speed} duration={args.DurationMs}");
+                LogRejected(ctx, $"requires positive speed unless moving to aim position, and positive duration. speed={args.Speed} duration={args.DurationMs} moveToAimPosition={args.MoveToAimPosition}");
                 return;
             }
 
@@ -60,19 +60,36 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            var dir = input.ResolveDashOrBlinkDirection(args.DirectionMode, actorId);
-            var fallbackToForward = dir.SqrMagnitude <= 0f;
-            if (fallbackToForward)
-            {
-                dir = entity.hasTransform ? entity.transform.Value.Forward : Vec3.Forward;
-            }
-
-            var velocity = dir * args.Speed;
             var duration = args.DurationMs / 1000f;
+            var dir = input.ResolveDashOrBlinkDirection(args.DirectionMode, actorId);
+            var fallbackToForward = false;
+            var velocity = Vec3.Zero;
+            var aimDelta = Vec3.Zero;
+            if (args.MoveToAimPosition)
+            {
+                if (!input.TryGetPlanarDeltaToAimPosition(actorId, out aimDelta))
+                {
+                    LogRejected(ctx, $"requires aim position for point dash. actorId={actorId} hasAimPosition={input.ActionInput.HasAimPosition}");
+                    return;
+                }
+
+                velocity = aimDelta / duration;
+                dir = aimDelta.Normalized;
+            }
+            else
+            {
+                fallbackToForward = dir.SqrMagnitude <= 0f;
+                if (fallbackToForward)
+                {
+                    dir = entity.hasTransform ? entity.transform.Value.Forward : Vec3.Forward;
+                }
+
+                velocity = dir * args.Speed;
+            }
             var group = MobaMotionGroupConfigResolver.Resolve(ctx.Context, args.MotionGroupId, MotionGroups.Ability, args.Priority, 10);
             var source = new FixedDeltaMotionSource(velocity, duration, group.Priority, group.GroupId, group.Stacking);
 
-            Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), speed={args.Speed:F3}, duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
+            Log.Info($"[DashPlanActionModule] activate request actorId={actorId}, caster={input.CasterActorId}, directionMode={args.DirectionMode}, moveToAimPosition={args.MoveToAimPosition}, fallbackToForward={fallbackToForward}, dir=({dir.X:F3},{dir.Y:F3},{dir.Z:F3}), aimDelta=({aimDelta.X:F3},{aimDelta.Y:F3},{aimDelta.Z:F3}), speed={args.Speed:F3}, velocity=({velocity.X:F3},{velocity.Y:F3},{velocity.Z:F3}), duration={duration:F3}, groupId={group.GroupId}, priority={group.Priority}, stacking={group.Stacking}, hitTrigger={args.HitTriggerPlanId}");
 
             var hitTriggerRuntime = default(MobaMotionHitTriggerRuntime);
             if (args.HitTriggerPlanId > 0 && input.ActionInput.HasTraceScope)

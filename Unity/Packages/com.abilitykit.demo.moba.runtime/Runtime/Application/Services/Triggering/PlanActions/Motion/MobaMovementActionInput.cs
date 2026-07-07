@@ -104,6 +104,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return direction.SqrMagnitude > 0f;
         }
 
+        public bool TryGetPlanarDeltaToAimPosition(int actorId, out Vec3 delta)
+        {
+            delta = Vec3.Zero;
+            if (!ActionInput.HasAimPosition || Actors == null)
+            {
+                return false;
+            }
+
+            if (!Actors.TryGet(actorId, out var actor) || actor == null || !actor.hasTransform)
+            {
+                return false;
+            }
+
+            var position = actor.transform.Value.Position;
+            delta = new Vec3(ActionInput.AimPosition.X - position.X, 0f, ActionInput.AimPosition.Z - position.Z);
+            return delta.SqrMagnitude > 0f;
+        }
+
         public Vec3 ResolveDashOrBlinkDirection(int directionMode, int selfActorId)
         {
             if (directionMode == 0)

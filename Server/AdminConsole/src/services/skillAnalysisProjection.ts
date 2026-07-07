@@ -282,6 +282,64 @@ export function buildTimelineFromRuntimeEvents(events: AdminSkillDiagnosticsEven
     .sort((a, b) => a.frame - b.frame || a.id.localeCompare(b.id));
 }
 
+export function buildAnalysisArtifactTraceRecords(artifact: Record<string, unknown> | null | undefined): Record<string, unknown>[] {
+  const trace = pickRecord(artifact, 'trace', 'Trace');
+  const roots = pickArray(trace, 'roots', 'Roots');
+  const records: Record<string, unknown>[] = [];
+  for (const root of roots) {
+    const rootRecord = asRecord(root);
+    const rootId = toNumber(rootRecord.rootId || rootRecord.RootId);
+    const nodes = pickArray(rootRecord, 'nodes', 'Nodes');
+    for (const node of nodes) {
+      const source = asRecord(node);
+      const metadata = pickRecord(source, 'metadata', 'Metadata') || {};
+      const properties = normalizeAnalysisMetadataProperties(metadata);
+      const contextId = toNumber(source.contextId || source.ContextId);
+      if (contextId <= 0) continue;
+      const parentId = toNumber(source.parentId || source.ParentId);
+      const effectiveRootId = toNumber(source.rootId || source.RootId || rootId || contextId);
+      const kind = toText(source.kindName || source.KindName) || toText(source.kind || source.Kind) || 'TraceNode';
+      const endReason = toText(source.endReasonName || source.EndReasonName) || toText(source.endReason || source.EndReason);
+      const metadataDisplay = toText(metadata.display || metadata.Display);
+      records.push({
+        ...properties,
+        contextId,
+        nodeId: contextId,
+        parentContextId: parentId,
+        parentId,
+        rootContextId: effectiveRootId,
+        rootId: effectiveRootId,
+        kind,
+        eventType: kind,
+        configId: toNumber(properties.configId || metadata.configId || metadata.ConfigId),
+        sourceActorId: toNumber(properties.sourceActorId || metadata.sourceActorId || metadata.SourceActorId),
+        targetActorId: toNumber(properties.targetActorId || metadata.targetActorId || metadata.TargetActorId),
+        sourceId: toNumber(properties.sourceId || metadata.sourceId || metadata.SourceId),
+        targetId: toNumber(properties.targetId || metadata.targetId || metadata.TargetId),
+        originSourceId: toNumber(properties.originSourceId || metadata.originSourceId || metadata.OriginSourceId),
+        originTargetId: toNumber(properties.originTargetId || metadata.originTargetId || metadata.OriginTargetId),
+        originSource: toText(properties.originSource || metadata.originSource || metadata.OriginSource),
+        originTarget: toText(properties.originTarget || metadata.originTarget || metadata.OriginTarget),
+        stage: toText(properties.stage) || inferSkillAnalysisStage(kind),
+        status: source.isEnded === true || source.IsEnded === true ? 'ended' : 'running',
+        severity: inferArtifactNodeSeverity(source, endReason),
+        frame: toNumber(source.endedFrame || source.EndedFrame || properties.frame),
+        timeMs: toNumber(properties.timeMs),
+        childCount: toNumber(source.childCount || source.ChildCount),
+        isRoot: source.isRoot ?? source.IsRoot ?? parentId <= 0,
+        isEnded: source.isEnded ?? source.IsEnded ?? false,
+        endReason,
+        displayName: toText(properties.displayName) || toText(properties.name) || metadataDisplay || `${kind} #${contextId}`,
+        runtimeLabel: toText(properties.runtimeLabel) || metadataDisplay || `${kind} context #${contextId}`,
+        message: toText(properties.message) || metadataDisplay || endReason,
+        rawArtifactNode: source
+      });
+    }
+  }
+
+  return records;
+}
+
 export function inferSkillAnalysisDomain(kind: string, stage: string, entityKind: string, record: Record<string, unknown>): string {
   const text = buildClassificationText(kind, stage, record, entityKind);
   if (includesAny(text, ['active', '主动', 'cast', 'skillcast', 'manual'])) return 'active-skill';
@@ -603,6 +661,44 @@ function matchesNumberFilter(values: Array<number | null | undefined>, filterTex
   const expected = Number(filterText);
   if (!Number.isFinite(expected)) return true;
   return values.some(value => Number(value || 0) === expected);
+}
+
+function pickRecord(record: Record<string, unknown> | null | undefined, camelName: string, pascalName: string): Record<string, unknown> | null {
+  const value = record?.[camelName] ?? record?.[pascalName];
+  return asRecord(value);
+}
+
+function normalizeAnalysisMetadataProperties(metadata: Record<string, unknown>): Record<string, unknown> {
+  const raw = metadata?.properties ?? metadata?.Properties;
+  if (Array.isArray(raw)) {
+    const result: Record<string, unknown> = {};
+    for (const item of raw) {
+      const record = asRecord(item);
+      const key = toText(record.key || record.Key);
+      if (!key) continue;
+      result[key] = record.value ?? record.Value ?? '';
+    }
+    return result;
+  }
+
+  return asRecord(raw);
+}
+
+function pickArray(record: Record<string, unknown> | null | undefined, camelName: string, pascalName: string): unknown[] {
+  const value = record?.[camelName] ?? record?.[pascalName];
+  return Array.isArray(value) ? value : [];
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function inferArtifactNodeSeverity(node: Record<string, unknown>, endReason: string): string {
+  const explicit = toText(node.severity || node.Severity).toLowerCase();
+  if (explicit) return explicit;
+  const reason = endReason.toLowerCase();
+  if (includesAny(reason, ['fail', 'error', 'exception', 'invalid', 'timeout'])) return 'error';
+  return 'info';
 }
 
 function uniqueSorted(values: string[]): string[] {

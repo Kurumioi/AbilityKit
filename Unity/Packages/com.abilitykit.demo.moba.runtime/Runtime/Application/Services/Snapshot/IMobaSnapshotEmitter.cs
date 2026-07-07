@@ -144,6 +144,7 @@ namespace AbilityKit.Demo.Moba.Services
             contract.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.DamageEvent, typeof(MobaDamageEventSnapshotService), "DamageEvent");
             contract.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ActorDespawn, typeof(MobaActorDespawnSnapshotService), "ActorDespawn");
             contract.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.PresentationCue, typeof(MobaPresentationCueSnapshotService), "PresentationCue");
+            contract.Require(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.SkillState, typeof(MobaSkillStateSnapshotService), "SkillState");
             return contract;
         }
 

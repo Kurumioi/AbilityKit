@@ -136,11 +136,6 @@ namespace AbilityKit.Demo.Shooter.View
                 AddEntity(key, 0, actor.Hp > 0f);
                 AddHealth(key, ToDisplayHp(actor.Hp));
 
-                if (actor.ActorId == controlledPlayerId)
-                {
-                    continue;
-                }
-
                 AddTransform(key, actor.X, actor.Y, 0f, 1f, actor.VelocityX, actor.VelocityY);
             }
 
@@ -234,17 +229,14 @@ namespace AbilityKit.Demo.Shooter.View
 
             var alive = (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0 && entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
             AddEntity(key.Value, entity.OwnerId, alive);
-            if (!IsControlledPlayerTransform(key.Value, controlledPlayerId))
-            {
-                AddTransform(
-                    key.Value,
-                    entity.QuantizedX / 1000f,
-                    entity.QuantizedY / 1000f,
-                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 0f : entity.QuantizedVelocityX / 1000f,
-                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 1f : entity.QuantizedVelocityY / 1000f,
-                    entity.QuantizedVelocityX / 1000f,
-                    entity.QuantizedVelocityY / 1000f);
-            }
+            AddTransform(
+                key.Value,
+                entity.QuantizedX / 1000f,
+                entity.QuantizedY / 1000f,
+                entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 0f : entity.QuantizedVelocityX / 1000f,
+                entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 1f : entity.QuantizedVelocityY / 1000f,
+                entity.QuantizedVelocityX / 1000f,
+                entity.QuantizedVelocityY / 1000f);
 
             if (key.Value.Kind == ShooterViewEntityKind.Player)
             {
@@ -315,7 +307,6 @@ namespace AbilityKit.Demo.Shooter.View
 
                 var key = CreateViewEntityKey(chunk.EntityKind, entityId);
                 if (!key.HasValue) continue;
-                if (IsControlledPlayerTransform(key.Value, controlledPlayerId)) continue;
 
                 AddTransform(
                     key.Value,
@@ -566,11 +557,6 @@ namespace AbilityKit.Demo.Shooter.View
                 defaultCapacity: 0,
                 maxSize: MaxPooledListsPerType,
                 collectionCheck: false);
-        }
-
-        private static bool IsControlledPlayerTransform(ShooterViewEntityKey key, int controlledPlayerId)
-        {
-            return controlledPlayerId > 0 && key.Kind == ShooterViewEntityKind.Player && key.EntityId == controlledPlayerId;
         }
 
         private static ShooterViewEntityKey? CreateViewEntityKey(int entityKind, int entityId)

@@ -29,10 +29,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
 
         public List<BuffRuntime> GetOrCreateList(global::ActorEntity target)
         {
-            var list = target.buffs?.Active;
+            var list = target != null && target.hasBuffs ? target.buffs.Active : null;
             if (list != null) return list;
             list = s_runtimeListPool.Get();
-            target.ReplaceBuffs(list);
+            target?.ReplaceBuffs(list);
             return list;
         }
 
@@ -49,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
 
         public static void ReleaseList(global::ActorEntity target)
         {
-            if (target == null || target.buffs?.Active == null) return;
+            if (target == null || !target.hasBuffs || target.buffs.Active == null) return;
             s_runtimeListPool.Release(target.buffs.Active);
             target.ReplaceBuffs(null);
         }

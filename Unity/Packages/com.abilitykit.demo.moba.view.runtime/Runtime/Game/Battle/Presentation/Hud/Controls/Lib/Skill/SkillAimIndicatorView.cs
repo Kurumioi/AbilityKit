@@ -28,6 +28,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (visible)
             {
                 transform.SetAsLastSibling();
+                EnsureTopCanvas();
             }
         }
 
@@ -51,29 +52,32 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             SetElement(_dot, _dotImage, IsDotShape(shape), target);
             SetElement(_range, _rangeImage, IsRangeShape(shape), ResolveRangePosition(shape, fromAnchored, target));
             ApplySprites(shape);
+            ApplyShapeColors(shape);
 
             if (_ring != null)
             {
-                var diameter = Mathf.Max(56f, Mathf.Min(maxRadius * 0.42f, 120f));
+                var diameter = Mathf.Max(74f, Mathf.Min(maxRadius * 0.5f, 144f));
                 _ring.sizeDelta = new Vector2(diameter, diameter);
+                _ring.SetAsFirstSibling();
             }
 
             if (_dot != null)
             {
                 var size = shape == SkillAimIndicatorShape.DirectionLine
-                    ? new Vector2(Mathf.Max(48f, dist), Mathf.Max(16f, config.IndicatorWidthPixels))
-                    : Vector2.one * Mathf.Max(36f, config.IndicatorWidthPixels * 0.72f);
+                    ? new Vector2(Mathf.Max(80f, dist), Mathf.Max(24f, config.IndicatorWidthPixels))
+                    : Vector2.one * Mathf.Max(48f, config.IndicatorWidthPixels * 0.8f);
                 _dot.sizeDelta = size;
                 _dot.pivot = shape == SkillAimIndicatorShape.DirectionLine
                     ? new Vector2(0f, 0.5f)
                     : new Vector2(0.5f, 0.5f);
                 _dot.anchoredPosition = shape == SkillAimIndicatorShape.DirectionLine ? fromAnchored : target;
                 _dot.localEulerAngles = shape == SkillAimIndicatorShape.DirectionLine ? new Vector3(0f, 0f, angle) : Vector3.zero;
+                _dot.SetAsLastSibling();
             }
 
             if (_range != null)
             {
-                var width = Mathf.Max(64f, config.IndicatorWidthPixels);
+                var width = Mathf.Max(76f, config.IndicatorWidthPixels);
                 var length = Mathf.Max(width, config.IndicatorLengthPixels > 0f ? config.IndicatorLengthPixels : maxRadius);
                 if (shape == SkillAimIndicatorShape.Sector)
                 {
@@ -90,7 +94,21 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
                     _range.pivot = new Vector2(0.5f, 0.5f);
                     _range.localEulerAngles = Vector3.zero;
                 }
+
+                _range.SetAsLastSibling();
             }
+        }
+
+        private void EnsureTopCanvas()
+        {
+            var canvas = GetComponent<Canvas>();
+            if (canvas == null)
+            {
+                canvas = gameObject.AddComponent<Canvas>();
+            }
+
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 80;
         }
 
         private static Vector2 ClampDelta(Vector2 delta, float maxRadius)
@@ -131,6 +149,31 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             if (_rangeImage != null) _rangeImage.sprite = shape == SkillAimIndicatorShape.Sector ? SkillAimIndicatorSprites.Sector : SkillAimIndicatorSprites.Area;
         }
 
+        private void ApplyShapeColors(SkillAimIndicatorShape shape)
+        {
+            var main = ResolveMainColor(shape);
+            var fill = new Color(main.r, main.g, main.b, Mathf.Clamp01(main.a * 0.54f));
+            var anchor = new Color(1f, 1f, 1f, 0.34f);
+            if (_ringImage != null) _ringImage.color = anchor;
+            if (_dotImage != null) _dotImage.color = main;
+            if (_rangeImage != null) _rangeImage.color = fill;
+        }
+
+        private static Color ResolveMainColor(SkillAimIndicatorShape shape)
+        {
+            switch (shape)
+            {
+                case SkillAimIndicatorShape.SelfCircle:
+                    return new Color(1f, 0.42f, 0.22f, 0.72f);
+                case SkillAimIndicatorShape.TargetCircle:
+                    return new Color(1f, 0.76f, 0.22f, 0.72f);
+                case SkillAimIndicatorShape.Sector:
+                    return new Color(0.35f, 0.92f, 1f, 0.7f);
+                default:
+                    return new Color(0.3f, 0.82f, 1f, 0.72f);
+            }
+        }
+
         private static void EnsureSprites()
         {
             SkillAimIndicatorSprites.Ensure();
@@ -166,11 +209,11 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         {
             if (Ring != null) return;
 
-            Ring = CreateDiscSprite(96, 0.42f, 0.5f, new Color(1f, 1f, 1f, 0.28f));
-            Dot = CreateDiscSprite(96, 0f, 0.5f, new Color(1f, 1f, 1f, 0.64f));
-            Area = CreateDiscSprite(160, 0.43f, 0.5f, new Color(1f, 1f, 1f, 0.24f));
-            Direction = CreateDirectionSprite(192, 64, new Color(1f, 1f, 1f, 0.62f));
-            Sector = CreateSectorSprite(192, 90f, new Color(1f, 1f, 1f, 0.28f));
+            Ring = CreateDiscSprite(128, 0.36f, 0.5f, new Color(1f, 1f, 1f, 0.38f));
+            Dot = CreateDiscSprite(128, 0f, 0.5f, new Color(1f, 1f, 1f, 0.78f));
+            Area = CreateDiscSprite(192, 0.28f, 0.5f, new Color(1f, 1f, 1f, 0.34f));
+            Direction = CreateDirectionSprite(256, 80, new Color(1f, 1f, 1f, 0.78f));
+            Sector = CreateSectorSprite(256, 92f, new Color(1f, 1f, 1f, 0.38f));
         }
 
         private static Sprite CreateDiscSprite(int size, float innerRadius01, float outerRadius01, Color color)

@@ -268,6 +268,52 @@ internal sealed record AdminSkillAnalysisModelHttpResponse(
     [property: Id(6)] long ServerNowTicks);
 
 [GenerateSerializer]
+internal sealed record AdminSkillAnalysisArtifactDirectoryHttpResponse(
+    [property: Id(0)] string ArtifactDirectory,
+    [property: Id(1)] string DisplayName,
+    [property: Id(2)] bool Exists,
+    [property: Id(3)] int ArtifactCount,
+    [property: Id(4)] long LastWriteUtcTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisArtifactDirectoryListHttpResponse(
+    [property: Id(0)] string ArtifactRootDirectory,
+    [property: Id(1)] AdminSkillAnalysisArtifactDirectoryHttpResponse[] Directories,
+    [property: Id(2)] string[] Warnings,
+    [property: Id(3)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisArtifactListItemHttpResponse(
+    [property: Id(0)] string FileName,
+    [property: Id(1)] string SessionId,
+    [property: Id(2)] string SchemaVersion,
+    [property: Id(3)] string? Project,
+    [property: Id(4)] string? Scenario,
+    [property: Id(5)] int RootCount,
+    [property: Id(6)] int NodeCount,
+    [property: Id(7)] int StartFrame,
+    [property: Id(8)] int EndFrame,
+    [property: Id(9)] long GeneratedAtUtcTicks,
+    [property: Id(10)] long FileSizeBytes,
+    [property: Id(11)] string Path);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisArtifactListHttpResponse(
+    [property: Id(0)] string ArtifactDirectory,
+    [property: Id(1)] AdminSkillAnalysisArtifactListItemHttpResponse[] Artifacts,
+    [property: Id(2)] string[] Warnings,
+    [property: Id(3)] long ServerNowTicks);
+
+[GenerateSerializer]
+internal sealed record AdminSkillAnalysisArtifactHttpResponse(
+    [property: Id(0)] string ArtifactDirectory,
+    [property: Id(1)] string FileName,
+    [property: Id(2)] string Path,
+    [property: Id(3)] JsonNode? Artifact,
+    [property: Id(4)] string[] Warnings,
+    [property: Id(5)] long ServerNowTicks);
+
+[GenerateSerializer]
 internal sealed record AdminSkillAnalysisStageHttpResponse(
     [property: Id(0)] string Id,
     [property: Id(1)] string DisplayName,

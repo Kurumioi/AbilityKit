@@ -576,7 +576,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var id = skillIds[i];
                 if (id <= 0) continue;
-                list.Add(new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime { SkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new AbilityKit.Demo.Moba.Components.ActiveSkillRuntime { SkillId = id, Level = 1, CooldownDurationMs = 0, CooldownEndTimeMs = 0L });
             }
             return list.Count == 0 ? Array.Empty<AbilityKit.Demo.Moba.Components.ActiveSkillRuntime>() : list.ToArray();
         }
@@ -589,7 +589,7 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var id = passiveSkillIds[i];
                 if (id <= 0) continue;
-                list.Add(new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownEndTimeMs = 0L });
+                list.Add(new AbilityKit.Demo.Moba.Components.PassiveSkillRuntime { PassiveSkillId = id, Level = 1, CooldownDurationMs = 0, CooldownEndTimeMs = 0L });
             }
             return list.Count == 0 ? Array.Empty<AbilityKit.Demo.Moba.Components.PassiveSkillRuntime>() : list.ToArray();
         }

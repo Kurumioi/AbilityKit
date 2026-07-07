@@ -213,7 +213,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private readonly InstanceBuffer _clientInstances = new();
         private readonly InstanceBuffer _authorityInstances = new();
         private readonly MaterialPropertyBlock _properties = new();
-        private readonly GUIContent[] _hudLines = CreateHudLineCache(9);
+        private readonly GUIContent[] _hudLines = CreateHudLineCache(10);
         private Transform? _viewRoot;
         private Camera? _camera;
         private Light? _light;
@@ -239,6 +239,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private int _lastDrawBulletCount;
         private int _lastDrawEnemyCount;
         private int _lastControlledHp = -1;
+        private int _lastSkippedPlayerWithoutTransformCount;
+        private int _lastSkippedDeadPlayerCount;
+        private bool _lastHasControlledPlayerDraw;
+        private bool _lastPlayerProbeDrawn;
+        private Vector3 _lastFirstPlayerPosition;
         private bool _hasHudData;
         private bool _hudDirty;
         private bool _hasAuthorityProjection;
@@ -246,6 +251,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
         private ulong _lastClientSequence;
         private ulong _lastAuthoritySequence;
+        private int _lastClientFrame;
+        private int _lastAuthorityFrame;
+        private ShooterViewBatchSource _lastClientSource;
+        private ShooterViewBatchSource _lastAuthoritySource;
+        private ShooterViewSnapshotKind _lastClientSnapshotKind;
+        private ShooterViewSnapshotKind _lastAuthoritySnapshotKind;
+        private bool _hasAppliedClientBatch;
+        private bool _hasAppliedAuthorityBatch;
         private bool _clientInstancesDirty = true;
         private bool _authorityInstancesDirty = true;
 
@@ -258,10 +271,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastControlledPlayerId = frame.ControlledPlayerId;
             _lastWorldScale = frame.WorldScale;
             var clientBatch = frame.ClientBatch;
-            if (clientBatch.Sequence != _lastClientSequence)
+            if (!IsSameClientBatch(in clientBatch))
             {
                 _lastClientApplyResult = _clientProjection.Apply(in clientBatch);
-                _lastClientSequence = clientBatch.Sequence;
+                CaptureClientBatchKey(in clientBatch);
                 _clientInstancesDirty = true;
             }
 
@@ -277,10 +290,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (frame.HasAuthorityBatch)
             {
                 var authorityBatch = frame.AuthorityBatch;
-                if (authorityBatch.Sequence != _lastAuthoritySequence)
+                if (!IsSameAuthorityBatch(in authorityBatch))
                 {
                     _authorityProjection.Apply(in authorityBatch);
-                    _lastAuthoritySequence = authorityBatch.Sequence;
+                    CaptureAuthorityBatchKey(in authorityBatch);
                     _authorityInstancesDirty = true;
                 }
 
@@ -300,9 +313,46 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 _authorityProjection.Clear();
                 _authorityInstances.Clear();
+                _hasAppliedAuthorityBatch = false;
                 _authorityInstancesDirty = true;
                 _hasAuthorityProjection = false;
             }
+        }
+
+        private bool IsSameClientBatch(in ShooterSnapshotViewBatch batch)
+        {
+            return _hasAppliedClientBatch &&
+                batch.Sequence == _lastClientSequence &&
+                batch.Frame == _lastClientFrame &&
+                batch.Source == _lastClientSource &&
+                batch.SnapshotKind == _lastClientSnapshotKind;
+        }
+
+        private bool IsSameAuthorityBatch(in ShooterSnapshotViewBatch batch)
+        {
+            return _hasAppliedAuthorityBatch &&
+                batch.Sequence == _lastAuthoritySequence &&
+                batch.Frame == _lastAuthorityFrame &&
+                batch.Source == _lastAuthoritySource &&
+                batch.SnapshotKind == _lastAuthoritySnapshotKind;
+        }
+
+        private void CaptureClientBatchKey(in ShooterSnapshotViewBatch batch)
+        {
+            _lastClientSequence = batch.Sequence;
+            _lastClientFrame = batch.Frame;
+            _lastClientSource = batch.Source;
+            _lastClientSnapshotKind = batch.SnapshotKind;
+            _hasAppliedClientBatch = true;
+        }
+
+        private void CaptureAuthorityBatchKey(in ShooterSnapshotViewBatch batch)
+        {
+            _lastAuthoritySequence = batch.Sequence;
+            _lastAuthorityFrame = batch.Frame;
+            _lastAuthoritySource = batch.Source;
+            _lastAuthoritySnapshotKind = batch.SnapshotKind;
+            _hasAppliedAuthorityBatch = true;
         }
 
         public void Clear()
@@ -316,6 +366,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _hudDirty = false;
             _lastClientSequence = 0UL;
             _lastAuthoritySequence = 0UL;
+            _lastClientFrame = 0;
+            _lastAuthorityFrame = 0;
+            _lastClientSource = default;
+            _lastAuthoritySource = default;
+            _lastClientSnapshotKind = default;
+            _lastAuthoritySnapshotKind = default;
+            _hasAppliedClientBatch = false;
+            _hasAppliedAuthorityBatch = false;
             _clientInstancesDirty = true;
             _authorityInstancesDirty = true;
             _lastBatchPlayerCount = 0;
@@ -329,6 +387,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastDrawBulletCount = 0;
             _lastDrawEnemyCount = 0;
             _lastControlledHp = -1;
+            _lastSkippedPlayerWithoutTransformCount = 0;
+            _lastSkippedDeadPlayerCount = 0;
+            _lastHasControlledPlayerDraw = false;
+            _lastPlayerProbeDrawn = false;
+            _lastFirstPlayerPosition = Vector3.zero;
             _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
             _lastCrossLayerDiagnostics = default;
 
@@ -362,9 +425,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastDrawPlayerCount = clientDrawCounts.PlayerCount;
             _lastDrawBulletCount = clientDrawCounts.BulletCount;
             _lastDrawEnemyCount = clientDrawCounts.EnemyCount;
-            _lastStorePlayerCount = _lastDrawPlayerCount;
-            _lastStoreBulletCount = _lastDrawBulletCount;
-            _lastStoreEnemyCount = _lastDrawEnemyCount;
+            _lastSkippedDeadPlayerCount = _clientInstances.SkippedDeadPlayerCount;
+            _lastSkippedPlayerWithoutTransformCount = _clientInstances.SkippedPlayerWithoutTransformCount;
+            _lastHasControlledPlayerDraw = _clientInstances.HasControlledPlayer;
+            _lastFirstPlayerPosition = _clientInstances.PlayerCount > 0 ? ExtractTranslation(_clientInstances.Players[0]) : Vector3.zero;
+            _lastStorePlayerCount = _clientProjection.Store.PlayerCount;
+            _lastStoreBulletCount = _clientProjection.Store.BulletCount;
+            _lastStoreEnemyCount = _clientProjection.Store.EnemyCount;
             _lastCrossLayerDiagnostics = frame.CrossLayerDiagnostics;
             _hasHudData = true;
             _hudDirty = true;
@@ -376,8 +443,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             foreach (var kvp in store.Entities)
             {
                 var entity = kvp.Value;
-                if (!entity.Alive || !store.TryGetTransform(entity.Key, out var transform))
+                if (!entity.Alive)
                 {
+                    if (!isAuthority && entity.Kind == ShooterViewEntityKind.Player)
+                    {
+                        buffer.SkippedDeadPlayerCount++;
+                    }
+
+                    continue;
+                }
+
+                if (!store.TryGetTransform(entity.Key, out var transform))
+                {
+                    if (!isAuthority && entity.Kind == ShooterViewEntityKind.Player)
+                    {
+                        buffer.SkippedPlayerWithoutTransformCount++;
+                    }
+
                     continue;
                 }
 
@@ -387,15 +469,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 var rotation = CreateFacingRotation(transform.FacingX, transform.FacingY);
                 var matrix = Matrix4x4.TRS(position, rotation, ScaleFor(kind, isAuthority));
 
+                AddCachedMatrix(kind, in matrix, buffer);
+
                 if (!isAuthority && kind == ShooterViewEntityKind.Player && entity.EntityId == controlledPlayerId)
                 {
                     buffer.ControlledPlayerMatrix = matrix;
                     buffer.HasControlledPlayer = true;
-                    buffer.PlayerCount++;
-                    continue;
                 }
-
-                AddCachedMatrix(kind, in matrix, buffer);
             }
         }
 
@@ -423,11 +503,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             DrawInstances(ShooterViewEntityKind.Enemy, buffer.Enemies, isAuthority);
             DrawInstances(ShooterViewEntityKind.Bullet, buffer.Bullets, isAuthority);
             DrawInstances(ShooterViewEntityKind.Player, buffer.Players, isAuthority);
+            _lastPlayerProbeDrawn = false;
 
-            if (buffer.HasControlledPlayer)
+            if (!isAuthority && buffer.HasControlledPlayer)
             {
                 _playerMatrices[0] = buffer.ControlledPlayerMatrix;
-                Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial, _playerMatrices, 1);
+                Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial ?? _playerMaterial, _playerMatrices, 1);
             }
 
             return new DrawCounts(buffer.PlayerCount, buffer.BulletCount, buffer.EnemyCount);
@@ -479,7 +560,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             return kind switch
             {
-                ShooterViewEntityKind.Player => _playerMesh,
+                ShooterViewEntityKind.Player => _enemyMesh ?? _playerMesh,
                 ShooterViewEntityKind.Bullet => _bulletMesh,
                 ShooterViewEntityKind.Enemy => _enemyMesh,
                 _ => null
@@ -507,7 +588,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var authorityScale = isAuthority ? 0.85f : 1f;
             return kind switch
             {
-                ShooterViewEntityKind.Player => new Vector3(0.75f, 1.1f, 0.75f) * authorityScale,
+                ShooterViewEntityKind.Player => new Vector3(0.75f, 0.75f, 0.75f) * authorityScale,
                 ShooterViewEntityKind.Bullet => Vector3.one * (isAuthority ? 0.45f : 0.35f),
                 ShooterViewEntityKind.Enemy => new Vector3(0.75f, 0.75f, 0.75f) * authorityScale,
                 _ => Vector3.one
@@ -544,7 +625,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _light.type = LightType.Directional;
             _light.intensity = 1.2f;
 
-            _playerMesh = CreatePrimitiveMesh(PrimitiveType.Capsule, "ShooterGpuPlayerMesh");
+            _playerMesh = CreatePrimitiveMesh(PrimitiveType.Cube, "ShooterGpuPlayerMesh");
             _bulletMesh = CreatePrimitiveMesh(PrimitiveType.Sphere, "ShooterGpuBulletMesh");
             _enemyMesh = CreatePrimitiveMesh(PrimitiveType.Cube, "ShooterGpuEnemyMesh");
             _playerMaterial = CreateMaterial("ShooterGpuPlayerMaterial", Color.cyan);
@@ -567,8 +648,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _hudDirty = false;
             }
 
-            GUI.Box(new Rect(12f, 12f, 460f, 274f), "Shooter GPU Instanced HUD");
-            GUILayout.BeginArea(new Rect(24f, 40f, 436f, 238f));
+            const float hudWidth = 620f;
+            const float hudHeight = 320f;
+            var hudX = Mathf.Max(12f, Screen.width - hudWidth - 12f);
+            var hudRect = new Rect(hudX, 12f, hudWidth, hudHeight);
+            GUI.Box(hudRect, "Shooter GPU Instanced HUD");
+            GUILayout.BeginArea(new Rect(hudRect.x + 12f, hudRect.y + 28f, hudRect.width - 24f, hudRect.height - 40f));
             for (var i = 0; i < _hudLines.Length; i++)
             {
                 GUILayout.Label(_hudLines[i]);
@@ -586,9 +671,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _hudLines[3].text = $"绘制 玩家/子弹/怪物: {_lastDrawPlayerCount}/{_lastDrawBulletCount}/{_lastDrawEnemyCount}";
             _hudLines[4].text = $"投影移除: total={_lastClientApplyResult.RemovedEntities} explicit={_lastClientApplyResult.ExplicitEntityRemovals} dead={_lastClientApplyResult.DeadEntityRemovals}";
             _hudLines[5].text = _lastControlledHp >= 0 ? $"主控HP: {_lastControlledHp}" : "主控HP: N/A";
-            _hudLines[6].text = $"权威投影: {(_hasAuthorityProjection ? _authorityProjection.Store.Entities.Count.ToString() : "关闭")} draw={(DrawAuthorityOverlay ? "on" : "off")}";
-            _hudLines[7].text = $"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}";
-            _hudLines[8].text = $"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}";
+            _hudLines[6].text = $"玩家实例: gpu={_lastDrawPlayerCount} deadSkip={_lastSkippedDeadPlayerCount} noTransform={_lastSkippedPlayerWithoutTransformCount} first=({_lastFirstPlayerPosition.x:0.00},{_lastFirstPlayerPosition.y:0.00},{_lastFirstPlayerPosition.z:0.00}) controlled={_lastHasControlledPlayerDraw} material=player";
+            _hudLines[7].text = $"权威投影: {(_hasAuthorityProjection ? _authorityProjection.Store.Entities.Count.ToString() : "关闭")} draw={(DrawAuthorityOverlay ? "on" : "off")}";
+            _hudLines[8].text = $"框架包/派发: {_lastCrossLayerDiagnostics.FrameworkPacketCount}/{_lastCrossLayerDiagnostics.FrameworkDispatchedSnapshotCount}";
+            _hudLines[9].text = $"PureState 帧: apply={_lastCrossLayerDiagnostics.LastPureStateAppliedFrame} resync={_lastCrossLayerDiagnostics.LastPureStateResyncFrame}";
         }
 
         private static GUIContent[] CreateHudLineCache(int count)
@@ -656,6 +742,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 : Quaternion.identity;
         }
 
+        private static Vector3 ExtractTranslation(in Matrix4x4 matrix)
+        {
+            return new Vector3(matrix.m03, matrix.m13, matrix.m23);
+        }
+
         private static Mesh CreatePrimitiveMesh(PrimitiveType primitiveType, string name)
         {
             var primitive = GameObject.CreatePrimitive(primitiveType);
@@ -670,7 +761,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private static Material CreateMaterial(string name, Color color)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
             var material = new Material(shader)
             {
                 name = name,
@@ -678,6 +769,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 enableInstancing = true,
                 hideFlags = HideFlags.HideAndDontSave
             };
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
+
             return material;
         }
 
@@ -701,6 +803,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             public int PlayerCount;
             public int BulletCount;
             public int EnemyCount;
+            public int SkippedDeadPlayerCount;
+            public int SkippedPlayerWithoutTransformCount;
 
             public void Clear()
             {
@@ -712,6 +816,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 PlayerCount = 0;
                 BulletCount = 0;
                 EnemyCount = 0;
+                SkippedDeadPlayerCount = 0;
+                SkippedPlayerWithoutTransformCount = 0;
             }
         }
 

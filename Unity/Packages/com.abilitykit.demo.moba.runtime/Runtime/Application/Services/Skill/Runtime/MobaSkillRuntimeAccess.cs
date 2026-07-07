@@ -39,10 +39,12 @@ namespace AbilityKit.Demo.Moba.Services
             int actorId,
             int skillSlot,
             int skillId,
-            long cooldownEndTimeMs)
+            long cooldownEndTimeMs,
+            int cooldownDurationMs)
         {
             if (!TryGetActiveSkill(actors, actorId, skillSlot, skillId, out var runtime)) return false;
             runtime.CooldownEndTimeMs = cooldownEndTimeMs;
+            runtime.CooldownDurationMs = Math.Max(0, cooldownDurationMs);
             return true;
         }
     }

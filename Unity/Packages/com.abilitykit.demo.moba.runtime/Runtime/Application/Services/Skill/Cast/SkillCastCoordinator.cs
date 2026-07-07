@@ -8,6 +8,7 @@ using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -323,7 +324,11 @@ namespace AbilityKit.Demo.Moba.Services
                 out var failReason,
                 policy: policy);
             var failure = MobaSkillCastFailure.None;
-            if (!success)
+            if (success)
+            {
+                ApplyConfiguredCooldown(actorId, skillId, in prepared);
+            }
+            else
             {
                 failure = SkillResultFactory.StartReject(runner, failReason);
                 if (!failure.HasValue)
@@ -340,6 +345,38 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return MobaSkillCastResult.From(success, failReason, in ctx.RuntimeHandle, in failure);
+        }
+
+        private void ApplyConfiguredCooldown(int actorId, int skillId, in SkillCastPreparationResult prepared)
+        {
+            var slot = prepared.Request.SkillSlot;
+            if (slot <= 0) return;
+
+            var cooldownMs = ResolveConfiguredCooldownMs(skillId, prepared.Context?.SkillLevel ?? 0);
+            if (cooldownMs <= 0) return;
+
+            var now = MobaSkillRuntimeAccess.GetCurrentTimeMs(_time);
+            if (!MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(_actors, actorId, slot, skillId, now + cooldownMs, cooldownMs))
+            {
+                Log.Warning($"[SkillCastCoordinator] Failed to apply configured cooldown. actor={actorId}, slot={slot}, skillId={skillId}, cooldownMs={cooldownMs}.");
+            }
+        }
+
+        private int ResolveConfiguredCooldownMs(int skillId, int skillLevel)
+        {
+            if (skillId <= 0) return 0;
+            if (_services == null || !_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return 0;
+            if (!configs.TryGetSkill(skillId, out var skill) || skill == null) return 0;
+
+            var cooldownMs = Math.Max(0, skill.CooldownMs);
+            if (skill.LevelTableId <= 0 || skillLevel <= 0) return cooldownMs;
+            if (!configs.TryGetSkillLevelTable(skill.LevelTableId, out var table) || table == null) return cooldownMs;
+
+            var levels = table.Levels;
+            var index = skillLevel - 1;
+            if (levels == null || index < 0 || index >= levels.Count || levels[index] == null) return cooldownMs;
+
+            return levels[index].CooldownMs > 0 ? levels[index].CooldownMs : cooldownMs;
         }
 
         public bool TryGetRunningBySlot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)

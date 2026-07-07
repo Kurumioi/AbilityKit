@@ -55,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string Dash = "dash";
             public const string Blink = "blink";
             public const string Pull = "pull";
+            public const string Jump = "jump";
 
             // 资源类 Action。
             public const string ConsumeResource = "consume_resource";
@@ -156,6 +157,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId DashId => GetActionId(Actions.Dash);
         public static ActionId BlinkId => GetActionId(Actions.Blink);
         public static ActionId PullId => GetActionId(Actions.Pull);
+        public static ActionId JumpId => GetActionId(Actions.Jump);
 
         // 资源类 Action ID。
         public static ActionId ConsumeResourceId => GetActionId(Actions.ConsumeResource);

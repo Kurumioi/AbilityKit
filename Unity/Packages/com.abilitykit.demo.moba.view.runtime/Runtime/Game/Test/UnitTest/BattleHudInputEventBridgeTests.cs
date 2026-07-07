@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using AbilityKit.Game.Flow;
@@ -38,6 +39,60 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(0.6f, sink.SubmittedAimDz);
             Assert.AreEqual(0, sink.ResetAimSlot);
             Assert.IsFalse(sink.ResetAimAiming);
+        }
+
+        [Test]
+        public void Dispatcher_ScalesTargetCircleAimBySkillRange()
+        {
+            var sink = new RecordingHudInputSink();
+            var dispatcher = new BattleHudInputEventDispatcher(sink);
+            dispatcher.SetSkillSpecs(new Dictionary<int, BattleHudSkillPresentationSpec>
+            {
+                [3] = new BattleHudSkillPresentationSpec(
+                    10010301,
+                    "TargetSkill",
+                    BattleHudSkillPreviewShape.TargetCircle,
+                    SkillAimIndicatorShape.TargetCircle,
+                    10f,
+                    6.8f,
+                    3.4f,
+                    Color.white)
+            });
+
+            dispatcher.OnSkillAimUpdate(3, new Vector2(0.5f, 0.25f));
+            dispatcher.OnSkillAimEnd(3, new Vector2(1f, 0f));
+
+            Assert.AreEqual(3, sink.ActiveAimSlot);
+            Assert.AreEqual(5f, sink.ActiveAimDx, 0.0001f);
+            Assert.AreEqual(2.5f, sink.ActiveAimDz, 0.0001f);
+            Assert.AreEqual(3, sink.SubmittedAimSlot);
+            Assert.AreEqual(10f, sink.SubmittedAimDx, 0.0001f);
+            Assert.AreEqual(0f, sink.SubmittedAimDz, 0.0001f);
+        }
+
+        [Test]
+        public void Dispatcher_KeepsDirectionLineAimNormalized()
+        {
+            var sink = new RecordingHudInputSink();
+            var dispatcher = new BattleHudInputEventDispatcher(sink);
+            dispatcher.SetSkillSpecs(new Dictionary<int, BattleHudSkillPresentationSpec>
+            {
+                [1] = new BattleHudSkillPresentationSpec(
+                    10010101,
+                    "DirectionSkill",
+                    BattleHudSkillPreviewShape.DirectionLine,
+                    SkillAimIndicatorShape.DirectionLine,
+                    7f,
+                    1.8f,
+                    0f,
+                    Color.white)
+            });
+
+            dispatcher.OnSkillAimEnd(1, new Vector2(1f, 0f));
+
+            Assert.AreEqual(1, sink.SubmittedAimSlot);
+            Assert.AreEqual(1f, sink.SubmittedAimDx, 0.0001f);
+            Assert.AreEqual(0f, sink.SubmittedAimDz, 0.0001f);
         }
 
         [Test]

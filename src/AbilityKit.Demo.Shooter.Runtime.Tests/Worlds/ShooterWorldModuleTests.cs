@@ -143,8 +143,10 @@ public sealed class ShooterWorldModuleTests
         Assert.Equal(rules.HitDamage, center.ExplosionDamage);
         Assert.True(upper.VelocityY > 0f);
         Assert.True(lower.VelocityY < 0f);
-        Assert.Equal(0f, upper.ExplosionRadius);
-        Assert.Equal(0f, lower.ExplosionRadius);
+        Assert.Equal(center.ExplosionRadius, upper.ExplosionRadius);
+        Assert.Equal(center.ExplosionRadius, lower.ExplosionRadius);
+        Assert.Equal(rules.HitDamage, upper.ExplosionDamage);
+        Assert.Equal(rules.HitDamage, lower.ExplosionDamage);
         Assert.Equal(3, runtime.GetSnapshot().Events.Length);
     }
 
@@ -273,7 +275,7 @@ public sealed class ShooterWorldModuleTests
     }
 
     [Fact]
-    public void RuntimeKeepsTwinProjectilesAliveWhilePenetrationRemains()
+    public void RuntimeKeepsTwinProjectilesAliveAcrossMultiplePenetrations()
     {
         var rules = new ShooterBattleRules(
             playerSpeed: 0f,
@@ -306,19 +308,29 @@ public sealed class ShooterWorldModuleTests
             101,
             new ShooterSveltoTransformComponent { X = 3.7f, Y = -0.28f, DirectionX = -1f, DirectionY = 0f },
             new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
+        entities.AddEnemy(
+            102,
+            new ShooterSveltoTransformComponent { X = 5.75f, Y = -0.28f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
+        entities.AddEnemy(
+            103,
+            new ShooterSveltoTransformComponent { X = 7.8f, Y = -0.28f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
+        entities.AddEnemy(
+            104,
+            new ShooterSveltoTransformComponent { X = 9.85f, Y = -0.28f, DirectionX = -1f, DirectionY = 0f },
+            new ShooterSveltoHealthComponent { Current = 1, Max = 1, Alive = 1 });
 
         Assert.True(entities.TryGetProjectile(1, out var projectile));
-        Assert.Equal(2, projectile.PenetrationRemaining);
+        Assert.Equal(5, projectile.PenetrationRemaining);
 
-        Assert.True(runtime.Tick(1f / 30f));
-        Assert.True(entities.TryGetProjectile(1, out projectile));
-        Assert.Equal(1, projectile.PenetrationRemaining);
-        AssertEnemyNotAlive(entities, 100);
-
-        Assert.True(runtime.Tick(1f / 30f));
-        Assert.True(entities.TryGetProjectile(1, out projectile));
-        Assert.Equal(0, projectile.PenetrationRemaining);
-        AssertEnemyNotAlive(entities, 101);
+        for (var enemyId = 100; enemyId <= 104; enemyId++)
+        {
+            Assert.True(runtime.Tick(1f / 30f));
+            Assert.True(entities.TryGetProjectile(1, out projectile));
+            Assert.Equal(104 - enemyId, projectile.PenetrationRemaining);
+            AssertEnemyNotAlive(entities, enemyId);
+        }
     }
 
     [Fact]

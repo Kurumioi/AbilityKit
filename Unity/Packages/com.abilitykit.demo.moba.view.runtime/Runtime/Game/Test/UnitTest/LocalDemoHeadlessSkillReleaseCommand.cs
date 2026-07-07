@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Host;
+using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
@@ -28,16 +29,18 @@ namespace AbilityKit.Game.Test.UnitTest
         private const float DamageEpsilon = 0.01f;
         private const float KnockupHeightEpsilon = 0.05f;
         private const float LandingHeightEpsilon = 0.03f;
+        private const float CasterJumpHeightEpsilon = 0.08f;
         private const float TestHp = 5000f;
 
         private static readonly List<int> s_actorIds = new List<int>(16);
         private static readonly List<int> s_searchResults = new List<int>(16);
         private static readonly SkillScenario[] s_scenarios =
         {
-            new SkillScenario("skill1.first", slot: 1, aimDx: 1f, aimDz: 0f, enemyOffsetX: 2.5f, enemyOffsetZ: 0f, requireCasterMove: true, requireDamage: true, requireKnockup: true, minObserveTicks: 8, maxObserveTicks: 180),
-            new SkillScenario("skill1.second", slot: 1, aimDx: 1f, aimDz: 0f, enemyOffsetX: 2.5f, enemyOffsetZ: 0f, requireCasterMove: true, requireDamage: true, requireKnockup: true, minObserveTicks: 8, maxObserveTicks: 180),
-            new SkillScenario("skill2", slot: 2, aimDx: 1f, aimDz: 0f, enemyOffsetX: 1.5f, enemyOffsetZ: 0f, requireCasterMove: false, requireDamage: true, requireKnockup: false, minObserveTicks: 20, maxObserveTicks: 210),
-            new SkillScenario("skill3", slot: 3, aimDx: 1f, aimDz: 0f, enemyOffsetX: 1.5f, enemyOffsetZ: 0f, requireCasterMove: false, requireDamage: true, requireKnockup: true, minObserveTicks: 20, maxObserveTicks: 300),
+            new SkillScenario("skill1.first.aim", slot: 1, inputMode: SkillInputMode.AimRelease, aimDx: 1f, aimDz: 0f, enemyOffsetX: 2.5f, enemyOffsetZ: 0f, requireCasterMove: true, requireDamage: true, requireKnockup: true, minObserveTicks: 8, maxObserveTicks: 180),
+            new SkillScenario("skill1.second.afterHit.aim", slot: 1, inputMode: SkillInputMode.AimRelease, aimDx: 1f, aimDz: 0f, enemyOffsetX: 2.5f, enemyOffsetZ: 0f, requireCasterMove: true, requireDamage: true, requireKnockup: true, minObserveTicks: 8, maxObserveTicks: 180, preserveCasterState: true, resetEnemyHp: false),
+            new SkillScenario("skill2.afterSkill1.click", slot: 2, inputMode: SkillInputMode.Click, aimDx: 1f, aimDz: 0f, enemyOffsetX: 1.5f, enemyOffsetZ: 0f, requireCasterMove: false, requireDamage: true, requireKnockup: false, minObserveTicks: 20, maxObserveTicks: 210, preserveCasterState: true, resetEnemyHp: false, minDamageSeconds: 0.45f, requiredDamageSteps: 1),
+            new SkillScenario("skill3.afterSkill1.click", slot: 3, inputMode: SkillInputMode.Click, aimDx: 1f, aimDz: 0f, enemyOffsetX: 1.5f, enemyOffsetZ: 0f, requireCasterMove: false, requireDamage: true, requireKnockup: true, minObserveTicks: 20, maxObserveTicks: 300, preserveCasterState: true, resetEnemyHp: false, minDamageSeconds: 0.32f, requiredDamageSteps: 3, requireCasterJump: true, requireDamageAfterCasterLanding: true),
+            new SkillScenario("skill3.afterSkill1.aim", slot: 3, inputMode: SkillInputMode.AimRelease, aimDx: 1f, aimDz: 0f, enemyOffsetX: 1.5f, enemyOffsetZ: 0f, requireCasterMove: true, requireDamage: true, requireKnockup: true, minObserveTicks: 20, maxObserveTicks: 300, preserveCasterState: true, resetEnemyHp: false, minDamageSeconds: 0.32f, requiredDamageSteps: 3, requireCasterJump: true, requireDamageAfterCasterLanding: true),
         };
 
         private static bool _battleRequested;
@@ -51,15 +54,25 @@ namespace AbilityKit.Game.Test.UnitTest
         private static ScenarioPhase _scenarioPhase;
         private static int _scenarioStartTick;
         private static int _scenarioSubmitTick;
+        private static double _scenarioSubmitLogicTime;
         private static float _enemyStartHp;
         private static Vector3 _enemyStartPosition;
         private static float _lastEnemyHp;
         private static Vector3 _lastEnemyPosition;
         private static float _scenarioStartCasterX;
+        private static float _scenarioStartCasterY;
         private static bool _movementObserved;
         private static float _observedMoveDistance;
+        private static bool _casterJumpObserved;
+        private static bool _casterLandedAfterJump;
+        private static float _observedCasterJumpHeight;
         private static bool _knockupObserved;
         private static float _observedKnockupHeight;
+        private static int _damageStepCount;
+        private static float _lastObservedDamage;
+        private static int _firstDamageTick;
+        private static double _firstDamageSeconds;
+        private static bool _firstDamageAfterCasterLanding;
         private static readonly List<string> s_scenarioResults = new List<string>(8);
 
         static LocalDemoHeadlessSkillReleaseCommand()
@@ -199,8 +212,9 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 case ScenarioPhase.Submit:
                     Stage("submitting." + scenario.Name, flow, ctx);
-                    ctx.SubmitHudSkillAim(scenario.Slot, scenario.AimDx, scenario.AimDz);
+                    SubmitScenarioInput(ctx, scenario);
                     _scenarioSubmitTick = _ticks;
+                    _scenarioSubmitLogicTime = ctx.LogicTimeSeconds;
                     _scenarioPhase = ScenarioPhase.Observe;
                     Stage("submitted." + scenario.Name, flow, ctx);
                     FlowTick(flow, 2);
@@ -214,12 +228,32 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        private static void SubmitScenarioInput(BattleContext ctx, SkillScenario scenario)
+        {
+            switch (scenario.InputMode)
+            {
+                case SkillInputMode.Click:
+                    ctx.SubmitHudSkillClick(scenario.Slot);
+                    return;
+                case SkillInputMode.AimRelease:
+                    ctx.SubmitHudSkillAim(scenario.Slot, scenario.AimDx, scenario.AimDz);
+                    return;
+                default:
+                    throw new InvalidOperationException($"Unsupported skill scenario input mode: {scenario.InputMode}");
+            }
+        }
+
         private static string ObserveScenario(GameFlowDomain flow, BattleContext ctx, SkillScenario scenario)
         {
             if (!TryGetLocalActorPosition(ctx, out var casterPosition))
             {
                 throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
             }
+
+            var casterHeightDelta = casterPosition.y - _scenarioStartCasterY;
+            if (casterHeightDelta > _observedCasterJumpHeight) _observedCasterJumpHeight = casterHeightDelta;
+            if (casterHeightDelta > CasterJumpHeightEpsilon) _casterJumpObserved = true;
+            if (_casterJumpObserved && Math.Abs(casterHeightDelta) <= LandingHeightEpsilon) _casterLandedAfterJump = true;
 
             var moved = Math.Abs(casterPosition.x - _scenarioStartCasterX);
             if (moved > 0.1f)
@@ -246,15 +280,43 @@ namespace AbilityKit.Game.Test.UnitTest
             if (enemyHeightDelta > _observedKnockupHeight) _observedKnockupHeight = enemyHeightDelta;
             if (enemyHeightDelta > KnockupHeightEpsilon) _knockupObserved = true;
 
-            var observedEnoughTicks = _ticks - _scenarioSubmitTick >= scenario.MinObserveTicks;
+            var ticksSinceSubmit = _ticks - _scenarioSubmitTick;
+            var secondsSinceSubmit = ctx.LogicTimeSeconds - _scenarioSubmitLogicTime;
+            if (damage > _lastObservedDamage + DamageEpsilon)
+            {
+                if (scenario.RequireDamageAfterCasterLanding && !_casterLandedAfterJump)
+                {
+                    throw new InvalidOperationException($"{scenario.Name} dealt damage before caster landing. casterHeightDelta={casterHeightDelta:F3}, maxCasterHeightDelta={_observedCasterJumpHeight:F3}, ticksSinceSubmit={ticksSinceSubmit}, damage={damage:F3}");
+                }
+
+                _damageStepCount++;
+                _lastObservedDamage = damage;
+                if (_firstDamageTick <= 0)
+                {
+                    _firstDamageTick = ticksSinceSubmit;
+                    _firstDamageSeconds = secondsSinceSubmit;
+                    _firstDamageAfterCasterLanding = _casterLandedAfterJump;
+                }
+            }
+
+            if (scenario.MinDamageSeconds > 0f && secondsSinceSubmit < scenario.MinDamageSeconds && damage > DamageEpsilon)
+            {
+                throw new InvalidOperationException($"{scenario.Name} dealt damage before configured delay. secondsSinceSubmit={secondsSinceSubmit:F3}, minDamageSeconds={scenario.MinDamageSeconds:F3}, ticksSinceSubmit={ticksSinceSubmit}, damage={damage:F3}");
+            }
+
+            var observedEnoughTicks = ticksSinceSubmit >= scenario.MinObserveTicks;
             var landed = Math.Abs(enemyHeightDelta) <= LandingHeightEpsilon;
             var movementOk = !scenario.RequireCasterMove || _movementObserved;
             var damageOk = !scenario.RequireDamage || damage > DamageEpsilon;
+            var damageStepsOk = scenario.RequiredDamageSteps <= 0 || _damageStepCount >= scenario.RequiredDamageSteps;
+            var damageDelayOk = scenario.MinDamageSeconds <= 0f || (_firstDamageTick > 0 && _firstDamageSeconds >= scenario.MinDamageSeconds);
             var knockupOk = !scenario.RequireKnockup || (_knockupObserved && landed);
+            var casterJumpOk = !scenario.RequireCasterJump || (_casterJumpObserved && _casterLandedAfterJump);
+            var damageAfterCasterLandingOk = !scenario.RequireDamageAfterCasterLanding || (_firstDamageTick > 0 && _firstDamageAfterCasterLanding);
 
-            if (observedEnoughTicks && movementOk && damageOk && knockupOk)
+            if (observedEnoughTicks && movementOk && damageOk && damageStepsOk && damageDelayOk && knockupOk && casterJumpOk && damageAfterCasterLandingOk)
             {
-                var result = $"{scenario.Name}: damage={damage:F3}, casterMove={_observedMoveDistance:F3}, enemyPlanarMove={enemyPlanarMove:F3}, maxEnemyHeightDelta={_observedKnockupHeight:F3}, landedHeightDelta={enemyHeightDelta:F3}";
+                var result = $"{scenario.Name}: input={scenario.InputMode}, damage={damage:F3}, damageSteps={_damageStepCount}, firstDamageTick={_firstDamageTick}, firstDamageTime={_firstDamageSeconds:F3}, casterMove={_observedMoveDistance:F3}, maxCasterHeightDelta={_observedCasterJumpHeight:F3}, casterLanded={_casterLandedAfterJump}, enemyPlanarMove={enemyPlanarMove:F3}, maxEnemyHeightDelta={_observedKnockupHeight:F3}, landedHeightDelta={enemyHeightDelta:F3}";
                 s_scenarioResults.Add(result);
                 _scenarioIndex++;
                 _scenarioPhase = ScenarioPhase.Prepare;
@@ -267,7 +329,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             if (_ticks - _scenarioStartTick > scenario.MaxObserveTicks)
             {
-                throw new TimeoutException($"{scenario.Name} validation timed out. damage={damage:F3}, movementOk={movementOk}, damageOk={damageOk}, knockupOk={knockupOk}, landed={landed}, " + BuildDiagnostic(flow, ctx));
+                throw new TimeoutException($"{scenario.Name} validation timed out. damage={damage:F3}, damageSteps={_damageStepCount}, requiredDamageSteps={scenario.RequiredDamageSteps}, movementOk={movementOk}, damageOk={damageOk}, damageStepsOk={damageStepsOk}, knockupOk={knockupOk}, casterJumpOk={casterJumpOk}, damageAfterCasterLandingOk={damageAfterCasterLandingOk}, landed={landed}, casterLanded={_casterLandedAfterJump}, maxCasterHeightDelta={_observedCasterJumpHeight:F3}, " + BuildDiagnostic(flow, ctx));
             }
 
             Stage("observing." + scenario.Name, flow, ctx);
@@ -281,24 +343,38 @@ namespace AbilityKit.Game.Test.UnitTest
                 throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
             }
 
-            var casterPosition = new Vector3(_startPosition.x, _startPosition.y, _startPosition.z);
-            if (!TrySetActorPosition(ctx, ctx.LocalActorId, casterPosition))
+            var casterPosition = default(Vector3);
+            if (scenario.PreserveCasterState)
             {
-                throw new InvalidOperationException($"Failed to reset local actor position. actorId={ctx.LocalActorId}, position={casterPosition}");
+                if (!TryGetLocalActorPosition(ctx, out casterPosition))
+                {
+                    throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+                }
+            }
+            else
+            {
+                casterPosition = new Vector3(_startPosition.x, _startPosition.y, _startPosition.z);
+                if (!TrySetActorPosition(ctx, ctx.LocalActorId, casterPosition))
+                {
+                    throw new InvalidOperationException($"Failed to reset local actor position. actorId={ctx.LocalActorId}, position={casterPosition}");
+                }
             }
 
-            var targetPosition = new Vector3(casterPosition.x + scenario.EnemyOffsetX, casterPosition.y, casterPosition.z + scenario.EnemyOffsetZ);
-            if (!TrySetActorPosition(ctx, _enemyActorId, targetPosition))
+            if (!scenario.PreserveEnemyState)
             {
-                throw new InvalidOperationException($"Failed to place enemy actor for {scenario.Name}. enemyActorId={_enemyActorId}, targetPosition={targetPosition}");
+                var targetPosition = new Vector3(casterPosition.x + scenario.EnemyOffsetX, casterPosition.y, casterPosition.z + scenario.EnemyOffsetZ);
+                if (!TrySetActorPosition(ctx, _enemyActorId, targetPosition))
+                {
+                    throw new InvalidOperationException($"Failed to place enemy actor for {scenario.Name}. enemyActorId={_enemyActorId}, targetPosition={targetPosition}");
+                }
+
+                if (scenario.ResetEnemyHp && !TrySetActorHp(ctx, _enemyActorId, TestHp))
+                {
+                    throw new InvalidOperationException($"Failed to reset enemy hp for {scenario.Name}. enemyActorId={_enemyActorId}");
+                }
             }
 
-            if (!TrySetActorHp(ctx, _enemyActorId, TestHp))
-            {
-                throw new InvalidOperationException($"Failed to reset enemy hp for {scenario.Name}. enemyActorId={_enemyActorId}");
-            }
-
-            ResetActiveSkillCooldowns(ctx, ctx.LocalActorId);
+            ResetActiveSkillCooldowns(ctx, ctx.LocalActorId, cancelRunningSkill: !scenario.PreserveCasterState);
 
             if (!TryGetEnemyRuntimeState(ctx, _enemyActorId, out _enemyStartHp, out _enemyStartPosition))
             {
@@ -310,10 +386,19 @@ namespace AbilityKit.Game.Test.UnitTest
             _lastEnemyHp = _enemyStartHp;
             _lastEnemyPosition = _enemyStartPosition;
             _scenarioStartCasterX = casterPosition.x;
+            _scenarioStartCasterY = casterPosition.y;
             _movementObserved = false;
             _observedMoveDistance = 0f;
+            _casterJumpObserved = false;
+            _casterLandedAfterJump = false;
+            _observedCasterJumpHeight = 0f;
             _knockupObserved = false;
             _observedKnockupHeight = 0f;
+            _damageStepCount = 0;
+            _lastObservedDamage = 0f;
+            _firstDamageTick = 0;
+            _firstDamageSeconds = 0d;
+            _firstDamageAfterCasterLanding = false;
         }
 
         private static void FlowTick(GameFlowDomain flow, int ticks)
@@ -401,6 +486,26 @@ namespace AbilityKit.Game.Test.UnitTest
             var current = entity.transform.Value;
             var newPosition = ToVec3(position);
             entity.ReplaceTransform(new Transform3(in newPosition, in current.Rotation, in current.Scale));
+            if (entity.hasMotion)
+            {
+                var motion = entity.motion;
+                var state = new MotionState(in newPosition)
+                {
+                    Forward = current.Forward,
+                    Velocity = Vec3.Zero,
+                    Time = motion.State.Time
+                };
+                entity.ReplaceMotion(
+                    motion.Pipeline,
+                    state,
+                    motion.Output,
+                    motion.Solver,
+                    motion.Policy,
+                    motion.Events,
+                    motion.Initialized,
+                    motion.HitTriggerRuntime);
+            }
+
             return true;
         }
 
@@ -415,7 +520,7 @@ namespace AbilityKit.Game.Test.UnitTest
             return true;
         }
 
-        private static void ResetActiveSkillCooldowns(BattleContext ctx, int actorId)
+        private static void ResetActiveSkillCooldowns(BattleContext ctx, int actorId, bool cancelRunningSkill)
         {
             if (!TryGetEntityManager(ctx, out var entities)) return;
             if (!entities.TryGetActorEntity(actorId, out var entity) || entity == null || !entity.hasSkillLoadout) return;
@@ -429,7 +534,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 }
             }
 
-            if (ctx.Session != null && ctx.Session.TryGetWorld(out var world) && world?.Services != null && world.Services.TryResolve<SkillCastCoordinator>(out var coordinator) && coordinator != null)
+            if (cancelRunningSkill && ctx.Session != null && ctx.Session.TryGetWorld(out var world) && world?.Services != null && world.Services.TryResolve<SkillCastCoordinator>(out var coordinator) && coordinator != null)
             {
                 coordinator.CancelAll(actorId);
             }
@@ -517,12 +622,47 @@ namespace AbilityKit.Game.Test.UnitTest
                 currentPosition = position.ToString();
             }
 
-            var scenarioName = _scenarioIndex >= 0 && _scenarioIndex < s_scenarios.Length ? s_scenarios[_scenarioIndex].Name : "complete";
+            var scenario = _scenarioIndex >= 0 && _scenarioIndex < s_scenarios.Length ? s_scenarios[_scenarioIndex] : default;
+            var scenarioName = _scenarioIndex >= 0 && _scenarioIndex < s_scenarios.Length ? scenario.Name : "complete";
             var enemyText = _enemyActorId > 0
-                ? $", enemyActorId={_enemyActorId}, enemyStartHp={_enemyStartHp:F3}, lastEnemyHp={_lastEnemyHp:F3}, enemyStart={_enemyStartPosition}, lastEnemy={_lastEnemyPosition}, enemyMove3d={Vector3.Distance(_enemyStartPosition, _lastEnemyPosition):F3}, enemyHeightDelta={(_lastEnemyPosition.y - _enemyStartPosition.y):F3}, observedKnockupHeight={_observedKnockupHeight:F3}, knockupObserved={_knockupObserved}, movementObserved={_movementObserved}, observedMove={_observedMoveDistance:F3}"
+                ? $", enemyActorId={_enemyActorId}, enemyStartHp={_enemyStartHp:F3}, lastEnemyHp={_lastEnemyHp:F3}, enemyStart={_enemyStartPosition}, lastEnemy={_lastEnemyPosition}, casterEnemyDistance={TryDescribeCasterEnemyDistance(ctx)}, enemyMove3d={Vector3.Distance(_enemyStartPosition, _lastEnemyPosition):F3}, enemyHeightDelta={(_lastEnemyPosition.y - _enemyStartPosition.y):F3}, observedKnockupHeight={_observedKnockupHeight:F3}, knockupObserved={_knockupObserved}, movementObserved={_movementObserved}, observedMove={_observedMoveDistance:F3}, damageSteps={_damageStepCount}, firstDamageTick={_firstDamageTick}, motion={DescribeActorMotion(ctx, ctx != null ? ctx.LocalActorId : 0)}, enemyMotion={DescribeActorMotion(ctx, _enemyActorId)}, search={DescribeScenarioSearch(ctx, scenario)}"
                 : string.Empty;
 
-            return $"stage={_lastStage ?? "notStarted"}, ticks={_ticks}, battleRequested={_battleRequested}, scenario={scenarioName}, scenarioIndex={_scenarioIndex}, scenarioPhase={_scenarioPhase}, hasStartPosition={_hasStartPosition}, battlePhase={(flow != null ? flow.CurrentBattlePhase.ToString() : "n/a")}, hasContext={ctx != null}, hasSession={(ctx != null && ctx.Session != null)}, localActorId={(ctx != null ? ctx.LocalActorId : 0)}, planPlayerId={(ctx != null ? ctx.Plan.World.PlayerId : "n/a")}, lastFrame={(ctx != null ? ctx.LastFrame : 0)}, logicTime={(ctx != null ? ctx.LogicTimeSeconds : 0f):F3}, start={(_hasStartPosition ? _startPosition.ToString() : "n/a")}, current={currentPosition}{enemyText}";
+            var inputMode = _scenarioIndex >= 0 && _scenarioIndex < s_scenarios.Length ? scenario.InputMode.ToString() : "n/a";
+            return $"stage={_lastStage ?? "notStarted"}, ticks={_ticks}, battleRequested={_battleRequested}, scenario={scenarioName}, inputMode={inputMode}, scenarioIndex={_scenarioIndex}, scenarioPhase={_scenarioPhase}, hasStartPosition={_hasStartPosition}, battlePhase={(flow != null ? flow.CurrentBattlePhase.ToString() : "n/a")}, hasContext={ctx != null}, hasSession={(ctx != null && ctx.Session != null)}, localActorId={(ctx != null ? ctx.LocalActorId : 0)}, planPlayerId={(ctx != null ? ctx.Plan.World.PlayerId : "n/a")}, lastFrame={(ctx != null ? ctx.LastFrame : 0)}, logicTime={(ctx != null ? ctx.LogicTimeSeconds : 0f):F3}, start={(_hasStartPosition ? _startPosition.ToString() : "n/a")}, current={currentPosition}{enemyText}";
+        }
+
+        private static string TryDescribeCasterEnemyDistance(BattleContext ctx)
+        {
+            if (ctx == null || ctx.LocalActorId <= 0 || _enemyActorId <= 0) return "n/a";
+            if (!TryGetLocalActorPosition(ctx, out var caster)) return "casterUnavailable";
+            if (!TryGetEnemyRuntimeState(ctx, _enemyActorId, out _, out var enemy)) return "enemyUnavailable";
+            return PlanarDistance(caster, enemy).ToString("F3");
+        }
+
+        private static string DescribeActorMotion(BattleContext ctx, int actorId)
+        {
+            if (actorId <= 0) return "n/a";
+            if (!TryGetEntityManager(ctx, out var entities)) return "entitiesUnavailable";
+            if (!entities.TryGetActorEntity(actorId, out var entity) || entity == null) return "actorUnavailable";
+            if (!entity.hasMotion) return "noMotion";
+
+            var motion = entity.motion;
+            return $"initialized={motion.Initialized}, sources={(motion.Pipeline != null ? motion.Pipeline.SourceCount : -1)}, statePos={ToUnityVector(motion.State.Position)}, velocity={ToUnityVector(motion.State.Velocity)}, hitTriggerValid={motion.HitTriggerRuntime.IsValid}, hitTrigger={motion.HitTriggerRuntime.TriggerId}";
+        }
+
+        private static string DescribeScenarioSearch(BattleContext ctx, SkillScenario scenario)
+        {
+            if (ctx == null || scenario.Slot <= 1) return "n/a";
+            if (ctx.Session == null || !ctx.Session.TryGetWorld(out var world) || world?.Services == null) return "worldUnavailable";
+            if (!world.Services.TryResolve<SearchTargetService>(out var search) || search == null) return "searchUnavailable";
+
+            var queryId = scenario.Slot == 2 ? 50010201 : 50010301;
+            s_searchResults.Clear();
+            var aim = ToVec3(new Vector3(scenario.AimDx, 0f, scenario.AimDz));
+            var found = search.TrySearchActorIds(queryId, ctx.LocalActorId, in aim, explicitTargetActorId: 0, s_searchResults);
+            var containsEnemy = s_searchResults.Contains(_enemyActorId);
+            return $"queryId={queryId}, found={found}, containsEnemy={containsEnemy}, count={s_searchResults.Count}, targets={string.Join(",", s_searchResults)}";
         }
 
         private static void Finish(bool success, string message)
@@ -553,15 +693,25 @@ namespace AbilityKit.Game.Test.UnitTest
             _scenarioPhase = ScenarioPhase.Prepare;
             _scenarioStartTick = 0;
             _scenarioSubmitTick = 0;
+            _scenarioSubmitLogicTime = 0d;
             _enemyStartHp = 0f;
             _enemyStartPosition = default;
             _lastEnemyHp = 0f;
             _lastEnemyPosition = default;
             _scenarioStartCasterX = 0f;
+            _scenarioStartCasterY = 0f;
             _movementObserved = false;
             _observedMoveDistance = 0f;
+            _casterJumpObserved = false;
+            _casterLandedAfterJump = false;
+            _observedCasterJumpHeight = 0f;
             _knockupObserved = false;
             _observedKnockupHeight = 0f;
+            _damageStepCount = 0;
+            _lastObservedDamage = 0f;
+            _firstDamageTick = 0;
+            _firstDamageSeconds = 0d;
+            _firstDamageAfterCasterLanding = false;
             s_scenarioResults.Clear();
             s_searchResults.Clear();
         }
@@ -597,12 +747,19 @@ namespace AbilityKit.Game.Test.UnitTest
             Observe
         }
 
+        private enum SkillInputMode
+        {
+            Click,
+            AimRelease
+        }
+
         private readonly struct SkillScenario
         {
-            public SkillScenario(string name, int slot, float aimDx, float aimDz, float enemyOffsetX, float enemyOffsetZ, bool requireCasterMove, bool requireDamage, bool requireKnockup, int minObserveTicks, int maxObserveTicks)
+            public SkillScenario(string name, int slot, SkillInputMode inputMode, float aimDx, float aimDz, float enemyOffsetX, float enemyOffsetZ, bool requireCasterMove, bool requireDamage, bool requireKnockup, int minObserveTicks, int maxObserveTicks, bool preserveCasterState = false, bool preserveEnemyState = false, bool resetEnemyHp = true, float minDamageSeconds = 0f, int requiredDamageSteps = 0, bool requireCasterJump = false, bool requireDamageAfterCasterLanding = false)
             {
                 Name = name;
                 Slot = slot;
+                InputMode = inputMode;
                 AimDx = aimDx;
                 AimDz = aimDz;
                 EnemyOffsetX = enemyOffsetX;
@@ -612,10 +769,18 @@ namespace AbilityKit.Game.Test.UnitTest
                 RequireKnockup = requireKnockup;
                 MinObserveTicks = minObserveTicks;
                 MaxObserveTicks = maxObserveTicks;
+                PreserveCasterState = preserveCasterState;
+                PreserveEnemyState = preserveEnemyState;
+                ResetEnemyHp = resetEnemyHp;
+                MinDamageSeconds = minDamageSeconds;
+                RequiredDamageSteps = requiredDamageSteps;
+                RequireCasterJump = requireCasterJump;
+                RequireDamageAfterCasterLanding = requireDamageAfterCasterLanding;
             }
 
             public string Name { get; }
             public int Slot { get; }
+            public SkillInputMode InputMode { get; }
             public float AimDx { get; }
             public float AimDz { get; }
             public float EnemyOffsetX { get; }
@@ -625,6 +790,13 @@ namespace AbilityKit.Game.Test.UnitTest
             public bool RequireKnockup { get; }
             public int MinObserveTicks { get; }
             public int MaxObserveTicks { get; }
+            public bool PreserveCasterState { get; }
+            public bool PreserveEnemyState { get; }
+            public bool ResetEnemyHp { get; }
+            public float MinDamageSeconds { get; }
+            public int RequiredDamageSteps { get; }
+            public bool RequireCasterJump { get; }
+            public bool RequireDamageAfterCasterLanding { get; }
         }
     }
 }

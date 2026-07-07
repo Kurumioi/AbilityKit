@@ -122,6 +122,7 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("export interface AdminSkillDiagnosticsSummary", types);
         Assert.Contains("export interface AdminSkillDiagnosticsEvents", types);
         Assert.Contains("export interface AdminSkillEvent", types);
+        Assert.Contains("export interface AdminSkillAnalysisArtifact", types);
         Assert.Contains("export interface AdminServerOperationResponse", types);
         Assert.Contains("serverStatus?: AdminServerStatus | null", types);
         Assert.Contains(".admin-layout", css);
@@ -135,6 +136,8 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains(".skill-panel", css);
         Assert.Contains(".skill-layout", css);
         Assert.Contains(".event-timeline", css);
+        Assert.Contains(".artifact-toolbar", css);
+        Assert.Contains(".artifact-summary", css);
         Assert.Contains(".badge", css);
     }
 
@@ -244,20 +247,33 @@ public sealed class GatewayAdminConsoleTests
         var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
         var diagnostics = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillDiagnostics.cs"));
         var modelProvider = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAnalysisModelProvider.cs"));
+        var analysisArtifacts = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillAnalysisArtifacts.cs"));
         var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+        var domainApi = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "domainApi.ts"));
         var projection = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "skillAnalysisProjection.ts"));
+        var completeAnalysis = File.ReadAllText(FindWorkspacePath(new[] { "sample-web-output-analysis", "moba-complete-flow.analysis.json" }, File.Exists));
         var visualizer = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillTraceVisualizer.vue"));
         var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var panel = File.ReadAllText(GetAdminConsoleProjectPath("src", "components", "skills", "SkillDiagnosticsPanel.vue"));
  
         Assert.Contains("/skills/summary", api);
         Assert.Contains("/skills/events", api);
         Assert.Contains("/skills/analysis-model", api);
+        Assert.Contains("/skills/analysis-artifacts/directories", api);
+        Assert.Contains("/skills/analysis-artifacts", api);
+        Assert.Contains("/skills/analysis-artifacts/{fileName}", api);
         Assert.Contains("Gateway.AdminSkillDiagnosticsSummary", api);
         Assert.Contains("Gateway.AdminSkillDiagnosticsEvents", api);
         Assert.Contains("Gateway.AdminSkillAnalysisModel", api);
+        Assert.Contains("Gateway.AdminSkillAnalysisArtifactDirectories", api);
+        Assert.Contains("Gateway.AdminSkillAnalysisArtifacts", api);
+        Assert.Contains("Gateway.AdminSkillAnalysisArtifact", api);
         Assert.Contains("GatewaySkillDiagnostics.GetSummaryAsync", api);
         Assert.Contains("GatewaySkillDiagnostics.GetEventsAsync", api);
         Assert.Contains("GatewaySkillDiagnostics.GetAnalysisModel", api);
+        Assert.Contains("GatewaySkillAnalysisArtifacts.ListArtifactDirectories", api);
+        Assert.Contains("GatewaySkillAnalysisArtifacts.ListArtifacts", api);
+        Assert.Contains("GatewaySkillAnalysisArtifacts.GetArtifact", api);
         Assert.Contains("AdminSkillDiagnosticsSummaryHttpResponse", models);
         Assert.Contains("AdminSkillDiagnosticsEventsHttpResponse", models);
         Assert.Contains("AdminSkillEventHttpResponse", models);
@@ -266,6 +282,11 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("AdminSkillAnalysisFieldHttpResponse", models);
         Assert.Contains("AdminSkillAnalysisProjectionSchemaHttpResponse", models);
         Assert.Contains("ProjectionSchemas", models);
+        Assert.Contains("AdminSkillAnalysisArtifactDirectoryHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisArtifactDirectoryListHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisArtifactListItemHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisArtifactListHttpResponse", models);
+        Assert.Contains("AdminSkillAnalysisArtifactHttpResponse", models);
         Assert.Contains("internal static class GatewaySkillDiagnostics", diagnostics);
         Assert.Contains("RuntimeContextOnly", diagnostics);
         Assert.DoesNotContain("TraceNotConnected", diagnostics);
@@ -284,11 +305,39 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("SkillPipelineContext / SkillPipelineRunner", modelProvider);
         Assert.Contains("完整技能链路以 Scenario artifact trace 为主数据源", modelProvider);
         Assert.DoesNotContain("Future live traces", modelProvider);
+        Assert.Contains("internal static class GatewaySkillAnalysisArtifacts", analysisArtifacts);
+        Assert.Contains("DefaultArtifactDirectory = \"sample-web-output-analysis\"", analysisArtifacts);
+        Assert.Contains("AnalysisSearchPattern = \"*.analysis.json\"", analysisArtifacts);
+        Assert.Contains("ExpectedSchemaVersion = \"abilitykit-analysis.v1\"", analysisArtifacts);
+        Assert.Contains("ResolveArtifactDirectory", analysisArtifacts);
+        Assert.Contains("ValidateAnalysisFileName", analysisArtifacts);
+        Assert.Contains("ReadJsonNode", analysisArtifacts);
+        Assert.Contains("AdminSkillAnalysisArtifact", domainApi);
+        Assert.Contains("/api/admin/skills/analysis-artifacts/directories", domainApi);
+        Assert.Contains("/api/admin/skills/analysis-artifacts", domainApi);
         Assert.Contains("export interface SkillAnalysisFilterState", types);
         Assert.Contains("export interface SkillAnalysisEntityRelationProjection", types);
+        Assert.Contains("export interface AdminSkillAnalysisArtifactDirectory", types);
+        Assert.Contains("export interface AdminSkillAnalysisArtifactList", types);
+        Assert.Contains("export interface AdminSkillAnalysisArtifact", types);
         Assert.Contains("createDefaultSkillAnalysisFilter", projection);
         Assert.Contains("filterSkillAnalysisNodes", projection);
+        Assert.Contains("buildAnalysisArtifactTraceRecords", projection);
+        Assert.Contains("normalizeAnalysisMetadataProperties", projection);
+        Assert.Contains("metadata.configId", projection);
+        Assert.Contains("metadata.SourceActorId", projection);
+        Assert.Contains("originSource", projection);
+        Assert.Contains("rawArtifactNode", projection);
         Assert.Contains("buildSkillAnalysisEntityRelations", projection);
+        Assert.Contains("moba-complete-flow-demo", completeAnalysis);
+        Assert.Contains("EffectAction", completeAnalysis);
+        Assert.Contains("DamageApply", completeAnalysis);
+        Assert.Contains("ProjectileHit", completeAnalysis);
+        Assert.Contains("BuffTick", completeAnalysis);
+        Assert.Contains("AreaStay", completeAnalysis);
+        Assert.Contains("PresentationPlay", completeAnalysis);
+        Assert.Contains("originSource", completeAnalysis);
+        Assert.Contains("properties", completeAnalysis);
         Assert.Contains("inferSkillAnalysisEntityKind", projection);
         Assert.Contains("trace-filter-panel", visualizer);
         Assert.Contains("select-node", visualizer);
@@ -297,6 +346,12 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("sourceContext", visualizer);
         Assert.Contains("acceptanceAnalysisFilteredFlat", store);
         Assert.Contains("runtimeAnalysisEntityRelations", store);
+        Assert.Contains("analysisArtifactDirectories", store);
+        Assert.Contains("refreshOfflineAnalysisArtifacts", store);
+        Assert.Contains("artifactAnalysisFilteredFlat", store);
+        Assert.Contains("artifactAnalysisEntityRelations", store);
+        Assert.Contains("离线技能分析文件", panel);
+        Assert.Contains("artifact-toolbar", panel);
     }
 
     [Fact]
@@ -460,6 +515,72 @@ public sealed class GatewayAdminConsoleTests
         Assert.Equal("EffectExecution", acceptanceCase.TraceRecords[1]?["kind"]?.GetValue<string>());
         Assert.Equal("ProjectileLaunch", acceptanceCase.TraceRecords[2]?["kind"]?.GetValue<string>());
         Assert.Equal(102, acceptanceCase.TraceRecords[2]?["ownerContextId"]?.GetValue<int>());
+    }
+ 
+    [Fact]
+    public void Gateway_skill_analysis_artifacts_should_list_and_reload_analysis_json_content()
+    {
+        var artifactDirectory = Path.Combine("artifacts", "moba-analysis-web-persistence");
+        var fullArtifactDirectory = Path.GetFullPath(artifactDirectory, GetWorkspaceRoot());
+        if (Directory.Exists(fullArtifactDirectory))
+        {
+            Directory.Delete(fullArtifactDirectory, recursive: true);
+        }
+
+        Directory.CreateDirectory(fullArtifactDirectory);
+
+        var fileName = "skill_web_analysis.analysis.json";
+        var artifactPath = Path.Combine(fullArtifactDirectory, fileName);
+        File.WriteAllText(artifactPath, """
+            {
+              "schemaVersion": "abilitykit-analysis.v1",
+              "session": {
+                "sessionId": "skill-web-analysis",
+                "project": "AbilityKit.Demo.Moba",
+                "scenario": "web analysis json persistence",
+                "generatedAtUtc": "2026-07-01T00:00:00.0000000Z"
+              },
+              "time": {
+                "startFrame": 1,
+                "endFrame": 3
+              },
+              "trace": {
+                "roots": [
+                  {
+                    "rootId": 101,
+                    "nodes": [
+                      { "contextId": 101, "parentId": 0, "rootId": 101, "kindName": "SkillCast", "endedFrame": 1, "isRoot": true, "isEnded": true, "metadata": { "properties": { "actorId": 1, "skillId": 1002, "message": "cast accepted" } } },
+                      { "contextId": 102, "parentId": 101, "rootId": 101, "kindName": "EffectExecution", "endedFrame": 2, "isEnded": true, "metadata": { "properties": { "sourceActorId": 1, "targetActorId": 2, "configId": 2001 } } }
+                    ]
+                  }
+                ]
+              }
+            }
+            """);
+
+        var list = GatewaySkillAnalysisArtifacts.ListArtifacts(artifactDirectory);
+        var detailResult = GatewaySkillAnalysisArtifacts.GetArtifact(fileName, artifactDirectory);
+        var detail = Assert.IsType<AdminSkillAnalysisArtifactHttpResponse>(GetMinimalApiResultValue(detailResult));
+
+        Assert.Empty(list.Warnings);
+        var item = Assert.Single(list.Artifacts);
+        Assert.Equal(fileName, item.FileName);
+        Assert.Equal("skill-web-analysis", item.SessionId);
+        Assert.Equal("abilitykit-analysis.v1", item.SchemaVersion);
+        Assert.Equal("AbilityKit.Demo.Moba", item.Project);
+        Assert.Equal("web analysis json persistence", item.Scenario);
+        Assert.Equal(1, item.RootCount);
+        Assert.Equal(2, item.NodeCount);
+        Assert.Equal(1, item.StartFrame);
+        Assert.Equal(3, item.EndFrame);
+        Assert.Equal(NormalizeJsonPath(artifactPath), item.Path);
+
+        Assert.Equal(fileName, detail.FileName);
+        Assert.Equal(NormalizeJsonPath(artifactPath), detail.Path);
+        Assert.Empty(detail.Warnings);
+        Assert.Equal("abilitykit-analysis.v1", detail.Artifact?["schemaVersion"]?.GetValue<string>());
+        Assert.Equal("skill-web-analysis", detail.Artifact?["session"]?["sessionId"]?.GetValue<string>());
+        Assert.Equal(2, (detail.Artifact?["trace"]?["roots"]?[0]?["nodes"] as JsonArray)?.Count);
     }
  
     [Fact]

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services;
@@ -30,12 +31,14 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private IMobaStageTriggerService _stageTriggers;
         private IMobaBattleDiagnosticsService _diagnostics;
+        private IFrameTime _frameTime;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
         private readonly List<AreaEnterEvent> _enters = new List<AreaEnterEvent>(64);
         private readonly List<AreaExitEvent> _exits = new List<AreaExitEvent>(64);
         private readonly List<AreaStayEvent> _stays = new List<AreaStayEvent>(64);
         private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
+        private readonly List<MobaAreaRuntimeInfo> _dueDelayAreas = new List<MobaAreaRuntimeInfo>(32);
 
         public MobaAreaSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services) : base(contexts, services)
         {
@@ -50,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _stageTriggers);
             Services.TryResolve(out _diagnostics);
+            Services.TryResolve(out _frameTime);
         }
 
         protected override void OnExecute()
@@ -69,6 +73,8 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 WarnAreaSync("publish.spawn", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} frame={evt.Frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
                 PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
             }
+
+            PublishDueDelayAreaEvents();
 
             _enters.Clear();
             _projectiles.DrainAreaEnterEvents(_enters);
@@ -118,6 +124,28 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
                 _areaRuntime.Unregister(evt.Area);
             }
+        }
+
+        private void PublishDueDelayAreaEvents()
+        {
+            if (_areaRuntime == null) return;
+
+            _dueDelayAreas.Clear();
+            var frame = ResolveCurrentFrame();
+            _areaRuntime.CollectDueDelayAreas(frame, _dueDelayAreas);
+            if (_dueDelayAreas.Count > 0)
+            {
+                WarnAreaSync("drain.delay", $"count={_dueDelayAreas.Count} frame={frame}");
+            }
+
+            for (var i = 0; i < _dueDelayAreas.Count; i++)
+            {
+                var info = _dueDelayAreas[i];
+                WarnAreaSync("publish.delay", $"areaId={info.AreaId} templateId={info.TemplateId} owner={info.OwnerActorId} frame={frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
+                PublishAreaEvent("area.delay", info.AreaId, info.TemplateId, MobaTraceKind.AreaSpawn, info, in info, ownerActorId: info.OwnerActorId, targetActorId: 0, frame: frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+            }
+
+            _dueDelayAreas.Clear();
         }
 
         private void PublishAreaEvent(string eventId, int areaId, int templateId, MobaTraceKind traceKind, object raw, in MobaAreaRuntimeInfo info, int ownerActorId, int targetActorId, int frame, in Vec3 center, float radius, ColliderId collider, int collisionLayerMask, int maxTargets)
@@ -180,6 +208,11 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             }
 
             return info;
+        }
+
+        private int ResolveCurrentFrame()
+        {
+            return _frameTime != null ? _frameTime.Frame.Value : 0;
         }
 
         private void WarnAreaSync(string suffix, string message)

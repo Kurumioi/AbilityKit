@@ -56,9 +56,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var lifetimeFrames = ResolveLifetimeFrames(args, aoe.DurationMs, ctx.Context);
             var collisionLayerMask = args.CollisionLayerMaskOverride != 0 ? args.CollisionLayerMaskOverride : aoe.CollisionLayerMask;
             var stayIntervalFrames = ResolveStayIntervalFrames(args, aoe.IntervalMs, ctx.Context);
+            var delayFrames = ResolveDelayFrames(aoe.DelayMs, ctx.Context);
             var frame = ResolveFrame(ctx.Context);
             LogInvestigation(ctx,
-                $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} collisionMask={collisionLayerMask} frame={frame}");
+                $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
 
             ctx.Context.TryResolve<MobaAreaRuntimeService>(out var areaRuntime);
             ctx.Context.TryResolve<MobaTraceRegistry>(out var trace);
@@ -129,6 +130,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     collisionLayerMask,
                     aoe.MaxTargets,
                     frame,
+                    delayFrames,
                     sourceContextId,
                     rootContextId,
                     ownerContextId);
@@ -149,6 +151,16 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var frameTime = ResolveFrameTime(services);
             var seconds = durationMs / 1000f;
+            var now = frameTime.Frame.Value;
+            return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
+        }
+
+        private static int ResolveDelayFrames(int configDelayMs, IWorldResolver services)
+        {
+            if (configDelayMs <= 0) return 0;
+
+            var frameTime = ResolveFrameTime(services);
+            var seconds = configDelayMs / 1000f;
             var now = frameTime.Frame.Value;
             return Math.Max(1, frameTime.TimeToFrame(frameTime.Time + seconds).Value - now);
         }

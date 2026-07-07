@@ -24,7 +24,10 @@ namespace AbilityKit.Game.Flow
             spec = default;
             if (skillId <= 0) return false;
             if (!TryGetConfigs(out var configs)) return false;
-            if (!TryGetSkill(configs, skillId, out skill)) return false;
+            if (!TryGetSkill(configs, skillId, out skill))
+            {
+                return _specs.TryResolveKnownSkill(skillId, out spec);
+            }
 
             if (skill.SkillButtonTemplateId > 0)
             {

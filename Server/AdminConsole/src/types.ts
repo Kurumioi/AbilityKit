@@ -287,6 +287,52 @@ export interface AdminSkillAnalysisModel {
   serverNowTicks: number;
 }
 
+export interface AdminSkillAnalysisArtifactDirectory {
+  artifactDirectory: string;
+  displayName: string;
+  exists: boolean;
+  artifactCount: number;
+  lastWriteUtcTicks: number;
+}
+
+export interface AdminSkillAnalysisArtifactDirectoryList {
+  artifactRootDirectory: string;
+  directories: AdminSkillAnalysisArtifactDirectory[];
+  warnings: string[];
+  serverNowTicks: number;
+}
+
+export interface AdminSkillAnalysisArtifactListItem {
+  fileName: string;
+  sessionId: string;
+  schemaVersion: string;
+  project?: string | null;
+  scenario?: string | null;
+  rootCount: number;
+  nodeCount: number;
+  startFrame: number;
+  endFrame: number;
+  generatedAtUtcTicks: number;
+  fileSizeBytes: number;
+  path: string;
+}
+
+export interface AdminSkillAnalysisArtifactList {
+  artifactDirectory: string;
+  artifacts: AdminSkillAnalysisArtifactListItem[];
+  warnings: string[];
+  serverNowTicks: number;
+}
+
+export interface AdminSkillAnalysisArtifact {
+  artifactDirectory: string;
+  fileName: string;
+  path: string;
+  artifact?: Record<string, unknown> | null;
+  warnings: string[];
+  serverNowTicks: number;
+}
+
 export interface SkillAnalysisNodeProjection {
   nodeId: string;
   numericNodeId: number;

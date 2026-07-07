@@ -277,6 +277,12 @@ pre { white-space: pre-wrap; max-height: 420px; overflow: auto; background: #050
 .event-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
 .event-item p { grid-column: 1 / -1; margin: 0; color: var(--muted); line-height: 1.45; }
 .acceptance-toolbar { margin-bottom: 2px; }
+.artifact-toolbar { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(280px, 1.2fr) auto; gap: 12px; align-items: end; margin: 16px 0 14px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.artifact-toolbar label { margin-top: 0; }
+.artifact-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end; }
+.artifact-summary { margin-bottom: 14px; }
+.artifact-summary .status-box { margin-top: 0; min-width: 0; }
+.artifact-summary .status-box strong, .artifact-summary .status-box span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acceptance-filters { grid-template-columns: minmax(0, 1.4fr) minmax(180px, .8fr) minmax(180px, .8fr); margin-top: 8px; }
 .acceptance-runner-panel { margin-top: 16px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 18px; background: rgba(7, 13, 24, .56); }
 .runner-template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
@@ -484,7 +490,7 @@ pre { white-space: pre-wrap; max-height: 420px; overflow: auto; background: #050
   .workspace { padding: 22px 18px 34px; }
   .topbar { flex-direction: column; }
   .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: 1 / -1; }
-  .diagnostic-grid, .cluster-summary, .skill-layout, .skill-context, .skill-metrics, .artifact-directory-strip, .runner-template-grid, .runner-form-grid, .acceptance-summary, .acceptance-layout, .assertion-groups, .trace-visualizer-grid, .trace-filter-grid, .trace-domain-grid, .trace-system-order, .combat-effect-detail-grid, .runtime-fact-grid, .run-boundary-grid, .run-boundary-grid.compact, .operations-grid { grid-template-columns: 1fr; }
+  .diagnostic-grid, .cluster-summary, .skill-layout, .skill-context, .skill-metrics, .artifact-directory-strip, .artifact-toolbar, .runner-template-grid, .runner-form-grid, .acceptance-summary, .acceptance-layout, .assertion-groups, .trace-visualizer-grid, .trace-filter-grid, .trace-domain-grid, .trace-system-order, .combat-effect-detail-grid, .runtime-fact-grid, .run-boundary-grid, .run-boundary-grid.compact, .operations-grid { grid-template-columns: 1fr; }
   .trace-system-step::after { display: none; }
 }
 

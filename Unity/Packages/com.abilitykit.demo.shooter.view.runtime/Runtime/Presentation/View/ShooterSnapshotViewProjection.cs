@@ -43,6 +43,7 @@ namespace AbilityKit.Demo.Shooter.View
  
             var explicitEntityRemovals = ApplyRemovedEntities(in batch);
             var entityChangeResult = ApplyEntityChanges(in batch);
+            var recoveredPlayerEntities = RecoverMissingPlayerEntitiesFromComponents(in batch);
             var componentUpdates =
                 ApplyTransformChanges(in batch) +
                 ApplyHealthChanges(in batch) +
@@ -55,7 +56,7 @@ namespace AbilityKit.Demo.Shooter.View
                 batch.Sequence,
                 batch.SnapshotKind,
                 batch.Source,
-                entityChangeResult.AddedEntities,
+                entityChangeResult.AddedEntities + recoveredPlayerEntities,
                 entityChangeResult.UpdatedEntities,
                 missingEntityRemovals + explicitEntityRemovals + entityChangeResult.DeadEntityRemovals,
                 missingEntityRemovals,
@@ -163,6 +164,55 @@ namespace AbilityKit.Demo.Shooter.View
             return new EntityChangeApplyResult(added, updated, deadRemovals);
         }
  
+        private int RecoverMissingPlayerEntitiesFromComponents(in ShooterSnapshotViewBatch batch)
+        {
+            if (ShouldReplaceMissingEntities(in batch))
+            {
+                return 0;
+            }
+
+            var added = 0;
+            var transforms = batch.TransformChanges;
+            for (int i = 0; i < transforms.Count; i++)
+            {
+                if (TryRecoverMissingPlayerEntity(transforms[i].Key))
+                {
+                    added++;
+                }
+            }
+
+            var health = batch.HealthChanges;
+            for (int i = 0; i < health.Count; i++)
+            {
+                if (TryRecoverMissingPlayerEntity(health[i].Key))
+                {
+                    added++;
+                }
+            }
+
+            var scores = batch.ScoreChanges;
+            for (int i = 0; i < scores.Count; i++)
+            {
+                if (TryRecoverMissingPlayerEntity(scores[i].Key))
+                {
+                    added++;
+                }
+            }
+
+            return added;
+        }
+
+        private bool TryRecoverMissingPlayerEntity(ShooterViewEntityKey key)
+        {
+            if (key.Kind != ShooterViewEntityKind.Player || _store.ContainsEntity(key))
+            {
+                return false;
+            }
+
+            _store.UpsertEntity(new ShooterViewEntityChange(key, ownerEntityId: 0, alive: true));
+            return true;
+        }
+
         private int ApplyTransformChanges(in ShooterSnapshotViewBatch batch)
         {
             var applied = 0;

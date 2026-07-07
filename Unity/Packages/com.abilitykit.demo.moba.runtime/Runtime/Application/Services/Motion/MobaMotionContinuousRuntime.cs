@@ -20,8 +20,11 @@ namespace AbilityKit.Demo.Moba.Services.Motion
         private readonly MobaActorRegistry _actors;
         private readonly IMotionSource _motionSource;
         private readonly MobaMotionHitTriggerRuntime _hitTriggerRuntime;
+        private readonly MobaMotionLandingTriggerRuntime _landingTriggerRuntime;
+        private readonly MobaMotionLandingTriggerService _landingTriggerService;
         private bool _sourceAdded;
         private bool _sourceStopped;
+        private bool _landingTriggered;
 
         public MobaMotionContinuousRuntime(
             string kind,
@@ -39,7 +42,9 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             float intervalSeconds,
             IReadOnlyList<int> intervalTriggerIds,
             MobaContextSourceView source = default,
-            MobaMotionHitTriggerRuntime hitTriggerRuntime = default)
+            MobaMotionHitTriggerRuntime hitTriggerRuntime = default,
+            MobaMotionLandingTriggerRuntime landingTriggerRuntime = default,
+            MobaMotionLandingTriggerService landingTriggerService = null)
         {
             Kind = string.IsNullOrEmpty(kind) ? "MotionContinuous" : kind;
             ConfigId = configId;
@@ -52,6 +57,8 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             _motionSource = motionSource;
             _source = source;
             _hitTriggerRuntime = hitTriggerRuntime;
+            _landingTriggerRuntime = landingTriggerRuntime;
+            _landingTriggerService = landingTriggerService;
             _config = new MobaMotionContinuousConfig(
                 this,
                 durationSeconds,
@@ -132,6 +139,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
 
             if (_motionSource == null || !_motionSource.IsActive)
             {
+                TryExecuteLandingTriggers();
                 End(ContinuousEndReason.Completed);
             }
         }
@@ -141,6 +149,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             if (!IsActive) return;
             if (_motionSource == null || !_motionSource.IsActive)
             {
+                TryExecuteLandingTriggers();
                 End(ContinuousEndReason.Completed);
             }
         }
@@ -234,6 +243,33 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 Kind,
                 ConfigId);
             return source.IsValid;
+        }
+
+        private void TryExecuteLandingTriggers()
+        {
+            if (_landingTriggered || !_landingTriggerRuntime.IsValid)
+            {
+                return;
+            }
+
+            _landingTriggered = true;
+            if (_actors == null || !_actors.TryGet(OwnerActorId, out var entity) || entity == null)
+            {
+                return;
+            }
+
+            if (entity.hasTransform)
+            {
+                Log.Info($"[MobaMotionContinuousRuntime] landing completed. kind={Kind}, owner={OwnerActorId}, position={entity.transform.Value.Position}, triggers={_landingTriggerRuntime.TriggerIds.Count}");
+            }
+
+            if (_landingTriggerService == null)
+            {
+                Log.Warning($"[MobaMotionContinuousRuntime] landing trigger skipped. kind={Kind}, owner={OwnerActorId}, reason=missing service");
+                return;
+            }
+
+            _landingTriggerService.TryExecute(in _landingTriggerRuntime);
         }
 
         private void StopMotionSource()

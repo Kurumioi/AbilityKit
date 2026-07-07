@@ -42,7 +42,7 @@ namespace AbilityKit.Game.Flow
 
         public GameObject CreateAoeModel(MobaConfigDatabase configs, int modelId)
         {
-            if (modelId <= 0) return _primitives.CreateAoeModelFallback();
+            if (modelId <= 0) return _primitives.CreateAoeModelFallback(modelId);
 
             var model = _prefabs.Resolve(configs, modelId);
 
@@ -53,7 +53,7 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                go = _primitives.CreateAoeModelFallback();
+                go = _primitives.CreateAoeModelFallback(modelId);
             }
 
             go.name = $"AoeModel_{modelId}";

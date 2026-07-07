@@ -1,18 +1,112 @@
 [
-  {
-    "Id": 1,
-    "Name": "范围查询",
-    "CenterMode": 0,
-    "Radius": 10.0,
-    "MaxCount": 10,
-    "ExcludeCaster": true
-  },
-  {
-    "Id": 2,
-    "Name": "锥形查询",
-    "CenterMode": 0,
-    "Radius": 8.0,
-    "MaxCount": 5,
-    "ExcludeCaster": true
-  }
+    {
+        "Id":  1,
+        "Name":  "范围查询",
+        "CenterMode":  0,
+        "Radius":  10.0,
+        "MaxCount":  10,
+        "ExcludeCaster":  true
+    },
+    {
+        "Id":  2,
+        "Name":  "锥形查询",
+        "CenterMode":  0,
+        "Radius":  8.0,
+        "MaxCount":  5,
+        "ExcludeCaster":  true
+    },
+    {
+        "Id":  50030201,
+        "Name":  "赵云-破云之龙-前方枪刺敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  258,
+                          "Center":  0,
+                          "Forward":  1,
+                          "Radius":  6,
+                          "HalfAngleDeg":  35
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50030301,
+        "Name":  "赵云-天翔之龙-目标点范围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  4.5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50040201,
+        "Name":  "墨子-机关重炮-爆炸范围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  3.5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50040301,
+        "Name":  "墨子-墨守成规-自身屏障范围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  0,
+                          "Radius":  5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    }
 ]

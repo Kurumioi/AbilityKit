@@ -1,7 +1,7 @@
 {
   "Id": 1001,
-  "Hp": 200,
-  "MaxHp": 200,
+  "Hp": 50000,
+  "MaxHp": 50000,
   "ExtraHp": 0,
   "PhysicsAttack": 10,
   "MagicAttack": 10,

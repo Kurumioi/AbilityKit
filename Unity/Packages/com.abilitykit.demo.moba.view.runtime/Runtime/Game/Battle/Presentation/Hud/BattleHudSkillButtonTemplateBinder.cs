@@ -31,7 +31,6 @@ namespace AbilityKit.Game.Flow
             string playerId,
             IReadOnlyList<SkillButtonView> skillViews)
         {
-            _skillSpecs.Clear();
             if (skillViews == null || skillViews.Count == 0)
             {
                 Log.Warning("[BattleHudSkillButtonTemplateBinder] skip apply: no skill views.");
@@ -44,6 +43,7 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
+            _skillSpecs.Clear();
             Log.Info($"[BattleHudSkillButtonTemplateBinder] apply loadout. playerId={loadout.PlayerId.Value}, skillCount={(loadout.SkillIds != null ? loadout.SkillIds.Length : 0)}, viewCount={skillViews.Count}");
 
             for (var i = 0; i < skillViews.Count; i++)
@@ -72,7 +72,7 @@ namespace AbilityKit.Game.Flow
             }
 
             _skillSpecs[slot] = spec;
-            Log.Info($"[BattleHudSkillButtonTemplateBinder] slot={slot} skillId={skill.Id}, templateId={(template != null ? template.Id : 0)}, enableAim={(template != null && template.EnableAim)}");
+            Log.Info($"[BattleHudSkillButtonTemplateBinder] slot={slot} skillId={(skill != null ? skill.Id : spec.SkillId)}, templateId={(template != null ? template.Id : 0)}, enableAim={(template != null ? template.EnableAim : spec.IndicatorShape != SkillAimIndicatorShape.Hidden)}");
             _applier.Apply(view, template, spec);
         }
     }

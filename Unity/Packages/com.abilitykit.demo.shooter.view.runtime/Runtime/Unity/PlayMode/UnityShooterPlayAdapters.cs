@@ -70,6 +70,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
         private ulong _lastClientSequence;
         private ulong _lastAuthoritySequence;
+        private int _lastClientFrame;
+        private int _lastAuthorityFrame;
+        private ShooterViewBatchSource _lastClientSource;
+        private ShooterViewBatchSource _lastAuthoritySource;
+        private ShooterViewSnapshotKind _lastClientSnapshotKind;
+        private ShooterViewSnapshotKind _lastAuthoritySnapshotKind;
+        private bool _hasAppliedClientBatch;
+        private bool _hasAppliedAuthorityBatch;
  
         public ShooterUnityViewRenderBackend Backend => ShooterUnityViewRenderBackend.GameObject;
 
@@ -81,10 +89,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             CaptureHudData(in frame);
 
             var clientBatch = frame.ClientBatch;
-            if (clientBatch.Sequence != _lastClientSequence)
+            if (!IsSameClientBatch(in clientBatch))
             {
                 _clientProjection.Apply(in clientBatch);
-                _lastClientSequence = clientBatch.Sequence;
+                CaptureClientBatchKey(in clientBatch);
             }
 
             RenderStore(
@@ -100,10 +108,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (frame.HasAuthorityBatch)
             {
                 var authorityBatch = frame.AuthorityBatch;
-                if (authorityBatch.Sequence != _lastAuthoritySequence)
+                if (!IsSameAuthorityBatch(in authorityBatch))
                 {
                     _authorityProjection.Apply(in authorityBatch);
-                    _lastAuthoritySequence = authorityBatch.Sequence;
+                    CaptureAuthorityBatchKey(in authorityBatch);
                 }
 
                 _hasAuthorityProjection = true;
@@ -120,11 +128,48 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             else
             {
                 _hasAuthorityProjection = false;
+                _hasAppliedAuthorityBatch = false;
                 _authorityProjection.Clear();
                 ClearViews(_authorityPlayerViews, _playerPool);
                 ClearViews(_authorityBulletViews, _bulletPool);
                 ClearViews(_authorityEnemyViews, _enemyPool);
             }
+        }
+
+        private bool IsSameClientBatch(in ShooterSnapshotViewBatch batch)
+        {
+            return _hasAppliedClientBatch &&
+                batch.Sequence == _lastClientSequence &&
+                batch.Frame == _lastClientFrame &&
+                batch.Source == _lastClientSource &&
+                batch.SnapshotKind == _lastClientSnapshotKind;
+        }
+
+        private bool IsSameAuthorityBatch(in ShooterSnapshotViewBatch batch)
+        {
+            return _hasAppliedAuthorityBatch &&
+                batch.Sequence == _lastAuthoritySequence &&
+                batch.Frame == _lastAuthorityFrame &&
+                batch.Source == _lastAuthoritySource &&
+                batch.SnapshotKind == _lastAuthoritySnapshotKind;
+        }
+
+        private void CaptureClientBatchKey(in ShooterSnapshotViewBatch batch)
+        {
+            _lastClientSequence = batch.Sequence;
+            _lastClientFrame = batch.Frame;
+            _lastClientSource = batch.Source;
+            _lastClientSnapshotKind = batch.SnapshotKind;
+            _hasAppliedClientBatch = true;
+        }
+
+        private void CaptureAuthorityBatchKey(in ShooterSnapshotViewBatch batch)
+        {
+            _lastAuthoritySequence = batch.Sequence;
+            _lastAuthorityFrame = batch.Frame;
+            _lastAuthoritySource = batch.Source;
+            _lastAuthoritySnapshotKind = batch.SnapshotKind;
+            _hasAppliedAuthorityBatch = true;
         }
 
         private void CaptureHudData(in ShooterHostPresentationFrame frame)
@@ -217,6 +262,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _authorityProjection.Clear();
             _lastClientSequence = 0ul;
             _lastAuthoritySequence = 0ul;
+            _lastClientFrame = 0;
+            _lastAuthorityFrame = 0;
+            _lastClientSource = default;
+            _lastAuthoritySource = default;
+            _lastClientSnapshotKind = default;
+            _lastAuthoritySnapshotKind = default;
+            _hasAppliedClientBatch = false;
+            _hasAppliedAuthorityBatch = false;
             _hasAuthorityProjection = false;
             _hasHudData = false;
             _hudDirty = false;

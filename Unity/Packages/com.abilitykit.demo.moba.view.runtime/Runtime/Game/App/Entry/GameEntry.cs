@@ -47,7 +47,10 @@ namespace AbilityKit.Game
             }
 
             _instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+            {
+                DontDestroyOnLoad(gameObject);
+            }
 
             World = new EntityWorld();
             Root = EntityGenerator.CreateRoot(World, "GameRoot");

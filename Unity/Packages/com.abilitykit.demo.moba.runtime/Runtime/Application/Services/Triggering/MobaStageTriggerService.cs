@@ -323,8 +323,10 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
 
             switch (eventId)
             {
-                case "area.spawn":
+                case "area.delay":
                     return aoe.OnDelayTriggerIds;
+                case "area.spawn":
+                    return Array.Empty<int>();
                 case "area.enter":
                     return aoe.OnEnterTriggerIds;
                 case "area.exit":
@@ -342,6 +344,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
             switch (eventId)
             {
                 case "area.spawn":
+                case "area.delay":
                     return MobaTraceKind.AreaSpawn;
                 case "area.enter":
                     return MobaTraceKind.AreaEnter;

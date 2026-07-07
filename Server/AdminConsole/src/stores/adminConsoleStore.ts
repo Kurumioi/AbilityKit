@@ -2,8 +2,8 @@ import { computed, reactive, ref, watch } from 'vue';
 import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
 import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree, toText as acceptanceToText } from '../services/skillAcceptanceAnalysis';
-import { buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
-import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
+import { buildAnalysisArtifactTraceRecords, buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
+import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisArtifact, AdminSkillAnalysisArtifactDirectoryList, AdminSkillAnalysisArtifactList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
 
 const apis = new AdminDomainApis();
 
@@ -28,6 +28,9 @@ const acceptanceCase = ref<AdminSkillAcceptanceCase | null>(null);
 const acceptanceRunPlan = ref<AdminSkillAcceptanceRunPlan | null>(null);
 const acceptanceArtifactDirectories = ref<AdminSkillAcceptanceArtifactDirectoryList | null>(null);
 const acceptanceTemplates = ref<AdminSkillAcceptanceTemplateList | null>(null);
+const analysisArtifactDirectories = ref<AdminSkillAnalysisArtifactDirectoryList | null>(null);
+const analysisArtifactList = ref<AdminSkillAnalysisArtifactList | null>(null);
+const analysisArtifact = ref<AdminSkillAnalysisArtifact | null>(null);
 const acceptanceLastRun = ref<AdminSkillAcceptanceRunResponse | null>(null);
 const shooterWorldDiagnostics = ref<ShooterWorldDiagnostics | null>(null);
 const lastResponse = ref('');
@@ -45,10 +48,13 @@ const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: numb
 const roomRobots = reactive({ count: 1, accountPrefix: 'room-robot', autoReady: true, mountBattleAi: true, battleAiProfileId: 'simple-battle' });
 const serverOperation = reactive({ reason: '后台控制台操作' });
 const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', selectedCaseIds: [] as string[], traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
+const analysisArtifacts = reactive({ artifactDirectory: 'sample-web-output-analysis', selectedFileName: '' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
+const artifactAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const selectedAcceptanceAnalysisNodeKey = ref('');
 const selectedRuntimeAnalysisNodeKey = ref('');
+const selectedArtifactAnalysisNodeKey = ref('');
 const selectedShooterInspectorRoomId = ref(adminStorage.get('selectedShooterInspectorRoomId', ''));
 const selectedShooterWorldEntityKey = ref('');
 
@@ -92,9 +98,17 @@ const runtimeAnalysisFilterOptions = computed(() => buildSkillAnalysisFilterOpti
 const runtimeAnalysisFilteredFlat = computed(() => filterSkillAnalysisNodes(runtimeAnalysisFlat.value, runtimeAnalysisFilter));
 const runtimeAnalysisTimeline = computed(() => runtimeAnalysisFilteredFlat.value.length > 0 ? buildTimelineFromAnalysisNodes(runtimeAnalysisFilteredFlat.value) : buildTimelineFromRuntimeEvents(skillEvents.value));
 const runtimeAnalysisEntityRelations = computed(() => buildSkillAnalysisEntityRelations(runtimeAnalysisFilteredFlat.value));
+const artifactAnalysisRecords = computed(() => buildAnalysisArtifactTraceRecords(analysisArtifact.value?.artifact || null));
+const artifactAnalysisTree = computed(() => buildSkillAnalysisTree(artifactAnalysisRecords.value, 'offline-analysis-artifact', analysisArtifact.value?.fileName || analysisArtifacts.selectedFileName || ''));
+const artifactAnalysisFlat = computed(() => flattenSkillAnalysisTree(artifactAnalysisTree.value));
+const artifactAnalysisFilterOptions = computed(() => buildSkillAnalysisFilterOptions(artifactAnalysisFlat.value));
+const artifactAnalysisFilteredFlat = computed(() => filterSkillAnalysisNodes(artifactAnalysisFlat.value, artifactAnalysisFilter));
+const artifactAnalysisTimeline = computed(() => buildTimelineFromAnalysisNodes(artifactAnalysisFilteredFlat.value));
+const artifactAnalysisEntityRelations = computed(() => buildSkillAnalysisEntityRelations(artifactAnalysisFilteredFlat.value));
 const selectedAcceptanceAnalysisNode = computed(() => findSelectedAnalysisNode(acceptanceAnalysisFilteredFlat.value, selectedAcceptanceAnalysisNodeKey.value));
 const selectedRuntimeAnalysisNode = computed(() => findSelectedAnalysisNode(runtimeAnalysisFilteredFlat.value, selectedRuntimeAnalysisNodeKey.value));
-const skillDiagnosticsWarnings = computed(() => [...(skillSummary.value?.warnings || []), ...(skillEvents.value?.warnings || [])]);
+const selectedArtifactAnalysisNode = computed(() => findSelectedAnalysisNode(artifactAnalysisFilteredFlat.value, selectedArtifactAnalysisNodeKey.value));
+const skillDiagnosticsWarnings = computed(() => [...(skillSummary.value?.warnings || []), ...(skillEvents.value?.warnings || []), ...(analysisArtifactList.value?.warnings || []), ...(analysisArtifact.value?.warnings || [])]);
 const skillAnalysisModelNotes = computed(() => skillAnalysisModel.value?.notes || []);
 const apiFailureCount = computed(() => apiCallLog.value.filter(item => !item.ok).length);
 const shooterInspectorRooms = computed(() => rooms.value.filter(room => room.roomType === 'shooter'));
@@ -408,6 +422,45 @@ function selectAcceptanceAnalysisNode(node: SkillAnalysisFlatNodeProjection): vo
 
 function selectRuntimeAnalysisNode(node: SkillAnalysisFlatNodeProjection): void {
   selectedRuntimeAnalysisNodeKey.value = getAnalysisNodeKey(node);
+}
+
+async function refreshAnalysisArtifactDirectories(): Promise<void> {
+  const data = await call<AdminSkillAnalysisArtifactDirectoryList>(apis.skills.analysisArtifactDirectories());
+  if (data) analysisArtifactDirectories.value = data;
+}
+
+async function refreshAnalysisArtifacts(): Promise<void> {
+  const data = await call<AdminSkillAnalysisArtifactList>(apis.skills.analysisArtifacts(buildQuery({ artifactDirectory: analysisArtifacts.artifactDirectory })));
+  if (!data) return;
+  analysisArtifactList.value = data;
+  const fileNames = new Set((data.artifacts || []).map(item => item.fileName));
+  if (!analysisArtifacts.selectedFileName || !fileNames.has(analysisArtifacts.selectedFileName)) analysisArtifacts.selectedFileName = data.artifacts?.[0]?.fileName || '';
+}
+
+async function refreshAnalysisArtifact(fileName = analysisArtifacts.selectedFileName): Promise<void> {
+  if (!fileName) return;
+  analysisArtifacts.selectedFileName = fileName;
+  const data = await call<AdminSkillAnalysisArtifact>(apis.skills.analysisArtifact(fileName, buildQuery({ artifactDirectory: analysisArtifacts.artifactDirectory })));
+  if (data) analysisArtifact.value = data;
+}
+
+async function refreshOfflineAnalysisArtifacts(): Promise<void> {
+  await refreshAnalysisArtifactDirectories();
+  await refreshAnalysisArtifacts();
+  if (analysisArtifacts.selectedFileName) await refreshAnalysisArtifact(analysisArtifacts.selectedFileName);
+}
+
+function selectAnalysisArtifactDirectory(value: string): void {
+  if (!value) return;
+  analysisArtifacts.artifactDirectory = value;
+  analysisArtifacts.selectedFileName = '';
+  analysisArtifactList.value = null;
+  analysisArtifact.value = null;
+  selectedArtifactAnalysisNodeKey.value = '';
+}
+
+function selectArtifactAnalysisNode(node: SkillAnalysisFlatNodeProjection): void {
+  selectedArtifactAnalysisNodeKey.value = getAnalysisNodeKey(node);
 }
 
 async function refreshAcceptanceArtifacts(): Promise<void> {
@@ -758,6 +811,9 @@ export function useAdminConsoleStore() {
     acceptanceRunPlan,
     acceptanceArtifactDirectories,
     acceptanceTemplates,
+    analysisArtifactDirectories,
+    analysisArtifactList,
+    analysisArtifact,
     acceptanceLastRun,
     shooterWorldDiagnostics,
     lastResponse,
@@ -773,10 +829,13 @@ export function useAdminConsoleStore() {
     roomRobots,
     serverOperation,
     acceptance,
+    analysisArtifacts,
     acceptanceAnalysisFilter,
     runtimeAnalysisFilter,
+    artifactAnalysisFilter,
     selectedAcceptanceAnalysisNodeKey,
     selectedRuntimeAnalysisNodeKey,
+    selectedArtifactAnalysisNodeKey,
     selectedShooterInspectorRoomId,
     selectedShooterWorldEntityKey,
     selectedGameplay,
@@ -812,8 +871,16 @@ export function useAdminConsoleStore() {
     runtimeAnalysisFilteredFlat,
     runtimeAnalysisTimeline,
     runtimeAnalysisEntityRelations,
+    artifactAnalysisRecords,
+    artifactAnalysisTree,
+    artifactAnalysisFlat,
+    artifactAnalysisFilterOptions,
+    artifactAnalysisFilteredFlat,
+    artifactAnalysisTimeline,
+    artifactAnalysisEntityRelations,
     selectedAcceptanceAnalysisNode,
     selectedRuntimeAnalysisNode,
+    selectedArtifactAnalysisNode,
     skillDiagnosticsWarnings,
     skillAnalysisModelNotes,
     apiFailureCount,
@@ -821,6 +888,7 @@ export function useAdminConsoleStore() {
     selectedShooterWorldEntity,
     selectAcceptanceAnalysisNode,
     selectRuntimeAnalysisNode,
+    selectArtifactAnalysisNode,
     isAcceptanceCaseSelected,
     toggleAcceptanceCaseSelection,
     selectAllFilteredAcceptanceCases,
@@ -843,6 +911,11 @@ export function useAdminConsoleStore() {
     refreshAcceptanceArtifactDirectories,
     refreshAcceptanceTemplates,
     refreshAcceptanceArtifacts,
+    refreshAnalysisArtifactDirectories,
+    refreshAnalysisArtifacts,
+    refreshAnalysisArtifact,
+    refreshOfflineAnalysisArtifacts,
+    selectAnalysisArtifactDirectory,
     selectAcceptanceArtifactDirectory,
     applyAcceptanceTemplate,
     runAcceptanceAnalysis,

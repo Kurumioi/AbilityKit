@@ -12,7 +12,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
 {
     internal sealed class ShooterPlayerCommandBattleModule
     {
-        private const float SpreadCenterExplosionRadius = 1.8f;
+        private const float SpreadProjectileExplosionRadius = 2.4f;
+        private const int TwinProjectilePenetrationRemaining = 5;
 
         private readonly ShooterBattleState _state;
         private readonly IShooterEntityManager _entities;
@@ -76,13 +77,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             switch (ShooterPlayerAttackSlots.Normalize(attackSlot))
             {
                 case ShooterPlayerAttackSlots.Spread:
-                    SpawnBullet(in player, player.AimX, player.AimY, 1f, 1f, explosionRadius: SpreadCenterExplosionRadius, explosionDamage: _rules.HitDamage);
-                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, 0.28f), RotateY(player.AimX, player.AimY, 0.28f), 0.92f, 0.85f);
-                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, -0.28f), RotateY(player.AimX, player.AimY, -0.28f), 0.92f, 0.85f);
+                    SpawnBullet(in player, player.AimX, player.AimY, 1f, 1f, explosionRadius: SpreadProjectileExplosionRadius, explosionDamage: _rules.HitDamage);
+                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, 0.28f), RotateY(player.AimX, player.AimY, 0.28f), 0.92f, 0.85f, explosionRadius: SpreadProjectileExplosionRadius, explosionDamage: _rules.HitDamage);
+                    SpawnBullet(in player, RotateX(player.AimX, player.AimY, -0.28f), RotateY(player.AimX, player.AimY, -0.28f), 0.92f, 0.85f, explosionRadius: SpreadProjectileExplosionRadius, explosionDamage: _rules.HitDamage);
                     return;
                 case ShooterPlayerAttackSlots.Twin:
-                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, -0.28f, penetrationRemaining: 2);
-                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, 0.28f, penetrationRemaining: 2);
+                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, -0.28f, penetrationRemaining: TwinProjectilePenetrationRemaining);
+                    SpawnBullet(in player, player.AimX, player.AimY, 1.15f, 0.95f, 0.28f, penetrationRemaining: TwinProjectilePenetrationRemaining);
                     return;
                 default:
                     SpawnBullet(in player, player.AimX, player.AimY, 1f, 1f);
