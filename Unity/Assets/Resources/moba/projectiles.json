@@ -40,7 +40,7 @@
     {
         "Id":  30020101,
         "Name":  "小乔-绽放之舞-扇子投射物",
-        "VfxId":  0,
+        "VfxId":  90002001,
         "Speed":  18.0,
         "LifetimeMs":  2200,
         "MaxDistance":  12.0,

@@ -606,7 +606,21 @@ namespace AbilityKit.Demo.Moba.Services
                 var conditionsPassed = EvaluateTriggerConditions(triggerId, in conditionContext);
                 if (conditionsPassed)
                 {
-                    trigger.Execute(in args, in ctx);
+                    var actionCtx = new ExecCtx<IWorldResolver>(
+                        _services ?? ctx.Context,
+                        ctx.EventBus,
+                        ctx.Functions,
+                        ctx.Actions,
+                        ctx.Blackboards,
+                        ctx.Payloads,
+                        ctx.StronglyTypedPayloads,
+                        ctx.IdNames,
+                        ctx.NumericDomains,
+                        ctx.NumericFunctions,
+                        ctx.Policy,
+                        ctx.Control,
+                        ctx.ActionSchedulerManager);
+                    trigger.Execute(in args, in actionCtx);
                 }
 
                 session.Complete(conditionsPassed);

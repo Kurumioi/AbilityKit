@@ -76,7 +76,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var spawnRequest = decision.SpawnRequest;
             var position = ResolvePosition(in spawnRequest);
             var followTarget = ResolveFollowTarget(in spawnRequest);
-            if (_spawner.TrySpawn(spawnRequest.VfxId, in position, followTarget, out var entity))
+            if (_spawner.TrySpawn(spawnRequest.VfxId, in position, followTarget, spawnRequest.DurationMsOverride, spawnRequest.Scale, spawnRequest.Radius, out var entity))
             {
                 _activeByRequestKey[decision.RequestKey] = entity.Id;
             }
@@ -172,19 +172,38 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
         }
 
-        public bool TrySpawn(int vfxId, in Vector3 position, EC.IEntityId followTarget, out EC.IEntity entity)
+        public bool TrySpawn(int vfxId, in Vector3 position, EC.IEntityId followTarget, int durationMsOverride, float scale, float radius, out EC.IEntity entity)
         {
             entity = default;
             if (!CanSpawn) return false;
             if (vfxId <= 0) return false;
 
-            return _vfx.TryCreateVfxEntity(
-                _ctx.EntityWorld,
-                _vfxNode,
-                vfxId,
-                followTarget,
-                in position,
-                out entity);
+            if (!_vfx.TryCreateVfxEntity(
+                    _ctx.EntityWorld,
+                    _vfxNode,
+                    vfxId,
+                    followTarget,
+                    0,
+                    in position,
+                    Quaternion.identity,
+                    durationMsOverride,
+                    out entity))
+            {
+                return false;
+            }
+
+            ApplyPresentationScale(entity, scale, radius);
+            return true;
+        }
+
+        private static void ApplyPresentationScale(EC.IEntity entity, float scale, float radius)
+        {
+            if (!entity.IsValid) return;
+            if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;
+
+            var resolvedScale = scale > 0f ? scale : 1f;
+            var radiusScale = radius > 0f ? radius : 1f;
+            goComp.GameObject.transform.localScale = Vector3.one * resolvedScale * radiusScale;
         }
 
         public void Destroy(EC.IEntityId id)

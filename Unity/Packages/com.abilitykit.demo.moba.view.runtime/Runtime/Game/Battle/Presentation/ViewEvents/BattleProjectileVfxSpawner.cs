@@ -33,12 +33,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (!spec.IsValid) return false;
 
             var position = spec.Position;
+            var rotation = spec.Rotation;
             return _vfx.TryCreateVfxEntity(
                 _ctx.EntityWorld,
                 _vfxNode,
                 spec.VfxId,
                 spec.FollowTarget,
+                spec.FollowTargetActorId,
                 in position,
+                in rotation,
                 out _);
         }
     }

@@ -2,6 +2,7 @@ using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using Orleans;
 
 namespace AbilityKit.Orleans.Grains.Automation;
@@ -38,8 +39,8 @@ public sealed class ShooterSandboxGrain : Grain, IShooterSandboxGrain
             throw new ArgumentNullException(nameof(request));
         }
 
-        var region = string.IsNullOrWhiteSpace(request.Region) ? "dev" : request.Region;
-        var serverId = string.IsNullOrWhiteSpace(request.ServerId) ? "default" : request.ServerId;
+        var region = string.IsNullOrWhiteSpace(request.Region) ? ShooterServerProtocol.DefaultRegion : request.Region;
+        var serverId = string.IsNullOrWhiteSpace(request.ServerId) ? ShooterServerProtocol.DefaultServerId : request.ServerId;
         var botCount = Math.Clamp(request.BotCount <= 0 ? 4 : request.BotCount, 1, 64);
         var maxPlayers = Math.Max(request.MaxPlayers, botCount + 16);
         var tickRate = request.TickRate > 0 ? request.TickRate : ShooterGameplay.DefaultTickRate;
@@ -54,7 +55,7 @@ public sealed class ShooterSandboxGrain : Grain, IShooterSandboxGrain
             region,
             serverId,
             ShooterGameplay.RoomType,
-            string.IsNullOrWhiteSpace(request.Title) ? "Shooter Server Sandbox" : request.Title,
+            string.IsNullOrWhiteSpace(request.Title) ? ShooterServerProtocol.DefaultSandboxTitle : request.Title,
             IsPublic: true,
             maxPlayers,
             tags));
@@ -79,12 +80,12 @@ public sealed class ShooterSandboxGrain : Grain, IShooterSandboxGrain
             ConfigVersion: 1,
             ProtocolVersion: 1,
             ShooterGameplay.WorldType,
-            ClientId: "server-shooter-sandbox",
+            ClientId: ShooterServerProtocol.SandboxClientId,
             SyncOptions: new BattleSyncStartOptions(
-                "pure-state-authority",
+                ShooterServerProtocol.PureStateAuthorityTemplate,
                 SyncModel: 0,
-                NetworkEnvironmentId: "server-sandbox",
-                CarrierName: "server",
+                NetworkEnvironmentId: ShooterServerProtocol.SandboxNetworkEnvironmentId,
+                CarrierName: ShooterServerProtocol.SandboxCarrierName,
                 EnableAuthoritativeWorld: true,
                 InterpolationEnabled: true,
                 InputDelayFrames: 0)));
@@ -170,9 +171,9 @@ public sealed class ShooterSandboxGrain : Grain, IShooterSandboxGrain
         var tags = requestTags == null
             ? new Dictionary<string, string>(StringComparer.Ordinal)
             : new Dictionary<string, string>(requestTags, StringComparer.Ordinal);
-        tags["tickRate"] = tickRate.ToString();
-        tags["sandbox"] = "shooter";
-        tags["joinMode"] = "running-battle-late-join";
+        tags[ShooterRoomTagKeys.TickRate] = tickRate.ToString();
+        tags[ShooterRoomTagKeys.Sandbox] = ShooterServerProtocol.SandboxTagValue;
+        tags[ShooterRoomTagKeys.JoinMode] = ShooterServerProtocol.RunningBattleLateJoinMode;
         return tags;
     }
 

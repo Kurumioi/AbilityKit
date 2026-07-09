@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private IProjectileService _projectiles;
         private MobaProjectileLinkService _links;
         private MobaActorRegistry _registry;
+        private IMobaActorSpawnService _actorSpawn;
         private AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private MobaTriggerExecutionGateway _triggers;
         private IMobaStageTriggerService _stageTriggers;
@@ -37,6 +38,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private MobaActorDespawnSnapshotService _despawnSnapshots;
         private MobaSkillCastRuntimeService _skillRuntimes;
         private MobaTraceRegistry _trace;
+        private AbilityKit.Demo.Moba.Services.MobaProjectileEventSnapshotService _projectileSnapshots;
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private MobaAuthorityFrameService _authority;
         private IFrameTime _time;
@@ -53,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
         internal MobaProjectileLinkService Links => _links;
         internal MobaActorRegistry Registry => _registry;
+        internal IMobaActorSpawnService ActorSpawn => _actorSpawn;
         internal AbilityKit.Triggering.Eventing.IEventBus EventBus => _eventBus;
         internal MobaTriggerExecutionGateway Triggers => _triggers;
         internal IMobaStageTriggerService StageTriggers => _stageTriggers;
@@ -63,6 +66,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         internal MobaActorDespawnSnapshotService DespawnSnapshots => _despawnSnapshots;
         internal MobaSkillCastRuntimeService SkillRuntimes => _skillRuntimes;
         internal MobaTraceRegistry Trace => _trace;
+        internal AbilityKit.Demo.Moba.Services.MobaProjectileEventSnapshotService ProjectileSnapshots => _projectileSnapshots;
         internal global::ActorContext ActorContext => Contexts.Actor();
 
         public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -75,6 +79,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             Services.TryResolve(out _projectiles);
             Services.TryResolve(out _links);
             Services.TryResolve(out _registry);
+            Services.TryResolve(out _actorSpawn);
             Services.TryResolve(out _eventBus);
             Services.TryResolve(out _triggers);
             Services.TryResolve(out _stageTriggers);
@@ -85,6 +90,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             Services.TryResolve(out _despawnSnapshots);
             Services.TryResolve(out _skillRuntimes);
             Services.TryResolve(out _trace);
+            Services.TryResolve(out _projectileSnapshots);
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _authority);
             Services.TryResolve(out _time);
@@ -101,8 +107,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 
             ProcessSpawns();
             ProcessTicks();
-            ProcessExits();
             ProcessHits();
+            ProcessExits();
         }
 
         private void ProcessSpawns()

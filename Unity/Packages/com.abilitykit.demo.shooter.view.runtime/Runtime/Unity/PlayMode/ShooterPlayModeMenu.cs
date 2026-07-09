@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         private const float Width = 440f;
         private const float TextFieldWidth = 180f;
-        private const string DefaultTemplateId = "predict-rollback-authority";
+        private const string DefaultTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
         private static readonly string[] EnemyBudgetLabels =
         {
             "Playable 512",
@@ -53,8 +54,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private int maxPlayers = 4;
         [SerializeField] private int roomListLimit = 10;
 
-        private readonly ShooterPlayModeAccountState _accountState = new ShooterPlayModeAccountState();
-        private readonly ShooterPlayModeRoomState _roomState = new ShooterPlayModeRoomState();
+        private readonly DemoMultiplayerAccountState _accountState = new DemoMultiplayerAccountState(
+            "unity-account",
+            "unity-guest",
+            ShooterRemoteStateSyncDefaults.DefaultSessionToken);
+        private readonly DemoRoomListState<ShooterGatewayRoomSummary> _roomState = new DemoRoomListState<ShooterGatewayRoomSummary>();
         private string _status = "Ready";
         private string _error = string.Empty;
         private bool _busy;
@@ -492,15 +496,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var template = ShooterAcceptanceCatalog.GetSyncTemplate(NormalizeOrDefault(sessionOptions.SyncTemplateId, DefaultTemplateId));
             var tags = new Dictionary<string, string>(defaults.Tags, StringComparer.Ordinal)
             {
-                ["syncTemplateId"] = template.Id,
-                ["syncModel"] = ((int)template.SyncModel).ToString(),
-                ["networkEnvironmentId"] = template.NetworkEnvironmentId,
-                ["carrierName"] = template.ExpectedCarrierName,
-                ["enableAuthoritativeWorld"] = template.EnableAuthoritativeWorld.ToString(),
-                ["interpolationEnabled"] = template.ExpectsInterpolationDiagnostics.ToString(),
-                ["inputDelayFrames"] = "0",
-                ["randomSeed"] = sessionOptions.RandomSeed.ToString(),
-                ["durationFrames"] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString()
+                [ShooterRoomLaunchTagKeys.SyncTemplateId] = template.Id,
+                [ShooterRoomLaunchTagKeys.SyncModel] = ((int)template.SyncModel).ToString(),
+                [ShooterRoomLaunchTagKeys.NetworkEnvironmentId] = template.NetworkEnvironmentId,
+                [ShooterRoomLaunchTagKeys.CarrierName] = template.ExpectedCarrierName,
+                [ShooterRoomLaunchTagKeys.EnableAuthoritativeWorld] = template.EnableAuthoritativeWorld.ToString(),
+                [ShooterRoomLaunchTagKeys.InterpolationEnabled] = template.ExpectsInterpolationDiagnostics.ToString(),
+                [ShooterRoomLaunchTagKeys.InputDelayFrames] = "0",
+                [ShooterRoomLaunchTagKeys.RandomSeed] = sessionOptions.RandomSeed.ToString(),
+                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString()
             };
 
             return new ShooterRoomLaunchSpec(

@@ -69,35 +69,29 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, plan.PredicateId)} arity=0");
 
                 case 1:
-                    if (ctx.Functions.TryGet<Predicate1<TArgs, TCtx>>(plan.PredicateId, out var p1, out var p1Det))
+                {
+                    var v0 = ResolveNumeric(in args, in plan.PredicateArg0, in ctx);
+                    var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0);
+                    if (TryInvokePredicate1(plan.PredicateId, in args, argsDict, in ctx, out var result))
                     {
-                        if (ctx.Policy.RequireDeterministic && !p1Det)
-                        {
-                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, plan.PredicateId)}");
-                        }
-
-                        var v0 = ResolveNumeric(in args, in plan.PredicateArg0, in ctx);
-                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0);
-                        return p1?.Invoke(args, argsDict, ctx) ?? true;
+                        return result;
                     }
 
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, plan.PredicateId)} arity=1");
+                }
 
                 case 2:
-                    if (ctx.Functions.TryGet<Predicate2<TArgs, TCtx>>(plan.PredicateId, out var p2, out var p2Det))
+                {
+                    var v0 = ResolveNumeric(in args, in plan.PredicateArg0, in ctx);
+                    var v1 = ResolveNumeric(in args, in plan.PredicateArg1, in ctx);
+                    var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0, v1);
+                    if (TryInvokePredicate2(plan.PredicateId, in args, argsDict, in ctx, out var result))
                     {
-                        if (ctx.Policy.RequireDeterministic && !p2Det)
-                        {
-                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, plan.PredicateId)}");
-                        }
-
-                        var v0 = ResolveNumeric(in args, in plan.PredicateArg0, in ctx);
-                        var v1 = ResolveNumeric(in args, in plan.PredicateArg1, in ctx);
-                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0, v1);
-                        return p2?.Invoke(args, argsDict, ctx) ?? true;
+                        return result;
                     }
 
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, plan.PredicateId)} arity=2");
+                }
 
                 default:
                     throw new InvalidOperationException($"Unsupported predicate arity: {plan.PredicateArity}");
@@ -210,38 +204,80 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=0");
 
                 case 1:
-                    if (ctx.Functions.TryGet<Predicate1<TArgs, TCtx>>(node.FunctionId, out var p1, out var p1Det))
+                {
+                    var v0 = ResolveNumeric(in args, in node.Left, in ctx);
+                    var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0);
+                    if (TryInvokePredicate1(node.FunctionId, in args, argsDict, in ctx, out var result))
                     {
-                        if (ctx.Policy.RequireDeterministic && !p1Det)
-                        {
-                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, node.FunctionId)}");
-                        }
-
-                        var v0 = ResolveNumeric(in args, in node.Left, in ctx);
-                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0);
-                        return p1?.Invoke(args, argsDict, ctx) ?? true;
+                        return result;
                     }
 
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=1");
+                }
 
                 case 2:
-                    if (ctx.Functions.TryGet<Predicate2<TArgs, TCtx>>(node.FunctionId, out var p2, out var p2Det))
+                {
+                    var v0 = ResolveNumeric(in args, in node.Left, in ctx);
+                    var v1 = ResolveNumeric(in args, in node.Right, in ctx);
+                    var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0, v1);
+                    if (TryInvokePredicate2(node.FunctionId, in args, argsDict, in ctx, out var result))
                     {
-                        if (ctx.Policy.RequireDeterministic && !p2Det)
-                        {
-                            throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, node.FunctionId)}");
-                        }
-
-                        var v0 = ResolveNumeric(in args, in node.Left, in ctx);
-                        var v1 = ResolveNumeric(in args, in node.Right, in ctx);
-                        var argsDict = PlannedTriggerArgumentResolver<TArgs, TCtx>.CreatePositionalArgs(v0, v1);
-                        return p2?.Invoke(args, argsDict, ctx) ?? true;
+                        return result;
                     }
 
                     throw new InvalidOperationException($"Predicate function not found. id={FormatFunctionId(in ctx, node.FunctionId)} arity=2");
+                }
 
                 default:
                     throw new InvalidOperationException($"Unsupported predicate arity: {node.FunctionArity}");
+            }
+        }
+
+        private static bool TryInvokePredicate1(FunctionId functionId, in TArgs args, NamedArgsDict argsDict, in ExecCtx<TCtx> ctx, out bool result)
+        {
+            if (ctx.Functions.TryGet<Predicate1<TArgs, TCtx>>(functionId, out var predicate, out var deterministic))
+            {
+                EnsureDeterministic(functionId, deterministic, in ctx);
+                result = predicate?.Invoke(args, argsDict, ctx) ?? true;
+                return true;
+            }
+
+            if (ctx.Functions.TryGet<Predicate1<object, TCtx>>(functionId, out var objectPredicate, out deterministic))
+            {
+                EnsureDeterministic(functionId, deterministic, in ctx);
+                result = objectPredicate?.Invoke(args, argsDict, ctx) ?? true;
+                return true;
+            }
+
+            result = false;
+            return false;
+        }
+
+        private static bool TryInvokePredicate2(FunctionId functionId, in TArgs args, NamedArgsDict argsDict, in ExecCtx<TCtx> ctx, out bool result)
+        {
+            if (ctx.Functions.TryGet<Predicate2<TArgs, TCtx>>(functionId, out var predicate, out var deterministic))
+            {
+                EnsureDeterministic(functionId, deterministic, in ctx);
+                result = predicate?.Invoke(args, argsDict, ctx) ?? true;
+                return true;
+            }
+
+            if (ctx.Functions.TryGet<Predicate2<object, TCtx>>(functionId, out var objectPredicate, out deterministic))
+            {
+                EnsureDeterministic(functionId, deterministic, in ctx);
+                result = objectPredicate?.Invoke(args, argsDict, ctx) ?? true;
+                return true;
+            }
+
+            result = false;
+            return false;
+        }
+
+        private static void EnsureDeterministic(FunctionId functionId, bool deterministic, in ExecCtx<TCtx> ctx)
+        {
+            if (ctx.Policy.RequireDeterministic && !deterministic)
+            {
+                throw new InvalidOperationException($"Non-deterministic predicate is not allowed by policy. id={FormatFunctionId(in ctx, functionId)}");
             }
         }
 

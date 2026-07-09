@@ -12,6 +12,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetX;
         public readonly float OffsetY;
         public readonly float OffsetZ;
+        public readonly bool HasTargetRequest;
+        public readonly MobaActionTargetRequest TargetRequest;
 
         public SpawnAreaArgs(
             int areaId,
@@ -23,7 +25,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int collisionLayerMaskOverride,
             float offsetX,
             float offsetY,
-            float offsetZ)
+            float offsetZ,
+            bool hasTargetRequest = false,
+            MobaActionTargetRequest targetRequest = default)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -35,6 +39,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetX = offsetX;
             OffsetY = offsetY;
             OffsetZ = offsetZ;
+            HasTargetRequest = hasTargetRequest;
+            TargetRequest = targetRequest;
         }
     }
 }

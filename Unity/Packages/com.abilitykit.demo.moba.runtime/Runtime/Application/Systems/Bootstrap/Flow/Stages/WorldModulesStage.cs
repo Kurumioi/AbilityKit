@@ -62,6 +62,10 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 payloads.RegisterIntAccessor<SkillPipelineContext>(skillAccessor);
                 payloads.RegisterDoubleAccessor<SkillPipelineContext>(skillAccessor);
 
+                var skillCastAccessor = new SkillCastContextPayloadAccessor();
+                payloads.RegisterIntAccessor<SkillCastContext>(skillCastAccessor);
+                payloads.RegisterDoubleAccessor<SkillCastContext>(skillCastAccessor);
+
                 var skillObjectAccessor = new SkillPipelineContextObjectPayloadAccessor(skillAccessor);
                 payloads.RegisterIntAccessor<object>(skillObjectAccessor);
                 payloads.RegisterDoubleAccessor<object>(skillObjectAccessor);

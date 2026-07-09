@@ -174,8 +174,8 @@
 
                               ],
         "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
+        "StackingPolicy":  4,
+        "RefreshPolicy":  2,
         "MaxStacks":  1,
         "TriggerIds":  [
 
@@ -198,6 +198,7 @@
         "Name":  "小乔-星华缭乱-持续落星状态",
         "DurationMs":  5000,
         "OngoingEffectId":  20020301,
+        "PresentationTemplateId":  90002003,
         "OnAddEffects":  [
 
                          ],

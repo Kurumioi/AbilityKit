@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Rooms;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
@@ -44,22 +45,22 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
     public List<RoomPlayerSnapshot> BuildPlayerSnapshots(object state)
     {
         var roomState = RequireState(state);
-        var players = new List<RoomPlayerSnapshot>(roomState.Players.Count);
-        var index = 0;
-        foreach (var kv in roomState.Players)
+        var slots = BuildOrderedPlayerSlots(roomState);
+        var players = new List<RoomPlayerSnapshot>(slots.Count);
+        foreach (var kv in slots)
         {
-            index++;
+            var slot = kv.Value;
             players.Add(new RoomPlayerSnapshot(
                 kv.Key,
                 TeamId: 1,
-                Ready: kv.Value.Ready,
-                HeroId: index,
-                SpawnPointId: index,
+                Ready: slot.Ready,
+                HeroId: slot.PlayerId,
+                SpawnPointId: slot.PlayerId,
                 Level: 1,
                 AttributeTemplateId: 0,
                 BasicAttackSkillId: 0,
                 SkillIds: null,
-                PlayerId: (uint)index));
+                PlayerId: (uint)slot.PlayerId));
         }
 
         return players;
@@ -68,41 +69,33 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
     public PlayerInitInfo? BuildLateJoinPlayer(object state, RoomSummary summary, string accountId)
     {
         var roomState = RequireState(state);
-        var index = 0;
-        foreach (var kv in roomState.Players)
+        if (string.IsNullOrWhiteSpace(accountId) || !roomState.Players.TryGetValue(accountId, out var slot))
         {
-            index++;
-            if (!string.Equals(kv.Key, accountId, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            return CreatePlayerInitInfo(index, kv.Key);
+            return null;
         }
 
-        return null;
+        return CreatePlayerInitInfo(slot.PlayerId, accountId);
     }
 
     public BattleInitParams BuildBattleInitParams(object state, RoomSummary summary, StartRoomBattleRequest request)
     {
         var roomState = RequireState(state);
-        var players = new List<PlayerInitInfo>(roomState.Players.Count);
-        var index = 0;
-        foreach (var kv in roomState.Players)
+        var slots = BuildOrderedPlayerSlots(roomState);
+        var players = new List<PlayerInitInfo>(slots.Count);
+        foreach (var kv in slots)
         {
-            index++;
-            players.Add(CreatePlayerInitInfo(index, kv.Key));
+            players.Add(CreatePlayerInitInfo(kv.Value.PlayerId, kv.Key));
         }
 
         var syncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
         return new BattleInitParams
         {
             WorldId = CreateNumericWorldId(summary.RoomId),
-            TickRate = ReadIntTag(summary, "tickRate", ShooterGameplay.DefaultTickRate),
-            MapId = ReadIntTag(summary, "mapId", 1),
-            RandomSeed = ReadIntTag(summary, "randomSeed", Environment.TickCount),
+            TickRate = ReadIntTag(summary, ShooterRoomTagKeys.TickRate, ShooterGameplay.DefaultTickRate),
+            MapId = ReadIntTag(summary, ShooterRoomTagKeys.MapId, 1),
+            RandomSeed = ReadIntTag(summary, ShooterRoomTagKeys.RandomSeed, Environment.TickCount),
             InputDelayFrames = syncOptions.InputDelayFrames,
-            DurationFrames = ReadIntTag(summary, "durationFrames", 0),
+            DurationFrames = ReadIntTag(summary, ShooterRoomTagKeys.DurationFrames, 0),
             Players = players,
             GameplayId = request.GameplayId > 0 ? request.GameplayId : ShooterGameplay.GameplayId,
             RuleSetId = request.RuleSetId,
@@ -115,15 +108,15 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         };
     }
 
-    private static PlayerInitInfo CreatePlayerInitInfo(int index, string accountId)
+    private static PlayerInitInfo CreatePlayerInitInfo(int playerId, string accountId)
     {
         return new PlayerInitInfo
         {
-            PlayerId = (uint)index,
+            PlayerId = (uint)playerId,
             AccountId = accountId,
-            ActorId = index,
-            HeroId = index,
-            PosX = (index - 1) * 2f,
+            ActorId = playerId,
+            HeroId = playerId,
+            PosX = (playerId - 1) * 2f,
             PosY = 0f,
             PosZ = 0f,
             TeamId = 1,
@@ -132,6 +125,13 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             BasicAttackSkillId = 1,
             SkillIds = new List<int> { 1 }
         };
+    }
+
+    private static List<KeyValuePair<string, ShooterRoomPlayer>> BuildOrderedPlayerSlots(ShooterRoomState roomState)
+    {
+        var slots = new List<KeyValuePair<string, ShooterRoomPlayer>>(roomState.Players);
+        slots.Sort(static (left, right) => left.Value.PlayerId.CompareTo(right.Value.PlayerId));
+        return slots;
     }
 
     private static ShooterRoomState RequireState(object state)
@@ -177,19 +177,26 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
         public Dictionary<string, ShooterRoomPlayer> Players { get; } = new(StringComparer.Ordinal);
 
+        private SortedSet<int> ReleasedPlayerIds { get; } = new();
+
+        private int NextPlayerId { get; set; } = 1;
+
         public void Join(string accountId)
         {
             if (string.IsNullOrWhiteSpace(accountId)) return;
             if (Players.ContainsKey(accountId)) return;
             if (Players.Count >= MaxPlayers) throw new InvalidOperationException("Shooter room is full.");
 
-            Players[accountId] = new ShooterRoomPlayer();
+            Players[accountId] = new ShooterRoomPlayer(AllocatePlayerId());
         }
 
         public void Leave(string accountId)
         {
             if (string.IsNullOrWhiteSpace(accountId)) return;
-            Players.Remove(accountId);
+            if (Players.Remove(accountId, out var player))
+            {
+                ReleasedPlayerIds.Add(player.PlayerId);
+            }
         }
 
         public void SetReady(string accountId, bool ready)
@@ -211,10 +218,29 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
             return true;
         }
+
+        private int AllocatePlayerId()
+        {
+            if (ReleasedPlayerIds.Count > 0)
+            {
+                var playerId = ReleasedPlayerIds.Min;
+                ReleasedPlayerIds.Remove(playerId);
+                return playerId;
+            }
+
+            return NextPlayerId++;
+        }
     }
 
     private sealed class ShooterRoomPlayer
     {
+        public ShooterRoomPlayer(int playerId)
+        {
+            PlayerId = playerId;
+        }
+
+        public int PlayerId { get; }
+
         public bool Ready;
     }
 }

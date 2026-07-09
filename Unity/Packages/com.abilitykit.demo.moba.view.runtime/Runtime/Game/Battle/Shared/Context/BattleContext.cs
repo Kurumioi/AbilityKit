@@ -44,6 +44,7 @@ namespace AbilityKit.Game.Flow
             LogicTimeSeconds = 0d;
 
             LocalActorId = 0;
+            LocalControlPlayerId = null;
 
             Hooks = null;
 

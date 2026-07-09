@@ -2,10 +2,8 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -16,19 +14,14 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaAreaEventSnapshotService : IService, IMobaSnapshotEmitter
     {
         private readonly MobaLogicWorldRunGateService _phase;
-        private readonly IProjectileService _projectiles;
         private readonly MobaAreaRuntimeService _areaRuntime;
+        private readonly List<MobaAreaEventSnapshotEntry> _entries = new List<MobaAreaEventSnapshotEntry>(32);
 
         private FrameIndex _lastFrame;
 
-        private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
-        private readonly List<AreaExpireEvent> _expires = new List<AreaExpireEvent>(32);
-        private readonly MobaSnapshotBuffer<MobaAreaEventSnapshotEntry> _areaEntries = new MobaSnapshotBuffer<MobaAreaEventSnapshotEntry>(32, 512);
-
-        public MobaAreaEventSnapshotService(MobaLogicWorldRunGateService phase, IProjectileService projectiles, MobaAreaRuntimeService areaRuntime)
+        public MobaAreaEventSnapshotService(MobaLogicWorldRunGateService phase, MobaAreaRuntimeService areaRuntime)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
-            _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _areaRuntime = areaRuntime ?? throw new ArgumentNullException(nameof(areaRuntime));
             _lastFrame = new FrameIndex(-999999);
         }
@@ -48,66 +41,22 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
-            _spawns.Clear();
-            _expires.Clear();
-
-            if (_projectiles is AbilityKit.Combat.Projectile.ProjectileService ps)
-            {
-                ps.PeekAreaSpawnEvents(_spawns);
-                ps.PeekAreaExpireEvents(_expires);
-            }
-            else
-            {
-                _projectiles.DrainAreaSpawnEvents(_spawns);
-                _projectiles.DrainAreaExpireEvents(_expires);
-            }
-
-            if (_spawns.Count == 0 && _expires.Count == 0)
+            _entries.Clear();
+            _areaRuntime.DrainPresentationEvents(_entries);
+            if (_entries.Count == 0)
             {
                 snapshot = default;
                 return false;
             }
 
-            _areaEntries.Clear();
-
-            for (int i = 0; i < _spawns.Count; i++)
-            {
-                var e = _spawns[i];
-                var templateId = RequireTemplateId(e.Area.Value);
-                _areaEntries.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Spawn, e.Area.Value, e.OwnerId, templateId, e.Center.X, e.Center.Y, e.Center.Z, e.Radius));
-            }
-
-            for (int i = 0; i < _expires.Count; i++)
-            {
-                var e = _expires[i];
-                _areaEntries.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Expire, e.Area.Value, e.OwnerId, 0, 0f, 0f, 0f, 0f));
-            }
-
-            var payload = MobaAreaEventSnapshotCodec.Serialize(_areaEntries.ToArrayClearAndTrim());
+            var payload = MobaAreaEventSnapshotCodec.Serialize(_entries.ToArray());
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.AreaEvent, payload);
             return true;
         }
 
-        private int RequireTemplateId(int areaId)
-        {
-            if (!_areaRuntime.TryGetArea(areaId, out var info))
-            {
-                throw new InvalidOperationException($"Area snapshot missing runtime metadata. areaId={areaId}");
-            }
-
-            if (info.TemplateId <= 0)
-            {
-                throw new InvalidOperationException($"Area snapshot missing template id. areaId={areaId}");
-            }
-
-            return info.TemplateId;
-        }
-
         public void Dispose()
         {
-            _spawns.Clear();
-            _expires.Clear();
-            _areaEntries.ClearAndTrim();
+            _entries.Clear();
             _lastFrame = new FrameIndex(-999999);
         }
     }

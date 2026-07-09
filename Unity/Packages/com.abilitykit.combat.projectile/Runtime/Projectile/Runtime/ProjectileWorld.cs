@@ -206,15 +206,17 @@ namespace AbilityKit.Combat.Projectile
                     continue;
                 }
 
-                // 返回发射者逻辑（服务器权威）。
+                // 返回发射者逻辑（服务器权威）。MaxDistance 只约束出程，回程由 ReturnArrived/Lifetime 结束。
                 if (!p.IsReturning && p.ReturnAfterFrames > 0 && frame - p.SpawnFrame >= p.ReturnAfterFrames)
                 {
                     p.IsReturning = true;
+                    p.DistanceLeft = 0f;
                 }
 
                 if (p.IsReturning)
                 {
-                    if (_returnTargetProvider == null || p.LauncherActorId <= 0 || !_returnTargetProvider.TryGetReturnTargetPosition(p.LauncherActorId, out var targetPos))
+                    if (_returnTargetProvider == null ||
+                        !TryResolveReturnTarget(p.LauncherActorId, p.RootActorId, out var targetPos))
                     {
                         exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.ReturnTargetLost, frame, p.Position));
                         RemoveAtSwapBack(i);
@@ -402,6 +404,19 @@ namespace AbilityKit.Combat.Projectile
             NextProjectile:
                 ;
             }
+        }
+
+        private bool TryResolveReturnTarget(int launcherActorId, int rootActorId, out Vec3 position)
+        {
+            position = Vec3.Zero;
+            if (_returnTargetProvider == null) return false;
+
+            if (launcherActorId > 0 && _returnTargetProvider.TryGetReturnTargetPosition(launcherActorId, out position))
+            {
+                return true;
+            }
+
+            return rootActorId > 0 && rootActorId != launcherActorId && _returnTargetProvider.TryGetReturnTargetPosition(rootActorId, out position);
         }
 
         private void RemoveAtSwapBack(int index)

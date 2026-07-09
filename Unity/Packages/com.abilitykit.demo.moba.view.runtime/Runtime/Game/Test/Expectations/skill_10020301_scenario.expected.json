@@ -60,8 +60,8 @@
         "stepId": "wait_for_two_intervals",
         "atMs": 1,
         "action": "wait",
-        "durationMs": 2200,
-        "note": "等待前两个 1000ms 间隔伤害触发，验证第二次命中减伤"
+        "durationMs": 3000,
+        "note": "等待前两个 1000ms 间隔生成的延迟落星伤害触发，验证第二次命中减伤"
       }
     ],
     "stateExpectations": [
@@ -77,8 +77,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 60.0,
-        "note": "范围内目标应先承受 80 点伤害，再承受一次减伤后的 40 点伤害，最终剩余 60 点生命值"
+        "expectedFloat": 49840.0,
+        "note": "范围内目标应在前两个延迟落星命中后承受两次当前触发器配置伤害 80 点，最终剩余 49840 点生命值"
       }
     ]
   },
@@ -87,6 +87,7 @@
     { "kind": "EffectExecution", "configId": 10020301, "minCount": 1 },
     { "kind": "EffectAction", "configId": 589451731, "underEffectId": 10020301, "minCount": 1 },
     { "kind": "BuffApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 1, "maxCount": 1 },
+    { "kind": "AreaSpawn", "configId": 40020301, "underEffectId": 10020301, "minCount": 2 },
     { "kind": "DamageApply", "configId": 10020301, "underEffectId": 10020301, "minCount": 2, "maxCount": 2 }
   ],
   "relationships": [

@@ -306,6 +306,31 @@ namespace AbilityKit.Game.Test.UnitTest
             return HasActorBuff(actorId, buffId, message ?? $"Actor entity missing for alias {alias}({actorId}).");
         }
 
+        public bool TryGetActorBuffRemainingSeconds(int actorId, int buffId, out float remainingSeconds, string message = null)
+        {
+            remainingSeconds = 0f;
+            Assert.Greater(buffId, 0, message ?? "buffId must be positive.");
+            var entity = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            if (!entity.hasBuffs || entity.buffs.Active == null) return false;
+
+            for (var i = 0; i < entity.buffs.Active.Count; i++)
+            {
+                var runtime = entity.buffs.Active[i];
+                if (runtime == null || runtime.BuffId != buffId) continue;
+
+                remainingSeconds = runtime.Continuous != null ? runtime.Continuous.RemainingSeconds : runtime.Remaining;
+                return true;
+            }
+
+            return false;
+        }
+
+        public float AssertActorBuffRemainingSeconds(int actorId, int buffId, string message = null)
+        {
+            Assert.IsTrue(TryGetActorBuffRemainingSeconds(actorId, buffId, out var remainingSeconds, message), message ?? $"Actor {actorId} should have buff {buffId}.");
+            return remainingSeconds;
+        }
+
         public bool TryGetRunningSkillSnapshot(int actorId, int slot, out SkillPipelineRunner.RunningSnapshot snapshot)
         {
             snapshot = default;

@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             for (var i = 0; i < count; i++)
             {
                 var evt = exits[i];
+                _sys.ProjectileSnapshots?.RecordExit(evt);
                 _sys.StageTriggers?.ExecuteProjectileExit(evt);
                 DecrementLauncherActiveBullets(evt.LauncherActorId);
                 if (!_sys.Links.TryGetActorId(evt.Projectile, out var actorId) || actorId <= 0) continue;

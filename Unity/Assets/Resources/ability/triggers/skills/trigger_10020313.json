@@ -14,7 +14,9 @@
           "type": "give_damage",
           "damage_value": 80,
           "damage_type": 2,
-          "reason_param": 10020301
+          "reason_param": 10020301,
+          "target_query_id": 50020302,
+          "target_max_count": 1
         },
         {
           "type": "debug_log",

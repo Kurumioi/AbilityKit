@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Gateway.HttpApi;
 using Xunit;
 
@@ -163,13 +164,11 @@ public sealed class GatewayAdminConsoleTests
     {
         var shooter = Assert.Single(GatewayGameplayCatalog.All, gameplay => gameplay.RoomType == "shooter");
 
-        Assert.Equal("predict-rollback-authority", shooter.DefaultSyncTemplateId);
-        Assert.Equal(
-            new[] { "predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority" },
-            shooter.SupportedSyncTemplateIds);
-        Assert.DoesNotContain("batch-state-sync", shooter.SupportedSyncTemplateIds);
-        Assert.DoesNotContain("mass-battle-lod", shooter.SupportedSyncTemplateIds);
-        Assert.DoesNotContain("hybrid-hero-prediction", shooter.SupportedSyncTemplateIds);
+        Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, shooter.DefaultSyncTemplateId);
+        Assert.Equal(ShooterServerProtocol.CreateStateSyncTemplateIds(), shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.BatchStateLowFrequencyTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.MassBattleLodAoiTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.HybridHeroPredictionTemplate, shooter.SupportedSyncTemplateIds);
     }
 
     [Fact]

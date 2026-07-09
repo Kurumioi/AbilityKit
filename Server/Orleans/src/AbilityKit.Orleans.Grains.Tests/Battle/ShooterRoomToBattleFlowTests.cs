@@ -1,6 +1,7 @@
 ﻿using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplay;
@@ -147,7 +148,7 @@ public sealed class ShooterRoomToBattleFlowTests
         Assert.Equal(13, initParams.ProtocolVersion);
         Assert.Equal(4, initParams.InputDelayFrames);
         Assert.NotNull(initParams.SyncOptions);
-        Assert.Equal("runtime-snapshot-interpolation", initParams.SyncOptions!.SyncTemplateId);
+        Assert.Equal(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate, initParams.SyncOptions!.SyncTemplateId);
         Assert.Equal(3, initParams.SyncOptions.SyncModel);
         Assert.Equal("wan-lossy", initParams.SyncOptions.NetworkEnvironmentId);
         Assert.Equal("OrleansGateway", initParams.SyncOptions.CarrierName);
@@ -297,16 +298,16 @@ public sealed class ShooterRoomToBattleFlowTests
             CreatedAtUnixMs: 0,
             Tags: new Dictionary<string, string>
             {
-                ["tickRate"] = "30",
-                ["mapId"] = "77",
-                ["randomSeed"] = "2468",
-                ["syncTemplateId"] = "runtime-snapshot-interpolation",
-                ["syncModel"] = "3",
-                ["networkEnvironmentId"] = "wan-lossy",
-                ["carrierName"] = "OrleansGateway",
-                ["enableAuthoritativeWorld"] = "false",
-                ["interpolationEnabled"] = "true",
-                ["inputDelayFrames"] = "4"
+                [ShooterRoomTagKeys.TickRate] = "30",
+                [ShooterRoomTagKeys.MapId] = "77",
+                [ShooterRoomTagKeys.RandomSeed] = "2468",
+                [ShooterRoomTagKeys.SyncTemplateId] = ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate,
+                [ShooterRoomTagKeys.SyncModel] = "3",
+                [ShooterRoomTagKeys.NetworkEnvironmentId] = "wan-lossy",
+                [ShooterRoomTagKeys.CarrierName] = "OrleansGateway",
+                [ShooterRoomTagKeys.EnableAuthoritativeWorld] = "false",
+                [ShooterRoomTagKeys.InterpolationEnabled] = "true",
+                [ShooterRoomTagKeys.InputDelayFrames] = "4"
             });
     }
 }

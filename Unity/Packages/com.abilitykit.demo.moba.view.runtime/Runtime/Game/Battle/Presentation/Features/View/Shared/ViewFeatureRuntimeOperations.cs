@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Flow
         public void TickVfx(IViewFeatureRuntime runtime)
         {
             if (runtime == null) return;
-            if (runtime.VfxNode.IsValid) runtime.Vfx?.Tick(runtime.VfxNode, runtime.Binder);
+            if (runtime.VfxNode.IsValid) runtime.Vfx?.Tick(runtime.VfxNode, runtime.Binder, runtime.Query);
         }
 
         public void TickFloatingTexts(IViewFeatureRuntime runtime, float deltaTime)

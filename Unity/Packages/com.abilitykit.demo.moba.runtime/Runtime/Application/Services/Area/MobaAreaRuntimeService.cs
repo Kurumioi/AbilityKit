@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Area
@@ -23,6 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
         private readonly Dictionary<int, List<int>> _areasByTemplate = new Dictionary<int, List<int>>();
         private readonly HashSet<int> _delayTriggeredAreas = new HashSet<int>();
         private readonly List<int> _queryBuffer = new List<int>(32);
+        private readonly MobaSnapshotBuffer<MobaAreaEventSnapshotEntry> _presentationEvents = new MobaSnapshotBuffer<MobaAreaEventSnapshotEntry>(32, 512);
 
         public int ActiveCount => _areas.Count;
 
@@ -70,6 +72,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _delayTriggeredAreas.Remove(areaId.Value);
             Index(_areasByOwner, ownerActorId, areaId.Value);
             Index(_areasByTemplate, templateId, areaId.Value);
+            _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Spawn, areaId.Value, ownerActorId, templateId, center.X, center.Y, center.Z, radius));
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Area, ActiveCount, frame);
         }
 
@@ -81,9 +84,16 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _areas.Remove(areaId.Value);
             _delayTriggeredAreas.Remove(areaId.Value);
             Unindex(info);
+            _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Expire, info.AreaId, info.OwnerActorId, info.TemplateId, info.Center.X, info.Center.Y, info.Center.Z, info.Radius));
             EndAreaTrace(in info, TraceLifecycleReason.Completed);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
             return true;
+        }
+
+        public int DrainPresentationEvents(IList<MobaAreaEventSnapshotEntry> results)
+        {
+            if (results == null) return 0;
+            return _presentationEvents.DrainTo(results);
         }
 
         public bool TryGetArea(int areaId, out MobaAreaRuntimeInfo info)
@@ -167,6 +177,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _areasByTemplate.Clear();
             _queryBuffer.Clear();
             _delayTriggeredAreas.Clear();
+            _presentationEvents.ClearAndTrim();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Area, 0, CurrentFrame);
         }
 

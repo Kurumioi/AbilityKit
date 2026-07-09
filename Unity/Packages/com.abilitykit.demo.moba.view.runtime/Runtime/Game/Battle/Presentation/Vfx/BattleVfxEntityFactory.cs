@@ -27,6 +27,21 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, out EC.IEntity entity)
         {
+            return TryCreateEntity(world, parent, vfxId, followTarget, in position, Quaternion.identity, out entity);
+        }
+
+        public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, in Quaternion rotation, out EC.IEntity entity)
+        {
+            return TryCreateEntity(world, parent, vfxId, followTarget, 0, in position, in rotation, out entity);
+        }
+
+        public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, out EC.IEntity entity)
+        {
+            return TryCreateEntity(world, parent, vfxId, followTarget, followTargetActorId, in position, in rotation, 0, out entity);
+        }
+
+        public bool TryCreateEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, int durationMsOverride, out EC.IEntity entity)
+        {
             entity = default;
             if (world == null) return false;
             if (!parent.IsValid) return false;
@@ -34,11 +49,7 @@ namespace AbilityKit.Game.Battle.Vfx
 
             var durationMs = 650;
             GameObject go;
-            if (BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId))
-            {
-                go = _gameObjects.CreatePlaceholder(vfxId);
-            }
-            else if (_db.TryGet(vfxId, out var dto) && dto != null && !string.IsNullOrEmpty(dto.Resource))
+            if (_db.TryGet(vfxId, out var dto) && dto != null && !string.IsNullOrEmpty(dto.Resource))
             {
                 go = _gameObjects.Create(vfxId, dto.Resource);
                 durationMs = dto.DurationMs;
@@ -48,9 +59,14 @@ namespace AbilityKit.Game.Battle.Vfx
                 go = _gameObjects.CreatePlaceholder(vfxId);
             }
 
-            go.transform.position = position;
+            if (durationMsOverride > 0)
+            {
+                durationMs = durationMsOverride;
+            }
 
-            entity = _entities.Create(world, parent, vfxId, followTarget, go, durationMs);
+            go.transform.SetPositionAndRotation(position, rotation);
+
+            entity = _entities.Create(world, parent, vfxId, followTarget, followTargetActorId, go, durationMs);
             return true;
         }
     }
@@ -69,6 +85,7 @@ namespace AbilityKit.Game.Battle.Vfx
             EC.IEntity parent,
             int vfxId,
             EC.IEntityId followTarget,
+            int followTargetActorId,
             GameObject go,
             int durationMs)
         {
@@ -76,7 +93,7 @@ namespace AbilityKit.Game.Battle.Vfx
             vfxEntity.SetName($"Vfx_{vfxId}");
             vfxEntity.WithRef(new BattleVfxComponent { VfxId = vfxId });
             vfxEntity.WithRef(new BattleViewGameObjectComponent { GameObject = go });
-            vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, Offset = Vector3.zero });
+            vfxEntity.WithRef(new BattleViewFollowComponent { Target = followTarget, TargetActorId = followTargetActorId, Offset = Vector3.zero });
 
             _lifetime.AttachIfNeeded(vfxEntity, durationMs);
             return vfxEntity;

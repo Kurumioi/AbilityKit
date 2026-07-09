@@ -4,6 +4,7 @@
       "id": 10010000,
       "name": "廉颇-勇士之魂-释放技能时霸体战意",
       "event": "skill.cast.complete",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",

@@ -4,6 +4,7 @@ using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Battle;
@@ -290,7 +291,15 @@ internal sealed class ServerGameplayModuleCatalog
             }),
         new ServerGameplayModule(
             ServerGameplayDescriptors.Shooter,
-            ServerBattleSyncProfile.StateSync("predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority"),
+            ServerBattleSyncProfile.StateSync(
+                ShooterServerProtocol.PredictRollbackAuthorityTemplate,
+                ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate,
+                ShooterServerProtocol.BatchStateLowFrequencyTemplate,
+                ShooterServerProtocol.MassBattleLodAoiTemplate,
+                ShooterServerProtocol.HybridHeroPredictionTemplate,
+                ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate,
+                ShooterServerProtocol.StateSyncAuthorityTemplate,
+                ShooterServerProtocol.PureStateAuthorityTemplate),
             static () => new ShooterRoomGameplayAdapter(),
             static worldManager => new ShooterBattleRuntimeAdapter(worldManager),
             new Func<IWorldBlueprint>[]

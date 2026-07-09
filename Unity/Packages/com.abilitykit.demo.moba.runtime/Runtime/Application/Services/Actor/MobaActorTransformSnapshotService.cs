@@ -53,8 +53,10 @@ namespace AbilityKit.Demo.Moba.Services
                 var e = kv.Value;
                 if (e == null) continue;
                 if (!e.hasTransform) continue;
-                var p = e.transform.Value.Position;
-                Add(new MobaActorTransformSnapshotEntry(id, p.X, p.Y, p.Z));
+                var transform = e.transform.Value;
+                var p = transform.Position;
+                var forward = transform.Forward;
+                Add(new MobaActorTransformSnapshotEntry(id, p.X, p.Y, p.Z, forward.X, forward.Y, forward.Z));
             }
         }
 

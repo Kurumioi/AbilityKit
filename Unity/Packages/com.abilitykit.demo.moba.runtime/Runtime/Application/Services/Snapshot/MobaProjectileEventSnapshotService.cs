@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Services;
@@ -15,22 +14,38 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaProjectileEventSnapshotService : IService, IMobaSnapshotEmitter
     {
         private readonly MobaLogicWorldRunGateService _phase;
-        private readonly IProjectileService _projectiles;
         private readonly MobaProjectileLinkService _links;
-
+ 
         private FrameIndex _lastFrame;
-
-        private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(32);
-        private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(32);
-        private readonly List<ProjectileExitEvent> _exits = new List<ProjectileExitEvent>(32);
+ 
         private readonly MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry> _projectileEntries = new MobaSnapshotBuffer<MobaProjectileEventSnapshotEntry>(32, 512);
 
         public MobaProjectileEventSnapshotService(MobaLogicWorldRunGateService phase, IProjectileService projectiles, MobaProjectileLinkService links)
         {
             _phase = phase ?? throw new ArgumentNullException(nameof(phase));
-            _projectiles = projectiles ?? throw new ArgumentNullException(nameof(projectiles));
             _links = links;
             _lastFrame = new FrameIndex(-999999);
+        }
+
+        public void RecordSpawn(in ProjectileSpawnEvent e)
+        {
+            var entry = FromSpawn(in e);
+            PopulateProjectileActorId(e.Projectile, ref entry);
+            _projectileEntries.Add(entry);
+        }
+
+        public void RecordHit(in ProjectileHitEvent e)
+        {
+            var entry = FromHit(in e);
+            PopulateProjectileActorId(e.Projectile, ref entry);
+            _projectileEntries.Add(entry);
+        }
+
+        public void RecordExit(in ProjectileExitEvent e)
+        {
+            var entry = FromExit(in e);
+            PopulateProjectileActorId(e.Projectile, ref entry);
+            _projectileEntries.Add(entry);
         }
 
         public bool TryGetSnapshot(FrameIndex frame, out WorldStateSnapshot snapshot)
@@ -48,55 +63,12 @@ namespace AbilityKit.Demo.Moba.Services
             }
             _lastFrame = frame;
 
-            _spawns.Clear();
-            _hits.Clear();
-            _exits.Clear();
-
-            _projectiles.PeekSpawnEvents(_spawns);
-            _projectiles.PeekHitEvents(_hits);
-            _projectiles.PeekExitEvents(_exits);
-
-            if (_spawns.Count == 0 && _hits.Count == 0 && _exits.Count == 0)
+            if (_projectileEntries.Count == 0)
             {
                 snapshot = default;
                 return false;
             }
-
-            _projectileEntries.Clear();
-
-            for (int i = 0; i < _spawns.Count; i++)
-            {
-                var e = _spawns[i];
-                var it = FromSpawn(in e);
-                if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
-                {
-                    it.ProjectileActorId = projectileActorId;
-                }
-                _projectileEntries.Add(it);
-            }
-
-            for (int i = 0; i < _hits.Count; i++)
-            {
-                var e = _hits[i];
-                var it = FromHit(in e);
-                if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
-                {
-                    it.ProjectileActorId = projectileActorId;
-                }
-                _projectileEntries.Add(it);
-            }
-
-            for (int i = 0; i < _exits.Count; i++)
-            {
-                var e = _exits[i];
-                var it = FromExit(in e);
-                if (_links != null && _links.TryGetActorId(e.Projectile, out var projectileActorId) && projectileActorId > 0)
-                {
-                    it.ProjectileActorId = projectileActorId;
-                }
-                _projectileEntries.Add(it);
-            }
-
+ 
             var payload = MobaProjectileEventSnapshotCodec.Serialize(_projectileEntries.ToArrayClearAndTrim());
             snapshot = new WorldStateSnapshot(AbilityKit.Protocol.Moba.MobaOpCodes.Snapshot.ProjectileEvent, payload);
             return true;
@@ -116,7 +88,11 @@ namespace AbilityKit.Demo.Moba.Services
                 Y = e.Position.Y,
                 Z = e.Position.Z,
                 HitCollider = 0,
-                ExitReason = 0
+                ExitReason = 0,
+                ProjectileId = e.Projectile.Value,
+                ForwardX = e.Direction.X,
+                ForwardY = e.Direction.Y,
+                ForwardZ = e.Direction.Z
             };
         }
 
@@ -134,7 +110,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Y = e.Point.Y,
                 Z = e.Point.Z,
                 HitCollider = e.HitCollider.Value,
-                ExitReason = 0
+                ExitReason = 0,
+                ProjectileId = e.Projectile.Value
             };
         }
 
@@ -152,15 +129,21 @@ namespace AbilityKit.Demo.Moba.Services
                 Y = e.Position.Y,
                 Z = e.Position.Z,
                 HitCollider = 0,
-                ExitReason = (int)e.Reason
+                ExitReason = (int)e.Reason,
+                ProjectileId = e.Projectile.Value
             };
+        }
+
+        private void PopulateProjectileActorId(ProjectileId projectile, ref MobaProjectileEventSnapshotEntry entry)
+        {
+            if (_links != null && _links.TryGetActorId(projectile, out var projectileActorId) && projectileActorId > 0)
+            {
+                entry.ProjectileActorId = projectileActorId;
+            }
         }
 
         public void Dispose()
         {
-            _spawns.Clear();
-            _hits.Clear();
-            _exits.Clear();
             _projectileEntries.ClearAndTrim();
             _lastFrame = new FrameIndex(-999999);
         }

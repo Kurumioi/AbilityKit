@@ -38,11 +38,17 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public GameObject CreatePlaceholder(int vfxId)
         {
-            var go = BattleViewPlaceholderIds.IsPlaceholderVfx(vfxId)
+            var go = IsProjectileFallback(vfxId)
                 ? _primitives.CreateProjectileFallback(vfxId)
                 : _primitives.CreateVfxFallback(vfxId);
             go.name = $"VfxPlaceholder_{vfxId}";
             return go;
+        }
+
+        private static bool IsProjectileFallback(int vfxId)
+        {
+            return (vfxId >= BattleViewPlaceholderIds.ProjectileVfx && vfxId <= BattleViewPlaceholderIds.ProjectileExpireVfx)
+                || vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill1FanVfx;
         }
     }
 

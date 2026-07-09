@@ -53,6 +53,11 @@ namespace AbilityKit.Game.Flow
                 return CreateLianPoSkill2CircleVfxFallback(vfxId);
             }
 
+            if (vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill2LiftVfx || vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill3StarVfx)
+            {
+                return CreateXiaoQiaoAreaVfxFallback(vfxId);
+            }
+
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.transform.localScale = Vector3.one * 0.5f;
             ApplyColor(go, ResolveVfxColor(vfxId));
@@ -81,6 +86,16 @@ namespace AbilityKit.Game.Flow
         {
             var go = new GameObject("LianPoSkill2CircleVfxFallback", typeof(MeshFilter), typeof(MeshRenderer));
             var mesh = BuildRingMesh(innerRadius: 3.28f, outerRadius: 3.5f, segments: 96, y: 0.08f);
+            mesh.hideFlags = HideFlags.DontSave;
+            go.GetComponent<MeshFilter>().sharedMesh = mesh;
+            ApplyColor(go, ResolveVfxColor(vfxId));
+            return go;
+        }
+
+        private static GameObject CreateXiaoQiaoAreaVfxFallback(int vfxId)
+        {
+            var go = new GameObject("XiaoQiaoAreaVfxFallback", typeof(MeshFilter), typeof(MeshRenderer));
+            var mesh = BuildRingMesh(innerRadius: vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill3StarVfx ? 0.15f : 0.3f, outerRadius: vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill3StarVfx ? 2.5f : 4f, segments: 72, y: 0.1f);
             mesh.hideFlags = HideFlags.DontSave;
             go.GetComponent<MeshFilter>().sharedMesh = mesh;
             ApplyColor(go, ResolveVfxColor(vfxId));
@@ -203,11 +218,31 @@ namespace AbilityKit.Game.Flow
                 return new Color(1f, 0.42f, 0.12f, 0.72f);
             }
 
+            if (vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill1FanVfx)
+            {
+                return new Color(1f, 0.62f, 0.95f, 0.88f);
+            }
+
+            if (vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill2LiftVfx)
+            {
+                return new Color(0.95f, 0.42f, 1f, 0.55f);
+            }
+
+            if (vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill3StarVfx)
+            {
+                return new Color(1f, 0.9f, 0.28f, 0.62f);
+            }
+
             return PickColor(vfxId, 0.8f);
         }
 
         private static Color ResolveProjectileColor(int vfxId)
         {
+            if (vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill1FanVfx)
+            {
+                return new Color(1f, 0.62f, 0.95f, 1f);
+            }
+
             return Color.Lerp(PickColor(vfxId, 1f), new Color(0.15f, 0.95f, 1f, 1f), 0.5f);
         }
 
@@ -236,11 +271,15 @@ namespace AbilityKit.Game.Flow
         public const int AoeCircleModel = 90000101;
         public const int AoeSectorModel = 90000102;
         public const int LianPoSkill2CircleVfx = 90001001;
+        public const int XiaoQiaoSkill1FanVfx = 90002001;
+        public const int XiaoQiaoSkill2LiftVfx = 90002002;
+        public const int XiaoQiaoSkill3StarVfx = 90002003;
 
         public static bool IsPlaceholderVfx(int vfxId)
         {
             return (vfxId >= ProjectileVfx && vfxId <= PresentationCueVfx)
-                || vfxId == LianPoSkill2CircleVfx;
+                || vfxId == LianPoSkill2CircleVfx
+                || (vfxId >= XiaoQiaoSkill1FanVfx && vfxId <= XiaoQiaoSkill3StarVfx);
         }
     }
 }

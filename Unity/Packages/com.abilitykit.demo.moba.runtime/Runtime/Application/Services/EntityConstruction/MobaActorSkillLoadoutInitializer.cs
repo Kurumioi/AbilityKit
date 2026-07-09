@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Protocol.Moba;
 
@@ -16,20 +17,22 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             try
             {
                 var character = config.GetCharacter(loadout.HeroId);
-                var activeSkillIds = loadout.SkillIds;
-                int[] passiveSkillIds = null;
+                var attributeTemplateId = loadout.AttributeTemplateId > 0 ? loadout.AttributeTemplateId :
+                    (character != null ? character.AttributeTemplateId : 0);
+                var attrTemplate = default(BattleAttributeTemplateMO);
+                var hasAttributeTemplate = attributeTemplateId > 0 && config.TryGetAttributeTemplate(attributeTemplateId, out attrTemplate) && attrTemplate != null;
 
+                var activeSkillIds = loadout.SkillIds;
                 if (activeSkillIds == null || activeSkillIds.Length == 0)
                 {
-                    var attributeTemplateId = loadout.AttributeTemplateId > 0 ? loadout.AttributeTemplateId :
-                        (character != null ? character.AttributeTemplateId : 0);
-
-                    if (attributeTemplateId > 0 && config.TryGetAttributeTemplate(attributeTemplateId, out var attrTemplate) && attrTemplate != null)
-                    {
-                        activeSkillIds = ToArray(attrTemplate.ActiveSkills);
-                        passiveSkillIds = ToArray(attrTemplate.PassiveSkills);
-                    }
+                    activeSkillIds = ToArray(character != null && character.SkillIds != null && character.SkillIds.Count > 0
+                        ? character.SkillIds
+                        : hasAttributeTemplate ? attrTemplate.ActiveSkills : null);
                 }
+
+                var passiveSkillIds = ToArray(character != null && character.PassiveSkillIds != null && character.PassiveSkillIds.Count > 0
+                    ? character.PassiveSkillIds
+                    : hasAttributeTemplate ? attrTemplate.PassiveSkills : null);
 
                 var activeSkills = CreateActiveSkillRuntimes(activeSkillIds);
                 var passiveSkills = CreatePassiveSkillRuntimes(passiveSkillIds);

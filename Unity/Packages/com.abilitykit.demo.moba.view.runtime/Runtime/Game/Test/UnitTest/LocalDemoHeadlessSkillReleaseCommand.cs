@@ -5,7 +5,9 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Combat.MotionSystem.Core;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Game.Battle.Entity;
@@ -32,6 +34,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private const float CasterJumpHeightEpsilon = 0.08f;
         private const float TestHp = 5000f;
 
+        private static readonly int[] s_lianPoTransientAreaTemplateIds = { 40010201, 40010301, 40010311, 40010321 };
         private static readonly List<int> s_actorIds = new List<int>(16);
         private static readonly List<int> s_searchResults = new List<int>(16);
         private static readonly SkillScenario[] s_scenarios =
@@ -73,6 +76,17 @@ namespace AbilityKit.Game.Test.UnitTest
         private static int _firstDamageTick;
         private static double _firstDamageSeconds;
         private static bool _firstDamageAfterCasterLanding;
+        private static AdditionalValidationPhase _additionalPhase;
+        private static int _additionalStartTick;
+        private static int _additionalObservedTicks;
+        private static Vector3 _additionalStartPosition;
+        private static Vector3 _additionalBeforeSkill1Position;
+        private static Vector3 _additionalAfterSkill1Position;
+        private static float _additionalMaxPlanarMove;
+        private static float _additionalMaxHeightDelta;
+        private static float _additionalMinObservedX;
+        private static float _additionalMaxObservedHeight;
+        private static bool _additionalSkill3JumpObserved;
         private static readonly List<string> s_scenarioResults = new List<string>(8);
 
         static LocalDemoHeadlessSkillReleaseCommand()
@@ -196,7 +210,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             if (_scenarioIndex >= s_scenarios.Length)
             {
-                return "PASS: Lian Po headless skill validation completed. " + string.Join(" | ", s_scenarioResults);
+                return TickAdditionalValidations(flow, ctx);
             }
 
             var scenario = s_scenarios[_scenarioIndex];
@@ -225,6 +239,194 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 default:
                     throw new InvalidOperationException($"Unsupported scenario phase: {_scenarioPhase}");
+            }
+        }
+
+        private static string TickAdditionalValidations(GameFlowDomain flow, BattleContext ctx)
+        {
+            switch (_additionalPhase)
+            {
+                case AdditionalValidationPhase.Skill3InsertedSkill1Prepare:
+                    ResetActiveSkillCooldowns(ctx, ctx.LocalActorId, cancelRunningSkill: true);
+                    ClearLianPoTransientAreas(ctx);
+                    _additionalStartPosition = new Vector3(_startPosition.x, _startPosition.y, _startPosition.z);
+                    if (!TrySetActorPosition(ctx, ctx.LocalActorId, _additionalStartPosition))
+                    {
+                        throw new InvalidOperationException($"additional.skill3InsertedSkill1 failed to reset local actor position. actorId={ctx.LocalActorId}, position={_additionalStartPosition}");
+                    }
+
+                    if (!TrySetActorPosition(ctx, _enemyActorId, _additionalStartPosition + new Vector3(1.5f, 0f, 0f)))
+                    {
+                        throw new InvalidOperationException($"additional.skill3InsertedSkill1 failed to place enemy. enemyActorId={_enemyActorId}");
+                    }
+
+                    if (!TrySetActorHp(ctx, _enemyActorId, TestHp))
+                    {
+                        throw new InvalidOperationException($"additional.skill3InsertedSkill1 failed to reset enemy hp. enemyActorId={_enemyActorId}");
+                    }
+
+                    _additionalMaxPlanarMove = 0f;
+                    _additionalMaxHeightDelta = 0f;
+                    _additionalSkill3JumpObserved = false;
+                    _additionalStartTick = _ticks;
+                    _additionalPhase = AdditionalValidationPhase.Skill3InsertedSkill1SubmitSkill3;
+                    Stage("additional.skill3InsertedSkill1.prepared", flow, ctx);
+                    FlowTick(flow, 2);
+                    return null;
+
+                case AdditionalValidationPhase.Skill3InsertedSkill1SubmitSkill3:
+                    ctx.SubmitHudSkillAim(slot: 3, aimDx: 1f, aimDz: 0f);
+                    _additionalStartTick = _ticks;
+                    _additionalPhase = AdditionalValidationPhase.Skill3InsertedSkill1WaitFirstLanding;
+                    Stage("additional.skill3InsertedSkill1.submittedSkill3", flow, ctx);
+                    FlowTick(flow, 2);
+                    return null;
+
+                case AdditionalValidationPhase.Skill3InsertedSkill1WaitFirstLanding:
+                    if (!TryGetLocalActorPosition(ctx, out var skill3Current))
+                    {
+                        throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+                    }
+
+                    _additionalMaxPlanarMove = Mathf.Max(_additionalMaxPlanarMove, PlanarDistance(_additionalStartPosition, skill3Current));
+                    _additionalMaxHeightDelta = Mathf.Max(_additionalMaxHeightDelta, skill3Current.y - _additionalStartPosition.y);
+                    if (skill3Current.x > _additionalStartPosition.x + 0.1f && skill3Current.y > _additionalStartPosition.y + CasterJumpHeightEpsilon)
+                    {
+                        _additionalSkill3JumpObserved = true;
+                    }
+
+                    if (_additionalSkill3JumpObserved && skill3Current.y <= _additionalStartPosition.y + 0.05f && skill3Current.x > _additionalStartPosition.x + 0.1f)
+                    {
+                        _additionalBeforeSkill1Position = skill3Current;
+                        ctx.SubmitHudSkillAim(slot: 1, aimDx: 1f, aimDz: 0f);
+                        _additionalStartTick = _ticks;
+                        _additionalPhase = AdditionalValidationPhase.Skill3InsertedSkill1WaitSkill1Dash;
+                        Stage("additional.skill3InsertedSkill1.submittedSkill1", flow, ctx);
+                        FlowTick(flow, 2);
+                        return null;
+                    }
+
+                    if (_ticks - _additionalStartTick > 180)
+                    {
+                        throw new TimeoutException($"additional.skill3InsertedSkill1 first stage did not land. start={_additionalStartPosition}, current={skill3Current}, maxMove={_additionalMaxPlanarMove:F3}, maxHeightDelta={_additionalMaxHeightDelta:F3}, " + BuildDiagnostic(flow, ctx));
+                    }
+
+                    Stage("additional.skill3InsertedSkill1.waitFirstLanding", flow, ctx);
+                    return null;
+
+                case AdditionalValidationPhase.Skill3InsertedSkill1WaitSkill1Dash:
+                    if (!TryGetLocalActorPosition(ctx, out var afterSkill1Current))
+                    {
+                        throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+                    }
+
+                    if (afterSkill1Current.x > _additionalBeforeSkill1Position.x + 0.1f)
+                    {
+                        _additionalAfterSkill1Position = afterSkill1Current;
+                        _additionalMinObservedX = afterSkill1Current.x;
+                        _additionalMaxObservedHeight = afterSkill1Current.y;
+                        _additionalObservedTicks = 0;
+                        _additionalPhase = AdditionalValidationPhase.Skill3InsertedSkill1ObserveResume;
+                        Stage("additional.skill3InsertedSkill1.skill1Dashed", flow, ctx);
+                        return null;
+                    }
+
+                    if (_ticks - _additionalStartTick > 120)
+                    {
+                        throw new TimeoutException($"additional.skill3InsertedSkill1 inserted skill 1 did not move caster. beforeSkill1={_additionalBeforeSkill1Position}, current={afterSkill1Current}, " + BuildDiagnostic(flow, ctx));
+                    }
+
+                    Stage("additional.skill3InsertedSkill1.waitSkill1Dash", flow, ctx);
+                    return null;
+
+                case AdditionalValidationPhase.Skill3InsertedSkill1ObserveResume:
+                    if (!TryGetLocalActorPosition(ctx, out var resumeCurrent))
+                    {
+                        throw new InvalidOperationException(DescribeContextWaitFailure(ctx));
+                    }
+
+                    _additionalMinObservedX = Mathf.Min(_additionalMinObservedX, resumeCurrent.x);
+                    _additionalMaxObservedHeight = Mathf.Max(_additionalMaxObservedHeight, resumeCurrent.y);
+                    _additionalObservedTicks++;
+                    if (_additionalObservedTicks >= 90)
+                    {
+                        if (_additionalMinObservedX < _additionalAfterSkill1Position.x - 0.15f)
+                        {
+                            throw new InvalidOperationException($"additional.skill3InsertedSkill1 later stages pulled caster back to old aim point. start={_additionalStartPosition}, beforeSkill1={_additionalBeforeSkill1Position}, afterSkill1={_additionalAfterSkill1Position}, minObservedX={_additionalMinObservedX:F3}");
+                        }
+
+                        if (_additionalMaxObservedHeight <= _additionalStartPosition.y + CasterJumpHeightEpsilon)
+                        {
+                            throw new InvalidOperationException($"additional.skill3InsertedSkill1 later stages did not keep vertical jump. start={_additionalStartPosition}, maxObservedHeight={_additionalMaxObservedHeight:F3}");
+                        }
+
+                        s_scenarioResults.Add($"additional.skill3InsertedSkill1: beforeSkill1={_additionalBeforeSkill1Position}, afterSkill1={_additionalAfterSkill1Position}, minObservedX={_additionalMinObservedX:F3}, maxObservedHeight={_additionalMaxObservedHeight:F3}");
+                        _additionalPhase = AdditionalValidationPhase.Skill2RefreshSkill1Prepare;
+                        Stage("additional.skill3InsertedSkill1.passed", flow, ctx);
+                        FlowTick(flow, 2);
+                    }
+
+                    return null;
+
+                case AdditionalValidationPhase.Skill2RefreshSkill1Prepare:
+                    ResetActiveSkillCooldowns(ctx, ctx.LocalActorId, cancelRunningSkill: true);
+                    ClearLianPoTransientAreas(ctx);
+                    if (!TrySetActorPosition(ctx, ctx.LocalActorId, _startPosition))
+                    {
+                        throw new InvalidOperationException($"additional.skill2RefreshSkill1 failed to reset local actor position. actorId={ctx.LocalActorId}, position={_startPosition}");
+                    }
+
+                    if (!TrySetActorPosition(ctx, _enemyActorId, _startPosition + new Vector3(1.5f, 0f, 0f)))
+                    {
+                        throw new InvalidOperationException($"additional.skill2RefreshSkill1 failed to place enemy. enemyActorId={_enemyActorId}");
+                    }
+
+                    if (!TrySetActorHp(ctx, _enemyActorId, TestHp))
+                    {
+                        throw new InvalidOperationException($"additional.skill2RefreshSkill1 failed to reset enemy hp. enemyActorId={_enemyActorId}");
+                    }
+
+                    if (!TryGetActiveSkillRuntime(ctx, ctx.LocalActorId, skillSlot: 1, skillId: 10010101, out var skill1Runtime))
+                    {
+                        throw new InvalidOperationException("additional.skill2RefreshSkill1 could not find Lian Po skill 1 runtime.");
+                    }
+
+                    skill1Runtime.CooldownDurationMs = 5000;
+                    skill1Runtime.CooldownEndTimeMs = 5000;
+                    _additionalStartTick = _ticks;
+                    _additionalPhase = AdditionalValidationPhase.Skill2RefreshSkill1Submit;
+                    Stage("additional.skill2RefreshSkill1.prepared", flow, ctx);
+                    FlowTick(flow, 2);
+                    return null;
+
+                case AdditionalValidationPhase.Skill2RefreshSkill1Submit:
+                    ctx.SubmitHudSkillClick(slot: 2);
+                    _additionalStartTick = _ticks;
+                    _additionalPhase = AdditionalValidationPhase.Skill2RefreshSkill1Observe;
+                    Stage("additional.skill2RefreshSkill1.submittedSkill2", flow, ctx);
+                    FlowTick(flow, 2);
+                    return null;
+
+                case AdditionalValidationPhase.Skill2RefreshSkill1Observe:
+                    if (TryGetActiveSkillRuntime(ctx, ctx.LocalActorId, skillSlot: 1, skillId: 10010101, out var refreshedRuntime) && refreshedRuntime.CooldownEndTimeMs <= 0L && refreshedRuntime.CooldownDurationMs <= 0)
+                    {
+                        s_scenarioResults.Add($"additional.skill2RefreshSkill1: cooldownEnd={refreshedRuntime.CooldownEndTimeMs}, cooldownDuration={refreshedRuntime.CooldownDurationMs}");
+                        _additionalPhase = AdditionalValidationPhase.Complete;
+                        Stage("additional.skill2RefreshSkill1.passed", flow, ctx);
+                    }
+                    else if (_ticks - _additionalStartTick > 90)
+                    {
+                        var cooldownText = refreshedRuntime != null ? $"cooldownEnd={refreshedRuntime.CooldownEndTimeMs}, cooldownDuration={refreshedRuntime.CooldownDurationMs}" : "runtimeUnavailable";
+                        throw new TimeoutException($"additional.skill2RefreshSkill1 did not refresh skill 1 cooldown. {cooldownText}, " + BuildDiagnostic(flow, ctx));
+                    }
+
+                    return null;
+
+                case AdditionalValidationPhase.Complete:
+                    return "PASS: Lian Po headless skill validation completed. " + string.Join(" | ", s_scenarioResults);
+
+                default:
+                    throw new InvalidOperationException($"Unsupported additional validation phase: {_additionalPhase}");
             }
         }
 
@@ -322,9 +524,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 _scenarioPhase = ScenarioPhase.Prepare;
                 Stage("passed." + scenario.Name, flow, ctx);
                 FlowTick(flow, 4);
-                return _scenarioIndex >= s_scenarios.Length
-                    ? "PASS: Lian Po headless skill validation completed. " + string.Join(" | ", s_scenarioResults)
-                    : null;
+                return null;
             }
 
             if (_ticks - _scenarioStartTick > scenario.MaxObserveTicks)
@@ -375,6 +575,7 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             ResetActiveSkillCooldowns(ctx, ctx.LocalActorId, cancelRunningSkill: !scenario.PreserveCasterState);
+            ClearLianPoTransientAreas(ctx);
 
             if (!TryGetEnemyRuntimeState(ctx, _enemyActorId, out _enemyStartHp, out _enemyStartPosition))
             {
@@ -540,6 +741,18 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        private static void ClearLianPoTransientAreas(BattleContext ctx)
+        {
+            if (ctx?.Session == null || ctx.LocalActorId <= 0) return;
+            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return;
+            if (!world.Services.TryResolve<MobaAreaRuntimeService>(out var areas) || areas == null) return;
+
+            for (var i = 0; i < s_lianPoTransientAreaTemplateIds.Length; i++)
+            {
+                areas.DespawnAreas(ctx.LocalActorId, s_lianPoTransientAreaTemplateIds[i], removeAll: true);
+            }
+        }
+
         private static void ValidateScenarioSetup(BattleContext ctx, SkillScenario scenario, Vector3 casterPosition)
         {
             if (ctx == null || scenario.Slot <= 1) return;
@@ -570,6 +783,21 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             Debug.Log($"[LocalDemoHeadlessSkillReleaseCommand] setup validated. scenario={scenario.Name}, triggerId={expectedTriggerId}, queryId={queryId}, targets={string.Join(",", s_searchResults)}");
+        }
+
+        private static bool TryGetActiveSkillRuntime(BattleContext ctx, int actorId, int skillSlot, int skillId, out ActiveSkillRuntime runtime)
+        {
+            runtime = null;
+            if (!TryGetActorLookup(ctx, out var actors)) return false;
+            return MobaSkillRuntimeAccess.TryGetActiveSkill(actors, actorId, skillSlot, skillId, out runtime);
+        }
+
+        private static bool TryGetActorLookup(BattleContext ctx, out MobaActorLookupService actors)
+        {
+            actors = null;
+            if (ctx?.Session == null) return false;
+            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
+            return world.Services.TryResolve(out actors) && actors != null;
         }
 
         private static bool TryGetEntityManager(BattleContext ctx, out MobaEntityManager entities)
@@ -712,6 +940,17 @@ namespace AbilityKit.Game.Test.UnitTest
             _firstDamageTick = 0;
             _firstDamageSeconds = 0d;
             _firstDamageAfterCasterLanding = false;
+            _additionalPhase = AdditionalValidationPhase.Skill3InsertedSkill1Prepare;
+            _additionalStartTick = 0;
+            _additionalObservedTicks = 0;
+            _additionalStartPosition = default;
+            _additionalBeforeSkill1Position = default;
+            _additionalAfterSkill1Position = default;
+            _additionalMaxPlanarMove = 0f;
+            _additionalMaxHeightDelta = 0f;
+            _additionalMinObservedX = 0f;
+            _additionalMaxObservedHeight = 0f;
+            _additionalSkill3JumpObserved = false;
             s_scenarioResults.Clear();
             s_searchResults.Clear();
         }
@@ -738,6 +977,19 @@ namespace AbilityKit.Game.Test.UnitTest
                 $"<headlessSkillRelease success=\"{success.ToString().ToLowerInvariant()}\">\n" +
                 $"  <message encoding=\"base64\">{encodedMessage}</message>\n" +
                 "</headlessSkillRelease>\n");
+        }
+
+        private enum AdditionalValidationPhase
+        {
+            Skill3InsertedSkill1Prepare,
+            Skill3InsertedSkill1SubmitSkill3,
+            Skill3InsertedSkill1WaitFirstLanding,
+            Skill3InsertedSkill1WaitSkill1Dash,
+            Skill3InsertedSkill1ObserveResume,
+            Skill2RefreshSkill1Prepare,
+            Skill2RefreshSkill1Submit,
+            Skill2RefreshSkill1Observe,
+            Complete
         }
 
         private enum ScenarioPhase

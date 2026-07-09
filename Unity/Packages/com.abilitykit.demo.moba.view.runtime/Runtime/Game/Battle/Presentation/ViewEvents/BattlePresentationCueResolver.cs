@@ -21,7 +21,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             int firstTargetActorId,
             bool hasExplicitPosition,
             SnapshotVec3 explicitPosition,
-            SnapshotVec3 offset)
+            SnapshotVec3 offset,
+            int durationMsOverride,
+            float scale,
+            float radius)
         {
             RequestKey = requestKey;
             VfxId = vfxId;
@@ -31,6 +34,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             HasExplicitPosition = hasExplicitPosition;
             ExplicitPosition = explicitPosition;
             Offset = offset;
+            DurationMsOverride = durationMsOverride > 0 ? durationMsOverride : 0;
+            Scale = scale > 0f ? scale : 1f;
+            Radius = radius;
         }
 
         public BattlePresentationCueRequestKey RequestKey { get; }
@@ -41,7 +47,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public bool HasExplicitPosition { get; }
         public SnapshotVec3 ExplicitPosition { get; }
         public SnapshotVec3 Offset { get; }
-
+        public int DurationMsOverride { get; }
+        public float Scale { get; }
+        public float Radius { get; }
+ 
         public bool IsEmpty => RequestKey.IsEmpty || VfxId <= 0;
     }
 
@@ -68,6 +77,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
     internal sealed class BattlePresentationCueResolver
     {
+        private const int NumericParamRadius = 2;
+
         public BattlePresentationCueDecision Resolve(in PresentationCueData data)
         {
             var requestKey = BattlePresentationCueRequestKey.From(in data);
@@ -136,13 +147,28 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 ResolveFirstTargetActorId(in data),
                 data.Positions != null && data.Positions.Count > 0,
                 data.Positions != null && data.Positions.Count > 0 ? data.Positions[0] : default,
-                new SnapshotVec3(data.OffsetX, data.OffsetY, data.OffsetZ));
+                new SnapshotVec3(data.OffsetX, data.OffsetY, data.OffsetZ),
+                data.DurationMsOverride,
+                data.Scale,
+                ResolveRadius(in data));
         }
 
         public static int ResolveFirstTargetActorId(in PresentationCueData data)
         {
             if (data.Targets != null && data.Targets.Count > 0) return data.Targets[0];
             return 0;
+        }
+
+        public static float ResolveRadius(in PresentationCueData data)
+        {
+            if (data.NumericParamKeys == null || data.NumericParamValues == null) return 0f;
+            var count = Math.Min(data.NumericParamKeys.Count, data.NumericParamValues.Count);
+            for (var i = 0; i < count; i++)
+            {
+                if (data.NumericParamKeys[i] == NumericParamRadius) return data.NumericParamValues[i];
+            }
+
+            return 0f;
         }
     }
 

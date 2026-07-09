@@ -318,6 +318,16 @@ namespace AbilityKit.Demo.Shooter.View
         public bool IsRunnable => Status != ShooterSyncTemplateStatus.Reserved;
     }
 
+    public static class ShooterSyncTemplateIds
+    {
+        public const string PredictRollbackAuthority = "predict-rollback-authority";
+        public const string AuthoritativeInterpolationPresentation = "authoritative-interpolation-presentation";
+        public const string BatchStateLowFrequency = "batch-state-low-frequency";
+        public const string MassBattleLodAoi = "mass-battle-lod-aoi";
+        public const string HybridHeroPrediction = "hybrid-hero-prediction";
+        public const string FastReconnectResume = "fast-reconnect-resume";
+    }
+
     /// <summary>
     /// Shooter 验收提供的固定同步模式、网络环境与同步方案模板菜单。Unity 外壳直接绑定这些列表。
     /// 确保可选项与纯 C# 层实际可构建、可运行的能力保持一致。
@@ -349,7 +359,7 @@ namespace AbilityKit.Demo.Shooter.View
         public static IReadOnlyList<ShooterSyncTemplate> SyncTemplates { get; } = new[]
         {
             new ShooterSyncTemplate(
-                "predict-rollback-authority",
+                ShooterSyncTemplateIds.PredictRollbackAuthority,
                 "Predict Rollback / Authority Compare",
                 "本地预测回滚，并保留权威世界用于漂移、回滚与最终快照收敛验证。",
                 NetworkSyncModel.PredictRollback,
@@ -361,7 +371,7 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateConvergenceKind.RuntimeSnapshot,
                 InterpolationConfig.Default),
             new ShooterSyncTemplate(
-                "authoritative-interpolation-presentation",
+                ShooterSyncTemplateIds.AuthoritativeInterpolationPresentation,
                 "Authoritative Interpolation / Remote Presentation",
                 "客户端只播放权威远端样本，重点验证插值缓存、时间线与表现层播放稳定性。",
                 NetworkSyncModel.AuthoritativeInterpolation,
@@ -373,7 +383,7 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateConvergenceKind.PresentationInterpolation,
                 InterpolationConfig.Default),
             new ShooterSyncTemplate(
-                "batch-state-low-frequency",
+                ShooterSyncTemplateIds.BatchStateLowFrequency,
                 "Batch State Sync / Low Frequency Playback",
                 "服务端以低频批量快照合并实体状态，客户端延迟播放批次数据，适合数千单位的低实时性场景。",
                 NetworkSyncModel.BatchStateSync,
@@ -387,7 +397,7 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateSendPolicy.LowFrequencyBatch,
                 ShooterSyncTemplateStatus.Experimental),
             new ShooterSyncTemplate(
-                "mass-battle-lod-aoi",
+                ShooterSyncTemplateIds.MassBattleLodAoi,
                 "Mass Battle LOD / AOI Budget Playback",
                 "面向上万单位的距离 AOI、优先级预算与 LOD 频率同步模板，复用纯状态低频导出参数。",
                 NetworkSyncModel.MassBattleLodSync,
@@ -401,7 +411,7 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateSendPolicy.MassBattleLod,
                 ShooterSyncTemplateStatus.Experimental),
             new ShooterSyncTemplate(
-                "hybrid-hero-prediction",
+                ShooterSyncTemplateIds.HybridHeroPrediction,
                 "Hybrid Hero Prediction / Remote Interpolation",
                 "本地英雄预测回滚，远端对象权威插值，验证混合同步方案的双路径行为。",
                 NetworkSyncModel.HybridHeroPrediction,
@@ -413,7 +423,7 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation,
                 InterpolationConfig.Default),
             new ShooterSyncTemplate(
-                "fast-reconnect-resume",
+                ShooterSyncTemplateIds.FastReconnectResume,
                 "Fast Reconnect / Resume Snapshot",
                 "预留给断线重连恢复流程的模板；当前目录展示状态，但不进入可运行矩阵。",
                 NetworkSyncModel.FastReconnect,

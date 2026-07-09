@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
+using AbilityKit.Demo.Moba.Services.EntityConstruction;
+using AbilityKit.Demo.Moba.Util.Converter;
+using AbilityKit.Protocol.Moba.StateSync;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
 {
@@ -23,7 +27,9 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             {
                 var evt = spawns[i];
                 BindProjectileSource(evt);
+                EnsureProjectileActor(evt);
                 IncrementLauncherActiveBullets(evt.LauncherActorId);
+                _sys.ProjectileSnapshots?.RecordSpawn(evt);
                 _sys.StageTriggers?.ExecuteProjectileSpawn(evt);
             }
 
@@ -63,6 +69,54 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             }
 
             links.BindSource(evt.Projectile, in launcherSource);
+        }
+
+        private void EnsureProjectileActor(in ProjectileSpawnEvent evt)
+        {
+            var links = _sys.Links;
+            if (links == null) return;
+            if (links.TryGetActorId(evt.Projectile, out var existingActorId) && existingActorId > 0) return;
+
+            if (_sys.ActorSpawn == null || _sys.ActorIds == null || _sys.Registry == null)
+            {
+                Log.Warning($"[MobaProjectileSpawnSyncHandler] cannot create scheduled projectile actor because required services are missing. projectile={evt.Projectile} templateId={evt.TemplateId} launcherActorId={evt.LauncherActorId} rootActorId={evt.RootActorId}");
+                return;
+            }
+
+            var ownerActorId = evt.RootActorId > 0 ? evt.RootActorId : evt.OwnerId;
+            if (ownerActorId <= 0) ownerActorId = evt.LauncherActorId;
+            if (ownerActorId <= 0 || !_sys.Registry.TryGet(ownerActorId, out var ownerEntity) || ownerEntity == null)
+            {
+                Log.Warning($"[MobaProjectileSpawnSyncHandler] cannot create scheduled projectile actor because owner actor is missing. projectile={evt.Projectile} templateId={evt.TemplateId} ownerActorId={ownerActorId} launcherActorId={evt.LauncherActorId} rootActorId={evt.RootActorId}");
+                return;
+            }
+
+            var projectileActorId = _sys.ActorIds.Next();
+            var spec = MobaConverter.ToProjectileActorBuildSpec(projectileActorId, evt.TemplateId, ownerEntity, evt.Position, evt.Direction);
+            var request = MobaActorSpawnRequest.FromSpec(in spec);
+            request.PostSetup = new MobaActorSpawnPostSetup
+            {
+                SetFlyingProjectileTag = true,
+            };
+
+            if (!_sys.ActorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)
+            {
+                Log.Warning($"[MobaProjectileSpawnSyncHandler] scheduled projectile actor spawn failed. projectile={evt.Projectile} templateId={evt.TemplateId} actorId={projectileActorId} ownerActorId={ownerActorId} error={spawnResult.Error}");
+                return;
+            }
+
+            _sys.SpawnSnapshots?.Enqueue(new MobaActorSpawnSnapshotEntry
+            {
+                NetId = projectileActorId,
+                Kind = (int)SpawnEntityKind.Projectile,
+                Code = evt.TemplateId,
+                OwnerNetId = ownerActorId,
+                X = evt.Position.X,
+                Y = evt.Position.Y,
+                Z = evt.Position.Z
+            });
+
+            links.Link(evt.Projectile, projectileActorId);
         }
 
         private void IncrementLauncherActiveBullets(int launcherActorId)

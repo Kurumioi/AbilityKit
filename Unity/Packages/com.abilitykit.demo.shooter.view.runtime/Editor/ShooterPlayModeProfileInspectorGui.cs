@@ -50,17 +50,17 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 {
                     if (GUILayout.Button("Predict Rollback"))
                     {
-                        ApplyTemplate(serializedObject, "predict-rollback-authority", syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
+                        ApplyTemplate(serializedObject, ShooterSyncTemplateIds.PredictRollbackAuthority, syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
                     }
 
                     if (GUILayout.Button("Interpolation"))
                     {
-                        ApplyTemplate(serializedObject, "authoritative-interpolation-presentation", syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
+                        ApplyTemplate(serializedObject, ShooterSyncTemplateIds.AuthoritativeInterpolationPresentation, syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
                     }
 
                     if (GUILayout.Button("Hybrid"))
                     {
-                        ApplyTemplate(serializedObject, "hybrid-hero-prediction", syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
+                        ApplyTemplate(serializedObject, ShooterSyncTemplateIds.HybridHeroPrediction, syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
                     }
                 }
 
@@ -68,12 +68,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 {
                     if (GUILayout.Button("Batch State"))
                     {
-                        ApplyTemplate(serializedObject, "batch-state-low-frequency", syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
+                        ApplyTemplate(serializedObject, ShooterSyncTemplateIds.BatchStateLowFrequency, syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
                     }
 
                     if (GUILayout.Button("Mass LOD"))
                     {
-                        ApplyTemplate(serializedObject, "mass-battle-lod-aoi", syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
+                        ApplyTemplate(serializedObject, ShooterSyncTemplateIds.MassBattleLodAoi, syncTemplateIdProperty, playerCountProperty, randomSeedProperty, controlledPlayerIdProperty, worldScaleProperty);
                     }
                 }
             }

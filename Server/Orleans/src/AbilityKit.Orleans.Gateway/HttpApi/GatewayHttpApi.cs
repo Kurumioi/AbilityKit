@@ -6,6 +6,7 @@ using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Automation;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -441,7 +442,7 @@ internal static class GatewayHttpApi
                 accountId,
                 NormalizeAdminRegion(request.Region),
                 NormalizeAdminServerId(request.ServerId),
-                string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType,
+                string.IsNullOrWhiteSpace(request.RoomType) ? ShooterServerProtocol.RoomType : request.RoomType,
                 request.Title ?? string.Empty,
                 request.IsPublic,
                 request.MaxPlayers,
@@ -713,7 +714,7 @@ internal static class GatewayHttpApi
 
     private static string NormalizeAdminServerId(string? serverId)
     {
-        return string.IsNullOrWhiteSpace(serverId) ? "default" : serverId;
+        return string.IsNullOrWhiteSpace(serverId) ? ShooterServerProtocol.DefaultServerId : serverId;
     }
 
     private static IResult InvalidAdminRoomSession()
@@ -743,7 +744,7 @@ internal static class GatewayHttpApi
     {
         var region = string.IsNullOrWhiteSpace(request.Region) ? "cn" : request.Region;
         var serverId = string.IsNullOrWhiteSpace(request.ServerId) ? "dev" : request.ServerId;
-        var roomType = string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType;
+        var roomType = string.IsNullOrWhiteSpace(request.RoomType) ? ShooterServerProtocol.RoomType : request.RoomType;
         var limit = request.Limit <= 0 ? 20 : Math.Min(request.Limit, 100);
         var accountId = await ValidateAccountAsync(client, request.SessionToken);
 
@@ -838,6 +839,6 @@ internal static class GatewayHttpApi
             return serverId;
         }
 
-        return "default";
+        return ShooterServerProtocol.DefaultSandboxId;
     }
 }

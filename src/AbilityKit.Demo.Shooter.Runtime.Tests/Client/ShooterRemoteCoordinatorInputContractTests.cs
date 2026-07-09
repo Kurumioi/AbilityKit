@@ -30,6 +30,25 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
     }
 
     [Fact]
+    public void RemotePlayModeUsesGatewayAssignedPlayerIdForInputAndPresentation()
+    {
+        var playModeHost = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemoteStateSyncPlayModeHost.cs");
+        var frameBuilder = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemotePresentationFrameBuilder.cs");
+
+        Assert.Contains("ResolveEffectiveControlledPlayerId(connectionResult.Launch.Flow, launchOptions.SessionOptions.ControlledPlayerId)", playModeHost);
+        Assert.Contains("connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;", playModeHost);
+        Assert.Contains("ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId)", playModeHost);
+        Assert.Contains("flow.PlayerId > 0u && flow.PlayerId <= int.MaxValue", playModeHost);
+        Assert.Contains("int controlledPlayerId", frameBuilder);
+        Assert.Contains("controlledPlayerId,", frameBuilder);
+        Assert.DoesNotContain("connectionResult.Launch.Session.Presentation.ControlledPlayerId = launchOptions.SessionOptions.ControlledPlayerId;", playModeHost);
+    }
+
+    [Fact]
     public void RemotePlayModePauseStopsPumpAndResumeUsesRestoreOnlyReconnect()
     {
         var playModeHost = ReadUnityPackageSource(

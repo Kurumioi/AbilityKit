@@ -58,13 +58,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var vfxId = _snapshotVfxIds.Resolve(projectile, kind);
             if (vfxId > 0) return vfxId;
 
-            return kind switch
-            {
-                (int)ProjectileEventKind.Spawn => BattleViewPlaceholderIds.ProjectileSpawnVfx,
-                (int)ProjectileEventKind.Hit => BattleViewPlaceholderIds.ProjectileHitVfx,
-                (int)ProjectileEventKind.Exit => BattleViewPlaceholderIds.ProjectileExpireVfx,
-                _ => BattleViewPlaceholderIds.ProjectileVfx,
-            };
+            return kind == (int)ProjectileEventKind.Spawn
+                ? BattleViewPlaceholderIds.ProjectileSpawnVfx
+                : 0;
         }
 
         public Vector3 ResolveSnapshotPosition(float x, float y, float z)
@@ -76,6 +72,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             if (projectile == null) return default;
             return new AbstractBattleProjectileVfxIds(
+                projectile.VfxId,
                 projectile.OnSpawnVfxId,
                 projectile.OnHitVfxId,
                 projectile.OnExpireVfxId);
@@ -145,6 +142,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (projectile == null) return 0;
 
             var vfxIds = new AbstractBattleProjectileVfxIds(
+                projectile.VfxId,
                 projectile.OnSpawnVfxId,
                 projectile.OnHitVfxId,
                 projectile.OnExpireVfxId);

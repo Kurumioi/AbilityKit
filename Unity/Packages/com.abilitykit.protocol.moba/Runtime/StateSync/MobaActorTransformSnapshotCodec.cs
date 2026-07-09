@@ -11,13 +11,24 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(1)] public float X;
         [MemoryPackOrder(2)] public float Y;
         [MemoryPackOrder(3)] public float Z;
+        [MemoryPackOrder(4)] public float ForwardX;
+        [MemoryPackOrder(5)] public float ForwardY;
+        [MemoryPackOrder(6)] public float ForwardZ;
 
         public MobaActorTransformSnapshotEntry(int actorId, float x, float y, float z)
+            : this(actorId, x, y, z, 0f, 0f, 1f)
+        {
+        }
+
+        public MobaActorTransformSnapshotEntry(int actorId, float x, float y, float z, float forwardX, float forwardY, float forwardZ)
         {
             ActorId = actorId;
             X = x;
             Y = y;
             Z = z;
+            ForwardX = forwardX;
+            ForwardY = forwardY;
+            ForwardZ = forwardZ;
         }
     }
 

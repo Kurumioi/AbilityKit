@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static ShooterRemoteStateSyncRuntimeState? _state;
         private static ShooterRemoteInputSubmitStrategy? _inputSubmitStrategy;
         private static ShooterRemoteStateSyncLaunchOptions _options;
+        private static int _effectiveControlledPlayerId;
         private static ShooterRemoteStateSyncLaunchOptions _pausedResumeOptions;
         private static ShooterRemoteStateSyncConnectionResult? _lastConnectionResult;
         private static ShooterHostFrameInput _lastInput;
@@ -285,7 +286,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
                 ThrowIfStaleLifecycle(generation);
                 _lastConnectionResult = connectionResult;
-                connectionResult.Launch.Session.Presentation.ControlledPlayerId = launchOptions.SessionOptions.ControlledPlayerId;
+                _effectiveControlledPlayerId = ResolveEffectiveControlledPlayerId(connectionResult.Launch.Flow, launchOptions.SessionOptions.ControlledPlayerId);
+                connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;
 
                 var coordinatorInputBridge = ShooterCoordinatorInputBridge.Create(
                     runtimeWorld.World,
@@ -328,7 +330,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastRemoteTimeAnchor = state.Launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
             var inputResult = InputPump.SubmitFrameInput(
                 state.Launch.Session,
-                _options.SessionOptions.ControlledPlayerId,
+                ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
                 _inputSubmitStrategy);
             _lastInput = inputResult.Input;
             _lastSubmitResult = inputResult.SubmitResult;
@@ -342,6 +344,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var frame = ShooterRemotePresentationFrameBuilder.Build(
                 state.Launch,
                 _options.SessionOptions,
+                ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
                 _lastRemoteTimeAnchor,
                 localTimeAnchor,
                 _lastRemoteLatencyCompensationDiagnostics);
@@ -352,6 +355,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static ShooterRemoteLatencyCompensationDiagnostics CreateRemoteLatencyCompensationDiagnostics()
         {
             return _inputSubmitStrategy?.CreateLatencyDiagnostics() ?? default;
+        }
+
+        private static int ResolveEffectiveControlledPlayerId(ShooterRoomGatewayFlowResult flow, int fallbackPlayerId)
+        {
+            return flow.PlayerId > 0u && flow.PlayerId <= int.MaxValue
+                ? (int)flow.PlayerId
+                : fallbackPlayerId;
         }
 
         private static void StopRunningSession(bool advanceLifecycle = true)
@@ -366,6 +376,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _state?.Dispose();
             _state = null;
             _options = default;
+            _effectiveControlledPlayerId = 0;
             _pausedResumeOptions = default;
             _lastInput = default;
             _lastSubmitResult = default;

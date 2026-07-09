@@ -185,7 +185,7 @@
       "name": "moba-xiaoqiao-unity",
       "level": "P1",
       "owner": "MOBA Runtime/Unity Test",
-      "description": "Run the four authoritative Xiao Qiao Unity EditMode tests and persist matching command, log, and NUnit XML artifacts.",
+      "description": "Run the authoritative Xiao Qiao Unity EditMode behavior and presentation-resource tests and persist matching command, log, and NUnit XML artifacts.",
       "scope": [
         "unity-editmode",
         "moba-xiaoqiao",
@@ -195,7 +195,7 @@
         "claim-latest-xiaoqiao-unity-result",
         "close-xiaoqiao-skill-contract-regression"
       ],
-      "failurePolicy": "Do not claim the latest Xiao Qiao Unity result until the executed four-test batch has a matching XML result file in the gate output directory.",
+      "failurePolicy": "Do not claim the latest Xiao Qiao Unity result until the executed Xiao Qiao EditMode batch has matching XML result files in the gate output directory.",
       "ciPolicy": {
         "runOnPullRequest": false,
         "runOnPush": false,
@@ -204,32 +204,46 @@
       },
       "steps": [
         {
+          "name": "Xiao Qiao Unity presentation resources authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.XiaoQiaoPresentationResources_ShouldLoadAndMatchUltimateRadius"
+        },
+        {
           "name": "Xiao Qiao Unity Skill10020101 authoritative",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020101_ScenarioExportsTraceAndConfirmsProjectileDamage"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.Skill10020101_ScenarioExportsTraceAndConfirmsProjectileDamage"
         },
         {
           "name": "Xiao Qiao Unity Skill10020201 authoritative",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020201_ScenarioExportsTraceAndConfirmsAreaDamage"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.Skill10020201_ScenarioExportsTraceAndConfirmsAreaDamage"
         },
         {
           "name": "Xiao Qiao Unity Skill10020301 authoritative",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020301_ScenarioExportsTraceAndConfirmsIntervalDamage"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.Skill10020301_ScenarioExportsTraceAndConfirmsIntervalDamage"
         },
         {
           "name": "Xiao Qiao Unity Skill10020000 passive authoritative",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10020000_PassiveCastBuff_ShouldIncreaseMoveSpeedTemporarily"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.Skill10020000_PassiveCastBuff_ShouldIncreaseMoveSpeedTemporarily"
+        },
+        {
+          "name": "Xiao Qiao Unity Skill10020000 passive refresh authoritative",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.XiaoQiaoSkillAcceptanceTests.Skill10020000_PassiveCastBuff_RepeatedCastShouldRefreshDurationFromLatestApply"
         }
       ]
     },

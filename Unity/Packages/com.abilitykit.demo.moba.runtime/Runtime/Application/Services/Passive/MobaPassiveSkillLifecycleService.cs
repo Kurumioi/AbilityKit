@@ -520,6 +520,12 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 var ids = new int[triggerIds.Count];
                 for (int i = 0; i < triggerIds.Count; i++) ids[i] = triggerIds[i];
 
+                if (ContainsTriggerId(triggerIds, 10020000))
+                {
+                    var actorId = entity != null && entity.hasActorId ? entity.actorId.Value : 0;
+                    Log.Info($"[MobaPassiveSkillLifecycleService] XiaoQiao passive ongoing plan upsert. actor={actorId} passiveSkillId={passiveSkillId} ownerKey={ownerKey} triggerCount={ids.Length}");
+                }
+
                 UpsertOngoingTriggerPlansEntry(entity, ownerKey, ids);
             }
         }

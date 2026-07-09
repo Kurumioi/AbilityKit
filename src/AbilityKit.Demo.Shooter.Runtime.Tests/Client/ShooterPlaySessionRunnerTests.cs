@@ -249,6 +249,33 @@ public sealed class ShooterPlaySessionRunnerTests
     }
 
     [Fact]
+    public void HighDensityPlayModeUsesBoundedPureStateDeltasAfterInitialBaseline()
+    {
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new RecordingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        var options = ShooterPlayModeSessionOptions.Default.WithGameplayScenario(
+            ShooterPlayModeSessionOptions.CreatePlayModeScenario(ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget));
+        runner.Start(options);
+
+        for (var tick = 0; tick < 3; tick++)
+        {
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        Assert.True(view.Frames.Count >= 3);
+        Assert.Equal(ShooterViewSnapshotKind.Full, view.Frames[0].ClientBatch.SnapshotKind);
+        Assert.Equal(ShooterViewSnapshotKind.Delta, view.Frames[1].ClientBatch.SnapshotKind);
+        Assert.Equal(ShooterViewSnapshotKind.Delta, view.Frames[2].ClientBatch.SnapshotKind);
+        Assert.True(
+            view.Frames[1].ClientBatch.EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
+            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {view.Frames[1].ClientBatch.EntityChanges.Count} entities.");
+        Assert.True(
+            view.Frames[2].ClientBatch.EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
+            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {view.Frames[2].ClientBatch.EntityChanges.Count} entities.");
+    }
+
+    [Fact]
     public void MediumDensityPlayModeProjectionRemovesExpiredBulletsAndDefeatedEnemiesAfterLongRun()
     {
         var tickRate = ShooterPlayModeSessionOptions.Default.TickRate;

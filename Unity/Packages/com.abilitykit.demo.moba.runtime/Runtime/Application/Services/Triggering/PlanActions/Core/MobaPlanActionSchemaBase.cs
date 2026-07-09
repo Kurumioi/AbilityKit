@@ -229,17 +229,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static bool HasIndexedAliasSuffix(string key, string alias)
         {
-            if (string.IsNullOrEmpty(alias) || key.Length <= alias.Length + 1)
+            if (string.IsNullOrEmpty(alias) || key.Length <= alias.Length)
             {
                 return false;
             }
 
-            if (!key.StartsWith(alias, StringComparison.OrdinalIgnoreCase) || key[alias.Length] != '_')
+            if (!key.StartsWith(alias, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
 
-            for (int i = alias.Length + 1; i < key.Length; i++)
+            var start = alias.Length;
+            if (key[start] == '_')
+            {
+                start++;
+            }
+
+            if (start >= key.Length)
+            {
+                return false;
+            }
+
+            for (int i = start; i < key.Length; i++)
             {
                 if (!char.IsDigit(key[i]))
                 {

@@ -146,6 +146,29 @@
                      }
     },
     {
+        "Id":  50020302,
+        "Name":  "小乔-星华缭乱-落星区域内敌方查询",
+        "MaxCount":  1,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  2.5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  1
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
         "Id":  50030201,
         "Name":  "赵云-破云之龙-前方枪刺敌方查询",
         "MaxCount":  10,

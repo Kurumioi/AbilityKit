@@ -60,7 +60,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             switch (arguments.Arity)
             {
                 case 0:
-                    if (ctx.Actions.TryGet<NamedAction0<TArgs, object, TCtx>>(call.Id, out var na0, out var na0Det))
+                    if (TryResolveAction0(call.Id, in ctx, out var na0, out var na0Det))
                     {
                         EnsureDeterministic(in ctx, call.Id, na0Det, "named action");
                         actions0[index] = na0;
@@ -70,7 +70,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     return false;
 
                 case 1:
-                    if (ctx.Actions.TryGet<NamedAction1<TArgs, object, TCtx>>(call.Id, out var na1, out var na1Det))
+                    if (TryResolveAction1(call.Id, in ctx, out var na1, out var na1Det))
                     {
                         EnsureDeterministic(in ctx, call.Id, na1Det, "named action");
                         actions1[index] = na1;
@@ -80,7 +80,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     return false;
 
                 case 2:
-                    if (ctx.Actions.TryGet<NamedAction2<TArgs, object, TCtx>>(call.Id, out var na2, out var na2Det))
+                    if (TryResolveAction2(call.Id, in ctx, out var na2, out var na2Det))
                     {
                         EnsureDeterministic(in ctx, call.Id, na2Det, "named action");
                         actions2[index] = na2;
@@ -107,7 +107,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
             switch (arguments.Arity)
             {
                 case 0:
-                    if (!ctx.Actions.TryGet<NamedAction0<TArgs, object, TCtx>>(call.Id, out var a0, out var a0Det))
+                    if (!TryResolveAction0(call.Id, in ctx, out var a0, out var a0Det))
                     {
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
@@ -118,7 +118,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     break;
 
                 case 1:
-                    if (!ctx.Actions.TryGet<NamedAction1<TArgs, object, TCtx>>(call.Id, out var a1, out var a1Det))
+                    if (!TryResolveAction1(call.Id, in ctx, out var a1, out var a1Det))
                     {
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
@@ -129,7 +129,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     break;
 
                 case 2:
-                    if (!ctx.Actions.TryGet<NamedAction2<TArgs, object, TCtx>>(call.Id, out var a2, out var a2Det))
+                    if (!TryResolveAction2(call.Id, in ctx, out var a2, out var a2Det))
                     {
                         ThrowActionNotFound(in ctx, call.Id, arguments.Arity);
                     }
@@ -142,6 +142,60 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 default:
                     throw new InvalidOperationException($"Unsupported action arity: {arguments.Arity}");
             }
+        }
+
+        private static bool TryResolveAction0(ActionId id, in ExecCtx<TCtx> ctx, out NamedAction0<TArgs, object, TCtx> action, out bool isDeterministic)
+        {
+            if (ctx.Actions.TryGet<NamedAction0<TArgs, object, TCtx>>(id, out action, out isDeterministic))
+            {
+                return true;
+            }
+
+            if (ctx.Actions.TryGet<NamedAction0<object, object, TCtx>>(id, out var objectAction, out isDeterministic))
+            {
+                action = (triggerArgs, actionArgs, execCtx) => objectAction(triggerArgs, actionArgs, execCtx);
+                return true;
+            }
+
+            action = null;
+            isDeterministic = false;
+            return false;
+        }
+
+        private static bool TryResolveAction1(ActionId id, in ExecCtx<TCtx> ctx, out NamedAction1<TArgs, object, TCtx> action, out bool isDeterministic)
+        {
+            if (ctx.Actions.TryGet<NamedAction1<TArgs, object, TCtx>>(id, out action, out isDeterministic))
+            {
+                return true;
+            }
+
+            if (ctx.Actions.TryGet<NamedAction1<object, object, TCtx>>(id, out var objectAction, out isDeterministic))
+            {
+                action = (triggerArgs, actionArgs, execCtx) => objectAction(triggerArgs, actionArgs, execCtx);
+                return true;
+            }
+
+            action = null;
+            isDeterministic = false;
+            return false;
+        }
+
+        private static bool TryResolveAction2(ActionId id, in ExecCtx<TCtx> ctx, out NamedAction2<TArgs, object, TCtx> action, out bool isDeterministic)
+        {
+            if (ctx.Actions.TryGet<NamedAction2<TArgs, object, TCtx>>(id, out action, out isDeterministic))
+            {
+                return true;
+            }
+
+            if (ctx.Actions.TryGet<NamedAction2<object, object, TCtx>>(id, out var objectAction, out isDeterministic))
+            {
+                action = (triggerArgs, actionArgs, execCtx) => objectAction(triggerArgs, actionArgs, execCtx);
+                return true;
+            }
+
+            action = null;
+            isDeterministic = false;
+            return false;
         }
 
         private static void EnsureDeterministic(in ExecCtx<TCtx> ctx, ActionId id, bool isDeterministic, string bindingKind)

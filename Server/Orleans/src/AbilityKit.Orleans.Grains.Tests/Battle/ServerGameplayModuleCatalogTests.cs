@@ -2,6 +2,7 @@ using System.Linq;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Demo.Shooter;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle;
@@ -61,12 +62,17 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.True(mobaProfile.ResolveTemplate("state-sync-authority").RequiresBattleRuntime);
         Assert.Equal("frame-sync-authority", moduleCatalog.GameplayCatalog.Resolve(GameplayRoomTypes.Moba).DefaultSyncTemplateId);
         Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.DefaultMode);
-        Assert.Equal("predict-rollback-authority", shooterProfile.DefaultTemplateId);
-        Assert.Equal("predict-rollback-authority", moduleCatalog.GameplayCatalog.Resolve(ShooterGameplay.RoomType).DefaultSyncTemplateId);
+        Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, shooterProfile.DefaultTemplateId);
+        Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, moduleCatalog.GameplayCatalog.Resolve(ShooterGameplay.RoomType).DefaultSyncTemplateId);
         Assert.True(shooterProfile.SupportsStateSyncPush);
         Assert.False(shooterProfile.SupportsFrameSync);
-        Assert.True(shooterProfile.SupportsTemplate("runtime-snapshot-interpolation"));
-        Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.ResolveTemplate("runtime-snapshot-interpolation").Mode);
+        Assert.True(shooterProfile.SupportsTemplate(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate));
+        Assert.True(shooterProfile.SupportsTemplate(ShooterServerProtocol.BatchStateLowFrequencyTemplate));
+        Assert.True(shooterProfile.SupportsTemplate(ShooterServerProtocol.MassBattleLodAoiTemplate));
+        Assert.True(shooterProfile.SupportsTemplate(ShooterServerProtocol.HybridHeroPredictionTemplate));
+        Assert.True(shooterProfile.SupportsTemplate(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate));
+        Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.ResolveTemplate(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate).Mode);
+        Assert.Equal(ServerBattleSyncMode.StateSync, shooterProfile.ResolveTemplate(ShooterServerProtocol.HybridHeroPredictionTemplate).Mode);
     }
 
     [Fact]
@@ -134,7 +140,11 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
         Assert.False(shooter.RequiresPlayerLoadout);
         Assert.True(shooter.SupportsStateSyncPush);
-        Assert.Contains("predict-rollback-authority", shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.PredictRollbackAuthorityTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.BatchStateLowFrequencyTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.MassBattleLodAoiTemplate, shooter.SupportedSyncTemplateIds);
+        Assert.Contains(ShooterServerProtocol.HybridHeroPredictionTemplate, shooter.SupportedSyncTemplateIds);
     }
 
     [Fact]

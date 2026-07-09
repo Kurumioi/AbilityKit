@@ -3,6 +3,7 @@ namespace AbilityKit.Orleans.Gateway.HttpApi;
 using AbilityKit.Orleans.Contracts.Accounts;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 using Orleans;
 
 public static class GatewayRoomEndpoints
@@ -26,7 +27,7 @@ public static class GatewayRoomEndpoints
                     accountId,
                     NormalizeRegion(request.Region),
                     NormalizeServerId(request.ServerId),
-                    string.IsNullOrWhiteSpace(request.RoomType) ? "shooter" : request.RoomType,
+                    string.IsNullOrWhiteSpace(request.RoomType) ? ShooterServerProtocol.RoomType : request.RoomType,
                     request.Title ?? string.Empty,
                     request.IsPublic,
                     request.MaxPlayers,
@@ -395,7 +396,7 @@ public static class GatewayRoomEndpoints
 
     private static string NormalizeServerId(string? serverId)
     {
-        return string.IsNullOrWhiteSpace(serverId) ? "default" : serverId;
+        return string.IsNullOrWhiteSpace(serverId) ? ShooterServerProtocol.DefaultServerId : serverId;
     }
 
     private static IResult InvalidSession()

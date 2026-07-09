@@ -1,8 +1,11 @@
 using System.Collections;
 using System.Reflection;
 using AbilityKit.Ability.Host;
+using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
 using NUnit.Framework;
@@ -130,6 +133,108 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.Greater(skill3End.x - skill3Start.x, 0.1f, $"Lian Po skill 3 should follow +X aim position. start={skill3Start}, end={skill3End}");
         }
 
+        [UnityTest]
+        public IEnumerator MobaDemoScene_LocalBattle_LianPoSkill3DoesNotPullBackAfterInsertedSkill1Dash()
+        {
+            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
+            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
+
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            Assert.IsNotNull(flow, "GameEntry must expose GameFlowDomain after Awake.");
+
+            flow.StartWithPersistentSettingsSync();
+            FlowTick(flow, 2);
+
+            flow.EnterBattle(new TestBattleBootstrapper());
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(TryGetLocalActorPosition(ctx, out var start), DescribeContextWaitFailure(ctx));
+
+            ctx.SubmitHudSkillAim(slot: 3, aimDx: 1f, aimDz: 0f);
+            FlowTick(flow, 2);
+            yield return TickUntil(
+                flow,
+                () => TryGetLocalActorPosition(ctx, out var current) && current.x > start.x + 0.1f && current.y > start.y + 0.08f,
+                180,
+                DescribeSkill3MovementFailure(ctx, start, 0f, 0f));
+
+            yield return TickUntil(
+                flow,
+                () => TryGetLocalActorPosition(ctx, out var current) && current.y <= start.y + 0.05f && current.x > start.x + 0.1f,
+                120,
+                $"Lian Po skill 3 first stage did not land before inserted skill 1. start={start}, lastFrame={ctx.LastFrame}, logicTime={ctx.LogicTimeSeconds:F3}");
+
+            Assert.IsTrue(TryGetLocalActorPosition(ctx, out var beforeSkill1), "Local actor position should be readable before inserted skill 1.");
+            ctx.SubmitHudSkillAim(slot: 1, aimDx: 1f, aimDz: 0f);
+            FlowTick(flow, 2);
+
+            yield return TickUntil(
+                flow,
+                () => TryGetLocalActorPosition(ctx, out var current) && current.x > beforeSkill1.x + 0.1f,
+                120,
+                DescribeMovementFailure(ctx, beforeSkill1));
+
+            Assert.IsTrue(TryGetLocalActorPosition(ctx, out var afterSkill1), "Local actor position should be readable after inserted skill 1.");
+            var minXAfterSkill1 = afterSkill1.x;
+            var minObservedX = afterSkill1.x;
+            var maxObservedHeight = afterSkill1.y;
+            for (var i = 0; i < 90; i++)
+            {
+                FlowTick(flow, 1);
+                Assert.IsTrue(TryGetLocalActorPosition(ctx, out var current), "Local actor position should remain readable while skill 3 resumes.");
+                minObservedX = Mathf.Min(minObservedX, current.x);
+                maxObservedHeight = Mathf.Max(maxObservedHeight, current.y);
+                yield return null;
+            }
+
+            Assert.GreaterOrEqual(minObservedX, minXAfterSkill1 - 0.15f, $"Lian Po skill 3 later stages should continue from current position instead of pulling back to the old aim point. start={start}, beforeSkill1={beforeSkill1}, afterSkill1={afterSkill1}, minObservedX={minObservedX:F3}");
+            Assert.Greater(maxObservedHeight - start.y, 0.08f, $"Lian Po skill 3 later stages should still jump vertically after inserted skill 1. start={start}, maxObservedHeight={maxObservedHeight:F3}");
+        }
+
+        [UnityTest]
+        public IEnumerator MobaDemoScene_LocalBattle_LianPoSkill2RefreshesSkill1CooldownWhenEnemyInRange()
+        {
+            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
+            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+
+            var entry = Object.FindObjectOfType<GameEntry>();
+            Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
+
+            InvokePrivate(entry, "Awake");
+            var flow = entry.Get<GameFlowDomain>();
+            Assert.IsNotNull(flow, "GameEntry must expose GameFlowDomain after Awake.");
+
+            flow.StartWithPersistentSettingsSync();
+            FlowTick(flow, 2);
+
+            flow.EnterBattle(new TestBattleBootstrapper());
+            yield return TickUntil(flow, () => flow.CurrentBattlePhase == MobaBattleState.InMatch, 240, "Battle flow did not reach InMatch.");
+
+            Assert.IsTrue(entry.TryGet(out BattleContext ctx), "BattleContext must be attached after entering battle.");
+            yield return TickUntil(flow, () => IsLocalActorReady(ctx), 240, DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(TryGetLocalActorPosition(ctx, out var casterPosition), DescribeContextWaitFailure(ctx));
+            Assert.IsTrue(TryFindEnemyActor(ctx, out var enemyActorId), "Demo battle should contain an enemy actor.");
+            Assert.IsTrue(TrySetActorPosition(ctx, enemyActorId, casterPosition + new Vector3(1.5f, 0f, 0f)), "Enemy should be movable into Lian Po skill 2 range.");
+            Assert.IsTrue(TryGetActiveSkillRuntime(ctx, ctx.LocalActorId, skillSlot: 1, skillId: 10010101, out var skill1Runtime), "Lian Po skill 1 runtime should be available.");
+
+            skill1Runtime.CooldownDurationMs = 5000;
+            skill1Runtime.CooldownEndTimeMs = 5000;
+            ctx.SubmitHudSkillClick(slot: 2);
+            FlowTick(flow, 2);
+
+            yield return TickUntil(
+                flow,
+                () => TryGetActiveSkillRuntime(ctx, ctx.LocalActorId, skillSlot: 1, skillId: 10010101, out var runtime) && runtime.CooldownEndTimeMs <= 0L && runtime.CooldownDurationMs <= 0,
+                90,
+                $"Lian Po skill 2 should refresh skill 1 cooldown when an enemy is in range. lastFrame={ctx.LastFrame}, logicTime={ctx.LogicTimeSeconds:F3}, cooldownEnd={skill1Runtime.CooldownEndTimeMs}, cooldownDuration={skill1Runtime.CooldownDurationMs}");
+        }
+
         private static IEnumerator TickUntil(GameFlowDomain flow, System.Func<bool> predicate, int maxTicks, string failureMessage)
         {
             for (var i = 0; i < maxTicks; i++)
@@ -182,6 +287,68 @@ namespace AbilityKit.Game.Test.UnitTest
 
             position = transform.Position;
             return true;
+        }
+
+        private static bool TryFindEnemyActor(BattleContext ctx, out int enemyActorId)
+        {
+            enemyActorId = 0;
+            if (!TryGetEntityManager(ctx, out var entities)) return false;
+            if (!entities.TryGetActorEntity(ctx.LocalActorId, out var local) || local == null) return false;
+
+            var actorIds = new System.Collections.Generic.List<int>(16);
+            entities.GetRegisteredActorIds(actorIds);
+            for (var i = 0; i < actorIds.Count; i++)
+            {
+                var actorId = actorIds[i];
+                if (actorId <= 0 || actorId == ctx.LocalActorId) continue;
+                if (!entities.TryGetActorEntity(actorId, out var candidate) || candidate == null) continue;
+                if (!candidate.hasTransform || !candidate.hasAttributeGroup) continue;
+                if (local.hasTeam && candidate.hasTeam && local.team.Value.Equals(candidate.team.Value)) continue;
+
+                enemyActorId = actorId;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TrySetActorPosition(BattleContext ctx, int actorId, Vector3 position)
+        {
+            if (!TryGetEntityManager(ctx, out var entities)) return false;
+            if (!entities.TryGetActorEntity(actorId, out var entity) || entity == null || !entity.hasTransform) return false;
+
+            var current = entity.transform.Value;
+            var newPosition = ToVec3(position);
+            entity.ReplaceTransform(new Transform3(in newPosition, in current.Rotation, in current.Scale));
+            return true;
+        }
+
+        private static bool TryGetActiveSkillRuntime(BattleContext ctx, int actorId, int skillSlot, int skillId, out ActiveSkillRuntime runtime)
+        {
+            runtime = null;
+            if (!TryGetActorLookup(ctx, out var actors)) return false;
+            return MobaSkillRuntimeAccess.TryGetActiveSkill(actors, actorId, skillSlot, skillId, out runtime);
+        }
+
+        private static bool TryGetActorLookup(BattleContext ctx, out MobaActorLookupService actors)
+        {
+            actors = null;
+            if (ctx?.Session == null) return false;
+            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
+            return world.Services.TryResolve(out actors) && actors != null;
+        }
+
+        private static bool TryGetEntityManager(BattleContext ctx, out MobaEntityManager entities)
+        {
+            entities = null;
+            if (ctx?.Session == null) return false;
+            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
+            return world.Services.TryResolve(out entities) && entities != null;
+        }
+
+        private static Vec3 ToVec3(Vector3 value)
+        {
+            return new Vec3(value.x, value.y, value.z);
         }
 
         private static float PlanarDistance(Vector3 a, Vector3 b)

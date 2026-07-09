@@ -30,17 +30,37 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, out EC.IEntity entity)
         {
-            return _factory.TryCreateEntity(world, parent, vfxId, followTarget, in position, out entity);
+            return TryCreateVfxEntity(world, parent, vfxId, followTarget, in position, Quaternion.identity, out entity);
+        }
+
+        public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, in Quaternion rotation, out EC.IEntity entity)
+        {
+            return TryCreateVfxEntity(world, parent, vfxId, followTarget, 0, in position, in rotation, out entity);
+        }
+
+        public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, out EC.IEntity entity)
+        {
+            return TryCreateVfxEntity(world, parent, vfxId, followTarget, followTargetActorId, in position, in rotation, 0, out entity);
+        }
+
+        public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, int durationMsOverride, out EC.IEntity entity)
+        {
+            return _factory.TryCreateEntity(world, parent, vfxId, followTarget, followTargetActorId, in position, in rotation, durationMsOverride, out entity);
         }
 
         public void Tick(in EC.IEntity vfxRoot)
         {
-            Tick(vfxRoot, binder: null);
+            Tick(vfxRoot, binder: null, query: null);
         }
 
         public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder)
         {
-            _followController.Tick(vfxRoot, binder, DestroyVfxEntity);
+            Tick(vfxRoot, binder, query: null);
+        }
+
+        public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder, IBattleEntityQuery query)
+        {
+            _followController.Tick(vfxRoot, binder, query, DestroyVfxEntity);
         }
 
         public void DestroyVfxEntity(EC.IECWorld world, EC.IEntityId id)
@@ -61,6 +81,11 @@ namespace AbilityKit.Game.Battle.Vfx
         public void SyncFollow(EC.IECWorld world, EC.IEntityId vfxEntityId, in Vector3 targetPos)
         {
             _followController.SyncFollow(world, vfxEntityId, in targetPos);
+        }
+
+        public void SyncFollow(EC.IECWorld world, EC.IEntityId vfxEntityId, in Vector3 targetPos, in Vector3 targetForward)
+        {
+            _followController.SyncFollow(world, vfxEntityId, in targetPos, in targetForward);
         }
     }
 

@@ -60,8 +60,10 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 var eid = TriggeringIdUtil.GetEventEid(eventId);
-                planBus.Publish(new EventKey<SkillCastContext>(eid), ctx);
+                var typedKey = new EventKey<SkillCastContext>(eid);
                 var objectKey = new EventKey<object>(eid);
+
+                planBus.Publish(typedKey, ctx);
                 if (planBus.HasSubscribers(objectKey))
                 {
                     object boxed = ctx;

@@ -5,12 +5,19 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
     public readonly struct BattleProjectileVfxIds
     {
         public BattleProjectileVfxIds(int onSpawnVfxId, int onHitVfxId, int onExpireVfxId)
+            : this(0, onSpawnVfxId, onHitVfxId, onExpireVfxId)
         {
+        }
+
+        public BattleProjectileVfxIds(int projectileVfxId, int onSpawnVfxId, int onHitVfxId, int onExpireVfxId)
+        {
+            ProjectileVfxId = projectileVfxId;
             OnSpawnVfxId = onSpawnVfxId;
             OnHitVfxId = onHitVfxId;
             OnExpireVfxId = onExpireVfxId;
         }
 
+        public int ProjectileVfxId { get; }
         public int OnSpawnVfxId { get; }
         public int OnHitVfxId { get; }
         public int OnExpireVfxId { get; }
@@ -59,7 +66,11 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 
         public int ResolveSnapshotVfxId(in BattleProjectileVfxIds vfxIds, int kind)
         {
-            if (kind == BattleProjectileEventKinds.Spawn) return vfxIds.OnSpawnVfxId;
+            if (kind == BattleProjectileEventKinds.Spawn)
+            {
+                return vfxIds.OnSpawnVfxId > 0 ? vfxIds.OnSpawnVfxId : vfxIds.ProjectileVfxId;
+            }
+
             if (kind == BattleProjectileEventKinds.Hit) return vfxIds.OnHitVfxId;
             if (kind == BattleProjectileEventKinds.Exit) return vfxIds.OnExpireVfxId;
             return 0;

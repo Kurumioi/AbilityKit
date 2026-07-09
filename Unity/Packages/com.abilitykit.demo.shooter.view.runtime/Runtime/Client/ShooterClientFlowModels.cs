@@ -6,10 +6,23 @@ using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
+    public static class ShooterRoomLaunchTagKeys
+    {
+        public const string SyncTemplateId = "syncTemplateId";
+        public const string SyncModel = "syncModel";
+        public const string NetworkEnvironmentId = "networkEnvironmentId";
+        public const string CarrierName = "carrierName";
+        public const string EnableAuthoritativeWorld = "enableAuthoritativeWorld";
+        public const string InterpolationEnabled = "interpolationEnabled";
+        public const string InputDelayFrames = "inputDelayFrames";
+        public const string RandomSeed = "randomSeed";
+        public const string DurationFrames = "durationFrames";
+    }
+
     public readonly struct ShooterRoomLaunchSpec
     {
         public const int DefaultOfflineTimeoutSeconds = 30 * 60;
-        public const string DefaultSyncTemplateId = "predict-rollback-authority";
+        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
         public const int DefaultSyncModel = (int)NetworkSyncModel.PredictRollback;
         public const string DefaultNetworkEnvironmentId = "ideal";
         public const string DefaultCarrierName = "server";

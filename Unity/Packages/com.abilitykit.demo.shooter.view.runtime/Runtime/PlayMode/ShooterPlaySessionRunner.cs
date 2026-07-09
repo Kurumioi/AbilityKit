@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     public sealed class ShooterPlaySessionRunner : IDisposable
     {
         private const int MaxCatchUpTicksPerRender = 2;
+        private const int HighDensityPresentationBaselineIntervalSeconds = 5;
 
         private readonly IShooterHostInputSource _inputSource;
         private readonly IShooterHostViewSink _viewSink;
@@ -31,6 +32,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private int _presentationSnapshotIntervalTicks = 1;
         private bool _usePureStatePresentationSnapshots;
         private ShooterPureStateSyncSettings _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
+        private bool _hasPresentationPureStateBaseline;
+        private int _presentationPureStateBaselineFrame;
+        private uint _presentationPureStateBaselineHash;
 
         public ShooterPlaySessionRunner(IShooterHostInputSource inputSource, IShooterHostViewSink viewSink)
         {
@@ -96,6 +100,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options);
             _usePureStatePresentationSnapshots = ShouldUsePureStatePresentationSnapshots(_options);
             _presentationPureStateSettings = CreatePresentationPureStateSettings(_options);
+            _hasPresentationPureStateBaseline = false;
+            _presentationPureStateBaselineFrame = 0;
+            _presentationPureStateBaselineHash = 0u;
             SessionChanged?.Invoke(_session);
             return _session;
         }
@@ -122,6 +129,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _presentationSnapshotIntervalTicks = 1;
             _usePureStatePresentationSnapshots = false;
             _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
+            _hasPresentationPureStateBaseline = false;
+            _presentationPureStateBaselineFrame = 0;
+            _presentationPureStateBaselineHash = 0u;
             session.Dispose();
             _viewSink.Clear();
             SessionChanged?.Invoke(null);
@@ -211,11 +221,21 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             if (_usePureStatePresentationSnapshots)
             {
+                var isFullBaseline = ShouldPublishPresentationPureStateBaseline();
                 var snapshot = _session.Runtime.ExportPureStateSnapshot(
                     worldId: 0,
-                    isFullBaseline: true,
+                    isFullBaseline: isFullBaseline,
                     settings: _presentationPureStateSettings,
+                    baselineFrame: _presentationPureStateBaselineFrame,
+                    baselineHash: _presentationPureStateBaselineHash,
                     computeStateHash: false);
+                if (isFullBaseline)
+                {
+                    _hasPresentationPureStateBaseline = true;
+                    _presentationPureStateBaselineFrame = snapshot.Frame;
+                    _presentationPureStateBaselineHash = snapshot.StateHash;
+                }
+
                 _session.Presentation.ApplyPureStateSnapshot(in snapshot);
                 return;
             }
@@ -267,6 +287,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return _stepCount <= 1 || (_stepCount % Math.Max(1, _presentationSnapshotIntervalTicks)) == 0;
         }
 
+        private bool ShouldPublishPresentationPureStateBaseline()
+        {
+            if (!_hasPresentationPureStateBaseline)
+            {
+                return true;
+            }
+
+            var baselineInterval = Math.Max(1, _presentationPureStateSettings.BaselineIntervalFrames);
+            return _stepCount > 0 && _stepCount % baselineInterval == 0;
+        }
+
         private static int DeterminePresentationSnapshotIntervalTicks(ShooterPlayModeSessionOptions options)
         {
             var activeEnemies = options.GameplayScenario.BattleFlow.MaxActiveEnemies;
@@ -290,11 +321,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private static ShooterPureStateSyncSettings CreatePresentationPureStateSettings(ShooterPlayModeSessionOptions options)
         {
-            var maxEntities = Math.Max(ShooterPureStateSyncSettings.Default.MaxEntityCount, options.GameplayScenario.BattleFlow.MaxActiveEnemies + options.PlayerCount + 1024);
+            var defaults = ShooterPureStateSyncSettings.Default;
+            var maxEntities = Math.Max(defaults.MaxEntityCount, options.GameplayScenario.BattleFlow.MaxActiveEnemies + options.PlayerCount + 1024);
             return new ShooterPureStateSyncSettings(
                 maxEntities,
-                maxEntities,
-                Math.Max(1, options.TickRate),
+                defaults.ActiveSyncBudget,
+                Math.Max(1, options.TickRate * HighDensityPresentationBaselineIntervalSeconds),
                 1,
                 Math.Max(1, options.TickRate / 2),
                 1);

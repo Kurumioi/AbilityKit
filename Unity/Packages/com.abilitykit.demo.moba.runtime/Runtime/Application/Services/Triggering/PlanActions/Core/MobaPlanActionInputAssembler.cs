@@ -2,6 +2,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Serialization;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Runtime;
 
@@ -77,9 +78,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             {
                 var hasAimPosition = abilityContext.TryGetData(AbilityContextKeys.AimPos.ToKeyString(), out aimPosition)
                                      && aimPosition.SqrMagnitude > 0f;
+                if (!hasAimPosition && abilityContext.TryGetData(AbilityContextKeys.AreaCenter.ToKeyString(), out aimPosition))
+                {
+                    hasAimPosition = aimPosition.SqrMagnitude > 0f;
+                }
+
                 var hasAimDirection = abilityContext.TryGetData(AbilityContextKeys.AimDir.ToKeyString(), out aimDirection)
                                       && aimDirection.SqrMagnitude > 0f;
                 return hasAimPosition || hasAimDirection;
+            }
+
+            if (payload is AreaEventArgs areaEvent)
+            {
+                aimPosition = areaEvent.Center;
+                return aimPosition.SqrMagnitude > 0f;
             }
 
             return false;

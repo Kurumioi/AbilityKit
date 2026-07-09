@@ -102,6 +102,11 @@ namespace AbilityKit.Game.Flow
             _inputController.Ensure();
         }
 
+        public void RefreshLocalControlSkillTemplates()
+        {
+            ApplyLaunchSpecSkillTemplates();
+        }
+
         private void ApplyLaunchSpecSkillTemplates()
         {
             if (_ctx == null) return;
@@ -178,7 +183,8 @@ namespace AbilityKit.Game.Flow
         private string ResolveLocalPlayerId(EnterMobaGameRes res = default)
         {
             if (_ctx == null) return string.Empty;
-            if (!string.IsNullOrEmpty(_ctx.Plan.World.PlayerId)) return _ctx.Plan.World.PlayerId;
+            var controlledPlayerId = _ctx.ResolveLocalControlPlayerId();
+            if (!string.IsNullOrEmpty(controlledPlayerId)) return controlledPlayerId;
             if (!string.IsNullOrEmpty(res.PlayerId.Value)) return res.PlayerId.Value;
             return _ctx.Plan.LaunchSpec.LocalPlayerId.Value;
         }

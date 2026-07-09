@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Flow
             if (_ctx.Plan.RunModeOptions.EnableInputReplay) return;
 
             var plan = _ctx.Plan;
-            var playerId = BattleInputSessionIdentity.ResolvePlayerId(in plan);
+            var playerId = BattleInputSessionIdentity.ResolvePlayerId(_ctx);
             var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
             var nextFrame = _ctx.LastFrame + 1;
 

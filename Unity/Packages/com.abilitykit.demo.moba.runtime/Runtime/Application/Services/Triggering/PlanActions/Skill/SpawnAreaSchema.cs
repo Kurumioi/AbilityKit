@@ -26,7 +26,47 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var offsetX = ReadFloat(namedArgs, ctx, 0f, "offset_x", "offsetx", "x");
             var offsetY = ReadFloat(namedArgs, ctx, 0f, "offset_y", "offsety", "y");
             var offsetZ = ReadFloat(namedArgs, ctx, 0f, "offset_z", "offsetz", "z");
-            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ);
+            var hasTargetRequest = HasExplicitTargetRequest(namedArgs);
+            var targetRequest = hasTargetRequest ? MobaActionTargetSchemaReader.Read(namedArgs, ctx) : default;
+            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ, hasTargetRequest, targetRequest);
+        }
+
+        private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)
+        {
+            if (namedArgs == null || namedArgs.Count == 0) return false;
+            return HasAny(namedArgs,
+                "target_query_id", "targetqueryid",
+                "query_template_id", "querytemplateid",
+                "target_query_template_id", "targetquerytemplateid",
+                "target_actor_id", "targetactorid",
+                "target_payload_actor_id", "targetpayloadactorid",
+                "target_self", "targetself",
+                "target_mode", "targetmode",
+                "target_source", "targetsource",
+                "target_source_code", "targetsourcecode",
+                "target_source_param", "targetsourceparam",
+                "target_filter", "targetfilter",
+                "target_filter_code", "targetfiltercode",
+                "target_filter_param", "targetfilterparam",
+                "target_radius", "targetradius",
+                "target_half_angle_deg", "targethalfanglegdeg",
+                "target_order", "targetorder",
+                "target_order_code", "targetordercode",
+                "target_order_param", "targetorderparam",
+                "target_select", "targetselect",
+                "target_select_code", "targetselectcode",
+                "target_max_count", "targetmaxcount",
+                "max_count", "maxcount");
+        }
+
+        private static bool HasAny(Dictionary<string, ActionArgValue> namedArgs, params string[] keys)
+        {
+            for (int i = 0; i < keys.Length; i++)
+            {
+                if (namedArgs.ContainsKey(keys[i])) return true;
+            }
+
+            return false;
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

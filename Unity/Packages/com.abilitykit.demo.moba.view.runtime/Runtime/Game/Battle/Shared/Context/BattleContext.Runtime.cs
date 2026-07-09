@@ -10,6 +10,14 @@ namespace AbilityKit.Game.Flow
         public int LastFrame;
         public double LogicTimeSeconds;
         public int LocalActorId;
+        public string LocalControlPlayerId;
         public BattleSessionHooks Hooks;
+
+        public string ResolveLocalControlPlayerId()
+        {
+            if (!string.IsNullOrEmpty(LocalControlPlayerId)) return LocalControlPlayerId;
+            if (!string.IsNullOrEmpty(Plan.World.PlayerId)) return Plan.World.PlayerId;
+            return Plan.LaunchSpec.LocalPlayerId.Value;
+        }
     }
 }

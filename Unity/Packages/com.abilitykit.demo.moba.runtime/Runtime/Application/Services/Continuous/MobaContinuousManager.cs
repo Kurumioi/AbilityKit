@@ -46,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Services
             if (triggerGateway == null) triggerGateway = new MobaTriggerExecutionGateway(effects, triggerSubscriptions);
 
             _modifierProjectors = new MobaContinuousModifierProjectorRegistry();
+            _modifierProjectors.Register(new MobaAttributeContinuousModifierProjector());
+            _modifierProjectors.Register(new MobaSkillParamContinuousModifierProjector());
             _modifierProjectors.OnInit(services);
             _lifecycleBinder = new MobaContinuousLifecycleBinder(_modifierProjectors);
             AddLifecycleBinder(_lifecycleBinder);

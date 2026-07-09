@@ -19,7 +19,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
     internal sealed class MobaBuffPresentationCueReporter
     {
         private const string OwnerKindBuff = "Buff";
-
+        private const int NumericParamRadius = 2;
+ 
         private readonly MobaConfigDatabase _configs;
         private readonly MobaPresentationCueSnapshotService _snapshots;
         private readonly Dictionary<int, int[]> _singleTargetArrays = new Dictionary<int, int[]>(32);
@@ -82,6 +83,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
         {
             var remainingSeconds = ResolveRemainingSeconds(runtime);
             var instanceKey = GetInstanceKey(buff.Id, targetActorId, runtime.SourceContextId);
+            var numericParamKeys = template.Radius > 0f ? new[] { NumericParamRadius } : null;
+            var numericParamValues = template.Radius > 0f ? new[] { template.Radius } : null;
+
             return new MobaPresentationCueSnapshotEntry
             {
                 Stage = (int)stage,
@@ -108,7 +112,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Presentation {
                 MaxStackCount = buff.MaxStacks,
                 ElapsedSeconds = runtime.Continuous != null ? runtime.Continuous.ElapsedSeconds : 0f,
                 RemainingSeconds = remainingSeconds,
-                LifecycleReason = (int)reason
+                LifecycleReason = (int)reason,
+                NumericParamKeys = numericParamKeys,
+                NumericParamValues = numericParamValues
             };
         }
 

@@ -314,7 +314,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return TryGetActorPosition(TargetActorId, out spawnPosition);
                 case SpawnSummonPositionMode.AimPos:
                     if (!HasAimPosition) return false;
-                    spawnPosition = new Vec3(AimPosition.X, 0, AimPosition.Y);
+                    spawnPosition = new Vec3(AimPosition.X, 0, AimPosition.Z);
                     return true;
                 case SpawnSummonPositionMode.Fixed:
                     return true;

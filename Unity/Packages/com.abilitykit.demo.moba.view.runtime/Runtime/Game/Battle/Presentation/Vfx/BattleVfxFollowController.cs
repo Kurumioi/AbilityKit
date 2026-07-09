@@ -30,6 +30,11 @@ namespace AbilityKit.Game.Battle.Vfx
 
         public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder, Action<EC.IECWorld, EC.IEntityId> destroyAction)
         {
+            Tick(vfxRoot, binder, query: null, destroyAction);
+        }
+
+        public void Tick(in EC.IEntity vfxRoot, BattleViewBinder binder, IBattleEntityQuery query, Action<EC.IECWorld, EC.IEntityId> destroyAction)
+        {
             if (!vfxRoot.IsValid) return;
             var world = vfxRoot.World;
             if (world == null) return;
@@ -51,11 +56,17 @@ namespace AbilityKit.Game.Battle.Vfx
                     continue;
                 }
 
-                TrySyncFollow(world, entity, binder);
+                TrySyncFollow(world, entity, binder, query);
             }
         }
 
         public void SyncFollow(EC.IECWorld world, EC.IEntityId vfxEntityId, in Vector3 targetPos)
+        {
+            var forward = Vector3.zero;
+            SyncFollow(world, vfxEntityId, in targetPos, in forward);
+        }
+
+        public void SyncFollow(EC.IECWorld world, EC.IEntityId vfxEntityId, in Vector3 targetPos, in Vector3 targetForward)
         {
             if (world == null) return;
             if (!world.IsAlive(vfxEntityId)) return;
@@ -69,14 +80,19 @@ namespace AbilityKit.Game.Battle.Vfx
                 pos += follow.Offset;
             }
 
-            goComp.GameObject.transform.position = pos;
+            var tr = goComp.GameObject.transform;
+            tr.position = pos;
+            if (targetForward.sqrMagnitude > 0.0001f)
+            {
+                tr.rotation = Quaternion.LookRotation(targetForward.normalized, Vector3.up);
+            }
         }
 
-        private void TrySyncFollow(EC.IECWorld world, EC.IEntity entity, BattleViewBinder binder)
+        private void TrySyncFollow(EC.IECWorld world, EC.IEntity entity, BattleViewBinder binder, IBattleEntityQuery query)
         {
-            if (_targetPositions.TryResolve(world, entity, binder, out var position))
+            if (_targetPositions.TryResolve(world, entity, binder, query, out var position, out var forward))
             {
-                SyncFollow(world, entity.Id, position);
+                SyncFollow(world, entity.Id, in position, in forward);
             }
         }
     }

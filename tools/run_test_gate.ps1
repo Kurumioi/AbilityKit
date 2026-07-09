@@ -1,5 +1,7 @@
 param(
+    [Alias('GateId')]
     [string]$Gate,
+    [string]$StepName,
     [string]$ConfigPath = 'tools\test-gates.json',
     [string]$Configuration = 'Debug',
     [string]$ResultsDirectory = 'artifacts\test-gates',
@@ -247,7 +249,8 @@ function Invoke-UnityBatchModeStep {
     $fullArguments += $Arguments
     $fullArguments += @('-logFile', $logFilePath)
 
-    $includeQuit = $true
+    $isUnityTestRun = @($Arguments) -contains '-runTests'
+    $includeQuit = -not $isUnityTestRun
     if ($Step.PSObject.Properties['quit']) {
         $includeQuit = [bool]$Step.quit
     }
@@ -407,7 +410,8 @@ function Invoke-Gate {
         [string]$GateName,
         [System.Collections.Generic.HashSet[string]]$Visiting,
         [string[]]$GatePath,
-        [string]$RunRoot
+        [string]$RunRoot,
+        [string]$OnlyStepName = $null
     )
 
     if (-not $gatesByName.ContainsKey($GateName)) {
@@ -440,9 +444,15 @@ function Invoke-Gate {
         Write-GateHeader -GateDef $gateDef -GateOutputDirectory $gateOutputDirectory
 
         $stepIndex = 0
+        $matchedOnlyStep = [string]::IsNullOrWhiteSpace($OnlyStepName)
         foreach ($step in $gateDef.steps) {
             $stepIndex++
             $stepName = [string]$step.name
+            if (-not [string]::IsNullOrWhiteSpace($OnlyStepName) -and $stepName -ne $OnlyStepName) {
+                continue
+            }
+
+            $matchedOnlyStep = $true
             switch ([string]$step.kind) {
                 'gate' {
                     $nestedGateName = [string]$step.gate
@@ -511,6 +521,10 @@ function Invoke-Gate {
                 }
             }
         }
+
+        if (-not $matchedOnlyStep) {
+            throw "Step '$OnlyStepName' was not found in gate '$GateName'."
+        }
     }
     catch {
         $status = 'Failed'
@@ -545,7 +559,7 @@ function Invoke-Gate {
 
 $startedAt = Get-Date
 try {
-    $gateResult = Invoke-Gate -GateName $Gate -Visiting ([System.Collections.Generic.HashSet[string]]::new()) -GatePath @($Gate) -RunRoot $runRoot
+    $gateResult = Invoke-Gate -GateName $Gate -Visiting ([System.Collections.Generic.HashSet[string]]::new()) -GatePath @($Gate) -RunRoot $runRoot -OnlyStepName $StepName
     $elapsed = (Get-Date) - $startedAt
     Write-Host ("`nGate '{0}' passed in {1:n1}s." -f $Gate, $elapsed.TotalSeconds) -ForegroundColor Green
     Write-Host ("Summary: {0}" -f $gateResult.summaryPath) -ForegroundColor DarkGray

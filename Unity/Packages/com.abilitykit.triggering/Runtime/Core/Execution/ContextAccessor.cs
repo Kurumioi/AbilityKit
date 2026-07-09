@@ -38,7 +38,7 @@ namespace AbilityKit.Triggering.Runtime
 
             if (_context is IServiceProvider provider)
             {
-                service = provider.GetService(typeof(TService)) as TService;
+                service = TryGetProviderService<TService>(provider);
                 if (service != null)
                 {
                     return true;
@@ -58,7 +58,7 @@ namespace AbilityKit.Triggering.Runtime
                 var servicesValue = servicesProperty.GetValue(_context);
                 if (servicesValue is IServiceProvider services)
                 {
-                    service = services.GetService(typeof(TService)) as TService;
+                    service = TryGetProviderService<TService>(services);
                     if (service != null)
                     {
                         return true;
@@ -73,6 +73,18 @@ namespace AbilityKit.Triggering.Runtime
             }
 
             return false;
+        }
+
+        private static TService TryGetProviderService<TService>(IServiceProvider provider) where TService : class
+        {
+            try
+            {
+                return provider.GetService(typeof(TService)) as TService;
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
         }
 
         private bool TryResolveViaMethod(Type serviceType, out object instance)

@@ -327,6 +327,71 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
+    public sealed class SkillCastContextPayloadAccessor : IPayloadIntAccessor<SkillCastContext>, IPayloadDoubleAccessor<SkillCastContext>
+    {
+        private static readonly int SkillIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillId);
+        private static readonly int SkillIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillId);
+        private static readonly int SkillSlotId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillSlot);
+        private static readonly int SkillSlotLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillSlot);
+        private static readonly int SkillLevelId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.SkillLevel);
+        private static readonly int SkillLevelLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.SkillLevel);
+        private static readonly int CasterActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.CasterActorId);
+        private static readonly int CasterActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.CasterActorId);
+        private static readonly int TargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
+        private static readonly int TargetActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId);
+
+        public bool TryGet(in SkillCastContext args, int fieldId, out int value)
+        {
+            value = 0;
+            if (args == null) return false;
+
+            if (fieldId == SkillIdId || fieldId == SkillIdLegacyId)
+            {
+                value = args.SkillId;
+                return true;
+            }
+
+            if (fieldId == SkillSlotId || fieldId == SkillSlotLegacyId)
+            {
+                value = args.SkillSlot;
+                return true;
+            }
+
+            if (fieldId == SkillLevelId || fieldId == SkillLevelLegacyId)
+            {
+                value = Math.Max(1, args.SkillLevel);
+                return true;
+            }
+
+            if (fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId)
+            {
+                value = args.CasterActorId;
+                return true;
+            }
+
+            if (fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId)
+            {
+                value = args.TargetActorId;
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryGet(in SkillCastContext args, int fieldId, out double value)
+        {
+            int intValue;
+            if (TryGet(in args, fieldId, out intValue))
+            {
+                value = intValue;
+                return true;
+            }
+
+            value = 0d;
+            return false;
+        }
+    }
+
     public sealed class SkillPipelineContextObjectPayloadAccessor : IPayloadIntAccessor<object>, IPayloadDoubleAccessor<object>
     {
         private readonly SkillPipelineContextPayloadAccessor _inner;

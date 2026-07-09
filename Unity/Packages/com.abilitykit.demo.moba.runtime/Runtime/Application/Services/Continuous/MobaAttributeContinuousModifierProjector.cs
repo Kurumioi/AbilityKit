@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Continuous;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Modifiers;
 
@@ -31,11 +33,11 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 var spec = modifiers[i];
                 if (!CanProject(spec)) continue;
+                if (!TryResolveAttributeId(spec.TargetId, out var attr)) continue;
  
-                var attr = AttributeId.FromRaw(spec.TargetId);
                 var data = CreateModifierData(continuous, spec, projection, stack, ctx);
-                if (ctx != null) ctx.AddModifier(attr, data);
-                else group?.AddModifier(attr, data);
+                if (group != null) group.AddModifier(attr, data);
+                else ctx?.AddModifier(attr, data);
             }
         }
 
@@ -158,6 +160,12 @@ namespace AbilityKit.Demo.Moba.Services
             return spec != null &&
                    spec.TargetKind == MobaContinuousModifierTargetKind.Attribute &&
                    spec.TargetId != 0;
+        }
+
+        private static bool TryResolveAttributeId(int targetId, out AttributeId attr)
+        {
+            attr = MobaAttributeIds.Get((BattleAttributeType)targetId);
+            return attr.IsValid;
         }
 
         private static int GetStack(IContinuousConfig config)

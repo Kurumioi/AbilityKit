@@ -45,7 +45,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public bool Evaluate(in TArgs args, in ExecCtx<TCtx> ctx)
         {
-            Resolve(ctx);
             return PlannedTriggerPredicateEvaluator<TArgs, TCtx>.Evaluate(in _plan, in args, in ctx);
         }
 
@@ -55,10 +54,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
             _execCtx = ctx;
             var actions = _plan.Actions;
             var hasActions = actions != null && actions.Length > 0;
+            var canExecuteByControl = CanExecuteByControl(in ctx);
+            var hasScheduledActions = HasScheduledActions(in ctx, actions);
 
-            if (!hasActions || !CanExecuteByControl(in ctx)) return;
+            if (!hasActions || !canExecuteByControl) return;
 
-            if (!HasScheduledActions(in ctx, actions))
+            if (!hasScheduledActions)
             {
                 ExecuteImmediate(in args, in ctx);
                 return;
@@ -166,7 +167,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
             {
                 for (int i = 0; i < actions.Length; i++)
                 {
-                    var call = actions[i];
                     _actionExecutor.Execute(in args, in ctx, i);
 
                     if (ctx.Control != null && ctx.Control.IsHardStopped) return;

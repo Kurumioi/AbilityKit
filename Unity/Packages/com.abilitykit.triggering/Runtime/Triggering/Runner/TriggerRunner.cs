@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Core.Logging;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Blackboard;
@@ -206,6 +207,11 @@ namespace AbilityKit.Triggering.Runtime
             _lifecycle.OnEventDispatched(key, in args, executedCount, shortCircuitedCount);
         }
 
+        private static int GetDebugTriggerId<TArgs>(ITrigger<TArgs, TCtx> trigger)
+        {
+            return trigger is ITriggerWithId withId ? withId.TriggerId : 0;
+        }
+
         private static ExecutionControl PrepareDispatchControl(ExecutionControl control)
         {
             if (control == null) control = new ExecutionControl();
@@ -301,6 +307,8 @@ namespace AbilityKit.Triggering.Runtime
             in ExecCtx<TCtx> execCtx,
             Exception ex)
         {
+            Log.Error($"[TriggerRunner] Trigger evaluation exception. argsType={typeof(TArgs).Name} triggerId={GetDebugTriggerId(entry.Trigger)} triggerType={entry.Trigger.GetType().Name} phase={entry.Phase} priority={entry.Priority} order={entry.Order} exception={ex}");
+
             _lifecycle.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name);
             _observer.OnConditionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, entry.Trigger.GetType().Name, in execCtx);
             _lifecycle.OnActionFailed(key, in args, entry.Phase, entry.Priority, entry.Order, 0, "Evaluate", 0, 0, ex.Message);

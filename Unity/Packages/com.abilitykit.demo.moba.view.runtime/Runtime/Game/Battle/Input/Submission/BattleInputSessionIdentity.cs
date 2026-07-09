@@ -11,6 +11,13 @@ namespace AbilityKit.Game.Flow
             return new PlayerId(string.IsNullOrEmpty(playerId) ? "p1" : playerId);
         }
 
+        public static PlayerId ResolvePlayerId(BattleContext ctx)
+        {
+            if (ctx == null) return new PlayerId("p1");
+            var playerId = ctx.ResolveLocalControlPlayerId();
+            return new PlayerId(string.IsNullOrEmpty(playerId) ? "p1" : playerId);
+        }
+
         public static WorldId ResolveWorldId(in BattleStartPlan plan)
         {
             var worldId = plan.World.WorldId;

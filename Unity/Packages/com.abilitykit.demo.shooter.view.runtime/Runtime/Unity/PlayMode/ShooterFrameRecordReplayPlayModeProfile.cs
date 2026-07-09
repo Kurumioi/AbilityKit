@@ -12,7 +12,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         [Header("Replay")]
         [SerializeField] private string replayPath = "../../artifacts/shooter_multiprocess_smoke/records/input-state-create.record.bin";
-        [SerializeField] private string syncTemplateId = "predict-rollback-authority";
+        [SerializeField] private string syncTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
         [SerializeField] private int controlledPlayerId = 1;
         [SerializeField] private int randomSeed = 3901;
         [SerializeField] private float worldScale = 1f;
@@ -24,7 +24,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             ? "../../artifacts/shooter_multiprocess_smoke/records/input-state-create.record.bin"
             : replayPath;
 
-        public string SyncTemplateId => string.IsNullOrWhiteSpace(syncTemplateId) ? "predict-rollback-authority" : syncTemplateId;
+        public string SyncTemplateId => string.IsNullOrWhiteSpace(syncTemplateId) ? ShooterSyncTemplateIds.PredictRollbackAuthority : syncTemplateId;
         public int ControlledPlayerId => Math.Max(1, controlledPlayerId);
         public int RandomSeed => randomSeed;
         public float WorldScale => Mathf.Max(0.001f, worldScale);

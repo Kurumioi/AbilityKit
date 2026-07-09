@@ -35,9 +35,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var followId = _followTargets != null
                 ? _followTargets.Resolve(entry.ProjectileActorId)
                 : default;
+            var rotation = ResolveRotation(entry.ForwardX, entry.ForwardY, entry.ForwardZ);
 
-            spec = _specs.Create(vfxId, in position, followId);
+            spec = _specs.Create(vfxId, in position, followId, entry.ProjectileActorId, in rotation);
             return true;
+        }
+
+        private static Quaternion ResolveRotation(float forwardX, float forwardY, float forwardZ)
+        {
+            var forward = new Vector3(forwardX, forwardY, forwardZ);
+            if (forward.sqrMagnitude <= 0.0001f) return Quaternion.identity;
+            return Quaternion.LookRotation(forward.normalized, Vector3.up);
         }
     }
 
@@ -54,6 +62,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public BattleProjectileVfxSpawnSpec Create(int vfxId, in Vector3 position, EC.IEntityId followTarget)
         {
             return new BattleProjectileVfxSpawnSpec(vfxId, in position, followTarget);
+        }
+
+        public BattleProjectileVfxSpawnSpec Create(int vfxId, in Vector3 position, EC.IEntityId followTarget, in Quaternion rotation)
+        {
+            return new BattleProjectileVfxSpawnSpec(vfxId, in position, followTarget, in rotation);
+        }
+
+        public BattleProjectileVfxSpawnSpec Create(int vfxId, in Vector3 position, EC.IEntityId followTarget, int followTargetActorId, in Quaternion rotation)
+        {
+            return new BattleProjectileVfxSpawnSpec(vfxId, in position, followTarget, followTargetActorId, in rotation);
         }
     }
 }

@@ -1,3 +1,5 @@
+using AbilityKit.Orleans.Contracts.Shooter;
+
 namespace AbilityKit.Orleans.Gateway.HttpApi;
 
 internal static class GatewayGameplayCatalog
@@ -17,15 +19,15 @@ internal static class GatewayGameplayCatalog
             SupportsStateSyncPush: true,
             SupportsFrameSync: true),
         new(
-            "shooter",
+            ShooterServerProtocol.RoomType,
             2,
             "Shooter State Sync",
             4,
             false,
             "shooter_battle",
             30,
-            "predict-rollback-authority",
-            new[] { "predict-rollback-authority", "runtime-snapshot-interpolation", "state-sync-authority", "pure-state-authority" },
+            ShooterServerProtocol.PredictRollbackAuthorityTemplate,
+            ShooterServerProtocol.CreateStateSyncTemplateIds(),
             SupportsStateSyncPush: true,
             SupportsFrameSync: false)
     };

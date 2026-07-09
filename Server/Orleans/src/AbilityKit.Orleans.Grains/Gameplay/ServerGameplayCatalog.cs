@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Contracts.Shooter;
 
 namespace AbilityKit.Orleans.Grains.Gameplay;
 
@@ -24,7 +25,7 @@ internal static class ServerGameplayDescriptors
         RequiresPlayerLoadout: false,
         DefaultWorldType: ShooterGameplay.WorldType,
         DefaultTickRate: ShooterGameplay.DefaultTickRate,
-        DefaultSyncTemplateId: "predict-rollback-authority");
+        DefaultSyncTemplateId: ShooterServerProtocol.PredictRollbackAuthorityTemplate);
 }
 
 internal sealed class ServerGameplayCatalog

@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace AbilityKit.Demo.Common.Rooms
 {
     public readonly struct DemoRoomEndpoint

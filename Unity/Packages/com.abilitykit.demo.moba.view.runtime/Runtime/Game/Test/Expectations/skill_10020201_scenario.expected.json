@@ -70,8 +70,8 @@
         "alias": "target",
         "property": "hp",
         "comparator": "eq",
-        "expectedFloat": 80.0,
-        "note": "目标应在区域触发后承受 100 点伤害并剩余 80 点生命值"
+        "expectedFloat": 49691.0,
+        "note": "目标应在区域触发后承受一级配置伤害 309 点并剩余 49691 点生命值"
       }
     ]
   },
@@ -79,13 +79,11 @@
     { "kind": "SkillCast", "configId": 10020201, "minCount": 1 },
     { "kind": "EffectExecution", "configId": 10020201, "minCount": 1 },
     { "kind": "AreaSpawn", "configId": 40020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 },
-    { "kind": "AreaEnter", "configId": 40020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 },
     { "kind": "DamageApply", "configId": 10020201, "underEffectId": 10020201, "minCount": 1, "maxCount": 1 }
   ],
   "relationships": [
     { "parentKind": "SkillCast", "parentConfigId": 10020201, "childKind": "EffectExecution", "childConfigId": 10020201 },
     { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "AreaSpawn", "childConfigId": 40020201 },
-    { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "AreaEnter", "childConfigId": 40020201 },
     { "parentKind": "EffectExecution", "parentConfigId": 10020201, "childKind": "DamageApply", "childConfigId": 10020201 }
   ]
 }

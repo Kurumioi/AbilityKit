@@ -101,7 +101,7 @@ namespace AbilityKit.Game.Flow
                     spec = Target(skillId, name, range, 3.4f, new Color(0.95f, 0.68f, 0.18f, 0.3f));
                     return true;
                 case 10020101: // 小乔-绽放之舞：扇子直线飞行
-                    spec = Fan(skillId, name, range, 1.6f, new Color(0.35f, 0.82f, 1f, 0.32f));
+                    spec = Direction(skillId, name, range, 1.6f, new Color(0.35f, 0.82f, 1f, 0.32f));
                     return true;
                 case 10020201: // 小乔-甜蜜恋风：指定区域击飞
                     spec = Target(skillId, name, range, 2.8f, new Color(0.65f, 0.92f, 1f, 0.3f));

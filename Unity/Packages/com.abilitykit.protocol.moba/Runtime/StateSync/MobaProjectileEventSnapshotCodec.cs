@@ -25,8 +25,22 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(8)] public float Z;
         [MemoryPackOrder(9)] public int HitCollider;
         [MemoryPackOrder(10)] public int ExitReason;
+        [MemoryPackOrder(11)] public int ProjectileId;
+        [MemoryPackOrder(12)] public float ForwardX;
+        [MemoryPackOrder(13)] public float ForwardY;
+        [MemoryPackOrder(14)] public float ForwardZ;
 
         public MobaProjectileEventSnapshotEntry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason)
+            : this(kind, projectileActorId, ownerActorId, templateId, launcherActorId, rootActorId, x, y, z, hitCollider, exitReason, 0)
+        {
+        }
+
+        public MobaProjectileEventSnapshotEntry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason, int projectileId)
+            : this(kind, projectileActorId, ownerActorId, templateId, launcherActorId, rootActorId, x, y, z, hitCollider, exitReason, projectileId, 0f, 0f, 1f)
+        {
+        }
+
+        public MobaProjectileEventSnapshotEntry(int kind, int projectileActorId, int ownerActorId, int templateId, int launcherActorId, int rootActorId, float x, float y, float z, int hitCollider, int exitReason, int projectileId, float forwardX, float forwardY, float forwardZ)
         {
             Kind = kind;
             ProjectileActorId = projectileActorId;
@@ -39,6 +53,10 @@ namespace AbilityKit.Protocol.Moba.StateSync
             Z = z;
             HitCollider = hitCollider;
             ExitReason = exitReason;
+            ProjectileId = projectileId;
+            ForwardX = forwardX;
+            ForwardY = forwardY;
+            ForwardZ = forwardZ;
         }
     }
 

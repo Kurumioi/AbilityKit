@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using AbilityKit.Orleans.Contracts.Automation;
+using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Hosting;
 
 namespace AbilityKit.Orleans.Gateway.HttpApi;
@@ -12,7 +13,7 @@ internal static class GatewaySandboxEndpoints
     private static readonly string[] Gameplays =
     {
         "moba",
-        "shooter"
+        ShooterServerProtocol.RoomType
     };
 
     public static IEndpointRouteBuilder MapGatewaySandboxEndpoints(
@@ -26,7 +27,7 @@ internal static class GatewaySandboxEndpoints
 
         group.MapPost("/shooter-sandbox/start", async (StartShooterSandboxRequest wire, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(wire.ServerId) ? "default" : wire.ServerId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(wire.ServerId) ? ShooterServerProtocol.DefaultSandboxId : wire.ServerId);
             var response = await sandbox.StartAsync(wire);
             return Results.Ok(response);
         })
@@ -36,7 +37,7 @@ internal static class GatewaySandboxEndpoints
 
         group.MapGet("/shooter-sandbox/state", async (string? serverId, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? "default" : serverId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? ShooterServerProtocol.DefaultSandboxId : serverId);
             var response = await sandbox.GetStateAsync();
             return Results.Ok(response);
         })
@@ -45,7 +46,7 @@ internal static class GatewaySandboxEndpoints
 
         group.MapPost("/shooter-sandbox/stop", async (string? serverId, IClusterClient client) =>
         {
-            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? "default" : serverId);
+            var sandbox = client.GetGrain<IShooterSandboxGrain>(string.IsNullOrWhiteSpace(serverId) ? ShooterServerProtocol.DefaultSandboxId : serverId);
             await sandbox.StopAsync();
             return Results.Ok();
         })

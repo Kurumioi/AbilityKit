@@ -10,6 +10,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static ShooterHostPresentationFrame Build(
             ShooterClientNetworkLaunchResult launch,
             ShooterPlayModeSessionOptions options,
+            int controlledPlayerId,
             SyncTimeAnchor remoteTimeAnchor,
             SyncTimeAnchor localTimeAnchor,
             ShooterRemoteLatencyCompensationDiagnostics remoteLatencyCompensationDiagnostics)
@@ -22,7 +23,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 presentation.ViewModel.Current,
                 ShooterSnapshotViewBatch.Empty,
                 false,
-                options.ControlledPlayerId,
+                controlledPlayerId,
                 options.WorldScale,
                 null,
                 lastPushResult,

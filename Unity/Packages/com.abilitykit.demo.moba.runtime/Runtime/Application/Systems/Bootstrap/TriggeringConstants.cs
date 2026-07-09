@@ -62,6 +62,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string ModifyResource = "modify_resource";
             public const string ConvertResourceToHeal = "convert_resource_to_heal";
             public const string StartCooldown = "start_cooldown";
+            public const string ResetCooldown = "reset_cooldown";
         }
 
         /// <summary>
@@ -164,6 +165,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId ModifyResourceId => GetActionId(Actions.ModifyResource);
         public static ActionId ConvertResourceToHealId => GetActionId(Actions.ConvertResourceToHeal);
         public static ActionId StartCooldownId => GetActionId(Actions.StartCooldown);
+        public static ActionId ResetCooldownId => GetActionId(Actions.ResetCooldown);
 
         /// <summary>
         /// 获取预定义的Event ID

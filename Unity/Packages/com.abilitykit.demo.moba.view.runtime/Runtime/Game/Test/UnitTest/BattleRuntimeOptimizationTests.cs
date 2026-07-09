@@ -7,15 +7,22 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Configuration;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Share;
+using AbilityKit.Demo.Moba.Share.Config;
+using MobaProjectileEventSnapshotEntry = AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry;
+using ProtocolProjectileEventKind = AbilityKit.Protocol.Moba.StateSync.ProjectileEventKind;
 using BattleLogicSessionOptions = AbilityKit.Game.Battle.BattleLogicSessionOptions;
 using BattleStartPlan = AbilityKit.Game.Flow.BattleStartPlan;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Requests;
+using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.World.ECS;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -93,6 +100,77 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattlePresentationCueResolver_PreservesScaleAndRadiusNumericParam()
+        {
+            var resolver = new BattlePresentationCueResolver();
+            var cue = CreatePresentationCue(
+                PresentationCueStage.Started,
+                requestKey: "buff-loop",
+                vfxId: 90002003,
+                templateId: 90002003,
+                scale: 1.25f,
+                numericParamKeys: new[] { 99, 2 },
+                numericParamValues: new[] { 3f, 8f });
+
+            var decision = resolver.Resolve(in cue);
+
+            Assert.AreEqual(BattlePresentationCueDecisionKind.Play, decision.Kind);
+            Assert.AreEqual(1.25f, decision.SpawnRequest.Scale, 0.0001f);
+            Assert.AreEqual(8f, decision.SpawnRequest.Radius, 0.0001f);
+        }
+
+        [Test]
+        public void BattlePresentationCueResolver_PreservesDurationOverrideForLongRunningBuffVfx()
+        {
+            var resolver = new BattlePresentationCueResolver();
+            var cue = CreatePresentationCue(
+                PresentationCueStage.Started,
+                requestKey: "buff-loop",
+                vfxId: 90002003,
+                templateId: 90002003,
+                durationMsOverride: 5000);
+
+            var decision = resolver.Resolve(in cue);
+
+            Assert.AreEqual(BattlePresentationCueDecisionKind.Play, decision.Kind);
+            Assert.AreEqual(5000, decision.SpawnRequest.DurationMsOverride);
+        }
+
+        [Test]
+        public void BattleVfxManager_UsesPositiveDurationOverrideInsteadOfResourceDuration()
+        {
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [90002003] = new VfxDTO { Id = 90002003, Resource = "missing/test_vfx", DurationMs = 700 }
+            });
+            var manager = new BattleVfxManager(db);
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+
+            try
+            {
+                var created = manager.TryCreateVfxEntity(
+                    world,
+                    root,
+                    90002003,
+                    default,
+                    0,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    5000,
+                    out var entity);
+
+                Assert.IsTrue(created);
+                Assert.IsTrue(entity.TryGetRef(out BattleVfxLifetimeComponent lifetime));
+                Assert.AreEqual(5f, lifetime.ExpireAtTime - Time.time, 0.05f);
+            }
+            finally
+            {
+                world.DestroyRecursive(root.Id);
+            }
+        }
+
+        [Test]
         public void BattlePresentationCueResolver_StopsByStableRequestKeyAndIgnoresMissingVfx()
         {
             var resolver = new BattlePresentationCueResolver();
@@ -107,6 +185,125 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsFalse(stopDecision.IsNone);
             Assert.IsTrue(stopDecision.SpawnRequest.IsEmpty);
             Assert.AreEqual(BattlePresentationCueRequestKey.From(in startWithoutVfx), stopDecision.RequestKey);
+        }
+
+        [Test]
+        public void BattleProjectileSnapshotDeduplicator_DropsReplayedProjectileEvent()
+        {
+            var deduplicator = new BattleProjectileSnapshotDeduplicator();
+            var entry = new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProtocolProjectileEventKind.Spawn,
+                ProjectileId = 42,
+                ProjectileActorId = 10042,
+                TemplateId = 30020101,
+                LauncherActorId = 2,
+                X = 1f,
+                Y = 0f,
+                Z = 3f,
+            };
+
+            Assert.IsTrue(deduplicator.ShouldHandle(in entry));
+            Assert.IsFalse(deduplicator.ShouldHandle(in entry));
+        }
+
+        [Test]
+        public void BattleProjectileSnapshotDeduplicator_AllowsDifferentProjectileIdsInSameFrame()
+        {
+            var deduplicator = new BattleProjectileSnapshotDeduplicator();
+            var first = new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProtocolProjectileEventKind.Spawn,
+                ProjectileId = 42,
+                TemplateId = 30020101,
+                LauncherActorId = 2,
+            };
+            var second = first;
+            second.ProjectileId = 43;
+
+            Assert.IsTrue(deduplicator.ShouldHandle(in first));
+            Assert.IsTrue(deduplicator.ShouldHandle(in second));
+        }
+
+        [Test]
+        public void BattleProjectileVfxResolver_DoesNotCreateUnconfiguredHitOrExitPlaceholder()
+        {
+            var resolver = new BattleProjectileVfxResolver();
+
+            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, (int)ProtocolProjectileEventKind.Hit));
+            Assert.AreEqual(0, resolver.ResolveSnapshotVfxId(30020101, (int)ProtocolProjectileEventKind.Exit));
+        }
+
+        [Test]
+        public void BattleProjectileSnapshotVfxResolver_UsesSnapshotForwardForSpawnRotation()
+        {
+            var resolver = new BattleProjectileSnapshotVfxResolver(followTargets: null);
+            var entry = new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProtocolProjectileEventKind.Spawn,
+                TemplateId = 30020101,
+                ForwardX = 1f,
+                ForwardY = 0f,
+                ForwardZ = 0f,
+            };
+
+            Assert.IsTrue(resolver.TryResolve(in entry, out var spec));
+            var rotatedForward = spec.Rotation * Vector3.forward;
+
+            Assert.AreEqual(1f, rotatedForward.x, 0.0001f);
+            Assert.AreEqual(0f, rotatedForward.y, 0.0001f);
+            Assert.AreEqual(0f, rotatedForward.z, 0.0001f);
+        }
+
+        [Test]
+        public void BattleProjectileSnapshotVfxResolver_PreservesProjectileActorIdForDelayedFollowBinding()
+        {
+            var resolver = new BattleProjectileSnapshotVfxResolver(followTargets: null);
+            var entry = new MobaProjectileEventSnapshotEntry
+            {
+                Kind = (int)ProtocolProjectileEventKind.Spawn,
+                TemplateId = 30020101,
+                ProjectileActorId = 10042,
+            };
+
+            Assert.IsTrue(resolver.TryResolve(in entry, out var spec));
+
+            Assert.AreEqual(10042, spec.FollowTargetActorId);
+        }
+
+        [Test]
+        public void BattleVfxFollowTargetPositionResolver_RebindsDelayedProjectileActorTarget()
+        {
+            var world = new EntityWorld();
+            var lookup = new BattleEntityLookup();
+            var query = new BattleEntityQuery(world, lookup);
+            var projectile = world.Create("projectile");
+            projectile.WithRef(new BattleTransformComponent
+            {
+                Position = new Vector3(3f, 0f, 4f),
+                Forward = Vector3.right,
+            });
+            lookup.Bind(new AbilityKit.Game.Battle.Entity.BattleNetId(10042), projectile);
+
+            var vfx = world.Create("vfx");
+            vfx.WithRef(new BattleViewFollowComponent
+            {
+                Target = default,
+                TargetActorId = 10042,
+                Offset = Vector3.zero,
+            });
+
+            var resolver = new BattleVfxFollowTargetPositionResolver();
+            var resolved = resolver.TryResolve(world, vfx, null, query, out var position, out var forward);
+
+            Assert.IsTrue(resolved);
+            Assert.AreEqual(projectile.Id, vfx.GetRef<BattleViewFollowComponent>().Target);
+            Assert.AreEqual(3f, position.x, 0.0001f);
+            Assert.AreEqual(0f, position.y, 0.0001f);
+            Assert.AreEqual(4f, position.z, 0.0001f);
+            Assert.AreEqual(1f, forward.x, 0.0001f);
+            Assert.AreEqual(0f, forward.y, 0.0001f);
+            Assert.AreEqual(0f, forward.z, 0.0001f);
         }
 
         [Test]
@@ -788,7 +985,11 @@ namespace AbilityKit.Game.Test.UnitTest
             SnapshotVec3[] positions = null,
             float offsetX = 0f,
             float offsetY = 0f,
-            float offsetZ = 0f)
+            float offsetZ = 0f,
+            float scale = 0f,
+            int durationMsOverride = 0,
+            IReadOnlyList<int> numericParamKeys = null,
+            IReadOnlyList<float> numericParamValues = null)
         {
             return new PresentationCueData(
                 stage,
@@ -817,12 +1018,22 @@ namespace AbilityKit.Game.Test.UnitTest
                 offsetX,
                 offsetY,
                 offsetZ,
-                durationMsOverride: 0,
-                scale: 0f,
+                durationMsOverride: durationMsOverride,
+                scale: scale,
                 colorR: 0f,
                 colorG: 0f,
                 colorB: 0f,
-                colorA: 0f);
+                colorA: 0f,
+                ownerKind: null,
+                instanceId: 0,
+                instanceKey: null,
+                stackCount: 0,
+                maxStackCount: 0,
+                elapsedSeconds: 0f,
+                remainingSeconds: 0f,
+                lifecycleReason: 0,
+                numericParamKeys: numericParamKeys,
+                numericParamValues: numericParamValues);
         }
 
         private static BattleWorldFloatingText CreateFloatingText(float lifetime)

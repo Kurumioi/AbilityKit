@@ -68,7 +68,7 @@ namespace AbilityKit.Game.Flow
                 transform.Position.x = entry.X;
                 transform.Position.y = entry.Y;
                 transform.Position.z = entry.Z;
-                if (transform.Forward == default) transform.Forward = Vector3.forward;
+                transform.Forward = ResolveForward(entry.ForwardX, entry.ForwardY, entry.ForwardZ, transform.Forward);
 
                 dirty.Add(entity.Id);
             }
@@ -145,6 +145,14 @@ namespace AbilityKit.Game.Flow
             {
                 projectile.OwnerNetId = new BattleNetId(entry.OwnerNetId);
             }
+        }
+
+        private static Vector3 ResolveForward(float x, float y, float z, Vector3 fallback)
+        {
+            var forward = new Vector3(x, y, z);
+            if (forward.sqrMagnitude > 0.0001f) return forward.normalized;
+            if (fallback.sqrMagnitude > 0.0001f) return fallback.normalized;
+            return Vector3.forward;
         }
 
         private static List<IEntityId> GetDirtyEntities(BattleContext ctx, int capacity)
