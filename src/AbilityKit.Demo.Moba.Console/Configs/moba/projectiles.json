@@ -93,5 +93,24 @@
         "ReturnAfterMs":  0,
         "ReturnSpeed":  0,
         "ReturnStopDistance":  0
+    },
+    {
+        "Id":  30060101,
+        "Name":  "嬴政-王者惩戒-穿透剑雨投射物-配置先行",
+        "VfxId":  0,
+        "Speed":  22,
+        "LifetimeMs":  900,
+        "MaxDistance":  18,
+        "HitPolicyKind":  1,
+        "HitsRemaining":  8,
+        "HitCooldownMs":  200,
+        "TickIntervalMs":  0,
+        "OnHitEffectId":  10060111,
+        "OnSpawnVfxId":  0,
+        "OnHitVfxId":  0,
+        "OnExpireVfxId":  0,
+        "ReturnAfterMs":  0,
+        "ReturnSpeed":  0,
+        "ReturnStopDistance":  0
     }
 ]

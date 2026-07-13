@@ -41,6 +41,10 @@ namespace AbilityKit.Combat.Projectile
         public readonly IProjectileHitFilter HitFilter;
         public readonly int HitCooldownFrames;
 
+        public readonly ProjectileLifecycleSpec Lifecycle;
+        public readonly int PatternSlotIndex;
+        public readonly int PatternSlotCount;
+
         public ProjectileSpawnParams(
             int ownerId,
             int templateId,
@@ -63,7 +67,10 @@ namespace AbilityKit.Combat.Projectile
             int hitPolicyParam = 0,
             int tickIntervalFrames = 0,
             IProjectileHitFilter hitFilter = null,
-            int hitCooldownFrames = 0)
+            int hitCooldownFrames = 0,
+            ProjectileLifecycleSpec lifecycle = default,
+            int patternSlotIndex = 0,
+            int patternSlotCount = 1)
         {
             OwnerId = ownerId;
             TemplateId = templateId;
@@ -91,6 +98,10 @@ namespace AbilityKit.Combat.Projectile
 
             HitFilter = hitFilter;
             HitCooldownFrames = hitCooldownFrames;
+
+            Lifecycle = lifecycle;
+            PatternSlotIndex = patternSlotIndex < 0 ? 0 : patternSlotIndex;
+            PatternSlotCount = patternSlotCount <= 0 ? 1 : patternSlotCount;
         }
 
         public ProjectileSpawnParams WithDirection(in Vec3 direction)
@@ -117,7 +128,100 @@ namespace AbilityKit.Combat.Projectile
                 hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames);
+                hitCooldownFrames: HitCooldownFrames,
+                lifecycle: Lifecycle,
+                patternSlotIndex: PatternSlotIndex,
+                patternSlotCount: PatternSlotCount);
+        }
+
+        public ProjectileSpawnParams WithPosition(in Vec3 position)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId,
+                templateId: TemplateId,
+                launcherActorId: LauncherActorId,
+                rootActorId: RootActorId,
+                spawnFrame: SpawnFrame,
+                position: position,
+                direction: Direction,
+                speed: Speed,
+                returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed,
+                returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames,
+                maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask,
+                ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy,
+                hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind,
+                hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames,
+                hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames,
+                lifecycle: Lifecycle,
+                patternSlotIndex: PatternSlotIndex,
+                patternSlotCount: PatternSlotCount);
+        }
+
+        public ProjectileSpawnParams WithLifecycle(in ProjectileLifecycleSpec lifecycle)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId,
+                templateId: TemplateId,
+                launcherActorId: LauncherActorId,
+                rootActorId: RootActorId,
+                spawnFrame: SpawnFrame,
+                position: Position,
+                direction: Direction,
+                speed: Speed,
+                returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed,
+                returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames,
+                maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask,
+                ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy,
+                hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind,
+                hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames,
+                hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames,
+                lifecycle: lifecycle,
+                patternSlotIndex: PatternSlotIndex,
+                patternSlotCount: PatternSlotCount);
+        }
+
+        public ProjectileSpawnParams WithPatternSlot(int slotIndex, int slotCount)
+        {
+            return new ProjectileSpawnParams(
+                ownerId: OwnerId,
+                templateId: TemplateId,
+                launcherActorId: LauncherActorId,
+                rootActorId: RootActorId,
+                spawnFrame: SpawnFrame,
+                position: Position,
+                direction: Direction,
+                speed: Speed,
+                returnAfterFrames: ReturnAfterFrames,
+                returnSpeed: ReturnSpeed,
+                returnStopDistance: ReturnStopDistance,
+                lifetimeFrames: LifetimeFrames,
+                maxDistance: MaxDistance,
+                collisionLayerMask: CollisionLayerMask,
+                ignoreCollider: IgnoreCollider,
+                hitPolicy: HitPolicy,
+                hitsRemaining: HitsRemaining,
+                hitPolicyKind: HitPolicyKind,
+                hitPolicyParam: HitPolicyParam,
+                tickIntervalFrames: TickIntervalFrames,
+                hitFilter: HitFilter,
+                hitCooldownFrames: HitCooldownFrames,
+                lifecycle: Lifecycle,
+                patternSlotIndex: slotIndex,
+                patternSlotCount: slotCount);
         }
 
         public ProjectileSpawnParams WithSpawnFrame(int spawnFrame)
@@ -144,7 +248,10 @@ namespace AbilityKit.Combat.Projectile
                 hitPolicyParam: HitPolicyParam,
                 tickIntervalFrames: TickIntervalFrames,
                 hitFilter: HitFilter,
-                hitCooldownFrames: HitCooldownFrames);
+                hitCooldownFrames: HitCooldownFrames,
+                lifecycle: Lifecycle,
+                patternSlotIndex: PatternSlotIndex,
+                patternSlotCount: PatternSlotCount);
         }
     }
 }

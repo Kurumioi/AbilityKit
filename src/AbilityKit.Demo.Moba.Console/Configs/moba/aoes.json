@@ -204,5 +204,119 @@
         "OnEnterTriggerIds":  [
                                   10040321
                               ]
+    },
+    {
+        "Id":  40060201,
+        "Name":  "嬴政-战力和谐-范围爆炸区域",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  1,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  3.5,
+        "DelayMs":  400,
+        "DurationMs":  300,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060211,
+                                  10060212
+                              ]
+    },
+    {
+        "Id":  40060301,
+        "Name":  "嬴政-至尊皇冠-剑阵区域-第一波",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  0,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  5,
+        "DelayMs":  200,
+        "DurationMs":  200,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060311,
+                                  10060316
+                              ]
+    },
+    {
+        "Id":  40060302,
+        "Name":  "嬴政-至尊皇冠-剑阵区域-第二波",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  0,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  5,
+        "DelayMs":  1000,
+        "DurationMs":  200,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060312,
+                                  10060316
+                              ]
+    },
+    {
+        "Id":  40060303,
+        "Name":  "嬴政-至尊皇冠-剑阵区域-第三波",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  0,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  5,
+        "DelayMs":  1800,
+        "DurationMs":  200,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060313,
+                                  10060316
+                              ]
+    },
+    {
+        "Id":  40060304,
+        "Name":  "嬴政-至尊皇冠-剑阵区域-第四波",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  0,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  5,
+        "DelayMs":  2600,
+        "DurationMs":  200,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060314,
+                                  10060316
+                              ]
+    },
+    {
+        "Id":  40060305,
+        "Name":  "嬴政-至尊皇冠-剑阵区域-第五波",
+        "ModelId":  0,
+        "VfxId":  0,
+        "AttachMode":  0,
+        "OffsetX":  0,
+        "OffsetY":  0,
+        "OffsetZ":  0,
+        "Radius":  5,
+        "DelayMs":  3400,
+        "DurationMs":  200,
+        "CollisionLayerMask":  1,
+        "MaxTargets":  10,
+        "OnDelayTriggerIds":  [
+                                  10060315,
+                                  10060316
+                              ]
     }
 ]

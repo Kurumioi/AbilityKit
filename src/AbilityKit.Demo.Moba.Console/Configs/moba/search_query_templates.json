@@ -108,5 +108,51 @@
         "Selector":  {
                          "Kind":  4097
                      }
+    },
+    {
+        "Id":  50060201,
+        "Name":  "嬴政-战力和谐-自身周围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  0,
+                          "Radius":  3.5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50060301,
+        "Name":  "嬴政-至尊皇冠-目标点范围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  5
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
     }
 ]

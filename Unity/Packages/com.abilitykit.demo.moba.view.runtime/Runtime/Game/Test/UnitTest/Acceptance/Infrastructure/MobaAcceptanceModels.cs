@@ -188,6 +188,18 @@ namespace AbilityKit.Game.Test.UnitTest
         public int castFlowId;
         public int effectId;
         public int triggerId;
+        public int[] effectIds;
+        public int[] triggerIds;
+        public MobaAcceptanceEffectExpectation[] effects;
+        public MobaAcceptanceActionExpectation[] expectedActions;
+        public MobaAcceptanceProjectileExpectation expectedProjectile;
+    }
+
+    [Serializable]
+    public sealed class MobaAcceptanceEffectExpectation
+    {
+        public int effectId;
+        public int triggerId;
         public MobaAcceptanceActionExpectation[] expectedActions;
         public MobaAcceptanceProjectileExpectation expectedProjectile;
     }

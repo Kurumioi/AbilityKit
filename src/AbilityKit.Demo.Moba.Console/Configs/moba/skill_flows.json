@@ -96,5 +96,56 @@
         }
       }
     ]
+  },
+  {
+    "Id": 10060101,
+    "Name": "嬴政-王者惩戒-配置先行版",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 300,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10060101, "ExecuteMode": 0, "EventTag": "yz_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10060201,
+    "Name": "嬴政-战力和谐-配置先行版",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 700,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10060201, "ExecuteMode": 0, "EventTag": "yz_skill_2_cast" },
+            { "AtMs": 400, "EffectId": 10060211, "ExecuteMode": 0, "EventTag": "yz_skill_2_damage" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10060301,
+    "Name": "嬴政-至尊皇冠-配置先行版",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 5500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10060301, "ExecuteMode": 0, "EventTag": "yz_skill_3_start" },
+            { "AtMs": 200, "EffectId": 10060311, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_1" },
+            { "AtMs": 1000, "EffectId": 10060312, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_2" },
+            { "AtMs": 1800, "EffectId": 10060313, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_3" },
+            { "AtMs": 2600, "EffectId": 10060314, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_4" },
+            { "AtMs": 3400, "EffectId": 10060315, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_5" }
+          ]
+        }
+      }
+    ]
   }
 ]

@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow
 
         public void ResetHudAim()
         {
-            _hudInput?.SetHudSkillAim(0, 0f, 0f, aiming: false);
+            _hudInput?.CancelHudSkillAim();
         }
 
         public void OnMoveBegin()
@@ -40,6 +40,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnSkillClick(int slot)
         {
+            _hudInput?.CancelHudSkillAim();
             _hudInput?.SubmitHudSkillClick(slot);
         }
 
@@ -55,6 +56,11 @@ namespace AbilityKit.Game.Flow
             _hudInput?.SetHudSkillAim(slot, aim.x, aim.y, aiming: true);
         }
  
+        public void OnSkillAimCancel()
+        {
+            _hudInput?.CancelHudSkillAim();
+        }
+
         public void OnSkillAimEnd(int slot, Vector2 aim)
         {
             aim = ResolveWorldAim(slot, aim);

@@ -23,12 +23,23 @@ namespace AbilityKit.Game.Flow
 
             runtime.Vfx = _factory.CreateManager(runtime.Resources);
             runtime.VfxNode = _factory.CreateNode(runtime.Context, runtime.IsConfirmed);
+            if (runtime.Context != null && !runtime.IsConfirmed)
+            {
+                runtime.Context.ViewVfxManager = runtime.Vfx;
+                runtime.Context.ViewVfxNode = runtime.VfxNode;
+            }
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)
         {
             var runtime = ctx.Feature;
             if (runtime == null) return;
+
+            if (runtime.Context != null && !runtime.IsConfirmed)
+            {
+                runtime.Context.ViewVfxManager = null;
+                runtime.Context.ViewVfxNode = default;
+            }
 
             runtime.Vfx = null;
             runtime.VfxNode = default;

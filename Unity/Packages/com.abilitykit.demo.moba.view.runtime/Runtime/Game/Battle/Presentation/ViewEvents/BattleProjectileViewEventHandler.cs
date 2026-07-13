@@ -68,6 +68,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
         {
             if (!_deduplicator.ShouldHandle(in entry)) return;
+
+            if (entry.Kind == (int)ProjectileEventKind.Exit)
+            {
+                _spawner.StopFollowingActor(entry.ProjectileActorId);
+                return;
+            }
+
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
             _spawner.TrySpawn(in spec);
         }

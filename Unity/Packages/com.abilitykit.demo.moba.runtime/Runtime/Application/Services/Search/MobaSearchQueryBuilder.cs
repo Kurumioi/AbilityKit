@@ -145,8 +145,12 @@ namespace AbilityKit.Demo.Moba.Services.Search
 
         public bool Test(in SearchQuery query, SearchContext context, IEntityId candidate)
         {
-            if (_rules == null) return candidate.IsValid;
-            return _rules.CanBeSearchedTarget(_casterActorId, candidate.ActorId).Passed;
+            if (_rules == null)
+            {
+                return candidate.IsValid;
+            }
+            var result = _rules.CanBeSearchedTarget(_casterActorId, candidate.ActorId);
+            return result.Passed;
         }
     }
 }

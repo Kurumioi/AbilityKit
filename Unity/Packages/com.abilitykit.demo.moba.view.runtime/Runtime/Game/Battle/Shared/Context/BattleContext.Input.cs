@@ -64,6 +64,11 @@ namespace AbilityKit.Game.Flow
             _hudInput.SetSkillAim(slot, dx, dz, aiming);
         }
 
+        public void CancelHudSkillAim()
+        {
+            _hudInput.CancelSkillAim();
+        }
+
         public void SubmitHudSkillAim(int slot, float aimDx, float aimDz)
         {
             var aimOffset = new Vector3(aimDx, 0f, aimDz);
@@ -87,9 +92,9 @@ namespace AbilityKit.Game.Flow
                 aimDir.z);
         }
 
-        internal bool TryReadHudSkillAim(out int slot, out float dx, out float dz)
+        internal bool TryReadHudSkillAimPreview(out int slot, out float dx, out float dz, out int submissionVersion)
         {
-            return _hudInput.TryReadSkillAim(out slot, out dx, out dz);
+            return _hudInput.TryReadSkillAimPreview(out slot, out dx, out dz, out submissionVersion);
         }
 
         private bool TryResolveLocalActorWorldPos(out Vector3 pos)

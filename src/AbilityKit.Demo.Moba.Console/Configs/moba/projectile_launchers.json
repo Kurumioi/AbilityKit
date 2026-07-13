@@ -61,5 +61,14 @@
         "IntervalMs":  0,
         "CountPerShot":  1,
         "FanAngleDeg":  0
+    },
+    {
+        "Id":  31060101,
+        "Name":  "嬴政-王者惩戒-单剑直行发射器",
+        "EmitterType":  1,
+        "DurationMs":  0,
+        "IntervalMs":  0,
+        "CountPerShot":  1,
+        "FanAngleDeg":  0
     }
 ]

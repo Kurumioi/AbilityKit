@@ -43,7 +43,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "Entitas.dll",
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

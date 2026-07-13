@@ -186,7 +186,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI()
         {
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             _featureScheduler.OnGUI(in _ctx);
 #endif
         }

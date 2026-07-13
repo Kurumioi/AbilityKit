@@ -42,6 +42,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int MotionInit = Base + WorldSystemOrder.Early + 10;
 
         // ========== 移动系统 (Execute/Normal) ==========
+        /// <summary>Actor 脑决策 Tick</summary>
+        public const int BrainTick = Base + WorldSystemOrder.Normal + 8;
         /// <summary>移动输入处理</summary>
         public const int MotionLocomotionInput = Base + WorldSystemOrder.Normal + 10;
         /// <summary>移动 Tick</summary>
@@ -89,47 +91,57 @@ namespace AbilityKit.Demo.Moba.Systems
 
         public static OrderCheckResult ValidateKeyDependencies()
         {
-            if (EntityManagerSync >= MotionInit)
+            if (!RunsBefore(EntityManagerSync, MotionInit))
             {
                 return Fail(nameof(EntityManagerSync), nameof(MotionInit));
             }
 
-            if (MotionLocomotionInput >= MotionTick)
+            if (!RunsBefore(BrainTick, MotionLocomotionInput))
+            {
+                return Fail(nameof(BrainTick), nameof(MotionLocomotionInput));
+            }
+
+            if (!RunsBefore(MotionLocomotionInput, MotionTick))
             {
                 return Fail(nameof(MotionLocomotionInput), nameof(MotionTick));
             }
 
-            if (PassiveSkillTriggers >= SkillPipelines)
+            if (!RunsBefore(PassiveSkillTriggers, SkillPipelines))
             {
                 return Fail(nameof(PassiveSkillTriggers), nameof(SkillPipelines));
             }
 
-            if (SkillPipelines >= EffectsStep)
+            if (!RunsBefore(SkillPipelines, EffectsStep))
             {
                 return Fail(nameof(SkillPipelines), nameof(EffectsStep));
             }
 
-            if (EffectsStep >= BuffCommandsDrain)
+            if (!RunsBefore(EffectsStep, BuffCommandsDrain))
             {
                 return Fail(nameof(EffectsStep), nameof(BuffCommandsDrain));
             }
 
-            if (BuffCommandsDrain >= ContinuousTick)
+            if (!RunsBefore(BuffCommandsDrain, ContinuousTick))
             {
                 return new OrderCheckResult(false, "Buff order must be BuffCommandsDrain < ContinuousTick.");
             }
 
-            if (ContinuousTick >= BuffLifecycleReconcile || BuffLifecycleReconcile >= OngoingTriggerPlansReconcile || OngoingTriggerPlansReconcile >= GameplayTick)
+            if (!RunsBefore(ContinuousTick, BuffLifecycleReconcile) || !RunsBefore(BuffLifecycleReconcile, OngoingTriggerPlansReconcile) || !RunsBefore(OngoingTriggerPlansReconcile, GameplayTick))
             {
                 return new OrderCheckResult(false, "Continuous order must be ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile < GameplayTick.");
             }
 
-            if (ProjectileSync >= ProjectileLauncherCleanup || ProjectileLauncherCleanup >= ShieldLifecycle || ShieldLifecycle >= SummonLifecycle || SummonLifecycle >= ActorDespawnCleanup)
+            if (!RunsBefore(ProjectileSync, ProjectileLauncherCleanup) || !RunsBefore(ProjectileLauncherCleanup, ShieldLifecycle) || !RunsBefore(ShieldLifecycle, SummonLifecycle) || !RunsBefore(SummonLifecycle, ActorDespawnCleanup))
             {
                 return new OrderCheckResult(false, "Late cleanup order must be ProjectileSync < ProjectileLauncherCleanup < ShieldLifecycle < SummonLifecycle < ActorDespawnCleanup.");
             }
 
             return new OrderCheckResult(true, null);
+        }
+
+        private static bool RunsBefore(int earlier, int later)
+        {
+            return earlier < later;
         }
 
         private static OrderCheckResult Fail(string earlier, string later)

@@ -68,6 +68,12 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
         public bool SetModelId;
         public int ModelId;
 
+        public bool SetBrain;
+        public int BrainId;
+        public int BrainOwnerActorId;
+        public int BrainSourceKind;
+        public int BrainSourceId;
+
         public bool SetFlyingProjectileTag;
 
         public bool SetProjectileLauncher;

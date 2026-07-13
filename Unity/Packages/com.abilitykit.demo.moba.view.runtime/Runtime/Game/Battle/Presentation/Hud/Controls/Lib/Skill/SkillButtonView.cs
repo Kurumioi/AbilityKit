@@ -38,6 +38,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         public event Action<Vector2> OnAimStart;
         public event Action<Vector2> OnAimUpdate;
         public event Action<Vector2> OnAimEnd;
+        public event Action OnAimCancel;
 
         public void Initialize(
             RectTransform buttonRect,
@@ -99,6 +100,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private void OnDisable()
         {
+            CancelAimPreview();
             _gesture.Reset();
             _aim.Hide();
         }
@@ -168,6 +170,7 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             if (!longPressFired)
             {
+                CancelAimPreview();
                 OnClick?.Invoke();
             }
 
@@ -243,6 +246,10 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         private void ShowAimPreview(Vector2 currentScreen)
         {
             if (!CanAcceptInput) return;
+            _gesture.SetAiming(true);
+            var aim = _aim.Calculate(currentScreen);
+            OnAimStart?.Invoke(aim);
+            OnAimUpdate?.Invoke(aim);
             _aim.Show(currentScreen);
         }
 
@@ -255,6 +262,12 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
         {
             _gesture.SetAiming(false);
             _aim.Hide();
+        }
+
+        private void CancelAimPreview()
+        {
+            if (!_config.EnableAim) return;
+            OnAimCancel?.Invoke();
         }
 
         private readonly struct SkillButtonCooldownVisualState

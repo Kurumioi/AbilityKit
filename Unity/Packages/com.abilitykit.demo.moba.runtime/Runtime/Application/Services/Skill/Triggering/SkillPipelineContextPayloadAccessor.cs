@@ -87,6 +87,23 @@ namespace AbilityKit.Demo.Moba.Services
             _services = services;
         }
 
+        public static bool SupportsField(int fieldId)
+        {
+            return fieldId == SkillIdId || fieldId == SkillIdLegacyId
+                || fieldId == SkillSlotId || fieldId == SkillSlotLegacyId
+                || fieldId == SkillLevelId || fieldId == SkillLevelLegacyId
+                || fieldId == SkillCostId || fieldId == SkillCostLegacyId
+                || fieldId == SkillCooldownMsId || fieldId == SkillCooldownMsLegacyId
+                || fieldId == SkillCooldownRemainingMsId || fieldId == SkillCooldownRemainingMsLegacyId
+                || fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId
+                || fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId
+                || fieldId == CasterManaId || fieldId == CasterManaLegacyId
+                || fieldId == CasterManaMaxId || fieldId == CasterManaMaxLegacyId
+                || fieldId == CasterManaPercentId || fieldId == CasterManaPercentLegacyId
+                || fieldId == CasterResourceManaId || fieldId == CasterResourceManaLegacyId
+                || fieldId == CasterResourceManaMaxId || fieldId == CasterResourceManaMaxLegacyId;
+        }
+
         public bool TryGet(in SkillPipelineContext args, int fieldId, out int value)
         {
             value = 0;
@@ -340,6 +357,15 @@ namespace AbilityKit.Demo.Moba.Services
         private static readonly int TargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
         private static readonly int TargetActorIdLegacyId = SkillRulePayloadFields.LegacyFieldId(SkillRulePayloadFields.TargetActorId);
 
+        public static bool SupportsField(int fieldId)
+        {
+            return fieldId == SkillIdId || fieldId == SkillIdLegacyId
+                || fieldId == SkillSlotId || fieldId == SkillSlotLegacyId
+                || fieldId == SkillLevelId || fieldId == SkillLevelLegacyId
+                || fieldId == CasterActorIdId || fieldId == CasterActorIdLegacyId
+                || fieldId == TargetActorIdId || fieldId == TargetActorIdLegacyId;
+        }
+
         public bool TryGet(in SkillCastContext args, int fieldId, out int value)
         {
             value = 0;
@@ -399,6 +425,11 @@ namespace AbilityKit.Demo.Moba.Services
         public SkillPipelineContextObjectPayloadAccessor(SkillPipelineContextPayloadAccessor inner)
         {
             _inner = inner;
+        }
+
+        public static bool SupportsField(int fieldId)
+        {
+            return SkillPipelineContextPayloadAccessor.SupportsField(fieldId);
         }
 
         public bool TryGet(in object args, int fieldId, out int value)

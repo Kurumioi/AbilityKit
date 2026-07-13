@@ -25,7 +25,7 @@
       ]
     },
     {
-      "id": 10010001,
+      "id": 10010004,
       "name": "廉颇-勇士之魂-造成伤害获得怒气",
       "event": "damage.apply.after",
       "enabled": true,

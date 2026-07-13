@@ -12,14 +12,13 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleDebugOnGUIFeature : IGamePhaseFeature, IOnGUIFeature
     {
         private BattleContext _ctx;
-        private BattleLocalDebugController _localDebug;
-        private string _localDebugMessage;
+        private BattleHudFeature _hud;
+        private BattleViewFeature _view;
+        private ConfirmedBattleViewFeature _confirmedView;
 
         public void OnAttach(in GamePhaseContext ctx)
         {
-            ctx.Features.TryGet(out _ctx);
-            ctx.Features.TryGet(out BattleHudFeature hud);
-            _localDebug = new BattleLocalDebugController(_ctx, () => hud);
+            RefreshFeatures(in ctx);
             BattleFlowDebugProvider.Current = _ctx;
         }
 
@@ -29,7 +28,21 @@ namespace AbilityKit.Game.Flow
             {
                 BattleFlowDebugProvider.Current = null;
             }
-            _localDebug = null;
+            if (ReferenceEquals(BattleFlowDebugProvider.CurrentHud, _hud))
+            {
+                BattleFlowDebugProvider.CurrentHud = null;
+            }
+            if (ReferenceEquals(BattleFlowDebugProvider.CurrentView, _view))
+            {
+                BattleFlowDebugProvider.CurrentView = null;
+            }
+            if (ReferenceEquals(BattleFlowDebugProvider.CurrentConfirmedView, _confirmedView))
+            {
+                BattleFlowDebugProvider.CurrentConfirmedView = null;
+            }
+            _confirmedView = null;
+            _view = null;
+            _hud = null;
             _ctx = null;
         }
 
@@ -39,7 +52,8 @@ namespace AbilityKit.Game.Flow
 
         public void OnGUI(in GamePhaseContext ctx)
         {
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            RefreshFeatures(in ctx);
             if (!ctx.Entry.DebugEnabled) return;
 
             var sink = ctx.Entry.Get<IFlowCommandSink>();
@@ -63,58 +77,36 @@ namespace AbilityKit.Game.Flow
                 }
             }
             GUILayout.EndArea();
-
-            DrawLocalDebugPanel();
 #endif
         }
 
-        private void DrawLocalDebugPanel()
+        private void RefreshFeatures(in GamePhaseContext ctx)
         {
-#if UNITY_EDITOR
-            if (_localDebug == null || !_localDebug.IsAvailable) return;
-
-            var width = 240f;
-            GUILayout.BeginArea(new Rect(Screen.width - width - 10f, 10f, width, 185f), "Local Debug", GUI.skin.window);
-            GUILayout.Label($"Player: {_localDebug.CurrentPlayerId}");
-            GUILayout.Label($"Actor: {_localDebug.CurrentActorId}");
-
-            if (GUILayout.Button("Switch Control", GUILayout.Height(28)))
+            if (ctx.Features.TryGet(out BattleContext current) && current != null && !ReferenceEquals(current, _ctx))
             {
-                RunLocalDebugAction(_localDebug.TrySwitchControl);
+                _ctx = current;
+                BattleFlowDebugProvider.Current = _ctx;
             }
 
-            if (GUILayout.Button("Reset Cooldowns", GUILayout.Height(28)))
+            if (ctx.Features.TryGet(out BattleHudFeature hud) && hud != null && !ReferenceEquals(hud, _hud))
             {
-                RunLocalDebugAction(_localDebug.TryResetCooldowns);
+                _hud = hud;
+                BattleFlowDebugProvider.CurrentHud = _hud;
             }
 
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Spawn Ally", GUILayout.Height(28)))
+            if (ctx.Features.TryGet(out BattleViewFeature view) && view != null && !ReferenceEquals(view, _view))
             {
-                RunLocalDebugAction(_localDebug.TrySpawnAlly);
+                _view = view;
+                BattleFlowDebugProvider.CurrentView = _view;
             }
 
-            if (GUILayout.Button("Spawn Enemy", GUILayout.Height(28)))
+            if (ctx.Features.TryGet(out ConfirmedBattleViewFeature confirmed) && confirmed != null && !ReferenceEquals(confirmed, _confirmedView))
             {
-                RunLocalDebugAction(_localDebug.TrySpawnEnemy);
+                _confirmedView = confirmed;
+                BattleFlowDebugProvider.CurrentConfirmedView = _confirmedView;
             }
-            GUILayout.EndHorizontal();
-
-            if (!string.IsNullOrEmpty(_localDebugMessage))
-            {
-                GUILayout.Label(_localDebugMessage);
-            }
-            GUILayout.EndArea();
-#endif
         }
 
-        private void RunLocalDebugAction(LocalDebugAction action)
-        {
-            if (action == null) return;
-            action(out _localDebugMessage);
-        }
-
-        private delegate bool LocalDebugAction(out string message);
     }
 
     internal sealed class BattleLocalDebugController
@@ -122,31 +114,87 @@ namespace AbilityKit.Game.Flow
         private const float SpawnForwardOffset = 2f;
         private const float SpawnSideOffset = 1.25f;
 
-        private readonly BattleContext _ctx;
+        private readonly Func<BattleContext> _ctxResolver;
         private readonly Func<BattleHudFeature> _hudResolver;
+        private readonly Action _presentationRefresh;
 
-        public BattleLocalDebugController(BattleContext ctx, Func<BattleHudFeature> hudResolver)
+        public BattleLocalDebugController(Func<BattleContext> ctxResolver, Func<BattleHudFeature> hudResolver, Action presentationRefresh = null)
         {
-            _ctx = ctx;
+            _ctxResolver = ctxResolver;
             _hudResolver = hudResolver;
+            _presentationRefresh = presentationRefresh;
         }
 
-        public bool IsAvailable => _ctx != null && _ctx.Session != null && _ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.Local;
+        private BattleContext Context => _ctxResolver?.Invoke();
 
-        public string CurrentPlayerId => _ctx != null ? _ctx.ResolveLocalControlPlayerId() : string.Empty;
+        public bool IsAvailable
+        {
+            get
+            {
+                var ctx = Context;
+                return ctx != null && ctx.Session != null && ctx.Plan.HostMode == BattleStartConfig.BattleHostMode.Local;
+            }
+        }
 
-        public int CurrentActorId => _ctx != null ? _ctx.LocalActorId : 0;
+        public bool HasSession
+        {
+            get
+            {
+                var ctx = Context;
+                return ctx != null && ctx.Session != null;
+            }
+        }
+
+        public string HostModeName
+        {
+            get
+            {
+                var ctx = Context;
+                return ctx != null ? ctx.Plan.HostMode.ToString() : "missing context";
+            }
+        }
+
+        public string UnavailableReason
+        {
+            get
+            {
+                var ctx = Context;
+                if (ctx == null) return "battle context missing";
+                if (ctx.Session == null) return "session missing";
+                if (ctx.Plan.HostMode != BattleStartConfig.BattleHostMode.Local) return $"not local ({ctx.Plan.HostMode})";
+                return "ready";
+            }
+        }
+
+        public string CurrentPlayerId
+        {
+            get
+            {
+                var ctx = Context;
+                return ctx != null ? ctx.ResolveLocalControlPlayerId() : string.Empty;
+            }
+        }
+
+        public int CurrentActorId
+        {
+            get
+            {
+                var ctx = Context;
+                return ctx != null ? ctx.LocalActorId : 0;
+            }
+        }
 
         public bool TrySwitchControl(out string message)
         {
             message = string.Empty;
+            var ctx = Context;
             if (!IsAvailable)
             {
                 message = "local battle unavailable";
                 return false;
             }
 
-            var players = _ctx.Plan.LaunchSpec.Players;
+            var players = ctx.Plan.LaunchSpec.Players;
             if (players == null || players.Length <= 1)
             {
                 message = "need at least 2 players";
@@ -180,6 +228,7 @@ namespace AbilityKit.Game.Flow
         public bool TrySetControlPlayer(PlayerId playerId, out string message)
         {
             message = string.Empty;
+            var ctx = Context;
             if (!IsAvailable)
             {
                 message = "local battle unavailable";
@@ -192,7 +241,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            if (!TryResolveWorldService<MobaPlayerActorMapService>(out var playerActors) || playerActors == null)
+            if (!TryResolveWorldService(ctx, out MobaPlayerActorMapService playerActors) || playerActors == null)
             {
                 message = "player actor map missing";
                 return false;
@@ -204,8 +253,8 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            _ctx.LocalControlPlayerId = playerId.Value;
-            _ctx.LocalActorId = actorId;
+            ctx.LocalControlPlayerId = playerId.Value;
+            ctx.LocalActorId = actorId;
             _hudResolver?.Invoke()?.RefreshLocalControlSkillTemplates();
             message = $"control {playerId.Value} actor={actorId}";
             return true;
@@ -214,7 +263,14 @@ namespace AbilityKit.Game.Flow
         public bool TryResetCooldowns(out string message)
         {
             message = string.Empty;
+            var ctx = Context;
             if (!TryResolveCurrentActor(out var actor, out message)) return false;
+            if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) || actors == null)
+            {
+                message = "actor lookup missing";
+                return false;
+            }
+
             if (!actor.hasSkillLoadout || actor.skillLoadout.ActiveSkills == null)
             {
                 message = "active skills missing";
@@ -227,9 +283,10 @@ namespace AbilityKit.Game.Flow
             {
                 var skill = skills[i];
                 if (skill == null) continue;
-                skill.CooldownEndTimeMs = 0L;
-                skill.CooldownDurationMs = 0;
-                count++;
+                if (MobaSkillRuntimeAccess.TrySetActiveSkillCooldown(actors, ctx.LocalActorId, i + 1, skill.SkillId, 0L, 0))
+                {
+                    count++;
+                }
             }
 
             message = $"reset cd count={count}";
@@ -249,9 +306,10 @@ namespace AbilityKit.Game.Flow
         private bool TrySpawnUnit(bool enemy, out string message)
         {
             message = string.Empty;
+            var ctx = Context;
             if (!TryResolveCurrentActor(out var controlledActor, out message)) return false;
-            if (!TryFindSpawnTemplate(enemy, controlledActor, out var template, out message)) return false;
-            if (!TryResolveWorldService<IMobaActorSpawnService>(out var spawn) || spawn == null)
+            if (!TryFindSpawnTemplate(ctx, enemy, controlledActor, out var template, out message)) return false;
+            if (!TryResolveWorldService(ctx, out IMobaActorSpawnService spawn) || spawn == null)
             {
                 message = "spawn service missing";
                 return false;
@@ -291,7 +349,7 @@ namespace AbilityKit.Game.Flow
             request.AllocateActorIdIfMissing = true;
             request.Initializer = (entity, _) =>
             {
-                if (TryResolveWorldService<ActorEntityInitPipeline>(out var init) && init != null)
+                if (TryResolveWorldService(ctx, out ActorEntityInitPipeline init) && init != null)
                 {
                     init.InitializeFromLoadout(entity, in loadout);
                 }
@@ -303,15 +361,16 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
+            _presentationRefresh?.Invoke();
             message = $"spawn {(enemy ? "enemy" : "ally")} actor={result.ActorId}";
             return true;
         }
 
-        private bool TryFindSpawnTemplate(bool enemy, global::ActorEntity controlledActor, out MobaPlayerLoadout template, out string message)
+        private bool TryFindSpawnTemplate(BattleContext ctx, bool enemy, global::ActorEntity controlledActor, out MobaPlayerLoadout template, out string message)
         {
             template = default;
             message = string.Empty;
-            var players = _ctx.Plan.LaunchSpec.Players;
+            var players = ctx.Plan.LaunchSpec.Players;
             if (players == null || players.Length == 0)
             {
                 message = "launch players missing";
@@ -358,26 +417,27 @@ namespace AbilityKit.Game.Flow
         {
             actor = null;
             message = string.Empty;
+            var ctx = Context;
             if (!IsAvailable)
             {
                 message = "local battle unavailable";
                 return false;
             }
 
-            if (_ctx.LocalActorId <= 0)
+            if (ctx.LocalActorId <= 0)
             {
                 if (!TryRefreshCurrentActorId(out message)) return false;
             }
 
-            if (!TryResolveWorldService<MobaActorLookupService>(out var actors) || actors == null)
+            if (!TryResolveWorldService(ctx, out MobaActorLookupService actors) || actors == null)
             {
                 message = "actor lookup missing";
                 return false;
             }
 
-            if (!actors.TryGetActorEntity(_ctx.LocalActorId, out actor) || actor == null)
+            if (!actors.TryGetActorEntity(ctx.LocalActorId, out actor) || actor == null)
             {
-                message = $"actor missing id={_ctx.LocalActorId}";
+                message = $"actor missing id={ctx.LocalActorId}";
                 return false;
             }
 
@@ -390,11 +450,11 @@ namespace AbilityKit.Game.Flow
             return TrySetControlPlayer(playerId, out message);
         }
 
-        private bool TryResolveWorldService<T>(out T service) where T : class
+        private static bool TryResolveWorldService<T>(BattleContext ctx, out T service) where T : class
         {
             service = null;
-            if (_ctx?.Session == null) return false;
-            if (!_ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
+            if (ctx?.Session == null) return false;
+            if (!ctx.Session.TryGetWorld(out var world) || world?.Services == null) return false;
             return world.Services.TryResolve(out service) && service != null;
         }
     }

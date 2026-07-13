@@ -45,6 +45,22 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int ReturnAfterMs;
         public float ReturnSpeed;
         public float ReturnStopDistance;
+
+        public int PrepareMotionMode;
+        public int PrepareMs;
+        public int HoldMs;
+        public float PrepareOffsetX;
+        public float PrepareOffsetY;
+        public float PrepareOffsetZ;
+        public float PrepareSlotSpacing;
+        public float SpawnRandomOffsetX;
+        public float SpawnRandomOffsetY;
+        public float SpawnRandomOffsetZ;
+        public float PrepareRandomOffsetX;
+        public float PrepareRandomOffsetY;
+        public float PrepareRandomOffsetZ;
+        public bool ConsumeLifetimeBeforeFlying;
+        public bool ArmedBeforeFlying;
     }
 
     [Serializable]
@@ -118,6 +134,8 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int[] SkillIds;
         public int[] PassiveSkillIds;
+
+        public int BrainId;
 
         public int[] DefaultComponentTemplateIds;
 

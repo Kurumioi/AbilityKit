@@ -516,6 +516,183 @@
                  ],
         "Modifiers":  [
 
+                     ]
+    },
+    {
+        "Id":  10060000,
+        "Name":  "嬴政-王者审判-剑意标记",
+        "DurationMs":  3000,
+        "OngoingEffectId":  10060000,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  1000,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  10,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+                     "Passive.Yingzheng.Judgment"
+                 ],
+        "Modifiers":  [
+
+                      ]
+    },
+    {
+        "Id":  10060101,
+        "Name":  "嬴政-王者惩戒-技能期间移速加成",
+        "DurationMs":  800,
+        "OngoingEffectId":  0,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  0,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  1,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+
+                 ],
+        "Modifiers":  [
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  17,
+                              "TargetId":  17,
+                              "Op":  3,
+                              "Value":  0.15,
+                              "Priority":  20
+                          }
+                      ]
+    },
+    {
+        "Id":  10060201,
+        "Name":  "嬴政-战力和谐-护盾与移速状态",
+        "DurationMs":  3000,
+        "OngoingEffectId":  0,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  0,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  1,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+                     "Shield.Yingzheng.Harmony"
+                 ],
+        "Modifiers":  [
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  8,
+                              "TargetId":  8,
+                              "Op":  3,
+                              "Value":  0.20,
+                              "Priority":  20
+                          },
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  9,
+                              "TargetId":  9,
+                              "Op":  3,
+                              "Value":  0.20,
+                              "Priority":  20
+                          },
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  17,
+                              "TargetId":  17,
+                              "Op":  3,
+                              "Value":  2.5,
+                              "Priority":  20
+                          }
+                      ]
+    },
+    {
+        "Id":  10060202,
+        "Name":  "嬴政-战力和谐-范围爆炸减速",
+        "DurationMs":  1500,
+        "OngoingEffectId":  0,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  0,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  1,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+                     "Control.Slow"
+                 ],
+        "Modifiers":  [
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  17,
+                              "TargetId":  17,
+                              "Op":  3,
+                              "Value":  -0.30,
+                              "Priority":  20
+                          }
+                      ]
+    },
+    {
+        "Id":  10060301,
+        "Name":  "嬴政-至尊皇冠-引导剑阵状态",
+        "DurationMs":  5500,
+        "OngoingEffectId":  0,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  0,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  1,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+                     "State.Yingzheng.UltimateChannel"
+                 ],
+        "Modifiers":  [
+
                       ]
     }
 ]

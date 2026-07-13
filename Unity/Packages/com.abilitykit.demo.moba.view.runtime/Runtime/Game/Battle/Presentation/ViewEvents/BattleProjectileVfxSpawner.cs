@@ -44,5 +44,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 in rotation,
                 out _);
         }
+
+        public int StopFollowingActor(int projectileActorId)
+        {
+            if (_vfx == null) return 0;
+            if (!_vfxNode.IsValid) return 0;
+            if (projectileActorId <= 0) return 0;
+
+            return _vfx.DestroyVfxByFollowTargetActorId(_vfxNode, projectileActorId);
+        }
     }
 }

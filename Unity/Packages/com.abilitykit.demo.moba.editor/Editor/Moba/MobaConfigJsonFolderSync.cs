@@ -13,7 +13,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 {
     public static class MobaConfigJsonFolderSync
     {
-        private const string BaseResourcesFolder = "Assets/Resources/moba";
+        private const string BaseResourcesFolder = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
 
         [MenuItem("AbilityKit/Moba/Config Json/Import Folder -> Selected SO")]
         public static void ImportFolderToSelectedSo()
@@ -356,7 +356,12 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 return Path.Combine(Application.dataPath, rel);
             }
 
-            throw new InvalidOperationException($"Expected an Assets path. path={assetPath}");
+            if (assetPath.StartsWith("Packages/", StringComparison.Ordinal))
+            {
+                return Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
+            }
+
+            throw new InvalidOperationException($"Expected an Assets or Packages path. path={assetPath}");
         }
     }
 }

@@ -14,8 +14,6 @@ namespace AbilityKit.Game.Flow
     [CreateAssetMenu(menuName = "AbilityKit/Game/Battle Start Config", fileName = "BattleStartConfig")]
     public sealed class BattleStartConfig : ScriptableObject
     {
-        private const int DefaultBasicAttackSkillId = 1;
-
         public enum BattleRunMode
         {
             Normal = 0,
@@ -346,8 +344,7 @@ namespace AbilityKit.Game.Flow
 
         private static int ResolveBasicAttackSkillId(BattlePlayersConfigSO.PlayerConfig player)
         {
-            if (player == null) return DefaultBasicAttackSkillId;
-            return player.BasicAttackSkillId > 0 ? player.BasicAttackSkillId : DefaultBasicAttackSkillId;
+            return player != null ? player.BasicAttackSkillId : 0;
         }
     }
 }

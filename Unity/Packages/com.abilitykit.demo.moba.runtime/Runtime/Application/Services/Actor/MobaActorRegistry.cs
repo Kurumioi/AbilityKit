@@ -21,7 +21,13 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TryGet(int actorId, out global::ActorEntity entity)
         {
-            return _byId.TryGetValue(actorId, out entity);
+            if (_byId.TryGetValue(actorId, out entity) && entity != null && entity.isEnabled)
+            {
+                return true;
+            }
+
+            entity = null;
+            return false;
         }
 
         public void Unregister(int actorId)

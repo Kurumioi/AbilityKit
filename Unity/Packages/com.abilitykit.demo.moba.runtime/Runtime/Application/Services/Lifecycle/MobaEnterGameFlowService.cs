@@ -298,7 +298,10 @@ namespace AbilityKit.Demo.Moba.Services
             _gameplay.Start(gameplayId);
             if (!_gameplay.IsRunning || _gameplay.CurrentGameplayId != gameplayId)
             {
-                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay start failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}");
+                var detail = string.IsNullOrEmpty(_gameplay.LastStartFailureReason)
+                    ? string.Empty
+                    : $", detail={_gameplay.LastStartFailureReason}";
+                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay start failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}{detail}");
             }
 
             return MobaGameStartResult.Success;

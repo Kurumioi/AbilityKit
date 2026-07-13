@@ -94,26 +94,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0 || regs.ContainsKey(triggerId)) continue;
-                if (triggerId == 10020000)
-                {
-                    Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive register requested. ownerKey={ownerKey} triggerId={triggerId} hasDb={_db != null} hasRunner={_runner != null} hasGate={_ownerBoundGates != null} hasEffects={_effects != null}");
-                }
-
-                if (!TryRegister(ownerKey, triggerId, out var registration))
-                {
-                    if (triggerId == 10020000)
-                    {
-                        Log.Warning($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive register failed. ownerKey={ownerKey} triggerId={triggerId}");
-                    }
-
-                    continue;
-                }
+                if (!TryRegister(ownerKey, triggerId, out var registration)) continue;
 
                 regs[triggerId] = registration;
-                if (triggerId == 10020000)
-                {
-                    Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive registered. ownerKey={ownerKey} triggerId={triggerId}");
-                }
             }
 
             RemoveStaleRegistrations(ownerKey, regs, triggerIds);
@@ -193,12 +176,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             try
             {
-                if (record.TriggerId == 10020000)
-                {
-                    var typedKey = new EventKey<SkillCastContext>(record.EventId);
-                    Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive typed registration. ownerKey={ownerKey} triggerId={record.TriggerId} eventName={record.EventName} eventId={record.EventId} argsType={argsType.Name} busHash={_planEventBus?.GetHashCode() ?? 0} hasTypedBefore={_planEventBus != null && _planEventBus.HasSubscribers(typedKey)}");
-                }
-
                 var method = s_registerTypedAsMethod.MakeGenericMethod(argsType);
                 var registration = (IDisposable)method.Invoke(this, new object[] { ownerKey, record.EventId, record.Plan });
                 if (registration == null)
@@ -217,23 +194,22 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         private IDisposable RegisterTypedAs<TArgs>(long ownerKey, int eventId, TriggerPlan<object> plan)
             where TArgs : class
         {
+            if (_ownerBoundGates == null)
+            {
+                throw new InvalidOperationException("Owner-bound trigger registration requires MobaOwnerBoundTriggerGateService.");
+            }
+
+            if (_effects == null)
+            {
+                throw new InvalidOperationException("Owner-bound trigger registration requires MobaEffectExecutionService.");
+            }
+
             var typedPlan = plan.AsArgs<TArgs>();
             var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan);
-            ITrigger<TArgs, IWorldResolver> trigger = inner;
-
-            if (_ownerBoundGates != null)
-            {
-                trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects);
-            }
+            var trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects);
 
             var key = new EventKey<TArgs>(eventId);
-            var registration = _runner.Register(key, trigger, typedPlan.Phase, typedPlan.Priority);
-            if (trigger is ITriggerWithId withId && withId.TriggerId == 10020000)
-            {
-                Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive typed registered on runner. ownerKey={ownerKey} triggerId={withId.TriggerId} eventId={eventId} argsType={typeof(TArgs).Name} busHash={_planEventBus?.GetHashCode() ?? 0} hasTypedAfter={_planEventBus != null && _planEventBus.HasSubscribers(key)}");
-            }
-
-            return registration;
+            return _runner.Register(key, trigger, typedPlan.Phase, typedPlan.Priority);
         }
 
         public void Stop(long ownerKey)
@@ -321,8 +297,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             {
                 _ownerKey = ownerKey;
                 _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-                _gates = gates;
-                _effects = effects;
+                _gates = gates ?? throw new ArgumentNullException(nameof(gates));
+                _effects = effects ?? throw new ArgumentNullException(nameof(effects));
                 _triggerId = inner is ITriggerWithId withId ? withId.TriggerId : 0;
             }
 
@@ -331,60 +307,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             public bool Evaluate(in TArgs args, in ExecCtx<IWorldResolver> ctx)
             {
-                if (_gates != null && !_gates.CanExecute(_ownerKey, _triggerId))
+                if (!_gates.CanExecute(_ownerKey, _triggerId)) return false;
+                if (!_gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source)) return false;
+
+                using (_gates.BeginEvaluationScope(in source))
                 {
-                    if (_triggerId == 10020000)
-                    {
-                        Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive evaluate gate rejected. ownerKey={_ownerKey} triggerId={_triggerId}");
-                    }
-
-                    return false;
+                    return _inner.Evaluate(in args, in ctx);
                 }
-
-                var ok = _inner.Evaluate(in args, in ctx);
-                if (_triggerId == 10020000)
-                {
-                    Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive evaluated. ownerKey={_ownerKey} triggerId={_triggerId} ok={ok}");
-                }
-
-                return ok;
             }
 
             public void Execute(in TArgs args, in ExecCtx<IWorldResolver> ctx)
             {
-                if (_gates != null && !_gates.CanExecute(_ownerKey, _triggerId))
+                if (!_gates.CanExecute(_ownerKey, _triggerId)) return;
+                if (!_gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source)) return;
+
+                if (_effects.ExecuteOwnerBoundTriggerActions(_triggerId, args, in ctx, in source, _inner))
                 {
-                    if (_triggerId == 10020000)
-                    {
-                        Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive gate rejected. ownerKey={_ownerKey} triggerId={_triggerId}");
-                    }
-
-                    return;
+                    _gates.Complete(_ownerKey, _triggerId);
                 }
-
-                if (_effects != null
-                    && _gates != null
-                    && _gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source))
-                {
-                    if (_triggerId == 10020000)
-                    {
-                        Log.Info($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive executing owner-bound actions. ownerKey={_ownerKey} triggerId={_triggerId} sourceActor={source.SourceActorId}");
-                    }
-
-                    if (_effects.ExecuteOwnerBoundTriggerActions(_triggerId, args, in ctx, in source, _inner))
-                    {
-                        _gates.Complete(_ownerKey, _triggerId);
-                    }
-                    return;
-                }
-
-                if (_triggerId == 10020000)
-                {
-                    Log.Warning($"[MobaTriggerPlanSubscriptionService] XiaoQiao passive missing owner-bound execution source. ownerKey={_ownerKey} triggerId={_triggerId} hasEffects={_effects != null} hasGates={_gates != null}");
-                }
-
-                _inner.Execute(in args, in ctx);
-                _gates?.Complete(_ownerKey, _triggerId);
             }
         }
 

@@ -269,6 +269,76 @@
                         "trigger_id":  10040321,
                         "path":  "skills\\trigger_10040321.json",
                         "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060000,
+                        "path":  "passives\\trigger_10060000.json",
+                        "category":  "passives"
+                    },
+                    {
+                        "trigger_id":  10060101,
+                        "path":  "skills\\trigger_10060101.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060111,
+                        "path":  "skills\\trigger_10060111.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060112,
+                        "path":  "skills\\trigger_10060112.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060201,
+                        "path":  "skills\\trigger_10060201.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060211,
+                        "path":  "skills\\trigger_10060211.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060212,
+                        "path":  "skills\\trigger_10060212.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060301,
+                        "path":  "skills\\trigger_10060301.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060311,
+                        "path":  "skills\\trigger_10060311.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060312,
+                        "path":  "skills\\trigger_10060312.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060313,
+                        "path":  "skills\\trigger_10060313.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060314,
+                        "path":  "skills\\trigger_10060314.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060315,
+                        "path":  "skills\\trigger_10060315.json",
+                        "category":  "skills"
+                    },
+                    {
+                        "trigger_id":  10060316,
+                        "path":  "skills\\trigger_10060316.json",
+                        "category":  "skills"
                     }
                 ]
 }

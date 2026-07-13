@@ -171,6 +171,103 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleVfxManager_DestroysVfxByFollowTargetActorIdOnly()
+        {
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [90004002] = new VfxDTO { Id = 90004002, Resource = "missing/mozi_projectile", DurationMs = 30000 },
+                [90004004] = new VfxDTO { Id = 90004004, Resource = "missing/mozi_crater", DurationMs = 30000 }
+            });
+            var manager = new BattleVfxManager(db);
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+
+            try
+            {
+                Assert.IsTrue(manager.TryCreateVfxEntity(
+                    world,
+                    root,
+                    90004002,
+                    default,
+                    10042,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    out var projectileVfx));
+                Assert.IsTrue(manager.TryCreateVfxEntity(
+                    world,
+                    root,
+                    90004004,
+                    default,
+                    10043,
+                    Vector3.forward,
+                    Quaternion.identity,
+                    out var otherVfx));
+
+                var destroyed = manager.DestroyVfxByFollowTargetActorId(root, 10042);
+
+                Assert.AreEqual(1, destroyed);
+                Assert.IsFalse(world.IsAlive(projectileVfx.Id));
+                Assert.IsTrue(world.IsAlive(otherVfx.Id));
+            }
+            finally
+            {
+                world.DestroyRecursive(root.Id);
+            }
+        }
+
+        [Test]
+        public void BattleProjectileViewEventHandler_StopsFollowingVfxOnExitSnapshot()
+        {
+            var db = new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [90004002] = new VfxDTO { Id = 90004002, Resource = "missing/mozi_projectile", DurationMs = 30000 }
+            });
+            var manager = new BattleVfxManager(db);
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+            var lookup = new BattleEntityLookup();
+            var query = new BattleEntityQuery(world, lookup);
+            var ctx = BattleContext.Rent();
+            ctx.EntityWorld = world;
+
+            try
+            {
+                Assert.IsTrue(manager.TryCreateVfxEntity(
+                    world,
+                    root,
+                    90004002,
+                    default,
+                    10042,
+                    Vector3.zero,
+                    Quaternion.identity,
+                    out var projectileVfx));
+                var handler = new BattleProjectileViewEventHandler(
+                    ctx,
+                    query,
+                    manager,
+                    in root);
+                var exit = new MobaProjectileEventSnapshotEntry
+                {
+                    Kind = (int)ProtocolProjectileEventKind.Exit,
+                    ProjectileId = 42,
+                    ProjectileActorId = 10042,
+                    TemplateId = 30040201,
+                };
+
+                handler.HandleSnapshot(new[] { exit });
+
+                Assert.IsFalse(
+                    world.IsAlive(projectileVfx.Id),
+                    "Projectile exit should stop its following VFX without waiting for an actor-despawn snapshot.");
+            }
+            finally
+            {
+                if (root.IsValid) world.DestroyRecursive(root.Id);
+                BattleContext.Return(ctx);
+            }
+        }
+
+        [Test]
         public void BattlePresentationCueResolver_StopsByStableRequestKeyAndIgnoresMissingVfx()
         {
             var resolver = new BattlePresentationCueResolver();

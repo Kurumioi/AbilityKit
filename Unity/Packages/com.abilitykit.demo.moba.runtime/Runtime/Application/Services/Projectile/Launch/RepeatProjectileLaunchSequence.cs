@@ -26,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile.Launch
 
             var patternProvider = new MobaModifierProjectileSpawnPatternProvider(
                 context.SkillParamModifiers,
+                context.Projectile,
+                context.Random,
                 context.Launcher.CountPerShot,
                 context.Launcher.FanAngleDeg,
                 context.BulletsPerShot,

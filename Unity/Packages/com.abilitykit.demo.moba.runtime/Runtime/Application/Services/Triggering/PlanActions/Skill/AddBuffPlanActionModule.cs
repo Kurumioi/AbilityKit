@@ -32,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var coreInput = MobaPlanActionInputResolver.Resolve(triggerArgs, ctx);
             var effectInput = new MobaEffectActionInput(in coreInput);
             var sourceActorId = effectInput.CasterActorId;
+
             var targets = PooledMobaPlanActionLists.GetIntList();
             try
             {

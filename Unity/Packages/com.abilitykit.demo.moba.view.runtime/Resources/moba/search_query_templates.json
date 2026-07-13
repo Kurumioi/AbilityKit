@@ -334,5 +334,97 @@
         "Selector":  {
                          "Kind":  4097
                      }
+    },
+    {
+        "Id":  50050201,
+        "Name":  "妲己-偶像魅力-目标点范围敌方查询",
+        "MaxCount":  1,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  3.0
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50050301,
+        "Name":  "妲己-女王崇拜-自身周围狐火目标查询",
+        "MaxCount":  1,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  0,
+                          "Radius":  8.0
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50060101,
+        "Name":  "嬴政-王者惩戒-目标点剑阵敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  1,
+                          "Radius":  4.0
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
+    },
+    {
+        "Id":  50060201,
+        "Name":  "嬴政-王者守御-自身周围敌方查询",
+        "MaxCount":  10,
+        "ExplicitTargetPolicy":  2,
+        "Provider":  {
+                         "Kind":  6
+                     },
+        "Rules":  [
+                      {
+                          "Kind":  257,
+                          "Center":  0,
+                          "Radius":  4.0
+                      }
+                  ],
+        "Scorer":  {
+                       "Kind":  8196,
+                       "Source":  0
+                   },
+        "Selector":  {
+                         "Kind":  4097
+                     }
     }
 ]

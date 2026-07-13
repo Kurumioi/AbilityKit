@@ -8,7 +8,10 @@ namespace AbilityKit.Game.Flow
         {
             ValidateWorld(in options.World);
             ValidateGateway(options.HostMode, in options.Gateway);
-            ValidateCreateWorld(in options.CreateWorld);
+            if (options.Auto.AutoCreateWorld)
+            {
+                ValidateCreateWorld(in options.CreateWorld);
+            }
             ValidateTimeSync(in options.TimeSync);
             ValidateRunMode(in options.RunMode);
         }

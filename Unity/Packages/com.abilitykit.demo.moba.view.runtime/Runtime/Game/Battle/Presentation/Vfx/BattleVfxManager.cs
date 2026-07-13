@@ -69,13 +69,29 @@ namespace AbilityKit.Game.Battle.Vfx
             if (!world.IsAlive(id)) return;
 
             var e = world.Wrap(id);
-            if (e.TryGetRef(out BattleViewGameObjectComponent goComp) && goComp != null && goComp.GameObject != null)
-            {
-                UnityEngine.Object.Destroy(goComp.GameObject);
-                goComp.GameObject = null;
-            }
+            DestroyVfxGameObject(e);
 
             if (e.IsValid) e.Destroy();
+        }
+
+        public int DestroyVfxByFollowTargetActorId(in EC.IEntity vfxRoot, int targetActorId)
+        {
+            return _followController.DestroyByFollowTargetActorId(vfxRoot, targetActorId, DestroyVfxEntity);
+        }
+
+        private static void DestroyVfxGameObject(EC.IEntity entity)
+        {
+            if (!entity.IsValid) return;
+            if (entity.TryGetRef(out BattleViewGameObjectComponent goComp) && goComp != null && goComp.GameObject != null)
+            {
+#if UNITY_EDITOR
+                if (!Application.isPlaying) UnityEngine.Object.DestroyImmediate(goComp.GameObject);
+                else UnityEngine.Object.Destroy(goComp.GameObject);
+#else
+                UnityEngine.Object.Destroy(goComp.GameObject);
+#endif
+                goComp.GameObject = null;
+            }
         }
 
         public void SyncFollow(EC.IECWorld world, EC.IEntityId vfxEntityId, in Vector3 targetPos)

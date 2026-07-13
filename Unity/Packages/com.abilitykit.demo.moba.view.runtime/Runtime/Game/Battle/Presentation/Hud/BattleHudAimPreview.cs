@@ -9,8 +9,12 @@ namespace AbilityKit.Game.Flow
     {
         private readonly BattleHudAimPreviewPositionResolver _positions;
         private readonly BattleHudAimPreviewObjectFactory _objects;
+        private const float SubmittedPreviewDurationSeconds = 0.45f;
+
         private IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> _skillSpecs;
         private BattleHudAimPreviewObject _preview;
+        private int _lastSubmissionVersion;
+        private float _submittedPreviewRemainingSeconds;
 
         public BattleHudAimPreview(
             BattleHudAimPreviewPositionResolver positions = null,
@@ -20,17 +24,42 @@ namespace AbilityKit.Game.Flow
             _objects = objects ?? new BattleHudAimPreviewObjectFactory();
         }
 
+        internal GameObject PreviewRoot => _preview?.Root;
+
         public void SetSkillSpecs(IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> skillSpecs)
         {
             _skillSpecs = skillSpecs;
         }
 
-        public void Tick(BattleContext ctx)
+        public void Tick(BattleContext ctx, float deltaTime = 0f)
         {
             if (!_positions.TryResolve(ctx, out var state) || !TryGetSpec(state.Slot, out var spec))
             {
                 Hide();
                 return;
+            }
+
+            if (state.SubmissionVersion > 0)
+            {
+                if (state.SubmissionVersion != _lastSubmissionVersion)
+                {
+                    _lastSubmissionVersion = state.SubmissionVersion;
+                    _submittedPreviewRemainingSeconds = SubmittedPreviewDurationSeconds;
+                }
+                else
+                {
+                    _submittedPreviewRemainingSeconds -= Mathf.Max(0f, deltaTime);
+                }
+
+                if (_submittedPreviewRemainingSeconds <= 0f)
+                {
+                    Hide();
+                    return;
+                }
+            }
+            else
+            {
+                _submittedPreviewRemainingSeconds = 0f;
             }
 
             EnsurePreview();
@@ -41,10 +70,19 @@ namespace AbilityKit.Game.Flow
         {
             if (_preview != null)
             {
-                Object.Destroy(_preview.Root);
+                if (Application.isPlaying)
+                {
+                    Object.Destroy(_preview.Root);
+                }
+                else
+                {
+                    Object.DestroyImmediate(_preview.Root);
+                }
             }
 
             _preview = null;
+            _lastSubmissionVersion = 0;
+            _submittedPreviewRemainingSeconds = 0f;
         }
 
         private bool TryGetSpec(int slot, out BattleHudSkillPresentationSpec spec)
@@ -56,50 +94,8 @@ namespace AbilityKit.Game.Flow
                 return true;
             }
 
-            return TryGetDefaultSpec(slot, out spec);
-        }
-
-        private static bool TryGetDefaultSpec(int slot, out BattleHudSkillPresentationSpec spec)
-        {
-            switch (slot)
-            {
-                case 1:
-                    spec = new BattleHudSkillPresentationSpec(
-                        0,
-                        "DefaultDirection",
-                        BattleHudSkillPreviewShape.DirectionLine,
-                        SkillAimIndicatorShape.DirectionLine,
-                        7f,
-                        1.8f,
-                        0f,
-                        new Color(0.95f, 0.55f, 0.18f, 0.34f));
-                    return true;
-                case 2:
-                    spec = new BattleHudSkillPresentationSpec(
-                        0,
-                        "DefaultSelfCircle",
-                        BattleHudSkillPreviewShape.SelfCircle,
-                        SkillAimIndicatorShape.SelfCircle,
-                        0f,
-                        0f,
-                        4.2f,
-                        new Color(0.95f, 0.34f, 0.18f, 0.32f));
-                    return true;
-                case 3:
-                    spec = new BattleHudSkillPresentationSpec(
-                        0,
-                        "DefaultTargetCircle",
-                        BattleHudSkillPreviewShape.TargetCircle,
-                        SkillAimIndicatorShape.TargetCircle,
-                        8f,
-                        0f,
-                        3.4f,
-                        new Color(0.95f, 0.68f, 0.18f, 0.3f));
-                    return true;
-                default:
-                    spec = default;
-                    return false;
-            }
+            spec = default;
+            return false;
         }
 
         private void Hide()
@@ -124,13 +120,20 @@ namespace AbilityKit.Game.Flow
         public readonly Vector3 CasterPosition;
         public readonly Vector3 AimDirection;
         public readonly float AimDistance;
+        public readonly int SubmissionVersion;
 
-        public BattleHudAimPreviewState(int slot, Vector3 casterPosition, Vector3 aimDirection, float aimDistance)
+        public BattleHudAimPreviewState(
+            int slot,
+            Vector3 casterPosition,
+            Vector3 aimDirection,
+            float aimDistance,
+            int submissionVersion = 0)
         {
             Slot = slot;
             CasterPosition = casterPosition;
             AimDirection = aimDirection;
             AimDistance = aimDistance;
+            SubmissionVersion = submissionVersion;
         }
     }
 
@@ -144,7 +147,7 @@ namespace AbilityKit.Game.Flow
             state = default;
             if (ctx == null) return false;
 
-            if (!ctx.TryReadHudSkillAim(out var slot, out var aimDx, out var aimDz))
+            if (!ctx.TryReadHudSkillAimPreview(out var slot, out var aimDx, out var aimDz, out var submissionVersion))
             {
                 return false;
             }
@@ -157,7 +160,7 @@ namespace AbilityKit.Game.Flow
             var aim = new Vector3(aimDx, 0f, aimDz);
             var distance = aim.magnitude;
             var direction = distance > 0.001f ? aim / distance : Vector3.forward;
-            state = new BattleHudAimPreviewState(slot, casterPosition, direction, distance);
+            state = new BattleHudAimPreviewState(slot, casterPosition, direction, distance, submissionVersion);
             return true;
         }
 
@@ -322,16 +325,32 @@ namespace AbilityKit.Game.Flow
 
         private static Material CreateMaterial(Color color)
         {
-            var material = new Material(Shader.Find("Sprites/Default"));
+            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Standard") ?? Shader.Find("Diffuse");
+            var material = shader != null ? new Material(shader) : new Material(Shader.Find("Sprites/Default"));
             material.color = color;
             material.hideFlags = HideFlags.DontSave;
+            if (material.HasProperty("_Cull")) material.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            ConfigureTransparency(material, color.a);
             return material;
+        }
+
+        private static void ConfigureTransparency(Material material, float alpha)
+        {
+            if (material == null) return;
+
+            if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
+            if (material.HasProperty("_SrcBlend")) material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend")) material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
+            if (material.HasProperty("_ZTest")) material.SetFloat("_ZTest", (float)UnityEngine.Rendering.CompareFunction.Always);
+            material.EnableKeyword("_ALPHABLEND_ON");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Overlay;
         }
     }
 
     internal sealed class BattleHudAimPreviewObject
     {
-        private const float HeightOffset = 0.04f;
+        private const float HeightOffset = 0.12f;
 
         private readonly GameObject _line;
         private readonly GameObject _circle;
@@ -572,9 +591,10 @@ namespace AbilityKit.Game.Flow
         {
             if (go == null) return;
             var renderer = go.GetComponent<Renderer>();
-            if (renderer == null || renderer.material == null) return;
+            var material = renderer != null ? renderer.sharedMaterial : null;
+            if (material == null) return;
 
-            renderer.material.color = color;
+            material.color = color;
         }
     }
 }

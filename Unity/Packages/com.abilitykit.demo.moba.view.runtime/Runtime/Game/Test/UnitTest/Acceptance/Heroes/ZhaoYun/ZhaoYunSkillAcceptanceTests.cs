@@ -1,0 +1,161 @@
+using AbilityKit.Core.Mathematics;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Trace;
+using AbilityKit.Triggering.Runtime;
+using NUnit.Framework;
+
+namespace AbilityKit.Game.Test.UnitTest
+{
+    public sealed class ZhaoYunSkillAcceptanceTests : MobaAcceptanceTestBase
+    {
+        private static readonly HeroSkillContract ZhaoYun = new HeroSkillContract(
+            "ZhaoYun",
+            heroId: 1003,
+            attributeTemplateId: 1003,
+            skillIds: new[] { 10030101, 10030201, 10030301 });
+
+        private static readonly HeroSkillSlotContract Skill1 = new HeroSkillSlotContract(1, 10030101, 10030101, 10030101);
+        private static readonly HeroSkillSlotContract Skill2 = new HeroSkillSlotContract(2, 10030201, 10030201, 10030201);
+        private static readonly HeroSkillSlotContract Skill3 = new HeroSkillSlotContract(3, 10030301, 10030301, 10030301);
+
+        [Test]
+        public void Passive10030000_ShouldScaleDamageReductionByMissingHealth()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(ZhaoYun, "zhaoyun_passive_missing_health_damage_reduction_contract_world"))
+            {
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    10030000,
+                    (int)TriggeringConstants.GetActionId(TriggeringConstants.Actions.AdjustDamageNumber).Value,
+                    (int)TriggeringConstants.DebugLogId.Value);
+
+                harness.EnterGameAndWarmup(reason: "zhaoyun passive missing health damage reduction contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var maxHp = harness.GetActorAttribute(actorId, BattleAttributeType.MAX_HP);
+                Assert.Greater(maxHp, 0f, "Zhao Yun must have positive maximum health for passive damage reduction.");
+
+                harness.SetScenarioActorAttribute(actorId, "hp", maxHp);
+                var fullHpDamage = HeroSkillHeadlessContract.ExecuteDamage(harness, 0, actorId, 100f, DamageReasonKind.Environment);
+                Assert.Greater(fullHpDamage.Value, 0f, "Zhao Yun should receive positive incoming damage at full health.");
+
+                harness.SetScenarioActorAttribute(actorId, "hp", maxHp * 0.5f);
+                var halfHpDamage = HeroSkillHeadlessContract.ExecuteDamage(harness, 0, actorId, 100f, DamageReasonKind.Environment);
+                Assert.AreEqual(fullHpDamage.Value * 0.835f, halfHpDamage.Value, 0.01f, "Zhao Yun should reduce final incoming damage by 16.5% at 50% missing health.");
+
+                harness.SetScenarioActorAttribute(actorId, "hp", maxHp * 0.01f);
+                var lowHpDamage = HeroSkillHeadlessContract.ExecuteDamage(harness, 0, actorId, 100f, DamageReasonKind.Environment);
+                Assert.AreEqual(fullHpDamage.Value * 0.6733f, lowHpDamage.Value, 0.02f, "Zhao Yun passive reduction should cap at the configured 33% when health is nearly empty.");
+            }
+        }
+
+        [Test]
+        public void Skill10030101_ShouldDashGrantAndConsumeEnhancedBasicAttack()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(ZhaoYun, "zhaoyun_skill_1_enhanced_basic_contract_world"))
+            {
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    10030101,
+                    (int)TriggeringConstants.DashId.Value,
+                    (int)TriggeringConstants.AddBuffId.Value,
+                    (int)TriggeringConstants.DebugLogId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    10030111,
+                    (int)TriggeringConstants.GiveDamageId.Value,
+                    (int)TriggeringConstants.AddBuffId.Value,
+                    (int)TriggeringConstants.RemoveBuffId.Value,
+                    (int)TriggeringConstants.DebugLogId.Value);
+
+                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill1, "zhaoyun skill 1 enhanced basic attack contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
+                HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10030101, 4f, "Zhao Yun skill 1 should grant an enhanced basic attack state.");
+
+                HeroSkillHeadlessContract.ExecuteBasicAttackDamage(harness, actorId, targetActorId, baseDamage: 10f);
+                var enhancedTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, 10030111, maxTicks: 10, message: "Zhao Yun enhanced basic attack should execute its post-hit trigger.");
+                harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.GiveDamageId.Value, TriggeringConstants.Actions.GiveDamage);
+                harness.AssertActionExecutedUnderEffect(enhancedTrace.RootId, (int)TriggeringConstants.RemoveBuffId.Value, TriggeringConstants.Actions.RemoveBuff);
+                harness.Tick(1);
+                Assert.IsFalse(harness.HasActorBuff(actorId, 10030101), "Zhao Yun enhanced basic attack state should be consumed by its first valid basic attack hit.");
+            }
+        }
+
+        [Test]
+        public void Skill10030201_ShouldCreateFourHitAreaAndHealCaster()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(ZhaoYun, "zhaoyun_skill_2_four_hit_heal_contract_world"))
+            {
+                HeroSkillHeadlessContract.AssertTriggerActions(harness, 10030201, (int)TriggeringConstants.SpawnAreaId.Value, (int)TriggeringConstants.DebugLogId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(harness, 10030211, (int)TriggeringConstants.GiveDamageId.Value, (int)TriggeringConstants.HealId.Value, (int)TriggeringConstants.DebugLogId.Value);
+
+                harness.EnterGameAndWarmup(reason: "zhaoyun skill 2 four hit heal contract");
+                var actorId = harness.AssertPlayerActorBound();
+                HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 0f, z: 3f);
+                var maxHp = harness.GetActorAttribute(actorId, BattleAttributeType.MAX_HP);
+                harness.SetScenarioActorAttribute(actorId, "hp", maxHp * 0.5f);
+                var injuredHp = harness.GetActorHp(actorId);
+
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, $"Zhao Yun skill 2 should cast. failReason={cast.FailReason}");
+                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill2.EffectId, maxTicks: 20, message: "Zhao Yun skill 2 should execute its area effect.");
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.SpawnAreaId.Value, TriggeringConstants.Actions.SpawnArea);
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaTraceKind.AreaSpawn, 40030201, maxTicks: 10, message: "Zhao Yun skill 2 should publish its deferred area spawn under the effect root.");
+
+                harness.TickMilliseconds(900);
+                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, effectTrace.RootId, MobaTraceKind.DamageApply, 10030201), 4, "Zhao Yun skill 2 should apply all four configured spear strikes to a target in the area.");
+                Assert.Greater(harness.GetActorHp(actorId), injuredHp, "Zhao Yun skill 2 should heal the caster for successful spear strikes.");
+            }
+        }
+
+        [Test]
+        public void Skill10030301_ShouldJumpToAimPointDamageKnockUpAndMarkTargets()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(ZhaoYun, "zhaoyun_skill_3_landing_control_mark_contract_world"))
+            {
+                HeroSkillHeadlessContract.AssertTriggerActions(harness, 10030301, (int)TriggeringConstants.DashId.Value, (int)TriggeringConstants.JumpId.Value, (int)TriggeringConstants.SpawnAreaId.Value, (int)TriggeringConstants.DebugLogId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(harness, 10030311, (int)TriggeringConstants.GiveDamageId.Value, (int)TriggeringConstants.AddBuffId.Value, (int)TriggeringConstants.DebugLogId.Value);
+                HeroSkillHeadlessContract.AssertTriggerActions(harness, 10030321, (int)TriggeringConstants.PullId.Value, (int)TriggeringConstants.DebugLogId.Value);
+
+                harness.EnterGameAndWarmup(reason: "zhaoyun skill 3 landing control mark contract");
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 5f);
+                var start = harness.AssertActorEntity(actorId).transform.Value.Position;
+                var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+                var cast = skills.TryCastBySlot(actorId, Skill3.Slot, aimPos: new Vec3(5f, 0f, 0f), aimDir: Vec3.Right, targetActorId: 0);
+                Assert.IsTrue(cast.Success, $"Zhao Yun skill 3 should cast toward an aim position. failReason={cast.FailReason}");
+                var effectTrace = harness.TickUntilTraceNode(MobaTraceKind.EffectExecution, Skill3.EffectId, maxTicks: 20, message: "Zhao Yun skill 3 should execute its jump and landing effect.");
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.DashId.Value, TriggeringConstants.Actions.Dash);
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.JumpId.Value, TriggeringConstants.Actions.Jump);
+                harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.SpawnAreaId.Value, TriggeringConstants.Actions.SpawnArea);
+                harness.TickUntilTraceNodeInRoot(effectTrace.RootId, MobaTraceKind.AreaSpawn, 40030301, maxTicks: 10, message: "Zhao Yun skill 3 should publish its deferred landing area spawn under the effect root.");
+
+                harness.TickMilliseconds(700);
+                var end = harness.AssertActorEntity(actorId).transform.Value.Position;
+                Assert.Greater(end.X - start.X, 3f, $"Zhao Yun skill 3 should move the caster toward its aim position. start={start}, end={end}");
+                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, effectTrace.RootId, MobaTraceKind.DamageApply, 10030301), 1, "Zhao Yun skill 3 landing should damage targets inside the landing area.");
+                HeroSkillHeadlessContract.AssertFreshBuff(harness, targetActorId, 10030301, 4f, "Zhao Yun skill 3 should apply the persistent marked-target state after landing.");
+                Assert.GreaterOrEqual(CountTraceNodesInRoot(harness, effectTrace.RootId, MobaTraceKind.EffectAction, (int)TriggeringConstants.PullId.Value), 1, "Zhao Yun skill 3 landing area should execute the configured knock-up pull action.");
+            }
+        }
+
+        private static int CountTraceNodesInRoot(MobaSkillConfigTestHarness harness, long rootId, MobaTraceKind kind, int configId)
+        {
+            var count = 0;
+            foreach (var node in harness.Trace.GetNodesByRoot(rootId))
+            {
+                if (node.Kind == (int)kind && node.Metadata != null && node.Metadata.ConfigId == configId)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+}

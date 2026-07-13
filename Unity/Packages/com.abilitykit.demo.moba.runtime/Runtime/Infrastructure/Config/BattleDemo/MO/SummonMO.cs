@@ -26,6 +26,8 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public IReadOnlyList<int> SkillIds { get; }
         public IReadOnlyList<int> PassiveSkillIds { get; }
 
+        public int BrainId { get; }
+
         public IReadOnlyList<int> DefaultComponentTemplateIds { get; }
 
         public IReadOnlyList<int> Tags { get; }
@@ -68,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
 
             SkillIds = dto.SkillIds ?? Array.Empty<int>();
             PassiveSkillIds = dto.PassiveSkillIds ?? Array.Empty<int>();
+            BrainId = dto.BrainId;
             DefaultComponentTemplateIds = dto.DefaultComponentTemplateIds ?? Array.Empty<int>();
             Tags = dto.Tags ?? Array.Empty<int>();
         }

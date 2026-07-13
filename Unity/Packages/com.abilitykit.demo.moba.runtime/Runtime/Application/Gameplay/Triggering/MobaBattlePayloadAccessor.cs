@@ -65,6 +65,36 @@ namespace AbilityKit.Demo.Moba.Gameplay.Triggering
         private static readonly int UnitActorIdId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.UnitActorId);
         private static readonly int KillerActorIdId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.KillerActorId);
 
+        public static bool SupportsAttackInfoField(int fieldId)
+        {
+            return fieldId == AttackerActorIdId
+                || fieldId == TargetActorIdId
+                || fieldId == DamageTypeId
+                || fieldId == CritTypeId
+                || fieldId == ReasonKindId
+                || fieldId == ReasonParamId;
+        }
+
+        public static bool SupportsDamageResultField(int fieldId)
+        {
+            return SupportsAttackInfoField(fieldId)
+                || fieldId == DamageValueId
+                || fieldId == TargetHpId
+                || fieldId == TargetMaxHpId;
+        }
+
+        public static bool SupportsUnitDieField(int fieldId)
+        {
+            return fieldId == UnitActorIdId
+                || fieldId == TargetActorIdId
+                || fieldId == KillerActorIdId
+                || fieldId == AttackerActorIdId
+                || fieldId == DamageTypeId
+                || fieldId == ReasonKindId
+                || fieldId == ReasonParamId
+                || fieldId == DamageValueId;
+        }
+
         public bool TryGet(in AttackInfo args, int fieldId, out int value)
         {
             value = 0;

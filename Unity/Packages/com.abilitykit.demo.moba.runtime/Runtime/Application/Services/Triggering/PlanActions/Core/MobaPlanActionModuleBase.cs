@@ -44,6 +44,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaPlanActionDiagnostics.Investigation(ctx.Context, ActionName ?? typeof(TModule).Name, message);
         }
 
+        protected void LogConfiguredActionDebug(ExecCtx<IWorldResolver> ctx, string message)
+        {
+            MobaPlanActionDiagnostics.ConfiguredActionDebug(ctx.Context, ActionName ?? typeof(TModule).Name, message);
+        }
+
         protected void LogRejected(string reason)
         {
             MobaPlanActionDiagnostics.Rejected(ActionName ?? typeof(TModule).Name, reason);

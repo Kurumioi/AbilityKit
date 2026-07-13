@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 
 namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
@@ -26,9 +27,28 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                 _sys.StageTriggers?.ExecuteProjectileExit(evt);
                 DecrementLauncherActiveBullets(evt.LauncherActorId);
                 if (!_sys.Links.TryGetActorId(evt.Projectile, out var actorId) || actorId <= 0) continue;
+                RequestProjectileActorDespawn(evt, actorId);
             }
 
             exits.Clear();
+        }
+
+        private void RequestProjectileActorDespawn(in ProjectileExitEvent evt, int actorId)
+        {
+            global::ActorEntity projectileEntity = null;
+            if (_sys.Registry != null) _sys.Registry.TryGet(actorId, out projectileEntity);
+            if (projectileEntity == null && _sys.Entities != null) _sys.Entities.TryGetActorEntity(actorId, out projectileEntity);
+            if (projectileEntity == null) return;
+
+            var sourceActorId = evt.OwnerId;
+            var sourceContextId = 0L;
+            if (_sys.Links != null && _sys.Links.TryGetSource(evt.Projectile, out var source))
+            {
+                if (source.SourceActorId > 0) sourceActorId = source.SourceActorId;
+                sourceContextId = source.SourceContextId;
+            }
+
+            _sys.CleanupProjectileActorOnExit(evt.Projectile, projectileEntity, ActorDespawnReason.ProjectileHitOrExit, sourceActorId, sourceContextId);
         }
 
         private void DecrementLauncherActiveBullets(int launcherActorId)

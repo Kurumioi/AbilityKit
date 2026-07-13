@@ -112,6 +112,11 @@ namespace AbilityKit.Demo.Moba.Services
                 LifetimeEndTimeMs = summon.LifetimeMs > 0 ? NowMs() + summon.LifetimeMs : 0L,
                 SetModelId = summon.ModelId > 0,
                 ModelId = summon.ModelId,
+                SetBrain = summon.BrainId > 0,
+                BrainId = summon.BrainId,
+                BrainOwnerActorId = rootOwner,
+                BrainSourceKind = (int)MobaActorBuildSourceKind.Summon,
+                BrainSourceId = summonId,
             };
 
             if (!_actorSpawn.TrySpawn(in request, out var spawnResult) || !spawnResult.Success)

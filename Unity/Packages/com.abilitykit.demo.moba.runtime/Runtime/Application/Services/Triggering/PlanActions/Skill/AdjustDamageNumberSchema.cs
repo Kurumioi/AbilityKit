@@ -27,6 +27,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var skipFirstHit = ReadBool(namedArgs, ctx, true, "skip_first_hit", "skipfirsthit");
             var repeatTargetDecayFactor = ReadFloat(namedArgs, ctx, 0f, "repeat_target_decay_factor", "repeattargetdecayfactor", "decay_factor", "decayfactor");
             var targetHitCountKeyBase = ReadInt(namedArgs, ctx, 1200000, "target_hit_count_key_base", "targethitcountkeybase");
+            var targetMissingHpRatioCoefficient = ReadFloat(namedArgs, ctx, 0f, "target_missing_hp_ratio_coefficient", "targetmissinghpratiocoefficient", "missing_hp_ratio_coefficient", "missinghpratiocoefficient");
 
             return new AdjustDamageNumberArgs(
                 numberSlot,
@@ -38,18 +39,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 requireSkillRuntime,
                 skipFirstHit,
                 repeatTargetDecayFactor,
-                targetHitCountKeyBase);
+                targetHitCountKeyBase,
+                targetMissingHpRatioCoefficient);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
-            if (HasAny(args, "value", "modifier_value", "modifiervalue") || HasAny(args, "repeat_target_decay_factor", "repeattargetdecayfactor", "decay_factor", "decayfactor"))
+            if (HasAny(args, "value", "modifier_value", "modifiervalue")
+                || HasAny(args, "repeat_target_decay_factor", "repeattargetdecayfactor", "decay_factor", "decayfactor")
+                || HasAny(args, "target_missing_hp_ratio_coefficient", "targetmissinghpratiocoefficient", "missing_hp_ratio_coefficient", "missinghpratiocoefficient"))
             {
                 error = null;
                 return true;
             }
 
-            error = "adjust_damage_number requires value or repeat_target_decay_factor.";
+            error = "adjust_damage_number requires value, repeat_target_decay_factor, or target_missing_hp_ratio_coefficient.";
             return false;
         }
     }

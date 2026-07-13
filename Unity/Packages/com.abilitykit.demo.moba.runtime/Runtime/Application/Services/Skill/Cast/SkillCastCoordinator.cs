@@ -296,7 +296,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim, int targetActorId = 0)
         {
-            var input = new SkillCastPreparationInput(actorId, skillId, slot, in aimPos, in aimDir, hasAim, targetActorId);
+            var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
+            var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos, in aimDir, hasAim, targetActorId);
             var prepared = _preparation.Prepare(in input);
             if (!prepared.Success)
             {
@@ -304,7 +305,26 @@ namespace AbilityKit.Demo.Moba.Services
                 return MobaSkillCastResult.Failed(prepared.FailReason, in failure);
             }
 
-            return StartPreparedCast(actorId, skillId, in prepared);
+            return StartPreparedCast(actorId, resolvedSkillId, in prepared);
+        }
+
+        private int ResolveModifiedSkillId(int actorId, int skillId)
+        {
+            if (actorId <= 0 || skillId <= 0) return skillId;
+            if (!IsNormalAttackSkill(skillId)) return skillId;
+            if (_services == null || !_services.TryResolve<MobaSkillParamModifierService>(out var modifiers) || modifiers == null) return skillId;
+
+            var resolved = modifiers.Skill.ResolveSkillId(actorId, skillId);
+            return resolved > 0 ? resolved : skillId;
+        }
+
+        private bool IsNormalAttackSkill(int skillId)
+        {
+            if (skillId <= 0) return false;
+            if (_services == null || !_services.TryResolve<MobaConfigDatabase>(out var configs) || configs == null) return false;
+            if (!configs.TryGetSkill(skillId, out var skill) || skill == null) return false;
+
+            return skill.SkillType == SkillType.NormalAttack;
         }
 
         private MobaSkillCastResult StartPreparedCast(int actorId, int skillId, in SkillCastPreparationResult prepared)

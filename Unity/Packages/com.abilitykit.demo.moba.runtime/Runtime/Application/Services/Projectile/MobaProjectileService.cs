@@ -41,6 +41,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject(required: false)] private IMobaProjectileEmitterManager _emitters = null;
         [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
         [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates = null;
+        [WorldInject(required: false)] private IWorldRandom _random = null;
 
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
         {
@@ -343,6 +344,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             var returnAfterFrames = ResolveOptionalFramesFromMs(projectile.ReturnAfterMs, frameTime);
             var returnSpeed = projectile.ReturnSpeed;
             var returnStopDistance = projectile.ReturnStopDistance;
+            var lifecycle = ResolveLifecycleSpec(projectile, frameTime);
 
             var count = repeatCount;
 
@@ -412,7 +414,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 hitPolicyParam: hitPolicyParam,
                 tickIntervalFrames: tickIntervalFrames,
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
-                hitCooldownFrames: hitCooldownFrames);
+                hitCooldownFrames: hitCooldownFrames,
+                lifecycle: lifecycle);
 
             var sourceContext = request.SourceContext;
             var launcherSource = CreateLaunchSource(casterActorId, 0, projectile.Id, in sourceContext);
@@ -442,6 +445,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _projectiles,
                 _links,
                 _skillParamModifiers,
+                _random,
                 this);
 
             var started = sequence.TryStart(in context, out result);
@@ -506,6 +510,27 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             return System.Math.Max(1, (durationMs / intervalMs) + 1);
+        }
+
+        private static ProjectileLifecycleSpec ResolveLifecycleSpec(ProjectileMO projectile, IFrameTime frameTime)
+        {
+            if (projectile == null) return ProjectileLifecycleSpec.Default;
+            if (projectile.PrepareMotionMode == ProjectilePrepareMotionMode.None)
+            {
+                return ProjectileLifecycleSpec.Default;
+            }
+
+            var prepareFrames = ResolveOptionalFramesFromMs(projectile.PrepareMs, frameTime);
+            var holdFrames = ResolveOptionalFramesFromMs(projectile.HoldMs, frameTime);
+            var offset = new Vec3(projectile.PrepareOffsetX, projectile.PrepareOffsetY, projectile.PrepareOffsetZ);
+            return new ProjectileLifecycleSpec(
+                projectile.PrepareMotionMode,
+                prepareFrames,
+                holdFrames,
+                in offset,
+                projectile.PrepareSlotSpacing,
+                projectile.ConsumeLifetimeBeforeFlying,
+                projectile.ArmedBeforeFlying);
         }
 
         private static int ResolveOptionalFramesFromMs(int milliseconds, IFrameTime frameTime)

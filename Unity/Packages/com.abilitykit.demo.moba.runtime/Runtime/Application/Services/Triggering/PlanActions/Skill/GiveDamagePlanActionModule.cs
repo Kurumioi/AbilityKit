@@ -76,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 TargetActorId = targetActorId,
                 DamageType = args.DamageType,
                 CritType = CritType.None,
-                ReasonKind = DamageReasonKind.Skill,
+                ReasonKind = args.ReasonKind,
                 ReasonParam = args.ReasonParam,
                 FormulaKind = (int)DamageFormulaKind.Standard,
             };

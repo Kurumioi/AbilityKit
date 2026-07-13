@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Runtime.Config.Plans;
+using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -36,6 +38,10 @@ namespace AbilityKit.Demo.Moba.Services
             ValidateProjectileLaunchers(config, report);
             ValidateSummons(config, report);
             ValidateAreas(config, triggers, report);
+            ValidateSpawnAreaEffectiveTimings(
+                triggers,
+                id => config.TryGetAoe(id, out var area) ? area : null,
+                report);
             ValidateGameplay(config, triggers, report);
             ValidateTagTemplates(config, report);
             ValidateContinuousTagTemplates(config, report);
@@ -403,6 +409,154 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".intervalMs", "area interval is negative.", area.Id.ToString());
                 }
             }
+        }
+
+        public static void ValidateSpawnAreaEffectiveTimings(
+            TriggerPlanJsonDatabase triggers,
+            Func<int, AoeMO> resolveArea,
+            MobaRuntimeValidationReport report)
+        {
+            if (triggers == null || resolveArea == null || report == null) return;
+
+            var records = triggers.Records;
+            if (records == null) return;
+
+            var spawnAreaId = TriggeringConstants.SpawnAreaId;
+            for (var recordIndex = 0; recordIndex < records.Count; recordIndex++)
+            {
+                var record = records[recordIndex];
+                var actions = record.Plan.Actions;
+                if (actions == null) continue;
+
+                for (var actionIndex = 0; actionIndex < actions.Length; actionIndex++)
+                {
+                    var action = actions[actionIndex];
+                    if (!action.Id.Equals(spawnAreaId)) continue;
+
+                    ValidateSpawnAreaEffectiveTiming(
+                        in action,
+                        record.TriggerId,
+                        actionIndex,
+                        resolveArea,
+                        report);
+                }
+            }
+        }
+
+        private static void ValidateSpawnAreaEffectiveTiming(
+            in ActionCallPlan action,
+            int triggerId,
+            int actionIndex,
+            Func<int, AoeMO> resolveArea,
+            MobaRuntimeValidationReport report)
+        {
+            if (!TryFindActionArg(
+                    in action,
+                    out var areaIdArg,
+                    "area_id", "areaid", "aoe_id", "aoeid", "id")
+                || !TryReadConstantInt(in areaIdArg, out var areaId)
+                || areaId <= 0)
+            {
+                return;
+            }
+
+            var area = resolveArea(areaId);
+            if (area == null
+                || area.DelayMs <= 0
+                || area.OnDelayTriggerIds == null
+                || area.OnDelayTriggerIds.Length == 0)
+            {
+                return;
+            }
+
+            if (TryFindActionArg(
+                    in action,
+                    out var durationFramesArg,
+                    "duration_frames", "durationframes", "lifetime_frames", "lifetimeframes"))
+            {
+                if (!TryReadConstantInt(in durationFramesArg, out var durationFrames)
+                    || durationFrames > 0)
+                {
+                    return;
+                }
+            }
+
+            var hasDurationOverride = TryFindActionArg(
+                in action,
+                out var durationMsArg,
+                "duration_ms", "durationms", "lifetime_ms", "lifetimems");
+            var durationOverrideMs = 0;
+            if (hasDurationOverride
+                && !TryReadConstantInt(in durationMsArg, out durationOverrideMs))
+            {
+                return;
+            }
+
+            var effectiveDurationMs = hasDurationOverride && durationOverrideMs > 0
+                ? durationOverrideMs
+                : area.DurationMs;
+            if (effectiveDurationMs >= area.DelayMs) return;
+
+            var path = $"trigger.{triggerId}.plan.actions[{actionIndex}].args.duration_ms";
+            report.Error(
+                Source,
+                path,
+                "spawn_area effective duration expires before its delayed trigger can execute. "
+                + $"triggerId={triggerId}, actionIndex={actionIndex}, areaId={areaId}, "
+                + $"configDurationMs={area.DurationMs}, "
+                + $"overrideDurationMs={(hasDurationOverride ? durationOverrideMs : 0)}, "
+                + $"effectiveDurationMs={effectiveDurationMs}, delayMs={area.DelayMs}",
+                triggerId.ToString(),
+                code: "moba.trigger.plan.spawn_area_effective_duration_before_delay",
+                category: MobaRuntimeValidationCategory.Config,
+                businessNumericId: triggerId);
+        }
+
+        private static bool TryFindActionArg(
+            in ActionCallPlan action,
+            out ActionArgValue value,
+            params string[] aliases)
+        {
+            value = default;
+            if (action.Args == null || action.Args.Count == 0) return false;
+
+            foreach (var pair in action.Args)
+            {
+                for (var aliasIndex = 0; aliasIndex < aliases.Length; aliasIndex++)
+                {
+                    if (!string.Equals(
+                            pair.Key,
+                            aliases[aliasIndex],
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    value = pair.Value;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryReadConstantInt(
+            in ActionArgValue value,
+            out int result)
+        {
+            result = 0;
+            if (value.Ref.Kind != ENumericValueRefKind.Const
+                || double.IsNaN(value.Ref.ConstValue)
+                || double.IsInfinity(value.Ref.ConstValue))
+            {
+                return false;
+            }
+
+            var rounded = Math.Round(value.Ref.ConstValue);
+            if (rounded < int.MinValue || rounded > int.MaxValue) return false;
+
+            result = (int)rounded;
+            return true;
         }
 
         private static void ValidateGameplay(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report)

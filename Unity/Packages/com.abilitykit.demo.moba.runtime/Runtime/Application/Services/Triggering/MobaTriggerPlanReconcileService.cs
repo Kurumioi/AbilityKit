@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
@@ -50,11 +49,6 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                     var hash = ComputeHash(triggerIds);
                     if (!_hashByOwnerKey.TryGetValue(ownerKey, out var oldHash) || oldHash != hash)
                     {
-                        if (ContainsTriggerId(triggerIds, 10020000))
-                        {
-                            Log.Info($"[MobaTriggerPlanReconcileService] XiaoQiao passive reconcile apply. ownerKey={ownerKey} triggerCount={triggerIds.Length} oldHash={oldHash} newHash={hash}");
-                        }
-
                         _triggers.ApplyOwnerBoundTriggers(triggerIds, ownerKey, "ongoing.reconcile.apply");
                         _hashByOwnerKey[ownerKey] = hash;
                     }
@@ -87,17 +81,6 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering
                 for (int i = 0; i < ids.Length; i++) h = h * 31 + ids[i];
                 return h;
             }
-        }
-
-        private static bool ContainsTriggerId(IReadOnlyList<int> triggerIds, int triggerId)
-        {
-            if (triggerIds == null || triggerIds.Count == 0) return false;
-            for (int i = 0; i < triggerIds.Count; i++)
-            {
-                if (triggerIds[i] == triggerId) return true;
-            }
-
-            return false;
         }
     }
 }

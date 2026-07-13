@@ -28,6 +28,11 @@ namespace AbilityKit.Demo.Moba.Predicates
         /// </summary>
         public bool CheckStack { get; private set; }
 
+        /// <summary>
+        /// 检查目标模式：0=目标(target)，1=自身/来源(owner/source)
+        /// </summary>
+        public int TargetMode { get; private set; }
+
         protected override string PredicateType => "has_buff";
         protected override int Order => 10;
 
@@ -40,6 +45,7 @@ namespace AbilityKit.Demo.Moba.Predicates
         {
             BuffId = AutoPredicateExtensions.ResolveInt(this, namedArgs, "buff_id", 0);
             CheckStack = AutoPredicateExtensions.ResolveInt(this, namedArgs, "check_stack", 0) > 0;
+            TargetMode = AutoPredicateExtensions.ResolveInt(this, namedArgs, "target_mode", 0);
             _services = ctx.Context;
             CombatPredicateRuntime.TryResolve(_services, out _actors);
         }
@@ -52,13 +58,30 @@ namespace AbilityKit.Demo.Moba.Predicates
                 return false;
             }
 
-            if (!CombatPredicateRuntime.TryResolveTargetActorId(context?.Args, _services, out var targetActorId)
-                || !CombatPredicateRuntime.TryGetActor(_services, ref _actors, targetActorId, out var actor))
+            int targetActorId;
+            if (TargetMode == 1)
+            {
+                if (!CombatPredicateRuntime.TryResolveSourceActorId(context?.Args, _services, out targetActorId)
+                    || !CombatPredicateRuntime.TryGetActor(_services, ref _actors, targetActorId, out var actor))
+                {
+                    CombatPredicateRuntime.LogOnce(ref _missingTargetLogged, $"[HasBuffPredicate] Cannot resolve source actor. buffId={BuffId}, checkStack={CheckStack}, argsType={CombatPredicateRuntime.FormatArgsType(context?.Args)}");
+                    return false;
+                }
+                return HasBuffInternal(actor);
+            }
+
+            if (!CombatPredicateRuntime.TryResolveTargetActorId(context?.Args, _services, out targetActorId)
+                || !CombatPredicateRuntime.TryGetActor(_services, ref _actors, targetActorId, out var targetActor))
             {
                 CombatPredicateRuntime.LogOnce(ref _missingTargetLogged, $"[HasBuffPredicate] Cannot resolve target actor. buffId={BuffId}, checkStack={CheckStack}, argsType={CombatPredicateRuntime.FormatArgsType(context?.Args)}");
                 return false;
             }
+            return HasBuffInternal(targetActor);
+        }
 
+        private bool HasBuffInternal(global::ActorEntity actor)
+        {
+            if (actor == null) return false;
             if (!actor.hasBuffs || actor.buffs.Active == null) return false;
 
             var active = actor.buffs.Active;
@@ -129,6 +152,7 @@ namespace AbilityKit.Demo.Moba.Predicates
     internal static class CombatPredicateRuntime
     {
         private static readonly int BattleTargetActorIdId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetActorId);
+        private static readonly int BattleAttackerActorIdId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.AttackerActorId);
         private static readonly int BattleTargetHpId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetHp);
         private static readonly int BattleTargetMaxHpId = MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.TargetMaxHp);
         private static readonly int SkillTargetActorIdId = SkillRulePayloadFields.FieldId(SkillRulePayloadFields.TargetActorId);
@@ -137,6 +161,37 @@ namespace AbilityKit.Demo.Moba.Predicates
         {
             service = null;
             return services != null && services.TryResolve(out service) && service != null;
+        }
+
+        public static bool TryResolveSourceActorId(object args, IWorldResolver services, out int actorId)
+        {
+            actorId = 0;
+            if (args == null) return false;
+
+            if (args is MobaTriggerConditionContext conditionContext)
+            {
+                actorId = conditionContext.SourceActorId;
+                if (actorId > 0) return true;
+            }
+
+            if (args is IMobaActorContextProvider actorContext && actorContext.TryGetSourceActorId(out actorId) && actorId > 0)
+            {
+                return true;
+            }
+
+            if (args is SkillPipelineContext skillContext)
+            {
+                actorId = skillContext.CasterActorId;
+                if (actorId > 0) return true;
+            }
+
+            if (TryResolve(services, out IPayloadAccessorRegistry payloads))
+            {
+                object payload = args;
+                if (payloads.TryGetInt(in payload, BattleAttackerActorIdId, out actorId) && actorId > 0) return true;
+            }
+
+            return false;
         }
 
         public static bool TryGetActor(IWorldResolver services, ref MobaActorLookupService actors, int actorId, out global::ActorEntity actor)

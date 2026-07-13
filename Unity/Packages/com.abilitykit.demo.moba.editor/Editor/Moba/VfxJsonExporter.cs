@@ -13,6 +13,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string OutputResourcesDir = "vfx";
         private const string OutputFileWithoutExt = "vfx";
+        private const string PackageResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources";
 
         [MenuItem("AbilityKit/Vfx/Export Vfx Json")]
         public static void ExportSelected()
@@ -31,7 +32,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         {
             if (string.IsNullOrEmpty(assetFolder)) assetFolder = "Assets";
 
-            var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
+            var outputDir = GetVfxResourcesDirectory();
             Directory.CreateDirectory(outputDir);
 
             var entries = LoadEntries(assetFolder);
@@ -43,6 +44,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
             AssetDatabase.Refresh();
             Debug.Log($"[VfxJsonExporter] Exported to: {outputPath} (count={(entries != null ? entries.Length : 0)})");
+        }
+
+        private static string GetVfxResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageResourcesPath, OutputResourcesDir));
         }
 
         private static string TryGetSelectedFolderPath()

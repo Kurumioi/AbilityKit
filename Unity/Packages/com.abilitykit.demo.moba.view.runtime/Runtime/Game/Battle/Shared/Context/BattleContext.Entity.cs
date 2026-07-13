@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Game.Battle.Vfx;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -14,6 +15,8 @@ namespace AbilityKit.Game.Flow
         public BattleEntityLookup EntityLookup;
         public BattleEntityFactory EntityFactory;
         public IBattleEntityQuery EntityQuery;
+        public BattleVfxManager ViewVfxManager;
+        public EC.IEntity ViewVfxNode;
         public List<EC.IEntityId> DirtyEntities;
     }
 }

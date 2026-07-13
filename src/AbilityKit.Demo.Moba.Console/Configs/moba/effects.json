@@ -199,14 +199,144 @@
     "TargetPolicy": 0,
     "Radius": 8
   },
-  {
-    "Id": 10020311,
-    "Name": "小乔-星华缭乱-周期落星伤害",
-    "EffectType": 1,
-    "BaseDamage": 80,
-    "DamageType": 2,
-    "AttackRatio": 0.35,
-    "TargetPolicy": 2,
-    "Radius": 8
-  }
+    {
+        "Id": 10020311,
+        "Name": "小乔-星华缭乱-周期落星伤害",
+        "EffectType": 1,
+        "BaseDamage": 80,
+        "DamageType": 2,
+        "AttackRatio": 0.35,
+        "TargetPolicy": 2,
+        "Radius": 8
+    },
+    {
+        "Id": 10060000,
+        "Name": "嬴政-王者审判-剑意标记添加",
+        "EffectType": 0,
+        "BaseDamage": 0,
+        "DamageType": 2,
+        "AttackRatio": 0,
+        "TargetPolicy": 0,
+        "Radius": 0
+    },
+    {
+        "Id": 10060001,
+        "Name": "嬴政-王者审判-剑意持续伤害",
+        "EffectType": 1,
+        "BaseDamage": 20,
+        "DamageType": 2,
+        "AttackRatio": 0.04,
+        "TargetPolicy": 1,
+        "Radius": 0
+    },
+    {
+        "Id": 10060101,
+        "Name": "嬴政-王者惩戒-发射穿透剑雨投射物",
+        "EffectType": 0,
+        "BaseDamage": 0,
+        "DamageType": 2,
+        "AttackRatio": 0,
+        "TargetPolicy": 0,
+        "Radius": 0
+    },
+    {
+        "Id": 10060111,
+        "Name": "嬴政-王者惩戒-一段穿透伤害",
+        "EffectType": 1,
+        "BaseDamage": 320,
+        "DamageType": 2,
+        "AttackRatio": 0.55,
+        "TargetPolicy": 1,
+        "Radius": 0
+    },
+    {
+        "Id": 10060112,
+        "Name": "嬴政-王者惩戒-二段穿透伤害",
+        "EffectType": 1,
+        "BaseDamage": 200,
+        "DamageType": 2,
+        "AttackRatio": 0.35,
+        "TargetPolicy": 1,
+        "Radius": 0
+    },
+    {
+        "Id": 10060201,
+        "Name": "嬴政-战力和谐-添加护盾与移速状态",
+        "EffectType": 0,
+        "BaseDamage": 0,
+        "DamageType": 2,
+        "AttackRatio": 0,
+        "TargetPolicy": 0,
+        "Radius": 0
+    },
+    {
+        "Id": 10060211,
+        "Name": "嬴政-战力和谐-范围伤害",
+        "EffectType": 1,
+        "BaseDamage": 250,
+        "DamageType": 2,
+        "AttackRatio": 0.45,
+        "TargetPolicy": 2,
+        "Radius": 3.5
+    },
+    {
+        "Id": 10060301,
+        "Name": "嬴政-至尊皇冠-开始引导并生成剑阵区域",
+        "EffectType": 0,
+        "BaseDamage": 0,
+        "DamageType": 2,
+        "AttackRatio": 0,
+        "TargetPolicy": 0,
+        "Radius": 5
+    },
+    {
+        "Id": 10060311,
+        "Name": "嬴政-至尊皇冠-剑阵第一波伤害",
+        "EffectType": 1,
+        "BaseDamage": 130,
+        "DamageType": 2,
+        "AttackRatio": 0.20,
+        "TargetPolicy": 2,
+        "Radius": 5
+    },
+    {
+        "Id": 10060312,
+        "Name": "嬴政-至尊皇冠-剑阵第二波伤害",
+        "EffectType": 1,
+        "BaseDamage": 130,
+        "DamageType": 2,
+        "AttackRatio": 0.20,
+        "TargetPolicy": 2,
+        "Radius": 5
+    },
+    {
+        "Id": 10060313,
+        "Name": "嬴政-至尊皇冠-剑阵第三波伤害",
+        "EffectType": 1,
+        "BaseDamage": 130,
+        "DamageType": 2,
+        "AttackRatio": 0.20,
+        "TargetPolicy": 2,
+        "Radius": 5
+    },
+    {
+        "Id": 10060314,
+        "Name": "嬴政-至尊皇冠-剑阵第四波伤害",
+        "EffectType": 1,
+        "BaseDamage": 130,
+        "DamageType": 2,
+        "AttackRatio": 0.20,
+        "TargetPolicy": 2,
+        "Radius": 5
+    },
+    {
+        "Id": 10060315,
+        "Name": "嬴政-至尊皇冠-剑阵第五波伤害",
+        "EffectType": 1,
+        "BaseDamage": 130,
+        "DamageType": 2,
+        "AttackRatio": 0.20,
+        "TargetPolicy": 2,
+        "Radius": 5
+    }
 ]

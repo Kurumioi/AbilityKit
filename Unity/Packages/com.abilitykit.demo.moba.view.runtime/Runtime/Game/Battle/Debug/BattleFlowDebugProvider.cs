@@ -6,6 +6,12 @@ namespace AbilityKit.Game.Flow
     {
         public static BattleContext Current { get; set; }
 
+        public static BattleHudFeature CurrentHud { get; set; }
+
+        public static BattleViewFeature CurrentView { get; set; }
+
+        public static ConfirmedBattleViewFeature CurrentConfirmedView { get; set; }
+
         public static JitterBufferStatsSnapshot JitterBufferStats { get; set; }
 
         public static TimeSyncStatsSnapshot TimeSyncStats { get; set; }

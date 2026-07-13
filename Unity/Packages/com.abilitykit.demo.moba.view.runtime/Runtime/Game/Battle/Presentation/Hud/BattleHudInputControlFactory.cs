@@ -69,12 +69,8 @@ namespace AbilityKit.Game.Flow
                 raycastTarget: true);
 
             var cfg = SkillButtonConfig.Default;
-            cfg.EnableAim = true;
-            cfg.AimMaxRadius = 220f;
-            cfg.AimMode = slot == 1 ? SkillAimMode.Direction : SkillAimMode.Point;
-            cfg.IndicatorShape = ResolveDefaultIndicatorShape(slot);
-            cfg.IndicatorLengthPixels = slot == 1 ? 220f : 150f;
-            cfg.IndicatorWidthPixels = slot == 1 ? 52f : 110f;
+            cfg.EnableAim = false;
+            cfg.IndicatorShape = SkillAimIndicatorShape.Hidden;
 
             var cooldownLayer = CreateCooldownLayer(element.GameObject.transform, name + "CooldownLayer");
             var cooldownOverlay = CreateCooldownOverlay(cooldownLayer, name + "CooldownOverlay");
@@ -83,21 +79,6 @@ namespace AbilityKit.Game.Flow
             var view = element.GameObject.AddComponent<SkillButtonView>();
             view.Initialize(element.Rect, root, canvas, cfg, indicator, cooldownOverlay, cooldownText);
             return view;
-        }
-
-        private static SkillAimIndicatorShape ResolveDefaultIndicatorShape(int slot)
-        {
-            switch (slot)
-            {
-                case 1:
-                    return SkillAimIndicatorShape.DirectionLine;
-                case 2:
-                    return SkillAimIndicatorShape.SelfCircle;
-                case 3:
-                    return SkillAimIndicatorShape.TargetCircle;
-                default:
-                    return SkillAimIndicatorShape.DirectionLine;
-            }
         }
 
         public Button CreateInfoButton(Transform parent, Vector2 anchoredPos, Action clicked)

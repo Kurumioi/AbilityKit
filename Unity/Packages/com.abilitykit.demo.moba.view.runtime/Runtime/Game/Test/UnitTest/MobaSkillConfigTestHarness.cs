@@ -84,6 +84,7 @@ namespace AbilityKit.Game.Test.UnitTest
             string playerId = DefaultPlayerId,
             int attributeTemplateId = 1001,
             int heroId = 1,
+            int basicAttackSkillId = 0,
             int tickRate = 30,
             int inputDelayFrames = 0,
             float fixedDelta = DefaultFixedDelta)
@@ -103,7 +104,9 @@ namespace AbilityKit.Game.Test.UnitTest
                         heroId: heroId,
                         attributeTemplateId: attributeTemplateId,
                         level: 1,
-                        basicAttackSkillId: 1,
+                        basicAttackSkillId: basicAttackSkillId > 0
+                            ? basicAttackSkillId
+                            : ResolveBasicAttackSkillId(heroId, attributeTemplateId),
                         skillIds: skillIds,
                         spawnIndex: 0,
                         unitSubType: (int)UnitSubType.Hero,
@@ -1259,7 +1262,9 @@ namespace AbilityKit.Game.Test.UnitTest
                         heroId: heroId,
                         attributeTemplateId: attributeTemplateId,
                         level: actor.level > 0 ? actor.level : 1,
-                        basicAttackSkillId: actor.basicAttackSkillId > 0 ? actor.basicAttackSkillId : 1,
+                        basicAttackSkillId: actor.basicAttackSkillId > 0
+                            ? actor.basicAttackSkillId
+                            : ResolveBasicAttackSkillId(heroId, attributeTemplateId),
                         skillIds: skillIds,
                         spawnIndex: actor.spawnIndex,
                         unitSubType: actor.unitSubType != 0 ? actor.unitSubType : (int)UnitSubType.Hero,
@@ -1294,6 +1299,17 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             return players.ToArray();
+        }
+
+        private static int ResolveBasicAttackSkillId(int heroId, int attributeTemplateId)
+        {
+            if (heroId == 1001 || attributeTemplateId == 1001) return 10010001;
+            if (heroId == 1002 || attributeTemplateId == 1002) return 10020001;
+            if (heroId == 1003 || attributeTemplateId == 1003) return 10030001;
+            if (heroId == 1004 || attributeTemplateId == 1004) return 10040011;
+            if (heroId == 1005 || attributeTemplateId == 1005) return 10050001;
+            if (heroId == 1006 || attributeTemplateId == 1006) return 10060001;
+            return 1;
         }
 
         private static int[] ResolveDefaultSkillIds(int heroId, int attributeTemplateId)

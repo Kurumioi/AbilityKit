@@ -4,7 +4,8 @@ param(
     [switch]$RegenerateExport,
     [switch]$DryRun,
     [switch]$Force,
-    [switch]$ListDocuments
+    [switch]$ListDocuments,
+    [switch]$AllowDuplicateReimport
 )
 
 $ErrorActionPreference = "Stop"
@@ -147,12 +148,28 @@ function Get-TenantAccessToken([object]$Config) {
     return $response.tenant_access_token
 }
 
+function Get-FeishuDisplayTitle([object]$Entry) {
+    if (-not [string]::IsNullOrWhiteSpace([string]$Entry.feishuTitle)) { return [string]$Entry.feishuTitle }
+    if (-not [string]::IsNullOrWhiteSpace([string]$Entry.suggestedFeishuTitle)) { return [string]$Entry.suggestedFeishuTitle }
+    return [string]$Entry.title
+}
+
+function Get-SafeUploadFileName([string]$Title, [string]$Extension) {
+    $safeTitle = $Title
+    foreach ($invalidChar in [System.IO.Path]::GetInvalidFileNameChars()) {
+        $safeTitle = $safeTitle.Replace([string]$invalidChar, ' ')
+    }
+    $safeTitle = ([regex]::Replace($safeTitle, '\s+', ' ')).Trim().TrimEnd('.')
+    if ([string]::IsNullOrWhiteSpace($safeTitle)) { $safeTitle = 'Untitled design document' }
+    return $safeTitle + '.' + $Extension.TrimStart('.')
+}
+
 function Send-FeishuMultipartFile([object]$Config, [string]$Token, [string]$FilePath, [object]$Entry) {
     $endpointPath = $Config.import.endpointPaths.uploadAll
     $url = Join-FeishuUrl $Config.apiBaseUrl $endpointPath
     $timeout = [int]$Config.requestTimeoutSeconds
     $rootToken = $Config.target.rootToken
-    $fileName = [System.IO.Path]::GetFileName($FilePath)
+    $fileName = Get-SafeUploadFileName (Get-FeishuDisplayTitle $Entry) $Config.import.fileExtension
 
     Add-Type -AssemblyName System.Net.Http
     $client = New-Object System.Net.Http.HttpClient
@@ -206,7 +223,7 @@ function Start-FeishuImportTask([object]$Config, [string]$Token, [string]$FileTo
         file_extension = $Config.import.fileExtension
         file_token = $FileToken
         type = $Config.import.targetFormat
-        file_name = $Entry.title
+        file_name = (Get-FeishuDisplayTitle $Entry)
         point = @{
             mount_type = $Config.target.rootType
             mount_key = $Config.target.rootToken
@@ -266,21 +283,31 @@ function Get-RemoteDocInfo([object]$TaskData) {
     }
 }
 
-function New-SyncState([object[]]$Entries) {
+function Get-FileSha256([string]$Path) {
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Read-SyncState([string]$Path) {
+    $fullPath = Resolve-RepoPath $Path
+    if (-not (Test-Path -LiteralPath $fullPath)) { return $null }
+    return Read-JsonFile $fullPath
+}
+
+function Get-StateDocument([object]$State, [string]$Source) {
+    if ($null -eq $State -or $null -eq $State.documents) { return $null }
+    return $State.documents.PSObject.Properties[$Source].Value
+}
+
+function New-SyncState([object]$PreviousState) {
     $documents = [ordered]@{}
-    foreach ($entry in $Entries) {
-        $documents[$entry.source] = [ordered]@{
-            source = $entry.source
-            title = $entry.title
-            slug = $entry.slug
-            feishuNodeToken = $entry.feishuNodeToken
-            feishuDocumentUrl = $entry.feishuDocumentUrl
-            syncedAt = $null
-            lastImportTicket = $null
+    if ($null -ne $PreviousState -and $null -ne $PreviousState.documents) {
+        foreach ($property in $PreviousState.documents.PSObject.Properties) {
+            $documents[$property.Name] = $property.Value
         }
     }
 
     return [ordered]@{
+        schemaVersion = 2
         generatedAt = (Get-Date).ToString("o")
         documents = $documents
     }
@@ -339,15 +366,17 @@ Write-Host "ExportDir: $($config.exportDir)"
 Write-Host "Documents: $($entries.Count), CodeBlocks: $($summary.codeBlocks), Mermaid: $($summary.mermaidBlocks), TableRows: $($summary.tableRows)"
 Write-Host "DryRun: $effectiveDryRun"
 
-$state = New-SyncState $entries
+$previousState = Read-SyncState $config.syncStatePath
+$state = New-SyncState $previousState
 $planLines = New-Object System.Collections.Generic.List[string]
 $planLines.Add("# Feishu design sync plan")
 $planLines.Add("")
 $planLines.Add("GeneratedAt: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz')")
 $planLines.Add("DryRun: $effectiveDryRun")
+$planLines.Add("UpdateModel: import-task-only; changed documents require a block-based updater or explicit duplicate reimport.")
 $planLines.Add("")
-$planLines.Add("| Order | Title | Source | Markdown | RemoteToken | RemoteUrl |")
-$planLines.Add("|-------|-------|--------|----------|-------------|-----------|")
+$planLines.Add("| Order | Action | FeishuTitle | Source | Markdown | RemoteToken | RemoteUrl |")
+$planLines.Add("|-------|--------|-------|--------|----------|-------------|-----------|")
 
 $token = $null
 if (-not $effectiveDryRun) {
@@ -360,30 +389,66 @@ foreach ($entry in $entries) {
         throw "Markdown export missing for $($entry.source): $markdownPath"
     }
 
-    $remoteToken = $entry.feishuNodeToken
-    $remoteUrl = $entry.feishuDocumentUrl
-    if ($effectiveDryRun) {
-        if ($ListDocuments) {
-            Write-Host ("[dry-run] {0}. {1} <= {2}" -f $entry.order, $entry.title, $entry.markdown)
+    $contentHash = Get-FileSha256 $markdownPath
+    $feishuTitle = Get-FeishuDisplayTitle $entry
+    $previousDocument = Get-StateDocument $previousState $entry.source
+    $syncedAt = $null
+    $ticket = $null
+    $remoteToken = if ($null -ne $previousDocument) { $previousDocument.feishuNodeToken } else { $entry.feishuNodeToken }
+    $remoteUrl = if ($null -ne $previousDocument) { $previousDocument.feishuDocumentUrl } else { $entry.feishuDocumentUrl }
+    $action = "create"
+    if ($null -ne $previousDocument -and -not [string]::IsNullOrWhiteSpace([string]$previousDocument.feishuNodeToken)) {
+        if ($previousDocument.contentSha256 -eq $contentHash) {
+            $action = "skip-unchanged"
+        }
+        else {
+            $action = "changed-needs-update"
         }
     }
-    else {
-        Write-Host ("[sync] {0}. {1}" -f $entry.order, $entry.title)
+
+    if ($effectiveDryRun) {
+        if ($ListDocuments) {
+            Write-Host ("[dry-run] [{0}] {1}. {2} <= {3}" -f $action, $entry.order, $entry.title, $entry.markdown)
+        }
+    }
+    elseif ($action -eq "create" -or ($action -eq "changed-needs-update" -and $AllowDuplicateReimport)) {
+        if ($action -eq "changed-needs-update") {
+            Write-Warning "Reimporting changed document as a new Feishu page: $($entry.source)"
+            $action = "duplicate-reimport"
+        }
+        Write-Host ("[sync] [{0}] {1}. {2}" -f $action, $entry.order, $entry.title)
         $fileToken = Send-FeishuMultipartFile $config $token $markdownPath $entry
         $ticket = Start-FeishuImportTask $config $token $fileToken $entry
         $taskData = Wait-FeishuImportTask $config $token $ticket
         $remote = Get-RemoteDocInfo $taskData
         $remoteToken = $remote.token
         $remoteUrl = $remote.url
-        $state.documents[$entry.source].lastImportTicket = $ticket
-        $state.documents[$entry.source].syncedAt = (Get-Date).ToString("o")
-        $state.documents[$entry.source].feishuNodeToken = $remoteToken
-        $state.documents[$entry.source].feishuDocumentUrl = $remoteUrl
+        $syncedAt = (Get-Date).ToString("o")
+    }
+    elseif ($action -eq "changed-needs-update") {
+        throw "Changed document cannot be updated by the import API without creating a duplicate: $($entry.source). Implement a Docx Block API updater, or rerun with -AllowDuplicateReimport after reviewing the sync plan."
     }
 
-    $state.documents[$entry.source].title = $entry.title
-    $state.documents[$entry.source].slug = $entry.slug
-    $planLines.Add("| $($entry.order) | $($entry.title) | $($entry.source) | $($entry.markdown) | $remoteToken | $remoteUrl |")
+    $state.documents[$entry.source] = [ordered]@{
+        source = $entry.source
+        title = $entry.title
+        feishuTitle = $feishuTitle
+        slug = $entry.slug
+        contentSha256 = $contentHash
+        feishuNodeToken = $remoteToken
+        feishuDocumentUrl = $remoteUrl
+        syncedAt = if ($null -ne $syncedAt) { $syncedAt } elseif ($null -ne $previousDocument) { $previousDocument.syncedAt } else { $null }
+        lastImportTicket = if ($null -ne $ticket) { $ticket } elseif ($null -ne $previousDocument) { $previousDocument.lastImportTicket } else { $null }
+    }
+    $planLines.Add("| $($entry.order) | $action | $feishuTitle | $($entry.source) | $($entry.markdown) | $remoteToken | $remoteUrl |")
+}
+
+if ($null -ne $previousState -and $null -ne $previousState.documents) {
+    foreach ($property in $previousState.documents.PSObject.Properties) {
+        if ($null -eq ($entries | Where-Object { $_.source -eq $property.Name } | Select-Object -First 1)) {
+            $planLines.Add("| - | local-deleted | $($property.Value.title) | $($property.Name) | - | $($property.Value.feishuNodeToken) | $($property.Value.feishuDocumentUrl) |")
+        }
+    }
 }
 
 $planPath = Join-Path $exportFull "feishu-sync-plan.md"
@@ -399,5 +464,8 @@ if ($effectiveDryRun -and -not $configLooksSecret) {
     Write-Host "Config still contains placeholders; dry-run was forced."
 }
 if ($effectiveDryRun -and -not $Force) {
-    Write-Host "Pass -Force without -DryRun to call Feishu APIs after filling local config."
+    Write-Host "Pass -Force without -DryRun to create previously unsynced documents after filling local config."
+}
+if ($effectiveDryRun) {
+    Write-Host "Changed documents are intentionally not updated by the import API; review the plan before choosing a block-based update workflow or -AllowDuplicateReimport."
 }

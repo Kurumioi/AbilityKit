@@ -45,7 +45,9 @@ namespace AbilityKit.Game.Flow
                 BuildRootMachine(),
                 BuildBattleMachine(),
                 new PhaseStateFeatureSpec("Boot", clearBeforeEnter: true),
-                new PhaseStateFeatureSpec("Lobby", clearBeforeEnter: true),
+                new PhaseStateFeatureSpec("Lobby", clearBeforeEnter: true)
+                    .AddFeature("demo_lobby")
+                    .AddFeature("root_debug"),
                 new PhaseStateFeatureSpec("Battle.Prepare", clearBeforeEnter: true)
                     .AddEnterBeforeAction(MobaFlowActionIds.ResetBattleSessionRuntimeState)
                     .AddFeature("context")

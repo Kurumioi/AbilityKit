@@ -32,18 +32,18 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (_entities != null && _entities.TryGetActorEntity(actorId, out entity) && entity != null)
+            if (_entities != null && _entities.TryGetActorEntity(actorId, out entity) && IsAlive(entity))
             {
                 return true;
             }
 
-            if (_index.TryGet(actorId, out entity))
+            if (_index.TryGet(actorId, out entity) && IsAlive(entity))
             {
-                if (entity != null) _registry.Register(actorId, entity);
-                return entity != null;
+                _registry.Register(actorId, entity);
+                return true;
             }
 
-            if (_registry.TryGet(actorId, out entity) && entity != null)
+            if (_registry.TryGet(actorId, out entity) && IsAlive(entity))
             {
                 return true;
             }
@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Moba.Services
             for (int i = 0; i < entities.Length; i++)
             {
                 var e = entities[i];
-                if (e == null || !e.hasActorId) continue;
+                if (!IsAlive(e) || !e.hasActorId) continue;
                 if (e.actorId.Value != actorId) continue;
 
                 _registry.Register(actorId, e);
@@ -62,6 +62,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             entity = null;
             return false;
+        }
+
+        private static bool IsAlive(global::ActorEntity entity)
+        {
+            return entity != null && entity.isEnabled;
         }
 
         public void Dispose()

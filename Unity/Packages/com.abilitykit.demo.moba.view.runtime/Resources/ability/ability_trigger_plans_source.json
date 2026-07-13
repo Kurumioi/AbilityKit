@@ -378,7 +378,7 @@
                                         },
                     "convert_resource_to_heal":  {
                                                      "type":  "convert_resource_to_heal",
-                                                     "displayName":  "资源转治疗",
+                                                     "displayName":  "资源转治�?",
                                                      "category":  "Resource",
                                                      "params":  [
                                                                     {
@@ -431,7 +431,7 @@
                                                  },
                     "adjust_damage_number":  {
                                                  "type":  "adjust_damage_number",
-                                                 "displayName":  "调整伤害数值",
+                                                 "displayName":  "调整伤害数�?",
                                                  "category":  "Combat",
                                                  "params":  [
                                                                 {
@@ -534,7 +534,7 @@
                              },
                     "advance_gameplay_counter":  {
                                                      "type":  "advance_gameplay_counter",
-                                                     "displayName":  "推进玩法计数器",
+                                                     "displayName":  "推进玩法计数�?",
                                                      "category":  "Gameplay",
                                                      "params":  [
                                                                     {
@@ -598,13 +598,13 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇被动触发：添加霸体战意与防御韧性状态",
+                                             "message":  "廉颇被动触发：添加霸体战意与防御韧性状�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
-                         "id":  10010001,
+                         "id":  10010004,
                          "name":  "廉颇-勇士之魂-造成伤害获得怒气",
                          "event":  "damage.apply.after",
                          "enabled":  true,
@@ -665,7 +665,7 @@
                      },
                      {
                          "id":  10010003,
-                         "name":  "廉颇-勇士之魂-脱战怒气转生命",
+                         "name":  "廉颇-勇士之魂-脱战怒气转生�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  true,
@@ -720,7 +720,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判定",
+                                             "message":  "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -756,7 +756,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇一技能：冲撞命中造成物理伤害并击飞目标",
+                                             "message":  "廉颇一技能：冲撞命中造成物理伤害并击飞目�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -801,7 +801,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇二技能：获得护盾并生成延迟范围伤害区域",
+                                             "message":  "廉颇二技能：获得护盾并生成延迟范围伤害区�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -836,14 +836,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇二技能：蓄力区域造成物理伤害并降低目标移速",
+                                             "message":  "廉颇二技能：蓄力区域造成物理伤害并降低目标移�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10010301,
-                         "name":  "廉颇-天崩地裂-第一段区域",
+                         "name":  "廉颇-天崩地裂-第一段区�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -870,14 +870,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇三技能：第一段砸地区域",
+                                             "message":  "廉颇三技能：第一段砸地区�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10010311,
-                         "name":  "廉颇-天崩地裂-第二段区域",
+                         "name":  "廉颇-天崩地裂-第二段区�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -896,14 +896,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇三技能：第二段砸地区域",
+                                             "message":  "廉颇三技能：第二段砸地区�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10010321,
-                         "name":  "廉颇-天崩地裂-第三段区域",
+                         "name":  "廉颇-天崩地裂-第三段区�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -955,7 +955,7 @@
                      },
                      {
                          "id":  10010341,
-                         "name":  "廉颇-天崩地裂-第三段击飞",
+                         "name":  "廉颇-天崩地裂-第三段击�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -979,14 +979,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "廉颇三技能：第三段命中击飞目标",
+                                             "message":  "廉颇三技能：第三段命中击飞目�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10020000,
-                         "name":  "小乔-治愈微笑-释放技能后短暂移速",
+                         "name":  "小乔-治愈微笑-释放技能后短暂移�?",
                          "event":  "skill.cast.complete",
                          "scope":  "owner",
                          "enabled":  true,
@@ -1006,7 +1006,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "小乔被动触发：释放技能后添加短暂移速状态",
+                                             "message":  "小乔被动触发：释放技能后添加短暂移速状�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1032,7 +1032,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "小乔一技能：发射扇子投射物",
+                                             "message":  "小乔一技能：发射扇子投射�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1065,7 +1065,7 @@
                      },
                      {
                          "id":  10020112,
-                         "name":  "小乔-绽放之舞-多目标伤害衰减",
+                         "name":  "小乔-绽放之舞-多目标伤害衰�?",
                          "event":  "damage.attack.before_calc",
                          "scope":  "owner",
                          "enabled":  true,
@@ -1149,14 +1149,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "小乔二技能：区域命中造成法术伤害并击飞目标",
+                                             "message":  "小乔二技能：区域命中造成法术伤害并击飞目�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10020301,
-                         "name":  "小乔-星华缭乱-添加持续状态",
+                         "name":  "小乔-星华缭乱-添加持续状�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1175,7 +1175,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "小乔三技能：添加持续落星状态",
+                                             "message":  "小乔三技能：添加持续落星状�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1263,7 +1263,7 @@
                      },
                      {
                          "id":  10030000,
-                         "name":  "赵云-龙鸣-低血量免伤配置",
+                         "name":  "赵云-龙鸣-低血量免伤配�?",
                          "event":  "damage.attack.before_calc",
                          "scope":  "owner",
                          "enabled":  true,
@@ -1272,9 +1272,7 @@
                          "priority":  65,
                          "conditions":  [
                                             {
-                                                "type":  "arg_gt",
-                                                "arg_name":  "damage_value",
-                                                "value":  0
+                                                "type":  "owner_matches_payload_target"
                                             }
                                         ],
                          "actions":  [
@@ -1282,22 +1280,23 @@
                                              "type":  "adjust_damage_number",
                                              "number_slot":  0,
                                              "op":  1,
-                                             "value":  0.67,
+                                             "value":  0,
+                                             "target_missing_hp_ratio_coefficient":  -0.33,
                                              "source_id":  10030000,
                                              "reason_kind":  0,
-                                             "reason_param":  10030000,
+                                             "reason_param":  0,
                                              "require_skill_runtime":  false,
                                              "skip_first_hit":  false
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "赵云被动龙鸣：按已损生命配置免伤参数，运行时后续补充动态比例计算",
+                                             "message":  "赵云被动龙鸣：按已损生命配置免伤参数，运行时后续补充动态比例计�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
-                         "id":  10030001,
+                         "id":  10030002,
                          "name":  "赵云-龙鸣-配置标记",
                          "event":  "",
                          "enabled":  true,
@@ -1317,14 +1316,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "赵云被动龙鸣：配置声明每损失3%最大生命获得1%免伤，最高33%",
+                                             "message":  "赵云被动龙鸣：配置声明每损失3%最大生命获�?%免伤，最�?3%",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10030101,
-                         "name":  "赵云-惊雷之龙-位移并强化普攻",
+                         "name":  "赵云-惊雷之龙-位移并强化普�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1353,7 +1352,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "赵云一技能惊雷之龙：向指定方向突进，并使下一次普攻附带额外伤害与减速",
+                                             "message":  "赵云一技能惊雷之龙：向指定方向突进，并使下一次普攻附带额外伤害与减�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1429,14 +1428,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生命",
+                                             "message":  "赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10030211,
-                         "name":  "赵云-破云之龙-第一段命中",
+                         "name":  "赵云-破云之龙-第一段命�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1472,7 +1471,7 @@
                      },
                      {
                          "id":  10030212,
-                         "name":  "赵云-破云之龙-第二段命中",
+                         "name":  "赵云-破云之龙-第二段命�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1503,7 +1502,7 @@
                      },
                      {
                          "id":  10030213,
-                         "name":  "赵云-破云之龙-第三段命中",
+                         "name":  "赵云-破云之龙-第三段命�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1534,7 +1533,7 @@
                      },
                      {
                          "id":  10030214,
-                         "name":  "赵云-破云之龙-第四段命中",
+                         "name":  "赵云-破云之龙-第四段命�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1578,9 +1577,9 @@
                                          {
                                              "type":  "spawn_area",
                                              "area_id":  40030301,
-                                             "position_mode":  1,
+                                             "position_mode":  2,
                                              "radius":  4.5,
-                                             "duration_ms":  500
+                                             "duration_ms":  700
                                          },
                                          {
                                              "type":  "debug_log",
@@ -1591,7 +1590,7 @@
                      },
                      {
                          "id":  10030311,
-                         "name":  "赵云-天翔之龙-落地伤害与感电",
+                         "name":  "赵云-天翔之龙-落地伤害与感�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1621,7 +1620,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "赵云三技能：落地命中目标并附加感电标记",
+                                             "message":  "赵云三技能：落地命中目标并附加感电标�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1695,7 +1694,7 @@
                      },
                      {
                          "id":  10040000,
-                         "name":  "墨子-机关术-释放技能获得护盾",
+                         "name":  "墨子-机关�?释放技能获得护�?",
                          "event":  "skill.cast.complete",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1726,14 +1725,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子被动机关术：释放技能获得机关护盾",
+                                             "message":  "墨子被动机关术：释放技能获得机关护�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10040001,
-                         "name":  "墨子-机关术-普攻计数",
+                         "name":  "墨子-机关�?普攻计数",
                          "event":  "damage.apply.after",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1770,7 +1769,7 @@
                      },
                      {
                          "id":  10040002,
-                         "name":  "墨子-机关术-第四次普攻炮击",
+                         "name":  "墨子-机关�?第四次普攻炮�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  true,
@@ -1796,14 +1795,14 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子被动机关术：第四次普攻转换为机关炮击并刷新护盾",
+                                             "message":  "墨子被动机关术：第四次普攻转换为机关炮击并刷新护�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10040101,
-                         "name":  "墨子-和平漫步-突进并强化普攻",
+                         "name":  "墨子-和平漫步-突进并强化普�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1828,8 +1827,7 @@
                                              "buffIds":  [
                                                              10040101
                                                          ],
-                                             "target_self":  true,
-                                             "duration_ms":  5000
+                                             "target_self":  true
                                          },
                                          {
                                              "type":  "add_shield",
@@ -1844,7 +1842,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子一技能和平漫步：向前突进并强化下一次普攻为机关炮击",
+                                             "message":  "墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1878,40 +1876,44 @@
                      },
                      {
                          "id":  10040112,
-                         "name":  "墨子-和平漫步-强化普攻炮击",
-                         "event":  "damage.apply.after",
-                         "scope":  "owner",
+                         "name":  "墨子-和平漫步-强化近战普攻",
+                         "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
                          "phase":  "immediate",
                          "priority":  55,
                          "conditions":  [
-                                            {
-                                                "type":  "arg_gt",
-                                                "arg_name":  "damage_value",
-                                                "value":  0
-                                            },
-                                            {
-                                                "type":  "arg_eq",
-                                                "left":  "payload:reason_kind",
-                                                "right":  "2"
-                                            },
-                                            {
-                                                "type":  "has_buff",
-                                                "buff_id":  10040101,
-                                                "check_stack":  0
-                                            }
+
                                         ],
                          "actions":  [
                                          {
-                                             "type":  "shoot_projectile",
-                                             "launcher_id":  31040201,
-                                             "projectile_id":  30040201,
-                                             "directionSource":  "cast_context"
+                                             "type":  "give_damage",
+                                             "damage_value":  240,
+                                             "source_attack_ratio":  0.7,
+                                             "damage_type":  2,
+                                             "reason_param":  10040112,
+                                             "target_mode":  2,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "pull",
+                                             "speed":  12,
+                                             "duration_ms":  300,
+                                             "direction_mode":  1,
+                                             "target_distance":  3,
+                                             "priority":  15,
+                                             "motion_group_id":  3,
+                                             "target_mode":  2
+                                         },
+                                         {
+                                             "type":  "remove_buff",
+                                             "buff_id":  10040101,
+                                             "target_self":  true,
+                                             "remove_all":  true
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子一技能强化普攻：发射机关炮击；Buff消耗逻辑后续补齐",
+                                             "message":  "墨子一技能强化普攻：近战命中造成法术伤害、击退目标并消耗强化普攻Buff",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1936,7 +1938,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩晕",
+                                             "message":  "墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -1956,20 +1958,20 @@
                                          {
                                              "type":  "spawn_area",
                                              "area_id":  40040201,
-                                             "position_mode":  1,
+                                             "position_mode":  2,
                                              "radius":  3.5,
-                                             "duration_ms":  300
+                                             "duration_ms":  2000
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子二技能：炮弹命中后生成爆炸区域",
+                                             "message":  "墨子二技能：炮弹结束后生成弹坑持续伤害区�?",
                                              "dump_args":  false
                                          }
                                      ]
                      },
                      {
                          "id":  10040212,
-                         "name":  "墨子-机关重炮-爆炸伤害与眩晕",
+                         "name":  "墨子-机关重炮-爆炸伤害与眩�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -1999,7 +2001,7 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子二技能：爆炸范围造成法术伤害并眩晕",
+                                             "message":  "墨子二技能：爆炸范围造成法术伤害并眩�?",
                                              "dump_args":  false
                                          }
                                      ]
@@ -2051,7 +2053,7 @@
                      },
                      {
                          "id":  10040311,
-                         "name":  "墨子-墨守成规-持续伤害与控制",
+                         "name":  "墨子-墨守成规-持续伤害与控�?",
                          "event":  "",
                          "enabled":  true,
                          "allowExternal":  false,
@@ -2107,10 +2109,202 @@
                                          },
                                          {
                                              "type":  "debug_log",
-                                             "message":  "墨子三技能：敌人进入屏障时受到短暂控制",
+                                             "message":  "墨子三技能：敌人进入屏障时受到短暂控�?",
                                              "dump_args":  false
                                          }
                                      ]
-                     }
+                     },
+                     {
+  "id": 10010001,
+  "name": "廉颇-普通攻击",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 120,
+      "source_attack_ratio": 1,
+      "damage_type": 1,
+      "reason_kind": 2,
+      "reason_param": 10010001,
+      "target_mode": 2,
+      "target_max_count": 1
+    }
+  ]
+},
+                     {
+  "id": 10020001,
+  "name": "小乔-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31020001,
+      "projectile_id": 30020001
+    }
+  ]
+},
+                     {
+  "id": 10020011,
+  "name": "小乔-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 105,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10020001
+    }
+  ]
+},
+                     {
+  "id": 10030001,
+  "name": "赵云-普通攻击",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 115,
+      "source_attack_ratio": 1,
+      "damage_type": 1,
+      "reason_kind": 2,
+      "reason_param": 10030001,
+      "target_mode": 2,
+      "target_max_count": 1
+    }
+  ]
+},
+                     {
+  "id": 10040011,
+  "name": "墨子-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31040011,
+      "projectile_id": 30040011
+    }
+  ]
+},
+                     {
+  "id": 10040012,
+  "name": "墨子-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 110,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10040011
+    }
+  ]
+},
+                     {
+  "id": 10050001,
+  "name": "妲己-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31050001,
+      "projectile_id": 30050001
+    }
+  ]
+},
+                     {
+  "id": 10050011,
+  "name": "妲己-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 105,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10050001
+    }
+  ]
+},
+                     {
+  "id": 10060001,
+  "name": "嬴政-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31060001,
+      "projectile_id": 30060001
+    }
+  ]
+},
+                     {
+  "id": 10060011,
+  "name": "嬴政-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 110,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10060001
+    }
+  ]
+}
                  ]
 }

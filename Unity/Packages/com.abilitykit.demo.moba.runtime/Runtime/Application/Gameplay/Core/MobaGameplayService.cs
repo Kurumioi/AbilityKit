@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Triggering.Eventing;
 
@@ -19,12 +20,14 @@ namespace AbilityKit.Demo.Moba.Gameplay
         [WorldInject(required: false)] private IMobaGameplayEventSink _eventSink = null;
         [WorldInject(required: false)] private MobaGameplayConfigService _gameplayConfigs = null;
         [WorldInject(required: false)] private MobaGameplayTriggerBindingService _triggerBindings = null;
+        [WorldInject(required: false)] private IWorldResolver _services = null;
  
         private MobaGameplayPhase _phase = MobaGameplayPhase.NotStarted;
         private float _elapsedSeconds;
         private MobaGameplayResult _lastResult;
         private int _currentGameplayId;
         private GameplayMO _currentGameplay;
+        private string _lastStartFailureReason;
  
         public MobaGameplayPhase Phase => _phase;
 
@@ -37,16 +40,19 @@ namespace AbilityKit.Demo.Moba.Gameplay
         public int CurrentGameplayId => _currentGameplayId;
 
         public GameplayMO CurrentGameplay => _currentGameplay;
+
+        public string LastStartFailureReason => _lastStartFailureReason;
  
         public void StartDefault()
         {
-            if (_gameplayConfigs == null)
+            var gameplayConfigs = ResolveGameplayConfigService();
+            if (gameplayConfigs == null)
             {
                 Log.Error("[MobaGameplayService] default gameplay start failed: config service missing");
                 return;
             }
 
-            Start(_gameplayConfigs.ResolveDefaultGameplayId());
+            Start(gameplayConfigs.ResolveDefaultGameplayId());
         }
  
         public void Start()
@@ -61,10 +67,12 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 return;
             }
 
+            _lastStartFailureReason = null;
             var gameplay = ResolveGameplay(gameplayId);
             if (gameplay == null)
             {
-                Log.Error($"[MobaGameplayService] gameplay start failed: missing config. gameplayId={gameplayId}");
+                _lastStartFailureReason = BuildMissingGameplayConfigMessage(gameplayId);
+                Log.Error(_lastStartFailureReason);
                 return;
             }
 
@@ -130,6 +138,7 @@ namespace AbilityKit.Demo.Moba.Gameplay
             _lastResult = default;
             _currentGameplayId = 0;
             _currentGameplay = null;
+            _lastStartFailureReason = null;
             _phase = MobaGameplayPhase.NotStarted;
         }
 
@@ -140,12 +149,69 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
         private GameplayMO ResolveGameplay(int gameplayId)
         {
-            if (_gameplayConfigs != null && _gameplayConfigs.TryGetGameplay(gameplayId, out var gameplay))
+            var gameplayConfigs = ResolveGameplayConfigService();
+            if (gameplayConfigs != null && gameplayConfigs.TryGetGameplay(gameplayId, out var gameplay))
+            {
+                return gameplay;
+            }
+
+            if (_services != null
+                && _services.TryResolve<MobaConfigDatabase>(out var configs)
+                && configs != null
+                && configs.TryGetGameplay(gameplayId, out gameplay))
             {
                 return gameplay;
             }
 
             return null;
+        }
+
+        private string BuildMissingGameplayConfigMessage(int gameplayId)
+        {
+            var hasServices = _services != null;
+            var gameplayConfigs = ResolveGameplayConfigService();
+            var hasGameplayConfigs = gameplayConfigs != null;
+            var gameplayConfigsHit = hasGameplayConfigs && gameplayConfigs.TryGetGameplay(gameplayId, out _);
+
+            var hasDatabase = false;
+            var databaseHit = false;
+            var databaseVersion = 0L;
+            string databaseResolveError = null;
+            if (_services != null)
+            {
+                try
+                {
+                    var configs = _services.Resolve<MobaConfigDatabase>();
+                    hasDatabase = configs != null;
+                    if (configs != null)
+                    {
+                        databaseVersion = configs.Version;
+                        databaseHit = configs.TryGetGameplay(gameplayId, out _);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    databaseResolveError = $"{ex.GetType().Name}: {ex.Message}";
+                }
+            }
+
+            var databaseResolveErrorText = databaseResolveError ?? "<none>";
+            return $"[MobaGameplayService] gameplay start failed: missing config. gameplayId={gameplayId}, hasServices={hasServices}, hasGameplayConfigService={hasGameplayConfigs}, gameplayConfigHit={gameplayConfigsHit}, hasDatabase={hasDatabase}, databaseHit={databaseHit}, databaseVersion={databaseVersion}, databaseResolveError={databaseResolveErrorText}";
+        }
+
+        private MobaGameplayConfigService ResolveGameplayConfigService()
+        {
+            if (_gameplayConfigs != null)
+            {
+                return _gameplayConfigs;
+            }
+
+            if (_services != null && _services.TryResolve<MobaGameplayConfigService>(out var gameplayConfigs))
+            {
+                _gameplayConfigs = gameplayConfigs;
+            }
+
+            return _gameplayConfigs;
         }
 
         private int GetCurrentFrame()

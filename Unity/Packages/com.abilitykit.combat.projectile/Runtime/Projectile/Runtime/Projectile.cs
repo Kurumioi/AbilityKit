@@ -45,6 +45,15 @@ namespace AbilityKit.Combat.Projectile
         public ColliderId LastHitCollider;
         public int LastHitAllowedFrame;
 
+        public ProjectileLifecycleSpec Lifecycle;
+        public ProjectileLifecycleState LifecycleState;
+        public bool IsArmed;
+        public int LifecyclePhaseStartFrame;
+        public Vec3 PrepareStartPosition;
+        public Vec3 PrepareTargetPosition;
+        public int PatternSlotIndex;
+        public int PatternSlotCount;
+
         void IPoolable.OnPoolGet()
         {
         }
@@ -79,6 +88,14 @@ namespace AbilityKit.Combat.Projectile
             HitCooldownFrames = 0;
             LastHitCollider = default;
             LastHitAllowedFrame = 0;
+            Lifecycle = default;
+            LifecycleState = default;
+            IsArmed = false;
+            LifecyclePhaseStartFrame = 0;
+            PrepareStartPosition = Vec3.Zero;
+            PrepareTargetPosition = Vec3.Zero;
+            PatternSlotIndex = 0;
+            PatternSlotCount = 0;
         }
 
         void IPoolable.OnPoolDestroy()

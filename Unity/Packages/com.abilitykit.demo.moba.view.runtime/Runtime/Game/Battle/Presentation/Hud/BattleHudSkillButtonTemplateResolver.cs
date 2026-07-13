@@ -31,6 +31,12 @@ namespace AbilityKit.Game.Flow
             return _loadouts.TryFind(res, playerId, out loadout);
         }
 
+        public int ResolveSkillButtonCount(in MobaPlayerLoadout loadout)
+        {
+            var activeCount = loadout.SkillIds != null ? loadout.SkillIds.Length : 0;
+            return loadout.BasicAttackSkillId > 0 ? activeCount + 1 : activeCount;
+        }
+
         public bool TryResolveSkill(
             in MobaPlayerLoadout loadout,
             int slot,
@@ -43,11 +49,30 @@ namespace AbilityKit.Game.Flow
             spec = default;
             if (slot <= 0) return false;
 
-            var skills = loadout.SkillIds;
-            if (skills == null || skills.Length < slot) return false;
-
-            var skillId = skills[slot - 1];
+            if (!TryResolveSkillId(loadout, slot, out var skillId)) return false;
             return _templates.TryResolve(skillId, out skill, out template, out spec);
+        }
+
+        private static bool TryResolveSkillId(in MobaPlayerLoadout loadout, int slot, out int skillId)
+        {
+            skillId = 0;
+            if (slot <= 0) return false;
+
+            var skills = loadout.SkillIds;
+            var activeCount = skills != null ? skills.Length : 0;
+            if (slot <= activeCount)
+            {
+                skillId = skills[slot - 1];
+                return skillId > 0;
+            }
+
+            if (slot == activeCount + 1 && loadout.BasicAttackSkillId > 0)
+            {
+                skillId = loadout.BasicAttackSkillId;
+                return true;
+            }
+
+            return false;
         }
     }
 }

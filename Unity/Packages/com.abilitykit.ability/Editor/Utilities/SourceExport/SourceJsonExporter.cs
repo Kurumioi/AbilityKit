@@ -16,7 +16,8 @@ namespace AbilityKit.Ability.Editor.Utilities
     internal static class SourceJsonExporter
     {
         private const string SourceOutputFileName = "ability_trigger_plans_source.json";
-        private const string PlanOutputFileName = "ability_trigger_plans.json";
+        private const string PlanOutputFileName = "ability_trigger_plans_from_source.json";
+        private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
 
         [MenuItem("AbilityKit/Ability/Source/Export Source JSON")]
         public static void ExportSourceJson()
@@ -54,15 +55,10 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static void ExportDefaultSourceToPlanForBatchMode()
         {
-            var sourcePath = Path.Combine(
-                Application.dataPath,
-                "..",
-                "Packages",
-                "com.abilitykit.demo.moba.view.runtime",
-                "Resources",
-                "ability",
-                SourceOutputFileName);
-            ExportSourceToPlan(Path.GetFullPath(sourcePath));
+            ExportLog.Warning(
+                "The MOBA aggregate is derived from ability/triggers/**/*.json; "
+                + "the legacy source export entry now compiles the maintained split files.");
+            TriggerPlanJsonSplitter.Merge();
         }
 
         [MenuItem("AbilityKit/Ability/Source/Export from SO to Source JSON")]
@@ -113,7 +109,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
 
                 // 序列化并保存
-                var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+                var outputDir = GetAbilityResourcesDirectory();
                 Directory.CreateDirectory(outputDir);
                 var outputPath = Path.Combine(outputDir, SourceOutputFileName);
 
@@ -180,15 +176,15 @@ namespace AbilityKit.Ability.Editor.Utilities
 
                 var planJson = JsonConvert.SerializeObject(result.PlanDatabase, settings);
 
-                // 保存 Plan JSON
-                var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+                // Monolithic conversion is a preview. The checked-in aggregate is built from split files.
+                var outputDir = GetAbilityResourcesDirectory();
                 Directory.CreateDirectory(outputDir);
                 var outputPath = Path.Combine(outputDir, PlanOutputFileName);
 
                 File.WriteAllText(outputPath, planJson);
                 AssetDatabase.Refresh();
 
-                ExportLog.Info($"Plan JSON exported to: {outputPath}");
+                ExportLog.Info($"Plan JSON preview exported to: {outputPath}");
                 ExportLog.Info($"Converted {result.PlanDatabase.Triggers.Count} triggers");
 
                 if (!Application.isBatchMode)
@@ -224,6 +220,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     $"Error: {ex.Message}",
                     "OK");
             }
+        }
+
+        private static string GetAbilityResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageAbilityResourcesPath));
         }
 
         private static void HandleBatchModeFailure(string title, string message)

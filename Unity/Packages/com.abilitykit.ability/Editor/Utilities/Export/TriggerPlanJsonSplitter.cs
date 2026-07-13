@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using Newtonsoft.Json;
 using UnityEngine;
 using UnityEditor;
@@ -24,6 +24,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string TriggersDirName = "triggers";
         private const string SingleFileName = "ability_trigger_plans.json";
         private const string ReadableSingleFileName = "ability_trigger_plans_readable.json";
+        private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
 
         /// <summary>
         /// 将单个 JSON 文件拆分为多个文件
@@ -31,7 +32,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Split Trigger Plan JSON")]
         public static void Split()
         {
-            var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+            var outputDir = GetAbilityResourcesDirectory();
             var inputPath = Path.Combine(outputDir, SingleFileName);
 
             if (!File.Exists(inputPath))
@@ -80,7 +81,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Merge Trigger Plan JSON")]
         public static void Merge()
         {
-            var inputDir = Path.Combine(Application.dataPath, "Resources", "ability", TriggersDirName);
+            var inputDir = Path.Combine(GetAbilityResourcesDirectory(), TriggersDirName);
 
             if (!Directory.Exists(inputDir))
             {
@@ -92,8 +93,11 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             try
             {
-                var jsonFiles = Directory.GetFiles(inputDir, "*.json")
-                    .OrderBy(f => f)
+                var jsonFiles = Directory.GetFiles(
+                        inputDir,
+                        "*.json",
+                        SearchOption.AllDirectories)
+                    .OrderBy(file => file, StringComparer.Ordinal)
                     .ToList();
 
                 if (jsonFiles.Count == 0)
@@ -102,28 +106,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                     return;
                 }
 
-                var triggers = new List<TriggerPlanDto>();
-                var allStrings = new Dictionary<int, string>();
-
-                foreach (var file in jsonFiles)
-                {
-                    var json = File.ReadAllText(file);
-                    var trigger = JsonConvert.DeserializeObject<TriggerPlanDto>(json);
-                    if (trigger != null)
-                    {
-                        triggers.Add(trigger);
-                    }
-                }
-
-                var dto = new TriggerPlanDatabaseDto();
-                dto.Triggers.Clear();
-                dto.Triggers.AddRange(triggers);
-
-                // 合并字符串表
-                var mergedJson = JsonConvert.SerializeObject(dto, Formatting.Indented);
+                var documents = jsonFiles.Select(file =>
+                    new TriggerPlanAggregateCompiler.SourceDocument(
+                        MakeRelativePath(inputDir, file),
+                        File.ReadAllText(file)));
+                var mergedJson = TriggerPlanAggregateCompiler.Compile(documents);
                 File.WriteAllText(outputPath, mergedJson);
 
-                Debug.Log($"[TriggerPlanSplitter] 已合并 {triggers.Count} 个 Trigger 到:\n{outputPath}");
+                Debug.Log($"[TriggerPlanSplitter] 已从 {jsonFiles.Count} 个 split 文件生成 aggregate:\n{outputPath}");
                 AssetDatabase.Refresh();
             }
             catch (Exception ex)
@@ -138,7 +128,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Export Readable Split")]
         public static void ExportReadableSplit()
         {
-            var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+            var outputDir = GetAbilityResourcesDirectory();
             var inputPath = Path.Combine(outputDir, SingleFileName);
 
             if (!File.Exists(inputPath))
@@ -207,7 +197,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Import Readable Split")]
         public static void ImportReadableSplit()
         {
-            var inputDir = Path.Combine(Application.dataPath, "Resources", "ability", TriggersDirName + "_readable");
+            var inputDir = Path.Combine(GetAbilityResourcesDirectory(), TriggersDirName + "_readable");
 
             if (!Directory.Exists(inputDir))
             {
@@ -291,6 +281,22 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Debug.LogError($"[TriggerPlanSplitter] 导入失败: {ex.Message}");
             }
+        }
+
+        private static string GetAbilityResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageAbilityResourcesPath));
+        }
+
+        private static string MakeRelativePath(string rootDirectory, string filePath)
+        {
+            var root = Path.GetFullPath(rootDirectory)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            var rootUri = new Uri(root);
+            var fileUri = new Uri(Path.GetFullPath(filePath));
+            return Uri.UnescapeDataString(rootUri.MakeRelativeUri(fileUri).ToString())
+                .Replace('\\', '/');
         }
 
         private static ReadableTriggerPlan ToReadableTrigger(TriggerPlanDto trigger)

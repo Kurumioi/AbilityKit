@@ -21,6 +21,8 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 var e = entries[i];
                 if (e.ActorId <= 0) continue;
 
+                ctx.ViewVfxManager?.DestroyVfxByFollowTargetActorId(ctx.ViewVfxNode, e.ActorId);
+
                 var netId = new BattleNetId(e.ActorId);
                 if (lookup.TryResolve(world, netId, out var entity))
                 {

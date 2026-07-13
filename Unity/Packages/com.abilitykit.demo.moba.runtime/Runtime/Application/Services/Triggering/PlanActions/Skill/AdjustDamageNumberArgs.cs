@@ -22,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly bool SkipFirstHit;
         public readonly float RepeatTargetDecayFactor;
         public readonly int TargetHitCountKeyBase;
+        public readonly float TargetMissingHpRatioCoefficient;
 
         public AdjustDamageNumberArgs(
             DamageNumberSlot numberSlot,
@@ -33,7 +34,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             bool requireSkillRuntime,
             bool skipFirstHit,
             float repeatTargetDecayFactor,
-            int targetHitCountKeyBase)
+            int targetHitCountKeyBase,
+            float targetMissingHpRatioCoefficient)
         {
             NumberSlot = numberSlot;
             Op = op;
@@ -45,6 +47,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             SkipFirstHit = skipFirstHit;
             RepeatTargetDecayFactor = repeatTargetDecayFactor;
             TargetHitCountKeyBase = targetHitCountKeyBase;
+            TargetMissingHpRatioCoefficient = targetMissingHpRatioCoefficient;
         }
     }
 }

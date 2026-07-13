@@ -34,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                     ? character.PassiveSkillIds
                     : hasAttributeTemplate ? attrTemplate.PassiveSkills : null);
 
-                var activeSkills = CreateActiveSkillRuntimes(activeSkillIds);
+                var activeSkills = CreateActiveSkillRuntimes(CombineBasicAttackAndActiveSkills(loadout.BasicAttackSkillId, activeSkillIds));
                 var passiveSkills = CreatePassiveSkillRuntimes(passiveSkillIds);
 
                 if (entity.hasSkillLoadout)
@@ -50,6 +50,20 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 Log.Exception(ex, "[ActorEntityInitPipeline] InitializeSkillLoadout failed");
             }
+        }
+
+        private static int[] CombineBasicAttackAndActiveSkills(int basicAttackSkillId, int[] activeSkillIds)
+        {
+            var hasBasicAttack = basicAttackSkillId > 0;
+            var activeCount = activeSkillIds != null ? activeSkillIds.Length : 0;
+            if (!hasBasicAttack) return activeSkillIds ?? Array.Empty<int>();
+
+            // Active skills occupy slots 1..N (indices 0..N-1); basic attack is appended
+            // at the end so it does not shift active skill slot indices.
+            var result = new int[activeCount + 1];
+            if (activeCount > 0) Array.Copy(activeSkillIds, 0, result, 0, activeCount);
+            result[activeCount] = basicAttackSkillId;
+            return result;
         }
 
         private static ActiveSkillRuntime[] CreateActiveSkillRuntimes(int[] skillIds)

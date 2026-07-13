@@ -14,6 +14,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private const string ResourcesDir = "ability";
         private const string FileWithoutExt = "ability_triggers";
+        private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
         private const string DefaultAbilityConfigFolder = "Assets/Configs/Ability";
 
         private const string GeneratedModuleDir = "Assets/Configs/Ability/Generated";
@@ -22,7 +23,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Import Trigger Json -> Generated Module")]
         public static void ImportFromDefaultJson()
         {
-            var jsonPath = Path.Combine(Application.dataPath, "Resources", ResourcesDir, FileWithoutExt + ".json");
+            var jsonPath = Path.Combine(GetAbilityResourcesDirectory(), FileWithoutExt + ".json");
             ImportFromFile(jsonPath);
         }
 
@@ -265,6 +266,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 return false;
             }
+        }
+
+        private static string GetAbilityResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageAbilityResourcesPath));
         }
 
         private static string ToAbsoluteAssetPath(string assetPath)

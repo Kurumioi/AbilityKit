@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Skill;
 using UnityEngine;
@@ -8,6 +9,8 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudInputUiFactory
     {
+        private const int DefaultSkillButtonCount = 3;
+
         private readonly BattleHudInputControlFactory _controls;
 
         public BattleHudInputUiFactory()
@@ -22,6 +25,13 @@ namespace AbilityKit.Game.Flow
 
         public BattleHudInputUi Create(RectTransform root, Canvas canvas, Transform cameraTransform, Action infoClicked)
         {
+            return Create(root, canvas, cameraTransform, infoClicked, DefaultSkillButtonCount);
+        }
+
+        public BattleHudInputUi Create(RectTransform root, Canvas canvas, Transform cameraTransform, Action infoClicked, int skillButtonCount)
+        {
+            if (skillButtonCount <= 0) skillButtonCount = DefaultSkillButtonCount;
+
             var inputUiRoot = new GameObject("BattleHudInput", typeof(RectTransform));
             inputUiRoot.transform.SetParent(root, worldPositionStays: false);
             inputUiRoot.SetActive(false);
@@ -33,15 +43,17 @@ namespace AbilityKit.Game.Flow
             var moveMapper = new BattleHudMoveInputMapper();
             var skillAimMapper = new BattleHudSkillAimInputMapper();
 
-            var skill1 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill1);
-            var skill2 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill2);
-            var skill3 = CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.Skill3);
+            var skillViews = new List<SkillButtonView>(skillButtonCount);
+            for (var slot = 1; slot <= skillButtonCount; slot++)
+            {
+                skillViews.Add(CreateSkillButton(inputUiRoot.transform, root, canvas, BattleHudInputLayout.GetSkill(slot)));
+            }
             var infoButton = _controls.CreateInfoButton(
                 inputUiRoot.transform,
                 BattleHudInputLayout.InfoButtonPosition,
                 infoClicked);
 
-            inputView.Initialize(moveJoystick, skill1, skill2, skill3);
+            inputView.Initialize(moveJoystick, skillViews);
             moveMapper.Initialize(inputView, cameraTransform);
             skillAimMapper.Initialize(inputView, cameraTransform);
 
@@ -53,9 +65,7 @@ namespace AbilityKit.Game.Flow
                 moveJoystick,
                 moveMapper,
                 skillAimMapper,
-                skill1,
-                skill2,
-                skill3,
+                skillViews,
                 infoButton);
         }
 

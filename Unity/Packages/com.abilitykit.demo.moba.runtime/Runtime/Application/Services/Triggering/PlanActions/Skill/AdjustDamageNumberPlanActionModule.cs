@@ -1,5 +1,7 @@
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Numerics;
+using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
@@ -47,6 +49,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 modifierValue = args.Op == NumberModifierOp.Mul ? decayFactor - 1f : decayFactor;
             }
 
+            if (args.TargetMissingHpRatioCoefficient != 0f)
+            {
+                if (!TryResolveTargetMissingHpRatio(attack.TargetActorId, ctx, out var missingHpRatio))
+                {
+                    MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.AdjustDamageNumber, $"cannot resolve target health. target={attack.TargetActorId}");
+                    return;
+                }
+
+                modifierValue += missingHpRatio * args.TargetMissingHpRatioCoefficient;
+            }
+
             if (!TryResolveNumberValue(attack, args.NumberSlot, out var numberValue) || numberValue == null)
             {
                 MobaPlanActionDiagnostics.Rejected(ctx.Context, TriggeringConstants.Actions.AdjustDamageNumber, $"unsupported number slot. slot={args.NumberSlot}");
@@ -55,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var sourceId = args.SourceId != 0 ? args.SourceId : (args.ReasonParam != 0 ? args.ReasonParam : attack.ReasonParam);
             numberValue.Apply(new NumberModifier(args.Op, modifierValue, sourceId));
-            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.AdjustDamageNumber, $"modifier applied. slot={args.NumberSlot} op={args.Op} value={modifierValue:0.###} target={attack.TargetActorId} hitCount={hitCount} decay={decayFactor:0.###} reason={attack.ReasonKind}:{attack.ReasonParam}");
+            MobaPlanActionDiagnostics.Applied(ctx.Context, TriggeringConstants.Actions.AdjustDamageNumber, $"modifier applied. slot={args.NumberSlot} op={args.Op} value={modifierValue:0.###} target={attack.TargetActorId} hitCount={hitCount} decay={decayFactor:0.###} missingHpCoefficient={args.TargetMissingHpRatioCoefficient:0.###} reason={attack.ReasonKind}:{attack.ReasonParam}");
         }
 
         private static bool TryUpdateRepeatTargetState(AttackInfo attack, AdjustDamageNumberArgs args, ExecCtx<IWorldResolver> ctx, out int hitCount, out float decayFactor)
@@ -93,6 +106,28 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             blackboard.SetFloat(in MobaSkillRuntimeBlackboardKeys.DecayFactor, decayFactor);
+            return true;
+        }
+
+        private static bool TryResolveTargetMissingHpRatio(int targetActorId, ExecCtx<IWorldResolver> ctx, out float missingHpRatio)
+        {
+            missingHpRatio = 0f;
+            if (targetActorId <= 0
+                || !ctx.Context.TryResolve<MobaActorLookupService>(out var actors)
+                || actors == null
+                || !actors.TryGetActorEntity(targetActorId, out var target)
+                || target == null
+                || !target.hasAttributeGroup
+                || !target.hasResourceContainer)
+            {
+                return false;
+            }
+
+            var attrs = new MobaAttrs(target);
+            var maxHp = attrs.MaxHp;
+            if (maxHp <= 0f) return false;
+
+            missingHpRatio = System.Math.Clamp(1f - attrs.Hp / maxHp, 0f, 1f);
             return true;
         }
 

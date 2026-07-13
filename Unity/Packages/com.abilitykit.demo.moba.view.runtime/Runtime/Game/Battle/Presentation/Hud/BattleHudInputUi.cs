@@ -15,9 +15,7 @@ namespace AbilityKit.Game.Flow
             JoystickAreaView moveJoystick,
             BattleHudMoveInputMapper moveMapper,
             BattleHudSkillAimInputMapper skillAimMapper,
-            SkillButtonView skill1View,
-            SkillButtonView skill2View,
-            SkillButtonView skill3View,
+            IReadOnlyList<SkillButtonView> skillViews,
             Button infoButton)
         {
             Root = root;
@@ -25,11 +23,32 @@ namespace AbilityKit.Game.Flow
             MoveJoystick = moveJoystick;
             MoveMapper = moveMapper;
             SkillAimMapper = skillAimMapper;
-            Skill1View = skill1View;
-            Skill2View = skill2View;
-            Skill3View = skill3View;
-            SkillViews = new[] { skill1View, skill2View, skill3View };
+            SkillViews = skillViews ?? new SkillButtonView[0];
+            Skill1View = SkillViews.Count > 0 ? SkillViews[0] : null;
+            Skill2View = SkillViews.Count > 1 ? SkillViews[1] : null;
+            Skill3View = SkillViews.Count > 2 ? SkillViews[2] : null;
             InfoButton = infoButton;
+        }
+
+        public BattleHudInputUi(
+            GameObject root,
+            BattleHudInputView inputView,
+            JoystickAreaView moveJoystick,
+            BattleHudMoveInputMapper moveMapper,
+            BattleHudSkillAimInputMapper skillAimMapper,
+            SkillButtonView skill1View,
+            SkillButtonView skill2View,
+            SkillButtonView skill3View,
+            Button infoButton)
+            : this(
+                root,
+                inputView,
+                moveJoystick,
+                moveMapper,
+                skillAimMapper,
+                new[] { skill1View, skill2View, skill3View },
+                infoButton)
+        {
         }
 
         public GameObject Root { get; }
@@ -41,6 +60,7 @@ namespace AbilityKit.Game.Flow
         public SkillButtonView Skill2View { get; }
         public SkillButtonView Skill3View { get; }
         public IReadOnlyList<SkillButtonView> SkillViews { get; }
+        public int SkillButtonCount => SkillViews != null ? SkillViews.Count : 0;
         public Button InfoButton { get; }
 
         public void Destroy()

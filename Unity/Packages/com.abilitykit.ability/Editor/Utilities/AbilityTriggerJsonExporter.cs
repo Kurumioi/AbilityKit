@@ -19,6 +19,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string OutputResourcesDir = "ability";
         private const string OutputFileWithoutExt = "ability_triggers";
         private const string OutputPlanFileWithoutExt = "ability_trigger_plans";
+        private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
         private const string DefaultAbilityConfigFolder = "Assets/Configs/Ability";
 
         [MenuItem("AbilityKit/Ability/Export Trigger Json")]
@@ -58,7 +59,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             ExportLog.Info($"ExportFromFolder: {assetFolder}");
 
-            var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
+            var outputDir = GetAbilityResourcesDirectory();
             Directory.CreateDirectory(outputDir);
 
             var dto = LegacyTriggerJsonBuilder.BuildDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
@@ -84,7 +85,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             ExportLog.Info($"ExportPlanFromFolder: {assetFolder}");
 
-            var outputDir = Path.Combine(Application.dataPath, "Resources", OutputResourcesDir);
+            var outputDir = GetAbilityResourcesDirectory();
             Directory.CreateDirectory(outputDir);
 
             var dto = TriggerPlanExportPipeline.BuildPlanDto(assetFolder, out var moduleCount, out var exportedTriggerCount, out var skippedDisabledCount, out var skippedInvalidIdCount);
@@ -102,6 +103,11 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             AssetDatabase.Refresh();
             ExportLog.Info($"Exported plans to: {outputPath}");
+        }
+
+        private static string GetAbilityResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageAbilityResourcesPath));
         }
 
         internal static string[] FindAbilityModuleGuids(string assetFolder)

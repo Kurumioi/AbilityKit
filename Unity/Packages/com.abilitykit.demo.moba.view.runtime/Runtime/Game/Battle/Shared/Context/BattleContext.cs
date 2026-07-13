@@ -72,6 +72,8 @@ namespace AbilityKit.Game.Flow
             EntityLookup = null;
             EntityFactory = null;
             EntityQuery = null;
+            ViewVfxManager = null;
+            ViewVfxNode = default;
 
             if (destroyCollections)
             {

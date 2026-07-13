@@ -1,18 +1,20 @@
-﻿{
-    "conditions":  [
-
-                   ],
-    "id":  21001,
-    "enabled":  true,
-    "phase":  "immediate",
-    "event":  "",
-    "name":  "Trigger_21001",
-    "allowExternal":  false,
-    "actions":  [
-                    {
-                        "type":  "aoe_burst",
-                        "perTargetTriggerId":  21002
-                    }
-                ],
-    "priority":  50
+{
+    "triggers": [
+        {
+            "id": 21001,
+            "name": "Trigger_21001",
+            "event": "",
+            "enabled": true,
+            "allowExternal": false,
+            "phase": "immediate",
+            "priority": 50,
+            "conditions": [],
+            "actions": [
+                {
+                    "type": "aoe_burst",
+                    "perTargetTriggerId": 21002
+                }
+            ]
+        }
+    ]
 }

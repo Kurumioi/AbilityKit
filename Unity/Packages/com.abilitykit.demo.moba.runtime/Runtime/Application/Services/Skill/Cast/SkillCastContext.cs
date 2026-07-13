@@ -8,7 +8,7 @@ using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    public sealed class SkillCastContext : IMobaActorContextProvider
+    public sealed class SkillCastContext : IMobaActorContextProvider, IMobaCombatContextSource, IMobaCombatExecutionContextProvider, IMobaTriggerLineageContextProvider, IMobaTriggerExecutionSnapshotProvider, IMobaOriginContextProvider, IMobaContextSourceProvider
     {
         public int SkillId;
         public int SkillSlot;
@@ -153,6 +153,61 @@ namespace AbilityKit.Demo.Moba.Services
         {
             actorId = TargetActorId;
             return actorId > 0;
+        }
+
+        public bool TryGetCombatContextSource(out MobaCombatContextSource source)
+        {
+            source = MobaCombatContextBuilder.SkillCast(
+                SkillId,
+                CasterActorId,
+                TargetActorId,
+                SourceContextId,
+                0,
+                in RuntimeHandle);
+            return source.HasExecutionSource;
+        }
+
+        public bool TryGetCombatExecutionContext(out MobaCombatExecutionContext context)
+        {
+            return MobaCombatContextBuilder.TryFromSource(this, out context);
+        }
+
+        public bool TryGetLineageContext(out MobaTriggerLineageContext lineageContext)
+        {
+            lineageContext = default;
+            if (!TryGetCombatContextSource(out var source)) return false;
+
+            lineageContext = source.ToLineageContext();
+            return true;
+        }
+
+        public bool TryGetExecutionSnapshot(out MobaTriggerExecutionSnapshot snapshot)
+        {
+            snapshot = default;
+            if (!TryGetCombatContextSource(out var source)) return false;
+
+            snapshot = source.ToExecutionSnapshot();
+            return snapshot.IsValid;
+        }
+
+        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        {
+            origin = default;
+            if (!TryGetCombatContextSource(out var source)) return false;
+
+            origin = source.ToOrigin();
+            return origin.IsValid;
+        }
+
+        public bool TryGetContextSource(out MobaContextSourceView source)
+        {
+            source = default;
+            if (!TryGetCombatContextSource(out var combatSource)) return false;
+
+            source = combatSource.ToContextSourceView(
+                MobaContextSourceResolveKind.DirectProvider,
+                MobaContextSourceBoundary.LiveRuntime);
+            return source.IsValid;
         }
     }
 

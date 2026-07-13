@@ -34,5 +34,14 @@
     "OnApplyEffectId": 0,
     "OnTickEffectId": 10020311,
     "OnRemoveEffectId": 0
+  },
+  {
+    "Id": 10060000,
+    "Name": "嬴政-王者审判-持续剑意伤害",
+    "DurationMs": 3000,
+    "PeriodMs": 1000,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 10060001,
+    "OnRemoveEffectId": 0
   }
 ]

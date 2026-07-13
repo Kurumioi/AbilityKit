@@ -315,24 +315,27 @@ flowchart TB
 
 当前 `LubanConfigGroupDeserializer` 是 JSON 文本适配器：`DeserializeFromText` 解析 `JArray`，逐行映射到框架 DTO；`DeserializeFromBytes` 会抛出 `NotSupportedException`，因此 `LubanConfigGroup` 路径不要被理解为直接支持 Luban bytes。字节导表仍然走 `MobaConfigDatabase.ReloadFromBytes`、`ReloadFromMixed` 或注入的 `IMobaConfigDtoBytesDeserializer` 路径。
 
-### 6.3 离线导表链路
+### 6.3 权威源、离线生成与发布边界
 
-`LubanConfig/Moba` 下的脚本描述了配置进入运行时资源目录的离线链路：
+生产 MOBA JSON 的唯一权威源是 `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources` 下的 `moba` 与 `ability` 目录。Unity 直接消费 package 资源；Console、纯 .NET 测试、训练器和 ET 示例消费 `src/AbilityKit.Demo.Moba.Console/Configs` 下的发布副本。禁止把 Console 副本或 `Unity/Assets/Resources` 当成生产内容源。
 
 ```mermaid
 flowchart LR
-    Excel["Luban Excel / conf"] --> Script["export_moba_configs.ps1"]
-    Script --> Json["Luban JSON stage"]
-    Script --> Code["C# cfg.Tables code stage"]
-    Json --> UnityRes["Unity Assets/Resources/moba"]
-    Json --> ConsoleCfg["Console Configs/luban"]
+    Excel["Luban Excel / conf"] --> Export["export_moba_configs.ps1"]
+    Export --> Candidate[".generated/json review candidate"]
+    Export --> Code["C# cfg.Tables code stage"]
+    Candidate --> Review["人工/工具审查并合入权威 JSON"]
+    Review --> Package["Package Resources/moba + ability"]
+    Package --> UnityRuntime["Unity Runtime"]
+    Package --> Publish["sync_moba_json_configs.ps1"]
+    Publish --> ConsoleCfg["Console Configs replica"]
+    ConsoleCfg --> DotNetRuntime["Console / tests / training / ET"]
     Code --> LubanGen["Runtime LubanGen"]
-    Runtime["Console/Unity Runtime"] --> UnityRes
-    Runtime --> ConsoleCfg
-    Runtime --> LubanGen
 ```
 
-`export_moba_configs.ps1` 读取 `MiniTemplate/luban.conf`，对 `all` target 运行 Luban JSON 导出和 `cs-newtonsoft-json` 代码生成，然后复制 JSON 到 Unity Resources 与 Console 配置目录，并复制生成代码到 runtime package 的 `LubanGen`。脚本参数里保留了 bytes 输出目录和复制步骤，但当前读到的命令只显式生成 JSON 数据与 C# 代码；是否真正产出 bytes 取决于后续脚本或 Luban 命令扩展。
+`export_moba_configs.ps1` 读取 `MiniTemplate/luban.conf`，对 `all` target 运行 Luban JSON 导出和 `cs-newtonsoft-json` 代码生成。由于当前 `MiniTemplate` 不能覆盖完整生产内容，JSON 只生成到 `.generated/json` 候选区，不直接双写 package 或 Console；评审后的数据必须先进入 package 权威目录。生成的 C# 代码仍复制到 runtime package 的 `LubanGen`。
+
+`tools/sync_moba_json_configs.ps1` 只拥有 `moba` 与 `ability` 两个发布面，默认或 `-Check` 只做语义 JSON 漂移审计，`-DryRun` 展示变更，只有显式 `-Apply` 才发布 package 到 Console。`-DeleteExtra` 也只作用于上述目录，因此不会删除 Console 独有配置。脚本拒绝非 package 权威源以及任何指向 Unity 的副本目标。
 
 Trigger 配置还有两条工具链：`convert_to_source_format.ps1` 把运行时 JSON 转成带 `$schema`、metadata、actions、conditions 的 authoring source 格式；`split_trigger_configs.ps1` 将聚合 Trigger JSON 拆成 `skills`、`buffs`、`passives`、`misc` 等目录下的单文件，并可选择输出 source 格式或运行时格式。
 

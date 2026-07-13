@@ -87,7 +87,7 @@ namespace AbilityKit.Game.Flow
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
-            _aimPreview.Tick(_ctx);
+            _aimPreview.Tick(_ctx, deltaTime);
         }
 
         private void CreateInputController()

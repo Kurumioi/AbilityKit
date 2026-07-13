@@ -48,6 +48,9 @@ namespace AbilityKit.Game.Flow
                 _subscriptions.Add(
                     () => skillAimMapper.SkillAimEnd += _events.OnSkillAimEnd,
                     () => skillAimMapper.SkillAimEnd -= _events.OnSkillAimEnd);
+                _subscriptions.Add(
+                    () => skillAimMapper.SkillAimCancel += _events.OnSkillAimCancel,
+                    () => skillAimMapper.SkillAimCancel -= _events.OnSkillAimCancel);
             }
 
             if (_ui.InputView != null)

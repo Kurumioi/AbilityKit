@@ -12,6 +12,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private const string ReadableFileName = "ability_trigger_plans_readable.json";
         private const string InternalFileName = "ability_trigger_plans.json";
+        private const string PackageAbilityResourcesPath = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability";
 
         /// <summary>
         /// 导出可读格式
@@ -37,7 +38,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         [MenuItem("AbilityKit/Ability/Convert Trigger Plan Format")]
         public static void ConvertFormat()
         {
-            var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+            var outputDir = GetAbilityResourcesDirectory();
             var readablePath = Path.Combine(outputDir, ReadableFileName);
             var internalPath = Path.Combine(outputDir, InternalFileName);
 
@@ -90,7 +91,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void ExportReadableFromInternal()
         {
-            var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+            var outputDir = GetAbilityResourcesDirectory();
             Directory.CreateDirectory(outputDir);
 
             var internalPath = Path.Combine(outputDir, InternalFileName);
@@ -129,7 +130,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void ImportReadableToInternal()
         {
-            var outputDir = Path.Combine(Application.dataPath, "Resources", "ability");
+            var outputDir = GetAbilityResourcesDirectory();
             Directory.CreateDirectory(outputDir);
 
             var readablePath = Path.Combine(outputDir, ReadableFileName);
@@ -164,6 +165,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Debug.LogError($"[ReadableTriggerPlan] Import failed: {ex.Message}");
             }
+        }
+
+        private static string GetAbilityResourcesDirectory()
+        {
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", PackageAbilityResourcesPath));
         }
 
         private static void ConvertInternalToReadable(string internalPath, string readablePath)

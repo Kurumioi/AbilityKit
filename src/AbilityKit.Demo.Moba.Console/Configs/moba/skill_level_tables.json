@@ -975,5 +975,311 @@
                                       ]
                        }
                    ]
+    },
+    {
+        "Id":  10060000,
+        "ParamNames":  [
+                           "stackDamage",
+                           "magicAttackRatio",
+                           "maxStacks",
+                           "stackDurationMs",
+                           "perHitIntervalMs"
+                       ],
+        "Levels":  [
+                       {
+                           "CooldownMs":  0,
+                           "Cost":  0,
+                           "Params":  [
+                                          20,
+                                          0.04,
+                                          10,
+                                          3000,
+                                          1000
+                                      ]
+                       }
+                   ]
+    },
+    {
+        "Id":  10060101,
+        "ParamNames":  [
+                           "firstDamage",
+                           "magicAttackRatio",
+                           "secondDamage",
+                           "secondAttackRatio",
+                           "projectileSpeed",
+                           "projectileDistance",
+                           "projectileLifetimeMs",
+                           "decayFactor"
+                       ],
+        "Levels":  [
+                       {
+                           "CooldownMs":  8000,
+                           "Cost":  60,
+                           "Params":  [
+                                          320,
+                                          0.55,
+                                          200,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  7500,
+                           "Cost":  65,
+                           "Params":  [
+                                          380,
+                                          0.55,
+                                          240,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  7000,
+                           "Cost":  70,
+                           "Params":  [
+                                          440,
+                                          0.55,
+                                          280,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  6500,
+                           "Cost":  75,
+                           "Params":  [
+                                          500,
+                                          0.55,
+                                          320,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  6000,
+                           "Cost":  80,
+                           "Params":  [
+                                          560,
+                                          0.55,
+                                          360,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  5500,
+                           "Cost":  85,
+                           "Params":  [
+                                          620,
+                                          0.55,
+                                          400,
+                                          0.35,
+                                          22,
+                                          18,
+                                          900,
+                                          0.80
+                                      ]
+                       }
+                   ]
+    },
+    {
+        "Id":  10060201,
+        "ParamNames":  [
+                           "shieldValue",
+                           "shieldDurationMs",
+                           "speedBuffValue",
+                           "speedBuffDurationMs",
+                           "radius",
+                           "damage",
+                           "magicAttackRatio"
+                       ],
+        "Levels":  [
+                       {
+                           "CooldownMs":  12000,
+                           "Cost":  80,
+                           "Params":  [
+                                          400,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          250,
+                                          0.45
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  11400,
+                           "Cost":  85,
+                           "Params":  [
+                                          480,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          300,
+                                          0.45
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  10800,
+                           "Cost":  90,
+                           "Params":  [
+                                          560,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          350,
+                                          0.45
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  10200,
+                           "Cost":  95,
+                           "Params":  [
+                                          640,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          400,
+                                          0.45
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  9600,
+                           "Cost":  100,
+                           "Params":  [
+                                          720,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          450,
+                                          0.45
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  9000,
+                           "Cost":  105,
+                           "Params":  [
+                                          800,
+                                          3000,
+                                          2.5,
+                                          2000,
+                                          3.5,
+                                          500,
+                                          0.45
+                                      ]
+                       }
+                   ]
+    },
+    {
+        "Id":  10060301,
+        "ParamNames":  [
+                           "waveCount",
+                           "waveIntervalMs",
+                           "waveDamage",
+                           "magicAttackRatio",
+                           "waveRadius",
+                           "knockbackDurationMs",
+                           "totalChannelMs"
+                       ],
+        "Levels":  [
+                       {
+                           "CooldownMs":  40000,
+                           "Cost":  150,
+                           "Params":  [
+                                          5,
+                                          800,
+                                          130,
+                                          0.20,
+                                          5,
+                                          300,
+                                          5000
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  38000,
+                           "Cost":  160,
+                           "Params":  [
+                                          6,
+                                          800,
+                                          145,
+                                          0.20,
+                                          5,
+                                          300,
+                                          5800
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  36000,
+                           "Cost":  170,
+                           "Params":  [
+                                          7,
+                                          800,
+                                          160,
+                                          0.20,
+                                          5,
+                                          300,
+                                          6600
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  34000,
+                           "Cost":  180,
+                           "Params":  [
+                                          8,
+                                          800,
+                                          175,
+                                          0.20,
+                                          5,
+                                          300,
+                                          7400
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  32000,
+                           "Cost":  190,
+                           "Params":  [
+                                          9,
+                                          800,
+                                          190,
+                                          0.20,
+                                          5,
+                                          300,
+                                          8200
+                                      ]
+                       },
+                       {
+                           "CooldownMs":  30000,
+                           "Cost":  200,
+                           "Params":  [
+                                          10,
+                                          800,
+                                          205,
+                                          0.20,
+                                          5,
+                                          300,
+                                          9000
+                                      ]
+                       }
+                   ]
     }
 ]

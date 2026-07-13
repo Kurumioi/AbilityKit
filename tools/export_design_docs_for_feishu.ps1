@@ -35,6 +35,12 @@ function Get-TitleFromMarkdown([string]$content, [string]$fallback) {
     return [System.IO.Path]::GetFileNameWithoutExtension($fallback)
 }
 
+function Get-FeishuTitle([string]$title) {
+    $normalized = $title.Trim()
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return 'Untitled design document' }
+    return $normalized
+}
+
 function Get-NewLine() {
     return [Environment]::NewLine
 }
@@ -295,6 +301,7 @@ foreach ($file in $files) {
     $slug = ConvertTo-Slug $relative
     $content = Get-Content -Raw -LiteralPath $file.FullName -Encoding UTF8
     $title = Get-TitleFromMarkdown $content $file.Name
+    $feishuTitle = Get-FeishuTitle $title
     $stats = Get-MarkdownStats $content
 
     $mdTarget = Join-Path $markdownOut ($slug + ".md")
@@ -317,7 +324,8 @@ foreach ($file in $files) {
         markdown = $mdRel.Replace('\','/')
         html = $htmlRel.Replace('\','/')
         stats = $stats
-        suggestedFeishuTitle = $title
+        feishuTitle = $feishuTitle
+        suggestedFeishuTitle = $feishuTitle
         feishuNodeToken = $null
         feishuDocumentUrl = $null
     }

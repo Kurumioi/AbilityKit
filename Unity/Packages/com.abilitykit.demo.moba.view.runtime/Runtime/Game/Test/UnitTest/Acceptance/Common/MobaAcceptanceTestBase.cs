@@ -6,6 +6,7 @@ namespace AbilityKit.Game.Test.UnitTest
     public abstract class MobaAcceptanceTestBase
     {
         protected const string ExpectationDirectory = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations";
+        protected const string SkillsPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skills.json";
         protected const string SkillFlowsPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json";
         protected const string SkillTriggerDirectory = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers/skills";
         protected const string ArtifactDirectory = "artifacts/moba-acceptance";

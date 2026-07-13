@@ -54,6 +54,7 @@ namespace AbilityKit.Game.Flow
 
         public void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
         {
+            EnsureSkillButtonCount(_templateBinder.ResolveSkillButtonCount(res, playerId));
             _templateBinder.TryApply(
                 res,
                 playerId,
@@ -182,6 +183,17 @@ namespace AbilityKit.Game.Flow
                 if (appliedSlots != null && appliedSlots.Contains(slot)) continue;
                 _inputUi.SkillViews[i]?.ClearSkillState();
             }
+        }
+
+        private void EnsureSkillButtonCount(int skillButtonCount)
+        {
+            if (skillButtonCount <= 0) return;
+            if (_inputUi != null && _inputUi.SkillButtonCount == skillButtonCount) return;
+            if (_root == null || _hudInput == null) return;
+
+            DestroyInputUi();
+            _inputUi = _uiFactory.Create(_root, _canvas, _cameraTransform, OnInfoClick, skillButtonCount);
+            _inputEvents.Bind(_inputUi);
         }
 
         private void DestroyInputUi()

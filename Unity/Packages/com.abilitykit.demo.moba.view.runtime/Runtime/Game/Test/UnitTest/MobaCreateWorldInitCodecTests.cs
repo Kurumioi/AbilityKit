@@ -1,4 +1,5 @@
 using AbilityKit.Ability.Host;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.MemoryPack;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.CreateWorld;
@@ -54,6 +55,40 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(1, decodedPlayers[0].Level);
             Assert.AreEqual(1, decodedPlayers[0].BasicAttackSkillId);
             CollectionAssert.AreEqual(new[] { 10010101, 10010201, 10010301 }, decodedPlayers[0].SkillIds);
+        }
+
+        [Test]
+        public void ValidateGameStartSpec_RejectsMissingBasicAttackSkillId()
+        {
+            var localPlayerId = new PlayerId("p1");
+            var players = new[]
+            {
+                new MobaPlayerLoadout(
+                    playerId: localPlayerId,
+                    teamId: 1,
+                    heroId: 1001,
+                    attributeTemplateId: 1001,
+                    level: 1,
+                    basicAttackSkillId: 0,
+                    skillIds: new[] { 10010101 },
+                    spawnIndex: 0)
+            };
+            var req = new EnterMobaGameReq(
+                playerId: localPlayerId,
+                matchId: "missing_basic_attack",
+                mapId: 1,
+                randomSeed: 123,
+                tickRate: 30,
+                inputDelayFrames: 0,
+                players: players);
+            var spec = new MobaGameStartSpec(in req);
+
+            var result = MobaGameStartSpecService.ValidateSpec(in spec);
+
+            Assert.IsFalse(result.Succeeded);
+            StringAssert.Contains(
+                nameof(MobaProtocolValidationCode.InvalidBasicAttackSkillId),
+                result.Message);
         }
     }
 }

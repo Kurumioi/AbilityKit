@@ -182,6 +182,74 @@
       ]
     },
     {
+      "name": "moba-content-contracts",
+      "level": "P1",
+      "owner": "MOBA Content Pipeline",
+      "description": "Run MOBA content contracts for package resource ownership, business ID governance, trigger aggregate drift, configured presentation resources, and effective timing validation.",
+      "scope": [
+        "unity-editmode",
+        "moba-content-pipeline",
+        "resource-ownership",
+        "business-id-governance",
+        "config-validation"
+      ],
+      "requiredBefore": [
+        "publish-moba-content",
+        "merge-moba-config-or-resource-changes"
+      ],
+      "failurePolicy": "Block MOBA content publication until resource ownership, business ID governance, aggregate drift, configured resources, and effective timing contracts pass.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": false,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "MOBA business ID governance tests",
+          "kind": "powershell-script",
+          "script": "tools/moba_business_id.tests.ps1"
+        },
+        {
+          "name": "MOBA authoritative business IDs",
+          "kind": "powershell-script",
+          "script": "tools/moba_business_id.ps1",
+          "arguments": [
+            "-Mode",
+            "Validate"
+          ]
+        },
+        {
+          "name": "MOBA package resource ownership",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.BattleTestScriptRunnerEditModeTests.MobaTriggerResources_AreOwnedByViewRuntimePackage"
+        },
+        {
+          "name": "MOBA canonical trigger aggregate",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "MobaTriggerPlanAggregateTests"
+        },
+        {
+          "name": "MOBA configured presentation resources",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaPresentationResourceTests"
+        },
+        {
+          "name": "MOBA effective spawn area timing",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaSpawnAreaEffectiveTimingValidationTests"
+        }
+      ]
+    },
+    {
       "name": "moba-xiaoqiao-unity",
       "level": "P1",
       "owner": "MOBA Runtime/Unity Test",

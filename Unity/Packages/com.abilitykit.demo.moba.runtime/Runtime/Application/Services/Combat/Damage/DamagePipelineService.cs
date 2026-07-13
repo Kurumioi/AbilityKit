@@ -185,7 +185,8 @@ namespace AbilityKit.Demo.Moba.Services
             }
             else if (payload is DamageResult dr2)
             {
-                eventBus.Publish(new EventKey<DamageResult>(eid), in dr2);
+                var typedKey = new EventKey<DamageResult>(eid);
+                eventBus.Publish(typedKey, in dr2);
                 if (publishObject)
                 {
                     object boxed = dr2;

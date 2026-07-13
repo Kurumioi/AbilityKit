@@ -47,8 +47,8 @@ namespace AbilityKit.Game.Battle.Vfx
 
         private static bool IsProjectileFallback(int vfxId)
         {
-            return (vfxId >= BattleViewPlaceholderIds.ProjectileVfx && vfxId <= BattleViewPlaceholderIds.ProjectileExpireVfx)
-                || vfxId == BattleViewPlaceholderIds.XiaoQiaoSkill1FanVfx;
+            return vfxId >= BattleViewPlaceholderIds.ProjectileVfx
+                && vfxId <= BattleViewPlaceholderIds.ProjectileExpireVfx;
         }
     }
 

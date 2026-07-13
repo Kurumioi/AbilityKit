@@ -1,0 +1,28 @@
+{
+  "triggers": [
+    {
+      "id": 10050201,
+      "name": "妲己-偶像魅力-生成魅惑区域",
+      "event": "",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "spawn_area",
+          "area_id": 40050201,
+          "position_mode": 2,
+          "radius": 3.0,
+          "duration_ms": 600
+        },
+        {
+          "type": "debug_log",
+          "message": "妲己二技能偶像魅力：在目标点生成魅惑区域",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

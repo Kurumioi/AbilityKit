@@ -65,5 +65,27 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.Warnings, Has.Some.Matches<ValidationIssue>(issue => issue.Code == ValidationErrorCodes.EMPTY_EXECUTION_NODE));
         }
+        [Test]
+        public void LoadFromJson_AcceptsSourceTriggerArrayRoot()
+        {
+            var actionId = StableStringId.Get("test:array_source_root:debug");
+            var json = $@"
+[
+  {{
+    ""id"": 4201,
+    ""event"": ""test:array_source_root:event"",
+    ""enabled"": true,
+    ""actions"": [
+      {{ ""type"": ""debug_log"", ""id"": {actionId} }}
+    ]
+  }}
+]";
+            var database = new ValidatingTriggerPlanJsonDatabase();
+
+            database.LoadFromJson(json, "array-source-root-test");
+
+            Assert.That(database.InnerDatabase.TryGetPlanByTriggerId(4201, out var plan), Is.True);
+            Assert.That(plan.Actions, Has.Length.EqualTo(1));
+        }
     }
 }
