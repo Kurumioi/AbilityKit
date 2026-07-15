@@ -53,7 +53,7 @@ namespace AbilityKit.Game.Flow
             return _templates.TryResolve(skillId, out skill, out template, out spec);
         }
 
-        private static bool TryResolveSkillId(in MobaPlayerLoadout loadout, int slot, out int skillId)
+        public static bool TryResolveSkillId(in MobaPlayerLoadout loadout, int slot, out int skillId)
         {
             skillId = 0;
             if (slot <= 0) return false;

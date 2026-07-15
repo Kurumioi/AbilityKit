@@ -36,10 +36,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 {
                     var targetActorId = targets[i];
                     if (targetActorId <= 0) continue;
-                    removed += buffs.RemoveBuffsImmediate(targetActorId, args.BuffId, sourceActorId, args.RemoveAll, args.Reason);
+                    removed += args.RemoveSlow
+                        ? buffs.RemoveBuffsWithTagImmediate(targetActorId, "Debuff.Slow", sourceActorId, args.RemoveAll, args.Reason)
+                        : buffs.RemoveBuffsImmediate(targetActorId, args.BuffId, sourceActorId, args.RemoveAll, args.Reason);
                 }
 
-                LogApplied($"buffId={args.BuffId} source={sourceActorId} targets={targets.Count} removed={removed} reason={args.Reason}");
+                LogApplied($"buffId={args.BuffId} removeSlow={args.RemoveSlow} source={sourceActorId} targets={targets.Count} removed={removed} reason={args.Reason}");
             }
             finally
             {

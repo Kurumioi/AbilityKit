@@ -55,5 +55,6 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int RemoveArea = 32;
 
         public const int PlayPresentation = 40;
+        public const int Emit = 40;
     }
 }

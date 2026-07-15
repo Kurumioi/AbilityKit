@@ -126,7 +126,17 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         {
             if (directionMode == 0)
             {
-                return TryGetAimDirection(out var aimDirection) ? aimDirection : Vec3.Zero;
+                if (TryGetAimDirection(out var aimDirection))
+                {
+                    return aimDirection;
+                }
+
+                if (TryGetPlanarDeltaToAimPosition(selfActorId, out var aimDelta))
+                {
+                    return aimDelta.Normalized;
+                }
+
+                return Vec3.Zero;
             }
 
             if (directionMode == 1)

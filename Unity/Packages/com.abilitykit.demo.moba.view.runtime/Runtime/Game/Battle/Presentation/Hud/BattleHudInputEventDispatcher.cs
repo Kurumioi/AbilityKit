@@ -70,7 +70,7 @@ namespace AbilityKit.Game.Flow
         private Vector2 ResolveWorldAim(int slot, Vector2 aim)
         {
             if (_skillSpecs == null || !_skillSpecs.TryGetValue(slot, out var spec)) return aim;
-            if (spec.PreviewShape != BattleHudSkillPreviewShape.TargetCircle) return aim;
+            if (!spec.UsesTargetPoint) return aim;
 
             var range = Mathf.Max(0f, spec.Range);
             if (range <= 0f) return aim;

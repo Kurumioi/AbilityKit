@@ -26,6 +26,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleHudFeatureControllerFactory _controllers = new BattleHudFeatureControllerFactory();
 
         private BattleHudAimPreview _aimPreview;
+        private readonly BattleHudSkillTemplateBindingState _skillTemplateBinding = new BattleHudSkillTemplateBindingState();
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -67,6 +68,7 @@ namespace AbilityKit.Game.Flow
 
             _aimPreview?.Clear();
             _aimPreview = null;
+            _skillTemplateBinding.Reset();
 
             _canvasController?.Dispose();
             _canvasController = null;
@@ -84,6 +86,7 @@ namespace AbilityKit.Game.Flow
             if (_binder == null) return;
 
             EnsureSnapshotSubscription();
+            EnsureLocalControlSkillTemplates();
             _binder.Tick(deltaTime);
             _aimPreview ??= _controllers.CreateAimPreview();
             _aimPreview.SetSkillSpecs(_inputController?.SkillSpecs);
@@ -107,6 +110,14 @@ namespace AbilityKit.Game.Flow
             ApplyLaunchSpecSkillTemplates();
         }
 
+        private void EnsureLocalControlSkillTemplates()
+        {
+            if (_skillTemplateBinding.RequiresBinding(ResolveLocalPlayerId()))
+            {
+                ApplyLaunchSpecSkillTemplates();
+            }
+        }
+
         private void ApplyLaunchSpecSkillTemplates()
         {
             if (_ctx == null) return;
@@ -127,8 +138,7 @@ namespace AbilityKit.Game.Flow
                 launchSpec.InputDelayFrames,
                 playersLoadout: launchSpec.Players);
 
-            _inputController?.ApplySkillButtonTemplates(res, playerId);
-            _aimPreview?.SetSkillSpecs(_inputController?.SkillSpecs);
+            ApplySkillButtonTemplates(res, playerId);
         }
 
         private void SubscribeEntityLifecycle()
@@ -158,8 +168,27 @@ namespace AbilityKit.Game.Flow
                 _ctx.LocalActorId = res.LocalActorId;
             }
 
-            _inputController?.ApplySkillButtonTemplates(res, ResolveLocalPlayerId(res));
-            _aimPreview?.SetSkillSpecs(_inputController?.SkillSpecs);
+            var controlledPlayerId = _ctx.LocalControlPlayerId;
+            if (!string.IsNullOrEmpty(controlledPlayerId) &&
+                !string.Equals(controlledPlayerId, res.PlayerId.Value, System.StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyLaunchSpecSkillTemplates();
+                return;
+            }
+
+            ApplySkillButtonTemplates(res, ResolveLocalPlayerId(res));
+        }
+
+        private void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
+        {
+            if (_inputController == null ||
+                !_inputController.ApplySkillButtonTemplates(res, playerId))
+            {
+                return;
+            }
+
+            _skillTemplateBinding.MarkBound(playerId);
+            _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
         private void OnDamageEventSnapshot(MobaDamageEventSnapshotEntry[] entries)
@@ -198,6 +227,27 @@ namespace AbilityKit.Game.Flow
                 : 0;
         }
 
+    }
+
+    internal sealed class BattleHudSkillTemplateBindingState
+    {
+        private string _playerId;
+
+        public bool RequiresBinding(string playerId)
+        {
+            return !string.IsNullOrEmpty(playerId) &&
+                   !string.Equals(playerId, _playerId, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        public void MarkBound(string playerId)
+        {
+            _playerId = playerId;
+        }
+
+        public void Reset()
+        {
+            _playerId = null;
+        }
     }
 
     internal sealed class BattleHudFeatureControllerFactory

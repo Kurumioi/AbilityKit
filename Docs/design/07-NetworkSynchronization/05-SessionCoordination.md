@@ -56,7 +56,10 @@ AbilityKit 把这些职责拆成几层：
 |------|------|------|
 | 会话协调器 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs` | 生命周期、world 创建、adapter attach、Tick |
 | 已有 world host | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/ExistingWorldSessionCoordinatorHost.cs` | 把已有 `IWorld` 包装成 coordinator host |
+| 同步 adapter 工厂 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/SyncAdapterFactory.cs` | 按有效同步模式选择 Local、Remote 或 Hybrid adapter |
+| 本地同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/LocalSyncAdapter.cs` | 本地输入缓冲、逻辑帧推进和 driver bridge |
 | 远端同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs` | 连接 transport、提交输入、接收服务器快照 |
+| 混合同步 adapter | `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/HybridSyncAdapter.cs` | 已有 transport/bookkeeping；通用预测校正仍未闭环 |
 | 远端 transport 端口 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Transport/IRemoteBattleSyncTransport.cs` | 环境提供 Gateway/Socket/测试替身 |
 | Gateway flow | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs` | create/join/ready/start/subscribe/restore 编排 |
 | 帧包适配 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
@@ -280,6 +283,53 @@ flowchart LR
     Transport --> Gateway[Gateway or Socket]
     Gateway --> Battle[BattleLogicHostGrain.SubmitInputAsync]
 ```
+
+### 5.4 Local、Remote 与 Hybrid 成熟度矩阵
+
+`DefaultSyncAdapterFactory` 当前把 `Lockstep` 映射到 `LocalSyncAdapter`，把 `SnapshotAuthority` 和 `StateSync` 映射到 `RemoteSyncAdapter`，把 `Hybrid` 映射到 `HybridSyncAdapter`。这个映射证明实例化入口存在，不等同于每种同步模式的全部语义均已闭环。
+
+| Adapter | 当前已实现能力 | 尚未覆盖或限制 | 当前成熟度判断 |
+|---------|----------------|----------------|----------------|
+| `LocalSyncAdapter` | 本地输入缓冲；按 tick rate 推进；通过 `ILogicWorldDriverBridge` 提交输入、启动和推进 world；支持 drive gate；输出帧事件 | 自身不提供跨端输入交换、确定性校验或远端确认；无 driver 时只推进内部帧号和时间，实体状态为空 | 本地/离线装配为 Pilot；不能仅凭类型名声明通用多人锁步已闭环 |
+| `RemoteSyncAdapter` | 解析并绑定 transport；连接/断开；已连接时提交输入；接收权威快照；转发连接、快照和帧事件；无 driver 时保留最后快照 | 不承担客户端预测、回滚或插值；缺少 transport 时退化为永不连接的 Null transport | 远端权威 adapter 契约已实现；生产成熟度仍取决于具体 transport、场景测试和恢复门禁 |
+| `HybridSyncAdapter` | transport 绑定；输入缓冲与服务端提交；预测开关和预测帧 bookkeeping；接收确认/快照；保存 confirmed snapshot；触发 reconciliation 状态和事件 | 未把输入应用到预测状态；未执行通用本地预测模拟；未比较预测与权威状态；未实施校正和 replay；无 driver 时不返回预测快照 | transport/bookkeeping 可作为 Pilot 子能力；通用预测、对账、校正与重演仍是 Experimental |
+
+Hybrid 当前流程的真实边界如下：
+
+```mermaid
+flowchart LR
+    Input[SubmitInput] --> Queue[输入入队]
+    Queue --> Counter[预测帧计数加一]
+    Queue --> Transport[发送到服务端]
+    Transport --> Confirm[收到确认或快照]
+    Confirm --> Store[保存 confirmed snapshot]
+    Store --> Mark[标记需要 reconciliation]
+    Mark --> Stub[Reconcile bookkeeping]
+    Stub -. 未实现 .-> Sim[本地预测模拟]
+    Stub -. 未实现 .-> Compare[预测与权威比较]
+    Stub -. 未实现 .-> Replay[校正并重演未确认输入]
+```
+
+因此文档、PPT 和选型材料应使用以下措辞：
+
+- 可以说“Hybrid adapter 已有 transport 接入、输入缓冲、确认状态和 reconciliation 骨架”。
+- 不应说“框架已提供完整通用客户端预测和自动回滚校正”。
+- 项目若已经通过 Shooter 或 MOBA 专用控制器实现预测，只能声明该项目路径已验证，不能反推通用 `HybridSyncAdapter` 已完成。
+- Hybrid 晋升 Pilot/Supported 前，需要补预测状态接口、确定性 replay、误差阈值、输入确认清理、恢复测试和断线重连场景。
+
+成熟度采用公司治理定义，详见[公司级采用与模块治理规范](../10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md)。
+
+### 5.5 模式选型速查
+
+| 场景 | 建议起点 | 采用前必须确认 |
+|------|----------|----------------|
+| 单机、离线验证、同进程逻辑 | Local | driver 是否由 adapter 或 coordinator 驱动；是否会发生双 Tick |
+| 客户端只消费服务器权威状态 | Remote | transport 注入、订阅恢复、world drive gate、快照基线和断线策略 |
+| 项目已有专用预测控制器 | Remote + 项目预测层 | 预测状态不归通用 adapter；确认源、校正和 replay 由项目契约覆盖 |
+| 希望直接使用通用 Hybrid 预测 | 暂不作为生产默认选型 | 5.4 列出的预测模拟、比较、校正、重演和恢复缺口必须先闭合 |
+| 多人确定性锁步 | 不能仅凭 Local 选定 | 还需跨端输入交换、帧确认、确定性 hash、迟到输入和重连协议 |
+
+选型评审应先确认权威源、谁驱动 world、输入如何确认、状态如何恢复，再选择 adapter。`SyncAdapterFactory` 的枚举映射只是装配结果，不是同步方案设计的替代品。
 
 ---
 
@@ -743,6 +793,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 
 | 风险 | 表现 | 检查点 |
 |------|------|--------|
+| 把 adapter 类型存在当作模式完备 | Hybrid 被宣传为已完成预测、校正和重演 | 对照 5.4 成熟度矩阵与源码 TODO，按子能力声明 |
 | 业务绕过 Coordinator | 输入直接打 Gateway，回放/本地/测试路径不一致 | 所有本地输入先进入 `SubmitLocalInput` |
 | transport 未注入 | Remote 模式启动但永远 disconnected | world services 是否能解析 `IRemoteBattleSyncTransport` |
 | 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 使用 `ExistingWorldSessionCoordinatorHost` |
@@ -757,13 +808,16 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 ## 13. 源码阅读路径
 
 1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core/SessionCoordinator.cs`：客户端会话生命周期。
-2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs`：远端输入和快照端口。
-3. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs`：create/join/ready/start/restore 编排。
-4. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
-5. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
-6. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：端侧输入和快照如何落到 world。
-7. `Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`：全局同步架构中的模块关系。
+2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/SyncAdapterFactory.cs`：同步模式到 adapter 的实例化映射。
+3. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/LocalSyncAdapter.cs`：本地输入和逻辑帧驱动。
+4. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/RemoteSyncAdapter.cs`：远端输入和权威快照端口。
+5. `Unity/Packages/com.abilitykit.coordinator/Runtime/Adapters/HybridSyncAdapter.cs`：混合模式已实现边界与预测 TODO。
+6. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/RoomGatewaySessionFlow.cs`：create/join/ready/start/restore 编排。
+7. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
+8. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
+9. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：端侧输入和快照如何落到 world。
+10. `Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`：全局同步架构中的模块关系。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-04*
+*文档版本：v2.1 | 最后更新：2026-07-14*

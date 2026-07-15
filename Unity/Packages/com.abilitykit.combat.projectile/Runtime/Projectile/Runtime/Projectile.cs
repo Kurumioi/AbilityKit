@@ -19,6 +19,7 @@ namespace AbilityKit.Combat.Projectile
         public Vec3 Position;
         public Vec3 Direction;
         public float Speed;
+        public int TrackingTargetActorId;
 
         public int ReturnAfterFrames;
         public float ReturnSpeed;
@@ -70,6 +71,7 @@ namespace AbilityKit.Combat.Projectile
             Position = Vec3.Zero;
             Direction = Vec3.Zero;
             Speed = 0f;
+            TrackingTargetActorId = 0;
             ReturnAfterFrames = 0;
             ReturnSpeed = 0f;
             ReturnStopDistance = 0f;

@@ -1,101 +1,136 @@
-# Docs/design 飞书同步工具
+# Docs/design 飞书一键同步工具
 
-本工具链用于把 `Docs/design` 下的 Markdown 设计文档预处理成飞书导入友好的结构，并通过一键发布脚本批量写入飞书。日常维护仍以 `Docs/design` 为唯一源；脚本会记录每篇导出 Markdown 的 SHA-256 摘要，用于区分新增、未变、已变和本地删除的文档。
+本工具链以 `Docs/design` 为唯一文档源，一次执行完成 Mermaid 校验、飞书友好格式导出、内容摘要比对和增量发布。默认通过用户 OAuth 以浏览器中登录的个人身份写入个人云空间，应用只承担 OAuth 客户端角色。
 
-## 1. 推荐流程
+## 1. 最少配置
 
-第一次直接运行同步脚本的 dry-run：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -DryRun
-```
-
-脚本会自动完成这些准备动作：
-
-- 如果 `tools/feishu-design-sync.local.json` 不存在，会从 `tools/feishu-design-sync.template.json` 复制一份本地配置。
-- 如果 `artifacts/feishu-design-export/manifest.json` 不存在，会先扫描 `Docs/design` 并生成离线导出包。
-- 默认只在终端输出摘要，完整文档列表及 `create`、`skip-unchanged`、`changed-needs-update`、`local-deleted` 分类写入 `artifacts/feishu-design-export/feishu-sync-plan.md`。
-- 配置里仍是占位值时会强制 dry-run，不会调用飞书 API。
-- 状态写入 `artifacts/feishu-design-export/feishu-sync-state.local.json`，且该文件受忽略规则保护。
-
-终端摘要类似：
-
-```text
-Feishu design sync
-Documents: 75, CodeBlocks: 618, Mermaid: 474, TableRows: 3854
-DryRun: True
-Sync plan: artifacts/feishu-design-export/feishu-sync-plan.md
-```
-
-需要在终端打印每篇文档时追加 `-ListDocuments`：
+首次执行安全预览：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -DryRun -ListDocuments
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -Preview
 ```
 
-## 2. 填写飞书配置
-
-编辑本地配置：
+脚本会自动从 `tools/feishu-design-sync.template.json` 创建被 Git 忽略的本地配置：
 
 ```text
 tools/feishu-design-sync.local.json
 ```
 
-最少需要填写：
+只需填写 OAuth 应用凭据和个人云空间目标文件夹：
 
 ```json
 {
+  "authMode": "user-oauth",
   "appId": "cli_xxxxxxxxxxxxxxxx",
   "appSecret": "your-app-secret",
   "target": {
-    "rootType": "folder",
-    "rootToken": "your-writable-folder-or-node-token"
-  }
+    "rootToken": "your-personal-folder-token"
+  },
+  "changedDocumentMode": "versioned-reimport"
 }
 ```
 
-`tools/feishu-design-sync.local.json` 已被 `.gitignore` 忽略，不要提交真实 `appSecret` 和可写根节点 token。
-
-飞书开放平台应用需要具备云文档/云空间相关读写权限，并确保目标目录或知识库节点对该应用可写。当前脚本默认走飞书云文档导入任务路线：先上传离线 Markdown，再创建导入任务，让飞书侧转换为文档，这比手工拼装 docx block 更适合保留代码块、表格和大批量文档。
-
-## 3. 执行首次真实发布
-
-配置确认无误后执行：
+`rootToken` 是个人云空间文件夹 URL 中 `/folder/` 后面的部分，不是完整 URL。也可以不把凭据写入文件，改用环境变量：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -RegenerateExport -Force
+$env:FEISHU_APP_ID = "cli_xxxxxxxxxxxxxxxx"
+$env:FEISHU_APP_SECRET = "your-app-secret"
+$env:FEISHU_ROOT_TOKEN = "your-writable-feishu-folder-token"
 ```
 
-`-RegenerateExport` 会在发布前重新扫描 `Docs/design` 并刷新离线导出包。未传 `-Force` 时脚本永远按 dry-run 执行；配置仍包含占位值时，即使传了 `-Force` 也会强制 dry-run。首次发布时，所有文档均为 `create`，脚本会为每篇文档创建一次飞书导入任务，并保存远端 token、URL、导入 ticket 和内容摘要。
+环境变量优先于本地配置。`tools/feishu-design-sync.local.json` 已被 `.gitignore` 忽略，不要提交真实密钥或目录 token。
 
-## 4. 后续发布与更新边界
+在飞书开放平台为该应用开通用户身份权限 `drive:drive`（云空间）、`docs:document.media:upload`（上传素材或文件）和 `docx:document`（读取与编辑文档块），并开通导入任务接口要求的文档导入权限。`docx:document` 用于在 Markdown 导入完成后，把 Mermaid 占位段落替换为图片块。错误码 `99991679` 表示当前用户令牌缺少接口权限；错误码 `1061004` 表示当前调用身份对请求中的目标资源没有编辑权限。后台新增权限并发布配置后，必须使用 `-Login` 重新授权，旧令牌不会自动继承新增权限。
 
-后续执行同一条命令时，脚本会先比对本地摘要：
+导入源上传遵循飞书 `ccm_import_open` 协议：不发送 `parent_node`，并通过 `extra` 声明目标文档类型和源文件扩展名。目标文件夹 token 仅用于后续导入任务的 `mount_key`。
 
-| 同步计划动作 | 含义 | 脚本行为 |
+把以下地址登记为 OAuth 重定向 URL：
+
+```text
+http://127.0.0.1:8765/feishu/oauth/callback
+```
+
+应用不需要公开上架，但 OAuth 应用配置和用户身份权限必须在当前可用版本中生效。实际文件访问权限来自浏览器中完成授权的个人账号，因此目标文件夹应位于该账号自己的云空间中。
+
+## 2. 一键同步
+
+配置完成后，无参数执行即可同步：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1
+```
+
+Windows 下也可以直接运行：
+
+```text
+tools\sync_design_docs_to_feishu.cmd
+```
+
+首次正式运行会打开默认浏览器。使用目标个人飞书账号登录并同意 `drive:drive`、`docs:document.media:upload` 和 `docx:document` 授权后，浏览器会回调本机端口，脚本保存用户访问令牌和刷新令牌并继续上传。后续运行会复用或自动刷新令牌；若缓存缺少当前所需权限，脚本会自动要求重新登录授权。
+
+每次执行会自动完成：
+
+1. 检查 Mermaid 校验依赖，首次缺失时安装到被忽略的 `artifacts/mermaid-validation`。
+2. 使用 Mermaid 官方解析器校验 `Docs/design` 下的全部图表，坏图会阻断发布并生成报告。
+3. 重新生成 `artifacts/feishu-design-export`，把 Mermaid 源码替换为稳定占位符并提取独立 `.mmd` 资产。
+4. 根据导出 Markdown 的 SHA-256 摘要生成增量计划。
+5. 创建新增文档、跳过未变文档，并按配置处理已变文档。
+6. 导入成功后用 Mermaid 官方 CLI 渲染 PNG，通过 Docx Block API 把占位段落替换为飞书图片块；最终页面不显示 Mermaid 源码或辅助说明。
+7. 每创建一个导入任务和每完成一篇文档都立即更新本地检查点，异常退出后可继续轮询既有 ticket，不重复创建页面。
+
+凭据未配置完整时，脚本会自动退化为预览，不会打开登录页面或调用飞书写接口。
+
+## 3. 安全预览
+
+只生成完整计划、不写飞书也不改同步状态：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -Preview
+```
+
+需要同时在终端列出每篇文档时：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -Preview -ListDocuments
+```
+
+计划输出到：
+
+```text
+artifacts/feishu-design-export/feishu-sync-plan.md
+```
+
+## 4. 增量策略
+
+| 动作 | 含义 | 默认行为 |
 |------|------|----------|
-| `create` | 本地文档从未发布过 | `-Force` 时创建飞书文档 |
-| `skip-unchanged` | 内容未变化 | 不调用飞书 API |
-| `changed-needs-update` | 已发布文档内容变化 | 默认失败退出，避免导入 API 重新创建重复页面 |
-| `local-deleted` | 状态中存在但本地文档已删除 | 只在计划中标记，不删除远端页面 |
+| `create` | 本地文档从未发布 | 创建飞书文档并保存 token、URL 和摘要 |
+| `skip-unchanged` | 导出内容摘要未变化 | 不调用飞书 API |
+| `duplicate-reimport` | 已发布文档内容变化 | 创建替代页面并更新本地源文件到新页面的映射 |
+| `local-deleted` | 状态中存在但本地源已删除 | 只写入计划，不自动删除远端页面 |
 
-当前飞书导入任务 API 只负责“文件导入并创建文档”，不能凭已有 document token 原位覆盖正文。因此现有脚本已经具备可靠的首次批量发布、未变跳过和变更拦截能力，但**尚未实现真正的原位更新**。要完成真正的一键同步，需要新增基于飞书 Docx Block API 的 Markdown 到 Block 转换、替换正文、标题更新以及删除策略。
+默认 `changedDocumentMode` 为 `versioned-reimport`。飞书导入任务 API 只能创建文档，不能凭已有 document token 原位覆盖正文，因此已变文档的 URL 可能变化。工具会把新 token 和 URL 写回本地状态，但不会自动删除旧页面。导入任务超时或进程中断时，本地检查点保留 ticket；下次执行先恢复轮询该任务，不会再次上传并创建同一页面。
 
-仅在已人工确认允许创建新版本页面时，可显式使用以下参数：
+飞书公开 API 没有把 Mermaid 节点和连线写入可编辑“画板/绘图”组件的接口。本工具采用飞书原生图片块作为可自动化实现：页面只展示渲染后的流程图，不展示 Mermaid 源码，但图片内部元素不能在飞书中逐个编辑。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -RegenerateExport -Force -AllowDuplicateReimport
-```
+若团队要求 URL 永久稳定，需要后续实现基于飞书 Docx Block API 的正文替换与标题更新；这与当前基于 Markdown 导入任务的一键版本化同步是两种更新模型。
 
-该命令会为 `changed-needs-update` 文档创建新的飞书页面，并更新本地状态到新页面；它不是远端原位更新。
+## 5. 常用参数
 
-## 5. 单独生成离线导出包
+| 参数 | 用途 |
+|------|------|
+| `-Preview` | 校验、导出并生成计划，但不调用飞书写接口、不更新同步状态。旧参数 `-DryRun` 仍作为别名兼容。 |
+| `-ListDocuments` | 在终端打印每篇文档及其计划动作。 |
+| `-ConfigPath` | 指定另一份本地配置。 |
+| `-ExportDir` | 临时覆盖导出目录。 |
+| `-SkipMermaidValidation` | 跳过 Mermaid 校验，仅用于已由上游门禁完成校验的场景。 |
+| `-SkipExport` | 复用已有导出包；若清单不存在则失败。 |
+| `-AllowDuplicateReimport` | 兼容旧调用，显式允许已变文档执行版本化重导入。 |
+| `-Login` | 忽略已有用户令牌缓存，强制重新打开浏览器授权。 |
 
-如果只想刷新离线包，不调用同步逻辑，可以单独运行：
+`-RegenerateExport` 和 `-Force` 为旧命令兼容参数。当前默认行为已经是自动刷新导出；凭据完整且未传 `-Preview` 时即执行真实同步。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/export_design_docs_for_feishu.ps1 -Clean
-```
+## 6. 输出与状态
 
 默认输出结构：
 
@@ -104,54 +139,39 @@ artifacts/feishu-design-export/
   README.md
   manifest.json
   manifest.md
+  feishu-sync-plan.md
+  feishu-sync-state.local.json
   markdown/
+  mermaid/
+  feishu-user-token.local.json
   html/
 ```
 
-- `markdown/`：飞书导入友好的 Markdown。每篇文档前会写入 source/title 元信息；Mermaid 代码块前会增加绘图小组件提示。
-- `html/`：静态 HTML 预览。保留标题、段落、列表、表格、代码块和 Mermaid 源码块。
-- `manifest.json`：机器可读同步清单。一键同步脚本以 `source` 作为稳定主键，以 `feishuTitle` 作为远端中文显示名。
-- `manifest.md`：人工审阅清单，包含标题、源路径、输出路径、代码块数量、Mermaid 数量和表格行数量。
+- `markdown/`：飞书导入友好的 Markdown；Mermaid 源码已替换为图片占位符。
+- `mermaid/`：提取的 `.mmd` 源码和同步时按需生成的 PNG。
+- `html/`：用于人工检查的静态预览。
+- `manifest.json`：以 `source` 为稳定主键的机器可读清单。
+- `manifest.md`：文档标题、顺序和结构统计。
+- `feishu-sync-plan.md`：本次增量动作和远端映射。
+- `feishu-sync-state.local.json`：逐文档检查点，保存内容摘要、远端 token、URL、时间和导入 ticket；重新导出不会删除此文件。
+- `feishu-user-token.local.json`：个人 OAuth 访问令牌与刷新令牌，仅保存在被 Git 忽略的本地输出目录。
 
-## 6. 参数说明
+预览模式不会发起 OAuth 登录，也不会写 `feishu-sync-state.local.json`，避免预览后把未发布内容错误标记为已同步。
 
-| 参数 | 用途 |
-|------|------|
-| `-RegenerateExport` | 同步前重新扫描 `Docs/design` 并刷新离线导出包。 |
-| `-DryRun` | 只生成同步计划，不调用飞书 API。 |
-| `-Force` | 允许真实调用飞书 API；未传此参数时脚本默认 dry-run。 |
-| `-ListDocuments` | 在终端打印每篇文档及其同步计划动作；默认只输出摘要。 |
-| `-AllowDuplicateReimport` | 允许将已变文档重新导入为新飞书页面；仅用于人工确认的版本化发布。 |
-| `-ExportDir` | 覆盖配置中的导出包目录。 |
-| `-ConfigPath` | 指定本地配置文件。 |
+## 7. 高级默认值
 
-脚本会生成：
+模板只暴露日常需要配置的字段。以下值由脚本提供默认值，通常无需写入本地配置：
 
-```text
-artifacts/feishu-design-export/feishu-sync-plan.md
-artifacts/feishu-design-export/feishu-sync-state.local.json
-```
+- 认证模式：`user-oauth`
+- OAuth 回调：`http://127.0.0.1:8765/feishu/oauth/callback`
+- 用户令牌缓存：`artifacts/feishu-design-export/feishu-user-token.local.json`
+- 源目录：`Docs/design`
+- 导出目录：`artifacts/feishu-design-export`
+- 飞书 API：`https://open.feishu.cn/open-apis`
+- 目标挂载类型：文件夹 `1`
+- 导入格式：Markdown 到 Docx
+- 请求超时：120 秒
+- 导入轮询：每 3 秒一次，最长 180 秒；超时后保留 ticket 供下次恢复
+- Mermaid 展示：官方 CLI 渲染 PNG，导入后替换为飞书图片块
 
-`feishu-sync-plan.md` 用于检查本次准备同步的文档列表；`feishu-sync-state.local.json` 用于记录远端 token、URL、同步时间和导入任务 ticket。
-
-## 7. 清单字段约定
-
-`manifest.json` 预留以下字段：
-
-| 字段 | 用途 |
-|------|------|
-| `source` | 本地 Markdown 源文件路径，作为稳定同步主键。 |
-| `slug` | 仅用于稳定的本地导出路径，不作为飞书文档显示名。 |
-| `feishuTitle` | 从 Markdown 一级标题提取的飞书中文显示名，同时用于上传文件名和导入任务名称。 |
-| `markdown` | 离线 Markdown 输出路径。 |
-| `html` | 离线 HTML 输出路径。 |
-| `stats` | 文档结构统计，用于发现代码块、表格和 Mermaid 风险。 |
-| `feishuNodeToken` | API 发布后记录远端知识库节点或文档 token。 |
-| `feishuDocumentUrl` | API 发布后记录可读写飞书文档地址。 |
-| `contentSha256` | 已发布 Markdown 内容摘要，用于增量计划和未变跳过。 |
-| `syncedAt` | 上一次成功创建或版本化重导入的时间。 |
-| `lastImportTicket` | 飞书导入任务 ticket，用于审计和故障排查。 |
-
-首次运行会创建飞书文档并写入本地同步状态；后续运行以 `source` 关联状态并以 `contentSha256` 生成增量计划。英文目录名和 Markdown 文件名可以继续保持稳定，不会影响飞书页面名称。需要调整某篇飞书文档名称时，修改该文档的一级标题即可；AbilityKit、MOBA、ECS 等技术专名可以保留，标题的说明部分使用中文。
-
-真实飞书接口字段如有租户差异，优先调整 `tools/feishu-design-sync.local.json` 中的 `endpointPaths`，避免改动源文档结构。
+租户接口路径确有差异时，仍可在本地配置中增加 `apiBaseUrl`、`sourceDir`、`exportDir`、`syncStatePath`、`oauth`、超时字段，以及 `import.endpointPaths` 覆盖默认值。旧的企业应用身份模式仍可通过 `"authMode": "tenant-app"` 启用。

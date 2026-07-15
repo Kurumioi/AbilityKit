@@ -342,6 +342,18 @@ namespace AbilityKit.Game.Test.UnitTest
             return skills.TryGetRunningBySlot(actorId, slot, out snapshot);
         }
 
+        public void TickUntilSkillStops(int actorId, int slot, int maxTicks, string message = null)
+        {
+            Assert.Greater(maxTicks, 0, message ?? "maxTicks must be positive.");
+            for (var i = 0; i < maxTicks; i++)
+            {
+                if (!TryGetRunningSkillSnapshot(actorId, slot, out _)) return;
+                Tick(1);
+            }
+
+            Assert.Fail((message ?? "Skill pipeline did not stop within the expected test window.") + " " + DescribeSkillRuntimeState(actorId, slot));
+        }
+
         public string DescribeSkillRuntimeState(int actorId, int slot)
         {
             var frame = FrameTime;
@@ -769,6 +781,21 @@ namespace AbilityKit.Game.Test.UnitTest
             return TickUntilTraceNode(MobaTraceKind.EffectExecution, effectId, maxExtraFrames, $"EffectExecution trace missing for effect {effectId} after casting skill {skillId} slot {slot} within accelerated {effectTimeMs} ms plus {maxExtraFrames} fallback ticks; fixed-frame equivalent timeout was {maxTicks} ticks.");
         }
 
+        public long CaptureTraceBaseline()
+        {
+            var latestContextId = 0L;
+            foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
+            {
+                if (kind == MobaTraceKind.None) continue;
+                foreach (var node in Trace.GetNodesByKind((int)kind))
+                {
+                    if (node.ContextId > latestContextId) latestContextId = node.ContextId;
+                }
+            }
+
+            return latestContextId;
+        }
+
         public TraceSnapshot<MobaTraceMetadata> TickUntilTraceNode(MobaTraceKind kind, int configId, int maxTicks, string message)
         {
             if (TryFindTraceNode(kind, configId, out var existing)) return existing;
@@ -777,6 +804,20 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Tick(1);
                 if (TryFindTraceNode(kind, configId, out var node)) return node;
+            }
+
+            Assert.Fail(message);
+            return default;
+        }
+
+        public TraceSnapshot<MobaTraceMetadata> TickUntilTraceNodeAfter(long baselineContextId, MobaTraceKind kind, int configId, int maxTicks, string message)
+        {
+            if (TryFindTraceNodeAfter(baselineContextId, kind, configId, out var existing)) return existing;
+
+            for (var i = 0; i < maxTicks; i++)
+            {
+                Tick(1);
+                if (TryFindTraceNodeAfter(baselineContextId, kind, configId, out var node)) return node;
             }
 
             Assert.Fail(message);
@@ -846,6 +887,28 @@ namespace AbilityKit.Game.Test.UnitTest
         public TraceSnapshot<MobaTraceMetadata> AssertAreaSpawnedUnderEffect(long effectRootId, int areaTemplateId)
         {
             return AssertTraceNodeInRoot(effectRootId, MobaTraceKind.AreaSpawn, areaTemplateId, $"spawn_area did not spawn configured area template {areaTemplateId} under effect root {effectRootId}.");
+        }
+
+        public int CountTraceNodesInRoot(long rootId, MobaTraceKind kind, int configId)
+        {
+            var count = 0;
+            foreach (var node in Trace.GetNodesByRoot(rootId))
+            {
+                if (node.Kind == (int)kind && node.Metadata != null && node.Metadata.ConfigId == configId)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        public void AssertTraceLifecycle(in TraceSnapshot<MobaTraceMetadata> parent, in TraceSnapshot<MobaTraceMetadata> child, string message)
+        {
+            Assert.IsTrue(parent.IsValid, message + " Parent trace must be valid.");
+            Assert.IsTrue(child.IsValid, message + " Child trace must be valid.");
+            Assert.AreEqual(parent.RootId, child.RootId, message + $" ParentRoot={parent.RootId}, ChildRoot={child.RootId}.");
+            Assert.AreNotEqual(parent.ContextId, child.ContextId, message + " Parent and child trace contexts must differ.");
         }
 
         public TraceSnapshot<MobaTraceMetadata> AssertTraceNode(MobaTraceKind kind, int configId, string message)
@@ -934,10 +997,34 @@ namespace AbilityKit.Game.Test.UnitTest
                 enterGamePayload: Array.Empty<byte>());
         }
 
+        public void ResetSkillCooldown(int actorId, int skillId, string message = null)
+        {
+            Assert.Greater(skillId, 0, message ?? "skillId must be positive.");
+            var actor = AssertActorEntity(actorId, message ?? $"Actor entity missing: {actorId}");
+            Assert.IsTrue(actor.hasSkillLoadout && actor.skillLoadout.ActiveSkills != null, message ?? $"Actor {actorId} should retain an active skill loadout.");
+
+            for (var i = 0; i < actor.skillLoadout.ActiveSkills.Length; i++)
+            {
+                var runtime = actor.skillLoadout.ActiveSkills[i];
+                if (runtime == null || runtime.SkillId != skillId) continue;
+                runtime.CooldownEndTimeMs = 0L;
+                runtime.CooldownDurationMs = 0;
+                return;
+            }
+
+            Assert.Fail(message ?? $"Active skill runtime {skillId} missing for actor {actorId} while resetting cooldown.");
+        }
+
         private bool TryFindTraceNode(MobaTraceKind kind, int configId, out TraceSnapshot<MobaTraceMetadata> match)
+        {
+            return TryFindTraceNodeAfter(0L, kind, configId, out match);
+        }
+
+        private bool TryFindTraceNodeAfter(long baselineContextId, MobaTraceKind kind, int configId, out TraceSnapshot<MobaTraceMetadata> match)
         {
             foreach (var node in Trace.GetNodesByKind((int)kind))
             {
+                if (node.ContextId <= baselineContextId) continue;
                 if (node.Metadata != null && node.Metadata.ConfigId == configId)
                 {
                     match = node;

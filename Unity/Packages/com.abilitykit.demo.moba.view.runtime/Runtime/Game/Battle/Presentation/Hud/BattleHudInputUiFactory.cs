@@ -53,11 +53,11 @@ namespace AbilityKit.Game.Flow
                 BattleHudInputLayout.InfoButtonPosition,
                 infoClicked);
 
+            inputUiRoot.SetActive(true);
+
             inputView.Initialize(moveJoystick, skillViews);
             moveMapper.Initialize(inputView, cameraTransform);
             skillAimMapper.Initialize(inputView, cameraTransform);
-
-            inputUiRoot.SetActive(true);
 
             return new BattleHudInputUi(
                 inputUiRoot,

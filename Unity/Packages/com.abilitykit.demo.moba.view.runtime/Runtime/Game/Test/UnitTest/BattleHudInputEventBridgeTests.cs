@@ -1,5 +1,10 @@
 using System.Collections.Generic;
+using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.View;
 using AbilityKit.Game.Battle.View.Lib.Skill;
@@ -59,7 +64,10 @@ namespace AbilityKit.Game.Test.UnitTest
                     10f,
                     6.8f,
                     3.4f,
-                    Color.white)
+                    Color.white,
+                    aimMode: SkillAimMode.Point,
+                    usePointMode: SkillUsePointMode.TargetPoint,
+                    faceToAim: false)
             });
 
             dispatcher.OnSkillAimUpdate(3, new Vector2(0.5f, 0.25f));
@@ -216,6 +224,83 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void AimPreview_ResolvesMappedLocalActorWhenContextActorIdIsMissing()
+        {
+            var world = new EntityWorld();
+            var lookup = new BattleEntityLookup();
+            var actor = world.Create("lian-po");
+            actor.WithRef(new BattleTransformComponent
+            {
+                Position = new Vector3(3f, 0f, 5f),
+                Forward = Vector3.forward,
+            });
+            lookup.Bind(new BattleNetId(1001), actor);
+
+            var plan = new TestBattleBootstrapper().Build();
+            var worldId = new WorldId("aim-preview-mapped-actor");
+            var session = new BattleLogicSession(new BattleLogicSessionOptions
+            {
+                WorldId = worldId,
+                PlayerId = "p1",
+                ScanAllLoadedAssemblies = true,
+                AutoCreateWorld = false,
+                AutoJoin = false,
+            });
+            var createWorld = plan.CreateWorld;
+            var worldOptions = SessionMobaWorldBootstrapFactory.CreateWorldOptions(
+                plan,
+                worldId,
+                registerWorldInitData: false);
+            session.CreateWorld(new CreateWorldRequest(
+                worldOptions,
+                createWorld.OpCode,
+                createWorld.Payload));
+            var ctx = BattleContext.Rent();
+            var preview = new BattleHudAimPreview();
+            preview.SetSkillSpecs(new Dictionary<int, BattleHudSkillPresentationSpec>
+            {
+                [3] = new BattleHudSkillPresentationSpec(
+                    10010301,
+                    "廉颇-天崩地裂",
+                    BattleHudSkillPreviewShape.TargetCircle,
+                    SkillAimIndicatorShape.TargetCircle,
+                    10f,
+                    6.8f,
+                    3.4f,
+                    new Color(0.95f, 0.68f, 0.18f, 0.3f))
+            });
+
+            try
+            {
+                Assert.IsTrue(session.TryGetWorld(out var logicWorld));
+                Assert.IsTrue(logicWorld.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors));
+                playerActors.Bind(new PlayerId("p1"), 1001);
+
+                ctx.Session = session;
+                ctx.LocalControlPlayerId = "p1";
+                ctx.LocalActorId = 0;
+                ctx.EntityQuery = new BattleEntityQuery(world, lookup);
+                ctx.SetHudSkillAim(3, 2f, 0f, aiming: true);
+
+                preview.Tick(ctx, 0.016f);
+
+                Assert.AreEqual(1001, ctx.LocalActorId);
+                Assert.IsNotNull(preview.PreviewRoot);
+                Assert.IsTrue(preview.PreviewRoot.activeSelf);
+                var circle = preview.PreviewRoot.transform.Find("Circle");
+                Assert.IsTrue(circle.gameObject.activeSelf);
+                Assert.AreEqual(5f, circle.position.x, 0.0001f);
+                Assert.AreEqual(5f, circle.position.z, 0.0001f);
+            }
+            finally
+            {
+                preview.Clear();
+                BattleContext.Return(ctx);
+                session.Dispose();
+            }
+        }
+
+        [Test]
         public void AimPreview_MissingSkillSpecDoesNotInferShapeFromSlot()
         {
             var world = new EntityWorld();
@@ -244,6 +329,43 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 preview.Clear();
                 BattleContext.Return(ctx);
+            }
+        }
+
+        [Test]
+        public void AimIndicator_TargetCircleShowsSelectionRangeAndSelectedArea()
+        {
+            var root = new GameObject("TargetPointIndicator", typeof(RectTransform));
+            var ring = new GameObject("SelectionRange", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            var dot = new GameObject("TargetDot", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            var range = new GameObject("TargetArea", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            ring.SetParent(root.transform, false);
+            dot.SetParent(root.transform, false);
+            range.SetParent(root.transform, false);
+            var indicator = root.AddComponent<SkillAimIndicatorView>();
+            indicator.Initialize(ring, dot, range);
+
+            try
+            {
+                var config = SkillButtonConfig.Default;
+                config.EnableAim = true;
+                config.AimMode = SkillAimMode.Point;
+                config.UsePointMode = SkillUsePointMode.TargetPoint;
+                config.IndicatorShape = SkillAimIndicatorShape.TargetCircle;
+                config.IndicatorWidthPixels = 72f;
+
+                indicator.SetFromTo(new Vector2(20f, 30f), new Vector2(140f, 30f), 100f, config);
+
+                Assert.IsTrue(ring.gameObject.activeSelf);
+                Assert.AreEqual(new Vector2(20f, 30f), ring.anchoredPosition);
+                Assert.AreEqual(new Vector2(200f, 200f), ring.sizeDelta);
+                Assert.IsTrue(range.gameObject.activeSelf);
+                Assert.AreEqual(new Vector2(120f, 30f), range.anchoredPosition);
+                Assert.AreEqual(new Vector2(76f, 76f), range.sizeDelta);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
             }
         }
 

@@ -103,8 +103,6 @@ SaveCanvas("03-skill-cast-main-flow.png", g =>
         x += 305;
     }
 
-    RoundRect(g, new RectangleF(230, 670, 1460, 120), 16, Brushes.White, Pen("#CBD5E1", 2));
-    Text(g, "教学重点：AbilityKit 把技能释放拆成可配置、可追踪、可测试的运行时链路；每个环节都可以沉淀测试。", new RectangleF(270, 692, 1380, 76), bodyFont, Brush(colors.Text));
 });
 
 SaveCanvas("04-moba-runtime-and-dsl-flow.png", g =>
@@ -169,13 +167,13 @@ SaveCanvas("05-shooter-sync-matrix.png", g =>
 
 SaveCanvas("06-test-gates-ci-pyramid.png", g =>
 {
-    Header(g, "测试门禁与 CI 分层", "P0 快速阻断，P1 保护契约，P2 承担批量回归");
-    const float cx = 960f;
+    Header(g, "已落地测试门禁与 CI 接入边界", "统一门禁入口已经可执行；PR / schedule 策略已配置，仓库内 workflow 仍待接入");
+    const float cx = 730f;
     var levels = new[]
     {
-        new GateLevel("P2 Regression Baseline", "nightly / 候选发布 / 大范围重构", 1280f, 690f, colors.Purple),
-        new GateLevel("P1 Contract Blocker", "runtime contracts / Unity EditMode / 同步专项", 980f, 520f, colors.Cyan),
-        new GateLevel("P0 Development Blocker", "precheck / moba-console-smoke / 主链路 smoke", 680f, 350f, colors.Green)
+        new GateLevel("P2 Regression Baseline", "批量回归 / 候选发布 / 大范围重构", 1040f, 690f, colors.Purple),
+        new GateLevel("P1 Contract Blocker", "runtime contracts / Unity EditMode / 同步专项", 820f, 520f, colors.Cyan),
+        new GateLevel("P0 Development Blocker", "precheck / build / test / 主链路 smoke", 600f, 350f, colors.Green)
     };
 
     foreach (var level in levels)
@@ -186,9 +184,14 @@ SaveCanvas("06-test-gates-ci-pyramid.png", g =>
         Text(g, level.Description, new RectangleF(x + 35, level.Y + 75, level.Width - 70, 35), smallFont, Brushes.White);
     }
 
-    Arrow(g, 960, 300, 960, 338, Pen(colors.DarkLine, 3));
-    Text(g, "本地开发 / PR / CI", new RectangleF(760, 250, 400, 40), bodyFont, Brush(colors.Text));
-    Text(g, "原则：不是所有测试都进 PR；测试越重，越靠近 nightly 或阶段性收口。", new RectangleF(360, 875, 1200, 60), bodyFont, Brush(colors.Muted));
+    RoundRect(g, new RectangleF(1370, 285, 390, 420), 16, Brushes.White, Pen("#CBD5E1", 2));
+    RoundRect(g, new RectangleF(1370, 285, 390, 68), 16, Brush(colors.Amber), null);
+    Text(g, "CI Adapter Boundary", new RectangleF(1390, 300, 350, 38), subTitleFont, Brushes.White);
+    Text(g, "已实现", new RectangleF(1400, 385, 120, 34), bodyFont, Brush(colors.Green), StringAlignment.Near);
+    Text(g, "run_test_gate.ps1\ntest-gates.json\nlogs / TRX / NUnit XML", new RectangleF(1400, 425, 330, 120), smallFont, Brush(colors.Text), StringAlignment.Near);
+    Text(g, "待接入", new RectangleF(1400, 565, 120, 34), bodyFont, Brush(colors.Red), StringAlignment.Near);
+    Text(g, ".github/workflows/...\n当前仓库未发现目标 workflow", new RectangleF(1400, 605, 330, 70), smallFont, Brush(colors.Text), StringAlignment.Near);
+    Arrow(g, 1255, 520, 1360, 520, Pen(colors.DarkLine, 3));
 });
 
 SaveCanvas("07-company-reuse-feedback-loop.png", g =>
@@ -269,7 +272,6 @@ SaveCanvas("09-moba-skill-runtime-lifecycle.png", g =>
         x += 310;
     }
     RoundRect(g, new RectangleF(315, 670, 1290, 105), 14, Brushes.White, Pen("#CBD5E1", 2));
-    Text(g, "讲解重点：runtime 把一次技能释放从散落状态变成可查询、可终止、可诊断、可测试的正式实体。", new RectangleF(350, 692, 1220, 50), bodyFont, Brush(colors.Text));
 });
 
 SaveCanvas("10-moba-trigger-context-trace-flow.png", g =>
@@ -374,6 +376,37 @@ SaveCanvas("13-demoharness-three-axis.png", g =>
     Text(g, "可运行矩阵\nCompleted / Degraded / Failed / Unsupported", new RectangleF(735, 742, 450, 68), bodyFont, Brushes.White);
 });
 
+SaveCanvas("12b-coordinator-adapter-maturity.png", g =>
+{
+    Header(g, "Coordinator：会话编排与适配器成熟度", "同一 Session 协议连接本地、远端和混合同步；预测算法的完成度必须单独声明");
+    RoundRect(g, new RectangleF(690, 210, 540, 150), 16, Brush(colors.Blue), null);
+    Text(g, "SessionCoordinator", new RectangleF(725, 235, 470, 42), subTitleFont, Brushes.White);
+    Text(g, "lifecycle / input / Tick / timeline", new RectangleF(725, 290, 470, 38), smallFont, Brushes.White);
+
+    var adapters = new[]
+    {
+        new Step("LocalSyncAdapter", "本地帧驱动\n已实现", colors.Green),
+        new Step("RemoteSyncAdapter", "远端传输边界\n已实现", colors.Cyan),
+        new Step("HybridSyncAdapter", "缓冲与校正边界\n部分实现", colors.Amber)
+    };
+    var xs = new[] { 180f, 720f, 1260f };
+    for (var i = 0; i < adapters.Length; i++)
+    {
+        var step = adapters[i];
+        Arrow(g, 960, 370, xs[i] + 240, 465, Pen("#94A3B8", 3));
+        RoundRect(g, new RectangleF(xs[i], 465, 480, 175), 14, Brushes.White, Pen(step.Color, 3));
+        Text(g, step.Title, new RectangleF(xs[i] + 25, 490, 430, 40), subTitleFont, Brush(colors.Text));
+        Text(g, step.Description, new RectangleF(xs[i] + 25, 545, 430, 70), bodyFont, Brush(step.Color));
+    }
+
+    RoundRect(g, new RectangleF(180, 710, 480, 110), 12, Brush("#ECFDF5"), Pen("#86EFAC", 2));
+    Text(g, "玩法规则\n归 Logic Runtime", new RectangleF(205, 730, 430, 66), bodyFont, Brush(colors.Text));
+    RoundRect(g, new RectangleF(720, 710, 480, 110), 12, Brush("#EFF6FF"), Pen("#93C5FD", 2));
+    Text(g, "环境编排\n归 Coordinator", new RectangleF(745, 730, 430, 66), bodyFont, Brush(colors.Text));
+    RoundRect(g, new RectangleF(1260, 710, 480, 110), 12, Brush("#FFF7ED"), Pen("#FDBA74", 2));
+    Text(g, "预测 / Reconciliation\n归玩法或专用同步实现", new RectangleF(1285, 730, 430, 66), bodyFont, Brush(colors.Text));
+});
+
 SaveCanvas("14-client-flow-boundaries.png", g =>
 {
     Header(g, "Client Flow 与表现边界", "客户端流程编排只负责 state lifecycle 到 feature assembly，不替代项目框架");
@@ -394,7 +427,6 @@ SaveCanvas("14-client-flow-boundaries.png", g =>
         Text(g, lane.Description, new RectangleF(570, y + 20, 1040, 60), bodyFont, Brush(colors.Text), StringAlignment.Near);
         y += 130;
     }
-    Text(g, "重点：项目仍可使用自己的 MVC、ECS 或 MonoBehaviour；AbilityKit 只提供稳定编排边界和校验能力。", new RectangleF(300, 905, 1320, 50), bodyFont, Brush(colors.Muted));
 });
 
 SaveCanvas("15-targeting-query-chain.png", g =>
@@ -432,18 +464,45 @@ SaveCanvas("16-projectile-lifecycle.png", g =>
 
 SaveCanvas("17-damage-pipeline.png", g =>
 {
-    Header(g, "Damage 结算链路", "伤害不是直接扣血，而是可插拔阶段、事件和派生触发的统一流水线");
-    var steps = new[]
+    Header(g, "Damage 两层结算边界", "公共包负责纯计算顺序，玩法应用层负责状态修改、事件、派生触发与溯源");
+    Text(g, "通用内核：DamageCalculationPipeline", new RectangleF(130, 205, 760, 44), subTitleFont, Brush(colors.Text));
+    Text(g, "MOBA 参考实现：DamagePipelineService", new RectangleF(1030, 205, 760, 44), subTitleFont, Brush(colors.Text));
+
+    var kernel = new[]
     {
-        new Step("AttackInfo", "来源 / 目标\n技能 / payload", colors.Blue),
-        new Step("Pre Stage", "免疫 / 护盾\n前置修正", colors.Cyan),
-        new Step("Formula", "攻击 / 防御\n暴击 / 抗性", colors.Green),
-        new Step("Apply", "扣血 / 吸收\n结果写入", colors.Amber),
-        new Step("Event Bus", "Before / After\nDamageEvent", colors.Purple),
-        new Step("Derived", "被动 / Buff\nProjectile / Heal", colors.Red)
+        new Step("Validate", "请求合法性", colors.Blue),
+        new Step("Critical / Base", "暴击与基础伤害", colors.Cyan),
+        new Step("Bonus / Resist", "加成、护甲与魔抗", colors.Green),
+        new Step("Final / Overkill", "最终值与溢出", colors.Purple)
     };
-    DrawHorizontalSteps(g, steps, 105, 320, 275, 155, 298);
-    Text(g, "公司收益：项目只扩展公式、阶段或事件订阅，不需要重新发明一套伤害系统和连锁触发协议。", new RectangleF(270, 710, 1380, 54), bodyFont, Brush(colors.Muted));
+    var app = new[]
+    {
+        new Step("Stage Events", "玩法阶段与免疫", colors.Amber),
+        new Step("Apply State", "shield / health", colors.Red),
+        new Step("Derived Trigger", "被动 / Buff / 反伤", colors.Purple),
+        new Step("Trace Child", "来源与结果溯源", colors.Blue)
+    };
+    for (var i = 0; i < 4; i++)
+    {
+        var y = 275 + i * 125;
+        RoundRect(g, new RectangleF(130, y, 700, 90), 12, Brushes.White, Pen(kernel[i].Color, 2));
+        Text(g, kernel[i].Title, new RectangleF(155, y + 14, 240, 30), bodyFont, Brush(colors.Text), StringAlignment.Near);
+        Text(g, kernel[i].Description, new RectangleF(400, y + 15, 390, 28), smallFont, Brush(colors.Muted), StringAlignment.Near);
+        Text(g, i == 2 ? "typed DamageSlots" : "processor", new RectangleF(400, y + 48, 390, 24), smallFont, Brush(kernel[i].Color), StringAlignment.Near);
+
+        RoundRect(g, new RectangleF(1090, y, 700, 90), 12, Brushes.White, Pen(app[i].Color, 2));
+        Text(g, app[i].Title, new RectangleF(1115, y + 14, 240, 30), bodyFont, Brush(colors.Text), StringAlignment.Near);
+        Text(g, app[i].Description, new RectangleF(1360, y + 15, 390, 28), smallFont, Brush(colors.Muted), StringAlignment.Near);
+        Text(g, "gameplay orchestration", new RectangleF(1360, y + 48, 390, 24), smallFont, Brush(app[i].Color), StringAlignment.Near);
+        if (i < 3)
+        {
+            Arrow(g, 480, y + 94, 480, y + 119, Pen("#94A3B8", 3));
+            Arrow(g, 1440, y + 94, 1440, y + 119, Pen("#94A3B8", 3));
+        }
+    }
+    Arrow(g, 845, 465, 1075, 465, Pen(colors.DarkLine, 4));
+    Text(g, "DamageResult", new RectangleF(850, 415, 220, 38), smallFont, Brush(colors.Muted));
+    Text(g, "纯计算规则进入 processor / slot；玩法状态与事件顺序留在应用编排，并分别测试。", new RectangleF(260, 835, 1400, 48), bodyFont, Brush(colors.Muted));
 });
 
 SaveCanvas("18-attributes-modifier-stack.png", g =>
@@ -472,56 +531,121 @@ SaveCanvas("18-attributes-modifier-stack.png", g =>
         if (x < 1350) Arrow(g, x + 292, 450, x + 350, 450, Pen(colors.DarkLine, 3));
         x += 325;
     }
-    Text(g, "讲解重点：属性不是 Dictionary<number>，而是可追踪来源、可重算、可输出快照、可被测试验证的数值协议。", new RectangleF(250, 775, 1420, 55), bodyFont, Brush(colors.Muted));
 });
 
 SaveCanvas("19-record-replay-debug-flow.png", g =>
 {
-    Header(g, "Record / Replay 调试链路", "线上疑难问题要从一次偶现，变成可回放、可对比、可回归的资产");
-    var steps = new[]
+    Header(g, "FrameRecord：从三轨记录到可执行回归", "记录不是录像文件，而是 input、snapshot、state hash 可按帧读取和重放的验证资产");
+    var tracks = new[]
     {
-        new Step("Capture", "input / seed\nconfig version", colors.Blue),
-        new Step("Record", "frame packet\nkey events", colors.Cyan),
-        new Step("Replay", "same runtime\nheadless run", colors.Green),
-        new Step("Compare", "state hash\nsnapshot diff", colors.Amber),
-        new Step("Diagnose", "trace / log\nfirst divergence", colors.Purple),
-        new Step("Regression", "case asset\nCI gate", colors.Red)
+        new Step("Input Track", "玩家命令 / opcode\n输入帧序", colors.Blue),
+        new Step("Snapshot Track", "全量 / 增量状态\nround-trip", colors.Cyan),
+        new Step("State Hash Track", "确定性摘要\nfirst divergence", colors.Purple)
     };
-    DrawHorizontalSteps(g, steps, 105, 330, 275, 150, 298);
-    Text(g, "公司收益：一个项目线上问题复现后，可以沉淀成框架回归用例，后续项目共享这次修复。", new RectangleF(300, 720, 1320, 54), bodyFont, Brush(colors.Muted));
+    for (var i = 0; i < tracks.Length; i++)
+    {
+        var y = 235 + i * 135;
+        RoundRect(g, new RectangleF(120, y, 520, 100), 12, Brush(tracks[i].Color), null);
+        Text(g, tracks[i].Title, new RectangleF(145, y + 14, 220, 34), bodyFont, Brushes.White, StringAlignment.Near);
+        Text(g, tracks[i].Description, new RectangleF(370, y + 14, 240, 65), smallFont, Brushes.White, StringAlignment.Near);
+        Arrow(g, 650, y + 50, 775, 485, Pen("#94A3B8", 3));
+    }
+    RoundRect(g, new RectangleF(780, 380, 360, 210), 16, Brushes.White, Pen(colors.Green, 3));
+    Text(g, "Replay Source", new RectangleF(805, 405, 310, 42), bodyFont, Brush(colors.Text));
+    Text(g, "JSON / optimized binary\nreplaceable codec\nframe-indexed read", new RectangleF(810, 460, 300, 90), smallFont, Brush(colors.Muted));
+
+    var loop = new[]
+    {
+        new Step("Minimize", "完整 / 最小 replay", colors.Amber),
+        new Step("Headless", "input-state / input-logic", colors.Green),
+        new Step("Compare", "hash / opcode / snapshot", colors.Purple),
+        new Step("Regression", "固定用例 / gate", colors.Red)
+    };
+    for (var i = 0; i < loop.Length; i++)
+    {
+        var y = 220 + i * 145;
+        RoundRect(g, new RectangleF(1280, y, 500, 100), 12, Brushes.White, Pen(loop[i].Color, 2));
+        Text(g, loop[i].Title, new RectangleF(1305, y + 12, 190, 34), bodyFont, Brush(colors.Text), StringAlignment.Near);
+        Text(g, loop[i].Description, new RectangleF(1500, y + 14, 245, 56), smallFont, Brush(colors.Muted), StringAlignment.Near);
+        if (i < loop.Length - 1) Arrow(g, 1530, y + 104, 1530, y + 137, Pen("#94A3B8", 3));
+    }
+    Arrow(g, 1150, 485, 1265, 485, Pen(colors.DarkLine, 4));
 });
 
 SaveCanvas("20-battlehost-lifecycle.png", g =>
 {
-    Header(g, "BattleHost 生命周期", "服务端承载要把房间、初始化参数、tick、输入、snapshot 和清理边界显式化");
-    var steps = new[]
+    Header(g, "Orleans BattleHost 与玩法适配", "Grain 统一生命周期和状态同步，玩法能力通过 runtime adapter 接入并独立声明成熟度");
+    var hostSteps = new[] { "Initialize", "Schedule Input", "Server Tick", "Full / Delta Push", "Late Join", "Destroy" };
+    var x = 105f;
+    for (var i = 0; i < hostSteps.Length; i++)
     {
-        new Step("Room Ready", "players / match\nserver allocation", colors.Blue),
-        new Step("Init Params", "BattleInitParams\nmap / config / seed", colors.Cyan),
-        new Step("Create Host", "DI / systems\nworld bootstrap", colors.Green),
-        new Step("Tick Loop", "input schedule\nsimulation step", colors.Amber),
-        new Step("Publish", "snapshot / event\nstate sync", colors.Purple),
-        new Step("Dispose", "record close\nrelease / report", colors.Red)
+        RoundRect(g, new RectangleF(x, 220, 260, 90), 12, Brush(colors.Blue), null);
+        Text(g, hostSteps[i], new RectangleF(x + 15, 240, 230, 42), bodyFont, Brushes.White);
+        if (i < hostSteps.Length - 1) Arrow(g, x + 268, 265, x + 302, 265, Pen(colors.DarkLine, 3));
+        x += 298;
+    }
+    Text(g, "BattleLogicHostGrain：宿主协议，不复制玩法系统", new RectangleF(480, 340, 960, 44), subTitleFont, Brush(colors.Text));
+
+    var cols = new[] { "Adapter Capability", "Shooter", "MOBA" };
+    var rows = new[]
+    {
+        ("Start / Input / Tick / Snapshot", "已实现", "已实现"),
+        ("Dynamic Join", "已实现", "Unsupported"),
+        ("Bot AI Mount", "已实现", "Unsupported"),
+        ("Observer Interest / Pure State", "已实现", "边界未接入"),
+        ("World Diagnostics", "已实现", "Unsupported")
     };
-    DrawHorizontalSteps(g, steps, 105, 315, 275, 160, 298);
-    RoundRect(g, new RectangleF(300, 655, 1320, 120), 16, Brushes.White, Pen("#CBD5E1", 2));
-    Text(g, "重点：BattleHost 是公司级多人战斗运行边界，不能让项目把初始化、tick、快照和销毁散落在各自入口里。", new RectangleF(345, 688, 1230, 44), bodyFont, Brush(colors.Text));
+    const float x0 = 300f;
+    const float y0 = 455f;
+    var widths = new[] { 720f, 360f, 360f };
+    var xx = x0;
+    for (var c = 0; c < cols.Length; c++)
+    {
+        RoundRect(g, new RectangleF(xx, y0 - 65, widths[c] - 8, 55), 8, Brush("#334155"), null);
+        Text(g, cols[c], new RectangleF(xx + 12, y0 - 55, widths[c] - 32, 34), bodyFont, Brushes.White);
+        xx += widths[c];
+    }
+    for (var r = 0; r < rows.Length; r++)
+    {
+        var values = new[] { rows[r].Item1, rows[r].Item2, rows[r].Item3 };
+        xx = x0;
+        for (var c = 0; c < 3; c++)
+        {
+            var fill = c == 0 ? "#F1F5F9" : values[c] == "已实现" ? "#ECFDF5" : "#FFF7ED";
+            var ink = c == 0 ? colors.Text : values[c] == "已实现" ? colors.Green : colors.Amber;
+            RoundRect(g, new RectangleF(xx, y0 + r * 78, widths[c] - 8, 68), 8, Brush(fill), Pen("#CBD5E1", 1));
+            Text(g, values[c], new RectangleF(xx + 12, y0 + r * 78 + 12, widths[c] - 32, 40), smallFont, Brush(ink));
+            xx += widths[c];
+        }
+    }
 });
 
 SaveCanvas("21-config-validation-pipeline.png", g =>
 {
-    Header(g, "配置生成与校验链路", "配置不是导出来就结束，必须经过生成、模板映射、启动校验和场景验证");
-    var steps = new[]
+    Header(g, "生成注册与运行时校验成熟度", "资源加载、Source Generator 和 MOBA Runtime Validation 是三段不同所有权的协议");
+    var columns = new[]
     {
-        new Step("Designer Data", "Luban / Excel\nScriptableObject", colors.Blue),
-        new Step("Codegen", "typed model\nplan action", colors.Cyan),
-        new Step("Template", "runtime template\nresolver", colors.Green),
-        new Step("Startup Check", "引用 / schema\n缺失 / 冲突", colors.Amber),
-        new Step("Scenario", "DSL smoke\n技能样例", colors.Purple),
-        new Step("Report", "error list\nCI artifact", colors.Red)
+        new Group("资源接入", colors.Blue, new[] { "IResourceProvider", "JsonConfigProvider", "Unity / pure C# 可替换" }),
+        new Group("生成注册", colors.Cyan, new[] { "扫描 AutoPlanAction", "注册表 + ActionId + Schema", "TryValidateArgs：待补完整校验" }),
+        new Group("运行时校验", colors.Green, new[] { "required validator contract", "startup block + history", "MOBA 参考实现" })
     };
-    DrawHorizontalSteps(g, steps, 105, 325, 275, 155, 298);
-    Text(g, "公司收益：配置错误尽量在编辑期、启动期和 CI 暴露，而不是进入局内后由 QA 或线上玩家发现。", new RectangleF(270, 715, 1380, 54), bodyFont, Brush(colors.Muted));
+    var xs = new[] { 120f, 700f, 1280f };
+    for (var i = 0; i < columns.Length; i++)
+    {
+        var col = columns[i];
+        RoundRect(g, new RectangleF(xs[i], 245, 520, 430), 16, Brushes.White, Pen(col.Color, 3));
+        RoundRect(g, new RectangleF(xs[i], 245, 520, 70), 16, Brush(col.Color), null);
+        Text(g, col.Title, new RectangleF(xs[i] + 22, 260, 476, 40), subTitleFont, Brushes.White);
+        var y = 355f;
+        foreach (var item in col.Items)
+        {
+            Text(g, "• " + item, new RectangleF(xs[i] + 35, y, 450, 56), bodyFont, Brush(colors.Text), StringAlignment.Near);
+            y += 82;
+        }
+        if (i < 2) Arrow(g, xs[i] + 528, 460, xs[i] + 568, 460, Pen(colors.DarkLine, 3));
+    }
+    RoundRect(g, new RectangleF(165, 730, 1590, 100), 14, Brush("#FFF7ED"), Pen("#FDBA74", 2));
+    Text(g, "成熟度边界：注册与 Schema 生成已实现；参数 Schema 校验未完整实现；Runtime Validation 属于 MOBA 参考实现。", new RectangleF(205, 752, 1510, 56), bodyFont, Brush(colors.Text));
 });
 
 SaveCanvas("22-gc-hot-path-governance.png", g =>
@@ -537,7 +661,6 @@ SaveCanvas("22-gc-hot-path-governance.png", g =>
         new Step("Gate", "threshold\nnightly report", colors.Red)
     };
     DrawHorizontalSteps(g, lanes, 105, 330, 275, 150, 298);
-    Text(g, "讲解重点：不要只说“少分配”，要明确哪些 API 不能进 tick 热路径、哪些诊断只能在开发模式开启。", new RectangleF(265, 720, 1390, 54), bodyFont, Brush(colors.Muted));
 });
 
 foreach (var spec in CodeVisualSpecs())
@@ -618,28 +741,26 @@ void DrawCodeVisualSpec(Graphics g, CodeVisualSpec spec)
             break;
     }
 
-    RoundRect(g, new RectangleF(220, 855, 1480, 86), 16, Brush("#EEF2FF"), Pen("#CBD5E1", 2));
-    Text(g, spec.Takeaway, new RectangleF(260, 876, 1400, 42), bodyFont, Brush(colors.Text));
-    Text(g, spec.Source, new RectangleF(240, 958, 1440, 34), smallFont, Brush(colors.Muted));
 }
 
 void DrawDataFlow(Graphics g, CodeVisualSpec spec)
 {
+    using var codeFont = Font(17, FontStyle.Regular);
     var width = Math.Min(295f, (1580f - (spec.Items.Length - 1) * 34f) / spec.Items.Length);
     var pitch = width + 34f;
     var startX = (1920f - (spec.Items.Length * width + (spec.Items.Length - 1) * 34f)) / 2f;
-    var y = 345f;
+    var y = 325f;
     for (var i = 0; i < spec.Items.Length; i++)
     {
         var item = spec.Items[i];
         var x = startX + i * pitch;
-        RoundRect(g, new RectangleF(x, y, width, 175), 14, Brushes.White, Pen("#CBD5E1", 2));
+        RoundRect(g, new RectangleF(x, y, width, 215), 14, Brushes.White, Pen("#CBD5E1", 2));
         RoundRect(g, new RectangleF(x, y, width, 56), 14, Brush(item.Color), null);
         Text(g, item.Title, new RectangleF(x + 12, y + 11, width - 24, 34), smallFont, Brushes.White);
-        Text(g, item.Description, new RectangleF(x + 18, y + 74, width - 36, 72), smallFont, Brush(colors.Text));
-        Text(g, item.Code, new RectangleF(x + 18, y + 144, width - 36, 26), smallFont, Brush(colors.Muted));
+        Text(g, item.Description, new RectangleF(x + 18, y + 72, width - 36, 78), smallFont, Brush(colors.Text));
+        Text(g, item.Code, new RectangleF(x + 18, y + 158, width - 36, 44), codeFont, Brush(colors.Muted));
         if (i < spec.Items.Length - 1)
-            Arrow(g, x + width + 6, y + 88, x + pitch - 8, y + 88, Pen(colors.DarkLine, 3));
+            Arrow(g, x + width + 6, y + 108, x + pitch - 8, y + 108, Pen(colors.DarkLine, 3));
     }
 }
 
@@ -656,10 +777,14 @@ void DrawSequence(Graphics g, CodeVisualSpec spec)
         Text(g, item.Title, new RectangleF(x + 120, y + 14, 520, 32), bodyFont, Brush(colors.Text), StringAlignment.Near);
         Text(g, item.Description, new RectangleF(x + 120, y + 48, 520, 28), smallFont, Brush(colors.Muted), StringAlignment.Near);
         Text(g, item.Code, new RectangleF(x + 120, y + 74, 520, 22), smallFont, Brush("#2563EB"), StringAlignment.Near);
-        if (i < spec.Items.Length - 1)
+        if (i < spec.Items.Length - 1 && i != 3)
             Arrow(g, x + 345, y + 101, x + 345, y + 132, Pen(colors.DarkLine, 3));
         if (i == 3)
         {
+            using var connector = Pen(colors.DarkLine, 3);
+            g.DrawLine(connector, x + 696, y + 48, 960, y + 48);
+            g.DrawLine(connector, 960, y + 48, 960, 283);
+            Arrow(g, 960, 283, 1072, 283, Pen(colors.DarkLine, 3));
             x = 1080f;
             y = 235f;
         }
@@ -698,7 +823,7 @@ void DrawLifecycle(Graphics g, CodeVisualSpec spec)
     }
 
     RoundRect(g, new RectangleF(750, 455, 420, 130), 18, Brush("#F8FAFC"), Pen("#CBD5E1", 2));
-    Text(g, spec.CenterLabel, new RectangleF(780, 480, 360, 58), subTitleFont, Brush(colors.Text));
+    Text(g, spec.CenterLabel, new RectangleF(780, 474, 360, 92), bodyFont, Brush(colors.Text));
 }
 
 void DrawSplitFlow(Graphics g, CodeVisualSpec spec)
@@ -717,20 +842,22 @@ void DrawColumn(Graphics g, CodeVisualItem[] items, float x, float y, float widt
     for (var i = 0; i < items.Length; i++)
     {
         var item = items[i];
-        RoundRect(g, new RectangleF(x, y, width, 96), 12, Brushes.White, Pen(item.Color, 2));
-        Text(g, item.Title, new RectangleF(x + 24, y + 13, width - 48, 30), bodyFont, Brush(colors.Text), StringAlignment.Near);
-        Text(g, item.Description, new RectangleF(x + 24, y + 45, width - 48, 24), smallFont, Brush(colors.Muted), StringAlignment.Near);
-        Text(g, item.Code, new RectangleF(x + 24, y + 69, width - 48, 22), smallFont, Brush(item.Color), StringAlignment.Near);
+        RoundRect(g, new RectangleF(x, y, width, 112), 12, Brushes.White, Pen(item.Color, 2));
+        Text(g, item.Title, new RectangleF(x + 24, y + 12, width - 48, 30), bodyFont, Brush(colors.Text), StringAlignment.Near);
+        Text(g, item.Description, new RectangleF(x + 24, y + 43, width - 48, 38), smallFont, Brush(colors.Muted), StringAlignment.Near);
+        Text(g, item.Code, new RectangleF(x + 24, y + 83, width - 48, 23), smallFont, Brush(item.Color), StringAlignment.Near);
         if (i < items.Length - 1)
-            Arrow(g, x + width / 2, y + 101, x + width / 2, y + 130, Pen("#94A3B8", 3));
-        y += 130;
+            Arrow(g, x + width / 2, y + 117, x + width / 2, y + 142, Pen("#94A3B8", 3));
+        y += 142;
     }
 }
 
 void DrawMatrix(Graphics g, CodeVisualSpec spec)
 {
     var rows = spec.Items;
-    var cols = new[] { "Capability", "Result", "Metrics", "Gate" };
+    var cols = spec.MatrixHeaders.Length == 4
+        ? spec.MatrixHeaders
+        : new[] { "对象", "职责", "代码入口", "边界" };
     const float x0 = 210f;
     const float y0 = 250f;
     const float cw = 380f;
@@ -822,35 +949,35 @@ CodeVisualSpec[] CodeVisualSpecs()
     var palette = new[] { colors.Blue, colors.Cyan, colors.Green, colors.Amber, colors.Purple, colors.Red };
     CodeVisualItem I(string title, string desc, string code, string note = "") => new(title, desc, code, note, palette[Math.Abs((title + code).GetHashCode()) % palette.Length]);
     CodeVisualSpec S(string fileName, CodeVisualKind kind, string title, string subtitle, string takeaway, string source, params CodeVisualItem[] items) =>
-        new(fileName, kind, title, subtitle, takeaway, source, string.Empty, string.Empty, string.Empty, items);
+        new(fileName, kind, title, subtitle, takeaway, source, string.Empty, string.Empty, string.Empty, Array.Empty<string>(), items);
 
     return new[]
     {
         S("23-company-framework-title.png", CodeVisualKind.Stack, "AbilityKit 的真实代码资产", "公司级能力不是口号：它由包、服务、示例、测试和工具链共同构成", "这页可以用代码目录证明：AbilityKit 已经具备可跨项目维护的工程形态。", "代码依据：Unity/Packages + src + Docs + tools", I("UPM Packages", "Unity 项目可直接接入", "Unity/Packages/com.abilitykit.*"), I("Pure C# Runtime", "服务端、工具、测试可运行", "src/AbilityKit.*"), I("Demo Runtime", "MOBA / Shooter 承担复杂验收", "com.abilitykit.demo.*"), I("Docs & Gates", "设计、门禁、批量回归沉淀", "Docs/*.md"), I("Asset Generator", "教学图和 Mermaid 可再生成", "tools/AbilityKitPptAssetGenerator")),
         S("24-fragmented-combat-systems.png", CodeVisualKind.SplitFlow, "从单项目实现到统一入口", "同类战斗能力如果分散在项目中，最后会缺少共同调试、追踪和测试入口", "高价值讲法：不是反对项目定制，而是把共性的入口和诊断能力统一下来。", "代码依据：MobaTriggerExecutionGateway / MobaEffectExecutionService", I("分散入口", "技能、Buff、投射物各自触发", "Skill / Buff / Projectile"), I("重复上下文", "来源、payload、trace 各自拼装", "custom context"), I("难以回归", "问题只能在项目内复现", "manual QA"), I("统一网关", "直接触发和 owner-bound 收敛", "ExecuteDirectTrigger"), I("正式上下文", "payload + lineage + snapshot", "CreateCombatExecutionContext"), I("统一计划执行", "同一预算、条件、trace", "ExecuteTriggerPlan")) with { LeftLabel = "单项目自然分裂", RightLabel = "AbilityKit 统一链路" },
-        S("25-local-optimum-company-cost.png", CodeVisualKind.Matrix, "代码层面的公司成本差异", "同一个能力在不同项目重复实现，真正变贵的是后续修复、追踪和回归", "把成本说清楚：公共框架多写的是一次结构，少掉的是多项目长期重复验证。", "代码依据：Trigger / Damage / Sync / DemoHarness", I("技能释放", "各项目 Cast 函数膨胀", "SkillCastCoordinator", "统一输入相位"), I("触发反应", "if/else 分散复制", "MobaTriggerPlanExecutor", "统一计划"), I("伤害结算", "公式和事件不一致", "DamagePipelineService", "阶段化"), I("同步验收", "只靠手测弱网", "DemoHarnessRunner", "矩阵化")),
+        S("25-local-optimum-company-cost.png", CodeVisualKind.Matrix, "代码层面的公司成本差异", "同一个能力在不同项目重复实现，真正变贵的是后续修复、追踪和回归", "把成本说清楚：公共框架多写的是一次结构，少掉的是多项目长期重复验证。", "代码依据：Trigger / Damage / Sync / DemoHarness", I("技能释放", "各项目 Cast 函数膨胀", "SkillCastCoordinator", "统一输入相位"), I("触发反应", "if/else 分散复制", "MobaTriggerPlanExecutor", "统一计划"), I("伤害结算", "公式和事件不一致", "DamagePipelineService", "阶段化"), I("同步验收", "只靠手测弱网", "DemoHarnessRunner", "矩阵化")) with { MatrixHeaders = new[] { "能力域", "重复成本", "统一入口", "框架收益" } },
         S("26-shared-framework-value.png", CodeVisualKind.DataFlow, "一次修复如何跨项目受益", "公共链路的收益来自稳定入口：问题在框架层补测试，后续项目升级即可获得保护", "这页用于解释公司级复利：bug 不只是修掉，还会变成可执行资产。", "代码依据：PlanActionModuleRegistry / tests / CI docs", I("问题暴露", "示例或项目发现链路缺陷", "MobaDamageTrace"), I("框架修复", "服务、模块或注册表修正", "PlanActionModule"), I("补充用例", "Unit / Smoke / DSL / Matrix", "test-gates"), I("资产发布", "UPM / NuGet / Docs 更新", "package.json"), I("项目受益", "升级后共享同一保护", "CI gate")),
         S("27-abilitykit-positioning.png", CodeVisualKind.SplitFlow, "AbilityKit 的边界位置", "核心运行时保持纯 C#，Unity、服务端、工具和示例通过适配层接入", "定位要落到依赖边界：项目可以组合能力，不需要被一个黑盒框架接管。", "代码依据：src/AbilityKit.* 与 Unity/Packages/com.abilitykit.*", I("Core Runtime", "Math / Event / Pipeline / Triggering", "src/AbilityKit.Core"), I("Combat Modules", "Targeting / Projectile / Damage", "src + UPM packages"), I("World Services", "DI / ECS / FrameSync / Snapshot", "World.*"), I("Unity Shell", "表现、编辑器、View Runtime", "Unity/Packages"), I("Server / Tools", "Orleans、Console、Codegen", "Server + tools"), I("Samples", "MOBA / Shooter 验证组合", "demo.*")) with { LeftLabel = "纯逻辑能力", RightLabel = "项目适配层" },
-        S("28-abilitykit-non-goals.png", CodeVisualKind.Matrix, "从代码结构排除误解", "AbilityKit 不是全量替代项目业务，而是把可复用的底座和验证路径抽出来", "用边界降低抵触：项目仍然保留业务表达，框架负责稳定公共能力。", "代码依据：服务接口、模块包、示例工程分层", I("不是黑盒", "项目通过服务和模块扩展", "IWorldResolver", "可替换"), I("不是 Demo 代码", "示例承担验收职责", "ShooterAcceptanceLab", "可回归"), I("不是只跑客户端", "纯 C# 可离线执行", "src/*.csproj", "可测试"), I("不是全量迁移", "按模块组合接入", "com.abilitykit.*", "可渐进")),
+        S("28-abilitykit-non-goals.png", CodeVisualKind.Matrix, "从代码结构排除误解", "AbilityKit 不是全量替代项目业务，而是把可复用的底座和验证路径抽出来", "用边界降低抵触：项目仍然保留业务表达，框架负责稳定公共能力。", "代码依据：服务接口、模块包、示例工程分层", I("不是黑盒", "项目通过服务和模块扩展", "IWorldResolver", "可替换"), I("不是 Demo 代码", "示例承担验收职责", "ShooterAcceptanceLab", "可回归"), I("不是只跑客户端", "纯 C# 可离线执行", "src/*.csproj", "可测试"), I("不是全量迁移", "按模块组合接入", "com.abilitykit.*", "可渐进")) with { MatrixHeaders = new[] { "常见误解", "代码事实", "工程证据", "实际边界" } },
         S("29-company-assets-map.png", CodeVisualKind.Stack, "公司级资产不是只有代码", "真实可复用资产包含运行时包、示例、测试门禁、文档和生成工具", "没有验证的代码只是复制；带门禁和示例的代码才是公司资产。", "代码依据：Docs / tools / Unity Packages", I("Runtime Package", "稳定 API 和模块边界", "com.abilitykit.*"), I("Reference Samples", "MOBA 验证战斗，Shooter 验证同步", "demo.moba / demo.shooter"), I("Test Gates", "P0/P1/P2 分层验证", "AbilityKit测试门禁"), I("Design Docs", "设计意图可追溯", "Docs/*.md"), I("Generators", "Codegen 和 PPT 资产可重复生成", "tools/*")),
         S("30-composable-adoption-model.png", CodeVisualKind.DataFlow, "按能力组合接入，而不是一次性重写", "项目可以从 Core/Pipeline 开始，再按风险接入 Triggering、Combat、Sync 和 Gates", "渐进接入更现实：每个阶段都能用具体代码和用例证明收益。", "代码依据：包拆分和模块边界", I("Core", "基础数学、事件、ID", "com.abilitykit.core"), I("Pipeline", "技能阶段和运行控制", "com.abilitykit.pipeline"), I("Triggering", "规则、条件、Action", "com.abilitykit.triggering"), I("Combat", "Targeting / Projectile / Damage", "combat.*"), I("Sync", "FrameSync / Snapshot / StateSync", "world.*"), I("Gates", "Smoke / DSL / Matrix", "Docs/test-gates")),
-        S("31-module-boundary-collaboration.png", CodeVisualKind.Matrix, "模块边界如何帮助协作定位", "统一模块名和服务入口后，跨项目问题可以按链路分派，而不是靠熟人记忆", "边界的价值不是画目录，而是让问题能被定位、复盘和转成回归。", "代码依据：WorldService 和 PlanActionModule", I("Skill", "输入、准备、Pipeline", "SkillCastCoordinator", "技能负责人"), I("Trigger", "事件、条件、计划", "MobaTriggerExecutionGateway", "规则负责人"), I("Damage", "公式、护盾、事件", "DamagePipelineService", "战斗负责人"), I("Sync", "输入帧、快照、矩阵", "FramePacketNetAdapter", "网络负责人")),
-        S("32-maintainability-handover.png", CodeVisualKind.Lifecycle, "换人后仍能维护的代码闭环", "新同事接手不靠口口相传，而是从入口、trace、示例、测试和文档形成闭环", "可维护来自结构和反馈，不只是注释。", "代码依据：Trace / DemoHarness / Docs", I("固定入口", "先找到服务和网关", "WorldService"), I("Trace 链", "能看到来源和子节点", "MobaTraceRegistry"), I("示例复现", "MOBA / Shooter 可运行", "demo.*"), I("测试保护", "改动后快速反馈", "smoke / matrix"), I("文档追溯", "设计意图保留", "Docs/*.md")) with { CenterLabel = "handover" },
+        S("31-module-boundary-collaboration.png", CodeVisualKind.Matrix, "模块边界如何帮助协作定位", "统一模块名和服务入口后，跨项目问题可以按链路分派，而不是靠熟人记忆", "边界的价值不是画目录，而是让问题能被定位、复盘和转成回归。", "代码依据：WorldService 和 PlanActionModule", I("Skill", "输入、准备、Pipeline", "SkillCastCoordinator", "技能负责人"), I("Trigger", "事件、条件、计划", "MobaTriggerExecutionGateway", "规则负责人"), I("Damage", "公式、护盾、事件", "DamagePipelineService", "战斗负责人"), I("Sync", "输入帧、快照、矩阵", "FramePacketNetAdapter", "网络负责人")) with { MatrixHeaders = new[] { "问题域", "模块职责", "代码入口", "责任边界" } },
+        S("32-maintainability-handover.png", CodeVisualKind.Lifecycle, "换人后仍能维护的代码闭环", "新同事接手不靠口口相传，而是从入口、trace、示例、测试和文档形成闭环", "可维护来自结构和反馈，不只是注释。", "代码依据：Trace / DemoHarness / Docs", I("固定入口", "先找到服务和网关", "WorldService"), I("Trace 链", "能看到来源和子节点", "MobaTraceRegistry"), I("示例复现", "MOBA / Shooter 可运行", "demo.*"), I("测试保护", "改动后快速反馈", "smoke / matrix"), I("文档追溯", "设计意图保留", "Docs/*.md")) with { CenterLabel = "可追溯\n交接闭环" },
         S("33-pipeline-phase-composition.png", CodeVisualKind.Sequence, "真实技能释放调用链", "从输入相位到 runtime 创建，每一步都有独立职责和失败原因", "这张图能替代泛化 Pipeline 说明，直接讲真实代码如何拆解一次 Cast。", "代码依据：SkillCastCoordinator.cs / SkillCastPreparationService.cs", I("输入相位", "Press / Hold / Release / Cancel", "DispatchSkillInputPhase"), I("槽位解析", "slot -> skillId", "TryCastBySlot"), I("准备输入", "caster / aim / target / level", "Prepare"), I("创建 Trace Root", "技能释放正式根节点", "CreateRootContext"), I("创建 Runtime", "handle / runtimeId / blackboard", "MobaSkillCastRuntimeService.Create"), I("Runner 执行", "PreCast / Cast phases", "SkillRunnerRegistry"), I("收尾", "PipelineEnded + children", "MarkPipelineEnded")),
         S("34-triggering-rule-system.png", CodeVisualKind.Sequence, "触发计划执行链路", "直接触发和 owner-bound 触发最终进入同一套上下文、预算、条件和计划执行", "Triggering 的价值是统一反应链路，让规则扩展不再散落在业务 if/else。", "代码依据：MobaTriggerExecutionGateway.cs / MobaEffectExecutionService.cs", I("入口收敛", "Direct / OwnerBound", "MobaTriggerExecutionGateway"), I("执行请求", "TriggerId + typed payload", "ExecuteTrigger<TPayload>"), I("上下文创建", "payload / lineage / snapshot", "CreateCombatExecutionContext"), I("预算保护", "depth / frame / same trigger", "TryEnterExecutionBudget"), I("条件判断", "trigger conditions", "EvaluateTriggerConditions"), I("计划执行", "Action / Function / EventBus", "MobaTriggerPlanExecutor.Execute"), I("Trace 结束", "Completed / Failed", "session.Complete")),
         S("35-sync-risk-framework.png", CodeVisualKind.SplitFlow, "同步风险的代码级收敛点", "FramePacketNetAdapter 把输入帧和快照路由集中处理，DemoHarness 把同步模型放进矩阵验收", "同步框架化不是多写抽象，而是给高风险链路建立固定验证入口。", "代码依据：FramePacketNetAdapter.cs / DemoHarnessRunner.cs", I("FramePacket", "worldId / frame / inputs", "ProcessAndFeed"), I("RemoteDriven", "延迟输入 + jitter buffer", "RemoteDrivenSink.Add"), I("Confirmed", "权威输入 buffer", "ConfirmedSink.Add"), I("Snapshot", "envelope feed", "Snapshots.Feed"), I("Scenario", "sync profile + network + carrier", "DemoHarnessScenario"), I("Status", "Completed / Degraded / Failed", "DemoHarnessRunStatus")) with { LeftLabel = "运行时路由", RightLabel = "自动化验收" },
-        S("36-sample-dual-validation.png", CodeVisualKind.Matrix, "MOBA / Shooter 分别验证什么", "两个示例覆盖的不是玩法展示，而是复杂战斗和同步边界两类公司级风险", "示例越接近真实复杂度，越能为框架升级提供信心。", "代码依据：demo.moba.runtime / demo.shooter.view.runtime", I("MOBA", "技能、触发、伤害、Buff", "MobaEffectExecutionService", "战斗治理"), I("Shooter", "预测、快照、网络矩阵", "ShooterAcceptanceLab", "同步治理"), I("Console", "纯逻辑 smoke 和 DSL", "Demo.Host.Console", "CI 友好"), I("Unity", "表现与运行时契约", "View.Runtime", "集成验证")),
-        S("37-shooter-validation-showcase.png", CodeVisualKind.Matrix, "Shooter DemoHarness 验收矩阵", "每个 scenario 都由 sync profile、network profile、carrier 和 stepCount 组成，并产出状态和 metrics", "这张图用于说明 Shooter 是同步能力验收台，不只是能玩的小 Demo。", "代码依据：DemoHarnessRunner.cs / ShooterAcceptanceAutomation.cs", I("PredictRollback", "Completed / Degraded", "ReplayTicks / Reconcile", "PR gate"), I("AuthInterp", "Unsupported 可解释", "RemoteJitter", "matrix"), I("BatchStateSync", "Snapshot 请求可计数", "FullSnapshotCount", "nightly"), I("HybridHero", "弱网能力可退化", "HealthEvents", "report")),
+        S("36-sample-dual-validation.png", CodeVisualKind.Matrix, "MOBA / Shooter 分别验证什么", "两个示例覆盖的不是玩法展示，而是复杂战斗和同步边界两类公司级风险", "示例越接近真实复杂度，越能为框架升级提供信心。", "代码依据：demo.moba.runtime / demo.shooter.view.runtime", I("MOBA", "技能、触发、伤害、Buff", "MobaEffectExecutionService", "战斗治理"), I("Shooter", "预测、快照、网络矩阵", "ShooterAcceptanceLab", "同步治理"), I("Console", "纯逻辑 smoke 和 DSL", "Demo.Host.Console", "CI 友好"), I("Unity", "表现与运行时契约", "View.Runtime", "集成验证")) with { MatrixHeaders = new[] { "验证载体", "覆盖风险", "代码入口", "验证定位" } },
+        S("37-shooter-validation-showcase.png", CodeVisualKind.SplitFlow, "Shooter 双层验收证据", "DemoHarness 枚举能力边界，真实 TCP / 多进程 smoke 验证传输、重连和回放闭环", "四态矩阵回答“组合是否支持”，进程级 smoke 回答“真实链路是否跑通”；两者不能互相替代。", "代码依据：DemoHarnessRunner.cs / run_shooter_multiprocess_smoke.ps1 / ShooterSmokeReplayValidation.cs", I("能力组合", "sync profile + network + carrier", "DemoHarnessScenario"), I("四态结果", "Completed / Unsupported / Degraded / Failed", "DemoHarnessRunStatus"), I("可比较指标", "reconcile / jitter / snapshot / health", "metrics + report"), I("真实 TCP", "client process -> gateway -> Orleans", "SmokeTcpGameFrameworkNetworkChannel"), I("重连与迟到加入", "disconnect / reconnect / full snapshot", "multiprocess smoke"), I("回放证据", "完整 + 最小 replay / hash 校验", "ShooterSmokeReplayValidation")) with { LeftLabel = "组合覆盖：DemoHarness", RightLabel = "传输闭环：Process Smoke" },
         S("38-sample-as-best-practice.png", CodeVisualKind.DataFlow, "示例工程如何反向驱动框架", "示例里的失败会暴露框架边界问题，修复后再沉淀为文档和测试", "示例不是复制模板，而是公共能力的验证场和教学入口。", "代码依据：MOBA acceptance / Shooter acceptance / Docs", I("Scenario", "真实链路用例", "skill_10020101"), I("Failure", "trace / log / metrics", "artifacts/*.log"), I("Framework Fix", "runtime service / adapter", "com.abilitykit.*"), I("Regression", "用例进入门禁", "test-gates"), I("Teaching", "图表和讲稿更新", "ppt-assets")),
         S("39-framework-test-necessity.png", CodeVisualKind.Stack, "为什么框架更需要测试", "公共框架的每一次改动都有跨项目影响，所以测试要覆盖 API、主链路、示例和同步矩阵", "复用范围越大，越需要自动化反馈来换取升级信心。", "代码依据：Docs/AbilityKit测试门禁与批量回归规范.md", I("Unit", "规则和纯函数边界", "dotnet test"), I("Contract", "模块接口不破坏", "runtime contracts"), I("Smoke", "主链路快速阻断", "moba-console-smoke"), I("DSL", "战斗剧本复现", "MobaAcceptanceScenario"), I("Matrix", "同步模型批量验收", "DemoHarness")),
-        S("40-test-assets-compound.png", CodeVisualKind.Lifecycle, "Bug 如何沉淀成测试资产", "一次问题从日志定位、修复、补用例、进门禁到跨项目复用，形成闭环", "测试资产的复利来自闭环，不来自测试数量本身。", "代码依据：artifacts / test-gates / Docs", I("发现", "日志、trace、metrics", "artifacts"), I("定位", "首个分歧点", "trace chain"), I("修复", "框架或示例代码", "apply fix"), I("补测", "unit / smoke / DSL", "new case"), I("门禁", "PR 或 nightly", "CI gate"), I("复用", "后续项目共享", "package upgrade")) with { CenterLabel = "regression" },
+        S("40-test-assets-compound.png", CodeVisualKind.Lifecycle, "Bug 如何沉淀成测试资产", "一次问题从日志定位、修复、补用例、进门禁到跨项目复用，形成闭环", "测试资产的复利来自闭环，不来自测试数量本身。", "代码依据：artifacts / test-gates / Docs", I("发现", "日志、trace、metrics", "artifacts"), I("定位", "首个分歧点", "trace chain"), I("修复", "框架或示例代码", "apply fix"), I("补测", "unit / smoke / DSL", "new case"), I("门禁", "PR 或 nightly", "CI gate"), I("复用", "后续项目共享", "package upgrade")) with { CenterLabel = "可复用\n回归资产" },
         S("41-unified-process-handover.png", CodeVisualKind.DataFlow, "统一流程如何降低交接成本", "命名、入口、日志、门禁和文档固定后，新人能沿同一条路径接手问题", "流程统一的收益是可操作，而不是写在规范里的抽象要求。", "代码依据：WorldService / Diagnostics / Docs", I("命名", "同类服务同类入口", "*Service"), I("入口", "WorldInject / Resolve", "IWorldResolver"), I("诊断", "Counter / Gauge / Trace", "Diagnostics"), I("验证", "gate-summary / trx", "artifacts"), I("文档", "设计与讲稿关联", "Docs")),
-        S("42-adoption-by-project-scale.png", CodeVisualKind.Matrix, "按项目规模选择代码接入面", "不同项目不需要同样重的框架接入，但可以共享同一套能力边界", "接入策略要围绕风险选择模块，而不是围绕框架覆盖率。", "代码依据：包拆分 + 示例验证", I("原型", "Core + Pipeline", "com.abilitykit.core", "低成本"), I("中型", "Triggering + Combat", "triggering / damage", "规则复用"), I("多人", "FrameSync + Snapshot", "world.framesync", "同步风险"), I("长线", "DSL + CI + Matrix", "test-gates", "运营回归")),
+        S("42-adoption-by-project-scale.png", CodeVisualKind.Matrix, "按项目规模选择代码接入面", "不同项目不需要同样重的框架接入，但可以共享同一套能力边界", "接入策略要围绕风险选择模块，而不是围绕框架覆盖率。", "代码依据：包拆分 + 示例验证", I("原型", "Core + Pipeline", "com.abilitykit.core", "低成本"), I("中型", "Triggering + Combat", "triggering / damage", "规则复用"), I("多人", "FrameSync + Snapshot", "world.framesync", "同步风险"), I("长线", "DSL + CI + Matrix", "test-gates", "运营回归")) with { MatrixHeaders = new[] { "项目阶段", "推荐能力", "接入入口", "主要收益" } },
         S("43-internal-rollout-roadmap.png", CodeVisualKind.Sequence, "公司内部推进可执行路线", "先选稳定入口和可验证场景，再扩到第二项目，最后沉淀门禁和升级策略", "推广要靠可运行资产证明收益，而不是靠一次内训说服所有项目。", "代码依据：packages / demo / gates", I("选试点", "重复且风险高的能力", "pilot module"), I("接入口", "只接稳定服务边界", "IWorldResolver"), I("跑示例", "MOBA / Shooter 对照", "demo.*"), I("补门禁", "smoke + matrix", "test-gates"), I("第二项目", "验证跨项目收益", "package upgrade"), I("版本治理", "文档、报告、发布节奏", "README + artifacts")),
-        S("44-reuse-worthiness-filter.png", CodeVisualKind.Matrix, "判断代码是否值得进入框架", "不是所有项目代码都应该上升为公司资产，必须同时满足稳定、通用、可测、可扩展", "克制边界能让框架长期可维护。", "代码依据：包边界和测试能力", I("稳定", "不随业务频繁变", "public API", "必要"), I("通用", "多个项目会遇到", "module package", "必要"), I("可测", "可脱离项目验证", "unit / smoke", "必要"), I("可扩展", "项目差异有插槽", "interfaces", "必要")),
-        S("45-framework-risk-controls.png", CodeVisualKind.SplitFlow, "框架落地风险与代码控制点", "风险不靠口头提醒控制，而靠包边界、示例、门禁和降级路径控制", "框架治理的关键是每个风险都有工程抓手。", "代码依据：package split / DemoHarness / gates", I("过早抽象", "没有示例验证就进框架", "avoid"), I("接入过重", "小项目被流程拖慢", "avoid"), I("升级不敢", "缺门禁和报告", "avoid"), I("包边界", "按能力拆分", "com.abilitykit.*"), I("示例验证", "复杂场景证明", "demo.*"), I("门禁报告", "失败可解释", "gate-summary")) with { LeftLabel = "主要风险", RightLabel = "工程控制" },
+        S("44-reuse-worthiness-filter.png", CodeVisualKind.Matrix, "判断代码是否值得进入框架", "不是所有项目代码都应该上升为公司资产，必须同时满足稳定、通用、可测、可扩展", "克制边界能让框架长期可维护。", "代码依据：包边界和测试能力", I("稳定", "不随业务频繁变", "public API", "必要"), I("通用", "多个项目会遇到", "module package", "必要"), I("可测", "可脱离项目验证", "unit / smoke", "必要"), I("可扩展", "项目差异有插槽", "interfaces", "必要")) with { MatrixHeaders = new[] { "准入条件", "判断标准", "工程证据", "是否必需" } },
+        S("45-framework-risk-controls.png", CodeVisualKind.Matrix, "框架落地风险与代码控制点", "风险不靠口头提醒控制，而靠包边界、示例、门禁和降级路径控制", "框架治理的关键是每个风险都有工程抓手。", "代码依据：package split / DemoHarness / gates", I("过早抽象", "缺少第二场景验证", "示例先行", "demo.* / acceptance"), I("接入过重", "小项目流程负担过高", "按能力拆包", "com.abilitykit.*"), I("升级不敢", "缺少自动反馈证据", "分级门禁", "gate-summary / artifacts")) with { MatrixHeaders = new[] { "主要风险", "触发信号", "工程控制", "代码证据" } },
         S("46-company-benefit-summary.png", CodeVisualKind.Stack, "团队收益落到代码资产", "复用、协作、维护、验证和升级都要落到可运行、可检查、可发布的资产上", "最终目标是让战斗系统能力随项目增多而增强。", "代码依据：AbilityKit 全仓库资产", I("复用", "包和服务复用", "UPM / NuGet"), I("协作", "模块边界和命名统一", "WorldService"), I("维护", "Trace + Docs + Samples", "MobaTraceRegistry"), I("验证", "Unit / Smoke / DSL / Matrix", "test-gates"), I("升级", "一次修复多项目受益", "package release")),
-        S("47-discussion-decision-map.png", CodeVisualKind.Matrix, "下一步讨论应落到代码决策", "讨论项不再泛泛谈是否采用框架，而是选择试点、入口、门禁和回流机制", "内训最后要收束到可执行决策。", "代码依据：当前可落地入口", I("试点模块", "先选技能、触发或同步", "module owner", "决策"), I("接入入口", "WorldService / Adapter", "integration point", "决策"), I("验收门禁", "P0 smoke + P1 contract", "gate list", "决策"), I("回流机制", "项目问题进入框架 backlog", "Docs + tests", "决策"))
+        S("47-discussion-decision-map.png", CodeVisualKind.Matrix, "下一步讨论应落到代码决策", "讨论项不再泛泛谈是否采用框架，而是选择试点、入口、门禁和回流机制", "内训最后要收束到可执行决策。", "代码依据：当前可落地入口", I("试点模块", "技能 / 触发 / 同步", "module owner", "试点范围"), I("接入入口", "WorldService / Adapter", "integration owner", "接口清单"), I("验收门禁", "P0 smoke + P1 contract", "quality owner", "门禁清单"), I("回流机制", "项目问题进入框架 backlog", "framework owner", "Docs + tests")) with { MatrixHeaders = new[] { "决策项", "可选范围", "负责人", "输出物" } }
     };
 }
 
@@ -929,10 +1056,22 @@ flowchart TB
     E --> V
 """,
         ["06-test-gates-ci-pyramid.mmd"] = """
+flowchart LR
+    subgraph Gate[已实现统一门禁入口]
+      P0[P0<br/>precheck / build / test / smoke] --> P1[P1<br/>contracts / Unity EditMode / sync]
+      P1 --> P2[P2<br/>batch regression / release candidate]
+    end
+    Gate --> Adapter[run_test_gate.ps1<br/>test-gates.json<br/>logs / TRX / NUnit XML]
+    Adapter -. workflow 待接入 .-> CI[.github/workflows/...]
+""",
+        ["12b-coordinator-adapter-maturity.mmd"] = """
 flowchart TB
-    Dev[本地开发 / PR / CI] --> P0[P0 Development Blocker<br/>precheck / smoke]
-    P0 --> P1[P1 Contract Blocker<br/>runtime contracts / Unity EditMode / 同步专项]
-    P1 --> P2[P2 Regression Baseline<br/>nightly / 候选发布 / 大范围重构]
+    C[SessionCoordinator<br/>lifecycle / input / Tick / timeline] --> L[LocalSyncAdapter<br/>已实现]
+    C --> R[RemoteSyncAdapter<br/>已实现]
+    C --> H[HybridSyncAdapter<br/>部分实现]
+    L --> LR[玩法规则归 Logic Runtime]
+    R --> CR[环境编排归 Coordinator]
+    H --> PR[预测与 Reconciliation<br/>归玩法或专用同步实现]
 """,
         ["07-company-reuse-feedback-loop.mmd"] = """
 flowchart LR
@@ -1023,11 +1162,13 @@ flowchart LR
 """,
         ["17-damage-pipeline.mmd"] = """
 flowchart LR
-    Attack[AttackInfo<br/>来源 / 目标 / 技能 / payload] --> Pre[Pre Stage<br/>免疫 / 护盾 / 前置修正]
-    Pre --> Formula[Formula<br/>攻击 / 防御 / 暴击 / 抗性]
-    Formula --> Apply[Apply<br/>扣血 / 吸收 / 结果写入]
-    Apply --> Event[Event Bus<br/>Before / After DamageEvent]
-    Event --> Derived[Derived Trigger<br/>被动 / Buff / Projectile / Heal]
+    subgraph Kernel[通用内核 DamageCalculationPipeline]
+      Validate --> CriticalBase[Critical / Base] --> BonusResist[Bonus / Resist<br/>typed DamageSlots] --> Final[Final / Overkill]
+    end
+    subgraph Moba[MOBA 参考实现 DamagePipelineService]
+      Stage[Stage Events] --> Apply[Apply shield / health] --> Derived[Derived Trigger] --> Trace[Trace Child]
+    end
+    Final -->|DamageResult| Stage
 """,
         ["18-attributes-modifier-stack.mmd"] = """
 flowchart LR
@@ -1038,27 +1179,24 @@ flowchart LR
 """,
         ["19-record-replay-debug-flow.mmd"] = """
 flowchart LR
-    Capture[Capture<br/>input / seed / config version] --> Record[Record<br/>frame packet / key events]
-    Record --> Replay[Replay<br/>same runtime / headless run]
-    Replay --> Compare[Compare<br/>state hash / snapshot diff]
-    Compare --> Diagnose[Diagnose<br/>trace / first divergence]
-    Diagnose --> Regression[Regression<br/>case asset / CI gate]
+    Input[Input Track] --> Source[FrameRecordReplaySource]
+    Snapshot[Snapshot Track] --> Source
+    Hash[State Hash Track] --> Source
+    Source --> Min[完整 / 最小 replay] --> Headless[input-state / input-logic]
+    Headless --> Compare[hash / opcode / snapshot] --> Regression[Regression Gate]
 """,
         ["20-battlehost-lifecycle.mmd"] = """
-flowchart LR
-    Room[Room Ready<br/>players / match / server allocation] --> Init[BattleInitParams<br/>map / config / seed]
-    Init --> Host[Create Host<br/>DI / systems / world bootstrap]
-    Host --> Tick[Tick Loop<br/>input schedule / simulation step]
-    Tick --> Publish[Publish<br/>snapshot / event / state sync]
-    Publish --> Dispose[Dispose<br/>record close / release / report]
+flowchart TB
+    Host[BattleLogicHostGrain] --> Life[Initialize / Input Schedule / Tick / Full-Delta Push / Late Join / Destroy]
+    Host --> Shooter[Shooter Adapter<br/>动态加入 / AI / Interest / Diagnostics 已实现]
+    Host --> Moba[MOBA Adapter<br/>Start / Input / Tick / Snapshot 已实现<br/>其余能力 Unsupported 或未接入]
 """,
         ["21-config-validation-pipeline.mmd"] = """
 flowchart LR
-    Data[Designer Data<br/>Luban / Excel / ScriptableObject] --> Codegen[Codegen<br/>typed model / plan action]
-    Codegen --> Template[Template<br/>runtime template / resolver]
-    Template --> Startup[Startup Check<br/>引用 / schema / 缺失 / 冲突]
-    Startup --> Scenario[Scenario<br/>DSL smoke / 技能样例]
-    Scenario --> Report[Report<br/>error list / CI artifact]
+    Resource[资源接入<br/>IResourceProvider / JsonConfigProvider] --> Generator[生成注册<br/>AutoPlanAction / Registry / ActionId / Schema]
+    Generator --> Validation[运行时校验<br/>required contract / startup block / history]
+    Generator -. TryValidateArgs 待补 .-> Gap[参数 Schema 校验]
+    Validation -. MOBA 参考实现 .-> Moba[Gameplay Validation]
 """,
         ["22-gc-hot-path-governance.mmd"] = """
 flowchart LR
@@ -1100,15 +1238,16 @@ void WriteIndex()
 10. `10-moba-trigger-context-trace-flow.png`：MOBA 触发执行与上下文溯源。
 11. `11-moba-buff-lifecycle.png`：MOBA Buff 生命周期正式化。
 12. `12-shooter-pure-csharp-projection.png`：Shooter 纯 C# 到 Unity 表现投影。
+12B. `12b-coordinator-adapter-maturity.png`：Coordinator 会话编排与同步适配器成熟度。
 13. `13-demoharness-three-axis.png`：DemoHarness 三轴正交模型。
 14. `14-client-flow-boundaries.png`：Client Flow 与表现边界。
 15. `15-targeting-query-chain.png`：Targeting 查询链路。
 16. `16-projectile-lifecycle.png`：Projectile 生命周期。
-17. `17-damage-pipeline.png`：Damage 结算链路。
+17. `17-damage-pipeline.png`：Damage 通用计算内核与 MOBA 应用编排边界。
 18. `18-attributes-modifier-stack.png`：Attributes 修饰器栈。
-19. `19-record-replay-debug-flow.png`：Record / Replay 调试链路。
-20. `20-battlehost-lifecycle.png`：BattleHost 生命周期。
-21. `21-config-validation-pipeline.png`：配置生成与校验链路。
+19. `19-record-replay-debug-flow.png`：FrameRecord 三轨记录与可执行回归。
+20. `20-battlehost-lifecycle.png`：Orleans BattleHost 与玩法适配成熟度。
+21. `21-config-validation-pipeline.png`：生成注册与运行时校验成熟度。
 22. `22-gc-hot-path-governance.png`：GC / 性能热路径治理。
 23. `23-company-framework-title.png`：AbilityKit 真实代码资产栈。
 24. `24-fragmented-combat-systems.png`：单项目分散实现到统一触发链路。
@@ -1124,7 +1263,7 @@ void WriteIndex()
 34. `34-triggering-rule-system.png`：触发计划执行链路。
 35. `35-sync-risk-framework.png`：同步输入、快照路由与验收链路。
 36. `36-sample-dual-validation.png`：MOBA / Shooter 示例验证职责矩阵。
-37. `37-shooter-validation-showcase.png`：Shooter DemoHarness 验收矩阵。
+37. `37-shooter-validation-showcase.png`：Shooter DemoHarness 与真实 TCP / 多进程双层验收。
 38. `38-sample-as-best-practice.png`：示例工程反向驱动框架链路。
 39. `39-framework-test-necessity.png`：框架测试分层栈。
 40. `40-test-assets-compound.png`：Bug 沉淀成测试资产闭环。
@@ -1163,7 +1302,7 @@ record Group(string Title, string Color, string[] Items);
 record Step(string Title, string Description, string Color);
 record GateLevel(string Name, string Description, float Width, float Y, string Color);
 record CodeVisualItem(string Title, string Description, string Code, string Note, string Color);
-record CodeVisualSpec(string FileName, CodeVisualKind Kind, string Title, string Subtitle, string Takeaway, string Source, string CenterLabel, string LeftLabel, string RightLabel, CodeVisualItem[] Items);
+record CodeVisualSpec(string FileName, CodeVisualKind Kind, string Title, string Subtitle, string Takeaway, string Source, string CenterLabel, string LeftLabel, string RightLabel, string[] MatrixHeaders, CodeVisualItem[] Items);
 enum CodeVisualKind { DataFlow, Sequence, Lifecycle, SplitFlow, Matrix, Stack }
 
 sealed class Palette

@@ -16,7 +16,8 @@
           "projectile_id": 30050301,
           "directionSource": "target_query",
           "target_query_id": 50050301,
-          "target_max_count": 1
+          "target_max_count": 1,
+          "track_target": true
         },
         {
           "type": "debug_log",

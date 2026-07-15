@@ -56,7 +56,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
             if (_ring != null)
             {
-                var diameter = Mathf.Max(74f, Mathf.Min(maxRadius * 0.5f, 144f));
+                var diameter = shape == SkillAimIndicatorShape.TargetCircle
+                    ? Mathf.Max(74f, maxRadius * 2f)
+                    : Mathf.Max(74f, Mathf.Min(maxRadius * 0.5f, 144f));
                 _ring.sizeDelta = new Vector2(diameter, diameter);
                 _ring.SetAsFirstSibling();
             }
@@ -124,7 +126,9 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
 
         private static bool IsAnchorShape(SkillAimIndicatorShape shape)
         {
-            return shape == SkillAimIndicatorShape.DirectionLine || shape == SkillAimIndicatorShape.Sector;
+            return shape == SkillAimIndicatorShape.DirectionLine ||
+                   shape == SkillAimIndicatorShape.TargetCircle ||
+                   shape == SkillAimIndicatorShape.Sector;
         }
 
         private static bool IsDotShape(SkillAimIndicatorShape shape)

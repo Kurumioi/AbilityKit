@@ -757,7 +757,7 @@
         "RefreshPolicy":  1,
         "MaxStacks":  1,
         "TriggerIds":  [
-
+                            10050314
                        ],
         "Tags":  [
                      "State.Daji.UltimateFoxfire"

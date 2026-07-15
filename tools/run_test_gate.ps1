@@ -193,6 +193,66 @@ function Invoke-DotNetStep {
     return [pscustomobject]$record
 }
 
+function Assert-DotNetTrxResult {
+    param(
+        [pscustomobject]$Record,
+        [string]$DisplayName,
+        [string]$TrxFilePath
+    )
+
+    $failureReason = $null
+    $testTotal = $null
+    $testPassed = $null
+    $testFailed = $null
+    $testResultCount = $null
+
+    if (-not (Test-Path -LiteralPath $TrxFilePath -PathType Leaf)) {
+        $failureReason = "dotnet test did not create expected TRX results file '$TrxFilePath'."
+    }
+    else {
+        try {
+            [xml]$trxXml = Get-Content -LiteralPath $TrxFilePath -Raw
+            $testRun = $trxXml.DocumentElement
+            if ($null -eq $testRun -or $testRun.LocalName -ne 'TestRun') {
+                throw "Root element 'TestRun' was not found."
+            }
+
+            $counters = $trxXml.SelectSingleNode("/*[local-name()='TestRun']/*[local-name()='ResultSummary']/*[local-name()='Counters']")
+            if ($null -eq $counters -or -not $counters.Attributes['total']) {
+                throw "ResultSummary/Counters total attribute was not found."
+            }
+
+            $testTotal = [int]$counters.Attributes['total'].Value
+            $testPassed = if ($counters.Attributes['passed']) { [int]$counters.Attributes['passed'].Value } else { $null }
+            $testFailed = if ($counters.Attributes['failed']) { [int]$counters.Attributes['failed'].Value } else { $null }
+            $testResultCount = @($trxXml.SelectNodes("/*[local-name()='TestRun']/*[local-name()='Results']/*[local-name()='UnitTestResult']")).Count
+
+            if ($testTotal -le 0) {
+                $failureReason = "dotnet test step '$DisplayName' matched zero tests."
+            }
+            elseif ($testResultCount -le 0) {
+                $failureReason = "dotnet test step '$DisplayName' produced a TRX file without test results."
+            }
+        }
+        catch {
+            $failureReason = "dotnet test TRX results file '$TrxFilePath' is invalid: $($_.Exception.Message)"
+        }
+    }
+
+    $Record | Add-Member -NotePropertyName trxFileExists -NotePropertyValue (Test-Path -LiteralPath $TrxFilePath -PathType Leaf) -Force
+    $Record | Add-Member -NotePropertyName testTotal -NotePropertyValue $testTotal -Force
+    $Record | Add-Member -NotePropertyName testPassed -NotePropertyValue $testPassed -Force
+    $Record | Add-Member -NotePropertyName testFailed -NotePropertyValue $testFailed -Force
+    $Record | Add-Member -NotePropertyName testResultCount -NotePropertyValue $testResultCount -Force
+    $Record | Add-Member -NotePropertyName failureReason -NotePropertyValue $failureReason -Force
+
+    if ($null -ne $failureReason) {
+        $Record.status = 'Failed'
+    }
+
+    return $Record
+}
+
 function Invoke-PowerShellScriptStep {
     param(
         [string]$DisplayName,
@@ -581,9 +641,11 @@ function Invoke-Gate {
                         $arguments += @('--filter', [string]$step.filter)
                     }
                     $record = Invoke-DotNetStep -DisplayName $stepName -Kind 'dotnet-test' -Arguments $arguments -LogFilePath $logFile -ProjectPath $project -Filter ([string]$step.filter) -ResultsDirectory $testResultsDirectory -TrxFilePath $trxFilePath
+                    $record = Assert-DotNetTrxResult -Record $record -DisplayName $stepName -TrxFilePath $trxFilePath
                     $stepResults.Add($record)
                     if ($record.status -ne 'Passed') {
-                        throw "Step '$stepName' failed with exit code $($record.exitCode)."
+                        $failureDetail = if ([string]::IsNullOrWhiteSpace([string]$record.failureReason)) { "exit code $($record.exitCode)" } else { [string]$record.failureReason }
+                        throw "Step '$stepName' failed: $failureDetail"
                     }
                 }
                 'powershell-script' {

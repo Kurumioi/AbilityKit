@@ -46,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Systems
             public const string Summon = "summon";
             public const string SpawnSummon = "spawn_summon";
             public const string PlayPresentation = "play_presentation";
+            public const string Emit = "emit";
             public const string EndGame = "end_game";
             public const string SetGameplayVar = "set_gameplay_var";
             public const string AddGameplayVar = "add_gameplay_var";
@@ -149,6 +150,7 @@ namespace AbilityKit.Demo.Moba.Systems
         public static ActionId SpawnAreaId => GetActionId(Actions.SpawnArea);
         public static ActionId SpawnSummonId => GetActionId(Actions.SpawnSummon);
         public static ActionId PlayPresentationId => GetActionId(Actions.PlayPresentation);
+        public static ActionId EmitId => GetActionId(Actions.Emit);
         public static ActionId EndGameId => GetActionId(Actions.EndGame);
         public static ActionId SetGameplayVarId => GetActionId(Actions.SetGameplayVar);
         public static ActionId AddGameplayVarId => GetActionId(Actions.AddGameplayVar);

@@ -19,6 +19,7 @@ namespace AbilityKit.Combat.Projectile
         public readonly Vec3 Position;
         public readonly Vec3 Direction;
         public readonly float Speed;
+        public readonly int TrackingTargetActorId;
 
         public readonly int ReturnAfterFrames;
         public readonly float ReturnSpeed;
@@ -70,7 +71,8 @@ namespace AbilityKit.Combat.Projectile
             int hitCooldownFrames = 0,
             ProjectileLifecycleSpec lifecycle = default,
             int patternSlotIndex = 0,
-            int patternSlotCount = 1)
+            int patternSlotCount = 1,
+            int trackingTargetActorId = 0)
         {
             OwnerId = ownerId;
             TemplateId = templateId;
@@ -80,6 +82,7 @@ namespace AbilityKit.Combat.Projectile
             Position = position;
             Direction = direction;
             Speed = speed;
+            TrackingTargetActorId = trackingTargetActorId;
             ReturnAfterFrames = returnAfterFrames;
             ReturnSpeed = returnSpeed;
             ReturnStopDistance = returnStopDistance;
@@ -131,7 +134,8 @@ namespace AbilityKit.Combat.Projectile
                 hitCooldownFrames: HitCooldownFrames,
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
-                patternSlotCount: PatternSlotCount);
+                patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId);
         }
 
         public ProjectileSpawnParams WithPosition(in Vec3 position)
@@ -161,7 +165,8 @@ namespace AbilityKit.Combat.Projectile
                 hitCooldownFrames: HitCooldownFrames,
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
-                patternSlotCount: PatternSlotCount);
+                patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId);
         }
 
         public ProjectileSpawnParams WithLifecycle(in ProjectileLifecycleSpec lifecycle)
@@ -191,7 +196,8 @@ namespace AbilityKit.Combat.Projectile
                 hitCooldownFrames: HitCooldownFrames,
                 lifecycle: lifecycle,
                 patternSlotIndex: PatternSlotIndex,
-                patternSlotCount: PatternSlotCount);
+                patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId);
         }
 
         public ProjectileSpawnParams WithPatternSlot(int slotIndex, int slotCount)
@@ -221,7 +227,8 @@ namespace AbilityKit.Combat.Projectile
                 hitCooldownFrames: HitCooldownFrames,
                 lifecycle: Lifecycle,
                 patternSlotIndex: slotIndex,
-                patternSlotCount: slotCount);
+                patternSlotCount: slotCount,
+                trackingTargetActorId: TrackingTargetActorId);
         }
 
         public ProjectileSpawnParams WithSpawnFrame(int spawnFrame)
@@ -251,7 +258,8 @@ namespace AbilityKit.Combat.Projectile
                 hitCooldownFrames: HitCooldownFrames,
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
-                patternSlotCount: PatternSlotCount);
+                patternSlotCount: PatternSlotCount,
+                trackingTargetActorId: TrackingTargetActorId);
         }
     }
 }

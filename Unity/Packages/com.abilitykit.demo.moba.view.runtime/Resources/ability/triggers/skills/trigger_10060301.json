@@ -13,8 +13,7 @@
         {
           "type": "add_buff",
           "buffIds": [10060301],
-          "target_self": true,
-          "duration_ms": 2500
+          "target_self": true
         },
         {
           "type": "shoot_projectile",

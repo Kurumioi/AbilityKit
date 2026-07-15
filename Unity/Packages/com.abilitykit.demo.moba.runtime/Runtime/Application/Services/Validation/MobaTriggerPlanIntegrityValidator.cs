@@ -41,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
             var records = database?.Records;
             if (records == null || records.Count == 0)
             {
-                report.Warning(SourceName, "trigger.database.records", "TriggerPlanJsonDatabase has no records; battle effects will not execute configured trigger plans.", nameof(TriggerPlanJsonDatabase), code: "moba.trigger.plan.empty", category: MobaRuntimeValidationCategory.Config);
+                report.Error(SourceName, "trigger.database.records", "TriggerPlanJsonDatabase has no records; configured trigger plans cannot execute during battle bootstrap.", nameof(TriggerPlanJsonDatabase), code: "moba.trigger.plan.empty", category: MobaRuntimeValidationCategory.Config);
                 return;
             }
 

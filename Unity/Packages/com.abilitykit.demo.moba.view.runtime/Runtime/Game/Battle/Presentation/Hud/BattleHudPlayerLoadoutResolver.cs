@@ -22,19 +22,6 @@ namespace AbilityKit.Game.Flow
             }
 
             var responsePlayerId = res.PlayerId.Value;
-            if (!string.IsNullOrEmpty(responsePlayerId) && responsePlayerId != playerId && TryFindByPlayerId(loadouts, responsePlayerId, out loadout))
-            {
-                Log.Warning($"[BattleHudPlayerLoadoutResolver] local playerId mismatch. requested={playerId}, response={responsePlayerId}; using response loadout.");
-                return true;
-            }
-
-            if (loadouts.Length == 1)
-            {
-                loadout = loadouts[0];
-                Log.Warning($"[BattleHudPlayerLoadoutResolver] local loadout not found. requested={playerId}, response={responsePlayerId}; using only loadout playerId={loadout.PlayerId.Value}.");
-                return true;
-            }
-
             Log.Warning($"[BattleHudPlayerLoadoutResolver] local loadout not found. requested={playerId}, response={responsePlayerId}, loadoutCount={loadouts.Length}.");
             return false;
         }

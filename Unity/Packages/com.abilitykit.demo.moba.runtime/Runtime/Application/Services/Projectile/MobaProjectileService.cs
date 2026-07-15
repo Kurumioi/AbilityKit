@@ -219,6 +219,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
         {
+            return Launch(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, false, in aimPos, in aimDir, in sourceContext);
+        }
+
+        public bool Launch(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 aimPos, in Vec3 aimDir, in ProjectileSourceContext sourceContext)
+        {
             if (_entities == null) return false;
             if (casterActorId <= 0) return false;
             if (launcher == null) return false;
@@ -234,7 +239,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             dir = dir.Normalized;
             if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
 
-            return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, in spawnPos, in dir, in sourceContext);
+            return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext);
         }
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
@@ -259,7 +264,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
         {
+            return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, false, in spawnPos, in dir, in sourceContext);
+        }
 
+        public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
+        {
             var request = new MobaProjectileLaunchRequest(
                 casterActorId,
                 launcher,
@@ -268,6 +277,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 fanAngleDeg,
                 durationMs,
                 continuousProcessId,
+                trackTarget,
                 in spawnPos,
                 in dir,
                 in sourceContext);
@@ -415,10 +425,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 tickIntervalFrames: tickIntervalFrames,
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames,
-                lifecycle: lifecycle);
-
+                lifecycle: lifecycle,
+                trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0);
+ 
             var sourceContext = request.SourceContext;
-            var launcherSource = CreateLaunchSource(casterActorId, 0, projectile.Id, in sourceContext);
+            var launcherSource = CreateLaunchSource(casterActorId, sourceContext.InitialTargetActorId, projectile.Id, in sourceContext);
             var endTimeMs = durationMs > 0 ? nowMs + durationMs : nowMs;
             if (!TryCreateLaunchSequence(launcher, out var sequence, out var sequenceError))
             {

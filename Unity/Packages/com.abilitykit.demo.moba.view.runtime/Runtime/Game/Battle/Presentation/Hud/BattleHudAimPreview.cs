@@ -167,20 +167,14 @@ namespace AbilityKit.Game.Flow
         private bool TryResolveCasterPosition(BattleContext ctx, out Vector3 position)
         {
             position = default;
-            if (ctx == null || ctx.EntityQuery == null) return TryUseLastCasterPosition(out position);
-
-            var casterId = ctx.LocalActorId;
-            if (casterId <= 0) return TryUseLastCasterPosition(out position);
-
-            if (ctx.EntityQuery.TryGetTransform(new BattleNetId(casterId), out var transform) && transform != null)
+            if (ctx == null || !ctx.TryResolveLocalActorWorldPos(out position))
             {
-                position = transform.Position;
-                _lastCasterPosition = position;
-                _hasLastCasterPosition = true;
-                return true;
+                return TryUseLastCasterPosition(out position);
             }
 
-            return TryUseLastCasterPosition(out position);
+            _lastCasterPosition = position;
+            _hasLastCasterPosition = true;
+            return true;
         }
 
         private bool TryUseLastCasterPosition(out Vector3 position)

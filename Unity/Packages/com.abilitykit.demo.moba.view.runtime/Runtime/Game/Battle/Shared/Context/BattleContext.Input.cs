@@ -1,4 +1,7 @@
+using AbilityKit.Ability.Host;
 using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
@@ -97,12 +100,57 @@ namespace AbilityKit.Game.Flow
             return _hudInput.TryReadSkillAimPreview(out slot, out dx, out dz, out submissionVersion);
         }
 
-        private bool TryResolveLocalActorWorldPos(out Vector3 pos)
+        internal bool TryResolveLocalActorWorldPos(out Vector3 pos)
         {
             pos = default;
             if (EntityQuery == null) return false;
-            if (LocalActorId <= 0) return false;
-            if (!EntityQuery.TryGetTransform(new AbilityKit.Game.Battle.Entity.BattleNetId(LocalActorId), out var transform) || transform == null) return false;
+
+            if (TryResolveActorWorldPos(LocalActorId, out pos))
+            {
+                return true;
+            }
+
+            if (!TryResolveMappedLocalActorId(out var actorId) ||
+                !TryResolveActorWorldPos(actorId, out pos))
+            {
+                return false;
+            }
+
+            LocalActorId = actorId;
+            return true;
+        }
+
+        private bool TryResolveMappedLocalActorId(out int actorId)
+        {
+            actorId = 0;
+            if (Session == null ||
+                !Session.TryGetWorld(out var world) ||
+                world?.Services == null ||
+                !world.Services.TryResolve<MobaPlayerActorMapService>(out var playerActors) ||
+                playerActors == null)
+            {
+                return false;
+            }
+
+            var playerIdValue = ResolveLocalControlPlayerId();
+            if (string.IsNullOrEmpty(playerIdValue))
+            {
+                playerIdValue = "p1";
+            }
+
+            return playerActors.TryGetActorId(new PlayerId(playerIdValue), out actorId) &&
+                   actorId > 0;
+        }
+
+        private bool TryResolveActorWorldPos(int actorId, out Vector3 pos)
+        {
+            pos = default;
+            if (actorId <= 0 ||
+                !EntityQuery.TryGetTransform(new BattleNetId(actorId), out var transform) ||
+                transform == null)
+            {
+                return false;
+            }
 
             pos = transform.Position;
             return true;

@@ -70,7 +70,14 @@ namespace AbilityKit.Game.Flow
 
             if (Root != null)
             {
-                UnityEngine.Object.Destroy(Root);
+                if (Application.isPlaying)
+                {
+                    UnityEngine.Object.Destroy(Root);
+                }
+                else
+                {
+                    UnityEngine.Object.DestroyImmediate(Root);
+                }
             }
         }
     }

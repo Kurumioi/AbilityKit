@@ -49,6 +49,11 @@ namespace AbilityKit.Combat.Projectile
             {
                 _world.SetReturnTargetProvider(provider);
             }
+
+            if (services.TryResolve<IProjectileTrackingTargetProvider>(out var trackingProvider) && trackingProvider != null)
+            {
+                _world.SetTrackingTargetProvider(trackingProvider);
+            }
         }
 
         public int ActiveCount => _world.ActiveCount;

@@ -10,32 +10,21 @@ namespace AbilityKit.Game.Flow
         {
             if (view == null) return;
 
+            // A reused slot must not inherit gestures or input gating from the previous skill.
+            view.ResetPresentationState();
             var cfg = view.Config;
-            if (template != null)
-            {
-                cfg.LongPressSeconds = template.LongPressSeconds > 0f ? template.LongPressSeconds : cfg.LongPressSeconds;
-                cfg.DragThreshold = template.DragThreshold > 0f ? template.DragThreshold : cfg.DragThreshold;
-                cfg.AimMaxRadius = template.AimMaxRadius > 0f ? template.AimMaxRadius : cfg.AimMaxRadius;
-                cfg.AimMode = template.AimMode == (int)SkillAimMode.Point ? SkillAimMode.Point : SkillAimMode.Direction;
-                cfg.UsePointMode = template.UsePointMode == (int)SkillUsePointMode.Aim
-                    ? SkillUsePointMode.Aim
-                    : template.UsePointMode == (int)SkillUsePointMode.TargetPoint
-                        ? SkillUsePointMode.TargetPoint
-                        : SkillUsePointMode.None;
-                cfg.SelectRange = template.SelectRange;
-                cfg.FaceToAim = template.FaceToAim;
-                cfg.EnableAim = template.EnableAim || spec.IndicatorShape != SkillAimIndicatorShape.Hidden;
-            }
-            else
-            {
-                cfg.LongPressSeconds = cfg.LongPressSeconds > 0f ? cfg.LongPressSeconds : 0.35f;
-                cfg.DragThreshold = cfg.DragThreshold > 0f ? cfg.DragThreshold : 12f;
-                cfg.AimMaxRadius = cfg.AimMaxRadius > 0f ? cfg.AimMaxRadius : 220f;
-                cfg.AimMode = spec.IndicatorShape == SkillAimIndicatorShape.TargetCircle ? SkillAimMode.Point : SkillAimMode.Direction;
-                cfg.UsePointMode = cfg.AimMode == SkillAimMode.Point ? SkillUsePointMode.TargetPoint : SkillUsePointMode.Aim;
-                cfg.FaceToAim = cfg.AimMode == SkillAimMode.Direction;
-                cfg.EnableAim = spec.IndicatorShape != SkillAimIndicatorShape.Hidden;
-            }
+            cfg.LongPressSeconds = template != null && template.LongPressSeconds > 0f
+                ? template.LongPressSeconds
+                : cfg.LongPressSeconds > 0f ? cfg.LongPressSeconds : 0.35f;
+            cfg.DragThreshold = template != null && template.DragThreshold > 0f
+                ? template.DragThreshold
+                : cfg.DragThreshold > 0f ? cfg.DragThreshold : 12f;
+            cfg.EnableAim = spec.EnableAim;
+            cfg.AimMode = spec.AimMode;
+            cfg.AimMaxRadius = spec.UiAimRadiusPixels;
+            cfg.UsePointMode = spec.UsePointMode;
+            cfg.SelectRange = template != null ? template.SelectRange : 0f;
+            cfg.FaceToAim = spec.FaceToAim;
             cfg.IndicatorShape = spec.IndicatorShape;
             cfg.IndicatorLengthPixels = spec.UiLengthPixels;
             cfg.IndicatorWidthPixels = spec.UiWidthPixels;

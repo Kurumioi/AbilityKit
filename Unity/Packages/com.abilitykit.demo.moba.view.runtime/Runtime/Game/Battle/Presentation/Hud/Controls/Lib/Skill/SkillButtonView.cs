@@ -183,6 +183,14 @@ namespace AbilityKit.Game.Battle.View.Lib.Skill
             RefreshCooldownVisuals();
         }
 
+        public void ResetPresentationState()
+        {
+            CancelAimPreview();
+            _gesture.Reset();
+            _aim.Hide();
+            ClearSkillState();
+        }
+
         public void ClearSkillState()
         {
             _cooldownState = default;

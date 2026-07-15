@@ -34,7 +34,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
             try
             {
                 var token = JToken.Parse(text);
-                if (token is not JArray array) return Array.CreateInstance(dtoType, 0);
+                if (token is not JArray array)
+                {
+                    throw new InvalidOperationException(
+                        $"Expected a JSON array root for DTO type '{dtoType.FullName}', but found '{token.Type}'.");
+                }
 
                 var list = new List<object>();
                 foreach (var item in array)

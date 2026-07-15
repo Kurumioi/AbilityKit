@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "owner": "AbilityKit Engineering",
   "defaultGate": "precheck",
   "documentation": "Docs/AbilityKit测试门禁与批量回归规范.md",
@@ -178,6 +178,26 @@
           "name": "Runtime contracts",
           "kind": "gate",
           "gate": "runtime-contracts"
+        },
+        {
+          "name": "Zhao Yun Unity acceptance",
+          "kind": "gate",
+          "gate": "moba-zhaoyun-unity"
+        },
+        {
+          "name": "Mozi Unity acceptance",
+          "kind": "gate",
+          "gate": "moba-mozi-unity"
+        },
+        {
+          "name": "Daji Unity acceptance",
+          "kind": "gate",
+          "gate": "moba-daji-unity"
+        },
+        {
+          "name": "Ying Zheng Unity acceptance",
+          "kind": "gate",
+          "gate": "moba-yingzheng-unity"
         }
       ]
     },
@@ -205,6 +225,11 @@
         "artifactRequired": true
       },
       "steps": [
+        {
+          "name": "MOBA hero acceptance coverage manifest",
+          "kind": "powershell-script",
+          "script": "tools/validate_moba_hero_acceptance_coverage.ps1"
+        },
         {
           "name": "MOBA business ID governance tests",
           "kind": "powershell-script",
@@ -342,14 +367,150 @@
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10010201_ScenarioExportsTraceAndConfirmsShieldAreaDamageAndSlow"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.LianPoSkillAcceptanceTests.Skill10010201_ScenarioExportsTraceAndConfirmsShieldAreaDamageAndSlow"
         },
         {
           "name": "Lian Po Unity Skill10010301 authoritative",
           "kind": "unity-editmode-test",
           "projectPath": "Unity",
           "testPlatform": "EditMode",
-          "testFilter": "AbilityKit.Game.Test.UnitTest.MobaAcceptanceTests.Skill10010301_ScenarioExportsTraceAndConfirmsThirdStageKnockup"
+          "testFilter": "AbilityKit.Game.Test.UnitTest.LianPoSkillAcceptanceTests.Skill10010301_ScenarioExportsTraceAndConfirmsThirdStageKnockup"
+        }
+      ]
+    },
+    {
+      "name": "moba-zhaoyun-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Zhao Yun Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-zhaoyun",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Zhao Yun Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.ZhaoYunSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-mozi-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Mozi Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-mozi",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Mozi Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.MoziSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-daji-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Daji Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-daji",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Daji Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.DajiSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-yingzheng-unity",
+      "level": "P2",
+      "owner": "MOBA Runtime/Unity Test",
+      "description": "Run the authoritative Ying Zheng Unity EditMode hero acceptance fixture as a scheduled regression baseline.",
+      "scope": [
+        "unity-editmode",
+        "moba-hero-acceptance",
+        "moba-yingzheng",
+        "scene-contracts",
+        "authoritative-artifacts"
+      ],
+      "requiredBefore": [
+        "broad-moba-hero-refactor-completion",
+        "release-candidate",
+        "batch-merge"
+      ],
+      "failurePolicy": "Treat as a P2 release and batch-merge blocker. Preserve matching Unity command, log, and NUnit XML artifacts for triage.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Ying Zheng Unity acceptance fixture",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests"
         }
       ]
     }

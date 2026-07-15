@@ -36,13 +36,13 @@ function ConvertTo-StringArray($value) {
     return @($value | ForEach-Object { [string]$_ })
 }
 
-function Add-ConfigArg([System.Collections.Generic.List[string]]$args, [string]$key, [object]$value) {
-    $args.Add($key)
-    $args.Add([string]$value)
+function Add-ConfigArg([System.Collections.Generic.List[string]]$configArguments, [string]$key, [object]$value) {
+    $configArguments.Add($key)
+    $configArguments.Add([string]$value)
 }
 
-function ConvertTo-CommandLine([string[]]$args) {
-    ($args | ForEach-Object {
+function ConvertTo-CommandLine([string[]]$commandArguments) {
+    ($commandArguments | ForEach-Object {
         if ($_ -match '[\s"]') {
             '"' + ($_ -replace '"', '\"') + '"'
         }
@@ -57,6 +57,7 @@ $src = Join-Path $root 'src'
 
 $hostProj = Join-Path $src 'AbilityKit.Orleans.Host\AbilityKit.Orleans.Host.csproj'
 $gatewayProj = Join-Path $src 'AbilityKit.Orleans.Gateway\AbilityKit.Orleans.Gateway.csproj'
+$gatewayWorkingDirectory = Split-Path -Parent $gatewayProj
 $siloScript = Join-Path $PSScriptRoot 'start_orleans_silo.ps1'
 $healthUri = "http://localhost:$GatewayPort/health/ready"
 $healthLiveUri = "http://localhost:$GatewayPort/health/live"
@@ -223,13 +224,14 @@ Add-ConfigArg $gatewayConfigArgs '--AbilityKit:Deployment:SiloRole:Role' 'Gatewa
 Add-ConfigArg $gatewayConfigArgs '--AbilityKit:Deployment:SiloRole:IsGateway' 'true'
 Add-ConfigArg $gatewayConfigArgs '--AbilityKit:Deployment:RuntimeProfile:Role' 'Gateway'
 Add-ConfigArg $gatewayConfigArgs '--AbilityKit:Deployment:RuntimeProfile:IsGateway' 'true'
-$gatewayConfigLine = ConvertTo-CommandLine $gatewayConfigArgs.ToArray()
+$gatewayConfigArgArray = $gatewayConfigArgs.ToArray()
+$gatewayConfigLine = ConvertTo-CommandLine -commandArguments $gatewayConfigArgArray
 
 Write-Host 'Starting Orleans Gateway...' -ForegroundColor Cyan
 $gatewayLog = Join-Path $instanceLogs 'gateway.log'
 $gatewayCommand = "`$Host.UI.RawUI.WindowTitle = 'AbilityKit $InstanceName Gateway'; dotnet run --project `"$gatewayProj`" -c $Configuration $noBuildArg -- $gatewayConfigLine 2>&1 | Tee-Object -FilePath `"$gatewayLog`" -Append"
 $gatewayArgs = @('-NoExit', '-NoProfile', '-Command', $gatewayCommand)
-$gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -PassThru -WindowStyle Normal
+$gatewayWindow = Start-Process powershell -ArgumentList $gatewayArgs -WorkingDirectory $gatewayWorkingDirectory -PassThru -WindowStyle Normal
 Write-Host "  Gateway window PID: $($gatewayWindow.Id)" -ForegroundColor Gray
 
 $gatewayHealthStopwatch = [System.Diagnostics.Stopwatch]::StartNew()

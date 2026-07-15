@@ -51,15 +51,23 @@ namespace AbilityKit.Game.Flow
         }
 
         public IReadOnlyDictionary<int, BattleHudSkillPresentationSpec> SkillSpecs => _templateBinder.SkillSpecs;
+        internal BattleHudInputUi InputUi => _inputUi;
 
-        public void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
+        public bool ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
         {
-            EnsureSkillButtonCount(_templateBinder.ResolveSkillButtonCount(res, playerId));
-            _templateBinder.TryApply(
-                res,
-                playerId,
-                _inputUi?.SkillViews);
+            if (!_templateBinder.TryResolveLoadout(res, playerId, out var loadout))
+            {
+                return false;
+            }
+
+            EnsureSkillButtonCount(_templateBinder.ResolveSkillButtonCount(loadout));
+            if (!_templateBinder.TryApply(loadout, _inputUi?.SkillViews))
+            {
+                return false;
+            }
+
             _inputEvents.SetSkillSpecs(_templateBinder.SkillSpecs);
+            return true;
         }
 
         public void ApplySkillStates(MobaSkillStateSnapshotEntry[] entries, int localActorId)
@@ -166,7 +174,8 @@ namespace AbilityKit.Game.Flow
                 && spec.SkillId > 0
                 && spec.SkillId != skillId)
             {
-                AbilityKit.Core.Logging.Log.Warning($"[BattleHudInputController] apply skill state by slot despite skill id mismatch. slot={slot}, snapshotSkillId={skillId}, templateSkillId={spec.SkillId}");
+                AbilityKit.Core.Logging.Log.Warning($"[BattleHudInputController] reject skill state with mismatched presentation. slot={slot}, snapshotSkillId={skillId}, templateSkillId={spec.SkillId}");
+                return false;
             }
 
             view = _inputUi.SkillViews[index];

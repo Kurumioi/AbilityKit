@@ -178,6 +178,7 @@ flowchart TB
 | [04-配置系统](05-CommonModules/04-ConfigurationSystem.md) | 配置链路 | ConfigDatabase 原子换表、MOBA 配置门面、Luban 导出/多源加载、TriggerPlan、ActionSchema、Source Generator 边界、验证与多端接入 |
 | [05-Flow 流程引擎](05-CommonModules/05-FlowEngine.md) | 流程编排 | FlowHost、FlowSession、FlowRunner、FlowContext、IFlowNode、组合节点、阶段贡献、事件唤醒与诊断边界 |
 | [06-HFSM 分层状态机](05-CommonModules/06-HFSMStateMachine.md) | 状态机 | StateMachine、State、Transition、exit time、pending transition、Unity Graph Asset、导出器和运行时监控边界 |
+| [07-CodeGen 与 Luban 生产链路](05-CommonModules/07-CodeGenAndLubanProductionPipeline.md) | 生成与发布供应链 | 生成资产所有权、Roslyn/runtime CodeGen 双运行面、Luban 候选晋升、package 权威源、Console 副本、失败传播与自动化缺口 |
 
 ### 06 ECS 架构
 
@@ -211,6 +212,8 @@ flowchart TB
 | [04-投射物系统](08-GameplayModules/04-ProjectileSystem.md) | 投射物运行时 | ProjectileWorld、ProjectileService、发射调度、命中策略、回滚与 MOBA 事件转译 |
 | [05-属性系统](08-GameplayModules/05-AttributeSystem.md) | 属性与修饰器 | AttributeRegistry、AttributeContext、AttributeGroup、ModifierData、公式、约束与 MOBA 集成 |
 | [06-伤害计算](08-GameplayModules/06-DamageCalculation.md) | 伤害管线 | 通用 DamageCalculationPipeline、MOBA DamagePipelineService、减伤、护盾、触发事件与快照输出 |
+| [07-Targeting 系统](08-GameplayModules/07-TargetingSystem.md) | 目标查询 | Candidate、Rule、Scorer、Selector、稳定排序、Streaming Top-K、查询构建与池化边界 |
+| [08-Pipeline 与 Ability Runtime](08-GameplayModules/08-PipelineAndAbilityRuntime.md) | 通用执行运行时 | Pipeline run/phase 生命周期、实例隔离、暂停/取消/中断、Instant 差异、Ability 服务与 MOBA 特化边界 |
 
 ### 09 示例与验收
 
@@ -220,14 +223,14 @@ flowchart TB
 | [02-ET Demo 解析](09-ImplementationExamples/02-ET%20Demo%20Analysis.md) | ET 示例 | ET Scene 流转、Room/StartPlan、ETBattleComponent、ETMobaBattleDriver、WorldFactory、输入桥接、快照分发、ETUnit/Cache 与自动化验收 |
 | [03-MOBA Demo 解析](09-ImplementationExamples/03-MOBA%20Demo%20Analysis.md) | MOBA 总览 | MOBA Blueprint/Base、Bootstrap Module、Entitas 上下文、输入/技能/配置/实体索引、Buff/Projectile/Damage、快照表现、预测回滚与 ET 宿主复用关系 |
 | [03.1-MOBA 专题总览](09-ImplementationExamples/MOBA/00-Overview.md) | MOBA 导航 | MOBA 示例拆分阅读入口 |
-| [03.2-MOBA 世界启动与运行时装配](09-ImplementationExamples/MOBA/01-WorldAndBootstrap.md) | 世界装配 | Blueprint、Module、HostRuntime、服务生命周期 |
+| [03.2-MOBA 世界启动与运行时装配](09-ImplementationExamples/MOBA/01-WorldAndBootstrap.md) | 世界装配 | WorldType/Blueprint 双注册、typed options、容器播种、Bootstrap Flow、系统扫描、HostRuntime 预测模块与销毁边界 |
 | [03.3-MOBA 输入、技能、配置与实体索引](09-ImplementationExamples/MOBA/02-InputSkillConfigEntity.md) | 输入与配置 | 输入、技能、配置、实体索引的合并说明 |
-| [03.4-MOBA Buff、Projectile 与 Damage 管线](09-ImplementationExamples/MOBA/03-BuffProjectileDamage.md) | 战斗管线 | Buff 命令队列、投射物 Actor 绑定、伤害与治疗快照 |
-| [03.5-MOBA 快照、表现层与预测回滚](09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md) | 同步表现 | SnapshotEmitter、Dispatcher、Pipeline、远程驱动与预测回滚 |
-| [03.6-MOBA 技能执行深潜](09-ImplementationExamples/MOBA/05-SkillExecutionDeepDive.md) | 技能执行 | 输入事件、技能槽、释放策略、失败原因与帧同步约束 |
-| [03.7-MOBA 配置、实体索引与生成深潜](09-ImplementationExamples/MOBA/06-ConfigEntitySpawnDeepDive.md) | 生成链路 | 配置门面、多维实体索引、Actor BuildSpec 与生成注册 |
-| [03.8-MOBA Buff 生命周期深潜](09-ImplementationExamples/MOBA/07-BuffLifecycleDeepDive.md) | Buff 深潜 | Buff 命令队列、DrainPending、生命周期调和与重入保护 |
-| [03.9-MOBA Projectile 与 Damage 深潜](09-ImplementationExamples/MOBA/08-ProjectileDamageDeepDive.md) | Projectile 深潜 | Projectile Actor、命中过滤、Damage/Heal、原因字段与快照 |
+| [03.4-MOBA Buff、Projectile 与 Damage 管线](09-ImplementationExamples/MOBA/03-BuffProjectileDamage.md) | 战斗管线 | Buff 即时/排队生命周期、Projectile 身份与 Trigger/Effect 命中转译、Damage Pipeline 计算和 HP/快照落地边界 |
+| [03.5-MOBA 快照、表现层与预测回滚](09-ImplementationExamples/MOBA/04-SnapshotPresentationPrediction.md) | 同步表现 | Emitter/Router 输出契约、同名 Dispatcher 边界、双路 decoder/Pipeline、远程驱动、预测回滚与表现去重 |
+| [03.6-MOBA 技能执行深潜](09-ImplementationExamples/MOBA/05-SkillExecutionDeepDive.md) | 技能执行 | 权威输入门禁、Press/Hold/Release/Cancel、释放准备、策略/runner、冷却、结构化失败与回放约束 |
+| [03.7-MOBA 配置、实体索引与生成深潜](09-ImplementationExamples/MOBA/06-ConfigEntitySpawnDeepDive.md) | 生成链路 | 配置加载/reload 约束、Actor 生成顺序与非事务边界、多维实体索引及 Pre/PostExecute 调和 |
+| [03.8-MOBA Buff 生命周期深潜](09-ImplementationExamples/MOBA/07-BuffLifecycleDeepDive.md) | Buff 深潜 | 即时/队列命令、生命周期执行器、实例标识、持续运行时调和、拒绝诊断、重入与清理边界 |
+| [03.9-MOBA Projectile 与 Damage 深潜](09-ImplementationExamples/MOBA/08-ProjectileDamageDeepDive.md) | Projectile 深潜 | Shoot/Launch 双入口、Launcher 与 Projectile 身份、命中过滤、Trigger/Effect 转译、Damage Pipeline、HP 应用与事件快照 |
 | [03.10-MOBA Trace、Context 与 Effect 执行深潜](09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md) | Trace 与上下文 | TraceTreeRegistry、MobaTraceRegistry、LineageInput、CombatExecutionContext、EffectInvoker 与验收 trace |
 | [03.11-MOBA Trigger、Validation 与 Presentation Cue 深潜](09-ImplementationExamples/MOBA/10-TriggerValidationPresentationDeepDive.md) | Trigger 与表现 | TriggerExecutionGateway、Owner-bound Subscription、RuntimeValidation、StageTrigger、PresentationCue |
 | [03.12-MOBA PlanActions DSL 与 Continuous Runtime 深潜](09-ImplementationExamples/MOBA/11-PlanActionsAndContinuousRuntimeDeepDive.md) | DSL 与持续运行时 | ActionSchema、PlanActionModule、ContinuousRuntimeView、LifecycleBinder、ContextSourceBoundary |
@@ -240,26 +243,29 @@ flowchart TB
 | [03.19-MOBA 技能 Flow 与 Pipeline 配置设计](09-ImplementationExamples/MOBA/18-SkillFlowPipelineConfigDesign.md) | 技能 Flow 配置 | skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板 |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | Shooter 总览 | Shooter Runtime/Svelto、packed/pure-state snapshot、客户端同步控制器、Unity PlayMode 远程宿主、连接恢复、Gateway/Orleans 与 Smoke/replay 验收 |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | Shooter 示例拆分阅读入口 |
-| [04.2-Shooter Runtime、Svelto 与战斗模拟](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 模拟 | RuntimePort、Svelto EntityManager、Simulation Tick |
+| [04.2-Shooter Runtime、Svelto 装配与恢复边界](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 运行时 | Blueprint/WorldModule 装配、RuntimePort 生命周期、完整 Tick 边界、Svelto 结构提交、实体容量与 packed full/delta 恢复语义 |
 | [04.3-Shooter Snapshot、Hash 与同步模型](09-ImplementationExamples/Shooter/02-SnapshotHashSync.md) | Shooter 同步 | packed/pure-state snapshot、状态 hash、客户端同步控制器 |
 | [04.4-Shooter Gateway、Orleans 与 Smoke 验收](09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md) | Shooter 服务端 | RoomFlow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、烟测 |
-| [04.5-Shooter 客户端同步策略](09-ImplementationExamples/Shooter/04-ClientSyncStrategies.md) | 客户端同步 | ClientSession、输入协调、同步控制器工厂、packed/pure-state 应用器 |
-| [04.6-Shooter 服务端流程与 Smoke 深潜](09-ImplementationExamples/Shooter/05-ServerFlowAndSmokeDeepDive.md) | 服务端流程 | Gateway、RoomGrain、BattleAdapter、FrameSyncGrain 与 Smoke 验收 |
-| [04.7-Shooter 纯状态预算与兴趣范围深潜](09-ImplementationExamples/Shooter/06-PureStateBudgetAndInterest.md) | 状态预算 | Budget、InterestScope、Baseline/Delta 与候选排序 |
-| [04.8-Shooter Smoke 验证用例深潜](09-ImplementationExamples/Shooter/07-SmokeValidationCases.md) | Smoke 验证 | 帧/哈希校验、stale 保护、late join、reconnect 验收 |
+| [04.5-Shooter 客户端同步策略](09-ImplementationExamples/Shooter/04-ClientSyncStrategies.md) | 客户端同步 | Session 门面、profile/工厂真实映射、输入健康、packed runtime 校正、pure-state baseline 与远端插值/恢复边界 |
+| [04.6-Shooter 服务端适配与 Smoke 证据深潜](09-ImplementationExamples/Shooter/05-ServerFlowAndSmokeDeepDive.md) | 服务端流程 | 同步模板启动路线、稳定玩家槽位与 worldId、Room 启动/late join 事务边界、packed/pure-state observer baseline、单双进程 Smoke 与 replay/cleanup 证据 |
+| [04.7-Shooter 纯状态预算与兴趣范围深潜](09-ImplementationExamples/Shooter/06-PureStateBudgetAndInterest.md) | 状态预算 | Baseline/Active 双预算、优先级与距离排序、AOI Enter/Stay/Leave、量化、客户端基线校验与重同步边界 |
+| [04.8-Shooter Smoke 验证用例深潜](09-ImplementationExamples/Shooter/07-SmokeValidationCases.md) | Smoke 验证 | 单进程拓扑、packed 协议锚点、stale 保护、差异化投影恢复、玩法终局、replay 证据与清理风险 |
 | [04.9-Shooter 网络模块深潜](09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md) | 网络模块 | Gateway Flow、FrameSyncCoordinator、Snapshot Controller、Lag Compensation、Reconnect |
 | [04.10-Shooter Svelto 性能模式深潜](09-ImplementationExamples/Shooter/09-SveltoPerformanceModeDeepDive.md) | 性能模式 | struct component、ExclusiveGroup、ScenarioRunner、Benchmark 与大规模预算诊断 |
 | [04.11-Shooter 表现会话与视图管线深潜](09-ImplementationExamples/Shooter/10-PresentationSessionAndViewDeepDive.md) | 表现会话 | PresentationFacade、Session、Stream、Projection、Binder、Reconnect 驱动 |
 | [04.12-Shooter 插值、混合预测与诊断深潜](09-ImplementationExamples/Shooter/11-InterpolationAndPredictionDeepDive.md) | 插值与预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor |
 | [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 |
-| [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI 与胜负状态 |
+| [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 有序 fixed tick、Twin 五次穿透、敌人波次、空间索引、Bot 输入、终局边界与 checkpoint 确定性续跑 |
 
 ### 10 工程质量与测试
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-正式测试流程、单元测试与冒烟测试](10-EngineeringQuality/01-TestingWorkflow.md) | 测试门禁 | 真实测试工程入口、xUnit 分层、DemoHarness 指标、Shooter 30 场景验收矩阵、Orleans Gateway/Grain 测试、Smoke 结果字段、ET/Shooter 命令与 P0/P1/P2 门禁 |
+| [02-AI 训练数据契约与 JSONL 校验](10-EngineeringQuality/02-AiTrainingDataContract.md) | AI 数据契约 | run/episode/step JSONL、schemaVersion 兼容、Reader/Validator、离线训练产物、metadata/hash 校验与 C# 推理加载闭环 |
 | [03-MOBA 与 Shooter 示例工业化流程](10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) | 示例工业化 | MOBA/Shooter 单元测试、Console/Orleans smoke、DSL/配置环境测试、trace/replay artifact 与 CI 分层放大路径 |
+| [04-公司级采用与模块治理规范](10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md) | 采用治理 | 资产分类、成熟度、准入证据、所有权、版本、试点、升级、回滚、弃用与能力声明规则 |
+| [05-跨模块性能与热路径治理](10-EngineeringQuality/05-CrossModulePerformanceAndHotPathGovernance.md) | 性能治理 | 热路径分类、测量环境、指标、artifact、基线、预算、噪声控制与门禁晋升规则 |
 
 ### 11 文档工程计划
 
@@ -290,10 +296,13 @@ flowchart TB
 | Snapshot | `Unity/Packages/com.abilitykit.world.snapshot/Runtime` | `src/AbilityKit.World.Snapshot` | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Battle` |
 | StateSync | `Unity/Packages/com.abilitykit.world.statesync/Runtime` | `src/AbilityKit.World.StateSync` | Gateway state sync handlers |
 | Triggering | `Unity/Packages/com.abilitykit.triggering/Runtime` | `src/AbilityKit.Triggering` | - |
+| Pipeline | `Unity/Packages/com.abilitykit.pipeline/Runtime` | package-linked build entry | Demo skill runner composes phases |
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
+| Targeting | `Unity/Packages/com.abilitykit.combat.targeting/Runtime` | package-linked build entry | Demo battle logic composes query adapters |
 | Flow | `Unity/Packages/com.abilitykit.flow/Runtime` | `src/AbilityKit.Flow` | Demo battle host loads runtime assemblies |
 | Game View Flow | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding and battle scope tests |
 | HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `Unity/AbilityKit.HFSM.Tests.csproj` | Unity package and tests |
+| CodeGen / Luban | `Unity/Packages/com.abilitykit.codegen`、MOBA package Resources/LubanGen | `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator`、`LubanConfig/Moba`、`tools/sync_moba_json_configs.ps1` | ET config validation and Console publication replica |
 | Combat | `Unity/Packages/com.abilitykit.combat.*` | `src/AbilityKit.Combat.*` | Demo battle logic host |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime` | `src/AbilityKit.Record` | Smoke/replay tools |
 | Orleans Contracts | - | - | `Server/Orleans/src/AbilityKit.Orleans.Contracts` |
@@ -346,6 +355,13 @@ flowchart TB
 | 2026-07-06 | 2.32 | 客户端游戏流程与表现层阶段架构：顶层 phase/HFSM、状态 feature binding、module/feature/subfeature/handler 分层、Flow 分工与 ET/GameFramework 对比 |
 | 2026-07-06 | 2.33 | MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计：触发源分类、direct/owner-bound 执行、StageTrigger、PlanAction 副作用和 source context 继承 |
 | 2026-07-06 | 2.34 | MOBA 技能 Flow 与 Pipeline 配置设计：skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil、Pipeline 持续标签模板与废弃 Checks 治理 |
+| 2026-07-14 | 2.35 | 全量薄文档审计与首批源码化补全：Buff 生命周期、Projectile/Damage、纯状态预算/AOI、Shooter Smoke；修正兴趣范围、命中转译、伤害职责、投影恢复与清理语义，并补录 AI 训练数据契约索引 |
+| 2026-07-14 | 2.36 | 第二批源码化补全：重写 MOBA Buff/Projectile/Damage 总览与技能执行深潜，补齐输入阶段、准备、runner、冷却、trace/runtime 和结构化失败；重写 Shooter 客户端同步策略，修正 profile 控制器复用、packed Pipeline、pure-state baseline、插值与恢复边界 |
+| 2026-07-14 | 2.37 | 第三批源码化补全：重写 MOBA 世界装配、配置实体生成与快照表现预测，补齐 Blueprint/容器/Bootstrap Flow、配置加载约束、生成与索引非事务边界、Emitter/Router、同名 Dispatcher、双路解码 Pipeline 与预测回滚职责 |
+| 2026-07-14 | 2.38 | PPT 技术主张 canonical 补全：新增 Targeting、Pipeline/Ability Runtime、公司采用治理和跨模块性能治理；补充 Local/Remote/Hybrid adapter 成熟度与未完成边界 |
+| 2026-07-14 | 2.39 | 第四批源码化补全：重写 Shooter 服务端适配与 Smoke 深潜，澄清 Battle runtime 和可选 FrameSync 路线，补齐玩家槽位/worldId、Room 启动非事务与 late join 补偿、packed/pure-state observer baseline、单双进程恢复、玩法终局、replay 与 cleanup 失败边界 |
+| 2026-07-14 | 2.40 | 第五批源码化补全：拆分 Shooter 运行时装配与玩法内核职责，修正完整 Tick 管线和 Twin 五次穿透，补齐 Blueprint/WorldModule、结构提交、实体容量静默截断、packed full/delta 非事务恢复、终局返回值与 checkpoint 确定性证据 |
+| 2026-07-15 | 2.41 | 第六批源码化补全：新增 CodeGen/Luban 生产链路专题，区分 Roslyn 与 runtime CodeGen，明确候选 JSON、package 权威源和 Console 副本，记录生成器构建阻断、注册调用缺口、Luban 失败传播和 CI 门禁现状 |
 
 ---
 

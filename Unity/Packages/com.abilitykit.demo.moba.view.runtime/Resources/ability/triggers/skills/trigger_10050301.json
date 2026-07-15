@@ -13,8 +13,7 @@
         {
           "type": "add_buff",
           "buffIds": [10050301],
-          "target_self": true,
-          "duration_ms": 1600
+          "target_self": true
         },
         {
           "type": "debug_log",

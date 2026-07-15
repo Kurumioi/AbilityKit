@@ -47,7 +47,7 @@ const skillEventFilter = reactive<{ battleId: string; actorId: number | null; sk
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
 const roomRobots = reactive({ count: 1, accountPrefix: 'room-robot', autoReady: true, mountBattleAi: true, battleAiProfileId: 'simple-battle' });
 const serverOperation = reactive({ reason: '后台控制台操作' });
-const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', selectedCaseIds: [] as string[], traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'single-skill-damage', runCaseId: '', runDescription: '后台参数化战斗分析导出', runActorId: 1, runTargetActorId: 2, runSkillId: 1002, runEffectId: 2001, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 5001, runBaseDamage: 120, runMitigatedDamage: 96, runShieldAbsorb: 60, runHpDamage: 36, runTickRate: 30, runDurationFrames: 12, runOperatorReason: '后台战斗分析导出' });
+const acceptance = reactive({ artifactDirectory: 'artifacts/moba-acceptance', selectedCaseId: '', selectedCaseIds: [] as string[], traceLimit: 500, statusFilter: 'all', searchText: '', categoryFilter: '', tagFilter: '', sortKey: 'caseId', selectedTemplateId: 'lianpo-skill1-dash', runCaseId: '', runDescription: '运行真实英雄技能 DSL 场景', runActorId: 0, runTargetActorId: 0, runSkillId: 0, runEffectId: 0, runProjectileId: 0, runAreaId: 0, runBuffId: 0, runShieldId: 0, runBaseDamage: 0, runMitigatedDamage: 0, runShieldAbsorb: 0, runHpDamage: 0, runTickRate: 30, runDurationFrames: 0, runOperatorReason: '后台真实 DSL 技能分析' });
 const analysisArtifacts = reactive({ artifactDirectory: 'sample-web-output-analysis', selectedFileName: '' });
 const acceptanceAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
 const runtimeAnalysisFilter = reactive(createDefaultSkillAnalysisFilter());
@@ -523,19 +523,10 @@ function applyAcceptanceTemplate(templateId = acceptance.selectedTemplateId): vo
   const template = acceptanceTemplates.value?.templates?.find(item => item.id === templateId);
   if (!template) return;
   acceptance.selectedTemplateId = template.id;
+  acceptance.runCaseId = template.defaults.caseId || '';
   acceptance.runDescription = template.description || acceptance.runDescription;
   acceptance.runSkillId = template.defaults.skillId;
-  acceptance.runEffectId = template.defaults.effectId;
-  acceptance.runProjectileId = template.defaults.projectileId;
-  acceptance.runAreaId = template.defaults.areaId;
-  acceptance.runBuffId = template.defaults.buffId;
-  acceptance.runShieldId = template.defaults.shieldId;
-  acceptance.runBaseDamage = template.defaults.baseDamage;
-  acceptance.runMitigatedDamage = template.defaults.mitigatedDamage;
-  acceptance.runShieldAbsorb = template.defaults.shieldAbsorb;
-  acceptance.runHpDamage = template.defaults.hpDamage;
   acceptance.runTickRate = template.defaults.tickRate;
-  acceptance.runDurationFrames = template.defaults.durationFrames;
 }
 
 function buildAcceptanceRunRequest(): AdminSkillAcceptanceRunRequest {

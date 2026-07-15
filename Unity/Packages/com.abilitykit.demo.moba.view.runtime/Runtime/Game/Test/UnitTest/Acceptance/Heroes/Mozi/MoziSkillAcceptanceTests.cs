@@ -136,6 +136,58 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void Skill10040201_RepeatedCastShouldHitSameTargetAndSpawnIndependentCraters()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Mozi, "mozi_skill_2_repeated_hit_contract_world"))
+            {
+                AssertMoziSkill2ControlChain(harness);
+
+                harness.EnterGameAndWarmup(reason: "mozi skill 2 repeated hit contract");
+                harness.AssertSlotSkill(Skill2.Slot, Skill2.SkillId);
+                var actorId = harness.AssertPlayerActorBound();
+                var targetActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 3f);
+
+                var first = CastMoziSkill2AndAssertEarlyHit(
+                    harness,
+                    actorId,
+                    targetActorId,
+                    afterRootId: 0L,
+                    castOrdinal: "first");
+
+                TickUntilSkillStops(harness, actorId, Skill2.Slot, maxTicks: 120);
+                Assert.IsTrue(harness.HasActorBuff(targetActorId, 10040001), "Mozi skill 2 first crater stun should still be active while repeated-hit state is evaluated.");
+                ResetSkillCooldown(harness, actorId, Skill2.SkillId);
+
+                var target = harness.AssertActorEntity(targetActorId);
+                Assert.IsTrue(target.hasTransform, "Mozi skill 2 repeated-hit target should remain alive and registered while the first crater is active.");
+                Assert.AreEqual(3f, target.transform.Value.Position.X, 0.001f, "Mozi skill 2 repeated-hit target should remain on the cannon path.");
+
+                var second = CastMoziSkill2AndAssertEarlyHit(
+                    harness,
+                    actorId,
+                    targetActorId,
+                    afterRootId: first.RootId,
+                    castOrdinal: "second");
+
+                TickUntilSkillStops(harness, actorId, Skill2.Slot, maxTicks: 120);
+                ResetSkillCooldown(harness, actorId, Skill2.SkillId);
+                var third = CastMoziSkill2AndAssertEarlyHit(
+                    harness,
+                    actorId,
+                    targetActorId,
+                    afterRootId: second.RootId,
+                    castOrdinal: "third");
+
+                Assert.Less(first.RootId, second.RootId, "Second Mozi skill 2 cast should execute under a newer trace root.");
+                Assert.Less(second.RootId, third.RootId, "Third Mozi skill 2 cast should execute under a newer trace root.");
+                Assert.AreNotEqual(first.ProjectileId, second.ProjectileId, "Repeated Mozi skill 2 casts should allocate independent projectile identities.");
+                Assert.AreNotEqual(second.ProjectileId, third.ProjectileId, "Third Mozi skill 2 cast should allocate another projectile identity.");
+                Assert.AreNotEqual(first.ProjectileActorId, second.ProjectileActorId, "Repeated Mozi skill 2 casts should allocate independent scene projectile actors.");
+                Assert.AreNotEqual(second.ProjectileActorId, third.ProjectileActorId, "Third Mozi skill 2 cast should allocate another scene projectile actor.");
+            }
+        }
+
+        [Test]
         public void Skill10040301_ShouldSpawnBarrierApplyChannelBuffAndCompileControlTicks()
         {
             using (var harness = HeroSkillHeadlessContract.CreateHarness(Mozi, "mozi_skill_3_barrier_contract_world"))
@@ -239,6 +291,93 @@ namespace AbilityKit.Game.Test.UnitTest
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10040000, 2.0f, "Mozi passive fourth basic attack should refresh the passive shield buff.");
             }
         }
+        private static MoziSkill2CastResult CastMoziSkill2AndAssertEarlyHit(
+            MobaSkillConfigTestHarness harness,
+            int actorId,
+            int targetActorId,
+            long afterRootId,
+            string castOrdinal)
+        {
+            var skills = harness.World.Services.Resolve<SkillCastCoordinator>();
+            var cast = skills.TryCastBySlot(actorId, Skill2.Slot, aimPos: default, aimDir: new Vec3(1f, 0f, 0f), targetActorId: 0);
+            Assert.IsTrue(cast.Success, $"Mozi skill 2 {castOrdinal} cast should succeed. failReason={cast.FailReason}");
+
+            var effectTrace = TickUntilNewEffectTrace(
+                harness,
+                Skill2.EffectId,
+                afterRootId,
+                maxTicks: 20,
+                message: $"Mozi skill 2 {castOrdinal} cast should execute a new cannon effect root.");
+            harness.AssertProjectileLaunchedUnderEffect(effectTrace.RootId, 31040201, 30040201);
+
+            var spawn = TickUntilProjectileSpawnSnapshot(harness, 30040201, maxTicks: 30);
+            Assert.Greater(spawn.ProjectileId, 0, $"Mozi skill 2 {castOrdinal} cast should expose a valid projectile id.");
+            Assert.Greater(spawn.ProjectileActorId, 0, $"Mozi skill 2 {castOrdinal} cast should expose a valid projectile actor id.");
+
+            var exit = TickUntilProjectileExitSnapshot(harness, spawn.ProjectileId, maxTicks: 30);
+            Assert.AreEqual(spawn.ProjectileActorId, exit.ProjectileActorId, $"Mozi skill 2 {castOrdinal} hit exit should reference its own scene projectile actor.");
+            Assert.AreEqual((int)ProjectileExitReason.Hit, exit.ExitReason, $"Mozi skill 2 {castOrdinal} projectile should hit the same target early instead of passing through. actualReason={exit.ExitReason}");
+            AssertMoziSkill2ProjectileActorDespawned(harness, spawn.ProjectileActorId);
+            TickUntilCraterAreaSpawn(harness, effectTrace.RootId, maxTicks: 10, message: $"Mozi skill 2 {castOrdinal} hit should spawn a crater under its own effect root.");
+            AssertMoziSkill2HitCraterPosition(harness, effectTrace.RootId, targetActorId, exit);
+
+            return new MoziSkill2CastResult(effectTrace.RootId, spawn.ProjectileId, spawn.ProjectileActorId);
+        }
+
+        private static TraceSnapshot<MobaTraceMetadata> TickUntilNewEffectTrace(
+            MobaSkillConfigTestHarness harness,
+            int effectId,
+            long afterRootId,
+            int maxTicks,
+            string message)
+        {
+            for (var i = 0; i <= maxTicks; i++)
+            {
+                foreach (var node in harness.Trace.GetNodesByKind((int)MobaTraceKind.EffectExecution))
+                {
+                    if (node.RootId <= afterRootId) continue;
+                    if (node.Metadata == null || node.Metadata.ConfigId != effectId) continue;
+                    return node;
+                }
+
+                if (i < maxTicks) harness.Tick(1);
+            }
+
+            Assert.Fail(message);
+            return default;
+        }
+
+        private static void ResetSkillCooldown(MobaSkillConfigTestHarness harness, int actorId, int skillId)
+        {
+            var actor = harness.AssertActorEntity(actorId);
+            Assert.IsTrue(actor.hasSkillLoadout && actor.skillLoadout.ActiveSkills != null, "Mozi should retain an active skill loadout between repeated casts.");
+
+            for (var i = 0; i < actor.skillLoadout.ActiveSkills.Length; i++)
+            {
+                var runtime = actor.skillLoadout.ActiveSkills[i];
+                if (runtime == null || runtime.SkillId != skillId) continue;
+                runtime.CooldownEndTimeMs = 0L;
+                runtime.CooldownDurationMs = 0;
+                return;
+            }
+
+            Assert.Fail($"Active skill runtime {skillId} missing while preparing repeated Mozi skill 2 cast.");
+        }
+
+        private readonly struct MoziSkill2CastResult
+        {
+            public MoziSkill2CastResult(long rootId, int projectileId, int projectileActorId)
+            {
+                RootId = rootId;
+                ProjectileId = projectileId;
+                ProjectileActorId = projectileActorId;
+            }
+
+            public long RootId { get; }
+            public int ProjectileId { get; }
+            public int ProjectileActorId { get; }
+        }
+
         private static void AssertMoziSkill2ControlChain(MobaSkillConfigTestHarness harness)
         {
             HeroSkillHeadlessContract.AssertTriggerActions(

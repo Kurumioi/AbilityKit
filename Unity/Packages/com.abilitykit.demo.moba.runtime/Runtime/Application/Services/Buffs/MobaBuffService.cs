@@ -168,6 +168,39 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             return queued;
         }
 
+        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
+        {
+            if (targetActorId <= 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
+
+            var target = TryGetActorEntity(targetActorId);
+            if (target == null || !target.hasBuffs || target.buffs.Active == null || target.buffs.Active.Count == 0 || _configs == null)
+            {
+                return 0;
+            }
+
+            var active = target.buffs.Active;
+            var queued = 0;
+            for (var i = active.Count - 1; i >= 0; i--)
+            {
+                var runtime = active[i];
+                if (runtime == null || (sourceActorId > 0 && runtime.SourceId != sourceActorId)) continue;
+                if (!_configs.TryGetBuff(runtime.BuffId, out var buff) || buff?.Tags == null || !buff.Tags.HasTag(tag)) continue;
+
+                var removeSourceId = sourceActorId > 0 ? sourceActorId : runtime.SourceId;
+                if (!EnqueueRemove(targetActorId, runtime.BuffId, removeSourceId, runtime.SourceContextId, reason)) continue;
+
+                queued++;
+                if (!removeAll) break;
+            }
+
+            if (queued > 0)
+            {
+                DrainPending(maxCommands: Math.Max(256, queued + 32));
+            }
+
+            return queued;
+        }
+
         /// <summary>
         /// 每帧/定期对 Actor 上的 Buff 运行时做生命周期对账：同步持续行为时间、检查标签移除、触发过期清理。
         /// </summary>

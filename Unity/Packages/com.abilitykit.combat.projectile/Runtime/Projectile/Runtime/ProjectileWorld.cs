@@ -13,6 +13,11 @@ namespace AbilityKit.Combat.Projectile
         bool TryGetReturnTargetPosition(int launcherActorId, out Vec3 position);
     }
 
+    public interface IProjectileTrackingTargetProvider : IService
+    {
+        bool TryGetTrackingTargetPosition(int targetActorId, out Vec3 position);
+    }
+
     public sealed class ProjectileWorld
     {
         private static readonly ObjectPool<Projectile> Pool = Pools.GetPool(
@@ -24,6 +29,7 @@ namespace AbilityKit.Combat.Projectile
         private readonly ICollisionWorld _collision;
         private readonly List<Projectile> _active = new List<Projectile>(128);
         private IProjectileReturnTargetProvider _returnTargetProvider;
+        private IProjectileTrackingTargetProvider _trackingTargetProvider;
 
         private int _nextId = 1;
 
@@ -35,6 +41,11 @@ namespace AbilityKit.Combat.Projectile
         public void SetReturnTargetProvider(IProjectileReturnTargetProvider provider)
         {
             _returnTargetProvider = provider;
+        }
+
+        public void SetTrackingTargetProvider(IProjectileTrackingTargetProvider provider)
+        {
+            _trackingTargetProvider = provider;
         }
 
         public int ActiveCount => _active.Count;
@@ -51,6 +62,7 @@ namespace AbilityKit.Combat.Projectile
             proj.Position = p.Position;
             proj.Direction = p.Direction;
             proj.Speed = p.Speed;
+            proj.TrackingTargetActorId = p.TrackingTargetActorId;
             proj.ReturnAfterFrames = p.ReturnAfterFrames;
             proj.ReturnSpeed = p.ReturnSpeed;
             proj.ReturnStopDistance = p.ReturnStopDistance;
@@ -103,6 +115,7 @@ namespace AbilityKit.Combat.Projectile
                     position: p.Position,
                     direction: p.Direction,
                     speed: p.Speed,
+                    trackingTargetActorId: p.TrackingTargetActorId,
                     returnAfterFrames: p.ReturnAfterFrames,
                     returnSpeed: p.ReturnSpeed,
                     returnStopDistance: p.ReturnStopDistance,
@@ -134,7 +147,7 @@ namespace AbilityKit.Combat.Projectile
             }
 
             return BinaryObjectCodec.Encode(new SnapshotPayload(
-                version: 3,
+                version: 4,
                 frame: frame,
                 nextId: _nextId,
                 items: items
@@ -166,6 +179,7 @@ namespace AbilityKit.Combat.Projectile
                 p.Position = it.Position;
                 p.Direction = it.Direction;
                 p.Speed = it.Speed;
+                p.TrackingTargetActorId = it.TrackingTargetActorId;
                 p.ReturnAfterFrames = it.ReturnAfterFrames;
                 p.ReturnSpeed = it.ReturnSpeed;
                 p.ReturnStopDistance = it.ReturnStopDistance;
@@ -296,6 +310,24 @@ namespace AbilityKit.Combat.Projectile
                             i--;
                             continue;
                         }
+                    }
+
+                    var to = targetPos - p.Position;
+                    if (to.SqrMagnitude > 0f)
+                    {
+                        p.Direction = to.Normalized;
+                    }
+                }
+
+                else if (p.TrackingTargetActorId > 0)
+                {
+                    if (_trackingTargetProvider == null ||
+                        !_trackingTargetProvider.TryGetTrackingTargetPosition(p.TrackingTargetActorId, out var targetPos))
+                    {
+                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.TrackingTargetLost, frame, p.Position));
+                        RemoveAtSwapBack(i);
+                        i--;
+                        continue;
                     }
 
                     var to = targetPos - p.Position;
@@ -705,6 +737,7 @@ namespace AbilityKit.Combat.Projectile
             [BinaryMember(33)] public readonly float PrepareSlotSpacing;
             [BinaryMember(34)] public readonly int ConsumeLifetimeBeforeFlying;
             [BinaryMember(35)] public readonly int ArmedBeforeFlying;
+            [BinaryMember(36)] public readonly int TrackingTargetActorId;
 
             public SnapshotItem(
                 int id,
@@ -716,6 +749,7 @@ namespace AbilityKit.Combat.Projectile
                 in Vec3 position,
                 in Vec3 direction,
                 float speed,
+                int trackingTargetActorId,
                 int returnAfterFrames,
                 float returnSpeed,
                 float returnStopDistance,
@@ -753,6 +787,7 @@ namespace AbilityKit.Combat.Projectile
                 Position = position;
                 Direction = direction;
                 Speed = speed;
+                TrackingTargetActorId = trackingTargetActorId;
                 ReturnAfterFrames = returnAfterFrames;
                 ReturnSpeed = returnSpeed;
                 ReturnStopDistance = returnStopDistance;

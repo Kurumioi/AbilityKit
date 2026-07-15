@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
@@ -39,6 +44,58 @@ namespace AbilityKit.Game.Test.UnitTest
 
             AssertReportDoesNotContainCode(report, "moba.trigger.plan.payload_field_incompatible");
             Assert.AreEqual(0, report.ErrorCount, report.FormatAllEntries());
+        }
+
+        [Test]
+        public void ValidateDatabase_EmptyDatabaseBlocksStartup()
+        {
+            var report = new MobaRuntimeValidationReport();
+
+            MobaTriggerPlanIntegrityValidator.ValidateDatabase(
+                new TriggerPlanJsonDatabase(),
+                eventRegistry: null,
+                payloadRegistry: null,
+                report);
+
+            AssertReportContainsCode(report, "moba.trigger.plan.empty");
+            Assert.AreEqual(1, report.ErrorCount, report.FormatAllEntries());
+            Assert.IsTrue(report.ShouldBlockStartup, report.FormatAllEntries());
+        }
+
+        [Test]
+        public void ResourcesJsonProfile_DefaultIsStrict()
+        {
+            Assert.IsTrue(ResourcesJsonMobaConfigLoadProfile.Default.Strict);
+            Assert.IsFalse(new ResourcesJsonMobaConfigLoadProfile(strict: false).Strict);
+        }
+
+        [Test]
+        public void LubanDeserializer_NonArrayJsonRootThrowsWithDtoAndRootType()
+        {
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                LubanConfigGroupDeserializer.Instance.DeserializeFromText("{\"Code\": 1}", typeof(SkillDTO)));
+
+            StringAssert.Contains(typeof(SkillDTO).FullName, exception.Message);
+            StringAssert.Contains("Object", exception.Message);
+        }
+
+        [Test]
+        public void DefaultTriggerPlanLoadProfile_EnablesDirectoryFailFast()
+        {
+            Assert.IsTrue(MobaTriggerPlanLoadProfile.Default.FailFastOnDirectoryLoad);
+            Assert.IsFalse(new MobaTriggerPlanLoadProfile(Array.Empty<TriggerPlanLoadEntry>()).FailFastOnDirectoryLoad);
+        }
+
+        [Test]
+        public void TriggerPlanDirectoryLoader_FailFastOptionThrowsForMissingFile()
+        {
+            var loader = new TriggerPlanDirectoryLoader(new InMemoryDirectoryTextLoader("plans/missing.json"));
+            var options = new TriggerPlanDirectoryLoadOptions { ThrowOnFileParseError = true };
+
+            var exception = Assert.Throws<InvalidOperationException>(() =>
+                loader.LoadDirectory("plans", "*.json", options));
+
+            StringAssert.Contains("plans/missing.json", exception.Message);
         }
 
         private static MobaRuntimeValidationReport ValidatePayloadField<TArgs>(
@@ -99,6 +156,27 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             Assert.Fail("Expected validation code was not reported: " + code + Environment.NewLine + report.FormatAllEntries());
+        }
+
+        private sealed class InMemoryDirectoryTextLoader : IFileSystemTextLoader
+        {
+            private readonly string _path;
+
+            public InMemoryDirectoryTextLoader(string path)
+            {
+                _path = path;
+            }
+
+            public IEnumerable<string> GetFiles(string directory, string pattern)
+            {
+                return new[] { _path };
+            }
+
+            public bool TryLoad(string id, out string text)
+            {
+                text = null;
+                return false;
+            }
         }
 
         private static void AssertReportDoesNotContainCode(MobaRuntimeValidationReport report, string code)

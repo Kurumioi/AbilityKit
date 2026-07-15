@@ -26,6 +26,11 @@ namespace AbilityKit.Game.Flow
         public readonly float Width;
         public readonly float Radius;
         public readonly Color Color;
+        public readonly bool EnableAim;
+        public readonly SkillAimMode AimMode;
+        public readonly SkillUsePointMode UsePointMode;
+        public readonly bool FaceToAim;
+        public readonly float UiAimRadiusPixels;
 
         public BattleHudSkillPresentationSpec(
             int skillId,
@@ -35,7 +40,12 @@ namespace AbilityKit.Game.Flow
             float range,
             float width,
             float radius,
-            Color color)
+            Color color,
+            bool enableAim = true,
+            SkillAimMode aimMode = SkillAimMode.Direction,
+            SkillUsePointMode usePointMode = SkillUsePointMode.Aim,
+            bool faceToAim = true,
+            float uiAimRadiusPixels = 220f)
         {
             SkillId = skillId;
             Name = name;
@@ -45,10 +55,16 @@ namespace AbilityKit.Game.Flow
             Width = width;
             Radius = radius;
             Color = color;
+            EnableAim = enableAim;
+            AimMode = aimMode;
+            UsePointMode = usePointMode;
+            FaceToAim = faceToAim;
+            UiAimRadiusPixels = Mathf.Max(1f, uiAimRadiusPixels);
         }
 
+        public bool UsesTargetPoint => EnableAim && UsePointMode == SkillUsePointMode.TargetPoint;
         public float UiLengthPixels => Mathf.Max(80f, Range * 22f);
-        public float UiWidthPixels => Mathf.Max(28f, Width * 24f);
+        public float UiWidthPixels => Mathf.Max(28f, (UsesTargetPoint ? Radius : Width) * 24f);
 
         public static BattleHudSkillPresentationSpec Hidden(int skillId, string name)
         {
@@ -60,7 +76,10 @@ namespace AbilityKit.Game.Flow
                 0f,
                 0f,
                 0f,
-                new Color(0.2f, 0.75f, 1f, 0.25f));
+                new Color(0.2f, 0.75f, 1f, 0.25f),
+                enableAim: false,
+                usePointMode: SkillUsePointMode.None,
+                faceToAim: false);
         }
     }
 
@@ -82,6 +101,8 @@ namespace AbilityKit.Game.Flow
             }
 
             var range = Mathf.Max(1f, skill.Range);
+            var uiAimRadius = template.AimMaxRadius > 0f ? template.AimMaxRadius : 220f;
+            var usePointMode = ResolveUsePointMode(template.UsePointMode);
             if (template.AimMode == (int)SkillAimMode.Point)
             {
                 return new BattleHudSkillPresentationSpec(
@@ -92,7 +113,12 @@ namespace AbilityKit.Game.Flow
                     range,
                     5.6f,
                     2.8f,
-                    s_targetColor);
+                    s_targetColor,
+                    enableAim: true,
+                    aimMode: SkillAimMode.Point,
+                    usePointMode: usePointMode,
+                    faceToAim: template.FaceToAim,
+                    uiAimRadiusPixels: uiAimRadius);
             }
 
             return new BattleHudSkillPresentationSpec(
@@ -103,7 +129,19 @@ namespace AbilityKit.Game.Flow
                 range,
                 1.5f,
                 0f,
-                s_directionColor);
+                s_directionColor,
+                enableAim: true,
+                aimMode: SkillAimMode.Direction,
+                usePointMode: usePointMode,
+                faceToAim: template.FaceToAim,
+                uiAimRadiusPixels: uiAimRadius);
+        }
+
+        private static SkillUsePointMode ResolveUsePointMode(int value)
+        {
+            if (value == (int)SkillUsePointMode.Aim) return SkillUsePointMode.Aim;
+            if (value == (int)SkillUsePointMode.TargetPoint) return SkillUsePointMode.TargetPoint;
+            return SkillUsePointMode.None;
         }
     }
 }
