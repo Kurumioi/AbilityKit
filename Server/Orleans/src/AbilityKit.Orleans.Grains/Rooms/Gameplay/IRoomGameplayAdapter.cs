@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Persistence;
 
 namespace AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
@@ -9,6 +10,10 @@ internal interface IRoomGameplayAdapter
     string RoomType { get; }
 
     object CreateState(RoomSummary summary);
+
+    RoomGameplayPersistentState ExportPersistentState(object state);
+
+    object RestorePersistentState(RoomSummary summary, RoomGameplayPersistentState persistentState);
 
     void Join(object state, RoomSummary summary, IReadOnlyCollection<string> members, string accountId);
 
@@ -19,6 +24,10 @@ internal interface IRoomGameplayAdapter
     void SubmitCommand(object state, RoomGameplayCommandRequest request);
 
     bool CanStart(object state);
+
+    bool ValidateBeginLoading(object state);
+
+    RoomLaunchManifest BuildLaunchManifest(object state, RoomSummary summary);
 
     List<RoomPlayerSnapshot> BuildPlayerSnapshots(object state);
 

@@ -7,6 +7,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -21,6 +22,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
  
         private readonly IMobaBattleDiagnosticsService _diagnostics;
+        private readonly IMobaBattleDiagnosticEventSink _eventCollector;
 
         public DamagePipelineService(
             MobaActorLookupService actors,
@@ -28,12 +30,14 @@ namespace AbilityKit.Demo.Moba.Services
             AbilityKit.Triggering.Eventing.IEventBus eventBus,
             MobaDamageMitigationService mitigation = null,
             MobaShieldService shields = null,
-            IMobaBattleDiagnosticsService diagnostics = null)
+            IMobaBattleDiagnosticsService diagnostics = null,
+            IMobaBattleDiagnosticEventSink eventCollector = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _damage = damage ?? throw new ArgumentNullException(nameof(damage));
             _eventBus = eventBus;
             _diagnostics = diagnostics;
+            _eventCollector = eventCollector;
             _standardStages = new List<IMobaDamagePipelineStage>(4)
             {
                 new MobaBaseDamagePipelineStage(),
@@ -104,6 +108,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                 RecordCombatActivity(result);
                 Publish(DamagePipelineEvents.AfterApply, result);
+                TryCollectDamage(result);
                 diagnostics?.Counter("moba.damage.applied");
                 diagnostics?.Sample("moba.damage.value", applied);
                 return result;
@@ -197,6 +202,52 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 object boxed = payload;
                 eventBus.Publish(objectKey, in boxed);
+            }
+        }
+
+        public static MobaBattleDiagnosticEventDraft CreateDiagnosticDraft(DamageResult result)
+        {
+            if (result == null) throw new ArgumentNullException(nameof(result));
+
+            var origin = result.TryGetOrigin(out var resolvedOrigin)
+                ? resolvedOrigin
+                : default;
+            var handle = origin.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var configId = result.ReasonParam != 0
+                ? result.ReasonParam
+                : origin.ImmediateConfigId;
+            var contextId = origin.ImmediateContextId != 0L
+                ? origin.ImmediateContextId
+                : origin.EffectiveParentContextId;
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                result.AttackerActorId,
+                result.TargetActorId,
+                configId,
+                origin.EffectiveRootContextId,
+                contextId,
+                runtime,
+                summary: $"damage={result.Value:0.###}, targetHp={result.TargetHp:0.###}");
+        }
+
+        private void TryCollectDamage(DamageResult result)
+        {
+            try
+            {
+                var collector = _eventCollector;
+                if (collector == null || result == null) return;
+
+                var draft = CreateDiagnosticDraft(result);
+                collector.TryCollect(in draft);
+            }
+            catch
+            {
             }
         }
 

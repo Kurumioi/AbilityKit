@@ -32,6 +32,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     private DateTime _nextTickDueUtc;
 
     private const int MaxCatchUpFramesPerTimer = 5;
+    private const int MaxFutureLeadFrames = 120;
 
     private const int DefaultTickRate = 30;
 
@@ -109,12 +110,20 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         return Task.CompletedTask;
     }
 
-    public Task SubmitInputAsync(ulong worldId, int frame, FrameInputItem input)
+    public async Task SubmitInputAsync(ulong worldId, int frame, FrameInputItem input)
+    {
+        await SubmitInputWithResultAsync(worldId, frame, input);
+    }
+
+    public Task<FrameInputSubmitResult> SubmitInputWithResultAsync(ulong worldId, int frame, FrameInputItem input)
     {
         if (input == null) throw new ArgumentNullException(nameof(input));
-        if (frame < 0) return Task.CompletedTask;
 
-        if (_worldId == 0) _worldId = worldId;
+        var reason = ValidateSubmission(_worldId, _frame, worldId, frame);
+        if (reason != FrameInputSubmitReason.None)
+        {
+            return Task.FromResult(new FrameInputSubmitResult(false, _frame, reason));
+        }
 
         if (!_inputsByFrame.TryGetValue(frame, out var list))
         {
@@ -123,7 +132,35 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         }
 
         list.Add(input);
-        return Task.CompletedTask;
+        return Task.FromResult(new FrameInputSubmitResult(true, _frame, FrameInputSubmitReason.None));
+    }
+
+    internal static FrameInputSubmitReason ValidateSubmission(
+        ulong authoritativeWorldId,
+        int serverFrame,
+        ulong requestedWorldId,
+        int requestedFrame)
+    {
+        if (requestedWorldId == 0
+            || authoritativeWorldId == 0
+            || requestedWorldId != authoritativeWorldId)
+        {
+            return FrameInputSubmitReason.WorldMismatch;
+        }
+
+        if (requestedFrame < 0)
+        {
+            return FrameInputSubmitReason.NegativeFrame;
+        }
+
+        if (requestedFrame < serverFrame)
+        {
+            return FrameInputSubmitReason.FrameAlreadyProcessed;
+        }
+
+        return requestedFrame > serverFrame + MaxFutureLeadFrames
+            ? FrameInputSubmitReason.FrameTooFarAhead
+            : FrameInputSubmitReason.None;
     }
 
     private Task OnTickAsync()

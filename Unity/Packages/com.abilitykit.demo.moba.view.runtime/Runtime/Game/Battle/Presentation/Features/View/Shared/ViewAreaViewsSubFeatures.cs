@@ -19,7 +19,7 @@ namespace AbilityKit.Game.Flow
             if (runtime == null) return;
 
             runtime.AreaViews?.Clear();
-            runtime.AreaViews = _factory.Create(runtime.Resources);
+            runtime.AreaViews = _factory.Create(runtime.Resources, runtime.AreaVfxPool);
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)
@@ -38,9 +38,9 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class ViewAreaViewsRuntimeFactory
     {
-        public BattleAreaViewSystem Create(BattleViewResourceProvider resources)
+        public BattleAreaViewSystem Create(BattleViewResourceProvider resources, BattleAreaVfxPool areaVfxPool)
         {
-            return new BattleAreaViewSystem(resources);
+            return new BattleAreaViewSystem(resources, areaVfxPool);
         }
     }
 }

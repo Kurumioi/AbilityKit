@@ -370,6 +370,84 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void AimIndicator_DirectionAreaShowsFixedRectangularFootprint()
+        {
+            var root = new GameObject("DirectionAreaIndicator", typeof(RectTransform));
+            var ring = new GameObject("CasterAnchor", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            var dot = new GameObject("UnusedDot", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            var range = new GameObject("DirectionArea", typeof(RectTransform), typeof(UnityEngine.UI.Image)).GetComponent<RectTransform>();
+            ring.SetParent(root.transform, false);
+            dot.SetParent(root.transform, false);
+            range.SetParent(root.transform, false);
+            var indicator = root.AddComponent<SkillAimIndicatorView>();
+            indicator.Initialize(ring, dot, range);
+
+            try
+            {
+                var config = SkillButtonConfig.Default;
+                config.EnableAim = true;
+                config.IndicatorShape = SkillAimIndicatorShape.DirectionArea;
+                config.IndicatorLengthPixels = 264f;
+                config.IndicatorWidthPixels = 48f;
+
+                indicator.SetFromTo(new Vector2(20f, 30f), new Vector2(20f, 130f), 220f, config);
+
+                Assert.IsTrue(ring.gameObject.activeSelf);
+                Assert.IsFalse(dot.gameObject.activeSelf);
+                Assert.IsTrue(range.gameObject.activeSelf);
+                Assert.AreEqual(new Vector2(20f, 30f), range.anchoredPosition);
+                Assert.AreEqual(new Vector2(264f, 48f), range.sizeDelta);
+                Assert.AreEqual(new Vector2(0f, 0.5f), range.pivot);
+                Assert.AreEqual(90f, range.localEulerAngles.z, 0.0001f);
+                Assert.AreSame(SkillAimIndicatorSprites.DirectionArea, range.GetComponent<UnityEngine.UI.Image>().sprite);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void AimPreviewObject_DirectionAreaShowsDajiSkill1RectangularFootprint()
+        {
+            var factory = new BattleHudAimPreviewObjectFactory();
+            var preview = factory.Create();
+            try
+            {
+                var spec = new BattleHudSkillPresentationSpec(
+                    10050101,
+                    "妲己-灵魂冲击",
+                    BattleHudSkillPreviewShape.DirectionArea,
+                    SkillAimIndicatorShape.DirectionArea,
+                    12f,
+                    2f,
+                    0f,
+                    new Color(0.2f, 0.75f, 1f, 0.3f));
+                var state = new BattleHudAimPreviewState(1, new Vector3(2f, 0f, 3f), Vector3.right, 4f);
+
+                preview.Apply(state, spec);
+
+                var line = preview.Root.transform.Find("Line");
+                var dot = preview.Root.transform.Find("Dot");
+                var casterRing = preview.Root.transform.Find("CasterRing");
+                var edgeRing = preview.Root.transform.Find("EdgeRing");
+
+                Assert.IsTrue(preview.Root.activeSelf);
+                Assert.IsTrue(line.gameObject.activeSelf);
+                Assert.IsFalse(dot.gameObject.activeSelf);
+                Assert.IsTrue(casterRing.gameObject.activeSelf);
+                Assert.IsTrue(edgeRing.gameObject.activeSelf);
+                Assert.AreEqual(new Vector3(2f, 0.035f, 12f), line.localScale);
+                Assert.AreEqual(new Vector3(8f, 0.12f, 3f), line.position);
+                Assert.AreEqual(new Vector3(14f, 0.215f, 3f), edgeRing.position);
+            }
+            finally
+            {
+                Object.DestroyImmediate(preview.Root);
+            }
+        }
+
+        [Test]
         public void AimPreviewObject_TargetCircleShowsXiaoQiaoSkill2AtSelectedPoint()
         {
             var factory = new BattleHudAimPreviewObjectFactory();

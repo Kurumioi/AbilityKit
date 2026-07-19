@@ -11,6 +11,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     {
         void OnTriggerEvent(in TriggerEvent evt);
 
+        void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload);
+
         void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
 
         void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries);

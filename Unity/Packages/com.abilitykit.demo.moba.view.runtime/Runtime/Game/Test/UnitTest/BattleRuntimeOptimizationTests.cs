@@ -423,11 +423,11 @@ namespace AbilityKit.Game.Test.UnitTest
             var provider = new TestMobaFeatureFactoryProvider();
             var flow = new GameFlowDomain(runtime, provider, new TestLogSink());
 
-            var installed = flow.AttachBattleFeatures(new[] { "context", "session" });
+            var installed = flow.AttachBattleFeatures(new[] { "context", "entity" });
 
             Assert.AreEqual(2, installed);
             Assert.AreEqual(2, runtime.FeatureBinder.AttachCount);
-            CollectionAssert.AreEqual(new[] { "context", "session" }, provider.CreatedFeatureIds);
+            CollectionAssert.AreEqual(new[] { "context", "entity" }, provider.CreatedFeatureIds);
         }
 
         [Test]
@@ -495,10 +495,12 @@ namespace AbilityKit.Game.Test.UnitTest
             };
 
             SetPrivatePlan(feature, plan);
-            var session = (BattleLogicSession)InvokePrivate(feature, "StartBattleLogicSession", opts);
+            InitializeDispatchers(feature);
+            BattleLogicSession session = null;
 
             try
             {
+                session = (BattleLogicSession)InvokePrivate(feature, "StartBattleLogicSession", opts);
                 Assert.IsNotNull(session);
                 Assert.AreEqual(1, transportFactory.CreateCount);
                 Assert.AreEqual(7u, transportFactory.LastLocalPlayerId);
@@ -510,6 +512,7 @@ namespace AbilityKit.Game.Test.UnitTest
             finally
             {
                 session?.Dispose();
+                InvokePrivate(feature, "DisposeNetworkIoDispatcher");
             }
         }
 
@@ -538,13 +541,21 @@ namespace AbilityKit.Game.Test.UnitTest
                 .Build();
 
             SetPrivatePlan(feature, plan);
-            var connection = (IConnection)InvokePrivate(feature, "CreateGatewayRoomConnection", plan);
+            InitializeDispatchers(feature);
 
-            Assert.AreSame(gatewayConnectionFactory.Connection, connection);
-            Assert.AreEqual(1, gatewayConnectionFactory.CreateCount);
-            Assert.AreEqual(plan, gatewayConnectionFactory.LastPlan);
-            Assert.IsNotNull(gatewayConnectionFactory.LastCallbackDispatcher);
-            Assert.IsNotNull(gatewayConnectionFactory.LastIoDispatcher);
+            try
+            {
+                var connection = (IConnection)InvokePrivate(feature, "CreateGatewayRoomConnection", plan);
+                Assert.AreSame(gatewayConnectionFactory.Connection, connection);
+                Assert.AreEqual(1, gatewayConnectionFactory.CreateCount);
+                Assert.AreEqual(plan, gatewayConnectionFactory.LastPlan);
+                Assert.IsNotNull(gatewayConnectionFactory.LastCallbackDispatcher);
+                Assert.IsNotNull(gatewayConnectionFactory.LastIoDispatcher);
+            }
+            finally
+            {
+                InvokePrivate(feature, "DisposeNetworkIoDispatcher");
+            }
         }
 
         [Test]
@@ -634,7 +645,8 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void GatewayRoomPreparationHelper_ThrowsWhenJoinRoomIdCannotBeResolved()
         {
-            var plan = CreateGatewayPlan(worldId: string.Empty, numericRoomId: 0, joinRoomId: string.Empty);
+            var plan = CreateGatewayPlan(worldId: "placeholder", numericRoomId: 0, joinRoomId: string.Empty)
+                .WithGatewayRoom(string.Empty, 0);
 
             Assert.Throws<InvalidOperationException>(() => GatewayRoomPreparationHelper.ResolveJoinRoomId(plan));
         }
@@ -904,7 +916,89 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public async Task GatewayRoomPreparationController_RunsCreateBeforeJoinBranch()
+        public void BootFeaturePlan_CreatesRegisteredFormalLobbyFeature()
+        {
+            var registry = new UnityMobaFeatureFactoryProvider()
+                .CreateFeatureFactoryRegistry(() => null);
+            var plan = new MobaFeaturePlanFactory(registry).CreateBootFeaturePlan();
+            var ctx = default(AbilityKit.Game.Flow.GamePhaseContext);
+
+            var created = plan.TryCreate("formal_lobby", in ctx, out var feature);
+
+            Assert.IsTrue(created);
+            Assert.IsInstanceOf<FormalLobbyFeature>(feature);
+        }
+
+        [Test]
+        public void LobbyBattleEntrySelection_RemotePresetActivatesFormalLobbyUntilCleared()
+        {
+            var config = ScriptableObject.CreateInstance<BattleStartConfig>();
+            var preset = ScriptableObject.CreateInstance<BattleStartPresetSO>();
+            preset.HostMode = BattleStartConfig.BattleHostMode.GatewayRemote;
+            var selection = new LobbyBattleEntrySelection();
+
+            try
+            {
+                Assert.IsFalse(FormalLobbyFeature.ShouldShowFlowWindow(selection));
+                Assert.IsTrue(DemoLobbyOnGUIFeature.IsRemotePreset(preset));
+
+                selection.SelectRemote(config, preset);
+
+                Assert.IsTrue(FormalLobbyFeature.ShouldShowFlowWindow(selection));
+                Assert.AreSame(config, selection.Config);
+                Assert.AreSame(preset, selection.Preset);
+
+                selection.Clear();
+                Assert.IsFalse(FormalLobbyFeature.ShouldShowFlowWindow(selection));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(preset);
+                UnityEngine.Object.DestroyImmediate(config);
+            }
+        }
+
+        [Test]
+        public void ExistingGatewayRoomBattleBootstrapper_UsesAuthoritativeRoomIdentifiersWithoutPreparingRoomAgain()
+        {
+            var sourcePlan = BattleStartPlanBuilder
+                .ForWorld("preset-world", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithHostMode(BattleStartConfig.BattleHostMode.Local)
+                .WithGateway(
+                    useGatewayTransport: false,
+                    host: "127.0.0.1",
+                    port: 4000,
+                    numericRoomId: 11UL,
+                    sessionToken: "preset-token",
+                    region: "dev",
+                    serverId: "local",
+                    autoCreateRoom: true,
+                    autoJoinRoom: true,
+                    joinRoomId: "preset-room",
+                    createRoomOpCode: 110,
+                    joinRoomOpCode: 111)
+                .Build();
+            var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
+                new FixedBattleBootstrapper(sourcePlan),
+                "authenticated-token",
+                "room-public-id",
+                9001UL,
+                7001UL);
+
+            var plan = bootstrapper.Build();
+
+            Assert.AreEqual(BattleStartConfig.BattleHostMode.GatewayRemote, plan.HostMode);
+            Assert.AreEqual("7001", plan.World.WorldId);
+            Assert.AreEqual(9001UL, plan.Gateway.NumericRoomId);
+            Assert.AreEqual("room-public-id", plan.Gateway.JoinRoomId);
+            Assert.AreEqual("authenticated-token", plan.Gateway.SessionToken);
+            Assert.IsTrue(plan.Gateway.UseGatewayTransport);
+            Assert.IsFalse(plan.Gateway.AutoCreateRoom);
+            Assert.IsFalse(plan.Gateway.AutoJoinRoom);
+        }
+
+        [Test]
+        public void GatewayRoomPreparationController_RunsCreateBeforeJoinBranch()
         {
             var calls = new List<string>();
             var plan = BattleStartPlanBuilder
@@ -925,12 +1019,14 @@ namespace AbilityKit.Game.Test.UnitTest
                     joinRoomOpCode: 111)
                 .Build();
 
-            await GatewayRoomPreparationController.RunAsync(
-                getPlan: () => plan,
-                waitForConnectionAsync: () => { calls.Add("wait"); return Task.CompletedTask; },
-                ensureSessionTokenAsync: () => { calls.Add("token"); return Task.CompletedTask; },
-                createAndJoinRoomAsync: () => { calls.Add("create"); return Task.CompletedTask; },
-                joinRoomAsync: () => { calls.Add("join"); return Task.CompletedTask; });
+            GatewayRoomPreparationController.RunAsync(
+                    getPlan: () => plan,
+                    waitForConnectionAsync: () => { calls.Add("wait"); return Task.CompletedTask; },
+                    ensureSessionTokenAsync: () => { calls.Add("token"); return Task.CompletedTask; },
+                    createAndJoinRoomAsync: () => { calls.Add("create"); return Task.CompletedTask; },
+                    joinRoomAsync: () => { calls.Add("join"); return Task.CompletedTask; })
+                .GetAwaiter()
+                .GetResult();
 
             CollectionAssert.AreEqual(new[] { "wait", "token", "create" }, calls);
         }
@@ -1050,6 +1146,25 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(plan, feature.Plan);
         }
 
+        private static void InitializeDispatchers(BattleSessionFeature feature)
+        {
+            var featureType = typeof(BattleSessionFeature);
+            var dispatchersField = featureType.GetField(
+                "_dispatchers",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            var handlesField = featureType.GetField(
+                "_handles",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.IsNotNull(dispatchersField, "_dispatchers");
+            Assert.IsNotNull(handlesField, "_handles");
+
+            var dispatchers = dispatchersField.GetValue(feature);
+            var handles = handlesField.GetValue(feature);
+            var onAttach = dispatchers.GetType().GetMethod("OnAttach");
+            Assert.IsNotNull(onAttach, "SessionDispatchersController.OnAttach");
+            onAttach.Invoke(dispatchers, new[] { handles });
+        }
+
         private static BattleStartPlan CreateGatewayPlan(string worldId, ulong numericRoomId, string joinRoomId)
         {
             return BattleStartPlanBuilder
@@ -1063,7 +1178,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     sessionToken: "token",
                     region: "dev",
                     serverId: "local",
-                    autoCreateRoom: false,
+                    autoCreateRoom: numericRoomId == 0 && string.IsNullOrEmpty(joinRoomId),
                     autoJoinRoom: true,
                     joinRoomId: joinRoomId,
                     createRoomOpCode: 110,
@@ -1157,6 +1272,21 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
     
+        private sealed class FixedBattleBootstrapper : IBattleBootstrapper
+        {
+            private readonly BattleStartPlan _plan;
+
+            public FixedBattleBootstrapper(BattleStartPlan plan)
+            {
+                _plan = plan;
+            }
+
+            public BattleStartPlan Build()
+            {
+                return _plan;
+            }
+        }
+
         private sealed class TestMobaFeatureFactoryProvider : IMobaFeatureFactoryProvider
         {
             public readonly List<string> CreatedFeatureIds = new List<string>();
@@ -1165,6 +1295,8 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 var registry = new MobaFeatureFactoryRegistry();
                 Register(registry, "boot_menu");
+                Register(registry, "demo_lobby");
+                Register(registry, "formal_lobby");
                 Register(registry, "root_debug");
                 Register(registry, "debug_ongui");
                 Register(registry, "context");
@@ -1325,6 +1457,78 @@ namespace AbilityKit.Game.Test.UnitTest
                 TimeSpan? timeout = null,
                 CancellationToken cancellationToken = default)
                 => throw new NotSupportedException();
+
+            public Task<GatewayRoomSnapshotResult> SetReadyAsync(
+                string sessionToken,
+                string roomId,
+                bool ready,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomSnapshotResult> PickHeroAsync(
+                string sessionToken,
+                string roomId,
+                int heroId,
+                int teamId,
+                int spawnPointId,
+                int level,
+                int attributeTemplateId,
+                int basicAttackSkillId,
+                IReadOnlyList<int> skillIds,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomOperationResult> BeginLoadingAsync(
+                string sessionToken,
+                string roomId,
+                long? expectedRevision,
+                string commandId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomOperationResult> ReportAssetsLoadedAsync(
+                string sessionToken,
+                string roomId,
+                long launchGeneration,
+                int manifestVersion,
+                string manifestHash,
+                string commandId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRoomOperationResult> CancelLoadingAsync(
+                string sessionToken,
+                string roomId,
+                long? expectedRevision,
+                string commandId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayGetSnapshotResult> GetSnapshotAsync(
+                string sessionToken,
+                string roomId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public Task<GatewayRestoreRoomResult> RestoreRoomAsync(
+                string sessionToken,
+                string region,
+                string serverId,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default)
+                => throw new NotSupportedException();
+
+            public ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload)
+                => throw new NotSupportedException();
+
+            public bool IsRoomStateChangedPush(uint opCode)
+                => false;
         }
  
         private sealed class TestAbilityKitConnectionRegistry : IAbilityKitConnectionRegistry
@@ -1414,6 +1618,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public event Action SessionStarted;
             public event Action FirstFrameReceived;
             public event Action<Exception> SessionFailed;
+            public event Action AssetsLoadCompleted;
 
             public string Name => "test_session";
             public int Priority => 0;

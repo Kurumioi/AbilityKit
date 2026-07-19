@@ -33,10 +33,36 @@ namespace AbilityKit.Demo.Moba.Share.Config
 
         public int AimMode;
         public float AimMaxRadius;
+        public int IndicatorShape;
+        public float IndicatorWorldWidth;
 
         public int UsePointMode;
         public float SelectRange;
         public bool FaceToAim;
+
+        // ---- Extended geometry fields (Sector / Dash / LockProjectile / Fan / SelfCircle) ----
+        // All default to 0; consumers fall back to safe defaults when fields are unset.
+
+        /// <summary>扇形指示器的中心角度（度）。</summary>
+        public float SectorAngleDegrees;
+
+        /// <summary>冲刺指示器的最大位移距离。</summary>
+        public float DashDistance;
+
+        /// <summary>锁定型投射指示器允许的瞄准时长（毫秒）。</summary>
+        public int LockOnDurationMs;
+
+        /// <summary>扇形技能指示器的半径。</summary>
+        public float FanRadius;
+
+        /// <summary>扇形技能指示器的中心角度（度）。</summary>
+        public float FanAngleDegrees;
+
+        /// <summary>以自身为中心技能指示器的半径。</summary>
+        public float SelfRadius;
+
+        /// <summary>锁定投射指示器的目标吸附半径。</summary>
+        public float LockProjectileRadius;
     }
 
     [Serializable]

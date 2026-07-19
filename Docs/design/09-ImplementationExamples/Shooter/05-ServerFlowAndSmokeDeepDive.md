@@ -206,23 +206,28 @@ pure-state 的非 observer push 使用 session 级 `_lastPureStateBaselineFrame/
 
 清理顺序是先取消主账户和 late-join 账户对应 `IStateSyncObserverGrain` 的订阅，再调用 `IBattleLogicHostGrain.DestroyAsync()`。清理本身没有聚合容错：前一个 unsubscribe 抛错会阻止后续 destroy，因此失败报告应保留原始 battleId 供补偿清理。
 
-## 9. 多进程 Smoke：恢复与网络条件证据
+## 9. 多进程 Smoke：故障矩阵与收敛证据
 
-`ShooterSmokeClientProcessRunner` 支持 create/join 两种独立客户端进程。它不仅输出 pass/fail，还输出可供脚本解析的结构化字段：
+`ShooterSmokeClientProcessRunner` 支持 create/join 两种独立客户端进程，PowerShell orchestrator 在其上组织 `recoverable-retry`、`gateway-offline`、`slow-consumer` 和 `reconnect-cycles` 四类真实故障场景。完整的时序、manifest 和组合门禁见 [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md)。
+
+客户端不仅输出 pass/fail，还输出可供脚本解析的结构化字段：
 
 - payload kind、source/baseline frame/hash；
 - pure-state full、delta 和 baseline resync 次数；
 - prediction reconciliation 前后 frame/hash、replay ticks 和 pending inputs；
 - input accepted/current frame、server ticks、`ShouldResync`；
-- reconnect 前后 push 数与 entry kind；
+- reconnect 次数、逐轮 push 进度与 entry kind；
+- reliable event epoch、cursor、gap 和 `needsResync`；
 - latency、jitter、packet loss 和实际 delayed/dropped 计数；
-- remote time anchor、catch-up frame；
-- lag compensation 结果；
-- input-state replay 路径、最小化结果和分布统计。
+- observer queue、drop、coalesce 和 baseline invalidation；
+- remote time anchor、catch-up frame 与 lag compensation；
+- input-state replay、minimized replay、diagnostic 和 authoritative diff。
 
-join 或 reconnect entry 会主动调用 `RequestFullSnapshotBaselineAsync()`，等待 accepted 后才等待可应用 snapshot。pure-state 客户端若遇到 baseline 不匹配，会累计 `PureStateBaselineResyncNeeded`；该指标与服务端 observer baseline 一起构成恢复链路证据。
+join 或 reconnect entry 会主动调用 `RequestFullSnapshotBaselineAsync()`，等待 accepted 后才等待可应用 snapshot。pure-state 客户端若遇到 baseline 不匹配，会累计 `PureStateBaselineResyncNeeded`；恢复完成后该状态必须清除，且 reliable cursor 不再需要 resync、authoritative FrameRecord diff 必须收敛。
 
-多进程 reconnect 当前只对 join 模式执行：关闭 connection，等待配置延迟，再使用原 session token 重新走 `JoinReadyStartAndSubscribeAsync()`，要求 entry kind 为 Reconnect 且恢复后收到可应用 push。它验证的是连接恢复和 baseline 续接；单进程 Smoke 的“重新账户登录并轮换 token”是另一条更强的身份恢复门禁，两者不能混为同一个测试。
+多进程 reconnect 只对 join 模式执行。每轮真实关闭 connection，再使用原 session token 重新走 `JoinReadyStartAndSubscribeAsync()`；每轮都要求 entry kind 为 `Reconnect`，并收到新的可应用 snapshot push。`reconnect-cycles` 当前连续执行三轮。它验证的是连接恢复和 baseline 续接；单进程 Smoke 的“重新账户登录并轮换 token”是另一条更强的身份恢复门禁，两者不能混为同一个测试。
+
+PureState 的合法推进可以是后续 delta、baseline resync 或重复 full baseline。重复 full baseline 不只属于 slow-consumer，但它不能替代 pending baseline、reliable cursor、同帧 hash 和 authoritative diff 等独立收敛门禁。
 
 ## 10. 失败矩阵与治理建议
 
@@ -235,9 +240,12 @@ join 或 reconnect entry 会主动调用 `RequestFullSnapshotBaselineAsync()`，
 | late join 被 Battle 拒绝 | 回滚 Room member 和 player slot | join 失败、Room snapshot | 验证 Battle 外部副作用 |
 | Shooter Start 在 world 创建后失败 | session 返回失败，world 未立即销毁 | world manager/session 日志 | 失败路径立即 destroy |
 | 未知 Battle input opcode | 转 fallback command | accepted/input 状态 | 正式环境增加协议白名单 |
-| pure-state baseline 丢失 | 客户端请求 full baseline/resync | resync count、baseline 字段 | 告警阈值与速率限制 |
+| pure-state baseline 丢失 | 客户端请求 full baseline/resync | resync count、baseline 字段、pending 状态 | 告警阈值与速率限制 |
+| slow consumer | queue drop/coalesce 并使 baseline 失效 | observer metrics、full baseline 恢复、diff | 多 observer 容量与公平性 |
+| Gateway offline | transport 停止并清理 live delivery | fault ack、端口探测、reconnect push | 长时间离线与动态 profile |
+| 周期断线 | join 客户端逐轮正式 Reconnect | cycle progress、push 前进、reliable/diff | Grain reactivation 组合矩阵 |
 | observer push 异常 | frame-sync 无逐 observer 隔离 | 推送缺失/异常日志 | 隔离失败 observer |
-| Smoke cleanup 中断 | 后续 destroy 可能未执行 | 遗留 battleId/world | `finally` + 聚合异常/补偿任务 |
+| Smoke cleanup 中断 | 后续 destroy 可能未执行 | process timeline、端口与遗留 battleId/world | `finally` + 聚合异常/补偿任务 |
 
 优先级最高的工程补强是 Room 启动事务、Battle Start 失败资源释放和 Smoke cleanup 的 `finally` 化。这三项直接影响重复启动、残留 world 和测试环境污染，比继续扩展 Smoke 输出字段更重要。
 
@@ -253,7 +261,9 @@ join 或 reconnect entry 会主动调用 `RequestFullSnapshotBaselineAsync()`，
 | 多进程创建/加入 | `--client --client-mode create|join` |
 | pure-state | `--state-sync-payload-mode pure-state` |
 | 网络条件 | `--condition-latency-ms`、`--condition-jitter-ms`、`--condition-packet-loss-rate` |
-| 恢复与终局 | `--reconnect-once`、`--wait-for-match-end` |
+| 客户端恢复与终局 | `--reconnect-count`、`--wait-for-match-end` |
+| 故障矩阵计划 | `run_shooter_multiprocess_smoke.ps1 -Profile full -PlanOnly` |
+| 聚焦周期断线 | `run_shooter_multiprocess_smoke.ps1 -Profile custom -Scenario reconnect-cycles -PayloadMode pure-state` |
 | replay | `--client-state-replay-output`、`--server-frame-replay-output` |
 
 ## 12. 源码索引
@@ -269,7 +279,9 @@ join 或 reconnect entry 会主动调用 `RequestFullSnapshotBaselineAsync()`，
 | 可选 FrameSync grain | `Server/Orleans/src/AbilityKit.Orleans.Grains/FrameSync/BattleFrameSyncGrain.cs` |
 | 单进程 Smoke | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs` |
 | Smoke 校验与清理 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeScenarioBase.cs` |
-| 多进程 Smoke | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeClientProcessRunner.cs` |
+| 多进程客户端 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeClientProcessRunner.cs` |
+| 多进程矩阵 orchestrator | `Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1` |
+| 多进程脚本契约 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterMultiprocessSmokeScriptContractTests.cs` |
 | 命令行入口 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Program.cs` |
 | Room adapter 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/Rooms/ShooterRoomGameplayAdapterTests.cs` |
 | Battle adapter 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/Battle/ShooterBattleRuntimeAdapterTests.cs` |

@@ -10,6 +10,7 @@ namespace AbilityKit.Game.Battle.Transport
 
         public uint OpRenewSession;
         public string SessionToken;
+        public Func<string, ArraySegment<byte>> SerializeRenewSession;
 
         public Func<ITransport> TransportFactory;
 

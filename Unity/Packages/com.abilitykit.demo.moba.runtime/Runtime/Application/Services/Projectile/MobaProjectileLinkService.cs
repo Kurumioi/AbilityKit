@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _retainByLauncherActorId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
 
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
         public int ActiveCount => _actorIdByProjectile.Count;
 
@@ -124,27 +126,36 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (actorId <= 0) return;
             if (_projectileByActorId.TryGetValue(actorId, out var pid))
             {
+                _sourceByProjectile.TryGetValue(pid, out var capturedSource);
                 _projectileByActorId.Remove(actorId);
                 _actorIdByProjectile.Remove(pid);
                 _sourceByProjectile.Remove(pid);
                 _retainByProjectile.Remove(pid);
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+                CollectProjectileEnded(actorId, pid.Value, in capturedSource);
             }
         }
 
         public void UnlinkByProjectileId(ProjectileId projectileId)
         {
             var removed = false;
+            var capturedActorId = 0;
+            _sourceByProjectile.TryGetValue(projectileId, out var capturedSource);
             if (_actorIdByProjectile.TryGetValue(projectileId, out var actorId))
             {
                 _actorIdByProjectile.Remove(projectileId);
                 _projectileByActorId.Remove(actorId);
+                capturedActorId = actorId;
                 removed = true;
             }
 
             _sourceByProjectile.Remove(projectileId);
             _retainByProjectile.Remove(projectileId);
-            if (removed) _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+            if (removed)
+            {
+                _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+                CollectProjectileEnded(capturedActorId, projectileId.Value, in capturedSource);
+            }
         }
 
         public void UnlinkLauncher(int launcherActorId)
@@ -163,6 +174,56 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _sourceByLauncherActorId.Clear();
             _retainByLauncherActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateProjectileEndedDraft(
+            int projectileActorId,
+            int projectileIdValue,
+            in ProjectileSourceContext sourceContext)
+        {
+            sourceContext.TryGetOrigin(out var resolvedOrigin);
+            var handle = sourceContext.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var rootContextId = resolvedOrigin.EffectiveRootContextId != 0L
+                ? resolvedOrigin.EffectiveRootContextId
+                : sourceContext.RootContextId;
+            var contextId = sourceContext.SourceContextId != 0L
+                ? sourceContext.SourceContextId
+                : resolvedOrigin.ImmediateContextId;
+            var summary = $"projectileId={sourceContext.ProjectileConfigId}, projectileActorId={projectileActorId}, projectileIdValue={projectileIdValue}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.ProjectileEnded,
+                BattleDiagnosticEventChannel.TemporaryEntity,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceContext.SourceActorId,
+                sourceContext.InitialTargetActorId,
+                sourceContext.ProjectileConfigId,
+                rootContextId,
+                contextId,
+                runtime,
+                summary: summary);
+        }
+
+        private void CollectProjectileEnded(
+            int projectileActorId,
+            int projectileIdValue,
+            in ProjectileSourceContext sourceContext)
+        {
+            if (_eventCollector == null) return;
+            if (!sourceContext.IsValid) return;
+
+            try
+            {
+                var draft = CreateProjectileEndedDraft(projectileActorId, projectileIdValue, in sourceContext);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响弹丸销毁流程，静默吞掉异常。
+            }
         }
 
         public void Dispose()

@@ -9,6 +9,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Util.Converter;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Effect;
@@ -35,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaActorSpawnService _actorSpawn = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
         private enum SummonOverflowPolicy
         {
@@ -143,6 +145,7 @@ namespace AbilityKit.Demo.Moba.Services
             TrackSourceContext(actorId, in spawnSourceContext);
             RetainSkillRuntime(actorId, summonId, in spawnSourceContext);
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+            CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
 
             PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
             PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
@@ -216,6 +219,7 @@ namespace AbilityKit.Demo.Moba.Services
             EndSpawnTrace(in sourceContext, reason);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
             if (reason == SummonDespawnReason.ReplacedByLimit) _lifecycle?.RecordReplaced(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+            CollectSummonEnded(summonActorId, summonId, (int)reason, in sourceContext);
 
             if (reason == SummonDespawnReason.Killed)
             {
@@ -661,6 +665,108 @@ namespace AbilityKit.Demo.Moba.Services
                 return (long)System.MathF.Round(_clock.Time * 1000f);
             }
             throw new InvalidOperationException("MobaSummonService requires IFrameTime or IWorldClock for current time.");
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateSummonSpawnedDraft(
+            int summonActorId,
+            int summonConfigId,
+            in SummonSourceContext sourceContext)
+        {
+            sourceContext.TryGetOrigin(out var resolvedOrigin);
+            var handle = sourceContext.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var rootContextId = resolvedOrigin.EffectiveRootContextId != 0L
+                ? resolvedOrigin.EffectiveRootContextId
+                : sourceContext.RootContextId;
+            var contextId = sourceContext.SourceContextId != 0L
+                ? sourceContext.SourceContextId
+                : resolvedOrigin.ImmediateContextId;
+            var summary = $"summonConfigId={summonConfigId}, summonActorId={summonActorId}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.SummonSpawned,
+                BattleDiagnosticEventChannel.TemporaryEntity,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceContext.SourceActorId,
+                summonActorId,
+                summonConfigId,
+                rootContextId,
+                contextId,
+                runtime,
+                summary: summary);
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateSummonEndedDraft(
+            int summonActorId,
+            int summonConfigId,
+            int despawnReason,
+            in SummonSourceContext sourceContext)
+        {
+            sourceContext.TryGetOrigin(out var resolvedOrigin);
+            var handle = sourceContext.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var rootContextId = resolvedOrigin.EffectiveRootContextId != 0L
+                ? resolvedOrigin.EffectiveRootContextId
+                : sourceContext.RootContextId;
+            var contextId = sourceContext.SourceContextId != 0L
+                ? sourceContext.SourceContextId
+                : resolvedOrigin.ImmediateContextId;
+            var summary = $"summonConfigId={summonConfigId}, summonActorId={summonActorId}, despawnReason={despawnReason}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.SummonEnded,
+                BattleDiagnosticEventChannel.TemporaryEntity,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceContext.SourceActorId,
+                summonActorId,
+                summonConfigId,
+                rootContextId,
+                contextId,
+                runtime,
+                summary: summary);
+        }
+
+        private void CollectSummonSpawned(
+            int summonActorId,
+            int summonConfigId,
+            in SummonSourceContext sourceContext)
+        {
+            if (_eventCollector == null) return;
+            if (!sourceContext.IsValid) return;
+
+            try
+            {
+                var draft = CreateSummonSpawnedDraft(summonActorId, summonConfigId, in sourceContext);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响召唤生成流程，静默吞掉异常。
+            }
+        }
+
+        private void CollectSummonEnded(
+            int summonActorId,
+            int summonConfigId,
+            int despawnReason,
+            in SummonSourceContext sourceContext)
+        {
+            if (_eventCollector == null) return;
+            if (!sourceContext.IsValid) return;
+
+            try
+            {
+                var draft = CreateSummonEndedDraft(summonActorId, summonConfigId, despawnReason, in sourceContext);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响召唤销毁流程，静默吞掉异常。
+            }
         }
 
         public void Dispose()

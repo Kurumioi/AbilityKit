@@ -18,13 +18,27 @@ public interface IRoomGrain : IGrainWithStringKey
 
     Task MarkOfflineAsync(string accountId);
 
+    Task<RoomOperationResult> MarkOfflineWithResultAsync(string accountId);
+
     Task LeaveAsync(string accountId);
 
+    Task<RoomOperationResult> LeaveWithResultAsync(string accountId);
+
     Task SetReadyAsync(RoomReadyRequest request);
+
+    Task<RoomOperationResult> SetLobbyReadyWithResultAsync(RoomReadyRequest request);
 
     Task SubmitGameplayCommandAsync(RoomGameplayCommandRequest request);
 
     Task<StartRoomBattleResponse> StartBattleAsync(StartRoomBattleRequest request);
 
     Task CloseAsync(string accountId);
+
+    Task<RoomOperationResult> BeginLoadingWithResultAsync(BeginLoadingRequest request);
+
+    Task<RoomOperationResult> ReportAssetsLoadedWithResultAsync(ReportAssetsLoadedRequest request);
+
+    Task<RoomOperationResult> CancelLoadingWithResultAsync(CancelLoadingRequest request);
+
+    Task<RoomOperationResult> TickAsync(RoomTickRequest request);
 }

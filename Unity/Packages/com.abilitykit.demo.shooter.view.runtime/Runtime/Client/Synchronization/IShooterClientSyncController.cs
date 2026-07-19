@@ -25,6 +25,8 @@ namespace AbilityKit.Demo.Shooter.View
     {
         ShooterClientFrameSyncController FrameSync { get; }
 
+        int GatewayInputFrame { get; }
+
         ShooterClientInputCoordinator InputCoordinator { get; }
 
         ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics { get; }

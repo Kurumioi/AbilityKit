@@ -258,13 +258,14 @@
         "Radius":  5,
         "DelayMs":  0,
         "DurationMs":  3500,
-        "CollisionLayerMask":  1,
+        "CollisionLayerMask":  3,
         "MaxTargets":  10,
         "OnDelayTriggerIds":  [
 
                               ],
         "OnEnterTriggerIds":  [
-                                  10040321
+                                  10040321,
+                                  10040322
                               ]
     },
     {

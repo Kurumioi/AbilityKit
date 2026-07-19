@@ -425,6 +425,8 @@ namespace AbilityKit.Network.Runtime.DemoHarness
 
     public readonly struct DemoHarnessMetrics
     {
+        private readonly SyncHealthReport? _healthReport;
+
         public DemoHarnessMetrics(
             int stepsRun,
             int totalTicks,
@@ -440,7 +442,8 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             NetworkConditioningStats networkStats,
             int healthEventCount = 0,
             int healthWarningCount = 0,
-            int healthErrorCount = 0)
+            int healthErrorCount = 0,
+            SyncHealthReport? healthReport = null)
         {
             StepsRun = stepsRun;
             TotalTicks = totalTicks;
@@ -457,6 +460,7 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             HealthEventCount = healthEventCount;
             HealthWarningCount = healthWarningCount;
             HealthErrorCount = healthErrorCount;
+            _healthReport = healthReport;
         }
 
         public int StepsRun { get; }
@@ -493,6 +497,9 @@ namespace AbilityKit.Network.Runtime.DemoHarness
 
         /// <summary>Number of observed health events with <see cref="SyncHealthSeverity.Error"/> severity.</summary>
         public int HealthErrorCount { get; }
+
+        /// <summary>Machine-readable health summary grouped by event kind and severity.</summary>
+        public SyncHealthReport HealthReport => _healthReport ?? SyncHealthReport.Empty;
     }
 
     public readonly struct DemoHarnessRunResult
@@ -815,7 +822,7 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             public string UnsupportedReason { get; }
         }
 
-        private struct MetricsBuilder
+        private sealed class MetricsBuilder
         {
             private int _stepsRun;
             private int _totalTicks;
@@ -829,9 +836,8 @@ namespace AbilityKit.Network.Runtime.DemoHarness
             private long _acceptedHits;
             private long _rejectedHits;
             private NetworkConditioningStats _networkStats;
-            private int _healthEventCount;
-            private int _healthWarningCount;
-            private int _healthErrorCount;
+            private readonly SyncHealthEventAggregator _health =
+                new SyncHealthEventAggregator();
 
             public void Observe(in DemoHarnessStepTelemetry telemetry)
             {
@@ -866,29 +872,12 @@ namespace AbilityKit.Network.Runtime.DemoHarness
                 _rejectedHits += telemetry.RejectedHits;
                 _networkStats = telemetry.NetworkStats;
 
-                var events = telemetry.HealthEvents;
-                for (var i = 0; i < events.Count; i++)
-                {
-                    var healthEvent = events[i];
-                    if (!healthEvent.HasEvent)
-                    {
-                        continue;
-                    }
-
-                    _healthEventCount++;
-                    if (healthEvent.Severity == SyncHealthSeverity.Warning)
-                    {
-                        _healthWarningCount++;
-                    }
-                    else if (healthEvent.Severity == SyncHealthSeverity.Error)
-                    {
-                        _healthErrorCount++;
-                    }
-                }
+                _health.Publish(telemetry.HealthEvents);
             }
 
             public DemoHarnessMetrics Build()
             {
+                var healthReport = _health.CreateReport();
                 return new DemoHarnessMetrics(
                     _stepsRun,
                     _totalTicks,
@@ -902,9 +891,10 @@ namespace AbilityKit.Network.Runtime.DemoHarness
                     _acceptedHits,
                     _rejectedHits,
                     _networkStats,
-                    _healthEventCount,
-                    _healthWarningCount,
-                    _healthErrorCount);
+                    checked((int)healthReport.EventCount),
+                    checked((int)healthReport.WarningCount),
+                    checked((int)healthReport.ErrorCount),
+                    healthReport);
             }
         }
     }

@@ -23,21 +23,21 @@ namespace AbilityKit.Game.Flow
             in EC.IEntity vfxNode,
             IBattleViewShellLoader shellLoader = null,
             BattleViewResourceProvider resources = null)
-            : this(vfx, in vfxNode, shellLoader, resources, null)
+            : this(vfx, in vfxNode, resources, pool: null, controllers: null)
         {
         }
 
         internal BattleViewBinder(
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
-            IBattleViewShellLoader shellLoader,
             BattleViewResourceProvider resources,
+            BattleViewShellPool pool,
             BattleViewBinderControllerFactory controllers)
         {
             resources = BattleViewResourceProvider.OrDefault(resources);
             controllers ??= new BattleViewBinderControllerFactory();
 
-            _shells = controllers.CreateShells(shellLoader, resources, this);
+            _shells = controllers.CreateShells(resources, this, pool);
             _attachedVfx = controllers.CreateAttachedVfx(vfx, in vfxNode, resources);
             _transforms = controllers.CreateTransforms(_handles, _attachedVfx);
             _sync = controllers.CreateSync(_handles, _shells, _attachedVfx, _transforms, resources);
@@ -63,6 +63,12 @@ namespace AbilityKit.Game.Flow
         {
             get => _transforms.MaxLagTicks;
             set => _transforms.MaxLagTicks = value;
+        }
+
+        public float SmoothingHz
+        {
+            get => _transforms.SmoothingHz;
+            set => _transforms.SmoothingHz = value;
         }
 
         public bool TryGetShellGameObject(EC.IEntityId id, out GameObject go)
@@ -126,15 +132,33 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    internal sealed class BattleViewBinderControllerFactory
-    {
-        public BattleViewShellController CreateShells(
-            IBattleViewShellLoader shellLoader,
-            BattleViewResourceProvider resources,
-            IMonoViewHandleRegistry registry)
+        internal sealed class BattleViewBinderControllerFactory
         {
-            return new BattleViewShellController(shellLoader ?? new ResourceBattleViewShellLoader(resources), registry);
-        }
+            /// <summary>
+            /// Creates a shell controller backed by the given pool.
+            /// The pool must be constructed with a factory so it can create fresh instances on demand.
+            /// </summary>
+            public BattleViewShellController CreateShells(
+                BattleViewResourceProvider resources,
+                IMonoViewHandleRegistry registry,
+                BattleViewShellPool pool)
+            {
+                resources = BattleViewResourceProvider.OrDefault(resources);
+
+                IBattleViewShellLoader loader;
+                if (pool != null)
+                {
+                    loader = new PooledBattleViewShellLoader(pool);
+                }
+                else
+                {
+                    loader = new ResourceBattleViewShellLoader(resources);
+                }
+
+                var handleBinder = new BattleViewShellHandleBinder(registry);
+                var destroyer = new BattleViewShellDestroyer(handleBinder, pool);
+                return new BattleViewShellController(loader, registry, handleBinder, destroyer);
+            }
 
         public BattleViewAttachedVfxController CreateAttachedVfx(
             BattleVfxManager vfx,

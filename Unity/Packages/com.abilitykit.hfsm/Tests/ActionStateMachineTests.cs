@@ -231,15 +231,17 @@ namespace AbilityKit.Tests
         public void SequenceAction_ExecutesInOrder()
         {
             var sequence = new SequenceAction();
-            sequence.children.Add(new LogAction("First"));
-            sequence.children.Add(new LogAction("Second"));
-            sequence.children.Add(new LogAction("Third"));
+            sequence.children.Add(new LogAction("First") { logToConsole = false });
+            sequence.children.Add(new LogAction("Second") { logToConsole = false });
+            sequence.children.Add(new LogAction("Third") { logToConsole = false });
 
-            var context = new BehaviorContext();
+            var messages = new List<string>();
+            var context = new BehaviorContext { onLog = messages.Add };
 
-            // First execution should return Running (first child not done)
             var status = sequence.Execute(context);
-            Assert.AreEqual(BehaviorStatus.Running, status);
+
+            Assert.AreEqual(BehaviorStatus.Success, status);
+            CollectionAssert.AreEqual(new[] { "First", "Second", "Third" }, messages);
         }
 
         /// <summary>
@@ -248,16 +250,21 @@ namespace AbilityKit.Tests
         [Test]
         public void SelectorAction_ExecutesUntilSuccess()
         {
-            var sequence = new SequenceAction();
-            sequence.children.Add(new WaitAction(0.1f)); // This will succeed
-            sequence.children.Add(new WaitAction(0.2f));
+            var first = new LogAction("First") { logToConsole = false };
+            var second = new LogAction("Second") { logToConsole = false };
+            var third = new LogAction("Third") { logToConsole = false };
+            var selector = new SelectorAction();
+            selector.children.Add(new InvertAction(first));
+            selector.children.Add(second);
+            selector.children.Add(third);
 
-            var context = new BehaviorContext { deltaTime = 0.1f };
+            var messages = new List<string>();
+            var context = new BehaviorContext { onLog = messages.Add };
 
-            var status = sequence.Execute(context);
+            var status = selector.Execute(context);
 
-            // First child succeeds, sequence completes
             Assert.AreEqual(BehaviorStatus.Success, status);
+            CollectionAssert.AreEqual(new[] { "First", "Second" }, messages);
         }
 
         /// <summary>

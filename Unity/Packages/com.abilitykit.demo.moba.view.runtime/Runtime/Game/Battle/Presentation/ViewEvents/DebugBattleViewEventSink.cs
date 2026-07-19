@@ -34,6 +34,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _lines.Push(_formatter.FormatTrigger(in evt));
         }
 
+        public void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload)
+        {
+            _lines.Push($"[Summon] {eventId}: summonActorId={payload.SummonActorId}, summonId={payload.SummonId}, owner={payload.OwnerActorId}, reason={payload.Reason}");
+        }
+
         public void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res)
         {
             _lines.Push(_formatter.FormatEnterGame(in res));

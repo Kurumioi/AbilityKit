@@ -94,10 +94,24 @@ namespace AbilityKit.Game.Flow
 
         private void EnterBattle(in GamePhaseContext ctx, BattleStartPresetSO preset)
         {
-            var flow = ctx.Entry.Get<GameFlowDomain>();
-            if (flow == null) return;
+            if (ctx.Entry == null) return;
 
-            flow.EnterBattle(new ConfiguredBattleBootstrapper(_config, preset));
+            var selection = ctx.Entry.Get<LobbyBattleEntrySelection>();
+            if (IsRemotePreset(preset))
+            {
+                selection?.SelectRemote(_config, preset);
+                return;
+            }
+
+            selection?.Clear();
+            var flow = ctx.Entry.Get<GameFlowDomain>();
+            flow?.EnterBattle(new ConfiguredBattleBootstrapper(_config, preset));
+        }
+
+        internal static bool IsRemotePreset(BattleStartPresetSO preset)
+        {
+            return preset != null &&
+                   preset.HostMode == BattleStartConfig.BattleHostMode.GatewayRemote;
         }
 
         private void LoadAssets()

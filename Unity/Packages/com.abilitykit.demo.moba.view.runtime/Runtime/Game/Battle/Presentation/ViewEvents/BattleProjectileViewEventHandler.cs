@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
 using AbilityKit.Protocol.Moba.StateSync;
 using EC = AbilityKit.World.ECS;
@@ -12,7 +13,8 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     internal sealed class BattleProjectileViewEventHandler
     {
         private readonly IBattleEntityQuery _query;
-        private readonly BattleProjectileVfxSpawner _spawner;
+        private readonly BattleProjectileVfxSpawner _vfxSpawner;
+        private readonly BattleProjectileShellSpawner _shellSpawner;
         private readonly BattleProjectileVfxResolver _vfx;
         private readonly BattleProjectileSnapshotVfxResolver _snapshotVfx;
         private readonly BattleProjectileSnapshotDeduplicator _deduplicator;
@@ -22,8 +24,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
-            BattleViewResourceProvider resources = null)
-            : this(ctx, query, vfx, in vfxNode, resources, null)
+            BattleViewResourceProvider resources = null,
+            BattleProjectileShellPool shellPool = null)
+            : this(ctx, query, vfx, in vfxNode, resources, shellPool, null, null)
         {
         }
 
@@ -33,12 +36,15 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
             BattleViewResourceProvider resources,
-            BattleProjectileViewEventHandlerFactory handlers)
+            BattleProjectileShellPool shellPool,
+            BattleProjectileViewEventHandlerFactory handlers,
+            BattleViewHierarchyManager hierarchy)
         {
             handlers ??= new BattleProjectileViewEventHandlerFactory();
 
             _query = query;
-            _spawner = handlers.CreateSpawner(ctx, vfx, in vfxNode);
+            _vfxSpawner = handlers.CreateSpawner(ctx, vfx, in vfxNode);
+            _shellSpawner = handlers.CreateShellSpawner(shellPool, query, hierarchy);
             _vfx = handlers.CreateTriggerResolver(resources);
             _snapshotVfx = handlers.CreateSnapshotResolver(query, resources);
             _deduplicator = handlers.CreateSnapshotDeduplicator();
@@ -46,17 +52,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void HandleTriggerHit(in TriggerEvent evt)
         {
-            if (!_spawner.CanSpawn) return;
+            if (!_vfxSpawner.CanSpawn) return;
             if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos)) return;
 
             var spec = new BattleProjectileVfxSpawnSpec(vfxId, in pos, default);
-            _spawner.TrySpawn(in spec);
+            _vfxSpawner.TrySpawn(in spec);
         }
 
         public void HandleSnapshot(MobaProjectileEventSnapshotEntry[] entries)
         {
             if (entries == null || entries.Length == 0) return;
-            if (!_spawner.CanSpawn) return;
+            if (!_vfxSpawner.CanSpawn) return;
             if (_query == null) return;
 
             for (int i = 0; i < entries.Length; i++)
@@ -65,18 +71,47 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             }
         }
 
+        /// <summary>
+        /// Call once per frame to update projectile shell positions.
+        /// </summary>
+        public void Tick()
+        {
+            _shellSpawner?.Tick();
+        }
+
+        /// <summary>
+        /// Clears all active projectile shells and VFX.
+        /// </summary>
+        public void Clear()
+        {
+            _shellSpawner?.Clear();
+        }
+
         private void HandleSnapshotEntry(MobaProjectileEventSnapshotEntry entry)
         {
             if (!_deduplicator.ShouldHandle(in entry)) return;
 
             if (entry.Kind == (int)ProjectileEventKind.Exit)
             {
-                _spawner.StopFollowingActor(entry.ProjectileActorId);
+                _vfxSpawner.StopFollowingActor(entry.ProjectileActorId);
+                _shellSpawner?.StopAndReturn(entry.TemplateId, entry.ProjectileActorId);
                 return;
             }
 
             if (!_snapshotVfx.TryResolve(in entry, out var spec)) return;
-            _spawner.TrySpawn(in spec);
+            _vfxSpawner.TrySpawn(in spec);
+
+            if (_shellSpawner != null)
+            {
+                var position = spec.Position;
+                var forward = spec.Rotation * UnityEngine.Vector3.forward;
+                _shellSpawner.TrySpawn(
+                    entry.TemplateId,
+                    entry.ProjectileActorId,
+                    in position,
+                    in forward,
+                    entry.LauncherActorId);
+            }
         }
     }
 
@@ -207,6 +242,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             in EC.IEntity vfxNode)
         {
             return new BattleProjectileVfxSpawner(ctx, vfx, in vfxNode);
+        }
+
+        public BattleProjectileShellSpawner CreateShellSpawner(
+            BattleProjectileShellPool pool,
+            IBattleEntityQuery query,
+            BattleViewHierarchyManager hierarchy = null)
+        {
+            return new BattleProjectileShellSpawner(pool, new BattleProjectileShellFollowResolver(query), hierarchy);
         }
 
         public BattleProjectileVfxResolver CreateTriggerResolver(BattleViewResourceProvider resources)

@@ -32,6 +32,73 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
             InputDelayFrames = inputDelayFrames;
         }
 
+        public MobaRoomPersistentSnapshot ExportPersistentState()
+        {
+            var players = new List<MobaRoomPersistentPlayer>(_players.Count);
+            foreach (var pair in _players)
+            {
+                var slot = pair.Value;
+                players.Add(new MobaRoomPersistentPlayer(
+                    pair.Key,
+                    slot.TeamId,
+                    slot.Ready,
+                    slot.HeroId,
+                    slot.SpawnPointId,
+                    slot.AttributeTemplateId,
+                    slot.Level,
+                    slot.BasicAttackSkillId,
+                    slot.SkillIds == null ? null : (int[])slot.SkillIds.Clone()));
+            }
+
+            return new MobaRoomPersistentSnapshot(
+                Revision,
+                MatchId,
+                MapId,
+                RandomSeed,
+                TickRate,
+                InputDelayFrames,
+                MinPlayers,
+                MaxPlayers,
+                players);
+        }
+
+        public static MobaRoomState RestorePersistentState(MobaRoomPersistentSnapshot snapshot)
+        {
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            var state = new MobaRoomState(
+                snapshot.MatchId,
+                snapshot.MapId,
+                snapshot.RandomSeed,
+                snapshot.TickRate,
+                snapshot.InputDelayFrames)
+            {
+                MinPlayers = snapshot.MinPlayers < 1 ? 1 : snapshot.MinPlayers,
+                MaxPlayers = snapshot.MaxPlayers,
+                Revision = snapshot.Revision
+            };
+
+            if (snapshot.Players != null)
+            {
+                foreach (var player in snapshot.Players)
+                {
+                    if (player == null || string.IsNullOrEmpty(player.AccountId)) continue;
+                    var playerId = new PlayerId(player.AccountId);
+                    state._players[player.AccountId] = new PlayerSlot(
+                        playerId,
+                        player.TeamId,
+                        player.Ready,
+                        player.HeroId,
+                        player.SpawnPointId,
+                        player.AttributeTemplateId,
+                        player.Level,
+                        player.BasicAttackSkillId,
+                        player.SkillIds == null ? null : (int[])player.SkillIds.Clone());
+                }
+            }
+
+            return state;
+        }
+
         public void Configure(int minPlayers, int maxPlayers)
         {
             MinPlayers = minPlayers < 1 ? 1 : minPlayers;
@@ -275,6 +342,76 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Room
                 return new PlayerSlot(PlayerId, TeamId, Ready, HeroId, spawnPointId, AttributeTemplateId, Level, BasicAttackSkillId, SkillIds);
             }
         }
+    }
+
+    public sealed class MobaRoomPersistentSnapshot
+    {
+        public MobaRoomPersistentSnapshot(
+            int revision,
+            string matchId,
+            int mapId,
+            int randomSeed,
+            int tickRate,
+            int inputDelayFrames,
+            int minPlayers,
+            int maxPlayers,
+            List<MobaRoomPersistentPlayer> players)
+        {
+            Revision = revision;
+            MatchId = matchId;
+            MapId = mapId;
+            RandomSeed = randomSeed;
+            TickRate = tickRate;
+            InputDelayFrames = inputDelayFrames;
+            MinPlayers = minPlayers;
+            MaxPlayers = maxPlayers;
+            Players = players;
+        }
+
+        public int Revision { get; set; }
+        public string MatchId { get; set; }
+        public int MapId { get; set; }
+        public int RandomSeed { get; set; }
+        public int TickRate { get; set; }
+        public int InputDelayFrames { get; set; }
+        public int MinPlayers { get; set; }
+        public int MaxPlayers { get; set; }
+        public List<MobaRoomPersistentPlayer> Players { get; set; }
+    }
+
+    public sealed class MobaRoomPersistentPlayer
+    {
+        public MobaRoomPersistentPlayer(
+            string accountId,
+            int teamId,
+            bool ready,
+            int heroId,
+            int spawnPointId,
+            int attributeTemplateId,
+            int level,
+            int basicAttackSkillId,
+            int[] skillIds)
+        {
+            AccountId = accountId;
+            TeamId = teamId;
+            Ready = ready;
+            HeroId = heroId;
+            SpawnPointId = spawnPointId;
+            AttributeTemplateId = attributeTemplateId;
+            Level = level;
+            BasicAttackSkillId = basicAttackSkillId;
+            SkillIds = skillIds;
+        }
+
+        public string AccountId { get; set; }
+        public int TeamId { get; set; }
+        public bool Ready { get; set; }
+        public int HeroId { get; set; }
+        public int SpawnPointId { get; set; }
+        public int AttributeTemplateId { get; set; }
+        public int Level { get; set; }
+        public int BasicAttackSkillId { get; set; }
+        public int[] SkillIds { get; set; }
     }
 }
 

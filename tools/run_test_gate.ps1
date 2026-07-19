@@ -273,19 +273,34 @@ function Invoke-PowerShellScriptStep {
 
     $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $fullScriptPath)
     if ($Step.PSObject.Properties['arguments']) {
-        $arguments += @($Step.arguments | ForEach-Object { [string]$_ })
+        $arguments += @($Step.arguments | ForEach-Object {
+            ([string]$_).Replace('{GateOutputDirectory}', $GateOutputDirectory)
+        })
     }
 
     $logFile = Join-Path $GateOutputDirectory (('{0:00}-{1}.log' -f $StepIndex, (ConvertTo-SafeName $DisplayName)))
+    $errorLogFile = Join-Path $GateOutputDirectory (('{0:00}-{1}.error.log' -f $StepIndex, (ConvertTo-SafeName $DisplayName)))
     $commandText = 'powershell {0}' -f (($arguments | ForEach-Object {
         if ([string]$_ -match '\s') { '"{0}"' -f $_ } else { [string]$_ }
     }) -join ' ')
+    $timeoutSeconds = if ($Step.PSObject.Properties['timeoutSeconds']) { [int]$Step.timeoutSeconds } else { 0 }
     $startedAt = Get-Date
     Write-Host ("=== {0} ===" -f $DisplayName) -ForegroundColor Cyan
     Write-Host $commandText -ForegroundColor DarkGray
 
-    & powershell @arguments 2>&1 | Tee-Object -FilePath $logFile | ForEach-Object { Write-Host $_ }
-    $exitCode = $LASTEXITCODE
+    $process = Start-Process -FilePath 'powershell.exe' -ArgumentList $arguments -RedirectStandardOutput $logFile -RedirectStandardError $errorLogFile -PassThru
+    $timedOut = $timeoutSeconds -gt 0 -and -not $process.WaitForExit($timeoutSeconds * 1000)
+    if ($timedOut) {
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        $process.WaitForExit()
+        $exitCode = 124
+    }
+    else {
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+    }
+    if (Test-Path -LiteralPath $logFile) { Get-Content -LiteralPath $logFile | ForEach-Object { Write-Host $_ } }
+    if (Test-Path -LiteralPath $errorLogFile) { Get-Content -LiteralPath $errorLogFile | ForEach-Object { Write-Host $_ -ForegroundColor Red } }
     $endedAt = Get-Date
 
     return [pscustomobject][ordered]@{
@@ -295,10 +310,13 @@ function Invoke-PowerShellScriptStep {
         command = $commandText
         status = $(if ($exitCode -eq 0) { 'Passed' } else { 'Failed' })
         exitCode = $exitCode
+        timedOut = $timedOut
+        timeoutSeconds = $timeoutSeconds
         startedAt = $startedAt.ToString('o')
         endedAt = $endedAt.ToString('o')
         elapsedSeconds = [math]::Round(($endedAt - $startedAt).TotalSeconds, 3)
         logFile = $logFile
+        errorLogFile = $errorLogFile
     }
 }
 
@@ -421,7 +439,7 @@ function Invoke-UnityBatchModeStep {
     return [pscustomobject]$record
 }
 
-function Invoke-UnityEditModeStep {
+function Invoke-UnityTestStep {
     param(
         [string]$DisplayName,
         [object]$Step,
@@ -446,7 +464,8 @@ function Invoke-UnityEditModeStep {
     }
     $arguments += @('-testResults', $xmlFilePath)
 
-    $record = Invoke-UnityBatchModeStep -DisplayName $DisplayName -Kind 'unity-editmode-test' -Step $Step -GateOutputDirectory $GateOutputDirectory -Arguments $arguments -ResultsFilePath ($safeName + '.xml') -Filter $testFilter
+    $kind = if ($testPlatform -ieq 'PlayMode') { 'unity-playmode-test' } else { 'unity-editmode-test' }
+    $record = Invoke-UnityBatchModeStep -DisplayName $DisplayName -Kind $kind -Step $Step -GateOutputDirectory $GateOutputDirectory -Arguments $arguments -ResultsFilePath ($safeName + '.xml') -Filter $testFilter
 
     $recoveredResultsFrom = $null
     $testRunnerStarted = $false
@@ -655,8 +674,8 @@ function Invoke-Gate {
                         throw "Step '$stepName' failed with exit code $($record.exitCode)."
                     }
                 }
-                'unity-editmode-test' {
-                    $record = Invoke-UnityEditModeStep -DisplayName $stepName -Step $step -GateOutputDirectory $gateOutputDirectory
+                { $_ -in @('unity-editmode-test', 'unity-playmode-test') } {
+                    $record = Invoke-UnityTestStep -DisplayName $stepName -Step $step -GateOutputDirectory $gateOutputDirectory
                     $stepResults.Add($record)
                     if ($record.status -ne 'Passed') {
                         throw "Step '$stepName' failed with exit code $($record.exitCode)."

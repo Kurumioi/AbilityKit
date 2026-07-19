@@ -10,6 +10,7 @@ using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Demo.Moba.Console.Battle;
 using AbilityKit.Demo.Moba.Console.Battle.Context;
 using AbilityKit.Demo.Moba.Console.Battle.ECS.Components;
@@ -284,18 +285,6 @@ namespace AbilityKit.Demo.Moba.Console
             {
                 _mobaConfig = container.Resolve<MobaConfigDatabase>();
                 Log.System($"MobaConfig resolved: {_mobaConfig.GetTable<AbilityKit.Demo.Moba.Config.BattleDemo.MO.CharacterMO>().Count} characters");
-            }
-
-            // 手动 resolve TriggerPlanJsonDatabase 来触发其加载
-            Log.System("[Bootstrapper] Resolving TriggerPlanJsonDatabase...");
-            try
-            {
-                var triggerDb = container.Resolve<AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanJsonDatabase>();
-                Log.System($"[Bootstrapper] TriggerPlanJsonDatabase resolved, records={triggerDb?.Records?.Count ?? 0}");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[Bootstrapper] Failed to resolve TriggerPlanJsonDatabase: {ex.Message}");
             }
 
             var effectService = new ConsoleEffectExecutionService();

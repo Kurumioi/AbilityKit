@@ -513,6 +513,101 @@
           "testFilter": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests"
         }
       ]
+    },
+    {
+      "name": "shooter-fast",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "Minute-scale Shooter protocol, policy, runtime isolation, network, record, and benchmark contract tests.",
+      "scope": ["shooter", "unit", "protocol", "policy"],
+      "requiredBefore": ["merge-shooter-sync-change"],
+      "failurePolicy": "Block the pull request until pure Shooter synchronization contracts pass.",
+      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "steps": [
+        { "name": "Shooter runtime isolation tests", "kind": "dotnet-test", "project": "src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj" },
+        { "name": "Network runtime tests", "kind": "dotnet-test", "project": "src/AbilityKit.Network.Runtime.Tests/AbilityKit.Network.Runtime.Tests.csproj" },
+        { "name": "Record tests", "kind": "dotnet-test", "project": "src/AbilityKit.Record.Tests/AbilityKit.Record.Tests.csproj" },
+        { "name": "AOI LOD contract tests", "kind": "dotnet-test", "project": "src/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests/AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests.csproj" }
+      ]
+    },
+    {
+      "name": "shooter-integration",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "Gateway, Grains, Shooter client integration, smoke contracts, and wire compatibility.",
+      "scope": ["shooter", "gateway", "grains", "client-integration", "protocol-compatibility"],
+      "requiredBefore": ["merge-shooter-server-or-client-integration-change"],
+      "failurePolicy": "Block the pull request or main branch update until cross-boundary synchronization contracts pass.",
+      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "steps": [
+        { "name": "Gateway integration and protocol compatibility", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj" },
+        { "name": "Grains Shooter integration", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj" },
+        { "name": "Shooter smoke contract integration", "kind": "dotnet-test", "project": "Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj" }
+      ]
+    },
+    {
+      "name": "shooter-unity-playmode",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "Unity batch PlayMode smoke for Shooter client protocol and synchronization projection.",
+      "scope": ["shooter", "unity-playmode", "client-integration"],
+      "requiredBefore": ["merge-shooter-unity-client-sync-change"],
+      "failurePolicy": "Block integration until Unity PlayMode emits a non-empty passing NUnit result.",
+      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": false, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "Shooter synchronization PlayMode smoke",
+          "kind": "unity-playmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "PlayMode",
+          "testFilter": "AbilityKit.Demo.Shooter.PlayMode.Tests.ShooterSynchronizationPlayModeSmokeTests"
+        }
+      ]
+    },
+    {
+      "name": "shooter-multiprocess",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "TEST-01B minimal fault profile with isolated ports, bounded execution, cleanup, and complete diagnostics.",
+      "scope": ["shooter", "multiprocess", "test-01b", "fault-recovery"],
+      "requiredBefore": ["release-shooter-multiplayer-sync"],
+      "failurePolicy": "Preserve the complete run root and block scheduled/manual promotion.",
+      "ciPolicy": { "runOnPullRequest": false, "runOnPush": true, "runOnSchedule": true, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "TEST-01B minimal profile",
+          "kind": "powershell-script",
+          "script": "Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1",
+          "arguments": ["-Configuration", "Release", "-Profile", "minimal", "-TcpPort", "44101", "-SiloPort", "15111", "-OrleansGatewayPort", "34101", "-ArtifactRoot", "{GateOutputDirectory}\\test-01b", "-GlobalTimeoutSeconds", "240"],
+          "timeoutSeconds": 300
+        }
+      ]
+    },
+    {
+      "name": "shooter-performance",
+      "level": "P1",
+      "owner": "Shooter Multiplayer",
+      "description": "Threshold-enforced AOI/LOD smoke and full performance profiles with JSON reports.",
+      "scope": ["shooter", "performance", "aoi", "lod"],
+      "requiredBefore": ["accept-shooter-aoi-lod-performance"],
+      "failurePolicy": "Block on benchmark threshold violations and archive the JSON report.",
+      "ciPolicy": { "runOnPullRequest": true, "runOnPush": true, "runOnSchedule": true, "artifactRequired": true },
+      "steps": [
+        {
+          "name": "AOI LOD smoke",
+          "kind": "powershell-script",
+          "script": "tools/run_shooter_aoi_lod_gate.ps1",
+          "arguments": ["-Profile", "smoke", "-OutputPath", "{GateOutputDirectory}\\performance\\smoke.json"],
+          "timeoutSeconds": 300
+        },
+        {
+          "name": "AOI LOD full",
+          "kind": "powershell-script",
+          "script": "tools/run_shooter_aoi_lod_gate.ps1",
+          "arguments": ["-Profile", "full", "-OutputPath", "{GateOutputDirectory}\\performance\\full.json"],
+          "timeoutSeconds": 1800
+        }
+      ]
     }
   ]
 }

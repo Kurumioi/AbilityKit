@@ -100,6 +100,23 @@ namespace AbilityKit.Game.Flow
             return _hudInput.TryReadSkillAimPreview(out slot, out dx, out dz, out submissionVersion);
         }
 
+        internal bool TryResolveLocalActorId(out int actorId)
+        {
+            actorId = LocalActorId;
+            if (actorId > 0)
+            {
+                return true;
+            }
+
+            if (!TryResolveMappedLocalActorId(out actorId))
+            {
+                return false;
+            }
+
+            LocalActorId = actorId;
+            return true;
+        }
+
         internal bool TryResolveLocalActorWorldPos(out Vector3 pos)
         {
             pos = default;

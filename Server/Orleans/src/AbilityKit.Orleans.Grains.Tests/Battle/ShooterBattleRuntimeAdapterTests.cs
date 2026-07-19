@@ -57,6 +57,16 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.Equal(1, accepted);
         Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
 
+        var reliableProducer = Assert.IsAssignableFrom<IReliableBattleEventProducer>(session);
+        var reliableEvents = reliableProducer.CaptureReliableEvents(frame: 1);
+        var fire = Assert.Single(reliableEvents);
+        Assert.Equal(1, fire.SourceFrame);
+        Assert.Equal((int)ShooterEventType.Fire, fire.EventType);
+        Assert.NotNull(fire.Payload);
+        var firePayload = ShooterStateSnapshotCodec.DeserializeEvent(fire.Payload!);
+        Assert.Equal((int)ShooterEventType.Fire, firePayload.EventType);
+        Assert.Equal(1, firePayload.SourcePlayerId);
+
         var snapshot = session.GetSnapshot(1);
         Assert.NotNull(snapshot);
         Assert.Equal(1, snapshot!.Frame);
@@ -72,11 +82,37 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.NotEmpty(push.Payload!);
 
         var packed = ShooterPackedSnapshotCodec.Deserialize(push.Payload!);
+        Assert.NotEqual(fire.Payload, push.Payload);
         Assert.Equal(initParams.WorldId, packed.WorldId);
         Assert.Equal(push.Frame, packed.Frame);
         Assert.Equal(4, packed.EntityCount);
         Assert.NotEqual(0u, packed.StateHash);
         AssertPackedEnemiesVisible(packed);
+    }
+
+    [Fact]
+    public void WithoutLegacyEvents_RemovesFireAndHitWithoutChangingSnapshotState()
+    {
+        var snapshot = new ShooterStateSnapshotPayload
+        {
+            Frame = 7,
+            Players = new[]
+            {
+                new ShooterPlayerSnapshot(1, 2f, 3f, 1f, 0f, 90, 0, true)
+            },
+            Events = new[]
+            {
+                new ShooterEventSnapshot(ShooterEventType.Fire, 1, 0, 11, 2f, 3f, 0),
+                new ShooterEventSnapshot(ShooterEventType.Hit, 1, -1, 11, 4f, 3f, 10)
+            }
+        };
+
+        var projected = ShooterBattleRuntimeAdapter.WithoutLegacyEvents(snapshot);
+
+        Assert.Equal(7, projected.Frame);
+        Assert.Single(projected.Players);
+        Assert.Empty(projected.Events);
+        Assert.Equal(2, snapshot.Events.Length);
     }
 
     [Fact]
@@ -217,6 +253,64 @@ public sealed class ShooterBattleRuntimeAdapterTests
     }
 
     [Fact]
+    public void ValidateInput_AcceptsSingleFiniteCommandForSubmittingPlayer()
+    {
+        using var session = CreateSession("shooter-valid-input-test");
+        var result = session.ValidateInput(CreateInput(
+            playerId: 1,
+            opCode: ShooterOpCodes.Input.PlayerCommand,
+            new ShooterPlayerCommand(1, 1f, 0f, 0f, 1f, true)));
+
+        Assert.True(result.Accepted, result.Message);
+    }
+
+    [Fact]
+    public void ValidateInput_RejectsUnsupportedOpcodeAndMalformedPayload()
+    {
+        using var session = CreateSession("shooter-invalid-encoding-test");
+
+        var invalidOpcode = session.ValidateInput(CreateInput(1, ShooterOpCodes.Input.PlayerCommand + 1,
+            new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, false)));
+        var malformed = session.ValidateInput(new BattleInputItem
+        {
+            PlayerId = 1,
+            OpCode = ShooterOpCodes.Input.PlayerCommand,
+            Payload = new byte[] { 1, 2, 3 }
+        });
+
+        Assert.False(invalidOpcode.Accepted);
+        Assert.Equal(BattleResultStatusCodes.RejectedInvalidOpCode, invalidOpcode.Status);
+        Assert.False(malformed.Accepted);
+        Assert.Equal(BattleResultStatusCodes.RejectedInvalidPayload, malformed.Status);
+    }
+
+    [Fact]
+    public void ValidateInput_RejectsEmptyMultipleMismatchedAndNonFiniteCommands()
+    {
+        using var session = CreateSession("shooter-invalid-command-test");
+        var empty = session.ValidateInput(CreateInput(1, ShooterOpCodes.Input.PlayerCommand));
+        var multiple = session.ValidateInput(CreateInput(
+            1,
+            ShooterOpCodes.Input.PlayerCommand,
+            new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, false),
+            new ShooterPlayerCommand(1, 0f, 0f, 1f, 0f, false)));
+        var mismatched = session.ValidateInput(CreateInput(
+            1,
+            ShooterOpCodes.Input.PlayerCommand,
+            new ShooterPlayerCommand(2, 0f, 0f, 1f, 0f, false)));
+        var nonFinite = session.ValidateInput(CreateInput(
+            1,
+            ShooterOpCodes.Input.PlayerCommand,
+            new ShooterPlayerCommand(1, float.NaN, 0f, float.PositiveInfinity, 0f, false)));
+
+        Assert.All(new[] { empty, multiple, mismatched, nonFinite }, result =>
+        {
+            Assert.False(result.Accepted);
+            Assert.Equal(BattleResultStatusCodes.RejectedInvalidPayload, result.Status);
+        });
+    }
+
+    [Fact]
     public void JoinPlayer_WhenPlayerIsMissing_ReturnsSharedRejectedNullPlayerStatus()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
@@ -327,6 +421,21 @@ public sealed class ShooterBattleRuntimeAdapterTests
 
         return null;
     }
+
+    private static IBattleRuntimeSession CreateSession(string battleId)
+    {
+        var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        return adapter.CreateSession(battleId);
+    }
+
+    private static BattleInputItem CreateInput(uint playerId, int opCode, params ShooterPlayerCommand[] commands) =>
+        new()
+        {
+            PlayerId = playerId,
+            OpCode = opCode,
+            Payload = ShooterInputCodec.Serialize(commands)
+        };
 
     private static BattleInitParams CreateInitParams()
     {

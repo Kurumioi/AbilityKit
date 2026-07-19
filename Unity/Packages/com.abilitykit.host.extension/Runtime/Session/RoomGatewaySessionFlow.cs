@@ -21,6 +21,16 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(RoomGatewayStateSyncSubscriptionRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
 
         Task<RoomGatewayRestoreRoomResult> RestoreRoomAsync(RoomGatewayRestoreRoomRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+        // ===== 阶段 5：阶段化资源加载流程 =====
+
+        Task<RoomGatewayPickHeroResult> PickHeroAsync(RoomGatewayPickHeroRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+        Task<RoomGatewayBeginLoadingResult> BeginLoadingAsync(RoomGatewayBeginLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+        Task<RoomGatewayReportAssetsLoadedResult> ReportAssetsLoadedAsync(RoomGatewayReportAssetsLoadedRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+
+        Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(RoomGatewayGetSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
     }
 
     public sealed class RoomGatewaySessionFlow
@@ -32,6 +42,7 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             _client = client ?? throw new ArgumentNullException(nameof(client));
         }
 
+        [Obsolete("Use staged flow (CreateRoomAsync -> JoinRoomAsync -> SetReadyAsync -> BeginLoadingAsync -> ReportAssetsLoadedAsync -> WaitForBattleStartAsync -> SubscribeStateSyncAsync).")]
         public async Task<RoomGatewaySessionFlowResult> CreateReadyStartAndSubscribeAsync(
             string sessionToken,
             RoomGatewayLaunchSpec launchSpec,
@@ -60,50 +71,18 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(ready.Success, ready.Message, "set ready");
 
-            var start = await _client.StartBattleAsync(
-                new RoomGatewayStartBattleRequest(
-                    sessionToken,
-                    create.RoomId,
-                    launchSpec.GameplayId,
-                    launchSpec.RuleSetId,
-                    launchSpec.ConfigVersion,
-                    launchSpec.ProtocolVersion,
-                    launchSpec.WorldType,
-                    launchSpec.ClientId,
-                    launchSpec.SyncTemplateId,
-                    launchSpec.SyncModel,
-                    launchSpec.NetworkEnvironmentId,
-                    launchSpec.CarrierName,
-                    launchSpec.EnableAuthoritativeWorld,
-                    launchSpec.InterpolationEnabled,
-                    launchSpec.InputDelayFrames),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(start.Success, start.Message, "start battle");
-
-            var battleId = SelectBattleId(start.BattleId, ready.BattleId, join.BattleId);
-            var subscribe = await _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, create.RoomId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
-
-            return new RoomGatewaySessionFlowResult(
+            return await CompleteStagedLaunchAsync(
                 sessionToken,
                 create.RoomId,
                 create.NumericRoomId,
-                battleId,
-                start.WorldId,
                 SelectPlayerId(join.CurrentPlayerId, playerId),
-                SelectWorldStartAnchor(start.WorldStartAnchor, join.WorldStartAnchor),
-                start.ServerNowTicks,
-                RoomGatewaySessionEntryKind.TeamLobby,
+                join.WorldStartAnchor,
                 ready.CanStart,
-                start.Started,
-                subscribe.Success,
-                subscribe.Message);
+                timeout,
+                cancellationToken).ConfigureAwait(false);
         }
 
+        [Obsolete("Use staged flow (JoinRoomAsync -> SetReadyAsync -> BeginLoadingAsync -> ReportAssetsLoadedAsync -> WaitForBattleStartAsync -> SubscribeStateSyncAsync).")]
         public async Task<RoomGatewaySessionFlowResult> JoinReadyStartAndSubscribeAsync(
             string sessionToken,
             string roomId,
@@ -152,48 +131,36 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(ready.Success, ready.Message, "set ready");
 
-            var start = await _client.StartBattleAsync(
-                new RoomGatewayStartBattleRequest(
-                    sessionToken,
-                    roomId,
-                    launchSpec.GameplayId,
-                    launchSpec.RuleSetId,
-                    launchSpec.ConfigVersion,
-                    launchSpec.ProtocolVersion,
-                    launchSpec.WorldType,
-                    launchSpec.ClientId,
-                    launchSpec.SyncTemplateId,
-                    launchSpec.SyncModel,
-                    launchSpec.NetworkEnvironmentId,
-                    launchSpec.CarrierName,
-                    launchSpec.EnableAuthoritativeWorld,
-                    launchSpec.InterpolationEnabled,
-                    launchSpec.InputDelayFrames),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(start.Success, start.Message, "start battle");
-
-            var battleId = SelectBattleId(start.BattleId, ready.BattleId, join.BattleId);
-            var subscribe = await _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, roomId),
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
-
-            return new RoomGatewaySessionFlowResult(
+            return await CompleteStagedLaunchAsync(
                 sessionToken,
                 roomId,
                 join.NumericRoomId,
-                battleId,
-                start.WorldId,
                 SelectPlayerId(join.CurrentPlayerId, playerId),
-                SelectWorldStartAnchor(start.WorldStartAnchor, join.WorldStartAnchor),
-                start.ServerNowTicks,
-                RoomGatewaySessionEntryKind.TeamLobby,
+                join.WorldStartAnchor,
                 ready.CanStart,
-                start.Started,
-                subscribe.Success,
-                subscribe.Message);
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        public Task<RoomGatewaySessionFlowResult> RestoreRoomAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            RoomGatewayLaunchSpec launchSpec,
+            uint playerId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                string.Empty,
+                0L,
+                timeout,
+                cancellationToken);
         }
 
         public async Task<RoomGatewaySessionFlowResult> RestoreRoomAsync(
@@ -202,6 +169,8 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             string serverId,
             RoomGatewayLaunchSpec launchSpec,
             uint playerId,
+            string eventEpoch,
+            long lastEventAck,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
@@ -227,7 +196,12 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             }
 
             var subscribe = await _client.SubscribeStateSyncAsync(
-                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, restored.BattleId, restored.RoomId),
+                new RoomGatewayStateSyncSubscriptionRequest(
+                    sessionToken,
+                    restored.BattleId,
+                    restored.RoomId,
+                    eventEpoch,
+                    lastEventAck),
                 timeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
@@ -248,6 +222,311 @@ namespace AbilityKit.Ability.Host.Extensions.Session
                 subscribe.Message,
                 restored.Status,
                 restored.ErrorCode);
+        }
+
+        // ===== 阶段 5：阶段化资源加载流程（每步独立可恢复） =====
+
+        /// <summary>
+        /// 阶段 1：创建房间。返回 roomId。
+        /// </summary>
+        public async Task<string> CreateRoomAsync(
+            string sessionToken,
+            RoomGatewayLaunchSpec launchSpec,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+
+            var create = await _client.CreateRoomAsync(
+                new RoomGatewayCreateRequest(sessionToken, launchSpec.Region, launchSpec.ServerId, launchSpec.RoomType, launchSpec.RoomTitle, true, launchSpec.MaxPlayers, launchSpec.Tags),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(create.Success, create.Message, "create room");
+            return create.RoomId;
+        }
+
+        /// <summary>
+        /// 阶段 2：加入房间。返回 join 结果（含 snapshot / battleId）。
+        /// </summary>
+        public Task<RoomGatewayJoinResult> JoinRoomAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            string roomId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            return _client.JoinRoomAsync(new RoomGatewayJoinRequest(sessionToken, region, serverId, roomId), timeout, cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段 3：配置出战（PickHero）。
+        /// </summary>
+        public Task<RoomGatewayPickHeroResult> ConfigureLoadoutAsync(
+            RoomGatewayPickHeroRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            return _client.PickHeroAsync(request, timeout, cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段 4：设置准备状态。
+        /// </summary>
+        public Task<RoomGatewayReadyResult> SetReadyAsync(
+            string sessionToken,
+            string roomId,
+            bool ready,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            return _client.SetReadyAsync(new RoomGatewayReadyRequest(sessionToken, roomId, ready), timeout, cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段 5：Owner 发起资源加载阶段（Lobby -> Loading）。
+        /// </summary>
+        public Task<RoomGatewayBeginLoadingResult> BeginLoadingAsync(
+            RoomGatewayBeginLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            return _client.BeginLoadingAsync(request, timeout, cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段 6：成员上报资源加载完成。
+        /// </summary>
+        public Task<RoomGatewayReportAssetsLoadedResult> ReportAssetsLoadedAsync(
+            RoomGatewayReportAssetsLoadedRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(request.SessionToken);
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            return _client.ReportAssetsLoadedAsync(request, timeout, cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段 7：等待战斗开始（轮询 snapshot Phase -> Starting/InBattle）。
+        /// 通过 GetSnapshot 轮询，直到 Phase 进入 Starting/InBattle 或超时。
+        /// </summary>
+        public async Task<RoomGatewayGetSnapshotResult> WaitForBattleStartAsync(
+            string sessionToken,
+            string roomId,
+            TimeSpan pollInterval,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+            if (pollInterval <= TimeSpan.Zero) pollInterval = TimeSpan.FromMilliseconds(500);
+
+            var deadline = DateTime.UtcNow + timeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var snapshot = await _client.GetSnapshotAsync(
+                    new RoomGatewayGetSnapshotRequest(sessionToken, roomId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (snapshot.Success && snapshot.Snapshot != null)
+                {
+                    var phase = snapshot.Snapshot.Phase;
+                    if (phase == RoomGatewaySessionPhase.Starting ||
+                        phase == RoomGatewaySessionPhase.InBattle)
+                    {
+                        return snapshot;
+                    }
+                }
+
+                try
+                {
+                    await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+            }
+
+            throw new TimeoutException($"WaitForBattleStart timed out after {timeout} for room {roomId}.");
+        }
+
+        /// <summary>
+        /// 阶段 8：订阅战斗状态同步（Phase=InBattle 后调用）。
+        /// </summary>
+        public Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
+            string sessionToken,
+            string battleId,
+            string roomId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(battleId)) throw new ArgumentException("battleId is required.", nameof(battleId));
+            return _client.SubscribeStateSyncAsync(
+                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, roomId),
+                timeout,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// 阶段化恢复：支持 Lobby/Loading/Starting/InBattle 任意阶段 restore，
+        /// 根据 snapshot.Phase 决定下一步。
+        /// </summary>
+        public async Task<RoomGatewayStagedRestoreResult> RestoreAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            uint playerId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateSessionToken(sessionToken);
+            if (string.IsNullOrWhiteSpace(region)) throw new ArgumentException("region is required.", nameof(region));
+            if (string.IsNullOrWhiteSpace(serverId)) throw new ArgumentException("serverId is required.", nameof(serverId));
+            ValidatePlayerId(playerId);
+
+            var restored = await _client.RestoreRoomAsync(
+                new RoomGatewayRestoreRoomRequest(sessionToken, region, serverId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(restored.Success, restored.Message, "restore room");
+
+            if (!restored.HasActiveRoom || string.IsNullOrWhiteSpace(restored.RoomId))
+            {
+                return new RoomGatewayStagedRestoreResult(
+                    restored.RoomId,
+                    restored.NumericRoomId,
+                    null,
+                    RoomGatewaySessionPhase.Closed,
+                    RoomGatewayStagedRestoreNextStep.None,
+                    SelectPlayerId(restored.CurrentPlayerId, playerId),
+                    restored.ServerNowTicks,
+                    restored.Message);
+            }
+
+            var phase = restored.IsInBattle
+                ? RoomGatewaySessionPhase.InBattle
+                : RoomGatewaySessionPhase.Lobby;
+            var nextStep = ResolveNextStep(phase, restored.IsInBattle);
+
+            return new RoomGatewayStagedRestoreResult(
+                restored.RoomId,
+                restored.NumericRoomId,
+                null,
+                phase,
+                nextStep,
+                SelectPlayerId(restored.CurrentPlayerId, playerId),
+                restored.ServerNowTicks,
+                restored.Message);
+        }
+
+        private static RoomGatewaySessionPhase ResolvePhase(RoomGatewaySnapshot snapshot)
+        {
+            if (snapshot == null)
+            {
+                return RoomGatewaySessionPhase.Lobby;
+            }
+
+            return snapshot.Phase;
+        }
+
+        private static RoomGatewayStagedRestoreNextStep ResolveNextStep(RoomGatewaySessionPhase phase, bool isInBattle)
+        {
+            switch (phase)
+            {
+                case RoomGatewaySessionPhase.Lobby:
+                    return RoomGatewayStagedRestoreNextStep.SetReadyAndBeginLoading;
+                case RoomGatewaySessionPhase.Loading:
+                    return RoomGatewayStagedRestoreNextStep.ReportAssetsLoaded;
+                case RoomGatewaySessionPhase.Starting:
+                    return RoomGatewayStagedRestoreNextStep.WaitForBattleStart;
+                case RoomGatewaySessionPhase.InBattle:
+                    return isInBattle
+                        ? RoomGatewayStagedRestoreNextStep.SubscribeStateSync
+                        : RoomGatewayStagedRestoreNextStep.WaitForBattleStart;
+                default:
+                    return RoomGatewayStagedRestoreNextStep.None;
+            }
+        }
+
+        private async Task<RoomGatewaySessionFlowResult> CompleteStagedLaunchAsync(
+            string sessionToken,
+            string roomId,
+            ulong numericRoomId,
+            uint playerId,
+            RoomGatewayWorldStartAnchor fallbackAnchor,
+            bool canStart,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
+            var begin = await _client.BeginLoadingAsync(
+                new RoomGatewayBeginLoadingRequest(sessionToken, roomId, null, Guid.NewGuid().ToString("N")),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(begin.Success, begin.Message, "begin loading");
+            if (begin.Snapshot == null)
+            {
+                throw new InvalidOperationException("Room gateway begin loading did not return a snapshot.");
+            }
+
+            var report = await _client.ReportAssetsLoadedAsync(
+                new RoomGatewayReportAssetsLoadedRequest(
+                    sessionToken,
+                    roomId,
+                    begin.Snapshot.LaunchGeneration,
+                    begin.Snapshot.LaunchManifestVersion,
+                    begin.Snapshot.LaunchManifestHash,
+                    Guid.NewGuid().ToString("N")),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(report.Success, report.Message, "report assets loaded");
+
+            var waitTimeout = timeout ?? TimeSpan.FromSeconds(30);
+            var running = await WaitForBattleStartAsync(
+                sessionToken,
+                roomId,
+                TimeSpan.FromMilliseconds(50),
+                waitTimeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(running.Success, running.Message, "wait for battle start");
+            if (running.Snapshot == null)
+            {
+                throw new InvalidOperationException("Room gateway battle start polling did not return a snapshot.");
+            }
+
+            var battleId = SelectBattleId(running.Snapshot.BattleId, string.Empty, string.Empty);
+            var subscribe = await _client.SubscribeStateSyncAsync(
+                new RoomGatewayStateSyncSubscriptionRequest(sessionToken, battleId, roomId),
+                timeout,
+                cancellationToken).ConfigureAwait(false);
+            EnsureSuccess(subscribe.Success, subscribe.Message, "subscribe state sync");
+
+            return new RoomGatewaySessionFlowResult(
+                sessionToken,
+                roomId,
+                numericRoomId,
+                battleId,
+                running.Snapshot.WorldId,
+                playerId,
+                SelectWorldStartAnchor(running.Snapshot.WorldStartAnchor, fallbackAnchor),
+                running.ServerNowTicks,
+                RoomGatewaySessionEntryKind.TeamLobby,
+                canStart,
+                started: true,
+                subscribe.Success,
+                subscribe.Message);
         }
 
         private static uint SelectPlayerId(uint serverPlayerId, uint fallbackPlayerId)
@@ -508,12 +787,26 @@ namespace AbilityKit.Ability.Host.Extensions.Session
         public readonly string SessionToken;
         public readonly string BattleId;
         public readonly string RoomId;
+        public readonly string EventEpoch;
+        public readonly long LastEventAck;
 
         public RoomGatewayStateSyncSubscriptionRequest(string sessionToken, string battleId, string roomId)
+            : this(sessionToken, battleId, roomId, string.Empty, 0L)
+        {
+        }
+
+        public RoomGatewayStateSyncSubscriptionRequest(
+            string sessionToken,
+            string battleId,
+            string roomId,
+            string eventEpoch,
+            long lastEventAck)
         {
             SessionToken = sessionToken ?? string.Empty;
             BattleId = battleId ?? string.Empty;
             RoomId = roomId ?? string.Empty;
+            EventEpoch = eventEpoch ?? string.Empty;
+            LastEventAck = Math.Max(0L, lastEventAck);
         }
     }
 
@@ -705,6 +998,256 @@ namespace AbilityKit.Ability.Host.Extensions.Session
             Message = message ?? string.Empty;
             RestoreStatus = restoreStatus;
             RestoreErrorCode = restoreErrorCode;
+        }
+    }
+
+    // ===== 阶段 5：阶段化资源加载流程的请求/结果类型 =====
+
+    /// <summary>
+    /// 客户端 Room 阶段枚举（与服务端 RoomPhase 对齐）。
+    /// </summary>
+    public enum RoomGatewaySessionPhase
+    {
+        Lobby = 0,
+        Loading = 1,
+        Starting = 2,
+        InBattle = 3,
+        Closing = 4,
+        Closed = 5,
+        Expired = 6
+    }
+
+    /// <summary>
+    /// 阶段化恢复后建议的下一步动作。
+    /// </summary>
+    public enum RoomGatewayStagedRestoreNextStep
+    {
+        None = 0,
+        SetReadyAndBeginLoading,
+        ReportAssetsLoaded,
+        WaitForBattleStart,
+        SubscribeStateSync
+    }
+
+    public readonly struct RoomGatewayPickHeroRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly int HeroId;
+        public readonly int TeamId;
+        public readonly int SpawnPointId;
+        public readonly int Level;
+        public readonly int AttributeTemplateId;
+        public readonly int BasicAttackSkillId;
+        public readonly IReadOnlyList<int> SkillIds;
+
+        public RoomGatewayPickHeroRequest(
+            string sessionToken,
+            string roomId,
+            int heroId,
+            int teamId,
+            int spawnPointId,
+            int level,
+            int attributeTemplateId,
+            int basicAttackSkillId,
+            IReadOnlyList<int> skillIds)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            HeroId = heroId;
+            TeamId = teamId;
+            SpawnPointId = spawnPointId;
+            Level = level;
+            AttributeTemplateId = attributeTemplateId;
+            BasicAttackSkillId = basicAttackSkillId;
+            SkillIds = skillIds;
+        }
+    }
+
+    public readonly struct RoomGatewayPickHeroResult
+    {
+        public readonly bool Success;
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly string Message;
+
+        public RoomGatewayPickHeroResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message)
+        {
+            Success = success;
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            Snapshot = snapshot;
+            Message = message ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayBeginLoadingRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public RoomGatewayBeginLoadingRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayBeginLoadingResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly RoomGatewaySnapshot Snapshot;
+
+        public RoomGatewayBeginLoadingResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct RoomGatewayReportAssetsLoadedRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long LaunchGeneration;
+        public readonly int ManifestVersion;
+        public readonly string ManifestHash;
+        public readonly string CommandId;
+
+        public RoomGatewayReportAssetsLoadedRequest(string sessionToken, string roomId, long launchGeneration, int manifestVersion, string manifestHash, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            LaunchGeneration = launchGeneration;
+            ManifestVersion = manifestVersion;
+            ManifestHash = manifestHash ?? string.Empty;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayReportAssetsLoadedResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly RoomGatewaySnapshot Snapshot;
+
+        public RoomGatewayReportAssetsLoadedResult(bool success, bool applied, int errorCode, string message, long roomRevision, RoomGatewaySnapshot snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct RoomGatewayGetSnapshotRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+
+        public RoomGatewayGetSnapshotRequest(string sessionToken, string roomId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+        }
+    }
+
+    public readonly struct RoomGatewayGetSnapshotResult
+    {
+        public readonly bool Success;
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly string Message;
+        public readonly long ServerNowTicks;
+
+        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message)
+            : this(success, roomId, numericRoomId, snapshot, message, 0L)
+        {
+        }
+
+        public RoomGatewayGetSnapshotResult(bool success, string roomId, ulong numericRoomId, RoomGatewaySnapshot snapshot, string message, long serverNowTicks)
+        {
+            Success = success;
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            Snapshot = snapshot;
+            Message = message ?? string.Empty;
+            ServerNowTicks = serverNowTicks;
+        }
+    }
+
+    /// <summary>
+    /// 阶段化客户端 Room 快照视图（解耦 wire 类型）。
+    /// </summary>
+    public sealed class RoomGatewaySnapshot
+    {
+        public string RoomId { get; set; } = string.Empty;
+        public RoomGatewaySessionPhase Phase { get; set; }
+        public string PhaseReason { get; set; } = string.Empty;
+        public long LaunchGeneration { get; set; }
+        public long LoadingDeadlineUnixMs { get; set; }
+        public string LaunchManifestHash { get; set; } = string.Empty;
+        public int LaunchManifestVersion { get; set; }
+        public string LastStartFailureCode { get; set; } = string.Empty;
+        public long RoomRevision { get; set; }
+        public long LastEventSequence { get; set; }
+        public bool CanStart { get; set; }
+        public string BattleId { get; set; } = string.Empty;
+        public ulong WorldId { get; set; }
+        public RoomGatewayWorldStartAnchor WorldStartAnchor { get; set; }
+    }
+
+    /// <summary>
+    /// 阶段化恢复结果。
+    /// </summary>
+    public readonly struct RoomGatewayStagedRestoreResult
+    {
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+        public readonly RoomGatewaySnapshot Snapshot;
+        public readonly RoomGatewaySessionPhase Phase;
+        public readonly RoomGatewayStagedRestoreNextStep NextStep;
+        public readonly uint PlayerId;
+        public readonly long ServerNowTicks;
+        public readonly string Message;
+
+        public RoomGatewayStagedRestoreResult(
+            string roomId,
+            ulong numericRoomId,
+            RoomGatewaySnapshot snapshot,
+            RoomGatewaySessionPhase phase,
+            RoomGatewayStagedRestoreNextStep nextStep,
+            uint playerId,
+            long serverNowTicks,
+            string message)
+        {
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            Snapshot = snapshot;
+            Phase = phase;
+            NextStep = nextStep;
+            PlayerId = playerId;
+            ServerNowTicks = serverNowTicks;
+            Message = message ?? string.Empty;
         }
     }
 }

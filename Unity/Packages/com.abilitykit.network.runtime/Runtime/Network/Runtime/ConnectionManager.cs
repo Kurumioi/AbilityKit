@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text;
 using AbilityKit.Core.Logging;
 using AbilityKit.Network.Abstractions;
@@ -53,9 +54,27 @@ namespace AbilityKit.Network.Runtime
 
         public bool IsConnected => _transport != null && _transport.IsConnected;
 
+        /// <summary>
+        /// 当前会话的中间件管线。会话未建立（未 Open 或已断开）时返回 null。
+        /// 调用方可在 <see cref="Connected"/> 事件后通过 <see cref="NetworkPipeline.Add"/>
+        /// 注入自定义中间件（例如 <see cref="Conditioning.NetworkConditioningMiddleware"/>）。
+        /// </summary>
+        public NetworkPipeline Pipeline => _session?.Pipeline;
+
         public event Action Connected;
         public event Action Disconnected;
         public event Action<Exception> Error;
+
+        /// <summary>
+        /// 新会话管线创建并安装内置中间件后触发。重连会创建新管线并再次触发。
+        /// </summary>
+        public event Action<NetworkPipeline> PipelineCreated;
+
+        /// <summary>
+        /// 连接处于可收发状态时，每帧以当前单调毫秒时钟触发。
+        /// 时间相关中间件可订阅该事件以释放到期数据包。
+        /// </summary>
+        public event Action<long> MiddlewareTick;
 
         public event Action<uint, uint, ArraySegment<byte>> PacketReceived;
         public event Action<uint, ArraySegment<byte>> ServerPushReceived;
@@ -121,6 +140,10 @@ namespace AbilityKit.Network.Runtime
             {
                 ScheduleReconnect(new TimeoutException("Heartbeat timeout."));
             }
+
+            // 驱动时间相关中间件（如网络调理模拟器），让到期包在每帧冲刷。
+            // 使用高精度单调时钟，避免 32 位回绕。
+            MiddlewareTick?.Invoke(Stopwatch.GetTimestamp() * 1000L / Stopwatch.Frequency);
         }
 
         public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0)
@@ -155,6 +178,7 @@ namespace AbilityKit.Network.Runtime
             _heartbeat = new HeartbeatMiddleware(_options.HeartbeatOpCode);
             _heartbeat.HeartbeatReceived += OnHeartbeatReceived;
             _session.Pipeline.Add(_heartbeat);
+            PipelineCreated?.Invoke(_session.Pipeline);
 
             _transport.BytesReceived += OnTransportBytesReceived;
 

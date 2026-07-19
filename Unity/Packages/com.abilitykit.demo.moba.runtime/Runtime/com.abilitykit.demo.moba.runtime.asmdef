@@ -34,7 +34,8 @@
         "AbilityKit.Pipeline",
         "AbilityKit.Trace",
         "AbilityKit.Context",
-        "AbilityKit.Diagnostics"
+        "AbilityKit.Diagnostics",
+        "AbilityKit.Demo.Moba.Diagnostics.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

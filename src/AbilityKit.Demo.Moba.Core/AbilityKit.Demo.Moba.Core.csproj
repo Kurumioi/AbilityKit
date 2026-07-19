@@ -13,6 +13,7 @@
   <ItemGroup>
     <!-- 包含所有 .cs 文件 -->
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.runtime/DiagnosticsCore/**/*.cs" />
   </ItemGroup>
 
   <!-- 排除 Unity/Entitas 相关的目录和文件 -->

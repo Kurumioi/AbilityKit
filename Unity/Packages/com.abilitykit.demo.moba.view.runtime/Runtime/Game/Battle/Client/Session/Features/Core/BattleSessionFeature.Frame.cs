@@ -21,6 +21,14 @@ namespace AbilityKit.Game.Flow
             {
                 _firstFrameReceived = true;
                 _eventsCtrl.NotifyFirstFrameReceived(this);
+
+                // Local sessions complete WorldInit before publishing their first frame and have no
+                // authoritative room manifest to report. Preserve the explicit asset barrier while
+                // leaving GatewayRemote sessions to complete it from the room loading workflow.
+                if (_plan.HostMode == BattleStartConfig.BattleHostMode.Local)
+                {
+                    NotifyAssetsLoadCompleted();
+                }
             }
 
             SessionContextBinder.BindLastFrame(_ctx, _state);

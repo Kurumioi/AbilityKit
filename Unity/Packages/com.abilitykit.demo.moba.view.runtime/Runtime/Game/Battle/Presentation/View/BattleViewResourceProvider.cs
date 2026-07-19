@@ -1,6 +1,7 @@
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
 using UnityEngine;
 
@@ -53,6 +54,16 @@ namespace AbilityKit.Game.Flow
             _vfx = vfx ?? components.CreateVfx(primitives);
         }
 
+        /// <summary>
+        /// Inject a hierarchy manager so that subsequently created shells are
+        /// parented under the matching active-view category root. Pass null to
+        /// restore the legacy "detach-to-scene-root" behaviour.
+        /// </summary>
+        public void SetHierarchyManager(BattleViewHierarchyManager hierarchy)
+        {
+            _models.SetHierarchyManager(hierarchy);
+        }
+
         public MobaConfigDatabase Configs
         {
             get => _configs;
@@ -80,6 +91,36 @@ namespace AbilityKit.Game.Flow
             return _models.CreateActorShell(GetOrLoadConfigs(), actorId, modelId);
         }
 
+        /// <summary>Creates a shell for a Summon entity.</summary>
+        public GameObject CreateSummonShell(int actorId, int modelId)
+        {
+            return _models.CreateSummonShell(GetOrLoadConfigs(), actorId, modelId);
+        }
+
+        /// <summary>Creates a shell for a Turret entity.</summary>
+        public GameObject CreateTurretShell(int actorId, int modelId)
+        {
+            return _models.CreateTurretShell(GetOrLoadConfigs(), actorId, modelId);
+        }
+
+        /// <summary>Creates a shell for a Monster entity.</summary>
+        public GameObject CreateMonsterShell(int actorId, int modelId)
+        {
+            return _models.CreateMonsterShell(GetOrLoadConfigs(), actorId, modelId);
+        }
+
+        /// <summary>Creates a shell for a Building entity.</summary>
+        public GameObject CreateBuildingShell(int actorId, int modelId)
+        {
+            return _models.CreateBuildingShell(GetOrLoadConfigs(), actorId, modelId);
+        }
+
+        /// <summary>Creates a shell for a Projectile entity.</summary>
+        public GameObject CreateProjectileShell(int actorId, int projectileTemplateId)
+        {
+            return _models.CreateProjectileShell(GetOrLoadConfigs(), actorId, projectileTemplateId);
+        }
+
         public GameObject CreateModelGo(int modelId)
         {
             return _models.CreateAoeModel(GetOrLoadConfigs(), modelId);
@@ -88,6 +129,11 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateAoeRangeGo(int templateId, float radius, int delayMs)
         {
             return _models.CreateAoeRange(templateId, radius, delayMs);
+        }
+
+        public void ConfigureAoeRangeGo(GameObject go, int templateId, float radius, int delayMs)
+        {
+            _models.ConfigureAoeRange(go, templateId, radius, delayMs);
         }
 
         public GameObject CreateVfxGo(int vfxId)

@@ -178,6 +178,21 @@ namespace AbilityKit.Protocol.Shooter
             return WireSerializer.Serialize(in snapshot);
         }
 
+        public static byte[] SerializeEvent(in ShooterEventSnapshot battleEvent)
+        {
+            return WireSerializer.Serialize(in battleEvent);
+        }
+
+        public static ShooterEventSnapshot DeserializeEvent(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0)
+            {
+                throw new ArgumentException("Reliable battle event payload is required.", nameof(payload));
+            }
+
+            return WireSerializer.Deserialize<ShooterEventSnapshot>(payload);
+        }
+
         public static ShooterStateSnapshotPayload Deserialize(byte[] payload)
         {
             if (payload == null || payload.Length == 0)

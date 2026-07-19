@@ -6,6 +6,7 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Coordinator;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Serialization;

@@ -47,7 +47,8 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         var room = GrainFactory.GetGrain<IRoomGrain>(roomId);
         await room.InitializeAsync(summary, directoryKey);
 
-        await _roomStateStore.UpsertRoomAsync(directoryKey, summary);
+        var snapshot = await room.GetSnapshotAsync();
+        await _roomStateStore.UpsertRoomAsync(directoryKey, snapshot.Summary);
 
         return new CreateRoomResponse(roomId);
     }

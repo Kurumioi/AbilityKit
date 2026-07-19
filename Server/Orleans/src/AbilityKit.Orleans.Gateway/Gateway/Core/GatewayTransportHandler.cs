@@ -14,6 +14,7 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
     private readonly IGatewaySessionRegistry _sessionRegistry;
     private readonly IGatewayRequestRouter _router;
     private readonly IClusterClient _clusterClient;
+    private readonly GatewayFrameSyncSubscriptionManager _frameSyncSubscriptions;
     private readonly ConcurrentDictionary<long, IGatewayTransportSession> _sessions = new();
 
     private readonly GatewayBackgroundTaskQueue _backgroundTasks;
@@ -22,12 +23,14 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         IGatewaySessionRegistry sessionRegistry,
         IGatewayRequestRouter router,
         IClusterClient clusterClient,
-        GatewayBackgroundTaskQueue backgroundTasks)
+        GatewayBackgroundTaskQueue backgroundTasks,
+        GatewayFrameSyncSubscriptionManager frameSyncSubscriptions)
     {
         _sessionRegistry = sessionRegistry;
         _router = router;
         _clusterClient = clusterClient;
         _backgroundTasks = backgroundTasks;
+        _frameSyncSubscriptions = frameSyncSubscriptions;
     }
 
     public void OnConnected(IGatewayTransportSession session)
@@ -65,6 +68,7 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
         }
 
         _sessionRegistry.Unregister(connectionId);
+        _frameSyncSubscriptions.OnConnectionClosed(connectionId);
     }
 
     private void MarkRoomMemberOffline(GatewaySessionContext context)

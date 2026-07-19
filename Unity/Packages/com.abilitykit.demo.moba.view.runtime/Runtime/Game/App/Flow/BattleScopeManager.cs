@@ -93,6 +93,7 @@ namespace AbilityKit.Game.Flow
             _battleSessionFeature.SessionStarted += OnBattleSessionStarted;
             _battleSessionFeature.FirstFrameReceived += OnBattleFirstFrameReceived;
             _battleSessionFeature.SessionFailed += OnBattleSessionFailed;
+            _battleSessionFeature.AssetsLoadCompleted += OnBattleAssetsLoadCompleted;
             return _battleSessionFeature;
         }
 
@@ -103,6 +104,7 @@ namespace AbilityKit.Game.Flow
                 _battleSessionFeature.SessionStarted -= OnBattleSessionStarted;
                 _battleSessionFeature.FirstFrameReceived -= OnBattleFirstFrameReceived;
                 _battleSessionFeature.SessionFailed -= OnBattleSessionFailed;
+                _battleSessionFeature.AssetsLoadCompleted -= OnBattleAssetsLoadCompleted;
                 _battleSessionFeature = null;
             }
         }
@@ -127,11 +129,32 @@ namespace AbilityKit.Game.Flow
 
         internal void OnBattleSessionFailed(Exception ex)
         {
-            // runtime state only tracks session start / first frame in current contract
+            // 当前契约中 runtime state 仅跟踪 session start / first frame
 
             _log.Error($"[BattleScopeManager] Battle session failed: {ex}");
             var next = _advanceDecider.OnSessionFailed(_callbacks.GetActiveBattle());
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
+        }
+
+        /// <summary>
+        /// 阶段 7a：真实资源加载完成（manifest barrier）。
+        /// 由 BattleSessionFeature.AssetsLoadCompleted 事件或 <see cref="NotifyAssetsLoadCompleted"/> 触发，
+        /// 仅在 LoadAssets 状态推进为 AssetsLoadCompleted。
+        /// </summary>
+        internal void OnBattleAssetsLoadCompleted()
+        {
+            _log.Info($"[BattleScopeManager] AssetsLoadCompleted, activeBattle={_callbacks.GetActiveBattle()}");
+            var next = _advanceDecider.OnAssetsLoadCompleted(_callbacks.GetActiveBattle());
+            if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
+        }
+
+        /// <summary>
+        /// 阶段 7a：供外部（资源加载协调器）在 manifest barrier 通过后调用，
+        /// 推进 LoadAssets → InMatch。首帧不再代表资源加载完成。
+        /// </summary>
+        internal void NotifyAssetsLoadCompleted()
+        {
+            OnBattleAssetsLoadCompleted();
         }
 
         // --- 抽取的推进判断 ---

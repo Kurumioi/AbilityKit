@@ -5,6 +5,7 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.Host.Framework;
 using AbilityKit.Ability.Host.Transport;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;

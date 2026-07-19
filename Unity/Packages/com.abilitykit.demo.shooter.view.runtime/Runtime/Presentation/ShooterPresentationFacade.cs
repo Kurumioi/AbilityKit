@@ -83,7 +83,9 @@ namespace AbilityKit.Demo.Shooter.View
             var snapshot = _gatewayDecoder.Decode(payload);
             if (snapshot.PureStateSnapshot.HasValue)
             {
-                return _pureStateSync.ApplyGatewaySnapshot(in snapshot) != ShooterPureStateSnapshotApplyResult.Ignored;
+                var result = _pureStateSync.ApplyGatewaySnapshot(in snapshot);
+                return result != ShooterPureStateSnapshotApplyResult.Ignored &&
+                       result != ShooterPureStateSnapshotApplyResult.UnsupportedVersion;
             }
 
             ApplyGatewaySnapshot(in snapshot);

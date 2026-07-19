@@ -10,20 +10,21 @@ namespace AbilityKit.Game.Flow
         private readonly BattleViewResourceProvider _resources;
         private readonly BattleAreaViewHandleFactory _handles;
 
-        public BattleAreaViewSystem(BattleViewResourceProvider resources = null)
-            : this(resources, null)
+        public BattleAreaViewSystem(BattleViewResourceProvider resources = null, BattleAreaVfxPool areaVfxPool = null)
+            : this(resources, areaVfxPool, null)
         {
         }
 
         internal BattleAreaViewSystem(
             BattleViewResourceProvider resources,
+            BattleAreaVfxPool areaVfxPool,
             BattleAreaViewSystemFactory factory)
         {
             factory ??= new BattleAreaViewSystemFactory();
 
             _resources = BattleViewResourceProvider.OrDefault(resources);
             _areaViews = factory.CreateStore();
-            _handles = factory.CreateHandles(_resources);
+            _handles = factory.CreateHandles(_resources, areaVfxPool);
         }
 
         public void HandleSnapshot(
@@ -79,9 +80,9 @@ namespace AbilityKit.Game.Flow
             return new BattleAreaViewStore();
         }
 
-        public BattleAreaViewHandleFactory CreateHandles(BattleViewResourceProvider resources)
+        public BattleAreaViewHandleFactory CreateHandles(BattleViewResourceProvider resources, BattleAreaVfxPool areaVfxPool)
         {
-            return new BattleAreaViewHandleFactory(resources);
+            return new BattleAreaViewHandleFactory(resources, areaVfxPool: areaVfxPool);
         }
     }
 }

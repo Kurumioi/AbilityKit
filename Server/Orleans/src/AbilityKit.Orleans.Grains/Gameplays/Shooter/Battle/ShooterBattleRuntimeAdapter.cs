@@ -2,6 +2,7 @@
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Protocol.Serialization;
 using AbilityKit.Protocol.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
@@ -32,7 +33,13 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         return new ShooterBattleRuntimeSession(battleId, _worldManager, _stateSyncPushOptions);
     }
 
-    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession, IObserverAwareBattleRuntimeSession
+    internal static ShooterStateSnapshotPayload WithoutLegacyEvents(ShooterStateSnapshotPayload snapshot)
+    {
+        snapshot.Events = Array.Empty<ShooterEventSnapshot>();
+        return snapshot;
+    }
+
+    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession, IObserverAwareBattleRuntimeSession, IReliableBattleEventProducer
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
@@ -180,6 +187,47 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 : new BattleBotAiMountResult(false, request.PlayerId, currentFrame, "RejectedMountFailed", "Shooter runtime rejected bot AI mount.");
         }
 
+        public BattleInputValidationResult ValidateInput(BattleInputItem input)
+        {
+            if (input.OpCode != ShooterOpCodes.Input.PlayerCommand)
+            {
+                return BattleInputValidationResult.Reject(
+                    BattleResultStatusCodes.RejectedInvalidOpCode,
+                    $"Shooter input opcode {input.OpCode} is not supported.");
+            }
+
+            try
+            {
+                var commands = ShooterInputCodec.Deserialize(input.Payload ?? Array.Empty<byte>());
+                if (commands.Length != 1)
+                {
+                    return BattleInputValidationResult.Reject(
+                        BattleResultStatusCodes.RejectedInvalidPayload,
+                        "Shooter input must contain exactly one player command.");
+                }
+
+                var command = commands[0];
+                if (command.PlayerId != (int)input.PlayerId
+                    || !float.IsFinite(command.MoveX)
+                    || !float.IsFinite(command.MoveY)
+                    || !float.IsFinite(command.AimX)
+                    || !float.IsFinite(command.AimY))
+                {
+                    return BattleInputValidationResult.Reject(
+                        BattleResultStatusCodes.RejectedInvalidPayload,
+                        "Shooter player command does not match the submitting player or contains non-finite values.");
+                }
+
+                return BattleInputValidationResult.Valid;
+            }
+            catch (Exception)
+            {
+                return BattleInputValidationResult.Reject(
+                    BattleResultStatusCodes.RejectedInvalidPayload,
+                    "Shooter input payload could not be decoded.");
+            }
+        }
+
         public int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
         {
             if (inputs == null || inputs.Count == 0 || _driverHost == null)
@@ -192,14 +240,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             {
                 var input = inputs[i];
                 if (input == null) continue;
-
-                if (input.OpCode == ShooterOpCodes.Input.PlayerCommand)
-                {
-                    commands.AddRange(ShooterInputCodec.Deserialize(input.Payload ?? Array.Empty<byte>()));
-                    continue;
-                }
-
-                commands.Add(CreateFallbackCommand(input));
+                commands.AddRange(ShooterInputCodec.Deserialize(input.Payload ?? Array.Empty<byte>()));
             }
 
             return _driverHost.SubmitCommands(frame, commands);
@@ -214,6 +255,27 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
             _driverHost.AdvanceFrame(deltaTime);
             return _driverHost.CurrentFrame >= frame;
+        }
+
+        public IReadOnlyList<ReliableBattleEventSource> CaptureReliableEvents(int frame)
+        {
+            var events = _runtime?.GetSnapshot().Events;
+            if (events == null || events.Length == 0)
+            {
+                return Array.Empty<ReliableBattleEventSource>();
+            }
+
+            var result = new ReliableBattleEventSource[events.Length];
+            for (int i = 0; i < events.Length; i++)
+            {
+                var battleEvent = events[i];
+                result[i] = new ReliableBattleEventSource(
+                    frame,
+                    battleEvent.EventType,
+                    ShooterStateSnapshotCodec.SerializeEvent(in battleEvent));
+            }
+
+            return result;
         }
 
         public BattleSnapshot? GetSnapshot(int frame)
@@ -446,7 +508,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
-            var snapshot = _runtime?.GetSnapshot() ?? default;
+            var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
             if (_stateSyncPushOptions.PayloadMode == ShooterStateSyncPushPayloadMode.PureState)
             {
                 return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
@@ -473,7 +535,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
-            var snapshot = _runtime?.GetSnapshot() ?? default;
+            var snapshot = WithoutLegacyEvents(_runtime?.GetSnapshot() ?? default);
             if (!TryCreateObserverInterestScope(in observerContext, out var interestScope))
             {
                 return CreatePureStateSyncPush(resolvedWorldId, isFullSnapshot, in snapshot);
@@ -684,12 +746,6 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             return actors;
         }
 
-        private static ShooterPlayerCommand CreateFallbackCommand(BattleInputItem input)
-        {
-            var playerId = (int)input.PlayerId;
-            var fire = input.OpCode != 0;
-            return new ShooterPlayerCommand(playerId, 0f, 0f, 1f, 0f, fire);
-        }
         private sealed class ShooterObserverPureStateSyncState
         {
             public readonly AoiInterestSet AoiInterestSet = new();

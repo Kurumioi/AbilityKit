@@ -6,6 +6,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Projectile;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Protocol.Moba;
@@ -217,6 +218,46 @@ namespace AbilityKit.Game.Test.UnitTest
                 harness.AssertActionExecutedUnderEffect(effectTrace.RootId, (int)TriggeringConstants.AddBuffId.Value, TriggeringConstants.Actions.AddBuff);
                 harness.AssertAreaSpawnedUnderEffect(effectTrace.RootId, 40040301);
                 HeroSkillHeadlessContract.AssertFreshBuff(harness, actorId, 10040003, 3.0f, "Mozi skill 3 should apply the channel/barrier state buff.");
+            }
+        }
+
+        [Test]
+        public void Skill10040301_ShouldClearFlyingProjectileEnteringBarrier()
+        {
+            using (var harness = HeroSkillHeadlessContract.CreateHarness(Mozi, "mozi_skill_3_projectile_clear_contract_world"))
+            {
+                HeroSkillHeadlessContract.AssertTriggerActions(
+                    harness,
+                    10040322,
+                    (int)TriggeringConstants.RemoveProjectileId.Value);
+                Assert.IsTrue(harness.Config.TryGetAoe(40040301, out var barrier), "Mozi skill 3 barrier config should exist.");
+                Assert.AreEqual(3, barrier.CollisionLayerMask, "Mozi skill 3 barrier should overlap both unit and projectile collision layers.");
+                CollectionAssert.Contains(barrier.OnEnterTriggerIds, 10040321, "Mozi skill 3 barrier should retain its unit-control enter trigger.");
+                CollectionAssert.Contains(barrier.OnEnterTriggerIds, 10040322, "Mozi skill 3 barrier should clear flying projectiles through a dedicated enter trigger.");
+
+                var effectTrace = HeroSkillHeadlessContract.CastSlotAndAssertEffect(harness, Skill3, "mozi skill 3 projectile clear contract");
+                harness.AssertAreaSpawnedUnderEffect(effectTrace.RootId, 40040301);
+                var enemyActorId = HeroSkillHeadlessContract.SpawnEnemyHero(harness, x: 1f);
+                var projectiles = harness.World.Services.Resolve<MobaProjectileService>();
+
+                Assert.IsTrue(
+                    projectiles.Shoot(
+                        enemyActorId,
+                        ProjectileEmitterType.Linear,
+                        projectileCode: 30050101,
+                        speed: 0.1f,
+                        lifetimeFrames: 120,
+                        maxDistance: 20f,
+                        aimPos: new Vec3(1f, 0f, 0f),
+                        aimDir: Vec3.Right),
+                    "An enemy projectile should spawn inside Mozi's active barrier.");
+
+                var spawn = TickUntilProjectileSpawnSnapshot(harness, 30050101, maxTicks: 10);
+                var exit = TickUntilProjectileExitSnapshot(harness, spawn.ProjectileId, maxTicks: 10);
+
+                Assert.AreEqual((int)ProjectileExitReason.Manual, exit.ExitReason, "Barrier-driven clearing should use the manual projectile exit lifecycle instead of reporting a hit.");
+                Assert.AreEqual(spawn.ProjectileActorId, exit.ProjectileActorId, "Projectile exit should retain the linked projectile actor identity.");
+                AssertMoziSkill2ProjectileActorDespawned(harness, spawn.ProjectileActorId);
             }
         }
 

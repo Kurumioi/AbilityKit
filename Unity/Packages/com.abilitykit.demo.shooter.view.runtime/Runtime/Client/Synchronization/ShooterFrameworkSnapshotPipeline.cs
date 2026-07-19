@@ -284,6 +284,14 @@ namespace AbilityKit.Demo.Shooter.View
 
             public void ApplyPacked(in ShooterPackedSnapshotPayload packed)
             {
+                var compatibility = ShooterStateSyncCompatibilityPolicy.EvaluatePacked(packed.Version);
+                if (!compatibility.IsCompatible)
+                {
+                    _stageApplied = true;
+                    _stageResult = ShooterSnapshotApplyResult.UnsupportedVersion;
+                    return;
+                }
+
                 var snapshotFrame = packed.Frame;
                 if (_hasAppliedSnapshot && snapshotFrame <= LastAppliedFrame)
                 {

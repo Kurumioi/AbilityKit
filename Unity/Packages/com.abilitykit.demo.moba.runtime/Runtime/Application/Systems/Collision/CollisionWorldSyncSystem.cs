@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
@@ -52,11 +53,12 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
 
                 var t = e.transform.Value;
                 var shape = e.collider.LocalShape;
-                var layerMask = e.hasCollisionLayer ? e.collisionLayer.Mask : -1;
+                var layerMask = e.hasCollisionLayer ? e.collisionLayer.Mask : 0;
+                var layerId = ResolveLayerId(layerMask);
 
                 if (!e.hasCollisionId)
                 {
-                    var id = _world.Add(t, shape, layerMask);
+                    var id = _world.Add(t, shape, layerId);
                     e.AddCollisionId(id);
                     _validIds.Add(id.Value);
                 }
@@ -64,7 +66,7 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
                 {
                     var id = e.collisionId.Value;
                     _world.Update(id, t, shape);
-                    _world.UpdateLayer(id, layerMask);
+                    _world.UpdateLayer(id, layerId);
                     _validIds.Add(id.Value);
                 }
             }
@@ -99,6 +101,22 @@ namespace AbilityKit.Demo.Moba.Systems.Collision
                     _world.Remove(id);
                 }
             }
+        }
+
+        private static int ResolveLayerId(int layerMask)
+        {
+            if (layerMask == 0) return 0;
+            if (layerMask < 0 || (layerMask & (layerMask - 1)) != 0)
+            {
+                throw new InvalidOperationException($"Actor collision layer must contain exactly one bit. mask=0x{layerMask:X8}");
+            }
+
+            var layerId = 0;
+            while ((layerMask >>= 1) != 0)
+            {
+                layerId++;
+            }
+            return layerId;
         }
     }
 }

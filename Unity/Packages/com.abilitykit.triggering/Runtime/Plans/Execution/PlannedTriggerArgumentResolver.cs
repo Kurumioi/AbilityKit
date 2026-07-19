@@ -28,7 +28,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             return new NamedArgsDict(new Dictionary<string, ActionArgValue>
             {
-                ["_0"] = ActionArgValue.OfConst(v0, "_0")
+                ["0"] = ActionArgValue.OfConst(v0, "0")
             });
         }
 
@@ -36,8 +36,8 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             return new NamedArgsDict(new Dictionary<string, ActionArgValue>
             {
-                ["_0"] = ActionArgValue.OfConst(v0, "_0"),
-                ["_1"] = ActionArgValue.OfConst(v1, "_1")
+                ["0"] = ActionArgValue.OfConst(v0, "0"),
+                ["1"] = ActionArgValue.OfConst(v1, "1")
             });
         }
 

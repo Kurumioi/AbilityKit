@@ -32,18 +32,38 @@ namespace AbilityKit.Game.View.Runtime.Tests
         [InlineData((int)MobaBattleState.Prepare, (int)MobaBattleEvent.PrepareDone)]
         [InlineData((int)MobaBattleState.Connect, (int)MobaBattleEvent.Connected)]
         [InlineData((int)MobaBattleState.CreateOrJoinWorld, (int)MobaBattleEvent.JoinedWorld)]
-        [InlineData((int)MobaBattleState.LoadAssets, (int)MobaBattleEvent.LoadingDone)]
         public void OnFirstFrameReceived_Advances(int current, int expected)
         {
             Assert.Equal((MobaBattleEvent)expected, _decider.OnFirstFrameReceived((MobaBattleState)current));
         }
 
         [Theory]
+        // 阶段 7a：LoadAssets 不再因首帧推进（真实资源加载完成由 OnAssetsLoadCompleted 驱动）
+        [InlineData((int)MobaBattleState.LoadAssets)]
         [InlineData((int)MobaBattleState.InMatch)]
         [InlineData((int)MobaBattleState.End)]
         public void OnFirstFrameReceived_NoAdvance(int current)
         {
             Assert.Null(_decider.OnFirstFrameReceived((MobaBattleState)current));
+        }
+
+        [Fact]
+        public void OnAssetsLoadCompleted_Advances_WhenLoadAssets()
+        {
+            Assert.Equal(
+                MobaBattleEvent.AssetsLoadCompleted,
+                _decider.OnAssetsLoadCompleted(MobaBattleState.LoadAssets));
+        }
+
+        [Theory]
+        [InlineData((int)MobaBattleState.Prepare)]
+        [InlineData((int)MobaBattleState.Connect)]
+        [InlineData((int)MobaBattleState.CreateOrJoinWorld)]
+        [InlineData((int)MobaBattleState.InMatch)]
+        [InlineData((int)MobaBattleState.End)]
+        public void OnAssetsLoadCompleted_NoAdvance_WhenNotLoadAssets(int current)
+        {
+            Assert.Null(_decider.OnAssetsLoadCompleted((MobaBattleState)current));
         }
 
         [Theory]
@@ -68,9 +88,8 @@ namespace AbilityKit.Game.View.Runtime.Tests
         [InlineData((int)MobaBattleState.Connect, true, false, (int)MobaBattleEvent.Connected)]
         [InlineData((int)MobaBattleState.Connect, false, true, (int)MobaBattleEvent.Connected)]
         [InlineData((int)MobaBattleState.Connect, true, true, (int)MobaBattleEvent.Connected)]
-        // CreateOrJoinWorld / LoadAssets：仅看 FirstFrameReceived
+        // CreateOrJoinWorld：仅看 FirstFrameReceived
         [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, true, (int)MobaBattleEvent.JoinedWorld)]
-        [InlineData((int)MobaBattleState.LoadAssets, false, true, (int)MobaBattleEvent.LoadingDone)]
         public void OnStateEntered_Advances(int current, bool sessionStarted, bool firstFrameReceived, int expected)
         {
             Assert.Equal(
@@ -84,8 +103,11 @@ namespace AbilityKit.Game.View.Runtime.Tests
         [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, false)]
         // CreateOrJoinWorld 不看 SessionStarted
         [InlineData((int)MobaBattleState.CreateOrJoinWorld, true, false)]
+        // 阶段 7a：LoadAssets 不再因 firstFrameReceived 自动推进（真实资源加载完成由 OnAssetsLoadCompleted 驱动）
         [InlineData((int)MobaBattleState.LoadAssets, false, false)]
         [InlineData((int)MobaBattleState.LoadAssets, true, false)]
+        [InlineData((int)MobaBattleState.LoadAssets, false, true)]
+        [InlineData((int)MobaBattleState.LoadAssets, true, true)]
         // 无补判规则的状态
         [InlineData((int)MobaBattleState.Prepare, true, true)]
         [InlineData((int)MobaBattleState.InMatch, true, true)]

@@ -19,6 +19,22 @@
     "EnableAim": true,
     "AimMode": 0,
     "AimMaxRadius": 220.0,
+    "IndicatorShape": 1,
+    "IndicatorWorldWidth": 1.5,
+    "UsePointMode": 1,
+    "SelectRange": 0.0,
+    "FaceToAim": true
+  },
+  {
+    "Id": 4,
+    "Name": "direction_area",
+    "LongPressSeconds": 0.35,
+    "DragThreshold": 12.0,
+    "EnableAim": true,
+    "AimMode": 0,
+    "AimMaxRadius": 220.0,
+    "IndicatorShape": 5,
+    "IndicatorWorldWidth": 2.0,
     "UsePointMode": 1,
     "SelectRange": 0.0,
     "FaceToAim": true
@@ -31,6 +47,8 @@
     "EnableAim": true,
     "AimMode": 1,
     "AimMaxRadius": 220.0,
+    "IndicatorShape": 2,
+    "IndicatorWorldWidth": 2.8,
     "UsePointMode": 2,
     "SelectRange": 0.0,
     "FaceToAim": false

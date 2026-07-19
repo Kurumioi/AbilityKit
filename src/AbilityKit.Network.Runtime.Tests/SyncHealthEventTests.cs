@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.DemoHarness;
 using AbilityKit.Network.Runtime.Sync;
@@ -59,6 +60,37 @@ public sealed class SyncHealthEventTests
     }
 
     [Fact]
+    public void CorrelationContext_IsOptionalAndPropagatesWithoutBreakingLegacyConstruction()
+    {
+        var legacy = SyncHealthEvent.Warning(SyncHealthEventKind.SnapshotGap, frame: 8, value: 2L);
+        var context = new SyncCorrelationContext(
+            "run-1/client-1",
+            runId: "run-1",
+            sessionId: "session-1",
+            accountId: "account-1",
+            playerId: "7",
+            roomId: "room-1",
+            battleId: "battle-1",
+            worldId: "42",
+            observerId: "account-1:room-1",
+            syncMode: "packed",
+            tick: 8L,
+            commandSequence: 3UL,
+            snapshotSequence: 5L,
+            snapshotBaseline: 4L,
+            reliableEventSequence: 9L,
+            reliableEventEpoch: "epoch-1");
+
+        var correlated = legacy.WithContext(in context);
+
+        Assert.False(legacy.Context.HasCorrelation);
+        Assert.Equal("run-1/client-1", correlated.CorrelationId);
+        Assert.Equal("battle-1", correlated.Context.BattleId);
+        Assert.Equal(3UL, correlated.Context.CommandSequence);
+        Assert.NotEqual(legacy, correlated);
+    }
+
+    [Fact]
     public void StepTelemetry_DefaultsToEmptyHealthEvents()
     {
         var telemetry = new DemoHarnessStepTelemetry(
@@ -88,6 +120,134 @@ public sealed class SyncHealthEventTests
     }
 
     [Fact]
+    public void EventBuffer_RetainsNewestEventsAndReportsFullHistory()
+    {
+        var buffer = new SyncHealthEventBuffer(2);
+        var first = SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, frame: 1);
+        var second = SyncHealthEvent.Warning(SyncHealthEventKind.SnapshotDropped, frame: 2);
+        var third = SyncHealthEvent.Error(SyncHealthEventKind.SnapshotGap, frame: 3);
+
+        buffer.Publish(in first);
+        buffer.Publish(in second);
+        buffer.Publish(SyncHealthEvent.None);
+        buffer.Publish(in third);
+
+        Assert.Equal(2, buffer.Count);
+        Assert.Equal(second, buffer[0]);
+        Assert.Equal(third, buffer[1]);
+
+        var report = buffer.CreateReport();
+        Assert.Equal(3L, report.EventCount);
+        Assert.Equal(1L, report.InfoCount);
+        Assert.Equal(1L, report.WarningCount);
+        Assert.Equal(1L, report.ErrorCount);
+        Assert.Equal(1L, report.IgnoredEventCount);
+        Assert.Equal(1L, report.OverwrittenEventCount);
+        Assert.Equal(3, report.Kinds.Length);
+        Assert.Equal(2, report.RetainedEvents.Length);
+        Assert.Equal(SyncHealthEventKind.SnapshotReceived, report.Kinds[0].Kind);
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(report));
+        Assert.Equal(3L, document.RootElement.GetProperty("EventCount").GetInt64());
+        Assert.Equal(
+            (int)SyncHealthEventKind.SnapshotGap,
+            document.RootElement.GetProperty("Kinds")[2].GetProperty("Kind").GetInt32());
+    }
+
+    [Fact]
+    public void EventBuffer_ReportKeepsBoundedFirstCorrelationAndObserverReliableMetrics()
+    {
+        var buffer = new SyncHealthEventBuffer(1);
+        var firstContext = new SyncCorrelationContext("run-1/client-1", runId: "run-1", tick: 4L);
+        var secondContext = new SyncCorrelationContext("run-1/client-2", runId: "run-1", tick: 9L);
+        var dropped = new SyncHealthEvent(
+            SyncHealthEventKind.ObserverSnapshotDropped,
+            SyncHealthSeverity.Warning,
+            frame: 4,
+            value: 2L,
+            firstContext);
+        var coalesced = new SyncHealthEvent(
+            SyncHealthEventKind.ObserverSnapshotCoalesced,
+            SyncHealthSeverity.Info,
+            frame: 6,
+            value: 1L,
+            secondContext);
+        var baseline = new SyncHealthEvent(
+            SyncHealthEventKind.ObserverBaselineInvalidated,
+            SyncHealthSeverity.Error,
+            frame: 7,
+            value: 1L,
+            secondContext);
+        var reliableGap = new SyncHealthEvent(
+            SyncHealthEventKind.ReliableEventGap,
+            SyncHealthSeverity.Error,
+            frame: 9,
+            value: 3L,
+            secondContext);
+
+        buffer.Publish(in dropped);
+        buffer.Publish(in coalesced);
+        buffer.Publish(in baseline);
+        buffer.Publish(in reliableGap);
+
+        var report = buffer.CreateReport();
+        Assert.Equal(2, report.SchemaVersion);
+        Assert.Equal(4, report.FirstFrame);
+        Assert.Equal(9, report.LastFrame);
+        Assert.Equal(SyncHealthSeverity.Error, report.HighestSeverity);
+        Assert.Equal("run-1/client-1", report.FirstCorrelation.CorrelationId);
+        Assert.Equal(1L, report.ObserverDroppedCount);
+        Assert.Equal(1L, report.ObserverCoalescedCount);
+        Assert.Equal(1L, report.ObserverBaselineInvalidatedCount);
+        Assert.Equal(1L, report.ReliableGapCount);
+        Assert.Single(report.RetainedEvents);
+        Assert.Equal("run-1/client-2", report.RetainedEvents[0].CorrelationId);
+    }
+
+    [Fact]
+    public void EventBuffer_ResetClearsRetainedEventsAndSummary()
+    {
+        var buffer = new SyncHealthEventBuffer(1);
+        var healthEvent = SyncHealthEvent.Warning(
+            SyncHealthEventKind.InterpolationStarved,
+            frame: 7);
+        buffer.Publish(in healthEvent);
+        buffer.Publish(in healthEvent);
+
+        buffer.Reset();
+
+        Assert.Empty(buffer);
+        var report = buffer.CreateReport();
+        Assert.Equal(0L, report.EventCount);
+        Assert.Equal(0L, report.OverwrittenEventCount);
+        Assert.Empty(report.Kinds);
+        Assert.Empty(report.RetainedEvents);
+        Assert.Equal(-1, report.FirstFrame);
+        Assert.False(report.FirstCorrelation.HasCorrelation);
+    }
+
+    [Fact]
+    public void EventListView_ReflectsSourcesWithoutRecreatingTheView()
+    {
+        IReadOnlyList<SyncHealthEvent> primary = Array.Empty<SyncHealthEvent>();
+        IReadOnlyList<SyncHealthEvent> secondary = Array.Empty<SyncHealthEvent>();
+        var view = new SyncHealthEventListView(() => primary, () => secondary);
+
+        primary = new[]
+        {
+            SyncHealthEvent.Info(SyncHealthEventKind.SnapshotReceived, frame: 1),
+        };
+        secondary = new[]
+        {
+            SyncHealthEvent.Warning(SyncHealthEventKind.InputRejected, frame: 2),
+        };
+
+        Assert.Equal(2, view.Count);
+        Assert.Equal(SyncHealthEventKind.SnapshotReceived, view[0].Kind);
+        Assert.Equal(SyncHealthEventKind.InputRejected, view[1].Kind);
+    }
+
+    [Fact]
     public void Metrics_AggregateHealthEventCountsBySeverity()
     {
         var carrier = new HealthEmittingCarrier("Shooter", NetworkSyncModel.PredictRollback);
@@ -107,6 +267,9 @@ public sealed class SyncHealthEventTests
         Assert.Equal(4, result.Metrics.HealthEventCount);
         Assert.Equal(1, result.Metrics.HealthWarningCount);
         Assert.Equal(1, result.Metrics.HealthErrorCount);
+        Assert.Equal(4L, result.Metrics.HealthReport.EventCount);
+        Assert.Equal(1L, result.Metrics.HealthReport.IgnoredEventCount);
+        Assert.Equal(4, result.Metrics.HealthReport.Kinds.Length);
     }
 
     private static NetworkConditioningStats NewStats()

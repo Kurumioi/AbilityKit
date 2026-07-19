@@ -38,6 +38,24 @@ namespace AbilityKit.Protocol.Room
     }
 
     [MemoryPackable]
+    public partial struct WireRenewSessionReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public int ExtendSeconds { get; set; }
+        [MemoryPackOrder(2)] public bool RotateToken { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireRenewSessionRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public string SessionToken { get; set; }
+        [MemoryPackOrder(2)] public string AccountId { get; set; }
+        [MemoryPackOrder(3)] public long ExpireAtUnixMs { get; set; }
+        [MemoryPackOrder(4)] public string Message { get; set; }
+    }
+
+    [MemoryPackable]
     public partial struct WireCreateRoomReq
     {
         [MemoryPackOrder(0)] public string SessionToken { get; set; }
@@ -173,6 +191,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(2)] public ulong NumericRoomId { get; set; }
         [MemoryPackOrder(3)] public WireRoomSnapshot Snapshot { get; set; }
         [MemoryPackOrder(4)] public string Message { get; set; }
+        [MemoryPackOrder(5)] public long ServerNowTicks { get; set; }
     }
 
     [MemoryPackable]
@@ -231,6 +250,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(4)] public uint PlayerId { get; set; }
         [MemoryPackOrder(5)] public int InputOpCode { get; set; }
         [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
+        [MemoryPackOrder(7)] public ulong CommandSequence { get; set; }
     }
 
     [MemoryPackable]
@@ -251,6 +271,8 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(0)] public string SessionToken { get; set; }
         [MemoryPackOrder(1)] public string BattleId { get; set; }
         [MemoryPackOrder(2)] public string RoomId { get; set; }
+        [MemoryPackOrder(3)] public string EventEpoch { get; set; }
+        [MemoryPackOrder(4)] public long LastEventAck { get; set; }
     }
 
     [MemoryPackable]
@@ -284,6 +306,29 @@ namespace AbilityKit.Protocol.Room
     }
 
     [MemoryPackable]
+    public partial struct WireGetStateSyncDeliveryMetricsReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string BattleId { get; set; }
+        [MemoryPackOrder(2)] public string RoomId { get; set; }
+    }
+
+    [MemoryPackable]
+    public partial struct WireGetStateSyncDeliveryMetricsRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public long ProducedBytes { get; set; }
+        [MemoryPackOrder(2)] public long SentBytes { get; set; }
+        [MemoryPackOrder(3)] public long DroppedBytes { get; set; }
+        [MemoryPackOrder(4)] public long MergedBytes { get; set; }
+        [MemoryPackOrder(5)] public int QueueLength { get; set; }
+        [MemoryPackOrder(6)] public long QueueAgeTicks { get; set; }
+        [MemoryPackOrder(7)] public long BaselineAgeTicks { get; set; }
+        [MemoryPackOrder(8)] public long ResyncCount { get; set; }
+        [MemoryPackOrder(9)] public string Message { get; set; }
+    }
+
+    [MemoryPackable]
     public partial struct WireStateSyncSnapshotPush
     {
         [MemoryPackOrder(0)] public ulong WorldId { get; set; }
@@ -294,6 +339,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public int PayloadOpCode { get; set; }
         [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
         [MemoryPackOrder(7)] public long ServerTicks { get; set; }
+        [MemoryPackOrder(8)] public long EventWatermark { get; set; }
     }
 
     [MemoryPackable]
@@ -340,6 +386,13 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(7)] public int BasicAttackSkillId { get; set; }
         [MemoryPackOrder(8)] public List<int>? SkillIds { get; set; }
         [MemoryPackOrder(9)] public uint PlayerId { get; set; }
+        // 阶段 4 append-only（10-15）
+        [MemoryPackOrder(10)] public bool LobbyReady { get; set; }
+        [MemoryPackOrder(11)] public bool AssetsLoaded { get; set; }
+        [MemoryPackOrder(12)] public bool IsOnline { get; set; }
+        [MemoryPackOrder(13)] public long JoinOrdinal { get; set; }
+        [MemoryPackOrder(14)] public int LoadedManifestVersion { get; set; }
+        [MemoryPackOrder(15)] public string LoadedManifestHash { get; set; }
     }
 
     [MemoryPackable]
@@ -351,6 +404,18 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(3)] public bool CanStart { get; set; }
         [MemoryPackOrder(4)] public string BattleId { get; set; }
         [MemoryPackOrder(5)] public ulong WorldId { get; set; }
+        // 阶段 4 append-only（6-17）
+        [MemoryPackOrder(6)] public WireWorldStartAnchor WorldStartAnchor { get; set; }
+        [MemoryPackOrder(7)] public int SchemaVersion { get; set; }
+        [MemoryPackOrder(8)] public long RoomRevision { get; set; }
+        [MemoryPackOrder(9)] public long LastEventSequence { get; set; }
+        [MemoryPackOrder(10)] public int Phase { get; set; }              // RoomPhase int
+        [MemoryPackOrder(11)] public string PhaseReason { get; set; }
+        [MemoryPackOrder(12)] public long LaunchGeneration { get; set; }
+        [MemoryPackOrder(13)] public long LoadingDeadlineUnixMs { get; set; }
+        [MemoryPackOrder(14)] public string LaunchManifestHash { get; set; }
+        [MemoryPackOrder(15)] public int LaunchManifestVersion { get; set; }
+        [MemoryPackOrder(16)] public string LastStartFailureCode { get; set; }
     }
 
     [MemoryPackable]
@@ -360,5 +425,81 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(1)] public long ServerTickFrequency { get; set; }
         [MemoryPackOrder(2)] public int StartFrame { get; set; }
         [MemoryPackOrder(3)] public double FixedDeltaSeconds { get; set; }
+    }
+
+    // ===== 阶段 4：资源加载屏障 / 状态查询 wire 结构体 =====
+
+    /// <summary>
+    /// Owner 发起资源加载阶段请求（Lobby -> Loading）。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireBeginLoadingReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+        [MemoryPackOrder(2)] public long? ExpectedRevision { get; set; }
+        [MemoryPackOrder(3)] public string CommandId { get; set; }
+    }
+
+    /// <summary>
+    /// Room 操作统一结果（BeginLoading / ReportAssetsLoaded / CancelLoading 共用）。
+    /// 附带操作后的最新快照，便于客户端一次性刷新本地视图。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireRoomOperationRes
+    {
+        [MemoryPackOrder(0)] public bool Success { get; set; }
+        [MemoryPackOrder(1)] public bool Applied { get; set; }
+        [MemoryPackOrder(2)] public int ErrorCode { get; set; }   // RoomOperationErrorCode int
+        [MemoryPackOrder(3)] public string Message { get; set; }
+        [MemoryPackOrder(4)] public long RoomRevision { get; set; }
+        [MemoryPackOrder(5)] public WireRoomSnapshot Snapshot { get; set; }  // 操作后的最新快照
+    }
+
+    /// <summary>
+    /// 成员上报资源加载完成。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireReportAssetsLoadedReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+        [MemoryPackOrder(2)] public long LaunchGeneration { get; set; }
+        [MemoryPackOrder(3)] public int ManifestVersion { get; set; }
+        [MemoryPackOrder(4)] public string ManifestHash { get; set; }
+        [MemoryPackOrder(5)] public string CommandId { get; set; }
+    }
+
+    /// <summary>
+    /// Owner 取消加载阶段，回到 Lobby。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireCancelLoadingReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+        [MemoryPackOrder(2)] public long? ExpectedRevision { get; set; }
+        [MemoryPackOrder(3)] public string CommandId { get; set; }
+    }
+
+    /// <summary>
+    /// 查询 Room 当前快照。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireGetSnapshotReq
+    {
+        [MemoryPackOrder(0)] public string SessionToken { get; set; }
+        [MemoryPackOrder(1)] public string RoomId { get; set; }
+    }
+
+    /// <summary>
+    /// Room 状态变更推送（server -> client）。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct WireRoomStateChangedPush
+    {
+        [MemoryPackOrder(0)] public string RoomId { get; set; }
+        [MemoryPackOrder(1)] public WireRoomSnapshot Snapshot { get; set; }
+        [MemoryPackOrder(2)] public long ServerNowTicks { get; set; }
     }
 }

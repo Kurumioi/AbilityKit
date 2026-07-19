@@ -62,7 +62,12 @@ namespace AbilityKit.Game.Flow
     {
         public BattleViewBinder CreateBinder(IViewFeatureRuntime runtime)
         {
-            return new BattleViewBinder(runtime.Vfx, runtime.VfxNode, resources: runtime.Resources);
+            return new BattleViewBinder(
+                runtime.Vfx,
+                runtime.VfxNode,
+                resources: runtime.Resources,
+                pool: runtime.ShellPool,
+                controllers: null);
         }
     }
 
@@ -79,6 +84,7 @@ namespace AbilityKit.Game.Flow
             if (settings.TryGetBool("View.Interp.Enabled", out var enabled)) binder.InterpolationEnabled = enabled;
             if (settings.TryGetFloat("View.Interp.BackTimeTicks", out var backTicks)) binder.BackTimeTicks = backTicks;
             if (settings.TryGetFloat("View.Interp.MaxLagTicks", out var maxLagTicks)) binder.MaxLagTicks = maxLagTicks;
+            if (settings.TryGetFloat("View.Interp.SmoothingHz", out var smoothingHz)) binder.SmoothingHz = smoothingHz;
         }
     }
 }

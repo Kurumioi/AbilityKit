@@ -12,10 +12,11 @@ namespace AbilityKit.Game.Flow
             _featureFactories = featureFactories ?? throw new ArgumentNullException(nameof(featureFactories));
         }
 
-        public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBootFeaturePlan(int capacity = 2)
+        public PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature> CreateBootFeaturePlan(int capacity = 3)
         {
             return new PhaseFeaturePlan<GamePhaseContext, IGamePhaseFeature>(capacity)
                 .Add("demo_lobby", (in GamePhaseContext ctx) => _featureFactories.Create("demo_lobby", in ctx))
+                .Add("formal_lobby", (in GamePhaseContext ctx) => _featureFactories.Create("formal_lobby", in ctx))
                 .Add("root_debug", (in GamePhaseContext ctx) => _featureFactories.Create("root_debug", in ctx));
         }
 
@@ -29,6 +30,7 @@ namespace AbilityKit.Game.Flow
                 .Add("input", (in GamePhaseContext ctx) => _featureFactories.Create("input", in ctx))
                 .Add("view", (in GamePhaseContext ctx) => _featureFactories.Create("view", in ctx))
                 .Add("hud", (in GamePhaseContext ctx) => _featureFactories.Create("hud", in ctx))
+                .Add("end_recorder", (in GamePhaseContext ctx) => _featureFactories.Create("end_recorder", in ctx))
                 .Add("debug_ongui", (in GamePhaseContext ctx) => _featureFactories.Create("debug_ongui", in ctx));
         }
     }

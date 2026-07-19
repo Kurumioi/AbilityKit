@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
@@ -82,13 +83,76 @@ public sealed class ShooterClientBattleHandleTests
         Assert.Equal(11u, wire.PlayerId);
         Assert.Equal(ShooterOpCodes.Input.PlayerCommand, wire.InputOpCode);
         Assert.NotNull(wire.Payload);
+        Assert.Equal(1UL, wire.CommandSequence);
         Assert.Equal(result.Local.Packet.Payload, wire.Payload!);
         var commands = ShooterInputCodec.Deserialize(wire.Payload!);
         Assert.Single(commands);
         Assert.Equal(11, commands[0].PlayerId);
         Assert.True(commands[0].Fire);
         Assert.Equal(ShooterPlayerAttackSlots.Spread, commands[0].AttackSlot);
+
+        await handle.SubmitLocalInputToGatewayAsync(moveX: 0f, moveY: 1f, aimX: 1f, aimY: 0f, fire: false);
+        var secondWire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(transport.LastPayload);
+        Assert.Equal(2UL, secondWire.CommandSequence);
     }
+    [Fact]
+    public void ClientBattleHandleUsesAppliedPureStateFrameForGatewayInputWithoutRewindingRuntime()
+    {
+        var start = new ShooterStartGamePayload(
+            "battle-handle-late-join-input-frame",
+            30,
+            4903,
+            new[]
+            {
+                new ShooterStartPlayer(11, "P11", 0f, 0f),
+                new ShooterStartPlayer(12, "P12", 5f, 0f)
+            });
+        var source = new ShooterBattleRuntimePort();
+        Assert.True(source.StartGame(in start));
+        for (var frame = 0; frame < 168; frame++)
+        {
+            Assert.True(source.Tick(1f / 30f));
+        }
+
+        var baseline = source.ExportPureStateSnapshot(9009ul, isFullBaseline: true);
+        var presentation = new ShooterPresentationFacade();
+        var session = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            ShooterPresentationSessionContext.CreateFromFacade(presentation),
+            tickRate: 30,
+            decoder: null,
+            gateway: null,
+            NetworkSyncModel.AuthoritativeInterpolation);
+        Assert.True(session.StartGame(in start));
+        session.CatchUpToFrame(293);
+        var anchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 0, 1d / 30d);
+        var flow = new ShooterRoomGatewayFlowResult(
+            "session-token",
+            "room-9",
+            1009ul,
+            "battle-9",
+            9009ul,
+            11u,
+            in anchor,
+            223456L,
+            ShooterRoomGatewayEntryKind.LateJoin,
+            canStart: false,
+            started: true,
+            subscribed: true,
+            "ready");
+        var handle = new ShooterClientBattleHandle(session, flow);
+
+        var applyResult = session.ApplyGatewayPush(
+            RoomGatewayOpCodes.SnapshotPushed,
+            CreatePureStateGatewayPayload(in baseline, ShooterOpCodes.Snapshot.PureState, isFullSnapshot: true));
+        var context = handle.CreateCurrentFrameInputContext();
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, applyResult);
+        Assert.Equal(293, session.CurrentFrame);
+        Assert.Equal(baseline.Frame, session.GatewayInputFrame);
+        Assert.Equal(baseline.Frame, context.Frame);
+    }
+
     [Fact]
     public async Task ClientBattleHandleAutomaticallyRequestsFullStateSyncWhenInputResponseRequiresResync()
     {

@@ -1,6 +1,8 @@
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 
 namespace AbilityKit.Orleans.Grains.Battle;
@@ -11,22 +13,37 @@ namespace AbilityKit.Orleans.Grains.Battle;
 /// </summary>
 public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
 {
-    private readonly ILogger<StateSyncObserverGrain> _logger;
+    internal const int ReliableEventQueueCapacity = 512;
 
+    private readonly ILogger<StateSyncObserverGrain> _logger;
+    private readonly StateSyncObserverRuntimeSettings _runtimeSettings;
     private readonly StateSyncObserverSubscriptionState _subscriptionState = new();
+    private readonly StateSyncBaselineRefreshState _baselineRefresh = new();
+    private readonly Queue<OutboundReliableEvents> _reliableEventQueue = new();
+    private SnapshotSendQueue<OutboundSnapshot>? _sendQueue;
+    private IDisposable? _drainTimer;
     private string _observerKey = string.Empty;
     private string _accountId = string.Empty;
     private string _roomId = string.Empty;
 
-    public StateSyncObserverGrain(ILogger<StateSyncObserverGrain> logger)
+    public StateSyncObserverGrain(
+        ILogger<StateSyncObserverGrain> logger,
+        IOptions<StateSyncObserverOptions> options)
     {
         _logger = logger;
+        _runtimeSettings = StateSyncObserverOptionsMapper.Map(options.Value);
     }
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var key = this.GetPrimaryKeyString();
         _observerKey = key;
+        _sendQueue = CreateSendQueue(DateTime.UtcNow.Ticks);
+        _drainTimer = RegisterTimer(
+            _ => DrainQueueAsync(),
+            state: null,
+            dueTime: _runtimeSettings.DrainInterval,
+            period: _runtimeSettings.DrainInterval);
         _logger.LogInformation("[StateSyncObserver] Activated with key: {Key}", key);
 
         // key 格式: "accountId:roomId"
@@ -40,30 +57,27 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
         return Task.CompletedTask;
     }
 
-    public Task<StateSyncObserverInfo> GetObserverInfoAsync()
-    {
-        return Task.FromResult(new StateSyncObserverInfo
-        {
-            ObserverKey = _observerKey,
-            AccountId = _accountId,
-            RoomId = _roomId
-        });
-    }
-
     /// <summary>
     /// 订阅战斗状态同步
     /// </summary>
-    public async Task SubscribeAsync(string battleGrainKey)
+    public async Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor)
     {
+        eventCursor ??= new ReliableBattleEventSubscribeCursor();
         var battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(battleGrainKey);
         var decision = _subscriptionState.DecideSubscribe(battleGrainKey);
+        _logger.LogInformation(
+            "[StateSyncObserver] Forwarding subscription to battle host. ObserverKey: {ObserverKey}, BattleKey: {BattleKey}, Action: {Action}",
+            _observerKey,
+            battleGrainKey,
+            decision.Action);
         if (decision.Action == StateSyncObserverSubscriptionAction.RefreshFullSnapshot)
         {
+            ResetDeliveryState();
             _logger.LogInformation(
-                "[StateSyncObserver] Duplicate subscription refreshed full snapshot. Battle: {BattleKey}, Account: {AccountId}",
+                "[StateSyncObserver] Duplicate subscription refreshed full snapshot and reliable event replay. Battle: {BattleKey}, Account: {AccountId}",
                 battleGrainKey,
                 _accountId);
-            await battleGrain.RequestFullSnapshotAsync(this);
+            await battleGrain.SubscribeAsync(this, CreateObserverInfo(), eventCursor);
             return;
         }
 
@@ -73,7 +87,12 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
             battleGrain = GrainFactory.GetGrain<IBattleLogicHostGrain>(battleGrainKey);
         }
 
-        await battleGrain.SubscribeAsync(this);
+        ResetDeliveryState();
+        await battleGrain.SubscribeAsync(this, CreateObserverInfo(), eventCursor);
+        _logger.LogInformation(
+            "[StateSyncObserver] Battle host subscription returned. ObserverKey: {ObserverKey}, BattleKey: {BattleKey}",
+            _observerKey,
+            battleGrainKey);
         _subscriptionState.MarkSubscribed(battleGrainKey);
 
         _logger.LogInformation(
@@ -92,33 +111,256 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
     /// <summary>
     /// 接收 BattleLogicHostGrain 的状态快照推送。
     /// </summary>
-    public async Task OnSnapshotPushedAsync(StateSyncPush push)
+    public Task<StateSyncDeliveryResult> OnSnapshotPushedAsync(StateSyncPush push)
     {
         try
         {
             var wire = ToWireSnapshotPush(push);
-            var payload = WireRoomGatewayBinary.Serialize(in wire);
-
-            var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
-            var opCode = push.IsFullSnapshot ? RoomGatewayOpCodes.SnapshotPushed : RoomGatewayOpCodes.DeltaSnapshotPushed;
-            var success = await gatewayPush.PushToAccountAsync(_accountId, opCode, payload.ToArray());
-
-            if (!success)
+            var payload = WireRoomGatewayBinary.Serialize(in wire).ToArray();
+            var opCode = push.IsFullSnapshot
+                ? RoomGatewayOpCodes.SnapshotPushed
+                : RoomGatewayOpCodes.DeltaSnapshotPushed;
+            var priority = push.IsFullSnapshot
+                ? SnapshotDeliveryPriority.FullBaseline
+                : SnapshotDeliveryPriority.Delta;
+            var nowTicks = DateTime.UtcNow.Ticks;
+            var outbound = new OutboundSnapshot(opCode, payload);
+            var item = new SnapshotSendQueueItem<OutboundSnapshot>(
+                outbound,
+                push.Frame,
+                payload.Length,
+                priority,
+                replaceable: !push.IsFullSnapshot,
+                producedAtTicks: nowTicks);
+            var result = GetSendQueue(nowTicks).Enqueue(in item, nowTicks);
+            if (result.BaselineInvalidated)
             {
-                _logger.LogWarning(
-                    "[StateSyncObserver] Snapshot push target is offline. Account: {AccountId}, Frame: {Frame}, FullSnapshot: {FullSnapshot}",
-                    _accountId,
-                    push.Frame,
-                    push.IsFullSnapshot);
-                await UnsubscribeCurrentBattleAsync("gateway push target offline");
-                throw new InvalidOperationException($"Snapshot push target is offline. Account={_accountId}, Frame={push.Frame}, FullSnapshot={push.IsFullSnapshot}");
+                _baselineRefresh.Request();
             }
+
+            return Task.FromResult(ToDeliveryResult(in result));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[StateSyncObserver] Error pushing snapshot to account: {AccountId}", _accountId);
-            throw;
+            _logger.LogError(ex, "[StateSyncObserver] Error serializing snapshot for account: {AccountId}", _accountId);
+            return Task.FromResult(new StateSyncDeliveryResult
+            {
+                Status = StateSyncDeliveryStatus.Failed
+            });
         }
+    }
+
+    public Task OnReliableEventsPushedAsync(ReliableBattleEventBatch batch)
+    {
+        if (batch == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var wire = ToWireReliableEventPush(batch);
+        var payload = WireRoomGatewayBinary.Serialize(in wire).ToArray();
+        var outbound = new OutboundReliableEvents(payload, batch.Watermark, batch.RetentionGap);
+        EnqueueBoundedReliableEvent(
+            _reliableEventQueue,
+            outbound,
+            ReliableEventQueueCapacity,
+            () => CreateReliableEventGap(batch),
+            static item => item.RetentionGap);
+        return Task.CompletedTask;
+    }
+
+    public Task<ReliableBattleEventAckResult> AcknowledgeReliableEventsAsync(string battleGrainKey, string epoch, long sequence)
+    {
+        if (!_subscriptionState.IsSubscribed
+            || !string.Equals(_subscriptionState.CurrentBattleKey, battleGrainKey, StringComparison.Ordinal))
+        {
+            return Task.FromResult(new ReliableBattleEventAckResult
+            {
+                Accepted = false,
+                Epoch = epoch ?? string.Empty,
+                RequiresResync = true
+            });
+        }
+
+        var battle = GrainFactory.GetGrain<IBattleLogicHostGrain>(battleGrainKey);
+        return battle.AcknowledgeReliableEventsAsync(_observerKey, epoch, sequence);
+    }
+
+    public Task<StateSyncDeliveryMetrics> GetDeliveryMetricsAsync()
+    {
+        var metrics = GetSendQueue(DateTime.UtcNow.Ticks).CreateMetrics(DateTime.UtcNow.Ticks);
+        return Task.FromResult(new StateSyncDeliveryMetrics
+        {
+            ProducedBytes = metrics.ProducedBytes,
+            SentBytes = metrics.SentBytes,
+            DroppedBytes = metrics.DroppedBytes,
+            MergedBytes = metrics.MergedBytes,
+            QueueLength = metrics.QueueLength,
+            QueueAgeTicks = metrics.QueueAgeTicks,
+            BaselineAgeTicks = metrics.BaselineAgeTicks,
+            ResyncCount = metrics.ResyncCount
+        });
+    }
+
+    private StateSyncObserverInfo CreateObserverInfo()
+    {
+        return new StateSyncObserverInfo
+        {
+            ObserverKey = _observerKey,
+            AccountId = _accountId,
+            RoomId = _roomId
+        };
+    }
+
+    private async Task DrainQueueAsync()
+    {
+        if (TryPeekReliableEvent(_reliableEventQueue, out var reliable))
+        {
+            try
+            {
+                var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
+                var success = await gatewayPush.PushToAccountAsync(
+                    _accountId,
+                    ReliableBattleEventGatewayOpCodes.EventsPushed,
+                    reliable.Payload);
+                if (success)
+                {
+                    CompleteReliableEventDelivery(_reliableEventQueue);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "[StateSyncObserver] Reliable event push target is offline. Account: {AccountId}, Watermark: {Watermark}",
+                        _accountId,
+                        reliable.Watermark);
+                    await UnsubscribeCurrentBattleAsync("reliable event push target offline");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "[StateSyncObserver] Reliable event delivery failed and remains queued. Account: {AccountId}, Watermark: {Watermark}",
+                    _accountId,
+                    reliable.Watermark);
+                return;
+            }
+        }
+
+        if (_subscriptionState.IsSubscribed && _baselineRefresh.TryBegin())
+        {
+            var succeeded = false;
+            try
+            {
+                var battle = GrainFactory.GetGrain<IBattleLogicHostGrain>(_subscriptionState.CurrentBattleKey);
+                await battle.RequestFullSnapshotAsync(this, CreateObserverInfo());
+                succeeded = true;
+            }
+            finally
+            {
+                _baselineRefresh.Complete(succeeded);
+            }
+        }
+
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var queue = GetSendQueue(nowTicks);
+        var dequeued = TryDequeueAndDetectBaselineInvalidation(
+            queue,
+            nowTicks,
+            out var item,
+            out var baselineInvalidated);
+        if (baselineInvalidated)
+        {
+            _baselineRefresh.Request();
+        }
+        if (!dequeued)
+        {
+            return;
+        }
+
+        try
+        {
+            var gatewayPush = GrainFactory.GetGrain<IGatewayPushTargetGrain>(0);
+            var success = await gatewayPush.PushToAccountAsync(
+                _accountId,
+                item.Value.OpCode,
+                item.Value.Payload);
+            if (success)
+            {
+                queue.MarkSent(in item, DateTime.UtcNow.Ticks);
+                return;
+            }
+
+            queue.MarkDeliveryFailed(in item, baselineInvalidated: true);
+            _logger.LogWarning(
+                "[StateSyncObserver] Snapshot push target is offline. Account: {AccountId}, Frame: {Frame}",
+                _accountId,
+                item.Frame);
+            ResetDeliveryState();
+            await UnsubscribeCurrentBattleAsync("gateway push target offline");
+        }
+        catch (Exception ex)
+        {
+            queue.MarkDeliveryFailed(in item, baselineInvalidated: true);
+            _baselineRefresh.Request();
+            _logger.LogError(
+                ex,
+                "[StateSyncObserver] Snapshot delivery failed. Account: {AccountId}, Frame: {Frame}",
+                _accountId,
+                item.Frame);
+        }
+    }
+
+    internal static void EnqueueBoundedReliableEvent<T>(
+        Queue<T> queue,
+        T item,
+        int capacity,
+        Func<T> createGapItem,
+        Func<T, bool> isGapItem)
+    {
+        ArgumentNullException.ThrowIfNull(queue);
+        ArgumentNullException.ThrowIfNull(createGapItem);
+        ArgumentNullException.ThrowIfNull(isGapItem);
+        ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
+
+        if (queue.Any(isGapItem))
+        {
+            return;
+        }
+
+        if (queue.Count < capacity)
+        {
+            queue.Enqueue(item);
+            return;
+        }
+
+        queue.Clear();
+        queue.Enqueue(createGapItem());
+    }
+
+    internal static bool TryPeekReliableEvent<T>(Queue<T> queue, out T item)
+    {
+        ArgumentNullException.ThrowIfNull(queue);
+        return queue.TryPeek(out item!);
+    }
+
+    internal static void CompleteReliableEventDelivery<T>(Queue<T> queue)
+    {
+        ArgumentNullException.ThrowIfNull(queue);
+        queue.Dequeue();
+    }
+
+    internal static bool TryDequeueAndDetectBaselineInvalidation<T>(
+        SnapshotSendQueue<T> queue,
+        long nowTicks,
+        out SnapshotSendQueueItem<T> item,
+        out bool baselineInvalidated)
+    {
+        var resyncCountBeforeDrain = queue.CreateMetrics(nowTicks).ResyncCount;
+        var dequeued = queue.TryDequeue(nowTicks, out item);
+        baselineInvalidated = queue.CreateMetrics(nowTicks).ResyncCount > resyncCountBeforeDrain;
+        return dequeued;
     }
 
     private static WireStateSyncSnapshotPush ToWireSnapshotPush(StateSyncPush push)
@@ -157,7 +399,51 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
             Actors = actors,
             PayloadOpCode = push.PayloadOpCode,
             Payload = push.Payload,
-            ServerTicks = push.ServerTicks
+            ServerTicks = push.ServerTicks,
+            EventWatermark = push.EventWatermark
+        };
+    }
+
+    private static OutboundReliableEvents CreateReliableEventGap(ReliableBattleEventBatch batch)
+    {
+        var gap = new ReliableBattleEventBatch
+        {
+            BattleId = batch.BattleId,
+            Epoch = batch.Epoch,
+            FirstAvailableSequence = batch.FirstAvailableSequence,
+            Watermark = batch.Watermark,
+            RetentionGap = true
+        };
+        var wire = ToWireReliableEventPush(gap);
+        var payload = WireRoomGatewayBinary.Serialize(in wire).ToArray();
+        return new OutboundReliableEvents(payload, gap.Watermark, RetentionGap: true);
+    }
+
+    private static WireReliableBattleEventPush ToWireReliableEventPush(ReliableBattleEventBatch batch)
+    {
+        var events = new List<WireReliableBattleEvent>(batch.Events.Count);
+        foreach (var item in batch.Events)
+        {
+            events.Add(new WireReliableBattleEvent
+            {
+                EventId = item.EventId,
+                BattleId = item.BattleId,
+                Epoch = item.Epoch,
+                Sequence = item.Sequence,
+                SourceFrame = item.SourceFrame,
+                EventType = item.EventType,
+                Payload = item.Payload
+            });
+        }
+
+        return new WireReliableBattleEventPush
+        {
+            BattleId = batch.BattleId,
+            Epoch = batch.Epoch,
+            FirstAvailableSequence = batch.FirstAvailableSequence,
+            Watermark = batch.Watermark,
+            RetentionGap = batch.RetentionGap,
+            Events = events
         };
     }
 
@@ -193,14 +479,51 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain
         finally
         {
             _subscriptionState.Clear();
+            ResetDeliveryState();
         }
+    }
+
+    private SnapshotSendQueue<OutboundSnapshot> GetSendQueue(long nowTicks)
+    {
+        return _sendQueue ??= CreateSendQueue(nowTicks);
+    }
+
+    private SnapshotSendQueue<OutboundSnapshot> CreateSendQueue(long nowTicks)
+    {
+        return new SnapshotSendQueue<OutboundSnapshot>(_runtimeSettings.QueuePolicy, nowTicks);
+    }
+
+    private void ResetDeliveryState()
+    {
+        _sendQueue?.Clear();
+        _reliableEventQueue.Clear();
+        _baselineRefresh.Clear();
+    }
+
+    private static StateSyncDeliveryResult ToDeliveryResult(in SnapshotSendQueueResult result)
+    {
+        return new StateSyncDeliveryResult
+        {
+            Status = (StateSyncDeliveryStatus)(int)result.Status,
+            QueueLength = result.QueueLength,
+            DroppedItems = result.DroppedItems,
+            DroppedBytes = result.DroppedBytes,
+            BaselineInvalidated = result.BaselineInvalidated
+        };
     }
 
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
+        _drainTimer?.Dispose();
+        _drainTimer = null;
         await UnsubscribeCurrentBattleAsync($"deactivate: {reason}");
+        ResetDeliveryState();
 
         _logger.LogInformation("[StateSyncObserver] Deactivating: {Reason}", reason);
         await base.OnDeactivateAsync(reason, cancellationToken);
     }
+
+    private readonly record struct OutboundSnapshot(uint OpCode, byte[] Payload);
+
+    private readonly record struct OutboundReliableEvents(byte[] Payload, long Watermark, bool RetentionGap);
 }

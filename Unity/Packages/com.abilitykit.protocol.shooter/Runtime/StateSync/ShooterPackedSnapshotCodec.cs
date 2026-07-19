@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.IO;
 using AbilityKit.Protocol.Serialization;
 using MemoryPack;
 
@@ -105,6 +108,19 @@ namespace AbilityKit.Protocol.Shooter
     }
 
     [MemoryPackable]
+    public partial struct ShooterCommandAcknowledgement
+    {
+        [MemoryPackOrder(0)] public int PlayerId;
+        [MemoryPackOrder(1)] public ulong CommandSequence;
+
+        public ShooterCommandAcknowledgement(int playerId, ulong commandSequence)
+        {
+            PlayerId = playerId;
+            CommandSequence = commandSequence;
+        }
+    }
+
+    [MemoryPackable]
     public partial struct ShooterPackedSnapshotPayload
     {
         [MemoryPackOrder(0)] public int Version;
@@ -116,6 +132,7 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(6)] public int EntityCount;
         [MemoryPackOrder(7)] public byte[] ExtensionPayload;
         [MemoryPackOrder(8)] public ShooterPackedComponentChunk[] ComponentChunks;
+        [MemoryPackOrder(9)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
 
         [MemoryPackConstructor]
         public ShooterPackedSnapshotPayload(
@@ -127,7 +144,8 @@ namespace AbilityKit.Protocol.Shooter
             uint stateHash,
             int entityCount,
             byte[] extensionPayload,
-            ShooterPackedComponentChunk[] componentChunks)
+            ShooterPackedComponentChunk[] componentChunks,
+            ShooterCommandAcknowledgement[]? acknowledgedCommands = null)
         {
             Version = version;
             WorldId = worldId;
@@ -138,6 +156,7 @@ namespace AbilityKit.Protocol.Shooter
             EntityCount = entityCount;
             ExtensionPayload = extensionPayload;
             ComponentChunks = componentChunks;
+            AcknowledgedCommands = acknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>();
         }
 
         public static ShooterPackedSnapshotPayload Empty(int frame = 0)
@@ -153,6 +172,20 @@ namespace AbilityKit.Protocol.Shooter
                 Array.Empty<byte>(),
                 Array.Empty<ShooterPackedComponentChunk>());
         }
+    }
+
+    [MemoryPackable]
+    internal partial struct ShooterLegacyPackedSnapshotPayload
+    {
+        [MemoryPackOrder(0)] public int Version;
+        [MemoryPackOrder(1)] public ulong WorldId;
+        [MemoryPackOrder(2)] public int Frame;
+        [MemoryPackOrder(3)] public long ServerTick;
+        [MemoryPackOrder(4)] public uint SnapshotFlags;
+        [MemoryPackOrder(5)] public uint StateHash;
+        [MemoryPackOrder(6)] public int EntityCount;
+        [MemoryPackOrder(7)] public byte[] ExtensionPayload;
+        [MemoryPackOrder(8)] public ShooterPackedComponentChunk[] ComponentChunks;
     }
 
     public static class ShooterPackedSnapshotCodec
@@ -171,17 +204,35 @@ namespace AbilityKit.Protocol.Shooter
                 return ShooterPackedSnapshotPayload.Empty();
             }
 
-            var value = WireSerializer.Deserialize<ShooterPackedSnapshotPayload>(payload);
-            return new ShooterPackedSnapshotPayload(
-                value.Version <= 0 ? CurrentVersion : value.Version,
-                value.WorldId,
-                value.Frame,
-                value.ServerTick,
-                value.SnapshotFlags,
-                value.StateHash,
-                value.EntityCount,
-                value.ExtensionPayload ?? Array.Empty<byte>(),
-                value.ComponentChunks ?? Array.Empty<ShooterPackedComponentChunk>());
+            try
+            {
+                var value = WireSerializer.Deserialize<ShooterPackedSnapshotPayload>(payload);
+                return new ShooterPackedSnapshotPayload(
+                    value.Version,
+                    value.WorldId,
+                    value.Frame,
+                    value.ServerTick,
+                    value.SnapshotFlags,
+                    value.StateHash,
+                    value.EntityCount,
+                    value.ExtensionPayload ?? Array.Empty<byte>(),
+                    value.ComponentChunks ?? Array.Empty<ShooterPackedComponentChunk>(),
+                    value.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+            }
+            catch (EndOfStreamException)
+            {
+                var legacy = WireSerializer.Deserialize<ShooterLegacyPackedSnapshotPayload>(payload);
+                return new ShooterPackedSnapshotPayload(
+                    legacy.Version,
+                    legacy.WorldId,
+                    legacy.Frame,
+                    legacy.ServerTick,
+                    legacy.SnapshotFlags,
+                    legacy.StateHash,
+                    legacy.EntityCount,
+                    legacy.ExtensionPayload ?? Array.Empty<byte>(),
+                    legacy.ComponentChunks ?? Array.Empty<ShooterPackedComponentChunk>());
+            }
         }
     }
 }

@@ -219,7 +219,8 @@ namespace AbilityKit.Samples.Logic.Samples.Combat
             KeyValue("Ray", "origin=(0,0,0), direction=Right, distance=20");
 
             Divider();
-            if (world.Collision.Raycast(ray, 20f, SampleCombatWorld.MonsterLayer, out var hit))
+            var monsterFilter = new AbilityKit.Combat.Collision.LayerFilter(SampleCombatWorld.MonsterLayer);
+            if (world.Collision.Raycast(ray, 20f, in monsterFilter, out var hit))
             {
                 world.TryGetByCollider(hit.Collider, out var entity);
                 KeyValue("HitCollider", hit.Collider.ToString());

@@ -19,11 +19,60 @@ public sealed record RoomSummary(
     [property: Id(10)] Dictionary<string, string>? Tags);
 
 [GenerateSerializer]
+public enum RoomPhase
+{
+    Lobby = 0,
+    Loading = 1,
+    Starting = 2,
+    InBattle = 3,
+    Closing = 4,
+    Closed = 5,
+    Expired = 6
+}
+
+[GenerateSerializer]
+public enum RoomOperationErrorCode
+{
+    None = 0,
+    NotMember = 1,
+    NotOwner = 2,
+    InvalidPhase = 3,
+    RevisionConflict = 4,
+    CommandIdConflict = 5,
+    LaunchGenerationMismatch = 6,
+    RoomClosed = 7,
+    InvalidOperation = 100
+}
+
+[GenerateSerializer]
+public sealed record RoomOperationResult(
+    [property: Id(0)] bool Success,
+    [property: Id(1)] bool Applied,
+    [property: Id(2)] RoomOperationErrorCode ErrorCode,
+    [property: Id(3)] string Message,
+    [property: Id(4)] long RoomRevision)
+{
+    public static RoomOperationResult AppliedAt(long revision) =>
+        new(true, true, RoomOperationErrorCode.None, string.Empty, revision);
+
+    public static RoomOperationResult NoChange(long revision, string message = "") =>
+        new(true, false, RoomOperationErrorCode.None, message, revision);
+
+    public static RoomOperationResult Rejected(RoomOperationErrorCode errorCode, string message, long revision) =>
+        new(false, false, errorCode, message, revision);
+}
+
+[GenerateSerializer]
 public sealed record RoomMemberState(
     [property: Id(0)] bool IsOnline,
     [property: Id(1)] long LastSeenTicks,
     [property: Id(2)] long OfflineSinceTicks,
-    [property: Id(3)] bool IsBot = false);
+    [property: Id(3)] bool IsBot = false,
+    [property: Id(4)] long JoinOrdinal = 0,
+    [property: Id(5)] bool LobbyReady = false,
+    [property: Id(6)] bool AssetsLoaded = false,
+    [property: Id(7)] int LoadedManifestVersion = 0,
+    [property: Id(8)] string? LoadedManifestHash = null);
 
 [GenerateSerializer]
 public sealed record CreateRoomRequest(
@@ -73,7 +122,13 @@ public sealed record RoomPlayerSnapshot(
     [property: Id(6)] int AttributeTemplateId,
     [property: Id(7)] int BasicAttackSkillId,
     [property: Id(8)] List<int>? SkillIds,
-    [property: Id(9)] uint PlayerId);
+    [property: Id(9)] uint PlayerId,
+    [property: Id(10)] bool LobbyReady = false,
+    [property: Id(11)] bool AssetsLoaded = false,
+    [property: Id(12)] bool IsOnline = false,
+    [property: Id(13)] long JoinOrdinal = 0,
+    [property: Id(14)] int LoadedManifestVersion = 0,
+    [property: Id(15)] string? LoadedManifestHash = null);
 
 [GenerateSerializer]
 public sealed record RoomSnapshot(
@@ -84,7 +139,17 @@ public sealed record RoomSnapshot(
     [property: Id(4)] string? BattleId,
     [property: Id(5)] WorldStartAnchor? WorldStartAnchor,
     [property: Id(6)] ulong WorldId,
-    [property: Id(7)] Dictionary<string, RoomMemberState>? MemberStates);
+    [property: Id(7)] Dictionary<string, RoomMemberState>? MemberStates,
+    [property: Id(8)] int SchemaVersion = 1,
+    [property: Id(9)] long RoomRevision = 0,
+    [property: Id(10)] long LastEventSequence = 0,
+    [property: Id(11)] RoomPhase Phase = RoomPhase.Lobby,
+    [property: Id(12)] string PhaseReason = "",
+    [property: Id(13)] long LaunchGeneration = 0,
+    [property: Id(14)] long LoadingDeadlineUnixMs = 0,
+    [property: Id(15)] string? LaunchManifestHash = null,
+    [property: Id(16)] int LaunchManifestVersion = 0,
+    [property: Id(17)] string? LastStartFailureCode = null);
 
 [GenerateSerializer]
 public sealed record RoomRuntimeState(

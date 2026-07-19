@@ -7,14 +7,9 @@ namespace AbilityKit.Orleans.Contracts.Battle;
 public interface IStateSyncObserverGrain : IGrainWithStringKey
 {
     /// <summary>
-    /// 获取观察者上下文元信息。
+    /// 订阅战斗状态同步，并从客户端可靠事件累计确认位置恢复。
     /// </summary>
-    Task<StateSyncObserverInfo> GetObserverInfoAsync();
-
-    /// <summary>
-    /// 订阅战斗状态同步
-    /// </summary>
-    Task SubscribeAsync(string battleGrainKey);
+    Task SubscribeAsync(string battleGrainKey, ReliableBattleEventSubscribeCursor eventCursor);
 
     /// <summary>
     /// 取消订阅
@@ -22,9 +17,57 @@ public interface IStateSyncObserverGrain : IGrainWithStringKey
     Task UnsubscribeAsync(string battleGrainKey);
 
     /// <summary>
-    /// 接收战斗状态快照推送。
+    /// 序列化并接收战斗状态快照，返回本观察者队列的接纳结果。
     /// </summary>
-    Task OnSnapshotPushedAsync(StateSyncPush push);
+    Task<StateSyncDeliveryResult> OnSnapshotPushedAsync(StateSyncPush push);
+
+    /// <summary>
+    /// 将可靠事件批次加入独立 FIFO 投递队列。
+    /// </summary>
+    Task OnReliableEventsPushedAsync(ReliableBattleEventBatch batch);
+
+    /// <summary>
+    /// 转发客户端累计 ACK 到当前战斗。
+    /// </summary>
+    Task<ReliableBattleEventAckResult> AcknowledgeReliableEventsAsync(string battleGrainKey, string epoch, long sequence);
+
+    /// <summary>
+    /// 获取本观察者的累计投递指标与实时队列状态。
+    /// </summary>
+    Task<StateSyncDeliveryMetrics> GetDeliveryMetricsAsync();
+}
+
+public enum StateSyncDeliveryStatus
+{
+    Accepted = 0,
+    Queued = 1,
+    DroppedStale = 2,
+    Backpressured = 3,
+    Offline = 4,
+    Failed = 5
+}
+
+[GenerateSerializer]
+public sealed class StateSyncDeliveryResult
+{
+    [Id(0)] public StateSyncDeliveryStatus Status { get; set; }
+    [Id(1)] public int QueueLength { get; set; }
+    [Id(2)] public int DroppedItems { get; set; }
+    [Id(3)] public long DroppedBytes { get; set; }
+    [Id(4)] public bool BaselineInvalidated { get; set; }
+}
+
+[GenerateSerializer]
+public sealed class StateSyncDeliveryMetrics
+{
+    [Id(0)] public long ProducedBytes { get; set; }
+    [Id(1)] public long SentBytes { get; set; }
+    [Id(2)] public long DroppedBytes { get; set; }
+    [Id(3)] public long MergedBytes { get; set; }
+    [Id(4)] public int QueueLength { get; set; }
+    [Id(5)] public long QueueAgeTicks { get; set; }
+    [Id(6)] public long BaselineAgeTicks { get; set; }
+    [Id(7)] public long ResyncCount { get; set; }
 }
 
 [GenerateSerializer]

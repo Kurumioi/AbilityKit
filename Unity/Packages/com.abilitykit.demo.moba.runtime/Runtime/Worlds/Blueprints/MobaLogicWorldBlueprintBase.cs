@@ -4,6 +4,7 @@ using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Systems;

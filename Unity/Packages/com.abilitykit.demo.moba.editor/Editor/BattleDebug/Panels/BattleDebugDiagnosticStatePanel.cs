@@ -1,0 +1,151 @@
+using System.Collections.Generic;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Game.Editor.Diagnostics;
+using UnityEditor;
+using UnityEngine;
+
+namespace AbilityKit.Game.Editor
+{
+    /// <summary>
+    /// 诊断状态面板（IMGUI 绘制层）：通过 <see cref="BattleDebugDiagnosticStateViewModel"/>
+    /// 持有查询/状态逻辑，本类只负责将 ViewModel 暴露的 DTO 渲染为 IMGUI。
+    /// 只消费已定义的诊断查询契约，不建立旁路数据源。
+    /// </summary>
+    internal sealed class BattleDebugDiagnosticStatePanel : IBattleDebugPanel
+    {
+        public string Name => "诊断状态";
+        public int Order => 410;
+
+        private readonly BattleDebugDiagnosticStateViewModel _viewModel = new BattleDebugDiagnosticStateViewModel();
+        private Vector2 _worldScroll;
+        private Vector2 _actorScroll;
+
+        public bool IsVisible(in BattleDebugContext ctx) => true;
+
+        public void Draw(in BattleDebugContext ctx)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
+            {
+                EditorGUILayout.HelpBox(
+                    "诊断会话不可用。请确认战斗已启动且诊断 Local Session 已注册。",
+                    MessageType.Info);
+                return;
+            }
+
+            DrawFrameBar(ctx, session);
+            EditorGUILayout.Space(4);
+
+            _viewModel.RefreshIfNeeded(session);
+
+            DrawWorldSummary();
+            EditorGUILayout.Space(6);
+            DrawActorList();
+        }
+
+        private void DrawFrameBar(in BattleDebugContext ctx, IBattleDiagnosticReadOnlySession session)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+
+            GUILayout.Label("帧", GUILayout.Width(20));
+            var newFrame = EditorGUILayout.IntField(_viewModel.FrameInput, GUI.skin.textField, GUILayout.Width(60));
+            if (newFrame != _viewModel.FrameInput)
+            {
+                _viewModel.FrameInput = newFrame;
+                _viewModel.InvalidateCache();
+            }
+
+            if (GUILayout.Button("最新", EditorStyles.toolbarButton, GUILayout.Width(50)))
+            {
+                _viewModel.FrameInput = 0;
+                _viewModel.InvalidateCache();
+            }
+
+            GUILayout.FlexibleSpace();
+
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(60)))
+            {
+                _viewModel.InvalidateCache();
+                ctx.RequestRepaint?.Invoke();
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.LabelField(
+                $"StoreRevision={_viewModel.StoreRevision}",
+                EditorStyles.miniLabel);
+        }
+
+        private void DrawWorldSummary()
+        {
+            EditorGUILayout.LabelField("世界快照", EditorStyles.boldLabel);
+
+            if (!_viewModel.WorldSummary.HasValue)
+            {
+                EditorGUILayout.LabelField("（尚未采样）", EditorStyles.miniLabel);
+                return;
+            }
+
+            _worldScroll = EditorGUILayout.BeginScrollView(_worldScroll, GUILayout.MaxHeight(120));
+
+            var w = _viewModel.WorldSummary.Value;
+            EditorGUILayout.LabelField("帧", w.Frame.ToString());
+            EditorGUILayout.LabelField("Actor 数", w.ActorCount.ToString());
+            EditorGUILayout.LabelField("活跃技能运行时", w.ActiveSkillRuntimeCount.ToString());
+            EditorGUILayout.LabelField("活跃 Trace 根", w.ActiveTraceRootCount.ToString());
+            if (!string.IsNullOrEmpty(w.StateHash))
+            {
+                EditorGUILayout.LabelField("状态哈希", w.StateHash);
+            }
+
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawActorList()
+        {
+            EditorGUILayout.LabelField("Actor 摘要", EditorStyles.boldLabel);
+
+            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
+            }
+
+            _actorScroll = EditorGUILayout.BeginScrollView(_actorScroll);
+
+            var actors = _viewModel.Actors;
+            if (actors == null || actors.Count == 0)
+            {
+                EditorGUILayout.LabelField("（无 Actor）", EditorStyles.miniLabel);
+            }
+            else
+            {
+                for (int i = 0; i < actors.Count; i++)
+                {
+                    DrawActorRow(actors[i]);
+                }
+            }
+
+            EditorGUILayout.EndScrollView();
+        }
+
+        private static void DrawActorRow(in BattleDiagnosticActorSummary actor)
+        {
+            var aliveColor = actor.IsAlive ? Color.white : new Color(0.7f, 0.7f, 0.7f);
+            var oldColor = GUI.color;
+
+            EditorGUILayout.BeginHorizontal(GUI.skin.box);
+
+            GUI.color = aliveColor;
+            GUILayout.Label($"#{actor.ActorId}", GUILayout.Width(70));
+            GUILayout.Label(actor.Kind.ToString(), GUILayout.Width(70));
+            GUI.color = oldColor;
+
+            GUILayout.Label(actor.DisplayName, GUILayout.Width(80));
+            GUILayout.Label($"HP {actor.Health:0}/{actor.MaximumHealth:0}", EditorStyles.miniLabel, GUILayout.Width(100));
+            GUILayout.Label($"team={actor.TeamId}", EditorStyles.miniLabel, GUILayout.Width(60));
+
+            GUILayout.FlexibleSpace();
+
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+}

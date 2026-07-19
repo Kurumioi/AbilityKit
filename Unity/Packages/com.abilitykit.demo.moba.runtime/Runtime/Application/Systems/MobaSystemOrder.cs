@@ -89,6 +89,10 @@ namespace AbilityKit.Demo.Moba.Systems
         /// <summary>Actor 统一移除清理</summary>
         public const int ActorDespawnCleanup = Base + WorldSystemOrder.Late + 18;
 
+        // ========== 诊断系统 (PostExecute/Late) ==========
+        /// <summary>诊断状态采样：在所有业务系统和清理系统之后采样当前帧 World/Actor 状态快照</summary>
+        public const int DiagnosticStateSample = Base + WorldSystemOrder.Late + 30;
+
         public static OrderCheckResult ValidateKeyDependencies()
         {
             if (!RunsBefore(EntityManagerSync, MotionInit))
@@ -134,6 +138,11 @@ namespace AbilityKit.Demo.Moba.Systems
             if (!RunsBefore(ProjectileSync, ProjectileLauncherCleanup) || !RunsBefore(ProjectileLauncherCleanup, ShieldLifecycle) || !RunsBefore(ShieldLifecycle, SummonLifecycle) || !RunsBefore(SummonLifecycle, ActorDespawnCleanup))
             {
                 return new OrderCheckResult(false, "Late cleanup order must be ProjectileSync < ProjectileLauncherCleanup < ShieldLifecycle < SummonLifecycle < ActorDespawnCleanup.");
+            }
+
+            if (!RunsBefore(ActorDespawnCleanup, DiagnosticStateSample))
+            {
+                return new OrderCheckResult(false, "DiagnosticStateSample must run after ActorDespawnCleanup.");
             }
 
             return new OrderCheckResult(true, null);

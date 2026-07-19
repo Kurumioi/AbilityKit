@@ -8,14 +8,28 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Core/Multiplayer/MultiplayerRoomFlowController.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/ClientRoomPushSynchronizer.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/GatewayMultiplayerRoomSession.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Gateway/IGatewayRoomClient.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomClient.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomModels.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/GatewayRoomOpCodes.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomSnapshot.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomSnapshotMapper.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomSnapshotAssetSource.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Gateway/Room/ClientRoomStore.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaRemoteSnapshotSample.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaRemoteInterpolationPlayback.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaClientAuthoritativeInterpolationSyncController.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Synchronization/MobaDemoHarnessCarrier.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetManifest.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetManifestSource.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetManifestResolver.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetLease.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/IBattleAssetLoadService.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetLease.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Shared/Assets/BattleAssetLoadService.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,11 +1,14 @@
 ﻿extern alias Gateway;
 
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Grains.Battle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using GatewayAbstractions = Gateway::AbilityKit.Orleans.Gateway.Abstractions;
 using GatewayCore = Gateway::AbilityKit.Orleans.Gateway.Core;
 using GatewayGenerated = Gateway::AbilityKit.Orleans.Gateway.Generated;
+using GatewayHandlers = Gateway::AbilityKit.Orleans.Gateway.Handlers;
 using GatewayNetworking = Gateway::AbilityKit.Orleans.Gateway.Networking;
 
 internal static class ShooterSmokeGatewayServiceCollectionExtensions
@@ -29,6 +32,11 @@ internal static class ShooterSmokeGatewayServiceCollectionExtensions
 
         services.AddSingleton<GatewayCore.GatewaySessionRegistry>();
         services.AddSingleton<GatewayAbstractions.IGatewaySessionRegistry>(sp => sp.GetRequiredService<GatewayCore.GatewaySessionRegistry>());
+        services.AddSingleton<GatewayCore.GatewaySessionBinder>();
+        services.AddSingleton<GatewayCore.GatewayFrameSyncSubscriptionManager>();
+        services.AddSingleton(sp =>
+            new GatewayHandlers.GatewayBattleInputGuard(
+                sp.GetRequiredService<IOptions<BattleInputSecurityOptions>>().Value));
 
         services.AddSingleton<GatewayCore.GatewayHandlerRegistry>(sp =>
         {

@@ -29,6 +29,12 @@ namespace AbilityKit.Game.Flow
 
         public float MaxLagTicks { get; set; } = 4f;
 
+        public float SmoothingHz
+        {
+            get => _applier.SmoothingHz;
+            set => _applier.SmoothingHz = value;
+        }
+
         public bool TryGetInterpolatedPos(EC.IEntityId id, out Vector3 pos)
         {
             pos = default;
@@ -79,7 +85,7 @@ namespace AbilityKit.Game.Flow
                 _sampler.SampleAliveEntityPositions(ctx, sampleTime);
             }
 
-            _applier.ApplyInterpolatedPositions(_clock.RenderTime);
+            _applier.ApplyInterpolatedPositions(_clock.RenderTime, deltaTime);
         }
 
         public void Reset()

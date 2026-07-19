@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Predicates
         public static readonly FunctionId HasBuffOwnerFunctionId = new FunctionId(StableStringId.Get("predicate:has_buff_owner"));
         public static readonly FunctionId OwnerMatchesPayloadSourceFunctionId = new FunctionId(StableStringId.Get("predicate:owner_matches_payload_source"));
         public static readonly FunctionId OwnerMatchesPayloadTargetFunctionId = new FunctionId(StableStringId.Get("predicate:owner_matches_payload_target"));
+        public static readonly FunctionId TargetIsFlyingProjectileFunctionId = new FunctionId(StableStringId.Get("predicate:target_is_flying_projectile"));
 
         public static void Register(FunctionRegistry functions)
         {
@@ -24,6 +25,21 @@ namespace AbilityKit.Demo.Moba.Predicates
             functions.Register<Predicate2<object, IWorldResolver>>(HasBuffOwnerFunctionId, HasBuffOwner, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadSourceFunctionId, OwnerMatchesPayloadSource, isDeterministic: true);
             functions.Register<Predicate2<object, IWorldResolver>>(OwnerMatchesPayloadTargetFunctionId, OwnerMatchesPayloadTarget, isDeterministic: true);
+            functions.Register<Predicate0<object, IWorldResolver>>(TargetIsFlyingProjectileFunctionId, TargetIsFlyingProjectile, isDeterministic: true);
+        }
+
+        private static bool TargetIsFlyingProjectile(object triggerArgs, ExecCtx<IWorldResolver> ctx)
+        {
+            if (ctx.Context == null
+                || !CombatPredicateRuntime.TryResolveTargetActorId(triggerArgs, ctx.Context, out var actorId))
+            {
+                return false;
+            }
+
+            var actors = default(MobaActorLookupService);
+            return CombatPredicateRuntime.TryGetActor(ctx.Context, ref actors, actorId, out var actor)
+                && actor != null
+                && actor.isFlyingProjectileTag;
         }
 
         private static bool HasBuff(object triggerArgs, NamedArgsDict args, ExecCtx<IWorldResolver> ctx)

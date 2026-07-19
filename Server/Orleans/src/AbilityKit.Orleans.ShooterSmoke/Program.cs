@@ -39,6 +39,8 @@ if (options.ClientMode)
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddAbilityKitServerOptions(builder.Configuration);
+builder.Services.AddStateSyncObserverOptions(builder.Configuration);
+builder.Services.AddBattleInputSecurityOptions(builder.Configuration);
 builder.Logging.AddAbilityKitServerLogging(builder.Configuration, "AbilityKit.Orleans.ShooterSmoke");
 
 var storageOptions = builder.Configuration.GetAbilityKitStorageOptions();
@@ -56,10 +58,16 @@ builder.UseAbilityKitLocalOrleansSilo();
 using var host = builder.Build();
 await host.StartAsync();
 
-using var transportCts = new CancellationTokenSource();
 var transportServer = host.Services.GetRequiredService<GatewayNetworking.TcpTransportServer>();
-var transportTask = transportServer.StartAsync(transportCts.Token);
-await ShooterSmokeScenarioBase.WaitForTcpAsync(tcpGatewayHost, options.TcpGatewayPort, TimeSpan.FromSeconds(5));
+await using var transportController = new ShooterSmokeTransportFaultController(
+    transportServer,
+    tcpGatewayHost,
+    options.TcpGatewayPort);
+await transportController.StartAsync();
+using var faultControlCancellation = new CancellationTokenSource();
+var faultControlTask = string.IsNullOrWhiteSpace(options.FaultControlPath)
+    ? Task.CompletedTask
+    : transportController.RunFileControlAsync(options.FaultControlPath, faultControlCancellation.Token);
 
 try
 {
@@ -78,9 +86,16 @@ try
 }
 finally
 {
-    transportCts.Cancel();
-    await transportServer.StopAsync();
-    await AwaitTransportShutdownAsync(transportTask);
+    faultControlCancellation.Cancel();
+    try
+    {
+        await faultControlTask;
+    }
+    catch (OperationCanceledException)
+    {
+    }
+
+    await transportController.StopAsync();
     await host.StopAsync();
 }
 
@@ -97,17 +112,6 @@ static Task WaitForShutdownAsync()
     return completion.Task;
 }
 
-static async Task AwaitTransportShutdownAsync(Task transportTask)
-{
-    try
-    {
-        await transportTask;
-    }
-    catch (OperationCanceledException)
-    {
-    }
-}
-
 readonly record struct ShooterSmokeProgramOptions(
     bool ServerMode,
     bool ClientMode,
@@ -121,12 +125,21 @@ readonly record struct ShooterSmokeProgramOptions(
     int Seed,
     TimeSpan Timeout,
     bool WaitForMatchEnd,
-    bool ReconnectOnce,
+    int ReconnectCount,
     int ReconnectDelayMs,
+    int RecoverableFailureCount,
+    int RetryBackoffMaxMs,
     SmokeNetworkConditionOptions NetworkCondition,
     string StateSyncPayloadMode,
     string InputStateReplayOutputPath,
-    string InputLogicReplayOutputPath)
+    string InputLogicReplayOutputPath,
+    string RunId,
+    string CorrelationId,
+    string RunRootPath,
+    string DiagnosticOutputPath,
+    string FaultControlPath,
+    string ReconnectReleasePath,
+    string CompletionReleasePath)
 {
     public ShooterSmokeClientProcessOptions ToClientProcessOptions()
     {
@@ -141,11 +154,19 @@ readonly record struct ShooterSmokeProgramOptions(
             Seed,
             Timeout,
             WaitForMatchEnd,
-            ReconnectOnce,
+            ReconnectCount,
             ReconnectDelayMs,
+            RecoverableFailureCount,
+            RetryBackoffMaxMs,
             NetworkCondition,
             StateSyncPayloadMode,
-            InputStateReplayOutputPath);
+            InputStateReplayOutputPath,
+            RunId,
+            CorrelationId,
+            RunRootPath,
+            DiagnosticOutputPath,
+            ReconnectReleasePath,
+            CompletionReleasePath);
     }
 
     public static ShooterSmokeProgramOptions Parse(string[] args)
@@ -162,8 +183,10 @@ readonly record struct ShooterSmokeProgramOptions(
         var seed = 20260610;
         var timeout = TimeSpan.FromSeconds(15);
         var waitForMatchEnd = false;
-        var reconnectOnce = false;
+        var reconnectCount = 0;
         var reconnectDelayMs = 500;
+        var recoverableFailureCount = 0;
+        var retryBackoffMaxMs = 2000;
         var conditionLatencyMs = 0;
         var conditionJitterMs = 0;
         var conditionPacketLossRate = 0d;
@@ -171,6 +194,13 @@ readonly record struct ShooterSmokeProgramOptions(
         var inputStateReplayOutputPath = string.Empty;
         var inputLogicReplayOutputPath = string.Empty;
         var stateSyncPayloadMode = "packed";
+        var runId = string.Empty;
+        var correlationId = string.Empty;
+        var runRootPath = string.Empty;
+        var diagnosticOutputPath = string.Empty;
+        var faultControlPath = string.Empty;
+        var reconnectReleasePath = string.Empty;
+        var completionReleasePath = string.Empty;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -249,7 +279,28 @@ readonly record struct ShooterSmokeProgramOptions(
             }
             else if (string.Equals(arg, "--reconnect-once", StringComparison.OrdinalIgnoreCase))
             {
-                reconnectOnce = true;
+                reconnectCount = Math.Max(reconnectCount, 1);
+            }
+            else if (string.Equals(arg, "--reconnect-count", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var parsedReconnectCount) && parsedReconnectCount >= 0)
+                {
+                    reconnectCount = parsedReconnectCount;
+                }
+            }
+            else if (string.Equals(arg, "--recoverable-failure-count", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var parsedFailureCount) && parsedFailureCount >= 0)
+                {
+                    recoverableFailureCount = parsedFailureCount;
+                }
+            }
+            else if (string.Equals(arg, "--retry-backoff-max-ms", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var parsedBackoffMaxMs) && parsedBackoffMaxMs >= 0)
+                {
+                    retryBackoffMaxMs = parsedBackoffMaxMs;
+                }
             }
             else if (string.Equals(arg, "--reconnect-delay-ms", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
@@ -316,6 +367,39 @@ readonly record struct ShooterSmokeProgramOptions(
             {
                 inputLogicReplayOutputPath = args[++i];
             }
+            else if (string.Equals(arg, "--run-id", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                runId = args[++i];
+            }
+            else if (string.Equals(arg, "--correlation-id", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                correlationId = args[++i];
+            }
+            else if (string.Equals(arg, "--run-root", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                runRootPath = args[++i];
+            }
+            else if (string.Equals(arg, "--diagnostic-output", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                diagnosticOutputPath = args[++i];
+            }
+            else if (string.Equals(arg, "--fault-control-path", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                faultControlPath = args[++i];
+            }
+            else if (string.Equals(arg, "--reconnect-release-path", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                reconnectReleasePath = args[++i];
+            }
+            else if (string.Equals(arg, "--completion-release-path", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                completionReleasePath = args[++i];
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(correlationId))
+        {
+            correlationId = $"{Environment.ProcessId}:{clientId}";
         }
 
         return new ShooterSmokeProgramOptions(
@@ -331,8 +415,10 @@ readonly record struct ShooterSmokeProgramOptions(
             seed,
             timeout,
             waitForMatchEnd,
-            reconnectOnce,
+            reconnectCount,
             reconnectDelayMs,
+            recoverableFailureCount,
+            retryBackoffMaxMs,
             new SmokeNetworkConditionOptions(
                 conditionLatencyMs,
                 conditionJitterMs,
@@ -340,7 +426,14 @@ readonly record struct ShooterSmokeProgramOptions(
                 conditionSeed).Normalize(),
             stateSyncPayloadMode,
             inputStateReplayOutputPath,
-            inputLogicReplayOutputPath);
+            inputLogicReplayOutputPath,
+            runId,
+            correlationId,
+            runRootPath,
+            diagnosticOutputPath,
+            faultControlPath,
+            reconnectReleasePath,
+            completionReleasePath);
     }
 
     private static string NormalizeStateSyncPayloadMode(string? value)

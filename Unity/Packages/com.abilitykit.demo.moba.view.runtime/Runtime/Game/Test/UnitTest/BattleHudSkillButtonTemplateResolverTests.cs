@@ -62,6 +62,27 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void DajiSkill1_ResolvesDirectionalAreaWithoutChangingDirectionLineSkills()
+        {
+            var resolver = new BattleHudSkillButtonTemplateResolver();
+            var daji = CreateLoadout("daji", 1005, 10050001, 10050101, 10050201, 10050301);
+            var mozi = CreateLoadout("mozi", 1004, 10040011, 10040101, 10040201, 10040301);
+
+            Assert.IsTrue(resolver.TryResolveSkill(daji, 1, out _, out var template, out var dajiSpec));
+            Assert.AreEqual(4, template.Id);
+            Assert.AreEqual(BattleHudSkillPreviewShape.DirectionArea, dajiSpec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.DirectionArea, dajiSpec.IndicatorShape);
+            Assert.AreEqual(12f, dajiSpec.Range, 0.0001f);
+            Assert.AreEqual(2f, dajiSpec.Width, 0.0001f);
+            Assert.AreEqual(264f, dajiSpec.UiLengthPixels, 0.0001f);
+            Assert.AreEqual(48f, dajiSpec.UiWidthPixels, 0.0001f);
+
+            Assert.IsTrue(resolver.TryResolveSkill(mozi, 2, out _, out _, out var moziSpec));
+            Assert.AreEqual(BattleHudSkillPreviewShape.DirectionLine, moziSpec.PreviewShape);
+            Assert.AreEqual(SkillAimIndicatorShape.DirectionLine, moziSpec.IndicatorShape);
+        }
+
+        [Test]
         public void TargetPointHeroes_ResolveSharedAimSemanticsFromTemplate()
         {
             var resolver = new BattleHudSkillButtonTemplateResolver();

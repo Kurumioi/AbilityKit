@@ -12,6 +12,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
@@ -169,12 +170,15 @@ namespace AbilityKit.Game.Test.UnitTest
 
         public void EnterGameAndWarmup(int warmupTicks = 3, string reason = "editmode skill config test")
         {
-            var startPort = World.Services.Resolve<IMobaGameStartPort>();
-            var startResult = startPort.TryStartGame(in _gameStartSpec);
-            var alreadyStarted = !startResult.Succeeded && startResult.FailureCode == MobaGameStartFailureCode.AlreadyStarted;
-            Assert.IsTrue(startResult.Succeeded || alreadyStarted, $"Formal game start failed: {startResult}");
             var phase = World.Services.Resolve<MobaLogicWorldRunGateService>();
-            phase.SetInGame(reason);
+            if (!phase.InGame)
+            {
+                var startPort = World.Services.Resolve<IMobaGameStartPort>();
+                var startResult = startPort.TryStartGame(in _gameStartSpec);
+                Assert.IsTrue(startResult.Succeeded, $"Formal game start failed: {startResult}");
+                phase.SetInGame(reason);
+            }
+
             Tick(warmupTicks);
             RefreshScenarioActorAliases();
             RepairScenarioPlayerActorBindings();

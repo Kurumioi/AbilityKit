@@ -58,6 +58,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public int CurrentFrame => _rollback.CurrentFrame;
 
+        public int GatewayInputFrame => _rollback.GatewayInputFrame;
+
         public ShooterClientFrameSyncController FrameSync => _rollback.FrameSync;
 
         public ShooterClientInputCoordinator InputCoordinator => _rollback.InputCoordinator;

@@ -6923,7 +6923,25 @@
       "TriggerId": 10040321,
       "Priority": 50,
       "Predicate": {
-        "Kind": "none"
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 1253876326,
+            "FunctionArity": 2
+          },
+          {
+            "Kind": "Not"
+          }
+        ]
       },
       "Actions": [
         {
@@ -6973,6 +6991,36 @@
               "Scale": 1.0
             }
           },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10040322,
+      "Priority": 60,
+      "Predicate": {
+        "Kind": "expr",
+        "Nodes": [
+          {
+            "Kind": "Function",
+            "Left": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "Right": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "FunctionId": 1253876326,
+            "FunctionArity": 2
+          }
+        ]
+      },
+      "Actions": [
+        {
+          "ActionId": 892498243,
           "MaxExecutions": -1,
           "CanBeInterrupted": true,
           "RetryMaxRetries": 3
@@ -7282,37 +7330,42 @@
       },
       "Actions": [
         {
-          "ActionId": 1822191218,
+          "ActionId": 508656420,
           "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 40050201.0,
+            "ConstValue": 31050201.0,
             "Scale": 1.0
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 2.0,
+            "ConstValue": 30050201.0,
             "Scale": 1.0
           },
           "Args": {
-            "area_id": {
+            "launcher_id": {
               "Kind": "Const",
-              "ConstValue": 40050201.0,
+              "ConstValue": 31050201.0,
               "Scale": 1.0
             },
-            "position_mode": {
+            "projectile_id": {
               "Kind": "Const",
-              "ConstValue": 2.0,
+              "ConstValue": 30050201.0,
               "Scale": 1.0
             },
-            "radius": {
+            "target_query_id": {
               "Kind": "Const",
-              "ConstValue": 3.0,
+              "ConstValue": 50050201.0,
               "Scale": 1.0
             },
-            "duration_ms": {
+            "target_max_count": {
               "Kind": "Const",
-              "ConstValue": 600.0,
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "track_target": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
               "Scale": 1.0
             }
           },
@@ -7325,7 +7378,7 @@
           "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 1067714805.0,
+            "ConstValue": 1912671924.0,
             "Scale": 1.0
           },
           "Arg1": {
@@ -7335,7 +7388,7 @@
           "Args": {
             "message": {
               "Kind": "Const",
-              "ConstValue": 1067714805.0,
+              "ConstValue": 1912671924.0,
               "Scale": 1.0
             },
             "dump_args": {
@@ -7389,16 +7442,6 @@
               "Kind": "Const",
               "ConstValue": 10050201.0,
               "Scale": 1.0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50050201.0,
-              "Scale": 1.0
-            },
-            "target_max_count": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
-              "Scale": 1.0
             }
           },
           "MaxExecutions": -1,
@@ -7407,31 +7450,16 @@
         },
         {
           "ActionId": 1241142882,
-          "Arity": 2,
+          "Arity": 1,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 50050201.0,
-            "Scale": 1.0
-          },
-          "Arg1": {
-            "Kind": "Const",
-            "ConstValue": 1.0,
+            "ConstValue": 1500.0,
             "Scale": 1.0
           },
           "Args": {
             "buffIds": {
               "Kind": "Const",
               "ConstValue": 10050201.0,
-              "Scale": 1.0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50050201.0,
-              "Scale": 1.0
-            },
-            "target_max_count": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
               "Scale": 1.0
             },
             "duration_ms": {
@@ -7446,31 +7474,16 @@
         },
         {
           "ActionId": 1241142882,
-          "Arity": 2,
+          "Arity": 1,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 50050201.0,
-            "Scale": 1.0
-          },
-          "Arg1": {
-            "Kind": "Const",
-            "ConstValue": 1.0,
+            "ConstValue": 3000.0,
             "Scale": 1.0
           },
           "Args": {
             "buffIds": {
               "Kind": "Const",
               "ConstValue": 10050000.0,
-              "Scale": 1.0
-            },
-            "target_query_id": {
-              "Kind": "Const",
-              "ConstValue": 50050201.0,
-              "Scale": 1.0
-            },
-            "target_max_count": {
-              "Kind": "Const",
-              "ConstValue": 1.0,
               "Scale": 1.0
             },
             "duration_ms": {
@@ -7488,7 +7501,7 @@
           "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 1694261877.0,
+            "ConstValue": 1996636231.0,
             "Scale": 1.0
           },
           "Arg1": {
@@ -7498,7 +7511,7 @@
           "Args": {
             "message": {
               "Kind": "Const",
-              "ConstValue": 1694261877.0,
+              "ConstValue": 1996636231.0,
               "Scale": 1.0
             },
             "dump_args": {
@@ -7521,15 +7534,10 @@
       "Actions": [
         {
           "ActionId": 1241142882,
-          "Arity": 2,
+          "Arity": 1,
           "Arg0": {
             "Kind": "Const",
             "ConstValue": 1.0,
-            "Scale": 1.0
-          },
-          "Arg1": {
-            "Kind": "Const",
-            "ConstValue": 1600.0,
             "Scale": 1.0
           },
           "Args": {
@@ -7541,11 +7549,6 @@
             "target_self": {
               "Kind": "Const",
               "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "duration_ms": {
-              "Kind": "Const",
-              "ConstValue": 1600.0,
               "Scale": 1.0
             }
           },
@@ -7624,6 +7627,11 @@
               "Scale": 1.0
             },
             "target_max_count": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "track_target": {
               "Kind": "Const",
               "ConstValue": 1.0,
               "Scale": 1.0
@@ -7752,6 +7760,75 @@
             },
             "dump_args": {
               "Kind": "Const",
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        }
+      ]
+    },
+    {
+      "TriggerId": 10050314,
+      "EventName": "damage.attack.before_calc",
+      "EventId": 750714271,
+      "Priority": 60,
+      "Scope": 1,
+      "Predicate": {
+        "Kind": "none"
+      },
+      "Actions": [
+        {
+          "ActionId": 326784944,
+          "Arity": 2,
+          "Arg0": {
+            "Kind": "Const",
+            "Scale": 1.0
+          },
+          "Arg1": {
+            "Kind": "Const",
+            "ConstValue": 1.0,
+            "Scale": 1.0
+          },
+          "Args": {
+            "number_slot": {
+              "Kind": "Const",
+              "Scale": 1.0
+            },
+            "op": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "reason_kind": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "reason_param": {
+              "Kind": "Const",
+              "ConstValue": 10050301.0,
+              "Scale": 1.0
+            },
+            "require_skill_runtime": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "skip_first_hit": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "repeat_target_decay_factor": {
+              "Kind": "Const",
+              "ConstValue": 0.5,
+              "Scale": 1.0
+            },
+            "target_hit_count_key_base": {
+              "Kind": "Const",
+              "ConstValue": 1500300.0,
               "Scale": 1.0
             }
           },
@@ -8095,7 +8172,7 @@
       },
       "Actions": [
         {
-          "ActionId": 1241142882,
+          "ActionId": 701107549,
           "Arity": 2,
           "Arg0": {
             "Kind": "Const",
@@ -8104,7 +8181,36 @@
           },
           "Arg1": {
             "Kind": "Const",
-            "ConstValue": 3000.0,
+            "ConstValue": 1.0,
+            "Scale": 1.0
+          },
+          "Args": {
+            "target_self": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "remove_slow": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            },
+            "remove_all": {
+              "Kind": "Const",
+              "ConstValue": 1.0,
+              "Scale": 1.0
+            }
+          },
+          "MaxExecutions": -1,
+          "CanBeInterrupted": true,
+          "RetryMaxRetries": 3
+        },
+        {
+          "ActionId": 1241142882,
+          "Arity": 1,
+          "Arg0": {
+            "Kind": "Const",
+            "ConstValue": 1.0,
             "Scale": 1.0
           },
           "Args": {
@@ -8116,11 +8222,6 @@
             "target_self": {
               "Kind": "Const",
               "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "duration_ms": {
-              "Kind": "Const",
-              "ConstValue": 3000.0,
               "Scale": 1.0
             }
           },
@@ -8187,48 +8288,11 @@
           "RetryMaxRetries": 3
         },
         {
-          "ActionId": 1822191218,
-          "Arity": 2,
-          "Arg0": {
-            "Kind": "Const",
-            "ConstValue": 40060201.0,
-            "Scale": 1.0
-          },
-          "Arg1": {
-            "Kind": "Const",
-            "Scale": 1.0
-          },
-          "Args": {
-            "area_id": {
-              "Kind": "Const",
-              "ConstValue": 40060201.0,
-              "Scale": 1.0
-            },
-            "position_mode": {
-              "Kind": "Const",
-              "Scale": 1.0
-            },
-            "radius": {
-              "Kind": "Const",
-              "ConstValue": 4.0,
-              "Scale": 1.0
-            },
-            "duration_ms": {
-              "Kind": "Const",
-              "ConstValue": 300.0,
-              "Scale": 1.0
-            }
-          },
-          "MaxExecutions": -1,
-          "CanBeInterrupted": true,
-          "RetryMaxRetries": 3
-        },
-        {
           "ActionId": 589451731,
           "Arity": 2,
           "Arg0": {
             "Kind": "Const",
-            "ConstValue": 564144159.0,
+            "ConstValue": 2060266238.0,
             "Scale": 1.0
           },
           "Arg1": {
@@ -8238,7 +8302,7 @@
           "Args": {
             "message": {
               "Kind": "Const",
-              "ConstValue": 564144159.0,
+              "ConstValue": 2060266238.0,
               "Scale": 1.0
             },
             "dump_args": {
@@ -8385,15 +8449,10 @@
       "Actions": [
         {
           "ActionId": 1241142882,
-          "Arity": 2,
+          "Arity": 1,
           "Arg0": {
             "Kind": "Const",
             "ConstValue": 1.0,
-            "Scale": 1.0
-          },
-          "Arg1": {
-            "Kind": "Const",
-            "ConstValue": 2500.0,
             "Scale": 1.0
           },
           "Args": {
@@ -8405,11 +8464,6 @@
             "target_self": {
               "Kind": "Const",
               "ConstValue": 1.0,
-              "Scale": 1.0
-            },
-            "duration_ms": {
-              "Kind": "Const",
-              "ConstValue": 2500.0,
               "Scale": 1.0
             }
           },
@@ -8687,14 +8741,14 @@
     "1247096964": "墨子三技能：敌人进入屏障时受到短暂控制",
     "204789095": "妲己一技能灵魂冲击：发射直线冲击波",
     "248532223": "妲己一技能灵魂冲击：命中造成法术伤害并叠加失心",
-    "1067714805": "妲己二技能偶像魅力：在目标点生成魅惑区域",
-    "1694261877": "妲己二技能偶像魅力：造成法术伤害、眩晕并叠加失心",
+    "1912671924": "妲己二技能偶像魅力：锁定目标并发射追踪魅惑弹",
+    "1996636231": "妲己二技能偶像魅力：命中造成法术伤害、魅惑并叠加失心",
     "987901712": "妲己三技能女王崇拜：进入持续狐火状态",
     "1034041671": "妲己三技能女王崇拜：周期搜敌并发射狐火",
     "1652966546": "妲己三技能女王崇拜：狐火命中造成法术伤害并叠加失心",
     "1471806946": "嬴政一技能王者惩戒：在目标点生成延迟剑阵区域",
     "752142699": "嬴政一技能王者惩戒：剑阵造成法术伤害并减速区域敌人",
-    "564144159": "嬴政二技能王者守御：获得护盾和移速，并对近身敌人触发清场伤害",
+    "2060266238": "嬴政二技能王者守御：清除减速并获得护盾和移速",
     "413622632": "嬴政二技能王者守御：对自身周围敌人造成法术伤害并减速",
     "1588309983": "嬴政三技能至尊王权：启动单个持续飞剑发射器，共11波55支飞剑",
     "1325934363": "嬴政三技能至尊王权：周期发射前方飞剑",

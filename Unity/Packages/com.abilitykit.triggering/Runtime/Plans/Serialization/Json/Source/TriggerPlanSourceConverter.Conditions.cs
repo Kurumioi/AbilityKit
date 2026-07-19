@@ -135,6 +135,10 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     WriteOwnerMatchesPayloadNode(writer, "predicate:owner_matches_payload_target");
                     break;
 
+                case "target_is_flying_projectile":
+                    WriteOwnerMatchesPayloadNode(writer, "predicate:target_is_flying_projectile");
+                    break;
+
                 default:
                     throw new InvalidOperationException($"Unsupported condition type: {type}");
             }

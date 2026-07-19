@@ -33,6 +33,8 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
  
     public WireRoomJoinKind JoinKind { get; set; } = WireRoomJoinKind.TeamLobby;
 
+    public WireReportAssetsLoadedReq LastReportAssetsLoadedRequest { get; private set; }
+
     public ArraySegment<byte> LastPayload { get; private set; }
 
     public Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -72,16 +74,34 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
                     Snapshot = new WireRoomSnapshot { BattleId = "battle-ready", CanStart = true },
                     Message = "ready"
                 }));
-            case RoomGatewayOpCodes.StartBattle:
-                return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireStartRoomBattleRes
+            case RoomGatewayOpCodes.BeginLoading:
+                return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomOperationRes
                 {
                     Success = true,
-                    BattleId = "battle-launch",
-                    WorldId = 9041ul,
-                    Started = true,
-                    WorldStartAnchor = CreateAnchor(),
-                    ServerNowTicks = StartServerNowTicks,
-                    Message = "started"
+                    Applied = true,
+                    RoomRevision = 3L,
+                    Snapshot = CreateStagedSnapshot(phase: 1, battleId: string.Empty, worldId: 0ul),
+                    Message = "loading"
+                }));
+            case RoomGatewayOpCodes.ReportAssetsLoaded:
+                LastReportAssetsLoadedRequest = WireRoomGatewayBinary.Deserialize<WireReportAssetsLoadedReq>(payload);
+                return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomOperationRes
+                {
+                    Success = true,
+                    Applied = true,
+                    RoomRevision = 4L,
+                    Snapshot = CreateStagedSnapshot(phase: 3, battleId: "battle-launch", worldId: 9041ul),
+                    Message = "loaded"
+                }));
+            case RoomGatewayOpCodes.GetSnapshot:
+                return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireRoomSnapshotRes
+                {
+                    Success = true,
+                    RoomId = "room-launch",
+                    NumericRoomId = 1041ul,
+                    Snapshot = CreateStagedSnapshot(phase: 3, battleId: "battle-launch", worldId: 9041ul),
+                    Message = "running",
+                    ServerNowTicks = StartServerNowTicks
                 }));
             case RoomGatewayOpCodes.SubscribeStateSync:
                 return Task.FromResult(WireRoomGatewayBinary.Serialize(new WireSubscribeStateSyncRes
@@ -99,6 +119,24 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
             default:
                 throw new InvalidOperationException("Unexpected room gateway opCode: " + opCode);
         }
+    }
+
+    private WireRoomSnapshot CreateStagedSnapshot(int phase, string battleId, ulong worldId)
+    {
+        return new WireRoomSnapshot
+        {
+            Summary = new WireRoomSummary { RoomId = "room-launch" },
+            CanStart = true,
+            BattleId = battleId,
+            WorldId = worldId,
+            WorldStartAnchor = CreateAnchor(),
+            Phase = phase,
+            LaunchGeneration = 7L,
+            LaunchManifestVersion = 3,
+            LaunchManifestHash = "manifest-shooter-v3",
+            RoomRevision = 4L,
+            LastEventSequence = 4L
+        };
     }
 
     private WireWorldStartAnchor CreateAnchor()

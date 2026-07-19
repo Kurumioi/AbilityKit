@@ -31,6 +31,7 @@ namespace AbilityKit.Combat.Projectile
 
         public int CollisionLayerMask;
         public ColliderId IgnoreCollider;
+        public Vec3 CollisionHalfExtents;
 
         public IProjectileHitPolicy HitPolicy;
         public int HitsRemaining;
@@ -80,6 +81,7 @@ namespace AbilityKit.Combat.Projectile
             DistanceLeft = 0f;
             CollisionLayerMask = 0;
             IgnoreCollider = default;
+            CollisionHalfExtents = Vec3.Zero;
             HitPolicy = null;
             HitsRemaining = 0;
             HitPolicyKind = default;

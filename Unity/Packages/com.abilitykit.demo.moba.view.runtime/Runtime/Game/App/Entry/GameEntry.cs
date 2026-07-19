@@ -14,6 +14,7 @@ namespace AbilityKit.Game
         private static GameEntry _instance;
 
         [SerializeField] private bool _debugEnabled;
+        [SerializeField] private BattleGatewayConfigSO _multiplayerGatewayConfig;
 
         public static GameEntry Instance
         {
@@ -47,6 +48,11 @@ namespace AbilityKit.Game
                 return;
             }
 
+            if (_instance == this && _entryModules != null && _entryModules.IsAttached)
+            {
+                return;
+            }
+
             _instance = this;
             if (Application.isPlaying)
             {
@@ -67,6 +73,7 @@ namespace AbilityKit.Game
                 Root.WithRef<IGameFlowFeatureInstaller>(existingFlow);
             }
 
+            Root.WithRef(new LobbyBattleEntrySelection());
             EnsureRuntimeGuiBridge();
 
             _entryModuleContext = new GameEntryModuleContext(this, Root);
@@ -156,11 +163,17 @@ namespace AbilityKit.Game
 
         private ModuleHost<GameEntryModuleContext, IGameEntryModule> CreateEntryModules()
         {
+            var modules = new List<IGameEntryModule>
+            {
+                new GameEntryBootstrap()
+            };
+            if (_multiplayerGatewayConfig != null)
+            {
+                modules.Add(new MultiplayerGatewayEntryModule(_multiplayerGatewayConfig));
+            }
+
             return new ModuleHost<GameEntryModuleContext, IGameEntryModule>(
-                new List<IGameEntryModule>
-                {
-                    new GameEntryBootstrap()
-                },
+                modules,
                 message => Debug.LogError($"[GameEntry] {message}"));
         }
 

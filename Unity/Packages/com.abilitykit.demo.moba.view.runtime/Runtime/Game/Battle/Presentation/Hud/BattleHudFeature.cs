@@ -157,7 +157,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_snapshotController == null || _snapshotController.IsBound) return;
 
-            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot, OnSkillStateSnapshot);
+            _snapshotController.Bind(_ctx, OnEnterGameSnapshot, OnDamageEventSnapshot, OnSkillStateSnapshot, OnPresentationCueSnapshot);
         }
 
         private void OnEnterGameSnapshot(EnterMobaGameRes res)
@@ -207,6 +207,12 @@ namespace AbilityKit.Game.Flow
             }
 
             _inputController?.ApplySkillStates(entries, localActorId);
+        }
+
+        private void OnPresentationCueSnapshot(MobaPresentationCueSnapshotEntry[] entries)
+        {
+            if (entries == null || entries.Length == 0) return;
+            _binder?.OnPresentationCues(entries);
         }
 
         private string ResolveLocalPlayerId(EnterMobaGameRes res = default)

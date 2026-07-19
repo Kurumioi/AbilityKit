@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -620,20 +621,27 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private sealed class NoHitCollisionWorld : ICollisionWorld
         {
-            public ColliderId Add(in Transform3 transform, in ColliderShape localShape, int layerMask = -1) => new ColliderId(1);
+            public ColliderId Add(in Transform3 transform, in ColliderShape localShape, int layerId) => new ColliderId(1);
             public bool Remove(ColliderId id) => true;
             public bool UpdateTransform(ColliderId id, in Transform3 transform) => true;
             public bool UpdateShape(ColliderId id, in ColliderShape localShape) => true;
-            public bool UpdateLayer(ColliderId id, int layerMask) => true;
+            public bool UpdateLayer(ColliderId id, int layerId) => true;
             public bool Update(ColliderId id, in Transform3 transform, in ColliderShape localShape) => true;
+            public bool ShouldCollide(int layerA, int layerB) => false;
 
-            public bool Raycast(in Ray3 ray, float maxDistance, int layerMask, out AbilityKit.Core.Mathematics.RaycastHit hit)
+            public bool GetLayer(ColliderId id, out int layerId)
+            {
+                layerId = 0;
+                return false;
+            }
+
+            public bool Raycast(in Ray3 ray, float maxDistance, in LayerFilter filter, out AbilityKit.Core.Mathematics.RaycastHit hit)
             {
                 hit = default;
                 return false;
             }
 
-            public int OverlapSphere(in Sphere sphere, int layerMask, List<ColliderId> results) => 0;
+            public int OverlapSphere(in Sphere sphere, in LayerFilter filter, List<ColliderId> results) => 0;
         }
     }
 }

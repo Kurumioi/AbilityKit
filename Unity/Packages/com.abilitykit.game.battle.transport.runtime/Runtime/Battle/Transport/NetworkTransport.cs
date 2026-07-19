@@ -5,7 +5,6 @@ using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
-using System.Text;
 
 namespace AbilityKit.Game.Battle.Transport
 {
@@ -110,21 +109,17 @@ namespace AbilityKit.Game.Battle.Transport
         {
             try
             {
-                var json = $"{{\"SessionToken\":\"{Escape(_options.SessionToken)}\",\"ExtendSeconds\":0,\"RotateToken\":false}}";
-                var bytes = Encoding.UTF8.GetBytes(json);
-                await _request.SendRequestAsync(_options.OpRenewSession, new ArraySegment<byte>(bytes));
+                if (_options.SerializeRenewSession == null)
+                    throw new InvalidOperationException("SerializeRenewSession is not configured.");
+
+                var payload = _options.SerializeRenewSession.Invoke(_options.SessionToken);
+                await _request.SendRequestAsync(_options.OpRenewSession, payload);
                 Log.Info("[NetworkTransport] RenewSession ok (bound token/account to this connection).");
             }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[NetworkTransport] RenewSession failed");
             }
-        }
-
-        private static string Escape(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return string.Empty;
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
 
         private void OnDisconnected()

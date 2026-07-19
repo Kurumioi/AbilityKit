@@ -1,4 +1,6 @@
 using System;
+using AbilityKit.Game.Battle.Presentation.Features.Loading;
+using AbilityKit.Game.Battle.Presentation.Features.Settlement;
 
 namespace AbilityKit.Game.Flow
 {
@@ -15,11 +17,15 @@ namespace AbilityKit.Game.Flow
                 .Register("sync", (in GamePhaseContext ctx) => new BattleSyncFeature())
                 .Register("input", (in GamePhaseContext ctx) => new BattleInputFeature())
                 .Register("view", (in GamePhaseContext ctx) => new BattleViewFeature())
-                .Register("hud", (in GamePhaseContext ctx) => new BattleHudFeature());
+                .Register("hud", (in GamePhaseContext ctx) => new BattleHudFeature())
+                .Register("loading_screen", (in GamePhaseContext ctx) => new BattleLoadingScreenFeature())
+                .Register("end_recorder", (in GamePhaseContext ctx) => new BattleEndSummaryRecorder())
+                .Register("end_settlement", (in GamePhaseContext ctx) => new BattleEndSettlementFeature());
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             registry
                 .Register("demo_lobby", (in GamePhaseContext ctx) => new DemoLobbyOnGUIFeature())
+                .Register("formal_lobby", (in GamePhaseContext ctx) => new FormalLobbyFeature())
                 .Register("boot_menu", (in GamePhaseContext ctx) => new BootMenuOnGUIFeature())
                 .Register("root_debug", (in GamePhaseContext ctx) => new RootDebugOnGUIFeature())
                 .Register("debug_ongui", (in GamePhaseContext ctx) => new BattleDebugOnGUIFeature());

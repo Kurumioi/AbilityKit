@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.MotionSystem.Collision;
 using AbilityKit.Core.Mathematics;
 
@@ -161,14 +162,14 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 return false;
             }
 
-            var layerMask = ResolveMask(obstacleMask);
+            var layerFilter = new LayerFilter(ResolveMask(obstacleMask));
             var sweepRadius = MathUtil.Max(radius, 0.01f);
             var direction = desiredDelta / distance;
             var center = start + desiredDelta * 0.5f;
             var queryRadius = distance * 0.5f + sweepRadius;
 
             _candidates.Clear();
-            _world.OverlapSphere(new Sphere(center, queryRadius), layerMask, _candidates);
+            _world.OverlapSphere(new Sphere(center, queryRadius), in layerFilter, _candidates);
 
             var ignoredCollider = ResolveIgnoredCollider(moverId);
             var bestTime = float.PositiveInfinity;
@@ -180,7 +181,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 var collider = _candidates[i];
                 if (ShouldIgnore(collider, ignoredCollider, ignoreMask)) continue;
 
-                if (!TryResolveHitTime(start, direction, distance, sweepRadius, collider, layerMask, out var time01, out var normal)) continue;
+                if (!TryResolveHitTime(start, direction, distance, sweepRadius, collider, in layerFilter, out var time01, out var normal)) continue;
                 if (time01 < bestTime)
                 {
                     bestTime = time01;
@@ -204,11 +205,11 @@ namespace AbilityKit.Demo.Moba.Services.Motion
 
         public bool Overlap(int moverId, in Vec3 position, float radius, int obstacleMask, int ignoreMask)
         {
-            var layerMask = ResolveMask(obstacleMask);
+            var layerFilter = new LayerFilter(ResolveMask(obstacleMask));
             var ignoredCollider = ResolveIgnoredCollider(moverId);
 
             _sampleOverlaps.Clear();
-            _world.OverlapSphere(new Sphere(position, MathUtil.Max(radius, 0.01f)), layerMask, _sampleOverlaps);
+            _world.OverlapSphere(new Sphere(position, MathUtil.Max(radius, 0.01f)), in layerFilter, _sampleOverlaps);
 
             for (var i = 0; i < _sampleOverlaps.Count; i++)
             {
@@ -235,7 +236,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             float distance,
             float moverRadius,
             ColliderId collider,
-            int layerMask,
+            in LayerFilter layerFilter,
             out float time01,
             out Vec3 normal)
         {
@@ -248,7 +249,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
                 var t = i / (float)samples;
                 var point = start + direction * (distance * t);
                 _sampleOverlaps.Clear();
-                _world.OverlapSphere(new Sphere(point, moverRadius), layerMask, _sampleOverlaps);
+                _world.OverlapSphere(new Sphere(point, moverRadius), in layerFilter, _sampleOverlaps);
 
                 for (var j = 0; j < _sampleOverlaps.Count; j++)
                 {
@@ -262,7 +263,7 @@ namespace AbilityKit.Demo.Moba.Services.Motion
             }
 
             var ray = new Ray3(start, direction);
-            if (_world.Raycast(ray, distance + moverRadius, layerMask, out var rayHit) && rayHit.Collider.Equals(collider))
+            if (_world.Raycast(ray, distance + moverRadius, in layerFilter, out var rayHit) && rayHit.Collider.Equals(collider))
             {
                 time01 = distance > MathUtil.Epsilon ? MathUtil.Clamp01(rayHit.Distance / distance) : 0f;
                 normal = rayHit.Normal.SqrMagnitude > MathUtil.Epsilon ? rayHit.Normal : -direction;

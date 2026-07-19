@@ -94,6 +94,8 @@ public sealed class TcpTransportServer : IGatewayTransportServer
     private readonly TcpTransportOptions _options;
     private readonly IGatewayTransportEvents _events;
     private readonly ILogger<TcpTransportServer> _logger;
+    private readonly object _lifecycleGate = new();
+    private readonly ConcurrentDictionary<long, System.Net.Sockets.TcpClient> _clients = new();
     private System.Net.Sockets.TcpListener? _listener;
 
     public TcpTransportServer(
@@ -115,8 +117,17 @@ public sealed class TcpTransportServer : IGatewayTransportServer
         }
 
         var ip = System.Net.IPAddress.TryParse(_options.Host, out var parsed) ? parsed : System.Net.IPAddress.Any;
-        _listener = new System.Net.Sockets.TcpListener(ip, _options.Port);
-        _listener.Start();
+        var listener = new System.Net.Sockets.TcpListener(ip, _options.Port);
+        lock (_lifecycleGate)
+        {
+            if (_listener is not null)
+            {
+                throw new InvalidOperationException("TcpTransport is already running.");
+            }
+
+            listener.Start();
+            _listener = listener;
+        }
 
         _logger.LogInformation("TcpTransport listening on {Host}:{Port}", _options.Host, _options.Port);
 
@@ -124,30 +135,71 @@ public sealed class TcpTransportServer : IGatewayTransportServer
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var client = await _listener.AcceptTcpClientAsync(cancellationToken);
+                var client = await listener.AcceptTcpClientAsync(cancellationToken);
                 client.NoDelay = true;
+                var connectionId = GenerateConnectionId();
+                if (!_clients.TryAdd(connectionId, client))
+                {
+                    client.Dispose();
+                    throw new InvalidOperationException($"Duplicate TCP connection id: {connectionId}.");
+                }
 
-                TrackClientTask(Task.Run(() => HandleClientAsync(client, cancellationToken), cancellationToken));
+                TrackClientTask(Task.Run(
+                    () => HandleClientAsync(connectionId, client, cancellationToken),
+                    CancellationToken.None));
             }
         }
         catch (OperationCanceledException)
         {
         }
+        catch (System.Net.Sockets.SocketException) when (!ReferenceEquals(GetListener(), listener))
+        {
+        }
         finally
         {
-            _listener.Stop();
+            lock (_lifecycleGate)
+            {
+                if (ReferenceEquals(_listener, listener))
+                {
+                    _listener = null;
+                }
+            }
+
+            listener.Stop();
         }
     }
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        _listener?.Stop();
+        System.Net.Sockets.TcpListener? listener;
+        lock (_lifecycleGate)
+        {
+            listener = _listener;
+            _listener = null;
+        }
+
+        listener?.Stop();
+        foreach (var client in _clients.Values)
+        {
+            client.Dispose();
+        }
+
         return Task.CompletedTask;
     }
 
-    private async Task HandleClientAsync(System.Net.Sockets.TcpClient client, CancellationToken cancellationToken)
+    private System.Net.Sockets.TcpListener? GetListener()
     {
-        var connectionId = GenerateConnectionId();
+        lock (_lifecycleGate)
+        {
+            return _listener;
+        }
+    }
+
+    private async Task HandleClientAsync(
+        long connectionId,
+        System.Net.Sockets.TcpClient client,
+        CancellationToken cancellationToken)
+    {
         var session = new TcpTransportSession(connectionId, this, client.GetStream());
         _events.OnConnected(session);
 
@@ -207,6 +259,7 @@ public sealed class TcpTransportServer : IGatewayTransportServer
         {
             System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
             _events.OnClosed(connectionId);
+            _clients.TryRemove(connectionId, out _);
             client.Close();
             _logger.LogInformation("TCP client disconnected: ConnectionId={ConnectionId}", connectionId);
         }

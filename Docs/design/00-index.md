@@ -172,23 +172,25 @@ flowchart TB
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
-| [01-事件系统](05-CommonModules/01-EventSystem.md) | 事件分发 | EventDispatcher、EventKey、StableStringIdRegistry 稳定哈希、优先级监听、snapshot 派发语义、once 订阅与事件参数自动释放 |
-| [02-对象池](05-CommonModules/02-ObjectPool.md) | 对象复用 | Pools、PoolScope、PoolManager、ObjectPool、IPoolable、PoolConfigModule、配置仲裁、预热容量、反向归还与调试统计 |
-| [03-定时器框架](05-CommonModules/03-TimerFramework.md) | 时间调度 | SystemTimer、IWorldClock、DefaultScheduler、Delay/Periodic/ContinuousTask 与任务状态机 |
+| [01-事件系统](05-CommonModules/01-EventSystem.md) | 事件分发 | EventDispatcher/Global facade、稳定事件 ID、优先级与 snapshot、once 重入、异常吞掉、自动释放顺序、字符串双重释放缺陷及生产/测试证据 |
+| [02-对象池](05-CommonModules/02-ObjectPool.md) | 对象复用 | Pools/Scope/Manager/ObjectPool、锁内生命周期、异常非事务、弱表旧句柄、PooledObject 重复归还、配置仲裁与成熟度证据 |
+| [03-定时器框架](05-CommonModules/03-TimerFramework.md) | 时间调度 | SystemTimer 引用复制、DefaultScheduler 顺序/分配/异常边界、Delay/Periodic/ContinuousTask 参数和终止语义、周期 duration 缺陷与成熟度证据 |
 | [04-配置系统](05-CommonModules/04-ConfigurationSystem.md) | 配置链路 | ConfigDatabase 原子换表、MOBA 配置门面、Luban 导出/多源加载、TriggerPlan、ActionSchema、Source Generator 边界、验证与多端接入 |
-| [05-Flow 流程引擎](05-CommonModules/05-FlowEngine.md) | 流程编排 | FlowHost、FlowSession、FlowRunner、FlowContext、IFlowNode、组合节点、阶段贡献、事件唤醒与诊断边界 |
-| [06-HFSM 分层状态机](05-CommonModules/06-HFSMStateMachine.md) | 状态机 | StateMachine、State、Transition、exit time、pending transition、Unity Graph Asset、导出器和运行时监控边界 |
+| [05-Flow 流程引擎](05-CommonModules/05-FlowEngine.md) | 流程编排 | FlowRunner 同步/增量执行、Host/Session/Pool 所有权、Context、控制与资源节点精确终态、阶段贡献、事件唤醒、诊断及 HFSM 适配边界 |
+| [06-HFSM 分层状态机](05-CommonModules/06-HFSMStateMachine.md) | 状态机 | Core 转移优先级、exit-time/pending 覆盖、初始化失败、Shooter/MOBA 生产接入、Graph builder 缺口、导出与测试成熟度 |
 | [07-CodeGen 与 Luban 生产链路](05-CommonModules/07-CodeGenAndLubanProductionPipeline.md) | 生成与发布供应链 | 生成资产所有权、Roslyn/runtime CodeGen 双运行面、Luban 候选晋升、package 权威源、Console 副本、失败传播与自动化缺口 |
+| [08-ActionTimeline 数据协议与播放边界](05-CommonModules/08-ActionTimelineDataAndPlayback.md) | 时间线数据协议 | ActionEditor DTO/logic JSON、公共与 MOBA 播放器、Ability phase、clip identity、reset/异常/确定性边界 |
+| [09-Excel 与 ScriptableObject 编辑器同步](05-CommonModules/09-ExcelScriptableObjectSync.md) | Editor 数据同步 | 表头/schema/codec、导入提交边界、baseline 三方导出、代码生成、批处理和成熟度缺口 |
 
 ### 06 ECS 架构
 
 | 文档 | 定位 | 说明 |
 |------|------|------|
 | [01-ECS 核心概念](06-ECSArchitecture/01-ECSCoreConcepts.md) | ECS 模型 | EntityWorld、IECWorld、IEntity、IEntityId、ComponentRegistry、EntityQuery、组件索引、父子层级与世界事件 |
-| [02-Entitas 实现](06-ECSArchitecture/02-EntitasImplementation.md) | Entitas 适配 | EntitasWorld、EntitasWorldComposer、模块治理、系统生命周期 |
+| [02-Entitas 实现](06-ECSArchitecture/02-EntitasImplementation.md) | Entitas 适配 | 构造期 contexts 所有权、模块治理、自动安装排序、Reactive 解绑、MOBA generated contexts 与失败回滚缺口 |
 | [03-查询与遍历源码深潜](06-ECSArchitecture/03-QueryAndIteration.md) | 查询深潜 | EntityWorld.Query、QueryImpl、组件索引、snapshot、存活版本校验、Entitas/Svelto 查询差异 |
-| [04-Svelto 实现](06-ECSArchitecture/03-SveltoImplementation.md) | Svelto 适配 | SveltoWorldModule、SveltoWorldContext、EnginesRoot、EntitiesDB 与提交调度器 |
-| [05-查询与遍历总览](06-ECSArchitecture/04-QueryAndTraversal.md) | 查询总览 | EntityQuery、EntityWorld.QueryImpl、Entitas Group、Svelto EntitiesDB 查询策略 |
+| [04-Svelto 实现](06-ECSArchitecture/03-SveltoImplementation.md) | Svelto 适配 | World.DI 注册与替换边界、EntitiesDB 来源、Shooter 实体布局和结构批处理、稳定快照/hash 与集成测试证据 |
+| [05-查询与遍历总览](06-ECSArchitecture/04-QueryAndTraversal.md) | 查询总览 | EntityQuery 候选索引/实时状态/分配边界、Entitas Group 二级索引、Svelto 结构修改与确定性策略 |
 
 ### 07 网络同步
 
@@ -214,6 +216,8 @@ flowchart TB
 | [06-伤害计算](08-GameplayModules/06-DamageCalculation.md) | 伤害管线 | 通用 DamageCalculationPipeline、MOBA DamagePipelineService、减伤、护盾、触发事件与快照输出 |
 | [07-Targeting 系统](08-GameplayModules/07-TargetingSystem.md) | 目标查询 | Candidate、Rule、Scorer、Selector、稳定排序、Streaming Top-K、查询构建与池化边界 |
 | [08-Pipeline 与 Ability Runtime](08-GameplayModules/08-PipelineAndAbilityRuntime.md) | 通用执行运行时 | Pipeline run/phase 生命周期、实例隔离、暂停/取消/中断、Instant 差异、Ability 服务与 MOBA 特化边界 |
+| [09-EntityManager 与 SkillLibrary 索引基础设施](08-GameplayModules/09-EntityAndSkillIndexing.md) | 战斗索引 | 实体显式键、技能派生键、主存储通知顺序、非事务一致性、比较器边界与成熟度证据 |
+| [10-Motion Pipeline 与约束求解](08-GameplayModules/10-MotionPipeline.md) | 移动组合内核 | source 组内选择、跨组抑制、solver/leash/collision、事件时序、source 快照、池化所有权与确定性边界 |
 
 ### 09 示例与验收
 
@@ -256,6 +260,7 @@ flowchart TB
 | [04.12-Shooter 插值、混合预测与诊断深潜](09-ImplementationExamples/Shooter/11-InterpolationAndPredictionDeepDive.md) | 插值与预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor |
 | [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 |
 | [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 有序 fixed tick、Twin 五次穿透、敌人波次、空间索引、Bot 输入、终局边界与 checkpoint 确定性续跑 |
+| [04.15-Shooter 多进程故障矩阵与收敛证据](09-ImplementationExamples/Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md) | 故障矩阵 | recoverable retry、Gateway offline、slow consumer、三轮周期断线、版本化 manifest、PureState/reliable/FrameRecord diff/replay 收敛及进程端口治理 |
 
 ### 10 工程质量与测试
 
@@ -299,10 +304,15 @@ flowchart TB
 | Pipeline | `Unity/Packages/com.abilitykit.pipeline/Runtime` | package-linked build entry | Demo skill runner composes phases |
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
 | Targeting | `Unity/Packages/com.abilitykit.combat.targeting/Runtime` | package-linked build entry | Demo battle logic composes query adapters |
-| Flow | `Unity/Packages/com.abilitykit.flow/Runtime` | `src/AbilityKit.Flow` | Demo battle host loads runtime assemblies |
+| Entity / Skill Indexing | `Unity/Packages/com.abilitykit.combat.entitymanager/Runtime`、`Unity/Packages/com.abilitykit.combat.skilllibrary/Runtime` | `src/AbilityKit.Combat.EntityManager`、`src/AbilityKit.Combat.SkillLibrary` | MOBA entity indexing; SkillLibrary currently package example only |
+| Motion | `Unity/Packages/com.abilitykit.combat.motion/Runtime` | `src/AbilityKit.Combat.Motion` | MOBA motion component, init system and PlanActions |
+| Flow | `Unity/Packages/com.abilitykit.flow/Runtime` | `src/AbilityKit.Flow` | Samples.Logic、Unity package samples 与 Starter host |
+| Svelto ECS | `Unity/Packages/com.abilitykit.world.svelto/Runtime`、`Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Worlds/Svelto` | `src/AbilityKit.World.Svelto`、`src/AbilityKit.Demo.Shooter.Runtime.Tests` | Shooter entity layout、structural batch、snapshot/hash 与恢复测试 |
 | Game View Flow | `Unity/Packages/com.abilitykit.game.view.runtime/Runtime/Flow` | `src/AbilityKit.Game.View.Runtime.Tests` | Client phase feature binding and battle scope tests |
-| HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `Unity/AbilityKit.HFSM.Tests.csproj` | Unity package and tests |
+| HFSM | `Unity/Packages/com.abilitykit.hfsm/Runtime` | `src/AbilityKit.HFSM.Core`、`Unity/AbilityKit.HFSM.Tests.csproj` | Shooter Bot AI、MOBA View Flow 与 Unity Action/Graph tests |
 | CodeGen / Luban | `Unity/Packages/com.abilitykit.codegen`、MOBA package Resources/LubanGen | `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator`、`LubanConfig/Moba`、`tools/sync_moba_json_configs.ps1` | ET config validation and Console publication replica |
+| ActionTimeline | `Unity/Packages/com.abilitykit.actionschema/Runtime`、ActionEditor exporter、MOBA timeline runtime | `src/AbilityKit.ActionSchema` | MOBA Ability Timeline phase and View runners |
+| Excel / ScriptableObject Sync | `Unity/Packages/com.abilitykit.excel-sync/Editor` | Unity Editor-only; no standalone .NET mirror | Editor authoring tool, not a server/runtime loader |
 | Combat | `Unity/Packages/com.abilitykit.combat.*` | `src/AbilityKit.Combat.*` | Demo battle logic host |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime` | `src/AbilityKit.Record` | Smoke/replay tools |
 | Orleans Contracts | - | - | `Server/Orleans/src/AbilityKit.Orleans.Contracts` |
@@ -362,6 +372,12 @@ flowchart TB
 | 2026-07-14 | 2.39 | 第四批源码化补全：重写 Shooter 服务端适配与 Smoke 深潜，澄清 Battle runtime 和可选 FrameSync 路线，补齐玩家槽位/worldId、Room 启动非事务与 late join 补偿、packed/pure-state observer baseline、单双进程恢复、玩法终局、replay 与 cleanup 失败边界 |
 | 2026-07-14 | 2.40 | 第五批源码化补全：拆分 Shooter 运行时装配与玩法内核职责，修正完整 Tick 管线和 Twin 五次穿透，补齐 Blueprint/WorldModule、结构提交、实体容量静默截断、packed full/delta 非事务恢复、终局返回值与 checkpoint 确定性证据 |
 | 2026-07-15 | 2.41 | 第六批源码化补全：新增 CodeGen/Luban 生产链路专题，区分 Roslyn 与 runtime CodeGen，明确候选 JSON、package 权威源和 Console 副本，记录生成器构建阻断、注册调用缺口、Luban 失败传播和 CI 门禁现状 |
+| 2026-07-15 | 2.42 | 第七批源码化补全：新增 EntityManager/SkillLibrary 索引基础设施与 Motion Pipeline 专题，修正自动索引、事务一致性、比较器传播、默认 suppression、结束重叠、事件时序、source 快照和池化所有权边界 |
+| 2026-07-15 | 2.43 | 第八批源码化补全：新增 ActionTimeline 数据协议与 Excel-ScriptableObject 编辑器同步专题，区分 Triggering Schema、Luban 发布和 Editor authoring，补齐 clip identity/reset、三方冲突、baseline、批处理及测试成熟度边界 |
+| 2026-07-15 | 2.44 | 第九批既有 canonical 周期复核：更新 Flow 同步执行、池化所有权、控制节点终态、资源/HFSM/线程边界；更新 Svelto DB 来源、DI 替换边界、Shooter 结构批处理、稳定 hash 与集成证据，并建立持续复核批次 |
+| 2026-07-15 | 2.45 | 第十批既有 canonical 周期复核：更新 Entitas contexts/Systems/DI 生命周期、组合失败与释放缺口、自动安装和 Reactive 所有权、MOBA 生产接入；修正跨 ECS 查询的候选索引、低分配、实时状态、结构修改与确定性边界 |
+| 2026-07-15 | 2.46 | 第十一批既有 canonical 周期复核：修正 Timer 参数、异常、分配、非正 period、周期 duration 与完成回调边界；补齐 HFSM 转移优先级、pending 覆盖、初始化失败、生产接入、Graph builder 缺口和测试成熟度 |
+| 2026-07-15 | 2.47 | 第十二批既有 canonical 周期复核：纠正 Event 退订/Global API、snapshot/once 重入、异常与字符串释放缺陷；补齐 ObjectPool 锁内回调、失败非事务、manager 线程边界、旧 release handle、PooledObject 重复归还、配置固化及成熟度证据 |
 
 ---
 

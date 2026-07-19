@@ -30,4 +30,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\StateSync\*.base64" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,35 @@
 [
   {
+    "Id": 1,
+    "Name": "通用-普通攻击-兼容回退",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": []
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10010001,
+    "Name": "廉颇-普通攻击",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10010001, "ExecuteMode": 0, "EventTag": "lp_basic_melee" }
+          ]
+        }
+      }
+    ]
+  },
+  {
     "Id": 10010101,
-    "Name": "廉颇-爆裂冲撞-配置先行版",
+    "Name": "廉颇-爆裂冲撞",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
@@ -18,7 +46,7 @@
   },
   {
     "Id": 10010201,
-    "Name": "廉颇-熔岩重击-配置先行版",
+    "Name": "廉颇-熔岩重击",
     "PipelineContinuousTagTemplateId": 10010001,
     "Phases": [
       {
@@ -35,18 +63,94 @@
   },
   {
     "Id": 10010301,
-    "Name": "廉颇-天崩地裂-配置先行版",
+    "Name": "廉颇-天崩地裂",
     "PipelineContinuousTagTemplateId": 10010001,
+    "Phases": [
+      {
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101011],
+          "AbortOnFailure": true,
+          "FailReason": "skill_release_failed"
+        }
+      },
+      {
+        "Type": 4,
+        "RulePlan": {
+          "TriggerIds": [900101012],
+          "AbortOnFailure": true,
+          "FailReason": "skill_commit_failed"
+        }
+      },
+      {
+        "Type": 10,
+        "PhaseId": "lp_skill_3_stages",
+        "Children": [
+          {
+            "Type": 2,
+            "PhaseId": "lp_skill_3_stage_1",
+            "Timeline": {
+              "DurationMs": 650,
+              "Events": [
+                { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
+                { "AtMs": 0, "EffectId": 10010301, "ExecuteMode": 0, "EventTag": "lp_skill_3_start" }
+              ]
+            }
+          },
+          {
+            "Type": 14,
+            "PhaseId": "lp_skill_3_wait_after_stage_1",
+            "WaitUntil": {
+              "Condition": "ObservedSlotsIdle",
+              "TimeoutMs": 0,
+              "CompleteOnTimeout": true,
+              "ObservedSlots": [1, 2]
+            }
+          },
+          {
+            "Type": 2,
+            "PhaseId": "lp_skill_3_stage_2",
+            "Timeline": {
+              "DurationMs": 650,
+              "Events": [
+                { "AtMs": 0, "EffectId": 10010311, "ExecuteMode": 0, "EventTag": "lp_skill_3_second" }
+              ]
+            }
+          },
+          {
+            "Type": 14,
+            "PhaseId": "lp_skill_3_wait_after_stage_2",
+            "WaitUntil": {
+              "Condition": "ObservedSlotsIdle",
+              "TimeoutMs": 0,
+              "CompleteOnTimeout": true,
+              "ObservedSlots": [1, 2]
+            }
+          },
+          {
+            "Type": 2,
+            "PhaseId": "lp_skill_3_stage_3",
+            "Timeline": {
+              "DurationMs": 300,
+              "Events": [
+                { "AtMs": 0, "EffectId": 10010321, "ExecuteMode": 0, "EventTag": "lp_skill_3_third" }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Id": 10020001,
+    "Name": "小乔-普通攻击",
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 1600,
+          "DurationMs": 250,
           "Events": [
-            { "AtMs": 0, "EffectId": 10010000, "ExecuteMode": 0, "EventTag": "lp_passive_armor_start" },
-            { "AtMs": 0, "EffectId": 10010301, "ExecuteMode": 0, "EventTag": "lp_skill_3_start" },
-            { "AtMs": 650, "EffectId": 10010311, "ExecuteMode": 0, "EventTag": "lp_skill_3_second" },
-            { "AtMs": 1300, "EffectId": 10010321, "ExecuteMode": 0, "EventTag": "lp_skill_3_third" }
+            { "AtMs": 0, "EffectId": 10020001, "ExecuteMode": 0, "EventTag": "xq_basic_projectile" }
           ]
         }
       }
@@ -54,7 +158,7 @@
   },
   {
     "Id": 10020101,
-    "Name": "小乔-绽放之舞-配置先行版",
+    "Name": "小乔-绽放之舞",
     "Phases": [
       {
         "Type": 2,
@@ -69,7 +173,7 @@
   },
   {
     "Id": 10020201,
-    "Name": "小乔-甜蜜恋风-配置先行版",
+    "Name": "小乔-甜蜜恋风",
     "Phases": [
       {
         "Type": 2,
@@ -84,7 +188,7 @@
   },
   {
     "Id": 10020301,
-    "Name": "小乔-星华缭乱-配置先行版",
+    "Name": "小乔-星华缭乱",
     "Phases": [
       {
         "Type": 2,
@@ -98,13 +202,232 @@
     ]
   },
   {
-    "Id": 10060101,
-    "Name": "嬴政-王者惩戒-配置先行版",
+    "Id": 10030001,
+    "Name": "赵云-普通攻击",
     "Phases": [
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 300,
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030001, "ExecuteMode": 0, "EventTag": "zy_basic_melee" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030101,
+    "Name": "赵云-惊雷之龙",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030101, "ExecuteMode": 0, "EventTag": "zy_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030201,
+    "Name": "赵云-破云之龙",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030201, "ExecuteMode": 0, "EventTag": "zy_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10030301,
+    "Name": "赵云-天翔之龙",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 800,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10030301, "ExecuteMode": 0, "EventTag": "zy_skill_3_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040011,
+    "Name": "墨子-普通攻击",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040011, "ExecuteMode": 0, "EventTag": "mz_basic_projectile" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040101,
+    "Name": "墨子-和平漫步",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040101, "ExecuteMode": 0, "EventTag": "mz_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040112,
+    "Name": "墨子-和平漫步-强化近战普攻",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040112, "ExecuteMode": 0, "EventTag": "mz_skill_1_enhanced_basic" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040201,
+    "Name": "墨子-机关重炮",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040201, "ExecuteMode": 0, "EventTag": "mz_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10040301,
+    "Name": "墨子-墨守成规",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 3500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10040301, "ExecuteMode": 0, "EventTag": "mz_skill_3_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10050001,
+    "Name": "妲己-普通攻击",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10050001, "ExecuteMode": 0, "EventTag": "dj_basic_projectile" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10050101,
+    "Name": "妲己-灵魂冲击",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10050101, "ExecuteMode": 0, "EventTag": "dj_skill_1_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10050201,
+    "Name": "妲己-偶像魅力",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 500,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10050201, "ExecuteMode": 0, "EventTag": "dj_skill_2_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10050301,
+    "Name": "妲己-女王崇拜",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 1600,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10050301, "ExecuteMode": 0, "EventTag": "dj_skill_3_cast" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10060001,
+    "Name": "嬴政-普通攻击",
+    "Phases": [
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 250,
+          "Events": [
+            { "AtMs": 0, "EffectId": 10060001, "ExecuteMode": 0, "EventTag": "yz_basic_projectile" }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "Id": 10060101,
+    "Name": "嬴政-王者惩戒",
+    "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
+      {
+        "Type": 2,
+        "Timeline": {
+          "DurationMs": 800,
           "Events": [
             { "AtMs": 0, "EffectId": 10060101, "ExecuteMode": 0, "EventTag": "yz_skill_1_cast" }
           ]
@@ -114,15 +437,23 @@
   },
   {
     "Id": 10060201,
-    "Name": "嬴政-战力和谐-配置先行版",
+    "Name": "嬴政-王者守御",
     "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 700,
+          "DurationMs": 500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060201, "ExecuteMode": 0, "EventTag": "yz_skill_2_cast" },
-            { "AtMs": 400, "EffectId": 10060211, "ExecuteMode": 0, "EventTag": "yz_skill_2_damage" }
+            { "AtMs": 0, "EffectId": 10060201, "ExecuteMode": 0, "EventTag": "yz_skill_2_cast" }
           ]
         }
       }
@@ -130,19 +461,23 @@
   },
   {
     "Id": 10060301,
-    "Name": "嬴政-至尊皇冠-配置先行版",
+    "Name": "嬴政-至尊王权",
     "Phases": [
+      {
+        "Type": 1,
+        "Checks": {
+          "CheckCooldown": true,
+          "CheckCastingState": true,
+          "RequiredTags": [],
+          "BlockedTags": []
+        }
+      },
       {
         "Type": 2,
         "Timeline": {
-          "DurationMs": 5500,
+          "DurationMs": 2500,
           "Events": [
-            { "AtMs": 0, "EffectId": 10060301, "ExecuteMode": 0, "EventTag": "yz_skill_3_start" },
-            { "AtMs": 200, "EffectId": 10060311, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_1" },
-            { "AtMs": 1000, "EffectId": 10060312, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_2" },
-            { "AtMs": 1800, "EffectId": 10060313, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_3" },
-            { "AtMs": 2600, "EffectId": 10060314, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_4" },
-            { "AtMs": 3400, "EffectId": 10060315, "ExecuteMode": 0, "EventTag": "yz_skill_3_wave_5" }
+            { "AtMs": 0, "EffectId": 10060301, "ExecuteMode": 0, "EventTag": "yz_skill_3_cast" }
           ]
         }
       }

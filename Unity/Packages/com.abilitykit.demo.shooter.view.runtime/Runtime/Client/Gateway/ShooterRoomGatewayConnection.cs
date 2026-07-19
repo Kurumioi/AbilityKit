@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly RequestClient _requestClient;
         private ShooterClientSession? _session;
         private ShooterClientBattleHandle? _battle;
+        private long _lastReliableEventAckRequested;
         private bool _disposed;
 
         public ShooterRoomGatewayConnection(IConnection connection)
@@ -33,16 +34,20 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotApplyResult LastPushResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
 
+        public ShooterClientSession? CurrentSession => _session;
+
         public void AttachSession(ShooterClientSession session)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
             _battle = null;
+            _lastReliableEventAckRequested = session.LastReliableEventAck;
         }
 
         public void AttachBattle(ShooterClientBattleHandle battle)
         {
             _battle = battle ?? throw new ArgumentNullException(nameof(battle));
             _session = battle.Session;
+            _lastReliableEventAckRequested = battle.Session.LastReliableEventAck;
         }
 
         public Task<ArraySegment<byte>> SendRequestAsync(uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -65,7 +70,49 @@ namespace AbilityKit.Demo.Shooter.View
 
             LastPushResult = result;
             SnapshotPushDispatched?.Invoke(opCode, payload, result);
+            AcknowledgeReliableBattleEventsIfNeededAsync();
             RequestFullSnapshotResyncIfNeededAsync();
+        }
+
+        private void AcknowledgeReliableBattleEventsIfNeededAsync()
+        {
+            var battle = _battle;
+            if (battle == null
+                || battle.Session.NeedsReliableEventResync
+                || battle.Session.LastReliableEventAck <= _lastReliableEventAckRequested)
+            {
+                return;
+            }
+
+            _lastReliableEventAckRequested = battle.Session.LastReliableEventAck;
+            _ = AcknowledgeReliableBattleEventsAsync(battle, _lastReliableEventAckRequested);
+        }
+
+        private async Task AcknowledgeReliableBattleEventsAsync(ShooterClientBattleHandle battle, long requestedSequence)
+        {
+            try
+            {
+                var result = await battle.AcknowledgeReliableBattleEventsAsync().ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    if (_lastReliableEventAckRequested == requestedSequence)
+                    {
+                        _lastReliableEventAckRequested = Math.Max(0L, result.AcceptedAckSequence);
+                    }
+
+                    await battle.RequestFullSnapshotBaselineAsync("ReliableEventGap").ConfigureAwait(false);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch
+            {
+                if (_lastReliableEventAckRequested == requestedSequence)
+                {
+                    _lastReliableEventAckRequested = Math.Max(0L, requestedSequence - 1L);
+                }
+            }
         }
 
         private void RequestFullSnapshotResyncIfNeededAsync()

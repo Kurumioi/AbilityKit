@@ -1,5 +1,6 @@
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.Abstractions;

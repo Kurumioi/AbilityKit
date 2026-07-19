@@ -17,6 +17,42 @@ namespace AbilityKit.Game.Flow
             return go;
         }
 
+        /// <summary>Creates a fallback shell for Summon / Clone entities.</summary>
+        public GameObject CreateSummonFallback(int actorId, int modelId)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.localScale = new Vector3(0.8f, 1.5f, 0.8f);
+            ApplyColor(go, PickColor(actorId + modelId + 100, 0.9f));
+            return go;
+        }
+
+        /// <summary>Creates a fallback shell for Turret entities.</summary>
+        public GameObject CreateTurretFallback(int actorId, int modelId)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            go.transform.localScale = new Vector3(1.5f, 3f, 1.5f);
+            ApplyColor(go, PickColor(actorId + modelId + 200, 1f));
+            return go;
+        }
+
+        /// <summary>Creates a fallback shell for Monster entities.</summary>
+        public GameObject CreateMonsterFallback(int actorId, int modelId)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            go.transform.localScale = new Vector3(1f, 1f, 1f);
+            ApplyColor(go, PickColor(actorId + modelId + 300, 0.85f));
+            return go;
+        }
+
+        /// <summary>Creates a fallback shell for Building entities.</summary>
+        public GameObject CreateBuildingFallback(int actorId, int modelId)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.localScale = new Vector3(3f, 4f, 3f);
+            ApplyColor(go, PickColor(actorId + modelId + 400, 0.7f));
+            return go;
+        }
+
         public GameObject CreateAoeModelFallback()
         {
             return CreateAoeModelFallback(modelId: 0);
@@ -35,10 +71,17 @@ namespace AbilityKit.Game.Flow
         public GameObject CreateAoeRangeFallback(int templateId, float radius, int delayMs)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ConfigureAoeRange(go, templateId, radius, delayMs);
+            return go;
+        }
+
+        public void ConfigureAoeRange(GameObject go, int templateId, float radius, int delayMs)
+        {
+            if (go == null) return;
+
             var r = Mathf.Max(0.5f, radius);
             go.transform.localScale = new Vector3(r * 2f, 0.04f, r * 2f);
             ApplyColor(go, ResolveAoeColor(templateId, delayMs));
-            return go;
         }
 
         public GameObject CreateVfxFallback()
@@ -164,17 +207,36 @@ namespace AbilityKit.Game.Flow
 
     internal static class BattleViewPlaceholderIds
     {
+        // VFX placeholders
         public const int ProjectileVfx = 90000001;
         public const int ProjectileSpawnVfx = 90000002;
         public const int ProjectileHitVfx = 90000003;
         public const int ProjectileExpireVfx = 90000004;
         public const int PresentationCueVfx = 90000005;
+        public const int ActorDeathVfx = 90000006;
+        public const int ActorRespawnVfx = 90000007;
+        public const int SkillCastVfx = 90000008;
+        public const int BuffApplyVfx = 90000009;
+        public const int BuffTickVfx = 90000010;
+        public const int SummonSpawnVfx = 90000011;
+        public const int SummonDespawnVfx = 90000012;
+
+        // AOE model placeholders
         public const int AoeCircleModel = 90000101;
         public const int AoeSectorModel = 90000102;
 
+        // Shell model placeholders
+        public const int CharacterModel = 90001001;
+        public const int TurretModel = 90001002;
+        public const int MonsterModel = 90001003;
+        public const int BuildingModel = 90001004;
+
+        // Selection ring placeholder
+        public const int SelectionRingModel = 90000201;
+
         public static bool IsPlaceholderVfx(int vfxId)
         {
-            return vfxId >= ProjectileVfx && vfxId <= PresentationCueVfx;
+            return vfxId >= ProjectileVfx && vfxId <= SummonDespawnVfx;
         }
     }
 }

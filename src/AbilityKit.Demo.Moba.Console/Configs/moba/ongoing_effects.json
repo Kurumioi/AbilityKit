@@ -36,12 +36,21 @@
     "OnRemoveEffectId": 0
   },
   {
-    "Id": 10060000,
-    "Name": "嬴政-王者审判-持续剑意伤害",
-    "DurationMs": 3000,
-    "PeriodMs": 1000,
+    "Id": 20050301,
+    "Name": "妲己-女王崇拜-周期狐火",
+    "DurationMs": 1600,
+    "PeriodMs": 400,
     "OnApplyEffectId": 0,
-    "OnTickEffectId": 10060001,
+    "OnTickEffectId": 10050311,
+    "OnRemoveEffectId": 0
+  },
+  {
+    "Id": 20060301,
+    "Name": "嬴政-至尊王权-周期飞剑",
+    "DurationMs": 2500,
+    "PeriodMs": 250,
+    "OnApplyEffectId": 0,
+    "OnTickEffectId": 10060311,
     "OnRemoveEffectId": 0
   }
 ]

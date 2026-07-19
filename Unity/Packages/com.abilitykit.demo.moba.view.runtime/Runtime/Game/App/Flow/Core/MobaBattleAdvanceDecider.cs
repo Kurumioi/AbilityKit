@@ -22,7 +22,8 @@ namespace AbilityKit.Game.Flow
 
         /// <summary>
         /// 收到 FirstFrameReceived 信号：Prepare→PrepareDone；Connect→Connected；
-        /// CreateOrJoinWorld→JoinedWorld；LoadAssets→LoadingDone；其余不推进。
+        /// CreateOrJoinWorld→JoinedWorld；其余不推进。
+        /// 阶段 7a：LoadAssets 不再因首帧推进——真实资源加载完成由 <see cref="OnAssetsLoadCompleted"/> 驱动。
         /// </summary>
         public MobaBattleEvent? OnFirstFrameReceived(MobaBattleState current)
         {
@@ -31,9 +32,19 @@ namespace AbilityKit.Game.Flow
                 MobaBattleState.Prepare => MobaBattleEvent.PrepareDone,
                 MobaBattleState.Connect => MobaBattleEvent.Connected,
                 MobaBattleState.CreateOrJoinWorld => MobaBattleEvent.JoinedWorld,
-                MobaBattleState.LoadAssets => MobaBattleEvent.LoadingDone,
                 _ => null
             };
+        }
+
+        /// <summary>
+        /// 真实资源加载完成信号（manifest barrier）：仅在 LoadAssets 状态推进为 AssetsLoadCompleted；
+        /// 其余状态不推进。首帧不再代表资源加载完成。
+        /// </summary>
+        public MobaBattleEvent? OnAssetsLoadCompleted(MobaBattleState current)
+        {
+            return current == MobaBattleState.LoadAssets
+                ? MobaBattleEvent.AssetsLoadCompleted
+                : (MobaBattleEvent?)null;
         }
 
         /// <summary>收到 SessionFailed 信号：非 End 态一律 Ended；已在 End 不重复推进。</summary>
@@ -47,7 +58,9 @@ namespace AbilityKit.Game.Flow
         /// TryAdvanceOnCreateOrJoinWorldEnter / TryAdvanceOnLoadAssetsEnter）：
         /// Connect 看 SessionStarted‖FirstFrameReceived→Connected；
         /// CreateOrJoinWorld 看 FirstFrameReceived→JoinedWorld；
-        /// LoadAssets 看 FirstFrameReceived→LoadingDone；其余状态不补判。
+        /// 其余状态不补判。
+        /// 阶段 7a：LoadAssets 不再因 firstFrameReceived 自动推进——资源加载完成由
+        /// <see cref="OnAssetsLoadCompleted"/> 驱动（真实 manifest barrier）。
         /// </summary>
         public MobaBattleEvent? OnStateEntered(MobaBattleState current, bool sessionStarted, bool firstFrameReceived)
         {
@@ -55,7 +68,6 @@ namespace AbilityKit.Game.Flow
             {
                 MobaBattleState.Connect when sessionStarted || firstFrameReceived => MobaBattleEvent.Connected,
                 MobaBattleState.CreateOrJoinWorld when firstFrameReceived => MobaBattleEvent.JoinedWorld,
-                MobaBattleState.LoadAssets when firstFrameReceived => MobaBattleEvent.LoadingDone,
                 _ => null
             };
         }

@@ -18,13 +18,23 @@
 | Gateway 路由 | `Server/Orleans/src/AbilityKit.Orleans.Gateway/Gateway/Core/GatewayRequestRouter.cs` | opCode 到 handler，超时和异常映射 |
 | Handler 注册 | `Server/Orleans/src/AbilityKit.Server.Analyzers/Generators/Gateway/GatewayHandlerRegistrationGenerator.cs` | GatewayHandlerAttribute 生成注册代码 |
 | 房间目录 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomDirectoryGrain.cs` | Create/List/Notify/Remove Room |
-| 房间 Grain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` | Join/Ready/Command/StartBattle/LateJoin/Close |
-| 房间生命周期 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomLifecyclePolicy.cs` | Lobby/Starting/InBattle/Closing/Closed |
+| 房间 Grain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` | Join/Ready/Command/BeginLoading/ReportAssetsLoaded/CancelLoading/Tick/LateJoin/Close |
+| 房间状态机 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomStateMachine.cs` | BeginLoading/ReportAssetsLoaded/CancelLoading/PrepareCommit/CommitBattleStarted/RollbackBattleCommit 纯函数转换 |
+| 房间生命周期 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomLifecyclePolicy.cs` | Lobby/Loading/Starting/InBattle/Closing/Closed/Expired |
+| 房间持久状态 | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Rooms/RoomModels.cs` | RoomPersistentState、RoomLaunchPersistentState、RoomBattleCommitPersistentState、RoomPhase |
+| 加载请求模型 | `Server/Orleans/src/AbilityKit.Orleans.Contracts/Rooms/RoomLoadingModels.cs` | BeginLoadingRequest、ReportAssetsLoadedRequest、CancelLoadingRequest |
+| InitSpec 哈希 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomBattleInitSpecHasher.cs` | BattleInitParams 稳定哈希计算 |
+| RoomStateChanged 推送 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomStatePushBuilder.cs` | 构建 RoomStateChanged push payload（Grains 内联映射，不依赖 Gateway mapper） |
 | 战斗路线 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomFrameSyncRoute.cs` | FrameSync 与 BattleRuntime 启动决策 |
 | 战斗主机 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs` | 权威战斗世界和状态推送 |
 | 玩法模块 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplay/ServerGameplayModuleCatalog.cs` | RoomAdapter、BattleRuntimeAdapter、WorldBlueprint 注册 |
+| Gateway 加载 Handler | `Server/Orleans/src/AbilityKit.Orleans.Gateway/Gateway/Handlers/BeginLoadingHandler.cs`、`ReportAssetsLoadedHandler.cs`、`CancelLoadingHandler.cs`、`GetSnapshotHandler.cs` | opCode 112-115 请求处理 |
+| StartBattle 废弃 Handler | `Server/Orleans/src/AbilityKit.Orleans.Gateway/Gateway/Handlers/StartRoomBattleHandler.cs` | opCode 106 固定返回 Conflict |
+| Wire 映射 | `Server/Orleans/src/AbilityKit.Orleans.Gateway/Gateway/Handlers/RoomGatewayWireMapper.cs` | wire DTO ↔ Grain 请求映射（含 BeginLoading/ReportAssetsLoaded/CancelLoading） |
 
 ## 3. 请求主链路
+
+正式多人模式启动流程采用分阶段协议，取代旧的直接 `StartBattle`。主链路覆盖 Lobby 准备、加载屏障、自动 commit 与状态推送：
 
 ```mermaid
 sequenceDiagram
@@ -34,7 +44,6 @@ sequenceDiagram
     participant Handler as Gateway Handler
     participant Directory as RoomDirectoryGrain
     participant Room as RoomGrain
-    participant Frame as BattleFrameSyncGrain
     participant Battle as BattleLogicHostGrain
     participant Runtime as BattleRuntimeAdapter
 
@@ -43,23 +52,31 @@ sequenceDiagram
     Router->>Handler: HandleAsync
     Handler->>Directory: CreateRoom or ListRooms
     Directory->>Room: InitializeAsync
-    Handler->>Room: Join, Ready, GameplayCommand
-    Handler->>Room: StartBattle
-    Room->>Room: BuildBattleInitParams
-    Room->>Room: Resolve sync template route
-    alt Frame sync relay template
-        Room->>Frame: InitializeAsync
-        Room-->>Handler: StartRoomBattleResponse
-    else State sync or authoritative runtime template
-        Room->>Battle: InitializeBattleAsync
+    Handler->>Room: Join, SetLobbyReady, GameplayCommand (PickHero)
+    Handler->>Room: BeginLoading
+    Note over Room: 冻结 roster, LaunchGeneration++, 设 LoadingDeadline
+    Room-->>Client: RoomStateChanged push (phase=Loading, revision)
+    Handler->>Room: ReportAssetsLoaded (per member)
+    Note over Room: 标记成员 AssetsLoaded, 幂等
+    Room->>Room: Tick (auto-commit when all loaded)
+    Note over Room: phase=Starting, BattleCommit=Pending
+    Room->>Room: PrepareCommit (CommitId + InitSpecHash)
+    Room->>Battle: InitializeBattleAsync (idempotent via CommitId + InitSpecHash)
+    alt InitSpecHash mismatch
+        Room->>Room: RollbackBattleCommit (forceMax)
+        Room-->>Client: RoomStateChanged push (phase=Loading, generation++)
+    else Commit success
         Battle->>Runtime: Start
         Battle-->>Room: WorldStartAnchor
-        Room-->>Handler: StartRoomBattleResponse
+        Room->>Room: CommitBattleStarted (phase=InBattle)
+        Room-->>Client: RoomStateChanged push (phase=InBattle, battle identity)
     end
     Handler-->>Router: GatewayResponse
     Router-->>Gateway: response
     Gateway-->>Client: response packet or HTTP response
 ```
+
+> 旧的 `StartBattle`（opCode 106）入口已废弃，`StartRoomBattleHandler` 固定返回 `Conflict`，提示客户端改用 `BeginLoading` + `ReportAssetsLoaded` 流程。详见 [5.1 加载屏障与自动开战](#51-加载屏障与自动开战) 与 [5.2 幂等 Battle commit](#52-幂等-battle-commit)。
 
 ## 4. Gateway 路由设计
 
@@ -85,29 +102,93 @@ RoomGrain 内部状态由几个关键字段构成：
 | `_directoryKey` | RoomDirectoryGrain 的 key，用于通知房间列表变化 |
 | `_gameplay` | 当前 RoomType 对应的 IRoomGameplayAdapter |
 | `_gameplayState` | 玩法房间阶段状态，例如英雄选择、准备、loadout |
-| `_members` | 房间成员、在线状态、bot 状态 |
+| `_members` | 房间成员、在线状态、bot 状态、AssetsLoaded 标记 |
 | `_closed` | 房间是否对大厅动作关闭 |
 | `_battleId` | 已启动战斗 ID，当前用 RoomId 作为 battleId |
 | `_worldId` | 战斗世界 ID |
 | `_worldStartAnchor` | 客户端对齐服务器世界时间的锚点 |
+| `Launch` (`RoomLaunchPersistentState`) | 启动代际：`Generation`（只增不减）、`ManifestVersion`、`LoadingDeadlineUnixMs`、`LaunchManifestHash` |
+| `BattleCommit` (`RoomBattleCommitPersistentState`) | 战斗提交状态：`CommitId`、`InitSpecHash`、`Status`、`BattleId`、`WorldId`、`WorldStartAnchor`、`AttemptCount`、`LastError`、`Generation` |
+| `Revision` | 房间状态单调递增版本号，每次状态变更 +1，用于乐观并发与 push 排序 |
+| `LastEventSequence` | 事件序列号，用于客户端检测 push 缺口（gap） |
 
-生命周期由 RoomLifecyclePolicy 计算，而不是散落在各个方法中：
+生命周期由 RoomLifecyclePolicy 计算，而不是散落在各个方法中。正式多人模式状态机包含六个阶段：
 
 ```mermaid
 stateDiagram-v2
     [*] --> Lobby
-    Lobby --> Starting: StartBattle requested
-    Starting --> InBattle: Battle route initialized
+    Lobby --> Loading: BeginLoading (owner, roster frozen, Generation++)
+    Loading --> Starting: all members ReportAssetsLoaded (Tick auto-commit)
+    Starting --> InBattle: CommitBattleStarted (idempotent Battle init)
     InBattle --> Closing: Close or cleanup
     Closing --> Closed: Members cleared
+    Loading --> Lobby: CancelLoading or Tick timeout (Generation++)
+    Starting --> Loading: RollbackBattleCommit (retry, Generation unchanged)
+    Starting --> Lobby: RollbackBattleCommit forceMax (InitSpecHash mismatch)
     Lobby --> Closed: Owner closes empty room
     InBattle --> InBattle: Reconnect or LateJoin
     Closed --> [*]
 ```
 
+各阶段语义：
+
+| 阶段 | 允许的动作 | 不变量 |
+|------|-----------|--------|
+| Lobby | Join、SetLobbyReady、PickHero、BeginLoading（owner） | roster 可变；`IsOpenForLobbyActions=true` |
+| Loading | ReportAssetsLoaded、CancelLoading（owner） | roster 冻结；`LaunchGeneration` 已递增；`LoadingDeadlineUnixMs` 已设置 |
+| Starting | Tick 内部 commit；CancelLoading 不允许 | `BattleCommit.Status=Pending`；CommitId/InitSpecHash 首次写入后不可变 |
+| InBattle | SubmitBattleInput、LateJoin、Reconnect | `BattleCommit.Status=Committed`；battleId/worldId 已确定 |
+| Closing | 等待成员清理 | 不再接受新成员 |
+| Closed | 无 | `ShouldRemoveFromDirectory=true` |
+
+### 5.1 加载屏障与自动开战
+
+正式流程用加载屏障取代直接 `StartBattle`，确保所有成员在进入战斗前完成资源加载：
+
+```mermaid
+flowchart TB
+    Lobby[Lobby phase] --> Begin[owner: BeginLoading]
+    Begin --> Freeze[冻结 roster, Generation++, 设 LoadingDeadline]
+    Freeze --> Loading[Loading phase]
+    Loading --> Report[每个成员: ReportAssetsLoaded]
+    Report --> CheckAll{所有成员 AssetsLoaded?}
+    CheckAll -->|否| Wait[等待或 Tick 检查超时]
+    Wait --> Report
+    CheckAll -->|是| Starting[Starting phase, BattleCommit=Pending]
+    Wait -->|超时| Timeout[LoadingDeadline 到期]
+    Timeout --> BackLobby[回 Lobby, Generation++]
+    Loading --> Cancel[owner: CancelLoading]
+    Cancel --> BackLobby
+```
+
+关键设计点：
+
+| 机制 | 语义 |
+|------|------|
+| LaunchGeneration 隔离 | 每次 BeginLoading/CancelLoading/超时回滚都递增 `Generation`，且只增不减。客户端 `ReportAssetsLoaded` 必须携带匹配的 `LaunchGeneration`，过期 report 被幂等忽略（`LaunchGenerationMismatch`） |
+| roster 冻结 | 进入 Loading 后成员集合冻结，不允许 Join/Leave 改变参战名单，保证"所有成员 loaded"判定稳定 |
+| 超时回 Lobby | `LoadingDeadlineUnixMs` 到期后 Tick 将房间回退到 Lobby 并递增 `Generation`，避免永久卡在 Loading |
+| owner 迁移 | owner 离线或离开时，按 `JoinOrdinal` 稳定排序选择最小 JoinOrdinal 的在线成员作为新 owner，保证 BeginLoading/CancelLoading 始终有合法发起者 |
+| RoomStateChanged push | 每次 phase 变更后向所有在线成员推送 `RoomStateChanged`（opCode 9004），携带 phase、revision、LaunchGeneration、battle identity |
+
+### 5.2 幂等 Battle commit
+
+Starting 阶段的 Battle 初始化采用幂等 commit，避免重复创建战斗世界：
+
+| 概念 | 说明 |
+|------|------|
+| CommitId 格式 | `roomId:LaunchGeneration`（首次 commit 时确定，后续不可变） |
+| InitSpecHash | 由 `RoomBattleInitSpecHasher.Compute(BattleInitParams)` 计算，对战斗初始化参数做稳定哈希 |
+| AlreadyInitialized 幂等 | 若 `BattleLogicHostGrain` 已用相同 CommitId + InitSpecHash 初始化，直接返回成功，不重复创建世界 |
+| CommitId 冲突 | 若已存在 CommitId 但与新值不同，返回 `InvalidOperation`，拒绝覆盖 |
+| HashMismatch rollback | 若 Battle 返回 `InitSpecHashMismatch`，调用 `RollbackBattleCommit(forceMax: true)`，清空 CommitId/InitSpecHash/BattleId，回退到 Loading 并递增 `Generation` |
+| AttemptCount 重试 | 普通 commit 失败时 `AttemptCount++`，未超过 `DefaultBattleCommitMaxAttempts`（3）时保持在 Starting 重试；超过后回退 Loading |
+
+commit 流程源码入口：`RoomGrain.PrepareCommitAsync` / `RoomGrain.CommitBattleStartedAsync` / `RoomGrain.RollbackCommitAsync`，状态转换由 `RoomStateMachine.PrepareCommit` / `RoomStateMachine.CommitBattleStarted` / `RoomStateMachine.RollbackBattleCommit` 计算。
+
 ## 6. 房间启动战斗路线
 
-RoomGrain.StartBattleAsync 的核心决策是：当前 RoomType 和 SyncTemplate 到底需要启动什么。
+正式流程中，战斗启动由 Starting 阶段的幂等 commit 触发（见 [5.2 幂等 Battle commit](#52-幂等-battle-commit)），而非客户端直接调用 `StartBattle`。`RoomGrain.CommitBattleStartedAsync` 的核心决策是：当前 RoomType 和 SyncTemplate 到底需要启动什么。
 
 | 路线 | 条件 | 启动对象 | 说明 |
 |------|------|----------|------|
@@ -116,6 +197,8 @@ RoomGrain.StartBattleAsync 的核心决策是：当前 RoomType 和 SyncTemplate
 | Unsupported template | sync template 不在 profile 中 | 不启动 | 返回/记录不支持的模板，避免隐式 fallback 到错误同步模型 |
 
 路线由 RoomFrameSyncRoute 计算，输入来自 ServerGameplayModuleCatalog 的 sync profile。
+
+> **已废弃入口**：旧的 `StartBattle`（opCode 106）已不再驱动战斗启动。`StartRoomBattleHandler` 固定返回 `Conflict`，客户端必须改用 `BeginLoading` → `ReportAssetsLoaded` → 自动 commit 流程。保留 handler 注册仅为让旧客户端收到明确错误而非 `UnhandledOpCode`。
 
 ## 7. BattleLogicHostGrain 运行流程
 

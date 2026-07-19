@@ -30,6 +30,7 @@
     <ProjectReference Include="..\AbilityKit.Triggering\AbilityKit.Triggering.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Combat.Collision.Abstractions\AbilityKit.Combat.Collision.Abstractions.csproj" />
   </ItemGroup>
 
   <!-- NuGet Dependencies -->

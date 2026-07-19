@@ -37,6 +37,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public int CurrentFrame => _core.CurrentFrame;
 
+        public int GatewayInputFrame => CurrentFrame;
+
         public ShooterClientFrameSyncController FrameSync => _core.FrameSync;
 
         public ShooterClientInputCoordinator InputCoordinator => _core.InputCoordinator;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
@@ -68,6 +69,17 @@ namespace AbilityKit.Combat.Projectile
         }
 
         public bool Despawn(ProjectileId id) => _world.Despawn(id);
+
+        public bool Despawn(ProjectileId id, int frame, ProjectileExitReason reason)
+        {
+            if (!_world.Despawn(id, frame, reason, out var exitEvent))
+            {
+                return false;
+            }
+
+            _exitEvents.Add(exitEvent);
+            return true;
+        }
 
         public void Tick(int frame, float fixedDeltaSeconds)
         {

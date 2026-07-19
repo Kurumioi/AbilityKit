@@ -3,6 +3,8 @@
 > 分析日期：2026-06-14
 > 范围：`src/AbilityKit.Demo.Shooter.Runtime.Tests/` 全部 21 个测试类（~75 个 [Fact]）
 > 对照基准：《网络同步抽象审计与能力矩阵》§10 能力矩阵验收快照
+>
+> **历史快照警告（2026-07-16）**：本文保留用于追溯 2026-06-14 时点，不再代表当前实现状态。当前源码与测试已经覆盖 Hybrid 本地预测/远端插值、FastReconnect、AOI enter/stay/leave、PriorityBudget、LodFrequency、PureState baseline/delta 消费、有限带宽档案及 lag compensation。后续规划以 `plans/shooter-multiplayer-sync-optimization-roadmap.md`、当前源码和最新测试结果为准；本文中的测试数量和“未实现”判定不得作为新开发依据。
 
 ---
 

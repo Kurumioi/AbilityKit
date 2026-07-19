@@ -190,6 +190,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 EnableAim = obj["EnableAim"]?.Value<bool>() ?? false,
                 AimMode = obj["AimMode"]?.Value<int>() ?? 0,
                 AimMaxRadius = obj["AimMaxRadius"]?.Value<float>() ?? 0,
+                IndicatorShape = obj["IndicatorShape"]?.Value<int>() ?? 0,
+                IndicatorWorldWidth = obj["IndicatorWorldWidth"]?.Value<float>() ?? 0,
                 UsePointMode = obj["UsePointMode"]?.Value<int>() ?? 0,
                 SelectRange = obj["SelectRange"]?.Value<float>() ?? 0,
                 FaceToAim = obj["FaceToAim"]?.Value<bool>() ?? false
@@ -430,6 +432,9 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Speed = obj["Speed"]?.Value<float>() ?? 0,
                 LifetimeMs = obj["LifetimeMs"]?.Value<int>() ?? 0,
                 MaxDistance = obj["MaxDistance"]?.Value<float>() ?? 0,
+                CollisionWidth = obj["CollisionWidth"]?.Value<float>() ?? 0,
+                CollisionHeight = obj["CollisionHeight"]?.Value<float>() ?? 0,
+                CollisionLength = obj["CollisionLength"]?.Value<float>() ?? 0,
                 HitPolicyKind = obj["HitPolicyKind"]?.Value<int>() ?? 0,
                 HitsRemaining = obj["HitsRemaining"]?.Value<int>() ?? 0,
                 HitCooldownMs = obj["HitCooldownMs"]?.Value<int>() ?? 0,

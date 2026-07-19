@@ -15,4 +15,6 @@ public interface IBattleFrameSyncGrain : IGrainWithStringKey
     Task UnsubscribeAsync(IFrameSyncObserver observer);
 
     Task SubmitInputAsync(ulong worldId, int frame, FrameInputItem input);
+
+    Task<FrameInputSubmitResult> SubmitInputWithResultAsync(ulong worldId, int frame, FrameInputItem input);
 }

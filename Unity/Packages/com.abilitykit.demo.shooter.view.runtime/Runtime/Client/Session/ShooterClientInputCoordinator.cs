@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterClientFrameSyncController _frameSync;
         private readonly IShooterRoomGatewayClient? _gateway;
         private SyncHealthEvent[] _lastHealthEvents = EmptyHealthEvents;
+        private long _nextSubmissionId;
 
         public ShooterClientInputCoordinator(ShooterClientFrameSyncController frameSync)
             : this(frameSync, null)
@@ -36,7 +37,8 @@ namespace AbilityKit.Demo.Shooter.View
         {
             var packet = ShooterClientInputBuilder.CreatePacket(playerId, moveX, moveY, aimX, aimY, fire);
             var accepted = _frameSync.SubmitLocalInput(packet.Command);
-            return new ShooterClientInputSubmitResult(accepted, _frameSync.CurrentFrame, packet);
+            var submissionId = Interlocked.Increment(ref _nextSubmissionId);
+            return new ShooterClientInputSubmitResult(accepted, _frameSync.CurrentFrame, packet, submissionId);
         }
 
         public ShooterClientInputSubmitResult SubmitLocalInput(in ShooterPlayerCommand command)
@@ -44,7 +46,8 @@ namespace AbilityKit.Demo.Shooter.View
             var payload = ShooterInputCodec.Serialize(new[] { command });
             var packet = new ShooterInputPacket(ShooterOpCodes.Input.PlayerCommand, payload, in command);
             var accepted = _frameSync.SubmitLocalInput(in command);
-            return new ShooterClientInputSubmitResult(accepted, _frameSync.CurrentFrame, packet);
+            var submissionId = Interlocked.Increment(ref _nextSubmissionId);
+            return new ShooterClientInputSubmitResult(accepted, _frameSync.CurrentFrame, packet, submissionId);
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(

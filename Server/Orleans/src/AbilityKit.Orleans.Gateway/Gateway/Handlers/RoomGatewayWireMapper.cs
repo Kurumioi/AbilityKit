@@ -96,7 +96,8 @@ internal static class RoomGatewayWireMapper
             RoomId = roomId,
             NumericRoomId = RoomGatewayIds.CreateNumericRoomId(roomId),
             Snapshot = ToWireSnapshot(snapshot),
-            Message = message ?? string.Empty
+            Message = message ?? string.Empty,
+            ServerNowTicks = DateTime.UtcNow.Ticks
         };
     }
 
@@ -163,8 +164,71 @@ internal static class RoomGatewayWireMapper
             Players = ToWirePlayers(snapshot.Players),
             CanStart = snapshot.CanStart,
             BattleId = snapshot.BattleId ?? string.Empty,
-            WorldId = snapshot.WorldId
+            WorldId = snapshot.WorldId,
+            // 阶段 4 append-only 字段
+            WorldStartAnchor = ToWireAnchor(snapshot.WorldStartAnchor),
+            SchemaVersion = snapshot.SchemaVersion,
+            RoomRevision = snapshot.RoomRevision,
+            LastEventSequence = snapshot.LastEventSequence,
+            Phase = (int)snapshot.Phase,
+            PhaseReason = snapshot.PhaseReason ?? string.Empty,
+            LaunchGeneration = snapshot.LaunchGeneration,
+            LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
+            LaunchManifestHash = snapshot.LaunchManifestHash ?? string.Empty,
+            LaunchManifestVersion = snapshot.LaunchManifestVersion,
+            LastStartFailureCode = snapshot.LastStartFailureCode ?? string.Empty
         };
+    }
+
+    /// <summary>
+    /// 将 RoomOperationResult + 操作后快照映射为 wire 响应。
+    /// </summary>
+    public static WireRoomOperationRes ToRoomOperationRes(RoomOperationResult result, RoomSnapshot snapshot)
+    {
+        return new WireRoomOperationRes
+        {
+            Success = result.Success,
+            Applied = result.Applied,
+            ErrorCode = (int)result.ErrorCode,
+            Message = result.Message ?? string.Empty,
+            RoomRevision = result.RoomRevision,
+            Snapshot = ToWireSnapshot(snapshot)
+        };
+    }
+
+    /// <summary>
+    /// wire BeginLoading 请求 -> Grain BeginLoadingRequest。
+    /// </summary>
+    public static BeginLoadingRequest ToBeginLoadingReq(string accountId, WireBeginLoadingReq wire)
+    {
+        return new BeginLoadingRequest(
+            accountId,
+            wire.ExpectedRevision,
+            string.IsNullOrWhiteSpace(wire.CommandId) ? null : wire.CommandId);
+    }
+
+    /// <summary>
+    /// wire ReportAssetsLoaded 请求 -> Grain ReportAssetsLoadedRequest。
+    /// </summary>
+    public static ReportAssetsLoadedRequest ToReportAssetsLoadedReq(string accountId, WireReportAssetsLoadedReq wire)
+    {
+        return new ReportAssetsLoadedRequest(
+            accountId,
+            wire.LaunchGeneration,
+            wire.ManifestVersion,
+            string.IsNullOrWhiteSpace(wire.ManifestHash) ? null : wire.ManifestHash,
+            string.IsNullOrWhiteSpace(wire.CommandId) ? null : wire.CommandId);
+    }
+
+    /// <summary>
+    /// wire CancelLoading 请求 -> Grain CancelLoadingRequest。
+    /// </summary>
+    public static CancelLoadingRequest ToCancelLoadingReq(string accountId, WireCancelLoadingReq wire)
+    {
+        return new CancelLoadingRequest(
+            accountId,
+            wire.ExpectedRevision,
+            string.IsNullOrWhiteSpace(wire.CommandId) ? null : wire.CommandId);
     }
 
     public static WireRoomJoinKind ToWireJoinKind(RoomJoinKind joinKind)
@@ -284,7 +348,14 @@ internal static class RoomGatewayWireMapper
                 AttributeTemplateId = player.AttributeTemplateId,
                 BasicAttackSkillId = player.BasicAttackSkillId,
                 SkillIds = player.SkillIds == null ? null : new List<int>(player.SkillIds),
-                PlayerId = player.PlayerId
+                PlayerId = player.PlayerId,
+                // 阶段 4 append-only 字段
+                LobbyReady = player.LobbyReady,
+                AssetsLoaded = player.AssetsLoaded,
+                IsOnline = player.IsOnline,
+                JoinOrdinal = player.JoinOrdinal,
+                LoadedManifestVersion = player.LoadedManifestVersion,
+                LoadedManifestHash = player.LoadedManifestHash ?? string.Empty
             });
         }
 

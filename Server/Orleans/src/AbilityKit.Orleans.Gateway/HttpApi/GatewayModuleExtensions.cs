@@ -1,9 +1,12 @@
 namespace AbilityKit.Orleans.Gateway.HttpApi;
 
+using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Orleans.Gateway.Handlers;
+using AbilityKit.Orleans.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using AbilityKit.Orleans.Hosting;
+using Microsoft.Extensions.Options;
 
 public static class GatewayModuleExtensions
 {
@@ -11,6 +14,15 @@ public static class GatewayModuleExtensions
     {
         services.AddOptions<AbilityKitGatewayOptions>()
             .Bind(configuration.GetSection(AbilityKitServerConfigurationSections.Gateway));
+        services.AddOptions<BattleInputSecurityOptions>()
+            .Bind(configuration.GetSection(BattleInputSecurityOptions.ConfigurationSection))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<BattleInputSecurityOptions>, BattleInputSecurityOptionsValidator>();
+        services.AddSingleton(serviceProvider =>
+            new GatewayBattleInputGuard(
+                serviceProvider.GetRequiredService<IOptions<BattleInputSecurityOptions>>().Value));
+        services.AddSingleton<Core.GatewaySessionBinder>();
+        services.AddSingleton<Core.GatewayFrameSyncSubscriptionManager>();
 
         services.AddGatewayHttpApi();
         return services;
@@ -30,5 +42,16 @@ public static class GatewayModuleExtensions
             .WithName("Gateway.DebugConsole")
             .Produces(StatusCodes.Status302Found);
         return app;
+    }
+
+    private sealed class BattleInputSecurityOptionsValidator : IValidateOptions<BattleInputSecurityOptions>
+    {
+        public ValidateOptionsResult Validate(string? name, BattleInputSecurityOptions options)
+        {
+            var failures = BattleInputSecurityOptions.GetValidationFailures(options);
+            return failures.Count == 0
+                ? ValidateOptionsResult.Success
+                : ValidateOptionsResult.Fail(failures);
+        }
     }
 }

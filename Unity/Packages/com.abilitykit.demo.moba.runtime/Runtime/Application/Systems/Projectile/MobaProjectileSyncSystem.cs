@@ -42,6 +42,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private MobaAuthorityFrameService _authority;
         private IFrameTime _time;
+        private IMobaBattleDiagnosticEventSink _eventCollector;
 
         private readonly List<ProjectileSpawnEvent> _spawns = new List<ProjectileSpawnEvent>(64);
         private readonly List<ProjectileHitEvent> _hits = new List<ProjectileHitEvent>(128);
@@ -68,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
         internal MobaTraceRegistry Trace => _trace;
         internal AbilityKit.Demo.Moba.Services.MobaProjectileEventSnapshotService ProjectileSnapshots => _projectileSnapshots;
         internal global::ActorContext ActorContext => Contexts.Actor();
+        internal IMobaBattleDiagnosticEventSink EventCollector => _eventCollector;
 
         public MobaProjectileSyncSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -94,6 +96,7 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _authority);
             Services.TryResolve(out _time);
+            Services.TryResolve(out _eventCollector);
 
             _spawnHandler = new MobaProjectileSpawnSyncHandler(this);
             _tickHandler = new MobaProjectileTickSyncHandler(this);

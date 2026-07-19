@@ -58,7 +58,11 @@ public sealed partial class SubscribeStateSyncHandler : GatewayRequestHandlerBas
             var observerKey = $"{accountId}:{roomKey}";
             var observerGrain = _clusterClient.GetGrain<IStateSyncObserverGrain>(observerKey);
 
-            await observerGrain.SubscribeAsync(req.BattleId);
+            await observerGrain.SubscribeAsync(req.BattleId, new ReliableBattleEventSubscribeCursor
+            {
+                Epoch = req.EventEpoch ?? string.Empty,
+                LastAcknowledgedSequence = Math.Max(0, req.LastEventAck)
+            });
 
             var wire = new WireSubscribeStateSyncRes
             {

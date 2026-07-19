@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Projectile;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World;
@@ -31,6 +32,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
         private IMobaTemporaryEntityLifecycleService _lifecycle;
         private IMobaStageTriggerService _stageTriggers;
         private IMobaBattleDiagnosticsService _diagnostics;
+        private IMobaBattleDiagnosticEventSink _eventCollector;
         private IFrameTime _frameTime;
 
         private readonly List<AreaSpawnEvent> _spawns = new List<AreaSpawnEvent>(32);
@@ -53,6 +55,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             Services.TryResolve(out _lifecycle);
             Services.TryResolve(out _stageTriggers);
             Services.TryResolve(out _diagnostics);
+            Services.TryResolve(out _eventCollector);
             Services.TryResolve(out _frameTime);
         }
 
@@ -72,6 +75,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var info = RequireAreaInfo(evt.Area);
                 WarnAreaSync("publish.spawn", $"areaId={evt.Area.Value} templateId={info.TemplateId} owner={evt.OwnerId} frame={evt.Frame} sourceContextId={info.SourceContextId} rootContextId={info.RootContextId}");
                 PublishAreaEvent("area.spawn", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaSpawn, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: evt.Center, radius: evt.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                CollectAreaSpawned(in info);
             }
 
             PublishDueDelayAreaEvents();
@@ -122,6 +126,7 @@ namespace AbilityKit.Demo.Moba.Systems.Area
                 var evt = _expires[i];
                 var info = RequireAreaInfo(evt.Area);
                 PublishAreaEvent("area.expire", evt.Area.Value, info.TemplateId, MobaTraceKind.AreaExpire, evt, in info, ownerActorId: evt.OwnerId, targetActorId: 0, frame: evt.Frame, center: info.Center, radius: info.Radius, collider: default, info.CollisionLayerMask, info.MaxTargets);
+                CollectAreaEnded(in info);
                 _areaRuntime.Unregister(evt.Area);
             }
         }
@@ -237,6 +242,38 @@ namespace AbilityKit.Demo.Moba.Systems.Area
             }
 
             return 0;
+        }
+
+        // ===== 诊断 Producer：Area 生命周期草稿提交 =====
+
+        private void CollectAreaSpawned(in MobaAreaRuntimeInfo info)
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = MobaAreaDiagnosticProducer.CreateAreaSpawnedDraft(in info);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响区域生成流程，静默吞掉异常。
+            }
+        }
+
+        private void CollectAreaEnded(in MobaAreaRuntimeInfo info)
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = MobaAreaDiagnosticProducer.CreateAreaEndedDraft(in info);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响区域销毁流程，静默吞掉异常。
+            }
         }
     }
 }

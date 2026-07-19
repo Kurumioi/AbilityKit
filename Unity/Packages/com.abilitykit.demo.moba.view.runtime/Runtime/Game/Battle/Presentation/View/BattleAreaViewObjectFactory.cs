@@ -2,10 +2,10 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    internal sealed class BattleAreaViewObjectFactory
+    internal class BattleAreaViewObjectFactory
     {
-        private readonly BattleViewResourceProvider _resources;
-        private readonly BattleAreaViewObjectPlacer _placer;
+        protected readonly BattleViewResourceProvider _resources;
+        protected readonly BattleAreaViewObjectPlacer _placer;
 
         public BattleAreaViewObjectFactory(
             BattleViewResourceProvider resources = null,
@@ -15,34 +15,93 @@ namespace AbilityKit.Game.Flow
             _placer = placer ?? new BattleAreaViewObjectPlacer();
         }
 
-        public GameObject CreateModel(int modelId, Transform attach, in Vector3 position)
+        protected virtual GameObject CreateModelCore(int templateId, int modelId, Transform attach, in Vector3 position)
         {
-            return CreateAndPlace(modelId, createVfx: false, attach, in position);
+            var go = _resources.CreateModelGo(modelId);
+            if (go == null) return null;
+            _placer.Place(go, attach, in position);
+            return go;
+        }
+
+        protected virtual GameObject CreateRangeCore(int templateId, float radius, int delayMs, Transform attach, in Vector3 position)
+        {
+            var go = _resources.CreateAoeRangeGo(templateId, radius, delayMs);
+            if (go == null) return null;
+            _placer.Place(go, attach, in position);
+            return go;
+        }
+
+        protected virtual GameObject CreateVfxCore(int templateId, int vfxId, Transform attach, in Vector3 position)
+        {
+            var go = _resources.CreateVfxGo(vfxId);
+            if (go == null) return null;
+            _placer.Place(go, attach, in position);
+            return go;
+        }
+
+        public GameObject CreateModel(int templateId, int modelId, Transform attach, in Vector3 position)
+        {
+            return CreateModelCore(templateId, modelId, attach, in position);
         }
 
         public GameObject CreateRange(int templateId, float radius, int delayMs, Transform attach, in Vector3 position)
         {
-            var go = _resources.CreateAoeRangeGo(templateId, radius, delayMs);
-            if (go == null) return null;
-
-            _placer.Place(go, attach, in position);
-            return go;
+            return CreateRangeCore(templateId, radius, delayMs, attach, in position);
         }
 
-        public GameObject CreateVfx(int vfxId, Transform attach, in Vector3 position)
+        public GameObject CreateVfx(int templateId, int vfxId, Transform attach, in Vector3 position)
         {
-            return CreateAndPlace(vfxId, createVfx: true, attach, in position);
+            return CreateVfxCore(templateId, vfxId, attach, in position);
+        }
+    }
+
+    /// <summary>
+    /// Pooled version of <see cref="BattleAreaViewObjectFactory"/>.
+    /// The pool is constructed with factory lambdas that delegate to the underlying
+    /// non-pooled creation methods so all AOE objects go through the same creation path.
+    /// </summary>
+    internal sealed class PooledBattleAreaViewObjectFactory : BattleAreaViewObjectFactory
+    {
+        public BattleAreaVfxPool Pool { get; }
+
+        public PooledBattleAreaViewObjectFactory(BattleViewResourceProvider resources, BattleAreaVfxPool pool)
+            : base(resources, null)
+        {
+            Pool = pool;
         }
 
-        private GameObject CreateAndPlace(int viewId, bool createVfx, Transform attach, in Vector3 position)
+        protected override GameObject CreateModelCore(int templateId, int modelId, Transform attach, in Vector3 position)
         {
-            var go = createVfx
-                ? _resources.CreateVfxGo(viewId)
-                : _resources.CreateModelGo(viewId);
-            if (go == null) return null;
+            if (Pool != null && Pool.TryRent(templateId, BattleAreaVfxPool.PoolKind.Model, out var reused) && reused != null)
+            {
+                reused.name = $"AreaModel_{templateId}";
+                _placer.Place(reused, attach, in position);
+                return reused;
+            }
+            return base.CreateModelCore(templateId, modelId, attach, in position);
+        }
 
-            _placer.Place(go, attach, in position);
-            return go;
+        protected override GameObject CreateRangeCore(int templateId, float radius, int delayMs, Transform attach, in Vector3 position)
+        {
+            if (Pool != null && Pool.TryRent(templateId, BattleAreaVfxPool.PoolKind.Range, out var reused) && reused != null)
+            {
+                reused.name = $"AreaRange_{templateId}";
+                _resources.ConfigureAoeRangeGo(reused, templateId, radius, delayMs);
+                _placer.Place(reused, attach, in position);
+                return reused;
+            }
+            return base.CreateRangeCore(templateId, radius, delayMs, attach, in position);
+        }
+
+        protected override GameObject CreateVfxCore(int templateId, int vfxId, Transform attach, in Vector3 position)
+        {
+            if (Pool != null && Pool.TryRent(templateId, BattleAreaVfxPool.PoolKind.Vfx, out var reused) && reused != null)
+            {
+                reused.name = $"AreaVfx_{templateId}";
+                _placer.Place(reused, attach, in position);
+                return reused;
+            }
+            return base.CreateVfxCore(templateId, vfxId, attach, in position);
         }
     }
 

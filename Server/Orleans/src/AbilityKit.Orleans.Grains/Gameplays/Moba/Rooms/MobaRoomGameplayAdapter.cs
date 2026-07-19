@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
 using AbilityKit.Ability.Host.Extensions.Moba.Struct;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
+using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
@@ -16,6 +18,8 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
     public const string DefaultRoomType = GameplayRoomTypes.Moba;
 
     private static readonly DefaultMobaRoomGameStartSpecBuilder StartSpecBuilder = new();
+
+    private const string PersistentFormat = "moba.room.v1";
 
     public string RoomType => DefaultRoomType;
 
@@ -29,6 +33,26 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
             ReadIntTag(summary, "inputDelayFrames", 0));
         roomState.Configure(ReadIntTag(summary, "minPlayers", 1), summary.MaxPlayers);
         return roomState;
+    }
+
+    public RoomGameplayPersistentState ExportPersistentState(object state)
+    {
+        var snapshot = RequireMobaState(state).ExportPersistentState();
+        return new RoomGameplayPersistentState(PersistentFormat, 1, JsonSerializer.SerializeToUtf8Bytes(snapshot));
+    }
+
+    public object RestorePersistentState(RoomSummary summary, RoomGameplayPersistentState persistentState)
+    {
+        if (persistentState is null ||
+            persistentState.Version != 1 ||
+            !string.Equals(persistentState.Format, PersistentFormat, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Unsupported MOBA room persistent state format.");
+        }
+
+        var snapshot = JsonSerializer.Deserialize<MobaRoomPersistentSnapshot>(persistentState.Payload)
+            ?? throw new InvalidOperationException("MOBA room persistent state payload is empty.");
+        return MobaRoomState.RestorePersistentState(snapshot);
     }
 
     public void Join(object state, RoomSummary summary, IReadOnlyCollection<string> members, string accountId)
@@ -77,6 +101,44 @@ internal sealed class MobaRoomGameplayAdapter : IRoomGameplayAdapter
     public bool CanStart(object state)
     {
         return RequireMobaState(state).CanStart();
+    }
+
+    public bool ValidateBeginLoading(object state)
+    {
+        // MOBA: 复用 CanStart 作为玩法级可加载校验（人数满足 + 完整 loadout）。
+        return RequireMobaState(state).CanStart();
+    }
+
+    public RoomLaunchManifest BuildLaunchManifest(object state, RoomSummary summary)
+    {
+        var roomState = RequireMobaState(state);
+        var references = new List<string>();
+
+        var mapId = ReadIntTag(summary, "mapId", 1);
+        references.Add($"map:{mapId}");
+
+        foreach (var kv in roomState.Players)
+        {
+            var slot = kv.Value;
+            references.Add($"hero:{slot.HeroId}");
+            references.Add($"attr:{slot.AttributeTemplateId}");
+            references.Add($"basic:{slot.BasicAttackSkillId}");
+            if (slot.SkillIds is { Length: > 0 })
+            {
+                foreach (var skillId in slot.SkillIds)
+                {
+                    references.Add($"skill:{skillId}");
+                }
+            }
+        }
+
+        var metadata = new Dictionary<string, string>
+        {
+            ["mapId"] = mapId.ToString(),
+            ["players"] = roomState.Players.Count.ToString()
+        };
+
+        return RoomLaunchManifestBuilder.Build(RoomLaunchManifestBuilder.CurrentManifestVersion, references, metadata);
     }
 
     public List<RoomPlayerSnapshot> BuildPlayerSnapshots(object state)

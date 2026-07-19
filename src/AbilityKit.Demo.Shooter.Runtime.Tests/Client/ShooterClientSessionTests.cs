@@ -219,8 +219,11 @@ public sealed class ShooterClientSessionTests
         var command = new ShooterPlayerCommand(11, 1f, 0f, 0f, 1f, true);
 
         var result = await session.SubmitLocalInputToGatewayAsync(context, command);
+        var firstHealthView = session.LastFastReconnectHealthEvents;
+        var secondHealthView = session.LastFastReconnectHealthEvents;
 
         Assert.True(session.HasGateway);
+        Assert.Same(firstHealthView, secondHealthView);
         Assert.Equal(1, result.Local.AcceptedInputs);
         Assert.Equal(3, result.Local.RequestedFrame);
         Assert.True(result.Remote.Success);
@@ -230,8 +233,8 @@ public sealed class ShooterClientSessionTests
         Assert.Equal("Accepted", result.Remote.Status);
         Assert.False(result.Remote.ShouldResync);
         Assert.Equal(123456789L, result.Remote.ServerTicks);
-        Assert.Contains(session.LastFastReconnectHealthEvents, e => e.Kind == SyncHealthEventKind.InputAccepted && e.Frame == 7);
-        Assert.Contains(session.LastFastReconnectHealthEvents, e => e.Kind == SyncHealthEventKind.LagCompensatedValidationAccepted && e.Frame == 7);
+        Assert.Contains(firstHealthView, e => e.Kind == SyncHealthEventKind.InputAccepted && e.Frame == 7);
+        Assert.Contains(firstHealthView, e => e.Kind == SyncHealthEventKind.LagCompensatedValidationAccepted && e.Frame == 7);
         Assert.Equal(RoomGatewayOpCodes.SubmitBattleInput, transport.LastOpCode);
         Assert.True(transport.LastPayload.Count > 0);
         var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputReq>(transport.LastPayload);

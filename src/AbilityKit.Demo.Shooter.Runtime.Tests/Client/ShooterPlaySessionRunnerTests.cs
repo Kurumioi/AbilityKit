@@ -236,16 +236,26 @@ public sealed class ShooterPlaySessionRunnerTests
         runner.Start(options);
 
         var totalTicks = runner.Options.TickRate * 3;
+        var maxAuthoritativeEnemyCount = 0;
         for (var tick = 0; tick < totalTicks; tick++)
         {
             runner.Tick(1f / runner.Options.TickRate);
+            maxAuthoritativeEnemyCount = Math.Max(
+                maxAuthoritativeEnemyCount,
+                runner.Session!.Runtime.GetSnapshot().Enemies.Length);
         }
 
         Assert.Equal(totalTicks, runner.StepCount);
         Assert.Equal(totalTicks, view.RenderCount);
         Assert.Equal(ShooterBattleMatchState.Running, runner.Session!.Runtime.MatchState);
         Assert.True(runner.Session.Runtime.IsStarted);
-        Assert.True(view.MaxEnemyCount >= 2048, $"Expected the explicit high-density PlayMode scenario to demonstrate thousands of active enemies, but max was {view.MaxEnemyCount}.");
+        Assert.True(
+            maxAuthoritativeEnemyCount >= 2048,
+            $"Expected the explicit high-density PlayMode scenario to simulate thousands of active enemies, but max was {maxAuthoritativeEnemyCount}.");
+        Assert.InRange(
+            view.MaxEnemyCount,
+            1,
+            ShooterPureStateSyncSettings.Default.ActiveSyncBudget);
     }
 
     [Fact]

@@ -59,7 +59,7 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterGatewayBattleInputContext CreateCurrentFrameInputContext()
         {
-            return _flow.CreateBattleInputContext(_session.CurrentFrame);
+            return _flow.CreateBattleInputContext(_session.GatewayInputFrame);
         }
 
         public async Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(
@@ -103,15 +103,80 @@ namespace AbilityKit.Demo.Shooter.View
                 : Task.FromResult(ShooterGatewayFullStateSyncRequestResult.NotRequested);
         }
 
+        public Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (_roomClient == null)
+            {
+                return Task.FromResult(new ShooterGatewayStateSyncSubscriptionResult(false, "room client unavailable"));
+            }
+
+            return _roomClient.SubscribeStateSyncAsync(
+                new ShooterGatewayStateSyncSubscriptionRequest(
+                    _flow.SessionToken,
+                    _flow.BattleId,
+                    _flow.RoomId,
+                    _session.ReliableEventEpoch,
+                    _session.LastReliableEventAck),
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterGatewayReliableBattleEventAckResult> AcknowledgeReliableBattleEventsAsync(
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (_roomClient == null || string.IsNullOrWhiteSpace(_session.ReliableEventEpoch))
+            {
+                return Task.FromResult(new ShooterGatewayReliableBattleEventAckResult(false, 0L, "reliable event cursor unavailable"));
+            }
+
+            return _roomClient.AcknowledgeReliableBattleEventsAsync(
+                new ShooterGatewayReliableBattleEventAckRequest(
+                    _flow.SessionToken,
+                    _flow.BattleId,
+                    _flow.RoomId,
+                    _session.ReliableEventEpoch,
+                    _session.LastReliableEventAck),
+                timeout,
+                cancellationToken);
+        }
+
         public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotBaselineAsync(
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            return RequestFullSnapshotAsync(CreateBaselineFullStateSyncRequest(), timeout, cancellationToken);
+            return RequestFullSnapshotBaselineAsync(
+                ShooterClientResyncReason.None.ToString(),
+                timeout,
+                cancellationToken);
+        }
+
+        public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotBaselineAsync(
+            string reason,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RequestFullSnapshotAsync(CreateBaselineFullStateSyncRequest(reason), timeout, cancellationToken);
         }
 
         public ShooterGatewayFullStateSyncRequest CreateFullStateSyncRequest()
         {
+            if (_session.NeedsReliableEventResync)
+            {
+                return new ShooterGatewayFullStateSyncRequest(
+                    _flow.SessionToken,
+                    _flow.BattleId,
+                    _flow.RoomId,
+                    _flow.WorldId,
+                    _session.CurrentFrame,
+                    _session.CurrentFrame,
+                    0u,
+                    0u,
+                    "ReliableEventGap");
+            }
+
             if (_session.NeedsFullSnapshotResync)
             {
                 return new ShooterGatewayFullStateSyncRequest(
@@ -141,10 +206,10 @@ namespace AbilityKit.Demo.Shooter.View
                     reason);
             }
 
-            return CreateBaselineFullStateSyncRequest();
+            return CreateBaselineFullStateSyncRequest(ShooterClientResyncReason.None.ToString());
         }
 
-        private ShooterGatewayFullStateSyncRequest CreateBaselineFullStateSyncRequest()
+        private ShooterGatewayFullStateSyncRequest CreateBaselineFullStateSyncRequest(string reason)
         {
             return new ShooterGatewayFullStateSyncRequest(
                 _flow.SessionToken,
@@ -155,7 +220,7 @@ namespace AbilityKit.Demo.Shooter.View
                 _session.CurrentFrame,
                 0u,
                 0u,
-                ShooterClientResyncReason.None.ToString());
+                string.IsNullOrWhiteSpace(reason) ? ShooterClientResyncReason.None.ToString() : reason);
         }
 
         private async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullSnapshotAsync(
@@ -185,7 +250,9 @@ namespace AbilityKit.Demo.Shooter.View
 
         private bool ShouldRequestFullStateSync()
         {
-            return _session.NeedsFullSnapshotResync || _session.Presentation.NeedsPureStateFullBaselineResync;
+            return _session.NeedsReliableEventResync
+                || _session.NeedsFullSnapshotResync
+                || _session.Presentation.NeedsPureStateFullBaselineResync;
         }
 
         public Task<ShooterClientGatewayInputSubmitResult> SubmitLocalInputToGatewayAsync(

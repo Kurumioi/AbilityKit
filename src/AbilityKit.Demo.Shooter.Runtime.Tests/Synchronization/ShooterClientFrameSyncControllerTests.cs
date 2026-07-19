@@ -308,7 +308,7 @@ public sealed class ShooterClientFrameSyncControllerTests
         var presentation = new ShooterPresentationFacade();
         var controller = new ShooterClientFrameSyncController(local, presentation, tickRate: 30);
         var invalidPacked = new ShooterPackedSnapshotPayload(
-            version: 0,
+            version: ShooterPackedSnapshotCodec.CurrentVersion,
             worldId: 6991ul,
             frame: 1,
             serverTick: 10L,

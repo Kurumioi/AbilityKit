@@ -17,6 +17,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
@@ -42,6 +43,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
         [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates = null;
         [WorldInject(required: false)] private IWorldRandom _random = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
         public bool Shoot(int casterActorId, ProjectileEmitterType emitterType, int projectileCode, float speed, int lifetimeFrames, float maxDistance, in Vec3 aimPos, in Vec3 aimDir)
         {
@@ -136,10 +138,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             _links?.Link(pid, projectileActorId);
             BindProjectileSource(pid, casterActorId, 0, projectileCode, in sourceContext);
             RetainProjectileSkillRuntime(pid, projectileCode);
+            CollectProjectileSpawned(casterActorId, projectileActorId, projectileCode, in sourceContext);
             return true;
         }
 
-        private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter
+        private sealed class MobaTeamProjectileHitFilter : IProjectileHitFilter, IProjectileCollisionResponseResolver
         {
             private readonly MobaActorRegistry _registry;
 
@@ -150,12 +153,17 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
             public bool ShouldHit(int ownerId, ColliderId collider, int frame)
             {
-                if (collider.Value == 0) return false;
-                if (_registry == null) return true;
+                return ResolveCollision(ownerId, collider, frame) == ProjectileCollisionResponse.Hit;
+            }
+
+            public ProjectileCollisionResponse ResolveCollision(int ownerId, ColliderId collider, int frame)
+            {
+                if (collider.Value == 0) return ProjectileCollisionResponse.Ignore;
+                if (_registry == null) return ProjectileCollisionResponse.Ignore;
 
                 if (!_registry.TryGet(ownerId, out var owner) || owner == null)
                 {
-                    return true;
+                    return ProjectileCollisionResponse.Ignore;
                 }
 
                 var ownerTeam = owner.hasTeam ? owner.team.Value : Team.None;
@@ -176,24 +184,24 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 }
                 catch (Exception ex)
                 {
-                    Log.Exception(ex, "[MobaProjectileService] ShouldHit resolve collider->entity failed");
-                    return true;
+                    Log.Exception(ex, "[MobaProjectileService] ResolveCollision resolve collider->entity failed");
+                    return ProjectileCollisionResponse.Ignore;
                 }
 
-                if (hitEntity == null) return true;
+                if (hitEntity == null) return ProjectileCollisionResponse.Ignore;
 
                 // 不命中自身。
-                if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return false;
+                if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return ProjectileCollisionResponse.Ignore;
 
                 var targetTeam = hitEntity.hasTeam ? hitEntity.team.Value : Team.None;
 
                 // 默认策略：阻止同队友伤；允许命中中立或未分队目标。
                 if (ownerTeam != Team.None && targetTeam != Team.None && ownerTeam == targetTeam)
                 {
-                    return false;
+                    return ProjectileCollisionResponse.Ignore;
                 }
 
-                return true;
+                return ProjectileCollisionResponse.Hit;
             }
         }
 
@@ -426,7 +434,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 hitFilter: new MobaTeamProjectileHitFilter(_registry),
                 hitCooldownFrames: hitCooldownFrames,
                 lifecycle: lifecycle,
-                trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0);
+                trackingTargetActorId: request.TrackTarget ? request.SourceContext.InitialTargetActorId : 0,
+                collisionHalfExtents: new Vec3(
+                    projectile.CollisionWidth * 0.5f,
+                    projectile.CollisionHeight * 0.5f,
+                    projectile.CollisionLength * 0.5f));
  
             var sourceContext = request.SourceContext;
             var launcherSource = CreateLaunchSource(casterActorId, sourceContext.InitialTargetActorId, projectile.Id, in sourceContext);
@@ -656,6 +668,57 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             return false;
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateProjectileSpawnedDraft(
+            int casterActorId,
+            int projectileActorId,
+            int projectileConfigId,
+            in ProjectileSourceContext sourceContext)
+        {
+            sourceContext.TryGetOrigin(out var resolvedOrigin);
+            var handle = sourceContext.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var rootContextId = resolvedOrigin.EffectiveRootContextId != 0L
+                ? resolvedOrigin.EffectiveRootContextId
+                : sourceContext.RootContextId;
+            var contextId = sourceContext.SourceContextId != 0L
+                ? sourceContext.SourceContextId
+                : resolvedOrigin.ImmediateContextId;
+            var summary = $"projectileId={projectileConfigId}, projectileActorId={projectileActorId}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.ProjectileSpawned,
+                BattleDiagnosticEventChannel.TemporaryEntity,
+                BattleDiagnosticEventOutcome.Succeeded,
+                casterActorId,
+                sourceContext.InitialTargetActorId,
+                projectileConfigId,
+                rootContextId,
+                contextId,
+                runtime,
+                summary: summary);
+        }
+
+        private void CollectProjectileSpawned(
+            int casterActorId,
+            int projectileActorId,
+            int projectileConfigId,
+            in ProjectileSourceContext sourceContext)
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = CreateProjectileSpawnedDraft(casterActorId, projectileActorId, projectileConfigId, in sourceContext);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[MobaProjectileService] diagnostic collect failed (ProjectileSpawned)");
+            }
         }
 
         public void Dispose()

@@ -27,6 +27,9 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public float Speed;
         public int LifetimeMs;
         public float MaxDistance;
+        public float CollisionWidth;
+        public float CollisionHeight;
+        public float CollisionLength;
 
         public int HitPolicyKind;
         public int HitsRemaining;

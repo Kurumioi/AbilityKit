@@ -30,6 +30,7 @@ namespace AbilityKit.Combat.Projectile
 
         public readonly int CollisionLayerMask;
         public readonly ColliderId IgnoreCollider;
+        public readonly Vec3 CollisionHalfExtents;
 
         public readonly IProjectileHitPolicy HitPolicy;
         public readonly int HitsRemaining;
@@ -72,7 +73,8 @@ namespace AbilityKit.Combat.Projectile
             ProjectileLifecycleSpec lifecycle = default,
             int patternSlotIndex = 0,
             int patternSlotCount = 1,
-            int trackingTargetActorId = 0)
+            int trackingTargetActorId = 0,
+            Vec3 collisionHalfExtents = default)
         {
             OwnerId = ownerId;
             TemplateId = templateId;
@@ -90,6 +92,10 @@ namespace AbilityKit.Combat.Projectile
             MaxDistance = maxDistance;
             CollisionLayerMask = collisionLayerMask;
             IgnoreCollider = ignoreCollider;
+            CollisionHalfExtents = new Vec3(
+                MathUtil.Max(0f, collisionHalfExtents.X),
+                MathUtil.Max(0f, collisionHalfExtents.Y),
+                MathUtil.Max(0f, collisionHalfExtents.Z));
 
             HitPolicy = hitPolicy;
             HitsRemaining = hitsRemaining;
@@ -135,7 +141,8 @@ namespace AbilityKit.Combat.Projectile
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
-                trackingTargetActorId: TrackingTargetActorId);
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
         }
 
         public ProjectileSpawnParams WithPosition(in Vec3 position)
@@ -166,7 +173,8 @@ namespace AbilityKit.Combat.Projectile
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
-                trackingTargetActorId: TrackingTargetActorId);
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
         }
 
         public ProjectileSpawnParams WithLifecycle(in ProjectileLifecycleSpec lifecycle)
@@ -197,7 +205,8 @@ namespace AbilityKit.Combat.Projectile
                 lifecycle: lifecycle,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
-                trackingTargetActorId: TrackingTargetActorId);
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
         }
 
         public ProjectileSpawnParams WithPatternSlot(int slotIndex, int slotCount)
@@ -228,7 +237,8 @@ namespace AbilityKit.Combat.Projectile
                 lifecycle: Lifecycle,
                 patternSlotIndex: slotIndex,
                 patternSlotCount: slotCount,
-                trackingTargetActorId: TrackingTargetActorId);
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
         }
 
         public ProjectileSpawnParams WithSpawnFrame(int spawnFrame)
@@ -259,7 +269,8 @@ namespace AbilityKit.Combat.Projectile
                 lifecycle: Lifecycle,
                 patternSlotIndex: PatternSlotIndex,
                 patternSlotCount: PatternSlotCount,
-                trackingTargetActorId: TrackingTargetActorId);
+                trackingTargetActorId: TrackingTargetActorId,
+                collisionHalfExtents: CollisionHalfExtents);
         }
     }
 }

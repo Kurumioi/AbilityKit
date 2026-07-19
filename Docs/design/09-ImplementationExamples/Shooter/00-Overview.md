@@ -17,6 +17,7 @@ Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步
 | 插值与混合预测 | AuthoritativeInterpolation、HybridHeroPrediction、Diagnostics、DOTS Binder、TimeAnchor | [11-InterpolationAndPredictionDeepDive.md](11-InterpolationAndPredictionDeepDive.md) |
 | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、多人 Coordinator/服务端权威闭环 | [12-逻辑层流程与单机/多人模式](12-LogicLayerFlowSingleAndMultiplayer.md) |
 | 战斗玩法内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI、胜负状态 | [13-战斗玩法内核深潜](13-BattleGameplayKernelDeepDive.md) |
+| 多进程故障矩阵 | recoverable retry、Gateway offline、slow consumer、周期断线、manifest、reliable/diff/replay 收敛 | [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md) |
 | 工业化流程 | runtime/acceptance/sync 测试、Orleans smoke、replay artifact、DSL/配置环境测试 | [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) |
 | Gateway/Orleans/Smoke | room flow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、SmokeRunner | [05-服务端流程与 Smoke 深潜](05-ServerFlowAndSmokeDeepDive.md) |
 
@@ -133,6 +134,8 @@ Shooter 示例适合作为以下能力的参考实现：
 - 表现层会话、快照流、插值播放与权威对比验收；
 - Authoritative Interpolation、Hybrid Hero Prediction、DOTS View Binder 与时间锚点诊断；
 - 一帧战斗玩法管线、敌人波次、projectile 命中、空间索引、Bot AI 输入源和胜负状态裁决；
+- recoverable retry、Gateway offline、slow consumer 与三轮周期断线的真实多进程故障恢复；
+- 版本化 manifest、可靠事件 cursor、authoritative FrameRecord diff、完整/minimized replay、进程与端口组成的收敛证据链；
 - runtime/acceptance/sync 测试、Orleans smoke、replay artifact 与 DSL/配置环境测试组成的工业化验收链路。
 
 ## 5. 源码入口
@@ -170,5 +173,8 @@ Shooter 示例适合作为以下能力的参考实现：
 | RoomGrain | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs` |
 | Battle Adapter | `Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Battle/ShooterBattleRuntimeAdapter.cs` |
 | Smoke Runner | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs` |
+| Multiprocess Client Runner | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeClientProcessRunner.cs` |
+| Multiprocess Matrix | `Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1` |
+| Multiprocess Script Contracts | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterMultiprocessSmokeScriptContractTests.cs` |
 | Shooter Runtime Tests | `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`、`src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs` |
 | Shooter Smoke Script | `Server/Orleans/tools/run_shooter_smoke.ps1` |

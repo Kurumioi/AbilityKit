@@ -1,5 +1,7 @@
-using AbilityKit.Attributes.Core;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
+using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
@@ -7,6 +9,10 @@ namespace AbilityKit.Game.Editor
     {
         public string Name => "属性";
         public int Order => 200;
+
+        private readonly BattleDebugDiagnosticAttributesViewModel _viewModel =
+            new BattleDebugDiagnosticAttributesViewModel();
+        private Vector2 _scroll;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -18,41 +24,92 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            var unit = ctx.SelectedUnit;
-            EditorGUILayout.LabelField("属性", EditorStyles.boldLabel);
-
-            var attrCtx = unit.Attributes;
-            if (attrCtx == null || attrCtx.Groups == null || attrCtx.Groups.Count == 0)
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
-                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
+                EditorGUILayout.HelpBox(
+                    "诊断会话不可用。请确认战斗已启动且诊断 Local Session 已注册。",
+                    MessageType.Info);
                 return;
             }
 
-            foreach (var groupKv in attrCtx.Groups)
+            if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorAttributes))
             {
-                var groupName = string.IsNullOrEmpty(groupKv.Key) ? "默认" : groupKv.Key;
-                var group = groupKv.Value;
-                if (group == null) continue;
+                EditorGUILayout.HelpBox("当前诊断会话不支持实体属性查询。", MessageType.Info);
+                return;
+            }
 
-                EditorGUILayout.LabelField(groupName, EditorStyles.miniBoldLabel);
+            DrawToolbar(in ctx);
+            _viewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
 
-                if (group.Attributes == null || group.Attributes.Count == 0)
+            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.None);
+            }
+
+            _scroll = EditorGUILayout.BeginScrollView(_scroll);
+            var attributes = _viewModel.Attributes;
+            if (attributes == null || attributes.Count == 0)
+            {
+                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
+            }
+            else
+            {
+                for (var i = 0; i < attributes.Count; i++)
                 {
-                    EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
-                    continue;
-                }
-
-                foreach (var attrKv in group.Attributes)
-                {
-                    var attrId = AttributeId.FromRaw(attrKv.Key);
-                    var inst = attrKv.Value;
-                    if (inst == null) continue;
-
-                    var name = AttributeRegistry.DefaultRegistry.GetName(attrId);
-                    var v = inst.Value;
-                    EditorGUILayout.LabelField($"{name} ({attrKv.Key})", v.ToString("0.#####"), EditorStyles.miniLabel);
+                    DrawAttribute(attributes[i]);
                 }
             }
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawToolbar(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label($"Actor #{ctx.SelectedId.ActorId}", EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(60)))
+            {
+                _viewModel.InvalidateCache();
+                ctx.RequestRepaint?.Invoke();
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.LabelField(
+                $"AttributeStoreRevision={_viewModel.StoreRevision}",
+                EditorStyles.miniLabel);
+        }
+
+        private void DrawAttribute(in BattleDiagnosticActorAttribute attribute)
+        {
+            var displayName = string.IsNullOrEmpty(attribute.Name)
+                ? $"Attribute {attribute.AttributeId}"
+                : $"{attribute.Name} ({attribute.AttributeId})";
+
+            EditorGUILayout.BeginVertical(GUI.skin.box);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(displayName, EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.LabelField(
+                $"{attribute.BaseValue:0.#####} -> {attribute.FinalValue:0.#####}",
+                EditorStyles.miniLabel,
+                GUILayout.Width(150));
+            EditorGUILayout.EndHorizontal();
+
+            if (attribute.ModifierCount > 0)
+            {
+                var modifiers = _viewModel.Modifiers;
+                for (var i = 0; i < modifiers.Count; i++)
+                {
+                    var modifier = modifiers[i];
+                    if (modifier.AttributeId != attribute.AttributeId) continue;
+                    EditorGUILayout.LabelField(
+                        $"Op={modifier.Operation}  Value={modifier.Magnitude:0.#####}  " +
+                        $"Priority={modifier.Priority}  Source={modifier.SourceId}  " +
+                        $"MagnitudeType={modifier.MagnitudeType}",
+                        EditorStyles.miniLabel);
+                }
+            }
+
+            EditorGUILayout.EndVertical();
         }
     }
 }

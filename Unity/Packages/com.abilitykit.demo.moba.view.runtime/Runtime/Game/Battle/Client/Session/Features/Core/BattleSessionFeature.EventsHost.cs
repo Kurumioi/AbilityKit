@@ -46,5 +46,17 @@ namespace AbilityKit.Game.Flow
         public event Action SessionStarted;
         public event Action FirstFrameReceived;
         public event Action<Exception> SessionFailed;
+
+        // 阶段 7a：真实资源加载完成事件（manifest barrier）。
+        public event Action AssetsLoadCompleted;
+
+        /// <summary>
+        /// 阶段 7a：外部资源加载协调器在 manifest barrier 通过后调用，触发 <see cref="AssetsLoadCompleted"/>。
+        /// </summary>
+        internal void NotifyAssetsLoadCompleted()
+        {
+            Log.Info("[BattleSessionFeature] Assets load completed (manifest barrier)");
+            AssetsLoadCompleted?.Invoke();
+        }
     }
 }

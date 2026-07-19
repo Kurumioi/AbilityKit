@@ -25,6 +25,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly IShooterRoomGatewayRequestTransport _transport;
         private readonly uint _submitBattleInputOpCode;
+        private long _nextCommandSequence;
 
         public ShooterRoomGatewayClient(IShooterRoomGatewayRequestTransport transport)
             : this(transport, RoomGatewayOpCodes.SubmitBattleInput)
@@ -45,6 +46,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             Validate(in context);
 
+            var commandSequence = unchecked((ulong)Interlocked.Increment(ref _nextCommandSequence));
             var req = new WireSubmitBattleInputReq
             {
                 SessionToken = context.SessionToken,
@@ -53,7 +55,8 @@ namespace AbilityKit.Demo.Shooter.View
                 Frame = context.Frame,
                 PlayerId = context.PlayerId,
                 InputOpCode = packet.OpCode,
-                Payload = packet.Payload ?? Array.Empty<byte>()
+                Payload = packet.Payload ?? Array.Empty<byte>(),
+                CommandSequence = commandSequence
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var responsePayload = await _transport.SendRequestAsync(_submitBattleInputOpCode, payload, timeout, cancellationToken).ConfigureAwait(false);
@@ -65,7 +68,8 @@ namespace AbilityKit.Demo.Shooter.View
                 wire.CurrentFrame,
                 wire.Status ?? string.Empty,
                 wire.ShouldResync,
-                wire.ServerTicks);
+                wire.ServerTicks,
+                commandSequence);
         }
 
         private static void Validate(in ShooterGatewayBattleInputContext context)
@@ -105,13 +109,22 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly string Status;
         public readonly bool ShouldResync;
         public readonly long ServerTicks;
+        public readonly ulong CommandSequence;
 
         public ShooterGatewayBattleInputResult(bool success, int acceptedFrame, string message)
             : this(success, acceptedFrame, message, 0, string.Empty, false, 0L)
         {
         }
 
-        public ShooterGatewayBattleInputResult(bool success, int acceptedFrame, string message, int currentFrame, string status, bool shouldResync, long serverTicks)
+        public ShooterGatewayBattleInputResult(
+            bool success,
+            int acceptedFrame,
+            string message,
+            int currentFrame,
+            string status,
+            bool shouldResync,
+            long serverTicks,
+            ulong commandSequence = 0)
         {
             Success = success;
             AcceptedFrame = acceptedFrame;
@@ -120,6 +133,7 @@ namespace AbilityKit.Demo.Shooter.View
             Status = status ?? string.Empty;
             ShouldResync = shouldResync;
             ServerTicks = serverTicks;
+            CommandSequence = commandSequence;
         }
     }
 }

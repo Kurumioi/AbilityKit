@@ -9,6 +9,7 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Diagnostics;
 
@@ -361,6 +362,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly List<MobaBattleDiagnosticWarningRecord> _warnings = new List<MobaBattleDiagnosticWarningRecord>(32);
         private readonly List<MobaBattleDiagnosticExceptionRecord> _exceptions = new List<MobaBattleDiagnosticExceptionRecord>(32);
         private readonly MobaTemporaryEntityLifecycleHealth[] _lifecycleHealth = new MobaTemporaryEntityLifecycleHealth[3];
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         private long _inputAcceptedBatches;
         private long _inputAcceptedCommands;
         private long _inputHandledCommands;
@@ -467,11 +469,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             var finalMessage = AppendContext(message, in context);
             RecordWarningSnapshot(key, finalMessage, count, suppressedAtLimit, in context);
+            CollectWarningEvent(in context, finalMessage);
             AbilityKit.Core.Logging.Log.Warning(finalMessage);
             if (suppressedAtLimit)
             {
                 var suppressionMessage = $"[MobaDiagnostics] Further diagnostics suppressed for key={key}.";
                 RecordWarningSnapshot(key, suppressionMessage, count, true, in context);
+                CollectWarningEvent(in context, suppressionMessage);
                 AbilityKit.Core.Logging.Log.Warning(suppressionMessage);
             }
         }
@@ -491,11 +495,13 @@ namespace AbilityKit.Demo.Moba.Services
 
             var finalMessage = AppendContext(message, in context);
             RecordWarningSnapshot(key, finalMessage, count, suppressedAtLimit, in context);
+            CollectWarningEvent(in context, finalMessage);
             AbilityKit.Core.Logging.Log.Warning(finalMessage);
             if (suppressedAtLimit)
             {
                 var suppressionMessage = $"[MobaDiagnostics] Further diagnostics suppressed for key={key}.";
                 RecordWarningSnapshot(key, suppressionMessage, count, true, in context);
+                CollectWarningEvent(in context, suppressionMessage);
                 AbilityKit.Core.Logging.Log.Warning(suppressionMessage);
             }
         }
@@ -513,10 +519,46 @@ namespace AbilityKit.Demo.Moba.Services
             var message = string.IsNullOrEmpty(context) ? exception.Message : context;
             var finalMessage = AppendContext(message, in diagnosticContext);
             RecordExceptionSnapshot(key, exception.GetType().FullName, finalMessage, count, suppressedAtLimit, in diagnosticContext);
+            CollectExceptionEvent(in diagnosticContext, exception, finalMessage);
             AbilityKit.Core.Logging.Log.Exception(exception, $"[MobaDiagnostics] {finalMessage}");
             if (suppressedAtLimit)
             {
                 AbilityKit.Core.Logging.Log.Warning($"[MobaDiagnostics] Further exceptions suppressed for key={key}.");
+            }
+        }
+
+        private void CollectWarningEvent(in MobaBattleDiagnosticContext context, string message)
+        {
+            var collector = _eventCollector;
+            if (collector == null) return;
+
+            try
+            {
+                var draft = MobaExceptionDiagnosticProducer.CreateWarningDraft(in context, message);
+                collector.TryCollect(in draft);
+            }
+            catch (Exception ex)
+            {
+                AbilityKit.Core.Logging.Log.Exception(ex, "[MobaDiagnostics] diagnostic collect failed (Warning)");
+            }
+        }
+
+        private void CollectExceptionEvent(
+            in MobaBattleDiagnosticContext context,
+            Exception exception,
+            string message)
+        {
+            var collector = _eventCollector;
+            if (collector == null) return;
+
+            try
+            {
+                var draft = MobaExceptionDiagnosticProducer.CreateExceptionDraft(in context, exception, message);
+                collector.TryCollect(in draft);
+            }
+            catch (Exception ex)
+            {
+                AbilityKit.Core.Logging.Log.Exception(ex, "[MobaDiagnostics] diagnostic collect failed (Exception)");
             }
         }
 

@@ -37,15 +37,11 @@ namespace UnityHFSM.Actions
 
                 if (item is CompositeBehaviorItemConfig composite && composite.childIds != null)
                 {
-                    var compositeAction = action as CompositeActionBase;
-                    if (compositeAction != null)
+                    foreach (var childId in composite.childIds)
                     {
-                        foreach (var childId in composite.childIds)
+                        if (actionMap.TryGetValue(childId, out var childAction))
                         {
-                            if (actionMap.TryGetValue(childId, out var childAction))
-                            {
-                                compositeAction.AddChild(childAction);
-                            }
+                            AddCompositeChild(action, childAction);
                         }
                     }
                 }
@@ -92,13 +88,13 @@ namespace UnityHFSM.Actions
                 if (!actionMap.TryGetValue(item.id, out var action))
                     continue;
 
-                if (action is CompositeActionBase compositeAction)
+                if (item.IsComposite)
                 {
                     foreach (var childId in item.childIds)
                     {
                         if (actionMap.TryGetValue(childId, out var childAction))
                         {
-                            compositeAction.AddChild(childAction);
+                            AddCompositeChild(action, childAction);
                         }
                     }
                 }
@@ -153,6 +149,31 @@ namespace UnityHFSM.Actions
                 rootId = items[0].id;
 
             return BuildFromEditorItems(items, rootId);
+        }
+
+        private static void AddCompositeChild(IAction composite, IAction child)
+        {
+            switch (composite)
+            {
+                case SequenceAction sequence:
+                    sequence.children.Add(child);
+                    break;
+                case SelectorAction selector:
+                    selector.children.Add(child);
+                    break;
+                case ParallelAction parallel:
+                    parallel.children.Add(child);
+                    break;
+                case RandomSelectorAction randomSelector:
+                    randomSelector.children.Add(child);
+                    break;
+                case RandomSequenceAction randomSequence:
+                    randomSequence.children.Add(child);
+                    break;
+                case CompositeActionBase legacyComposite:
+                    legacyComposite.AddChild(child);
+                    break;
+            }
         }
 
         private static IAction CreateActionFromEditorItem(UnityHFSM.HfsmBehaviorItem item)

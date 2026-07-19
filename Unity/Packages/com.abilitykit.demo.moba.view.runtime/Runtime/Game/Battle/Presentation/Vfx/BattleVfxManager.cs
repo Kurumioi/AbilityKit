@@ -1,5 +1,6 @@
 using System;
 using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Flow;
 using AbilityKit.World.ECS;
 using UnityEngine;
@@ -11,22 +12,64 @@ namespace AbilityKit.Game.Battle.Vfx
     {
         private readonly BattleVfxEntityFactory _factory;
         private readonly BattleVfxFollowController _followController;
+        private readonly BattleVfxGameObjectPool _pool;
 
         public BattleVfxManager(VfxDatabase db)
             : this(db, null)
         {
         }
 
+        /// <summary>
+        /// Backwards-compatible constructor that does not wire the hierarchy manager.
+        /// New code should pass a manager via the internal constructor.
+        /// </summary>
         internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
             components ??= new BattleVfxManagerComponentFactory();
 
             var prefabs = components.CreatePrefabs();
+            var pool = components.CreatePool(db, prefabs);
             var lifetime = components.CreateLifetimePolicy();
-            _factory = components.CreateEntityFactory(db, prefabs, lifetime);
+            _pool = pool;
+            _factory = components.CreateEntityFactory(db, prefabs, lifetime, pool);
             _followController = components.CreateFollowController(lifetime);
         }
+
+        /// <summary>
+        /// Internal constructor that wires the hierarchy manager so VFX entities
+        /// are parented under the categorized active root.
+        /// </summary>
+        internal BattleVfxManager(VfxDatabase db, BattleVfxManagerComponentFactory components, BattleViewHierarchyManager hierarchy)
+        {
+            if (db == null) throw new ArgumentNullException(nameof(db));
+            components ??= new BattleVfxManagerComponentFactory();
+
+            var prefabs = components.CreatePrefabs();
+            var pool = components.CreatePool(db, prefabs, hierarchy);
+            var lifetime = components.CreateLifetimePolicy();
+            _pool = pool;
+            _factory = components.CreateEntityFactory(db, prefabs, lifetime, pool, hierarchy);
+            _followController = components.CreateFollowController(lifetime);
+        }
+
+        /// <summary>
+        /// Pool managed by this VFX manager. Available when the host (e.g.
+        /// <see cref="BattleVfxFeature"/>) opts in via the component factory.
+        /// Returns null when pooling is disabled.
+        /// </summary>
+        internal BattleVfxGameObjectPool Pool => _pool;
+
+        /// <summary>
+        /// Public accessor used by diagnostic overlays. Returns the underlying
+        /// <see cref="BattleVfxGameObjectPool"/> when pooling is enabled, or null.
+        /// </summary>
+        public BattleVfxGameObjectPool PoolForStats => _pool;
+
+        /// <summary>
+        /// Whether this manager is alive and can create VFX entities.
+        /// </summary>
+        public bool CanSpawn => _factory != null;
 
         public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, in Vector3 position, out EC.IEntity entity)
         {
@@ -46,6 +89,32 @@ namespace AbilityKit.Game.Battle.Vfx
         public bool TryCreateVfxEntity(EC.IECWorld world, EC.IEntity parent, int vfxId, EC.IEntityId followTarget, int followTargetActorId, in Vector3 position, in Quaternion rotation, int durationMsOverride, out EC.IEntity entity)
         {
             return _factory.TryCreateEntity(world, parent, vfxId, followTarget, followTargetActorId, in position, in rotation, durationMsOverride, out entity);
+        }
+
+        /// <summary>
+        /// Creates a VFX entity at a world-space position with optional rotation and lifetime.
+        /// Convenience overload that does not follow any actor.
+        /// </summary>
+        public bool TryCreateAoeVfx(in EC.IEntity parent, int vfxId, in Vector3 position, in Quaternion rotation, int durationMsOverride = 0)
+        {
+            return TryCreateAoeVfx(parent.World, parent, vfxId, in position, in rotation, durationMsOverride);
+        }
+
+        /// <summary>
+        /// Creates a VFX entity at a world-space position with optional rotation and lifetime.
+        /// </summary>
+        public bool TryCreateAoeVfx(EC.IECWorld world, in EC.IEntity parent, int vfxId, in Vector3 position, in Quaternion rotation, int durationMsOverride = 0)
+        {
+            return TryCreateVfxEntity(
+                world: world,
+                parent: parent,
+                vfxId: vfxId,
+                followTarget: default,
+                followTargetActorId: 0,
+                in position,
+                in rotation,
+                durationMsOverride: durationMsOverride,
+                out _);
         }
 
         public void Tick(in EC.IEntity vfxRoot)
@@ -79,16 +148,30 @@ namespace AbilityKit.Game.Battle.Vfx
             return _followController.DestroyByFollowTargetActorId(vfxRoot, targetActorId, DestroyVfxEntity);
         }
 
-        private static void DestroyVfxGameObject(EC.IEntity entity)
+        private void DestroyVfxGameObject(EC.IEntity entity)
         {
             if (!entity.IsValid) return;
             if (entity.TryGetRef(out BattleViewGameObjectComponent goComp) && goComp != null && goComp.GameObject != null)
             {
+                var go = goComp.GameObject;
+
+                if (_pool != null)
+                {
+                    var vfxId = entity.TryGetRef(out BattleVfxComponent vfxComp) && vfxComp != null
+                        ? vfxComp.VfxId
+                        : BattleVfxPoolableTag.Read(go);
+                    if (vfxId > 0 && _pool.Return(vfxId, go))
+                    {
+                        goComp.GameObject = null;
+                        return;
+                    }
+                }
+
 #if UNITY_EDITOR
-                if (!Application.isPlaying) UnityEngine.Object.DestroyImmediate(goComp.GameObject);
-                else UnityEngine.Object.Destroy(goComp.GameObject);
+                if (!Application.isPlaying) UnityEngine.Object.DestroyImmediate(go);
+                else UnityEngine.Object.Destroy(go);
 #else
-                UnityEngine.Object.Destroy(goComp.GameObject);
+                UnityEngine.Object.Destroy(go);
 #endif
                 goComp.GameObject = null;
             }
@@ -112,6 +195,25 @@ namespace AbilityKit.Game.Battle.Vfx
             return new BattleVfxPrefabCache();
         }
 
+        public BattleVfxGameObjectPool CreatePool(VfxDatabase db, BattleVfxPrefabCache prefabs)
+        {
+            return CreatePool(db, prefabs, hierarchy: null);
+        }
+
+        public BattleVfxGameObjectPool CreatePool(VfxDatabase db, BattleVfxPrefabCache prefabs, BattleViewHierarchyManager hierarchy)
+        {
+            var gameObjects = new BattleVfxGameObjectFactory(prefabs);
+            return new BattleVfxGameObjectPool(vfxId =>
+            {
+                if (db.TryGet(vfxId, out var dto) && dto != null && !string.IsNullOrEmpty(dto.Resource))
+                {
+                    return gameObjects.Create(vfxId, dto.Resource);
+                }
+
+                return gameObjects.CreatePlaceholder(vfxId);
+            }, hierarchy: hierarchy);
+        }
+
         public BattleVfxLifetimePolicy CreateLifetimePolicy()
         {
             return new BattleVfxLifetimePolicy();
@@ -120,9 +222,11 @@ namespace AbilityKit.Game.Battle.Vfx
         public BattleVfxEntityFactory CreateEntityFactory(
             VfxDatabase db,
             BattleVfxPrefabCache prefabs,
-            BattleVfxLifetimePolicy lifetime)
+            BattleVfxLifetimePolicy lifetime,
+            BattleVfxGameObjectPool pool = null,
+            BattleViewHierarchyManager hierarchy = null)
         {
-            return new BattleVfxEntityFactory(db, prefabs, lifetime);
+            return new BattleVfxEntityFactory(db, prefabs, lifetime, pool: pool, hierarchy: hierarchy);
         }
 
         public BattleVfxFollowController CreateFollowController(BattleVfxLifetimePolicy lifetime)

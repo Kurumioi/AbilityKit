@@ -23,6 +23,15 @@ namespace AbilityKit.Ability.World.DI
             return this;
         }
 
+        public WorldContainerBuilder Register(Type serviceType, Type implType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
+            if (implType == null) throw new ArgumentNullException(nameof(implType));
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            _map[serviceType] = new WorldServiceDescriptor(serviceType, implType, lifetime, factory);
+            return this;
+        }
+
         public WorldContainerBuilder TryRegister(Type serviceType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
         {
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
@@ -30,6 +39,18 @@ namespace AbilityKit.Ability.World.DI
             if (!_map.ContainsKey(serviceType))
             {
                 _map[serviceType] = new WorldServiceDescriptor(serviceType, lifetime, factory);
+            }
+            return this;
+        }
+
+        public WorldContainerBuilder TryRegister(Type serviceType, Type implType, WorldLifetime lifetime, Func<IWorldResolver, object> factory)
+        {
+            if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
+            if (implType == null) throw new ArgumentNullException(nameof(implType));
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
+            if (!_map.ContainsKey(serviceType))
+            {
+                _map[serviceType] = new WorldServiceDescriptor(serviceType, implType, lifetime, factory);
             }
             return this;
         }
@@ -66,7 +87,7 @@ namespace AbilityKit.Ability.World.DI
         public WorldContainerBuilder RegisterType<TService, TImpl>(WorldLifetime lifetime)
             where TImpl : TService
         {
-            return Register(typeof(TService), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
+            return Register(typeof(TService), typeof(TImpl), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
         }
 
         public WorldContainerBuilder RegisterType<TService, TImpl>()
@@ -79,7 +100,7 @@ namespace AbilityKit.Ability.World.DI
         {
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
             if (implType == null) throw new ArgumentNullException(nameof(implType));
-            return Register(serviceType, lifetime, r => WorldActivator.Create(implType, r));
+            return Register(serviceType, implType, lifetime, r => WorldActivator.Create(implType, r));
         }
 
         public WorldContainerBuilder RegisterType(Type serviceType, Type implType)
@@ -90,7 +111,7 @@ namespace AbilityKit.Ability.World.DI
         public WorldContainerBuilder TryRegisterType<TService, TImpl>(WorldLifetime lifetime)
             where TImpl : TService
         {
-            return TryRegister(typeof(TService), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
+            return TryRegister(typeof(TService), typeof(TImpl), lifetime, r => WorldActivator.Create(typeof(TImpl), r));
         }
 
         public WorldContainerBuilder TryRegisterType<TService, TImpl>()
@@ -103,7 +124,7 @@ namespace AbilityKit.Ability.World.DI
         {
             if (serviceType == null) throw new ArgumentNullException(nameof(serviceType));
             if (implType == null) throw new ArgumentNullException(nameof(implType));
-            return TryRegister(serviceType, lifetime, r => WorldActivator.Create(implType, r));
+            return TryRegister(serviceType, implType, lifetime, r => WorldActivator.Create(implType, r));
         }
 
         public WorldContainerBuilder TryRegisterType(Type serviceType, Type implType)

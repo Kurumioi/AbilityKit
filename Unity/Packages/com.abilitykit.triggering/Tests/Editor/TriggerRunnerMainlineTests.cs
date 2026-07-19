@@ -38,10 +38,13 @@ namespace AbilityKit.Triggering.Tests
 
         private sealed class RecordingLifecycle<TCtx> : ITriggerLifecycle<TCtx>
         {
-            public long[] RegisteredOrders { get; } = Array.Empty<long>();
+            private readonly List<long> _registeredOrders = new List<long>();
+
+            public long[] RegisteredOrders => _registeredOrders.ToArray();
 
             public void OnRegistered<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger, int phase, int priority, long order)
             {
+                _registeredOrders.Add(order);
             }
 
             public void OnUnregistered<TArgs>(EventKey<TArgs> key, ITrigger<TArgs, TCtx> trigger)

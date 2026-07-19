@@ -30,6 +30,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(entry.TryGetNode(1, out var systems));
             Assert.IsTrue(systems.IsValid);
 
+            InvokePrivate(entry, "OnDestroy");
             Object.DestroyImmediate(go);
 
             Assert.IsFalse(GameEntry.IsInitialized);

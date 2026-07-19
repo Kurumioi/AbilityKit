@@ -356,15 +356,6 @@
     "Name": "妲己-灵魂冲击",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
-      {
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
@@ -380,15 +371,6 @@
     "Name": "妲己-偶像魅力",
     "Phases": [
       {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
-      {
         "Type": 2,
         "Timeline": {
           "DurationMs": 500,
@@ -403,15 +385,6 @@
     "Id": 10050301,
     "Name": "妲己-女王崇拜",
     "Phases": [
-      {
-        "Type": 1,
-        "Checks": {
-          "CheckCooldown": true,
-          "CheckCastingState": true,
-          "RequiredTags": [],
-          "BlockedTags": []
-        }
-      },
       {
         "Type": 2,
         "Timeline": {

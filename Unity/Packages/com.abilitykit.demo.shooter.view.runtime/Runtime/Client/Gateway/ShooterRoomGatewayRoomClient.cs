@@ -46,8 +46,28 @@ namespace AbilityKit.Demo.Shooter.View
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
+        Task<ShooterGatewayRoomOperationResult> BeginLoadingAsync(
+            ShooterGatewayBeginLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ShooterGatewayRoomOperationResult> ReportAssetsLoadedAsync(
+            ShooterGatewayReportAssetsLoadedRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
+            ShooterGatewayGetRoomSnapshotRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
         Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
             ShooterGatewayStateSyncSubscriptionRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+
+        Task<ShooterGatewayReliableBattleEventAckResult> AcknowledgeReliableBattleEventsAsync(
+            ShooterGatewayReliableBattleEventAckRequest request,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
@@ -257,6 +277,74 @@ namespace AbilityKit.Demo.Shooter.View
                 wire.Message ?? string.Empty);
         }
 
+        public async Task<ShooterGatewayRoomOperationResult> BeginLoadingAsync(
+            ShooterGatewayBeginLoadingRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+
+            var req = new WireBeginLoadingReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId,
+                ExpectedRevision = request.ExpectedRevision,
+                CommandId = request.CommandId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.BeginLoading, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToRoomOperationResult(in wire);
+        }
+
+        public async Task<ShooterGatewayRoomOperationResult> ReportAssetsLoadedAsync(
+            ShooterGatewayReportAssetsLoadedRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+
+            var req = new WireReportAssetsLoadedReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId,
+                LaunchGeneration = request.LaunchGeneration,
+                ManifestVersion = request.ManifestVersion,
+                ManifestHash = request.ManifestHash,
+                CommandId = request.CommandId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.ReportAssetsLoaded, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToRoomOperationResult(in wire);
+        }
+
+        public async Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(
+            ShooterGatewayGetRoomSnapshotRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateRoomOperation(request.SessionToken, request.RoomId);
+
+            var req = new WireGetSnapshotReq
+            {
+                SessionToken = request.SessionToken,
+                RoomId = request.RoomId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.GetSnapshot, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
+            var wireSnapshot = wire.Snapshot;
+            var snapshot = ToStagedSnapshot(in wireSnapshot);
+            return new ShooterGatewayGetRoomSnapshotResult(
+                wire.Success,
+                wire.RoomId ?? string.Empty,
+                wire.NumericRoomId,
+                snapshot,
+                wire.Message ?? string.Empty,
+                wire.ServerNowTicks);
+        }
+
         public async Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(
             ShooterGatewayStateSyncSubscriptionRequest request,
             TimeSpan? timeout = null,
@@ -268,12 +356,38 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 SessionToken = request.SessionToken,
                 BattleId = request.BattleId,
-                RoomId = request.RoomId
+                RoomId = request.RoomId,
+                EventEpoch = request.EventEpoch,
+                LastEventAck = request.LastEventAck
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _transport.SendRequestAsync(_opCodes.SubscribeStateSync, payload, timeout, cancellationToken).ConfigureAwait(false);
             var wire = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncRes>(respPayload);
             return new ShooterGatewayStateSyncSubscriptionResult(wire.Success, wire.Message ?? string.Empty);
+        }
+
+        public async Task<ShooterGatewayReliableBattleEventAckResult> AcknowledgeReliableBattleEventsAsync(
+            ShooterGatewayReliableBattleEventAckRequest request,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateReliableBattleEventAck(in request);
+
+            var req = new WireAckReliableBattleEventsReq
+            {
+                SessionToken = request.SessionToken,
+                BattleId = request.BattleId,
+                RoomId = request.RoomId,
+                Epoch = request.Epoch,
+                AckSequence = request.AckSequence
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _transport.SendRequestAsync(_opCodes.AckReliableBattleEvents, payload, timeout, cancellationToken).ConfigureAwait(false);
+            var wire = WireRoomGatewayBinary.Deserialize<WireAckReliableBattleEventsRes>(respPayload);
+            return new ShooterGatewayReliableBattleEventAckResult(
+                wire.Success,
+                wire.AcceptedAckSequence,
+                wire.Message ?? string.Empty);
         }
 
         public async Task<ShooterGatewayFullStateSyncRequestResult> RequestFullStateSyncAsync(
@@ -388,11 +502,27 @@ namespace AbilityKit.Demo.Shooter.View
             if (request.ProtocolVersion <= 0) throw new ArgumentOutOfRangeException(nameof(request));
         }
 
+        private static void ValidateRoomOperation(string sessionToken, string roomId)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+        }
+
         private static void ValidateStateSyncSubscription(in ShooterGatewayStateSyncSubscriptionRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
             if (string.IsNullOrWhiteSpace(request.BattleId)) throw new ArgumentException("battleId is required.", nameof(request));
             if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            if (request.LastEventAck < 0) throw new ArgumentOutOfRangeException(nameof(request));
+        }
+
+        private static void ValidateReliableBattleEventAck(in ShooterGatewayReliableBattleEventAckRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionToken)) throw new ArgumentException("sessionToken is required.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.BattleId)) throw new ArgumentException("battleId is required.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.RoomId)) throw new ArgumentException("roomId is required.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.Epoch)) throw new ArgumentException("epoch is required.", nameof(request));
+            if (request.AckSequence < 0) throw new ArgumentOutOfRangeException(nameof(request));
         }
 
         private static void ValidateFullStateSyncRequest(in ShooterGatewayFullStateSyncRequest request)
@@ -505,6 +635,40 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        private static ShooterGatewayRoomOperationResult ToRoomOperationResult(in WireRoomOperationRes wire)
+        {
+            var wireSnapshot = wire.Snapshot;
+            var snapshot = ToStagedSnapshot(in wireSnapshot);
+            return new ShooterGatewayRoomOperationResult(
+                wire.Success,
+                wire.Applied,
+                wire.ErrorCode,
+                wire.Message ?? string.Empty,
+                wire.RoomRevision,
+                snapshot);
+        }
+
+        private static ShooterGatewayStagedRoomSnapshot ToStagedSnapshot(in WireRoomSnapshot wire)
+        {
+            var wireAnchor = wire.WorldStartAnchor;
+            var anchor = ToAnchor(in wireAnchor);
+            return new ShooterGatewayStagedRoomSnapshot(
+                wire.Summary.RoomId ?? string.Empty,
+                wire.Phase,
+                wire.PhaseReason ?? string.Empty,
+                wire.LaunchGeneration,
+                wire.LoadingDeadlineUnixMs,
+                wire.LaunchManifestHash ?? string.Empty,
+                wire.LaunchManifestVersion,
+                wire.LastStartFailureCode ?? string.Empty,
+                wire.RoomRevision,
+                wire.LastEventSequence,
+                wire.CanStart,
+                wire.BattleId ?? string.Empty,
+                wire.WorldId,
+                in anchor);
+        }
+
         private static ShooterGatewayWorldStartAnchor ToAnchor(in WireWorldStartAnchor anchor)
         {
             return new ShooterGatewayWorldStartAnchor(anchor.StartServerTicks, anchor.ServerTickFrequency, anchor.StartFrame, anchor.FixedDeltaSeconds);
@@ -523,7 +687,8 @@ namespace AbilityKit.Demo.Shooter.View
             RoomGatewayOpCodes.SetReady,
             RoomGatewayOpCodes.StartBattle,
             RoomGatewayOpCodes.RequestFullStateSync,
-            RoomGatewayOpCodes.RestoreRoom);
+            RoomGatewayOpCodes.RestoreRoom,
+            RoomGatewayOpCodes.AckReliableBattleEvents);
 
         public readonly uint GuestLogin;
         public readonly uint AccountLogin;
@@ -535,6 +700,10 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly uint StartBattle;
         public readonly uint RequestFullStateSync;
         public readonly uint RestoreRoom;
+        public readonly uint AckReliableBattleEvents;
+        public readonly uint BeginLoading;
+        public readonly uint ReportAssetsLoaded;
+        public readonly uint GetSnapshot;
 
         public ShooterRoomGatewayRoomOpCodes(uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle)
             : this(RoomGatewayOpCodes.GuestLogin, RoomGatewayOpCodes.ListRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, RoomGatewayOpCodes.RequestFullStateSync, RoomGatewayOpCodes.RestoreRoom)
@@ -557,6 +726,11 @@ namespace AbilityKit.Demo.Shooter.View
         }
 
         public ShooterRoomGatewayRoomOpCodes(uint guestLogin, uint accountLogin, uint listRooms, uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom)
+            : this(guestLogin, accountLogin, listRooms, createRoom, joinRoom, subscribeStateSync, setReady, startBattle, requestFullStateSync, restoreRoom, RoomGatewayOpCodes.AckReliableBattleEvents)
+        {
+        }
+
+        public ShooterRoomGatewayRoomOpCodes(uint guestLogin, uint accountLogin, uint listRooms, uint createRoom, uint joinRoom, uint subscribeStateSync, uint setReady, uint startBattle, uint requestFullStateSync, uint restoreRoom, uint ackReliableBattleEvents)
         {
             GuestLogin = guestLogin;
             AccountLogin = accountLogin;
@@ -568,6 +742,10 @@ namespace AbilityKit.Demo.Shooter.View
             StartBattle = startBattle;
             RequestFullStateSync = requestFullStateSync;
             RestoreRoom = restoreRoom;
+            AckReliableBattleEvents = ackReliableBattleEvents;
+            BeginLoading = RoomGatewayOpCodes.BeginLoading;
+            ReportAssetsLoaded = RoomGatewayOpCodes.ReportAssetsLoaded;
+            GetSnapshot = RoomGatewayOpCodes.GetSnapshot;
         }
     }
 
@@ -736,17 +914,102 @@ namespace AbilityKit.Demo.Shooter.View
         }
     }
 
+    public readonly struct ShooterGatewayBeginLoadingRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long? ExpectedRevision;
+        public readonly string CommandId;
+
+        public ShooterGatewayBeginLoadingRequest(string sessionToken, string roomId, long? expectedRevision, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            ExpectedRevision = expectedRevision;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayReportAssetsLoadedRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+        public readonly long LaunchGeneration;
+        public readonly int ManifestVersion;
+        public readonly string ManifestHash;
+        public readonly string CommandId;
+
+        public ShooterGatewayReportAssetsLoadedRequest(string sessionToken, string roomId, long launchGeneration, int manifestVersion, string manifestHash, string commandId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            LaunchGeneration = launchGeneration;
+            ManifestVersion = manifestVersion;
+            ManifestHash = manifestHash ?? string.Empty;
+            CommandId = commandId ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayGetRoomSnapshotRequest
+    {
+        public readonly string SessionToken;
+        public readonly string RoomId;
+
+        public ShooterGatewayGetRoomSnapshotRequest(string sessionToken, string roomId)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+        }
+    }
+
     public readonly struct ShooterGatewayStateSyncSubscriptionRequest
     {
         public readonly string SessionToken;
         public readonly string BattleId;
         public readonly string RoomId;
+        public readonly string EventEpoch;
+        public readonly long LastEventAck;
 
         public ShooterGatewayStateSyncSubscriptionRequest(string sessionToken, string battleId, string roomId)
+            : this(sessionToken, battleId, roomId, string.Empty, 0L)
+        {
+        }
+
+        public ShooterGatewayStateSyncSubscriptionRequest(
+            string sessionToken,
+            string battleId,
+            string roomId,
+            string eventEpoch,
+            long lastEventAck)
         {
             SessionToken = sessionToken ?? string.Empty;
             BattleId = battleId ?? string.Empty;
             RoomId = roomId ?? string.Empty;
+            EventEpoch = eventEpoch ?? string.Empty;
+            LastEventAck = lastEventAck;
+        }
+    }
+
+    public readonly struct ShooterGatewayReliableBattleEventAckRequest
+    {
+        public readonly string SessionToken;
+        public readonly string BattleId;
+        public readonly string RoomId;
+        public readonly string Epoch;
+        public readonly long AckSequence;
+
+        public ShooterGatewayReliableBattleEventAckRequest(
+            string sessionToken,
+            string battleId,
+            string roomId,
+            string epoch,
+            long ackSequence)
+        {
+            SessionToken = sessionToken ?? string.Empty;
+            BattleId = battleId ?? string.Empty;
+            RoomId = roomId ?? string.Empty;
+            Epoch = epoch ?? string.Empty;
+            AckSequence = ackSequence;
         }
     }
 
@@ -1067,6 +1330,96 @@ namespace AbilityKit.Demo.Shooter.View
         }
     }
 
+    public sealed class ShooterGatewayStagedRoomSnapshot
+    {
+        public ShooterGatewayStagedRoomSnapshot(
+            string roomId,
+            int phase,
+            string phaseReason,
+            long launchGeneration,
+            long loadingDeadlineUnixMs,
+            string launchManifestHash,
+            int launchManifestVersion,
+            string lastStartFailureCode,
+            long roomRevision,
+            long lastEventSequence,
+            bool canStart,
+            string battleId,
+            ulong worldId,
+            in ShooterGatewayWorldStartAnchor worldStartAnchor)
+        {
+            RoomId = roomId ?? string.Empty;
+            Phase = phase;
+            PhaseReason = phaseReason ?? string.Empty;
+            LaunchGeneration = launchGeneration;
+            LoadingDeadlineUnixMs = loadingDeadlineUnixMs;
+            LaunchManifestHash = launchManifestHash ?? string.Empty;
+            LaunchManifestVersion = launchManifestVersion;
+            LastStartFailureCode = lastStartFailureCode ?? string.Empty;
+            RoomRevision = roomRevision;
+            LastEventSequence = lastEventSequence;
+            CanStart = canStart;
+            BattleId = battleId ?? string.Empty;
+            WorldId = worldId;
+            WorldStartAnchor = worldStartAnchor;
+        }
+
+        public string RoomId { get; }
+        public int Phase { get; }
+        public string PhaseReason { get; }
+        public long LaunchGeneration { get; }
+        public long LoadingDeadlineUnixMs { get; }
+        public string LaunchManifestHash { get; }
+        public int LaunchManifestVersion { get; }
+        public string LastStartFailureCode { get; }
+        public long RoomRevision { get; }
+        public long LastEventSequence { get; }
+        public bool CanStart { get; }
+        public string BattleId { get; }
+        public ulong WorldId { get; }
+        public ShooterGatewayWorldStartAnchor WorldStartAnchor { get; }
+    }
+
+    public readonly struct ShooterGatewayRoomOperationResult
+    {
+        public readonly bool Success;
+        public readonly bool Applied;
+        public readonly int ErrorCode;
+        public readonly string Message;
+        public readonly long RoomRevision;
+        public readonly ShooterGatewayStagedRoomSnapshot Snapshot;
+
+        public ShooterGatewayRoomOperationResult(bool success, bool applied, int errorCode, string message, long roomRevision, ShooterGatewayStagedRoomSnapshot snapshot)
+        {
+            Success = success;
+            Applied = applied;
+            ErrorCode = errorCode;
+            Message = message ?? string.Empty;
+            RoomRevision = roomRevision;
+            Snapshot = snapshot;
+        }
+    }
+
+    public readonly struct ShooterGatewayGetRoomSnapshotResult
+    {
+        public readonly bool Success;
+        public readonly string RoomId;
+        public readonly ulong NumericRoomId;
+        public readonly ShooterGatewayStagedRoomSnapshot Snapshot;
+        public readonly string Message;
+        public readonly long ServerNowTicks;
+
+        public ShooterGatewayGetRoomSnapshotResult(bool success, string roomId, ulong numericRoomId, ShooterGatewayStagedRoomSnapshot snapshot, string message, long serverNowTicks)
+        {
+            Success = success;
+            RoomId = roomId ?? string.Empty;
+            NumericRoomId = numericRoomId;
+            Snapshot = snapshot;
+            Message = message ?? string.Empty;
+            ServerNowTicks = serverNowTicks;
+        }
+    }
+
     public readonly struct ShooterGatewayStateSyncSubscriptionResult
     {
         public readonly bool Success;
@@ -1075,6 +1428,20 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterGatewayStateSyncSubscriptionResult(bool success, string message)
         {
             Success = success;
+            Message = message ?? string.Empty;
+        }
+    }
+
+    public readonly struct ShooterGatewayReliableBattleEventAckResult
+    {
+        public readonly bool Success;
+        public readonly long AcceptedAckSequence;
+        public readonly string Message;
+
+        public ShooterGatewayReliableBattleEventAckResult(bool success, long acceptedAckSequence, string message)
+        {
+            Success = success;
+            AcceptedAckSequence = acceptedAckSequence;
             Message = message ?? string.Empty;
         }
     }

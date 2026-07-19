@@ -303,7 +303,7 @@
         "Tags":  [
                      501
                  ],
-        "SkillButtonTemplateId":  2,
+        "SkillButtonTemplateId":  4,
         "LevelTableId":  10050101,
         "PreCastFlowId":  0,
         "CastFlowId":  10050101

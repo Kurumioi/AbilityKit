@@ -1,0 +1,20 @@
+{
+  "name": "AbilityKit.Demo.Shooter.PlayMode.Tests",
+  "rootNamespace": "AbilityKit.Demo.Shooter.PlayMode.Tests",
+  "references": [
+    "AbilityKit.Demo.Shooter.View.Runtime",
+    "AbilityKit.Network.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

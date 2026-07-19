@@ -128,9 +128,10 @@ namespace AbilityKit.Game.View.Runtime.Tests
         }
 
         [Fact]
-        public void BattleMachine_Has5Transitions()
+        public void BattleMachine_Has10Transitions()
         {
-            Assert.Equal(5, _config.BattleMachine.Transitions.Count);
+            // 阶段 7a：追加 AssetsLoadCompleted（LoadAssets→InMatch），保留旧 LoadingDone（向后兼容）。
+            Assert.Equal(10, _config.BattleMachine.Transitions.Count);
         }
 
         [Fact]
@@ -164,9 +165,21 @@ namespace AbilityKit.Game.View.Runtime.Tests
         }
 
         [Fact]
-        public void BattleMachine_LoadingDone_LoadAssetsToInMatch()
+        public void BattleMachine_AssetsLoadCompleted_LoadAssetsToInMatch()
         {
+            // 阶段 7a：真实资源加载完成（manifest barrier）驱动 LoadAssets → InMatch。
             var t = _config.BattleMachine.Transitions[3];
+            Assert.Equal(MobaBattleEvent.AssetsLoadCompleted, t.Trigger);
+            Assert.Equal(MobaBattleState.LoadAssets, t.From);
+            Assert.Equal(MobaBattleState.InMatch, t.To);
+            Assert.Null(t.ConditionId);
+        }
+
+        [Fact]
+        public void BattleMachine_LoadingDone_LoadAssetsToInMatch_BackCompat()
+        {
+            // 阶段 7a：旧 LoadingDone 转换保留以向后兼容（不再被触发）。
+            var t = _config.BattleMachine.Transitions[4];
             Assert.Equal(MobaBattleEvent.LoadingDone, t.Trigger);
             Assert.Equal(MobaBattleState.LoadAssets, t.From);
             Assert.Equal(MobaBattleState.InMatch, t.To);
@@ -176,7 +189,7 @@ namespace AbilityKit.Game.View.Runtime.Tests
         [Fact]
         public void BattleMachine_Ended_InMatchToEnd()
         {
-            var t = _config.BattleMachine.Transitions[4];
+            var t = _config.BattleMachine.Transitions[9];
             Assert.Equal(MobaBattleEvent.Ended, t.Trigger);
             Assert.Equal(MobaBattleState.InMatch, t.From);
             Assert.Equal(MobaBattleState.End, t.To);
@@ -205,12 +218,16 @@ namespace AbilityKit.Game.View.Runtime.Tests
         // ====================================================================
 
         [Fact]
-        public void LobbyFeatures_StateId_ClearBeforeEnter_NoFeaturesNoActions()
+        public void LobbyFeatures_StateId_ClearBeforeEnter_DemoLobbyFormalLobbyRootDebug_NoActions()
         {
+            // 阶段 7b：append-only 追加 formal_lobby（不删除 demo_lobby）。
             var f = _config.LobbyFeatures;
             Assert.Equal("Lobby", f.StateId);
             Assert.True(f.ClearBeforeEnter);
-            Assert.Empty(f.FeatureIds);
+            Assert.Equal(3, f.FeatureIds.Count);
+            Assert.Equal("demo_lobby", f.FeatureIds[0]);
+            Assert.Equal("formal_lobby", f.FeatureIds[1]);
+            Assert.Equal("root_debug", f.FeatureIds[2]);
             Assert.Empty(f.EnterBeforeActionIds);
             Assert.Empty(f.EnterAfterActionIds);
             Assert.Empty(f.ExitActionIds);

@@ -1,0 +1,37 @@
+{
+  "name": "AbilityKit.Demo.Moba.Diagnostics.Core.Tests",
+  "rootNamespace": "AbilityKit.Demo.Moba.Diagnostics.Tests",
+  "references": [
+    "AbilityKit.Demo.Moba.Diagnostics.Core",
+    "AbilityKit.Demo.Moba.Runtime",
+    "AbilityKit.Demo.Moba.Editor",
+    "AbilityKit.Demo.Moba.Share",
+    "AbilityKit.World.DI",
+    "AbilityKit.World.Entitas",
+    "AbilityKit.World.ECS",
+    "AbilityKit.World.FrameSync",
+    "AbilityKit.Trace",
+    "AbilityKit.Core",
+    "AbilityKit.Ability",
+    "AbilityKit.Attributes",
+    "AbilityKit.GameplayTags",
+    "AbilityKit.Combat.Projectile",
+    "AbilityKit.Combat.Collision.Abstractions"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Entitas.dll"
+  ],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

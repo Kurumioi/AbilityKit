@@ -20,6 +20,8 @@ public sealed class GatewaySessionRegistry : IGatewaySessionRegistry
     public void Unregister(long connectionId)
     {
         _sessions.TryRemove(connectionId, out _);
+        RemoveBindingsForConnection(_tokenToConnectionId, connectionId);
+        RemoveBindingsForConnection(_accountToConnectionId, connectionId);
     }
 
     public bool TryGetSession(long connectionId, out IGatewayTransportSession? session)
@@ -111,6 +113,19 @@ public sealed class GatewaySessionRegistry : IGatewaySessionRegistry
         catch
         {
             return false;
+        }
+    }
+
+    private static void RemoveBindingsForConnection(
+        ConcurrentDictionary<string, long> bindings,
+        long connectionId)
+    {
+        foreach (var binding in bindings)
+        {
+            if (binding.Value == connectionId)
+            {
+                bindings.TryRemove(binding);
+            }
         }
     }
 }

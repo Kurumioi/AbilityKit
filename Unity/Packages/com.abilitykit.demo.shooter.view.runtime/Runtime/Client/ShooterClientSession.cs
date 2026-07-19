@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -14,6 +15,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterPresentationSessionContext _presentationSession;
         private readonly ShooterPresentationFacade _presentation;
         private readonly IShooterClientSyncController _syncController;
+        private readonly ShooterReliableBattleEventConsumer _reliableEvents = new ShooterReliableBattleEventConsumer();
 
         public ShooterClientSession(IShooterBattleRuntimePort runtime, ShooterPresentationFacade presentation, int tickRate)
             : this(runtime, presentation, tickRate, (ShooterGatewaySnapshotDecoder?)null)
@@ -85,6 +87,8 @@ namespace AbilityKit.Demo.Shooter.View
             _syncController = ShooterClientSyncControllerFactory.Create(in assemblyOptions, runtime, _presentation, tickRate, gateway);
         }
 
+        public event Action<WireReliableBattleEvent, ShooterEventSnapshot>? ReliableBattleEventCommitted;
+
         public NetworkSyncModel SyncModel => _syncController.SyncModel;
 
         public IShooterClientSyncController SyncController => _syncController;
@@ -92,6 +96,8 @@ namespace AbilityKit.Demo.Shooter.View
         public bool IsStarted => _syncController.IsStarted;
 
         public int CurrentFrame => _syncController.CurrentFrame;
+
+        public int GatewayInputFrame => _syncController.GatewayInputFrame;
 
         public ShooterPresentationSessionContext PresentationSession => _presentationSession;
 
@@ -125,6 +131,12 @@ namespace AbilityKit.Demo.Shooter.View
         public uint LastResyncAuthoritativeStateHash => _syncController.LastResyncAuthoritativeStateHash;
 
         public bool HasGateway => _syncController.HasGateway;
+
+        public string ReliableEventEpoch => _reliableEvents.Epoch;
+
+        public long LastReliableEventAck => _reliableEvents.LastAcknowledgedSequence;
+
+        public bool NeedsReliableEventResync => _reliableEvents.RequiresResync;
 
         /// <summary>
         /// 当当前同步模型会插值远端状态（即 <see cref="NetworkSyncModel.AuthoritativeInterpolation"/>）时，
@@ -202,7 +214,50 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotApplyResult ApplyGatewayPush(uint opCode, ArraySegment<byte> payload)
         {
-            return _syncController.ApplyGatewayPush(opCode, payload);
+            if (opCode != RoomGatewayOpCodes.ReliableBattleEventsPushed)
+            {
+                WireStateSyncSnapshotPush snapshot = default;
+                var isSnapshotPush = opCode == RoomGatewayOpCodes.SnapshotPushed
+                    || opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
+                if (isSnapshotPush)
+                {
+                    snapshot = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                }
+
+                var applyResult = _syncController.ApplyGatewayPush(opCode, payload);
+                if (isSnapshotPush
+                    && snapshot.IsFullSnapshot
+                    && IsAppliedSnapshot(applyResult))
+                {
+                    _reliableEvents.TryApplyFullSnapshotBaseline(snapshot.EventWatermark);
+                }
+
+                return applyResult;
+            }
+
+            try
+            {
+                var push = WireRoomGatewayBinary.Deserialize<WireReliableBattleEventPush>(payload);
+                var result = _reliableEvents.Consume(in push);
+                foreach (var envelope in result.CommittedEvents)
+                {
+                    var eventPayload = envelope.Payload ?? Array.Empty<byte>();
+                    var battleEvent = ShooterStateSnapshotCodec.DeserializeEvent(eventPayload);
+                    ReliableBattleEventCommitted?.Invoke(envelope, battleEvent);
+                }
+            }
+            catch
+            {
+                _reliableEvents.Invalidate();
+            }
+
+            return ShooterSnapshotApplyResult.Ignored;
+        }
+
+        private static bool IsAppliedSnapshot(ShooterSnapshotApplyResult result)
+        {
+            return result == ShooterSnapshotApplyResult.AppliedActorSnapshot
+                || result == ShooterSnapshotApplyResult.AppliedPackedSnapshot;
         }
     }
 
@@ -223,17 +278,28 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly int AcceptedInputs;
         public readonly int RequestedFrame;
         public readonly ShooterInputPacket Packet;
+        public readonly long SubmissionId;
 
         public ShooterClientInputSubmitResult(int acceptedInputs, int requestedFrame, in ShooterInputPacket packet)
+            : this(acceptedInputs, requestedFrame, in packet, 0L)
+        {
+        }
+
+        public ShooterClientInputSubmitResult(
+            int acceptedInputs,
+            int requestedFrame,
+            in ShooterInputPacket packet,
+            long submissionId)
         {
             AcceptedInputs = acceptedInputs;
             RequestedFrame = requestedFrame;
             Packet = packet;
+            SubmissionId = submissionId;
         }
 
         public ShooterClientInputSubmitResult WithRequestedFrame(int requestedFrame)
         {
-            return new ShooterClientInputSubmitResult(AcceptedInputs, requestedFrame, in Packet);
+            return new ShooterClientInputSubmitResult(AcceptedInputs, requestedFrame, in Packet, SubmissionId);
         }
     }
 }

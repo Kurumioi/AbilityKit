@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Debugging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Core.Editor.Debugging;
@@ -63,7 +64,7 @@ namespace AbilityKit.Game.Editor
                 for (int i = 0; i < count; i++)
                 {
                     var s = s_shapes[i];
-                    if (mask != 0 && (s.LayerMask & mask) == 0) continue;
+                    if (mask != 0 && s.LayerId >= 0 && s.LayerId < 32 && ((1 << s.LayerId) & mask) == 0) continue;
 
                     var shape = s.WorldShape;
                     switch (shape.Type)

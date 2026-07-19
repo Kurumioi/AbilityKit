@@ -44,7 +44,10 @@ namespace AbilityKit.Game.Flow
                 if (state.SubmissionVersion != _lastSubmissionVersion)
                 {
                     _lastSubmissionVersion = state.SubmissionVersion;
-                    _submittedPreviewRemainingSeconds = SubmittedPreviewDurationSeconds;
+                    // LockProjectile 使用 spec.LockOnDurationSeconds 控制瞄准停留时间；其它形状用统一的短停留
+                    _submittedPreviewRemainingSeconds = spec.PreviewShape == BattleHudSkillPreviewShape.LockProjectile
+                        ? Mathf.Max(SubmittedPreviewDurationSeconds, spec.LockOnDurationSeconds)
+                        : SubmittedPreviewDurationSeconds;
                 }
                 else
                 {
@@ -251,7 +254,7 @@ namespace AbilityKit.Game.Flow
             return go;
         }
 
-        private static Mesh BuildSectorMesh(int segments, float degrees)
+        internal static Mesh BuildSectorMesh(int segments, float degrees)
         {
             var vertices = new Vector3[segments + 2];
             var triangles = new int[segments * 3];
@@ -382,6 +385,13 @@ namespace AbilityKit.Game.Flow
             var range = Mathf.Max(0.1f, spec.Range);
             var distance = Mathf.Clamp(state.AimDistance, 0f, range);
             var target = state.CasterPosition + direction * distance;
+            // 数据驱动的几何参数：缺省值兜底
+            var selfRadius = spec.SelfRadius > 0f ? spec.SelfRadius : Mathf.Max(0.25f, spec.Radius);
+            var fanRadius = spec.FanRadius > 0f ? spec.FanRadius : Mathf.Max(0.25f, spec.Radius);
+            var fanAngle = spec.AngleDegrees > 0f ? spec.AngleDegrees : 90f;
+            var sectorAngle = spec.AngleDegrees > 0f ? spec.AngleDegrees : 90f;
+            var dashDistance = spec.DashDistance > 0f ? spec.DashDistance : range;
+            var lockRadius = spec.LockProjectileRadius > 0f ? spec.LockProjectileRadius : Mathf.Max(0.45f, spec.Radius);
 
             switch (spec.PreviewShape)
             {
@@ -393,11 +403,20 @@ namespace AbilityKit.Game.Flow
                     HideCircle();
                     HideSector();
                     break;
+                case BattleHudSkillPreviewShape.DirectionArea:
+                    ShowCasterRing(state.CasterPosition, Mathf.Max(0.75f, spec.Width * 0.55f));
+                    ShowLine(state.CasterPosition, direction, range, spec.Width);
+                    HideDot();
+                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.5f, spec.Width * 0.5f));
+                    HideCircle();
+                    HideSector();
+                    break;
                 case BattleHudSkillPreviewShape.DashLine:
                     ShowCasterRing(state.CasterPosition, Mathf.Max(0.85f, spec.Width * 0.58f));
-                    ShowLine(state.CasterPosition, direction, range, Mathf.Max(0.45f, spec.Width));
-                    ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.42f, spec.Width * 0.46f));
-                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.75f, spec.Width * 0.62f));
+                    var dashLength = Mathf.Max(0.1f, dashDistance);
+                    ShowLine(state.CasterPosition, direction, dashLength, Mathf.Max(0.45f, spec.Width));
+                    ShowDot(state.CasterPosition + direction * dashLength, Mathf.Max(0.42f, spec.Width * 0.46f));
+                    ShowEdgeRing(state.CasterPosition + direction * dashLength, Mathf.Max(0.75f, spec.Width * 0.62f));
                     HideCircle();
                     HideSector();
                     break;
@@ -412,17 +431,17 @@ namespace AbilityKit.Game.Flow
                 case BattleHudSkillPreviewShape.LockProjectile:
                     ShowCasterRing(state.CasterPosition, 0.8f);
                     ShowLine(state.CasterPosition, direction, Mathf.Max(0.1f, distance), Mathf.Max(0.22f, spec.Width * 0.18f));
-                    ShowCircle(target, Mathf.Max(0.45f, spec.Radius));
-                    ShowDot(target, Mathf.Max(0.35f, spec.Radius * 0.28f));
-                    ShowEdgeRing(target, Mathf.Max(0.55f, spec.Radius * 0.72f));
+                    ShowCircle(target, Mathf.Max(0.45f, lockRadius));
+                    ShowDot(target, Mathf.Max(0.35f, lockRadius * 0.28f));
+                    ShowEdgeRing(target, Mathf.Max(0.55f, lockRadius * 0.72f));
                     HideSector();
                     break;
                 case BattleHudSkillPreviewShape.SelfCircle:
                     ShowCasterRing(state.CasterPosition, 0.95f);
                     HideLine();
-                    ShowCircle(state.CasterPosition, Mathf.Max(0.25f, spec.Radius));
+                    ShowCircle(state.CasterPosition, selfRadius);
                     HideDot();
-                    ShowEdgeRing(state.CasterPosition, Mathf.Max(0.35f, spec.Radius));
+                    ShowEdgeRing(state.CasterPosition, Mathf.Max(0.35f, selfRadius));
                     HideSector();
                     break;
                 case BattleHudSkillPreviewShape.Sector:
@@ -430,7 +449,7 @@ namespace AbilityKit.Game.Flow
                     HideLine();
                     HideCircle();
                     ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.3f, spec.Width * 0.32f));
-                    ShowSector(state.CasterPosition, direction, range);
+                    ShowSector(state.CasterPosition, direction, range, sectorAngle);
                     ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.4f, spec.Width * 0.5f));
                     break;
                 case BattleHudSkillPreviewShape.FanArea:
@@ -438,8 +457,8 @@ namespace AbilityKit.Game.Flow
                     ShowLine(state.CasterPosition, direction, range, Mathf.Max(0.18f, spec.Width * 0.22f));
                     HideCircle();
                     ShowDot(state.CasterPosition + direction * range, Mathf.Max(0.32f, spec.Width * 0.28f));
-                    ShowSector(state.CasterPosition, direction, range);
-                    ShowEdgeRing(state.CasterPosition + direction * range, Mathf.Max(0.45f, spec.Width * 0.46f));
+                    ShowSector(state.CasterPosition, direction, Mathf.Max(0.1f, fanRadius), fanAngle);
+                    ShowEdgeRing(state.CasterPosition + direction * Mathf.Max(0.1f, fanRadius), Mathf.Max(0.45f, spec.Width * 0.46f));
                     break;
                 default:
                     HideAllParts();
@@ -516,11 +535,33 @@ namespace AbilityKit.Game.Flow
             ring.transform.localScale = new Vector3(diameter, 1f, diameter);
         }
 
-        private void ShowSector(Vector3 start, Vector3 direction, float length)
+        private float _lastSectorAngle = -1f;
+        private int _lastSectorSegments = -1;
+
+        private void ShowSector(Vector3 start, Vector3 direction, float length, float degrees)
         {
             if (_sector == null) return;
 
             var safeLength = Mathf.Max(0.1f, length);
+            var clampedDegrees = Mathf.Clamp(degrees, 1f, 360f);
+            const int segments = 36;
+            if (_lastSectorAngle < 0f || Mathf.Abs(_lastSectorAngle - clampedDegrees) > 0.1f || _lastSectorSegments != segments)
+            {
+                var meshFilter = _sector.GetComponent<MeshFilter>();
+                if (meshFilter != null)
+                {
+                    var existing = meshFilter.sharedMesh;
+                    if (existing != null)
+                    {
+                        if (Application.isPlaying) Object.Destroy(existing); else Object.DestroyImmediate(existing);
+                    }
+                    var newMesh = BattleHudAimPreviewObjectFactory.BuildSectorMesh(segments, clampedDegrees);
+                    newMesh.hideFlags = HideFlags.DontSave;
+                    meshFilter.sharedMesh = newMesh;
+                }
+                _lastSectorAngle = clampedDegrees;
+                _lastSectorSegments = segments;
+            }
             _sector.SetActive(true);
             _sector.transform.position = start + Vector3.up * (HeightOffset + 0.01f);
             _sector.transform.rotation = Quaternion.LookRotation(direction, Vector3.up);

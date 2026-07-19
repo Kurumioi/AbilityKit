@@ -10,6 +10,7 @@ namespace AbilityKit.Combat.Projectile
 
         ProjectileId Spawn(in ProjectileSpawnParams p);
         bool Despawn(ProjectileId id);
+        bool Despawn(ProjectileId id, int frame, ProjectileExitReason reason);
 
         void Tick(int frame, float fixedDeltaSeconds);
 

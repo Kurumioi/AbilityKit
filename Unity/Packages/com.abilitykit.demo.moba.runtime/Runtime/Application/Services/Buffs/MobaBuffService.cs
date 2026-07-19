@@ -9,6 +9,7 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Diagnostics;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
@@ -48,6 +49,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         [WorldInject(required: false)] private IMobaEffectiveTagQueryService _tags = null;
         [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IMobaBattleExceptionPolicy _exceptions = null;
         private BuffLifecycleExecutor _lifecycle;
         private long _nextCommandSeq;
@@ -430,6 +432,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var requestSnapshot = request;
                 ReportRejected(rejectCode, () => FormatApplyRejectedMessage(requestSnapshot, hasLifecycle, rejectCode, reject.Message), request.TargetActorId, request.BuffId, request.SourceActorId);
             }
+            else
+            {
+                CollectBuffAdded(in request);
+            }
 
             return ok;
         }
@@ -450,6 +456,10 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var hasLifecycle = _lifecycle != null;
                 var requestSnapshot = request;
                 ReportRejected(rejectCode, () => FormatRemoveRejectedMessage(requestSnapshot, hasLifecycle, rejectCode, reject.Message), request.TargetActorId, request.BuffId, request.SourceActorId);
+            }
+            else
+            {
+                CollectBuffRemoved(in request);
             }
 
             return ok;
@@ -488,6 +498,87 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             }
 
             return new string(chars);
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateBuffAddedDraft(in BuffApplyRequest request)
+        {
+            var origin = request.Origin;
+            origin.TryGetOrigin(out var resolvedOrigin);
+            var handle = request.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var rootContextId = resolvedOrigin.EffectiveRootContextId != 0L
+                ? resolvedOrigin.EffectiveRootContextId
+                : request.SourceContextId;
+            var contextId = request.SourceContextId != 0L
+                ? request.SourceContextId
+                : resolvedOrigin.ImmediateContextId;
+            var summary = request.DurationOverrideMs > 0
+                ? $"buffId={request.BuffId}, durationMs={request.DurationOverrideMs}, forceNew={request.ForceNewInstance}"
+                : $"buffId={request.BuffId}, forceNew={request.ForceNewInstance}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.BuffAdded,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                request.SourceActorId,
+                request.TargetActorId,
+                request.BuffId,
+                rootContextId,
+                contextId,
+                runtime,
+                summary: summary);
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateBuffRemovedDraft(in BuffRemoveRequest request)
+        {
+            var contextId = request.SourceContextId;
+            var summary = $"buffId={request.BuffId}, reason={request.Reason}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                request.SourceActorId,
+                request.TargetActorId,
+                request.BuffId,
+                rootContextId: 0L,
+                contextId,
+                skillRuntime: default,
+                summary: summary);
+        }
+
+        private void CollectBuffAdded(in BuffApplyRequest request)
+        {
+            try
+            {
+                var collector = _eventCollector;
+                if (collector == null) return;
+
+                var draft = CreateBuffAddedDraft(in request);
+                collector.TryCollect(in draft);
+            }
+            catch
+            {
+                // 诊断采集异常不得影响 Buff 主流程。
+            }
+        }
+
+        private void CollectBuffRemoved(in BuffRemoveRequest request)
+        {
+            try
+            {
+                var collector = _eventCollector;
+                if (collector == null) return;
+
+                var draft = CreateBuffRemovedDraft(in request);
+                collector.TryCollect(in draft);
+            }
+            catch
+            {
+                // 诊断采集异常不得影响 Buff 主流程。
+            }
         }
 
         private void ReportRejected(string key, Func<string> messageFactory, int targetActorId, int buffId, int sourceActorId)

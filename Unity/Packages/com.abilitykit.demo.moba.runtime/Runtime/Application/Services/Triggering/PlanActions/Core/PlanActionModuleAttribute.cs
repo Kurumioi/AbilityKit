@@ -52,6 +52,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int SpawnArea = 24;
         public const int SpawnSummon = 30;
         public const int RemoveSummon = 31;
+        public const int RemoveProjectile = 31;
         public const int RemoveArea = 32;
 
         public const int PlayPresentation = 40;

@@ -1,5 +1,6 @@
 ﻿using System;
 using AbilityKit.Demo.Moba.Attributes;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 
@@ -12,12 +13,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaActorLookupService _actors;
         private readonly MobaDamageEventSnapshotService _snapshots;
         private readonly MobaCombatRulesService _rules;
+        private readonly IMobaBattleDiagnosticEventSink _eventCollector;
 
-        public MobaDamageService(MobaActorLookupService actors, MobaDamageEventSnapshotService snapshots, MobaCombatRulesService rules = null)
+        public MobaDamageService(
+            MobaActorLookupService actors,
+            MobaDamageEventSnapshotService snapshots,
+            MobaCombatRulesService rules = null,
+            IMobaBattleDiagnosticEventSink eventCollector = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
             _rules = rules;
+            _eventCollector = eventCollector;
         }
 
         public float ApplyDamage(int attackerActorId, int targetActorId, int damageType, float value, int reasonKind = 0, int reasonParam = 0)
@@ -38,6 +45,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             attrs.Hp = newHp;
             _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
+            CollectDirectDamage(attackerActorId, targetActorId, damageType, actual, reasonKind, reasonParam, newHp, maxHp);
             return actual;
         }
 
@@ -59,7 +67,116 @@ namespace AbilityKit.Demo.Moba.Services
 
             attrs.Hp = newHp;
             _snapshots.ReportHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
+            CollectHeal(healerActorId, targetActorId, healType, actual, reasonKind, reasonParam, newHp, maxHp);
             return actual;
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateDirectDamageDraft(
+            int attackerActorId,
+            int targetActorId,
+            int damageType,
+            float value,
+            int reasonKind,
+            int reasonParam,
+            float targetHp,
+            float maxHp)
+        {
+            var configId = reasonParam;
+            var summary = $"directDamage={value:0.###}, damageType={damageType}, reasonKind={reasonKind}, targetHp={targetHp:0.###}, maxHp={maxHp:0.###}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                attackerActorId,
+                targetActorId,
+                configId,
+                summary: summary);
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateHealDraft(
+            int healerActorId,
+            int targetActorId,
+            int healType,
+            float value,
+            int reasonKind,
+            int reasonParam,
+            float targetHp,
+            float maxHp)
+        {
+            var configId = reasonParam;
+            var summary = $"heal={value:0.###}, healType={healType}, reasonKind={reasonKind}, targetHp={targetHp:0.###}, maxHp={maxHp:0.###}";
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.Heal,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                healerActorId,
+                targetActorId,
+                configId,
+                summary: summary);
+        }
+
+        private void CollectDirectDamage(
+            int attackerActorId,
+            int targetActorId,
+            int damageType,
+            float value,
+            int reasonKind,
+            int reasonParam,
+            float targetHp,
+            float maxHp)
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = CreateDirectDamageDraft(
+                    attackerActorId,
+                    targetActorId,
+                    damageType,
+                    value,
+                    reasonKind,
+                    reasonParam,
+                    targetHp,
+                    maxHp);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响直接伤害流程，静默吞掉异常。
+            }
+        }
+
+        private void CollectHeal(
+            int healerActorId,
+            int targetActorId,
+            int healType,
+            float value,
+            int reasonKind,
+            int reasonParam,
+            float targetHp,
+            float maxHp)
+        {
+            if (_eventCollector == null) return;
+
+            try
+            {
+                var draft = CreateHealDraft(
+                    healerActorId,
+                    targetActorId,
+                    healType,
+                    value,
+                    reasonKind,
+                    reasonParam,
+                    targetHp,
+                    maxHp);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响治疗流程，静默吞掉异常。
+            }
         }
 
         private static float Clamp(float v, float min, float max)

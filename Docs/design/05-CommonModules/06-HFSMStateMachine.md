@@ -1,6 +1,6 @@
 # 5.6 HFSM 分层状态机
 
-> 本文基于 `Unity/Packages/com.abilitykit.hfsm` 源码说明 AbilityKit 的 HFSM 能力。HFSM 来自 UnityHFSM 风格的分层有限状态机，并在包内扩展了 Unity Graph Asset、编辑器、导出器、运行时可视化和 ActionBehavior 体系。它适合表达具有明确状态、转移条件、退出时间和可视化编辑需求的运行时行为。
+> 本文基于 `Unity/Packages/com.abilitykit.hfsm` 源码说明 AbilityKit 的 HFSM 能力。HFSM 来自 UnityHFSM 风格的分层有限状态机，并在包内扩展了 Unity Graph Asset、编辑器、导出器、运行时可视化和 ActionBehavior 体系。Core HFSM 已进入 Shooter Bot AI 与 MOBA View Flow；Graph 到 runtime 的自动构建链路仍不完整，不能把两者视为相同成熟度。
 
 ---
 
@@ -16,9 +16,13 @@
   - [6. 分层状态机](#6-分层状态机)
   - [7. Unity Graph Asset 与编辑器链路](#7-unity-graph-asset-与编辑器链路)
   - [8. 导出与描述器边界](#8-导出与描述器边界)
-  - [9. 和 Flow、Pipeline、Service 状态的边界](#9-和-flowpipelineservice-状态的边界)
-  - [10. 扩展边界](#10-扩展边界)
-  - [11. 和其他文档的关系](#11-和其他文档的关系)
+  - [9. 核心执行、初始化与失败边界](#9-核心执行初始化与失败边界)
+    - [9.1 初始化与状态切换](#91-初始化与状态切换)
+    - [9.2 回调与检查接口](#92-回调与检查接口)
+  - [10. 生产接入与成熟度证据](#10-生产接入与成熟度证据)
+  - [11. 和 Flow、Pipeline、Service 状态的边界](#11-和-flowpipelineservice-状态的边界)
+  - [12. 扩展边界](#12-扩展边界)
+  - [13. 和其他文档的关系](#13-和其他文档的关系)
 
 ---
 
@@ -47,11 +51,11 @@ HFSM 的设计重点是“状态归属清晰、转移可解释、退出时间可
 | `StateMachine<TOwnId,TStateId,TEvent>` | [StateMachine.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/StateMachine/StateMachine.cs) | 分层状态机核心，管理状态、转移、pending transition、active state |
 | `State<TStateId,TEvent>` | [State.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/States/State.cs) | 普通状态实现，封装 enter/logic/exit/canExit/timer |
 | `Transition<TStateId>` | [Transition.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Transitions/Transition.cs) | 条件转移，支持 before/after transition 回调 |
-| `TransitionBase<TStateId>` | [TransitionBase.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Transitions/TransitionBase.cs) | 转移基类，保存 from/to/forceInstantly 等基础信息 |
+| `TransitionBase<TStateId>` | [TransitionBase.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Core/Base/TransitionBase.cs) | 转移基类，保存 from/to/forceInstantly 等基础信息 |
 | `HfsmGraphAsset` | [HfsmGraphAsset.cs](../../../Unity/Packages/com.abilitykit.hfsm/Runtime/HFSM/Unity/Graph/HfsmGraphAsset.cs) | Unity ScriptableObject 图资产，保存节点、边、参数、编辑器数据 |
 | `JsonGraphExporter` | [JsonGraphExporter.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/Export/JsonGraphExporter.cs) | 将 graph descriptor 导出为 JSON，用于运行时加载和调试 |
-| `HfsmEditorWindow` | [HfsmEditorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/Window/HfsmEditorWindow.cs) | Unity 编辑器窗口入口 |
-| `RuntimeMonitor` | [RuntimeMonitor.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/Runtime/RuntimeMonitor.cs) | 编辑器运行时监控入口 |
+| `HfsmEditorWindow` | [HfsmEditorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/HfsmEditorWindow.cs) | Unity 编辑器窗口入口 |
+| `HfsmRuntimeMonitorWindow` | [HfsmRuntimeMonitorWindow.cs](../../../Unity/Packages/com.abilitykit.hfsm/Editor/RuntimeMonitor/HfsmRuntimeMonitorWindow.cs) | 编辑器运行时监控入口 |
 
 ---
 
@@ -86,6 +90,15 @@ flowchart TB
 | `pendingTransition` | 因退出时间未满足而挂起的转移 |
 | `startState` | 初始状态 |
 | `rememberLastState` | 状态机重入时是否恢复上次状态 |
+
+`OnLogic()` 的判定顺序是运行时契约，而不是图上的视觉顺序：
+
+1. 先按添加顺序检查 from-any 普通转移。
+2. 未命中时，再按添加顺序检查 active state 的普通转移。
+3. 每组都在第一条成功转移后短路，本层每次 `OnLogic()` 最多执行一条转移。
+4. 判定结束后总会调用当前 active state 的 `OnLogic()`；若刚完成转移，本 Tick 运行的是新状态逻辑。
+
+因此全局转移天然优先于局部转移，同一组内的添加顺序也是优先级。条件不应依赖 Dictionary 枚举顺序，也不要假定转移 Tick 只执行 enter 而不执行新状态 logic。
 
 ---
 
@@ -128,6 +141,10 @@ sequenceDiagram
 
 这个机制适合动画收尾、技能前摇后摇、房间阶段确认、AI 行为退出保护等场景。转移条件可以先满足，但状态可以决定何时真正放行。
 
+需要注意 pending 不是队列，而是单个 mutable 槽位。等待退出期间出现新的转移请求时，后一个请求会覆盖前一个；框架不保证按请求顺序排队。`StateCanExit()` 也只是处理调用瞬间已有的 pending，不会记忆一张长期退出许可证，所以在状态 `OnEnter()` 中提前调用没有效果。
+
+`forceInstantly` 会绕过 active state 的 `needsExitTime`，清除已有 pending，并立即执行新转移。转移 listener 和 before/after callback 只在真正执行转移时调用，单纯写入或覆盖 pending 不触发它们。
+
 ---
 
 ## 5. 转移模型
@@ -143,28 +160,27 @@ sequenceDiagram
 | `forceInstantly` | 必要时绕过退出等待，直接执行转移 |
 
 ```mermaid
-flowchart LR
-    Logic["StateMachine.OnLogic"] --> Any["check transitionsFromAny"]
-    Logic --> Active["check activeTransitions"]
-    Event["Trigger(event)"] --> TriggerAny["triggerTransitionsFromAny[event]"]
-    Event --> TriggerActive["activeTriggerTransitions[event]"]
-    Any --> Should["ShouldTransition"]
-    Active --> Should
-    TriggerAny --> Should
-    TriggerActive --> Should
-    Should --> Request["RequestTransition"]
+flowchart TB
+    Logic["StateMachine.OnLogic"] --> Any["check from-any in add order"]
+    Any -->|no match| Active["check active transitions in add order"]
+    Any -->|first match| Request["RequestTransition"]
+    Active -->|first match| Request
+    Active -->|no match| Run["active state OnLogic"]
     Request --> Pending{Needs exit time?}
-    Pending -- 是 --> Store["pendingTransition"]
-    Pending -- 否 --> Perform["PerformTransition"]
+    Pending -->|yes| Store["replace pending transition"]
+    Pending -->|no| Perform["PerformTransition"]
+    Store --> Run
+    Perform --> Run
 ```
 
 状态转移的设计要点：
 
 1. 普通转移适合每次 logic tick 判定。
-2. trigger 转移适合外部事件直接驱动。
-3. from any 转移适合全局打断，例如死亡、断线、战斗结束。
-4. before/after 回调适合记录诊断、清理外部资源或发送状态变更事件。
-5. force instant 应谨慎使用，它会绕过 exit-time 语义。
+2. trigger 转移同样先检查 from-any，再检查 active state；本层未触发转移时，事件才向 active child 传播。
+3. from any 转移适合全局打断，例如死亡、断线、战斗结束，并且优先于局部转移。
+4. null condition 被视为无条件 true；添加顺序决定同组优先级。
+5. before/after 回调适合记录诊断或清理资源，但异常不被捕获，会直接传播给调用方。
+6. force instant 应谨慎使用，它会绕过 exit-time 语义并丢弃此前 pending 请求。
 
 ---
 
@@ -218,7 +234,7 @@ flowchart TB
     Asset --> Params["HfsmParameter list"]
     Asset --> EditorData["HfsmGraphEditorData"]
     Editor["HfsmEditorWindow"] --> Asset
-    Asset --> Runtime["Runtime state machine builder / monitor"]
+    Asset --> Runtime["Runtime builder with current gaps"]
     Asset --> Export["Graph exporter"]
 ```
 
@@ -228,6 +244,10 @@ Graph asset 层有两个职责边界：
 2. 提供节点、边、参数的增删查和 GraphChanged 事件。
 
 它不应该直接承载具体业务逻辑。业务行为应通过状态回调、ActionBehavior、参数绑定或运行时构建器接入。
+
+当前 `ActionStateMachine.InitializeFromGraph()` 只能视为试验性节点构建器：它遍历 root 的 child nodes 创建状态，但没有读取或应用 `graph.Edges`，因此图中转移不会自动进入 runtime HFSM。状态 ID 还通过 `(TStateId)(object)node.GetName()` 转换，实际依赖字符串兼容；graph 或 root 为 null 时静默返回，方法也不会调用核心 `Init()`。嵌套构建路径虽传入 parent 参数，当前实现仍向外层实例添加状态，不能据此声明任意层级图已正确还原。
+
+Graph `Validate()` 能检查节点、边和 root 的静态问题，但不能弥补 builder 没有消费边集合。投入生产前应针对具体图验证运行时状态、转移和层级，而不是只依赖资产校验成功。
 
 ---
 
@@ -251,19 +271,45 @@ sequenceDiagram
     Exporter-->>Tool: ExportResult.Ok / Fail
 ```
 
-这个边界让导出器可以服务三类场景：
+这个边界当前可靠支持的是编辑器导出和静态检查：将 ScriptableObject 图变成可检查的 JSON artifact，用于版本比较、诊断或后续工具消费。仓库中尚未形成“导出 JSON 后由 runtime loader 完整还原 HFSM”的已验证闭环，不能把中间格式存在等同于热更新运行能力。
 
-| 场景 | 价值 |
-|------|------|
-| 编辑器导出 | 将 ScriptableObject 图变成可检查的 JSON artifact |
-| 运行时加载 | 为非 Unity 或热更新路径提供中间描述格式 |
-| 调试与验收 | 导出图结构后可做版本比较、静态检查和自动化验证 |
-
-导出失败会返回 `ExportResult.Fail`，不会把异常直接抛给调用方。这更适合编辑器工具链，因为工具面板可以展示错误而不是中断整个编辑器流程。
+构造 exporter 时依赖为 null 会立即抛异常；进入 `Export()` 后，null graph、extractor 或 serializer 失败会返回 `ExportResult.Fail`，提取和序列化异常也会被 catch 并转成失败结果。调用方应同时区分构造期配置错误和导出期结构化失败。
 
 ---
 
-## 9. 和 Flow、Pipeline、Service 状态的边界
+## 9. 核心执行、初始化与失败边界
+
+### 9.1 初始化与状态切换
+
+root 状态机必须显式调用 `Init()`，它会选择 start state 并调用其 `OnEnter()`；没有 start state 时抛出 `MissingStartState`。嵌套状态机作为 state 进入父机时走自己的生命周期，`rememberLastState` 决定重入后恢复上次 active state 还是回到 start state。
+
+目标状态缺失不是事务性失败。`ChangeState()` 先调用旧状态 `OnExit()`，随后才查找目标状态；查找失败会抛异常，此时旧状态已经执行退出副作用，而 active state 字段尚未成功切换。状态 ID 和配置必须在初始化前验证，不能依赖异常后保持完全未变。
+
+### 9.2 回调与检查接口
+
+状态 enter/logic/exit、转移 condition、before/after 和 listener 异常均不隔离，会穿透 `Init()`、`OnLogic()` 或 `Trigger()`。核心适合由受控业务代码驱动；插件回调需要在边界自行包装诊断和失败策略。
+
+`GetAllStateNames()`、`GetAllStates()`、`GetAllTransitions()` 等 inspection API 使用 LINQ `ToArray()` 生成快照，源码也标记为昂贵操作。它们适合编辑器、监控和低频诊断，不应每 Tick 调用。
+
+---
+
+## 10. 生产接入与成熟度证据
+
+| 运行面 | 仓库证据 | 成熟度判断 |
+|--------|----------|------------|
+| Core HFSM | Shooter Bot AI 使用 `HfsmRuntimeProfileBuilder`、blackboard 和自定义逻辑时间源；MOBA View Flow 使用双层状态机和 trigger transition | 有真实生产接入 |
+| Runtime profile builder | Shooter profile 构建后立即 `Init()`；无效 transition 会被跳过，start state 无效时回退首个有效 state | 可用但需上层配置验证和诊断 |
+| Unity Action/Graph | 包内有 Action、Graph 和 Behavior 基础测试 | 有工具基础，运行图转移尚未闭环 |
+| Editor/exporter | 有窗口、monitor、descriptor 和 JSON exporter | 可用于 authoring/观察，未证明 runtime round-trip |
+| Core 契约测试 | 当前测试工程只编译 `ActionStateMachineTests.cs` | 全局优先级、pending 覆盖、exit-time、强制转移和初始化失败缺独立回归 |
+
+Shooter 与 MOBA 的生产证据都直接构建 Core HFSM，不依赖 `ActionStateMachine.InitializeFromGraph()`。文档和采用评审应分别声明“Core 已生产使用”与“Graph 工具链待补强”，不能用前者替后者背书。
+
+优先补充核心转移顺序、同 Tick 新状态 logic、trigger 下传、pending 覆盖、`StateCanExit()` 时点、`forceInstantly`、remember-last-state、目标缺失副作用，以及 Graph edges 到 runtime 和导出 round-trip 测试。
+
+---
+
+## 11. 和 Flow、Pipeline、Service 状态的边界
 
 | 能力 | 适合表达 | 不适合表达 |
 |------|----------|------------|
@@ -282,7 +328,7 @@ sequenceDiagram
 
 ---
 
-## 10. 扩展边界
+## 12. 扩展边界
 
 - 新增状态行为时，优先封装为状态回调或 ActionBehavior，不要让状态机核心知道业务服务类型。
 - 需要全局打断时，使用 from any transition，但要控制优先级和触发条件，避免普通状态转移被意外覆盖。
@@ -294,7 +340,7 @@ sequenceDiagram
 
 ---
 
-## 11. 和其他文档的关系
+## 13. 和其他文档的关系
 
 | 文档 | 关系 |
 |------|------|
@@ -302,4 +348,8 @@ sequenceDiagram
 | [系统设计](../02-LogicalWorldDesign/04-SystemDesign.md) | Service 可以维护简单状态，HFSM 适合复杂状态图和退出时间 |
 | [Flow 流程引擎](05-FlowEngine.md) | Flow 负责流程树，HFSM 负责状态图，两者都可用于启动和行为编排但边界不同 |
 | [技能系统架构](../08-GameplayModules/01-SkillSystemArchitecture.md) | 技能 Pipeline 适合释放阶段，HFSM 适合长期行为或表现/AI 状态 |
-| [测试流程](../10-EngineeringQuality/01-TestingWorkflow.md) | HFSM 包有独立测试入口，状态机变更应纳入 Unity 包内回归 |
+| [测试流程](../10-EngineeringQuality/01-TestingWorkflow.md) | HFSM 有 Unity 测试工程入口，但当前仅覆盖 Action/Graph 基础行为，核心契约仍需补测 |
+
+---
+
+*文档版本：v2.1 | 最后更新：2026-07-15*

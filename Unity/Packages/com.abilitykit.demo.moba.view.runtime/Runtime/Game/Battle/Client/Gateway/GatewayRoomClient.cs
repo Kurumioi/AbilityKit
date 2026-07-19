@@ -6,9 +6,21 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Moba.GatewayTimeSync;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
-using AbilityKit.Protocol.Moba.Room;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Protocol.Room;
+using RoomSubscribeStateSyncReq = AbilityKit.Protocol.Room.WireSubscribeStateSyncReq;
+using RoomSubscribeStateSyncRes = AbilityKit.Protocol.Room.WireSubscribeStateSyncRes;
 using AbilityKit.Game.Flow;
+using WireRoomOperationRes = AbilityKit.Protocol.Room.WireRoomOperationRes;
+using WireBeginLoadingReq = AbilityKit.Protocol.Room.WireBeginLoadingReq;
+using WireReportAssetsLoadedReq = AbilityKit.Protocol.Room.WireReportAssetsLoadedReq;
+using WireCancelLoadingReq = AbilityKit.Protocol.Room.WireCancelLoadingReq;
+using WireGetSnapshotReq = AbilityKit.Protocol.Room.WireGetSnapshotReq;
+using WireRestoreRoomReq = AbilityKit.Protocol.Room.WireRestoreRoomReq;
+using WireRestoreRoomRes = AbilityKit.Protocol.Room.WireRestoreRoomRes;
+using WireRoomStateChangedPush = AbilityKit.Protocol.Room.WireRoomStateChangedPush;
+using WireRoomSnapshotRes = AbilityKit.Protocol.Room.WireRoomSnapshotRes;
+using WireRoomJoinKind = AbilityKit.Protocol.Room.WireRoomJoinKind;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -211,14 +223,15 @@ namespace AbilityKit.Game.Battle.Agent
             if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
             if (string.IsNullOrWhiteSpace(battleId)) throw new ArgumentException("battleId is required.", nameof(battleId));
 
-            var req = new WireSubscribeStateSyncReq
+            var req = new RoomSubscribeStateSyncReq
             {
-                BattleGrainKey = battleId,
+                SessionToken = sessionToken,
+                BattleId = battleId,
                 RoomId = roomId ?? string.Empty
             };
             var payload = WireRoomGatewayBinary.Serialize(in req);
             var respPayload = await _request.SendRequestAsync(_opCodes.SubscribeStateSync, payload, timeout, cancellationToken);
-            var wire = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncRes>(respPayload);
+            var wire = WireRoomGatewayBinary.Deserialize<RoomSubscribeStateSyncRes>(respPayload);
             return new GatewayStateSyncSubscriptionResult(wire.Success);
         }
 
@@ -255,6 +268,181 @@ namespace AbilityKit.Game.Battle.Agent
             var respPayload = await _request.SendRequestAsync(_opCodes.SubmitBattleInput, payload, timeout, cancellationToken);
             var wire = WireCustomBinary.DeserializeSubmitFrameInputRes(respPayload);
             return new GatewayBattleInputResult(wire.ServerFrame, wire.Accepted);
+        }
+
+        // ===== 阶段 5：资源加载屏障 / 状态查询 / 恢复 / 状态变更推送 =====
+
+        public async Task<GatewayRoomOperationResult> BeginLoadingAsync(
+            string sessionToken,
+            string roomId,
+            long? expectedRevision,
+            string commandId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+
+            var req = new WireBeginLoadingReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId,
+                ExpectedRevision = expectedRevision,
+                CommandId = commandId ?? string.Empty
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.BeginLoading, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToOperationResult(wire);
+        }
+
+        public async Task<GatewayRoomOperationResult> ReportAssetsLoadedAsync(
+            string sessionToken,
+            string roomId,
+            long launchGeneration,
+            int manifestVersion,
+            string manifestHash,
+            string commandId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+
+            var req = new WireReportAssetsLoadedReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId,
+                LaunchGeneration = launchGeneration,
+                ManifestVersion = manifestVersion,
+                ManifestHash = manifestHash ?? string.Empty,
+                CommandId = commandId ?? string.Empty
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.ReportAssetsLoaded, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToOperationResult(wire);
+        }
+
+        public async Task<GatewayRoomOperationResult> CancelLoadingAsync(
+            string sessionToken,
+            string roomId,
+            long? expectedRevision,
+            string commandId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+
+            var req = new WireCancelLoadingReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId,
+                ExpectedRevision = expectedRevision,
+                CommandId = commandId ?? string.Empty
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.CancelLoading, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomOperationRes>(respPayload);
+            return ToOperationResult(wire);
+        }
+
+        public async Task<GatewayGetSnapshotResult> GetSnapshotAsync(
+            string sessionToken,
+            string roomId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required.", nameof(roomId));
+
+            var req = new WireGetSnapshotReq
+            {
+                SessionToken = sessionToken,
+                RoomId = roomId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.GetSnapshot, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomSnapshotRes>(respPayload);
+            var wireSnapshot = wire.Snapshot;
+            var snapshot = ClientRoomSnapshotMapper.ToClientSnapshot(wireSnapshot);
+            return new GatewayGetSnapshotResult(wire.Success, wire.RoomId ?? string.Empty, wire.NumericRoomId, snapshot, wire.Message ?? string.Empty);
+        }
+
+        public async Task<GatewayRestoreRoomResult> RestoreRoomAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionToken)) throw new ArgumentException("sessionToken is required.", nameof(sessionToken));
+            if (string.IsNullOrWhiteSpace(region)) throw new ArgumentException("region is required.", nameof(region));
+            if (string.IsNullOrWhiteSpace(serverId)) throw new ArgumentException("serverId is required.", nameof(serverId));
+
+            var req = new WireRestoreRoomReq
+            {
+                SessionToken = sessionToken,
+                Region = region,
+                ServerId = serverId
+            };
+            var payload = WireRoomGatewayBinary.Serialize(in req);
+            var respPayload = await _request.SendRequestAsync(_opCodes.RestoreRoom, payload, timeout, cancellationToken);
+            var wire = WireRoomGatewayBinary.Deserialize<WireRestoreRoomRes>(respPayload);
+            var wireSnapshot = wire.Snapshot;
+            var snapshot = ClientRoomSnapshotMapper.ToClientSnapshot(wireSnapshot);
+            var anchor = ToGatewayAnchor(wire.WorldStartAnchor);
+            return new GatewayRestoreRoomResult(
+                wire.Success,
+                wire.HasActiveRoom,
+                wire.IsInBattle,
+                wire.RoomId ?? string.Empty,
+                wire.NumericRoomId,
+                snapshot,
+                in anchor,
+                wire.Message ?? string.Empty,
+                ToJoinKind(wire.JoinKind),
+                wire.ServerNowTicks,
+                wire.CurrentPlayerId);
+        }
+
+        public ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload)
+        {
+            var wire = WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload);
+            var wireSnapshot = wire.Snapshot;
+            return ClientRoomSnapshotMapper.ToClientSnapshot(wireSnapshot);
+        }
+
+        public bool IsRoomStateChangedPush(uint opCode)
+        {
+            return opCode == _opCodes.RoomStateChanged;
+        }
+
+        private static GatewayRoomOperationResult ToOperationResult(in WireRoomOperationRes wire)
+        {
+            var wireSnapshot = wire.Snapshot;
+            var snapshot = ClientRoomSnapshotMapper.ToClientSnapshot(wireSnapshot);
+            return new GatewayRoomOperationResult(
+                wire.Success,
+                wire.Applied,
+                wire.ErrorCode,
+                wire.Message ?? string.Empty,
+                wire.RoomRevision,
+                snapshot);
+        }
+
+        private static RoomGatewayJoinKind ToJoinKind(WireRoomJoinKind kind)
+        {
+            switch (kind)
+            {
+                case WireRoomJoinKind.Reconnect:
+                    return RoomGatewayJoinKind.Reconnect;
+                case WireRoomJoinKind.LateJoin:
+                    return RoomGatewayJoinKind.LateJoin;
+                default:
+                    return RoomGatewayJoinKind.TeamLobby;
+            }
         }
 
         private static Dictionary<string, string> ToDictionary(IReadOnlyDictionary<string, string> source)

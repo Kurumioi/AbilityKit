@@ -4,7 +4,8 @@
     "references": [
         "AbilityKit.Core",
         "AbilityKit.Ability",
-        "AbilityKit.Pipeline"
+        "AbilityKit.Pipeline",
+        "BTRuntime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

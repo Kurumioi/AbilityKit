@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Combat.Collision;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Core.Serialization;
 using AbilityKit.Core.Mathematics;
@@ -71,6 +72,7 @@ namespace AbilityKit.Combat.Projectile
             proj.DistanceLeft = p.MaxDistance;
             proj.CollisionLayerMask = p.CollisionLayerMask;
             proj.IgnoreCollider = p.IgnoreCollider;
+            proj.CollisionHalfExtents = p.CollisionHalfExtents;
             proj.HitPolicyKind = p.HitPolicyKind;
             proj.HitPolicyParam = p.HitPolicyParam;
             proj.HitPolicy = p.HitPolicy ?? ProjectileHitPolicyFactory.Create(p.HitPolicyKind, p.HitPolicyParam);
@@ -124,6 +126,7 @@ namespace AbilityKit.Combat.Projectile
                     distanceLeft: p.DistanceLeft,
                     collisionLayerMask: p.CollisionLayerMask,
                     ignoreCollider: p.IgnoreCollider.Value,
+                    collisionHalfExtents: p.CollisionHalfExtents,
                     hitsRemaining: p.HitsRemaining,
                     hitPolicyKind: p.HitPolicyKind,
                     hitPolicyParam: p.HitPolicyParam,
@@ -147,7 +150,7 @@ namespace AbilityKit.Combat.Projectile
             }
 
             return BinaryObjectCodec.Encode(new SnapshotPayload(
-                version: 4,
+                version: 5,
                 frame: frame,
                 nextId: _nextId,
                 items: items
@@ -188,6 +191,7 @@ namespace AbilityKit.Combat.Projectile
                 p.DistanceLeft = it.DistanceLeft;
                 p.CollisionLayerMask = it.CollisionLayerMask;
                 p.IgnoreCollider = new ColliderId(it.IgnoreCollider);
+                p.CollisionHalfExtents = it.CollisionHalfExtents;
                 p.HitsRemaining = it.HitsRemaining;
                 p.HitPolicyKind = it.HitPolicyKind;
                 p.HitPolicyParam = it.HitPolicyParam;
@@ -230,16 +234,35 @@ namespace AbilityKit.Combat.Projectile
 
         public bool Despawn(ProjectileId id)
         {
+            return Despawn(id, frame: 0, ProjectileExitReason.Manual, out _);
+        }
+
+        public bool Despawn(
+            ProjectileId id,
+            int frame,
+            ProjectileExitReason reason,
+            out ProjectileExitEvent exitEvent)
+        {
             for (int i = 0; i < _active.Count; i++)
             {
                 var p = _active[i];
                 if (p == null) continue;
                 if (p.Id.Value != id.Value) continue;
 
+                exitEvent = new ProjectileExitEvent(
+                    p.Id,
+                    p.OwnerId,
+                    p.TemplateId,
+                    p.LauncherActorId,
+                    p.RootActorId,
+                    reason,
+                    frame,
+                    p.Position);
                 RemoveAtSwapBack(i);
                 return true;
             }
 
+            exitEvent = default;
             return false;
         }
 
@@ -363,8 +386,12 @@ namespace AbilityKit.Combat.Projectile
                 // 防止同一帧内对同一个碰撞体重复触发命中回调。
                 // 这样可保留“返回过程可跨帧多次命中同一目标”的行为，
                 // 同时避免单帧内多段射线检测造成重复触发。
-                var hitCollidersThisTick = new ColliderId[maxHitsPerStep];
+                var hitCollidersThisTick = new ColliderId[maxHitsPerStep + 1];
                 var hitColliderCount = 0;
+                if (p.IgnoreCollider.Value != 0)
+                {
+                    hitCollidersThisTick[hitColliderCount++] = p.IgnoreCollider;
+                }
 
                 if (!p.IsArmed)
                 {
@@ -374,7 +401,7 @@ namespace AbilityKit.Combat.Projectile
 
                 while (remaining > 0f)
                 {
-                    if (!TryRaycastSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, p.IgnoreCollider, out var hit))
+                    if (!TrySweepSkippingIgnored(origin, dir, remaining, p.CollisionLayerMask, hitCollidersThisTick, hitColliderCount, p.CollisionHalfExtents, out var hit))
                     {
                         // 剩余线段内没有命中。
                         origin = origin + dir * remaining;
@@ -383,10 +410,24 @@ namespace AbilityKit.Combat.Projectile
                     }
 
                     var hitEvt = new ProjectileHitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, hit.Collider, hit.Distance, hit.Point, hit.Normal, frame, hitCount: 0);
+                    var collisionResponse = ResolveCollisionResponse(p, hit.Collider, frame);
+
+                    if (collisionResponse == ProjectileCollisionResponse.Block)
+                    {
+                        exitEvents?.Add(new ProjectileExitEvent(p.Id, p.OwnerId, p.TemplateId, p.LauncherActorId, p.RootActorId, ProjectileExitReason.Hit, frame, hit.Point));
+                        RemoveAtSwapBack(i);
+                        i--;
+                        goto NextProjectile;
+                    }
 
                     // 命中过滤和按碰撞体冷却。
-                    if (p.HitFilter != null && !p.HitFilter.ShouldHit(p.OwnerId, hit.Collider, frame))
+                    if (collisionResponse == ProjectileCollisionResponse.Ignore)
                     {
+                        if (hitColliderCount < hitCollidersThisTick.Length)
+                        {
+                            hitCollidersThisTick[hitColliderCount++] = hit.Collider;
+                        }
+
                         origin = hit.Point + dir * epsilonAdvance;
                         remaining -= hit.Distance + epsilonAdvance;
                         hitCount++;
@@ -645,7 +686,7 @@ namespace AbilityKit.Combat.Projectile
             }
         }
 
-        private bool TryRaycastSkippingIgnored(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId ignored, out RaycastHit hit)
+        private bool TrySweepSkippingIgnored(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId[] ignoredColliders, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
         {
             // 使用固定重试次数，保持确定性并避免无限循环。
             const int maxAttempts = 4;
@@ -656,14 +697,13 @@ namespace AbilityKit.Combat.Projectile
 
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                var ray = new Ray3(o, dir);
-                if (!_collision.Raycast(ray, remaining, layerMask, out hit))
+                if (!TrySweep(o, dir, remaining, layerMask, ignoredColliders, ignoredColliderCount, halfExtents, out hit))
                 {
                     hit = default;
                     return false;
                 }
 
-                if (!hit.Collider.Equals(ignored))
+                if (!ContainsCollider(ignoredColliders, ignoredColliderCount, hit.Collider))
                 {
                     return true;
                 }
@@ -680,6 +720,47 @@ namespace AbilityKit.Combat.Projectile
 
             hit = default;
             return false;
+        }
+
+        private bool TrySweep(in Vec3 origin, in Vec3 dir, float maxDistance, int layerMask, ColliderId[] ignoredColliders, int ignoredColliderCount, in Vec3 halfExtents, out RaycastHit hit)
+        {
+            if (halfExtents.SqrMagnitude > 0f && _collision is IOrientedBoxSweepCollisionWorld boxSweepWorld)
+            {
+                var forward = dir.Normalized;
+                var right = Vec3.Cross(Vec3.Up, forward).Normalized;
+                if (right.SqrMagnitude <= 0f) right = Vec3.Right;
+                var up = Vec3.Cross(forward, right).Normalized;
+                var box = new OrientedBoxSweep(origin, right, up, forward, halfExtents);
+                var filter = new LayerFilter(layerMask);
+                return boxSweepWorld.SweepOrientedBox(in box, in forward, maxDistance, in filter, out hit);
+            }
+
+            var ray = new Ray3(origin, dir);
+            var filter2 = new LayerFilter(layerMask);
+            return _collision.Raycast(ray, maxDistance, in filter2, out hit);
+        }
+
+        private static bool ContainsCollider(ColliderId[] colliders, int count, ColliderId collider)
+        {
+            if (colliders == null || count <= 0) return false;
+            var limit = count < colliders.Length ? count : colliders.Length;
+            for (var i = 0; i < limit; i++)
+            {
+                if (colliders[i].Equals(collider)) return true;
+            }
+            return false;
+        }
+
+        private static ProjectileCollisionResponse ResolveCollisionResponse(Projectile projectile, ColliderId collider, int frame)
+        {
+            if (projectile.HitFilter is IProjectileCollisionResponseResolver resolver)
+            {
+                return resolver.ResolveCollision(projectile.OwnerId, collider, frame);
+            }
+
+            return projectile.HitFilter == null || projectile.HitFilter.ShouldHit(projectile.OwnerId, collider, frame)
+                ? ProjectileCollisionResponse.Hit
+                : ProjectileCollisionResponse.Ignore;
         }
 
         public readonly struct SnapshotPayload
@@ -738,6 +819,7 @@ namespace AbilityKit.Combat.Projectile
             [BinaryMember(34)] public readonly int ConsumeLifetimeBeforeFlying;
             [BinaryMember(35)] public readonly int ArmedBeforeFlying;
             [BinaryMember(36)] public readonly int TrackingTargetActorId;
+            [BinaryMember(37)] public readonly Vec3 CollisionHalfExtents;
 
             public SnapshotItem(
                 int id,
@@ -758,6 +840,7 @@ namespace AbilityKit.Combat.Projectile
                 float distanceLeft,
                 int collisionLayerMask,
                 int ignoreCollider,
+                in Vec3 collisionHalfExtents,
                 int hitsRemaining,
                 ProjectileHitPolicyKind hitPolicyKind,
                 int hitPolicyParam,
@@ -796,6 +879,7 @@ namespace AbilityKit.Combat.Projectile
                 DistanceLeft = distanceLeft;
                 CollisionLayerMask = collisionLayerMask;
                 IgnoreCollider = ignoreCollider;
+                CollisionHalfExtents = collisionHalfExtents;
                 HitsRemaining = hitsRemaining;
                 HitPolicyKind = hitPolicyKind;
                 HitPolicyParam = hitPolicyParam;

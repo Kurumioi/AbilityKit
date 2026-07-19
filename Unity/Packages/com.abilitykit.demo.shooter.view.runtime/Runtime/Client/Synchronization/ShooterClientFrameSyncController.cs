@@ -79,6 +79,7 @@ namespace AbilityKit.Demo.Shooter.View
         public int PendingInputFrameCount => _predictionReconciliation.PendingInputFrameCount;
         public ShooterSnapshotApplyResult LastSnapshotApplyResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
         public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _snapshotApply.Diagnostics;
+        public ShooterClientImportedSnapshotEvidence LastImportedSnapshotEvidence { get; private set; } = ShooterClientImportedSnapshotEvidence.None;
         public ShooterClientReconciliationResult LastReconciliationResult { get; private set; } = ShooterClientReconciliationResult.None;
         public bool NeedsFullSnapshotResync => _recovery.NeedsFullSnapshotResync;
         public ShooterClientRecoveryState RecoveryState => _recovery.State;
@@ -229,6 +230,10 @@ namespace AbilityKit.Demo.Shooter.View
                 var authoritativeFrame = snapshotApply.AuthoritativeFrame;
                 var authoritativeStateHash = snapshotApply.AuthoritativeStateHash;
                 var importedStateHash = snapshotApply.ImportedStateHash;
+                LastImportedSnapshotEvidence = new ShooterClientImportedSnapshotEvidence(
+                    authoritativeFrame,
+                    authoritativeStateHash,
+                    importedStateHash);
                 var isStrongRecoverySnapshot = IsStrongRecoverySnapshot(snapshotApply.SnapshotFlags);
 
                 _recovery.SetState(wasAwaitingFullSnapshot ? ShooterClientRecoveryState.ApplyingFullSnapshot : ShooterClientRecoveryState.Normal);
@@ -524,6 +529,21 @@ namespace AbilityKit.Demo.Shooter.View
         FrameTooFarAhead = 5,
         SnapshotTimeout = 6,
         WorldMismatch = 7
+    }
+
+    public readonly struct ShooterClientImportedSnapshotEvidence
+    {
+        public static readonly ShooterClientImportedSnapshotEvidence None = new ShooterClientImportedSnapshotEvidence(0, 0u, 0u);
+        public readonly int Frame;
+        public readonly uint AuthoritativeStateHash;
+        public readonly uint ImportedStateHash;
+
+        public ShooterClientImportedSnapshotEvidence(int frame, uint authoritativeStateHash, uint importedStateHash)
+        {
+            Frame = frame;
+            AuthoritativeStateHash = authoritativeStateHash;
+            ImportedStateHash = importedStateHash;
+        }
     }
 
     public readonly struct ShooterClientFrameTickResult

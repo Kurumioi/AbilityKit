@@ -9,9 +9,14 @@ namespace AbilityKit.Orleans.Contracts.Battle;
 public interface IBattleLogicHostGrain : IGrainWithStringKey
 {
     /// <summary>
-    /// 初始化战斗世界
+    /// 初始化战斗世界（旧入口，保留兼容，内部委托 <see cref="InitializeBattleWithResultAsync"/>）。
     /// </summary>
     Task InitializeBattleAsync(BattleInitParams initParams);
+
+    /// <summary>
+    /// 幂等 create-or-get 初始化战斗世界，返回结构化结果（含 init spec hash 冲突检测）。
+    /// </summary>
+    Task<BattleInitResult> InitializeBattleWithResultAsync(BattleInitParams initParams, string? initSpecHash);
 
     /// <summary>
     /// 提交玩家输入。
@@ -49,14 +54,23 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     Task<WorldStartAnchor?> GetWorldStartAnchorAsync();
 
     /// <summary>
-    /// 订阅状态同步观察者
+    /// 订阅状态同步观察者，并从客户端累计确认位置恢复可靠事件。
+    /// 观察者元数据由调用方随请求传入，避免 Host 回调非可重入 Observer。
     /// </summary>
-    Task SubscribeAsync(IStateSyncObserverGrain observer);
+    Task SubscribeAsync(
+        IStateSyncObserverGrain observer,
+        StateSyncObserverInfo observerInfo,
+        ReliableBattleEventSubscribeCursor eventCursor);
+
+    /// <summary>
+    /// 接受客户端可靠事件累计确认位置。
+    /// </summary>
+    Task<ReliableBattleEventAckResult> AcknowledgeReliableEventsAsync(string observerKey, string epoch, long sequence);
 
     /// <summary>
     /// 向指定观察者推送当前完整快照。
     /// </summary>
-    Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer);
+    Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer, StateSyncObserverInfo observerInfo);
 
     /// <summary>
     /// 取消订阅状态同步观察者
@@ -91,6 +105,35 @@ public class BattleInitParams
     [Id(13)] public WorldStartAnchor? WorldStartAnchor { get; set; }
     [Id(14)] public BattleSyncStartOptions? SyncOptions { get; set; }
     [Id(15)] public int DurationFrames { get; set; }
+}
+
+/// <summary>
+/// 战斗初始化结构化结果。支持幂等 create-or-get 与 init spec hash 冲突检测。
+/// </summary>
+[GenerateSerializer]
+public sealed record BattleInitResult(
+    [property: Id(0)] bool Initialized,
+    [property: Id(1)] bool AlreadyInitialized,
+    [property: Id(2)] string? InitSpecHash,
+    [property: Id(3)] WorldStartAnchor? WorldStartAnchor,
+    [property: Id(4)] string? Error)
+{
+    /// <summary>
+    /// 是否成功（首次初始化成功，或已初始化且 hash 匹配的幂等命中）。
+    /// </summary>
+    public bool Succeeded => Error is null && (Initialized || AlreadyInitialized);
+
+    public static BattleInitResult FromInitialized(string? initSpecHash, WorldStartAnchor? anchor) =>
+        new(Initialized: true, AlreadyInitialized: false, initSpecHash, anchor, Error: null);
+
+    public static BattleInitResult FromAlreadyInitialized(string? storedHash, WorldStartAnchor? anchor) =>
+        new(Initialized: false, AlreadyInitialized: true, storedHash, anchor, Error: null);
+
+    public static BattleInitResult FromHashMismatch(string? storedHash) =>
+        new(Initialized: false, AlreadyInitialized: true, storedHash, WorldStartAnchor: null, Error: "InitSpecHashMismatch");
+
+    public static BattleInitResult FromError(string error) =>
+        new(Initialized: false, AlreadyInitialized: false, InitSpecHash: null, WorldStartAnchor: null, Error: error);
 }
 
 [GenerateSerializer]
@@ -160,6 +203,11 @@ public class BattleInputItem
     [Id(0)] public uint PlayerId { get; set; }
     [Id(1)] public int OpCode { get; set; }
     [Id(2)] public byte[]? Payload { get; set; }
+
+    /// <summary>
+    /// Per-player monotonically increasing command sequence. Zero denotes a legacy caller.
+    /// </summary>
+    [Id(3)] public ulong CommandSequence { get; set; }
 }
 
 [GenerateSerializer]
@@ -302,4 +350,9 @@ public class StateSyncPush
     /// 服务端时间域 ticks。Timestamp 保留为兼容字段。
     /// </summary>
     [Id(7)] public long ServerTicks { get; set; }
+
+    /// <summary>
+    /// 创建该快照时已产生的可靠事件最高权威序列。
+    /// </summary>
+    [Id(8)] public long EventWatermark { get; set; }
 }

@@ -20,6 +20,8 @@ internal interface IBattleRuntimeSession : IDisposable
 
     BattlePlayerJoinResult JoinPlayer(BattlePlayerJoinRequest request, int currentFrame);
 
+    BattleInputValidationResult ValidateInput(BattleInputItem input) => BattleInputValidationResult.Valid;
+
     int SubmitInputs(int frame, IReadOnlyList<BattleInputItem> inputs);
 
     BattleBotAiMountResult MountBotAi(BattleBotAiMountRequest request, int currentFrame);
@@ -38,9 +40,26 @@ internal interface IObserverAwareBattleRuntimeSession
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot, in BattleStateSyncObserverContext observerContext);
 }
 
+internal interface IReliableBattleEventProducer
+{
+    IReadOnlyList<ReliableBattleEventSource> CaptureReliableEvents(int frame);
+}
+
+internal readonly record struct ReliableBattleEventSource(
+    int SourceFrame,
+    int EventType,
+    byte[]? Payload);
+
 internal readonly record struct BattleRuntimeStartResult(bool Succeeded, string? Error)
 {
     public static BattleRuntimeStartResult Success() => new(true, null);
 
     public static BattleRuntimeStartResult Fail(string error) => new(false, error);
+}
+
+internal readonly record struct BattleInputValidationResult(bool Accepted, string Status, string Message)
+{
+    public static BattleInputValidationResult Valid { get; } = new(true, string.Empty, string.Empty);
+
+    public static BattleInputValidationResult Reject(string status, string message) => new(false, status, message);
 }

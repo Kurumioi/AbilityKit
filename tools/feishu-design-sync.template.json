@@ -5,5 +5,5 @@
   "target": {
     "rootToken": "replace-with-your-personal-folder-token"
   },
-  "changedDocumentMode": "versioned-reimport"
+  "changedDocumentMode": "block"
 }

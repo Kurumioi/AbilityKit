@@ -10,7 +10,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
 {
     /// <summary>
     /// 可复现的网络环境模拟器，可接入中间件链。
-    /// 它会将 <see cref="NetworkConditionProfile"/>（延迟、抖动、丢包、乱序）应用到入站和出站包，
+    /// 它会将 <see cref="NetworkConditionProfile"/>（延迟、抖动、丢包、乱序、带宽）应用到入站和出站包，
     /// 让任意同步模型都能在受控且可重复的不利网络条件下运行。
     ///
     /// 投递由时间驱动且具备确定性：未被丢弃的包会按计划投递时间进入缓冲，
@@ -36,6 +36,8 @@ namespace AbilityKit.Network.Runtime.Conditioning
         private readonly List<PendingPacket> _pending = new List<PendingPacket>();
 
         private long _enqueueCounter;
+        private long _inboundBandwidthAvailableAtMs;
+        private long _outboundBandwidthAvailableAtMs;
 
         private long _inboundReceived;
         private long _inboundDelivered;
@@ -143,6 +145,8 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
             if (delay < 0) delay = 0;
 
+            long bandwidthDelay = ReserveBandwidth(inbound, now, payload.Count);
+
             // 复制载荷，因为调用方缓冲区可能在该调用返回后被复用。
             var copy = new byte[payload.Count];
             if (payload.Count > 0)
@@ -152,13 +156,39 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
             _pending.Add(new PendingPacket
             {
-                DeliverAtMs = now + delay,
+                DeliverAtMs = now + delay + bandwidthDelay,
                 Sequence = reordered ? long.MinValue + _enqueueCounter++ : _enqueueCounter++,
                 Inbound = inbound,
                 Header = header,
                 Payload = copy,
                 Next = next,
             });
+        }
+
+        private long ReserveBandwidth(bool inbound, long nowMs, int payloadBytes)
+        {
+            if (_profile.BandwidthKbps <= 0 || payloadBytes <= 0)
+            {
+                return 0;
+            }
+
+            // 1 Kbps = 1 bit/ms。每个方向独立串行化，完成发送后才能投递。
+            long serializationMs = ((long)payloadBytes * 8L + _profile.BandwidthKbps - 1L) /
+                                   _profile.BandwidthKbps;
+            long availableAtMs = inbound ? _inboundBandwidthAvailableAtMs : _outboundBandwidthAvailableAtMs;
+            long transmissionStartsAtMs = Math.Max(nowMs, availableAtMs);
+            long transmissionCompletesAtMs = transmissionStartsAtMs + serializationMs;
+
+            if (inbound)
+            {
+                _inboundBandwidthAvailableAtMs = transmissionCompletesAtMs;
+            }
+            else
+            {
+                _outboundBandwidthAvailableAtMs = transmissionCompletesAtMs;
+            }
+
+            return transmissionCompletesAtMs - nowMs;
         }
 
         private static long DefaultClock()

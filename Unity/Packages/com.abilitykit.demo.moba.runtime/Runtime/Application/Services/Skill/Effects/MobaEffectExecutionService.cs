@@ -19,6 +19,7 @@ using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -36,6 +37,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers = null;
         [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
         private MobaTriggerPlanExecutor _planExecutor;
@@ -399,7 +401,9 @@ namespace AbilityKit.Demo.Moba.Services
                     CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
                 }
 
-                return new MobaEffectExecutionSession(this, traceScope, budgetToken);
+                CollectEffectStarted(traceScope, in lineageInput);
+
+                return new MobaEffectExecutionSession(this, traceScope, budgetToken, in lineageInput);
             }
             catch
             {
@@ -422,17 +426,20 @@ namespace AbilityKit.Demo.Moba.Services
         {
             private readonly MobaEffectExecutionService _owner;
             private readonly MobaTriggerExecutionBudgetToken _budgetToken;
+            private readonly MobaEffectLineageInput _lineageInput;
             private EffectExecutionTraceScope _traceScope;
             private bool _disposed;
 
             public MobaEffectExecutionSession(
                 MobaEffectExecutionService owner,
                 EffectExecutionTraceScope traceScope,
-                in MobaTriggerExecutionBudgetToken budgetToken)
+                in MobaTriggerExecutionBudgetToken budgetToken,
+                in MobaEffectLineageInput lineageInput)
             {
                 _owner = owner;
                 _traceScope = traceScope;
                 _budgetToken = budgetToken;
+                _lineageInput = lineageInput;
             }
 
             public void Complete(bool executed)
@@ -440,6 +447,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (_traceScope == null) return;
 
                 _owner.EndCurrentTrace(ToTraceEndReason(executed));
+                _owner.CollectEffectEnded(_traceScope, in _lineageInput, executed);
                 _traceScope = null;
             }
 
@@ -450,6 +458,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (_traceScope != null)
                 {
+                    _owner.CollectEffectEnded(_traceScope, in _lineageInput, false);
                     _owner.EndCurrentTrace((int)TraceLifecycleReason.Failed);
                     _traceScope = null;
                 }
@@ -653,6 +662,51 @@ namespace AbilityKit.Demo.Moba.Services
                 }
                 session.Complete(planExecuted);
                 return planExecuted;
+            }
+        }
+
+        // ===== 诊断 Producer：Effect 执行生命周期草稿提交 =====
+
+        private void CollectEffectStarted(EffectExecutionTraceScope traceScope, in MobaEffectLineageInput lineageInput)
+        {
+            if (_eventCollector == null || traceScope == null) return;
+
+            try
+            {
+                var draft = MobaEffectDiagnosticProducer.CreateEffectStartedDraft(
+                    traceScope.EffectConfigId,
+                    traceScope.TriggerId,
+                    traceScope.SourceActorId,
+                    traceScope.TargetActorId,
+                    traceScope.EffectContextId,
+                    lineageInput.EffectiveRootContextId);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响效果执行流程，静默吞掉异常。
+            }
+        }
+
+        private void CollectEffectEnded(EffectExecutionTraceScope traceScope, in MobaEffectLineageInput lineageInput, bool executed)
+        {
+            if (_eventCollector == null || traceScope == null) return;
+
+            try
+            {
+                var draft = MobaEffectDiagnosticProducer.CreateEffectEndedDraft(
+                    traceScope.EffectConfigId,
+                    traceScope.TriggerId,
+                    traceScope.SourceActorId,
+                    traceScope.TargetActorId,
+                    traceScope.EffectContextId,
+                    lineageInput.EffectiveRootContextId,
+                    executed);
+                _eventCollector.TryCollect(in draft);
+            }
+            catch (Exception)
+            {
+                // 诊断提交失败不应影响效果执行流程，静默吞掉异常。
             }
         }
 

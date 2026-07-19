@@ -160,14 +160,40 @@ public sealed class ShooterRoomGatewayRoomClientTests
             Success = true,
             Message = "subscribed"
         });
-        var subscribe = await roomClient.SubscribeStateSyncAsync(new ShooterGatewayStateSyncSubscriptionRequest("session-token", "battle-1", "room-1"));
+        var subscribe = await roomClient.SubscribeStateSyncAsync(new ShooterGatewayStateSyncSubscriptionRequest(
+            "session-token",
+            "battle-1",
+            "room-1",
+            "epoch-7",
+            41L));
         Assert.Equal(RoomGatewayOpCodes.SubscribeStateSync, transport.LastOpCode);
         var subscribeWire = WireRoomGatewayBinary.Deserialize<WireSubscribeStateSyncReq>(transport.LastPayload);
         Assert.Equal("session-token", subscribeWire.SessionToken);
         Assert.Equal("battle-1", subscribeWire.BattleId);
         Assert.Equal("room-1", subscribeWire.RoomId);
+        Assert.Equal("epoch-7", subscribeWire.EventEpoch);
+        Assert.Equal(41L, subscribeWire.LastEventAck);
         Assert.True(subscribe.Success);
         Assert.Equal("subscribed", subscribe.Message);
+
+        transport.SetResponse(new WireAckReliableBattleEventsRes
+        {
+            Success = true,
+            AcceptedAckSequence = 42L,
+            Message = "acknowledged"
+        });
+        var ack = await roomClient.AcknowledgeReliableBattleEventsAsync(
+            new ShooterGatewayReliableBattleEventAckRequest("session-token", "battle-1", "room-1", "epoch-7", 42L));
+        Assert.Equal(RoomGatewayOpCodes.AckReliableBattleEvents, transport.LastOpCode);
+        var ackWire = WireRoomGatewayBinary.Deserialize<WireAckReliableBattleEventsReq>(transport.LastPayload);
+        Assert.Equal("session-token", ackWire.SessionToken);
+        Assert.Equal("battle-1", ackWire.BattleId);
+        Assert.Equal("room-1", ackWire.RoomId);
+        Assert.Equal("epoch-7", ackWire.Epoch);
+        Assert.Equal(42L, ackWire.AckSequence);
+        Assert.True(ack.Success);
+        Assert.Equal(42L, ack.AcceptedAckSequence);
+        Assert.Equal("acknowledged", ack.Message);
 
         transport.SetResponse(new WireRequestFullStateSyncRes
         {

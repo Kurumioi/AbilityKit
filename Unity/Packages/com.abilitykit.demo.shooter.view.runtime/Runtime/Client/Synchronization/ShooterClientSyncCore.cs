@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly ShooterClientFrameSyncCoordinator _frameSync;
         private readonly ShooterClientInputCoordinator _input;
+        private readonly SyncHealthEventListView _lastHealthEvents;
 
         public ShooterClientSyncCore(
             IShooterBattleRuntimePort runtime,
@@ -24,6 +25,9 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _frameSync = new ShooterClientFrameSyncCoordinator(runtime, presentation, tickRate, decoder);
             _input = new ShooterClientInputCoordinator(_frameSync.Controller, gateway);
+            _lastHealthEvents = new SyncHealthEventListView(
+                () => _frameSync.LastFastReconnectHealthEvents,
+                () => _input.LastHealthEvents);
         }
 
         public bool IsStarted => _frameSync.IsStarted;
@@ -44,8 +48,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public FastReconnectPhase FastReconnectPhase => _frameSync.FastReconnectPhase;
 
-        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents
-            => MergeHealthEvents(_frameSync.LastFastReconnectHealthEvents, _input.LastHealthEvents);
+        public IReadOnlyList<SyncHealthEvent> LastFastReconnectHealthEvents =>
+            _lastHealthEvents;
 
         public ShooterClientResyncReason LastResyncReason => _frameSync.LastResyncReason;
 
@@ -112,32 +116,5 @@ namespace AbilityKit.Demo.Shooter.View
             return _frameSync.ApplyGatewayPush(opCode, payload);
         }
 
-        private static IReadOnlyList<SyncHealthEvent> MergeHealthEvents(
-            IReadOnlyList<SyncHealthEvent> primary,
-            IReadOnlyList<SyncHealthEvent> secondary)
-        {
-            if (primary.Count == 0)
-            {
-                return secondary;
-            }
-
-            if (secondary.Count == 0)
-            {
-                return primary;
-            }
-
-            var merged = new SyncHealthEvent[primary.Count + secondary.Count];
-            for (int i = 0; i < primary.Count; i++)
-            {
-                merged[i] = primary[i];
-            }
-
-            for (int i = 0; i < secondary.Count; i++)
-            {
-                merged[primary.Count + i] = secondary[i];
-            }
-
-            return merged;
-        }
     }
 }

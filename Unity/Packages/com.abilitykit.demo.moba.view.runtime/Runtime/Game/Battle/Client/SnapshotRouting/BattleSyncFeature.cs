@@ -4,6 +4,8 @@ using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Ability.Host.Extensions.Moba.Room;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -105,6 +107,32 @@ namespace AbilityKit.Game.Flow
                     packet.WorldId,
                     new FrameIndex(snap.Frame),
                     new AbilityKit.Ability.FrameSync.Rollback.WorldStateHash(snap.Hash));
+            }
+
+            CollectStateHashSnapshot(snap.Frame, snap.Hash);
+        }
+
+        private void CollectStateHashSnapshot(int authoritativeFrame, uint stateHash)
+        {
+            try
+            {
+                if (_ctx?.Session == null ||
+                    !_ctx.Session.TryGetWorld(out var world) ||
+                    world?.Services == null ||
+                    !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var collector) ||
+                    collector == null)
+                {
+                    return;
+                }
+
+                var draft = MobaSyncDiagnosticProducer.CreateSnapshotReceivedDraft(
+                    authoritativeFrame,
+                    stateHash);
+                collector.TryCollect(in draft);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[BattleSyncFeature] Failed to collect StateHash sync diagnostic");
             }
         }
 

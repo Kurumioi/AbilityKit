@@ -216,34 +216,43 @@ flowchart TD
 
 ## 7. Replay 证据链
 
-配置 `--input-logic-replay-output` 后，`ShooterSmokeReplayRecordScope` 记录初始快照、服务端接受的输入以及后续权威快照。场景结束时：
+单进程模式配置 `--input-logic-replay-output` 后，`ShooterSmokeReplayRecordScope` 记录初始快照、服务端接受的输入以及后续权威快照。场景结束时保存原始 replay、生成最小化 replay、执行验证并将摘要写入结果。
 
-- 保存原始 replay；
-- 生成最小化 replay 路径；
-- 调用 `ShooterSmokeReplayValidation.ValidateReplay` 生成验证结果；
-- 将路径和验证摘要写入 `ShooterSmokeResult` 与 PASS 输出。
+多进程 runner 使用独立的 input-state replay。每个 create/join 客户端默认必须生成完整与 minimized replay，并满足：
 
-覆盖边界需要明确：
+- 两个文件均存在且非空；
+- 完整 replay 已被验证器消费；
+- replay 至少包含一个 snapshot；
+- minimized input-state replay 不保留 state hash track；
+- 客户端 diagnostic 中的 authoritative FrameRecord diff 已收敛；
+- manifest 收录 replay、diagnostic、diff、日志的相对路径、bytes 和 SHA-256。
 
-- `run_shooter_smoke.ps1` 对两个文件执行存在性和非空检查。
-- `ShooterSmokeReplaySummaryTests` 使用内存数据验证 summary 的 metadata、frame 范围、opcode 分布及 packed/pure-state 诊断计数。
-- 当前 `ShooterSmokeScenarioBase.ValidateSmokeResult` 没有针对 replay 路径或 `ReplayValidation` 的硬断言。
+覆盖边界需要区分：
 
-因此，回放文件缺失会被推荐脚本拦截；直接运行项目且未提供输出路径时，不会因缺失 replay 失败。若回放可重放性成为发布门禁，应在总结果校验中增加明确断言，而不是只依赖格式化输出。
+- `run_shooter_smoke.ps1` 负责单进程 replay 文件门禁。
+- `run_shooter_multiprocess_smoke.ps1` 负责多进程 replay、diagnostic、diff 和 manifest 门禁。
+- `ShooterSmokeReplaySummaryTests` 验证 summary 的 metadata、frame 范围、opcode 分布及 packed/pure-state 诊断计数。
+- 直接运行项目且未提供输出路径时，不会因为缺少脚本级 artifact 而失败。
 
-## 8. 多进程与网络劣化模式
+因此，发布或故障矩阵验收应使用推荐脚本，不能用一次裸项目运行替代完整证据链。多进程 replay 与 authoritative diff 的组合设计见 [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md)。
 
-`ShooterSmokeClientProcessRunner` 提供比默认场景更灵活的客户端进程入口。命令行可配置：
+## 8. 多进程故障与网络劣化模式
+
+`ShooterSmokeClientProcessRunner` 提供独立客户端进程入口，`run_shooter_multiprocess_smoke.ps1` 在其上组织版本化故障矩阵。命令行可配置：
 
 - `--client-mode create|join`；
 - host、TCP port、room ID、player ID 和 client ID；
-- input count、seed 和 timeout；
-- 等待比赛结束和执行一次 reconnect；
+- input count、seed 和分层 timeout；
+- 等待比赛结束、reconnect count 与 retry backoff；
 - latency、jitter、packet-loss rate 及其随机种子；
 - `packed` 或 `pure-state` payload mode；
-- input-state replay 输出路径。
+- input-state replay、diagnostic 和 correlation id。
 
-该运行器会统计 packed/pure-state push、full baseline、delta、resync request、reconciliation、网络条件、lag compensation 和 reconnect 等诊断项。它适合搭建“独立服务进程 + 多客户端进程”的专项验证，但这些参数不是默认 `run_shooter_smoke.ps1` 场景自动覆盖的矩阵。
+fault matrix 的 `minimal` profile 执行 `recoverable-retry`；`full` profile 顺序执行 `slow-consumer`、`gateway-offline`、`recoverable-retry` 与 `reconnect-cycles`。每个子场景使用独立端口组和 run 目录，并输出 schema version 2 manifest。
+
+`reconnect-cycles` 对 join 客户端执行三次真实 connection close。每轮重新走正式 join/ready/start/subscribe 流程，要求 entry kind 为 `Reconnect`，并逐轮收到新的可应用 push。`gateway-offline` 通过 fault command ack 与 TCP 端口探测证明 transport 真实下线；`slow-consumer` 必须产生服务端 drop/coalesce 压力并恢复每个客户端的 full baseline。
+
+PureState 的状态推进和最终收敛分开判断。delta、resync 或重复 full baseline 都可证明状态继续推进；最终还必须独立满足 pending baseline 清除、reliable event `needsResync=false`、同帧 comparable hash 和 authoritative diff 收敛。
 
 ## 9. 失败定位顺序
 
@@ -251,7 +260,7 @@ flowchart TD
 
 | 失败信号 | 优先检查 |
 |---|---|
-| TCP listen timeout | 端口占用、Gateway 注册、host 启动日志 |
+| TCP listen timeout | 端口占用、Gateway 注册、host 启动日志、manifest setup stage |
 | login / launch 失败 | account/session token、room flow、Grain 调用异常 |
 | 等待 snapshot 超时 | observer 订阅、snapshot emitter、Gateway push 分发 |
 | payload opcode 或 frame 不匹配 | wire 序列化、packed codec、Gateway envelope 构造 |
@@ -259,9 +268,14 @@ flowchart TD
 | stale snapshot 被应用 | 客户端 last-applied-frame 和拒绝分支 |
 | projection 无实体 | projected sink、full/delta batch、实体分类映射 |
 | late join 落入 lobby | running battle 恢复路由与 room entry kind |
-| reconnect kind 错误 | account relogin、session 替换、room restore |
+| reconnect kind 或次数错误 | session、room restore、逐轮 reconnect diagnostic |
+| Gateway offline 未生效 | fault ack、TCP port closed probe、release gate |
+| slow-consumer 无压力 | observer drop/coalesce、queue 与 baseline invalidation 指标 |
+| baseline 仍 pending | PureState resync request、最后 full baseline 与 diagnostic |
+| reliable cursor 未恢复 | epoch、last acknowledged sequence、retention gap |
+| authoritative diff 不一致 | diagnostic diff、首分歧 frame 与上下文 |
 | 未移动/未击败敌人/未终局 | 输入接受、战斗 tick、命中与胜负规则、15 秒期限 |
-| replay 缺失或为空 | 输出目录、record scope、save/minimize 路径 |
+| replay 缺失或为空 | 输出目录、record scope、save/minimize 路径与 manifest inventory |
 
 PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、snapshot、projection、late join、reconnect、gameplay 和 replay 字段。保留完整输出比只保留退出码更有利于定位跨层失败。
 
@@ -284,8 +298,11 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 - 区分硬断言与诊断字段；进入结果模型不代表已经成为通过条件。
 - 对 primary、late join、reconnect 分别定义恢复契约，不复制不符合实现的 full-sync 假设。
 - 协议断言明确是“非零”“单调”“相等”还是“最低数量”，避免扩大语义。
+- 协议合法性不依赖场景名称；场景负责证明压力或故障确实发生。
+- 故障注入使用进度 gate、ack 和可观测状态，不用增加固定 sleep 掩盖竞态。
+- 状态流、可靠事件流、authoritative diff、replay 和进程清理分别断言，不互相替代。
 - 网络劣化、pure-state 和多客户端矩阵优先复用 client-process runner，避免在默认 smoke 中堆叠不稳定时序。
-- 端到端场景负责跨层契约，summary 单元测试负责纯数据统计，两者不能相互替代。
+- 端到端场景负责跨层契约，源码契约/summary 单元测试负责计划与纯数据统计，两者不能相互替代。
 
 ## 12. 验收检查表
 
@@ -296,9 +313,15 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 - [ ] 三个 Gateway 输入成功，accepted frame 不回退。
 - [ ] 注入旧快照返回 `IgnoredStaleSnapshot`，表现帧不变化。
 - [ ] primary 存在 full-sync projection；late join/reconnect 形成有效投影但不强制 full-sync 计数。
-- [ ] reconnect entry kind 为 `Reconnect`，late join 未进入 `TeamLobby`。
+- [ ] reconnect 每轮 entry kind 为 `Reconnect`，且每轮 snapshot push 严格前进。
+- [ ] Gateway offline 有 stop/start ack，并分别证明端口不可达和恢复监听。
+- [ ] slow-consumer 有 drop/coalesce 压力证据，并为每个客户端恢复 full baseline。
+- [ ] PureState pending baseline 已清除，reliable event 不再需要 resync。
+- [ ] 每个客户端 authoritative FrameRecord diff 收敛。
 - [ ] 完整玩法循环发生移动、开火、击败敌人并进入合法终局。
-- [ ] 原始与最小化 replay 文件存在且非空。
+- [ ] 每个客户端的原始与最小化 replay 文件存在、非空且已消费。
+- [ ] manifest 记录进程、fault、assertion、artifact、health 与 first divergence。
+- [ ] server/create/join 正常退出，三个专用端口释放。
 - [ ] 失败场景检查业务清理残留，尤其是共享服务模式。
 
 ## 13. 源码索引
@@ -309,6 +332,8 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 | 默认端到端场景 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs` |
 | 公共登录、断言与清理 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeScenarioBase.cs` |
 | 客户端进程场景 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeClientProcessRunner.cs` |
+| 多进程矩阵脚本 | `Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1` |
+| 多进程脚本契约 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterMultiprocessSmokeScriptContractTests.cs` |
 | 结果模型 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Models/ShooterSmokeResults.cs` |
 | PASS 输出格式 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Models/ShooterSmokeResultFormatter.cs` |
 | Replay summary 单元测试 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterSmokeReplaySummaryTests.cs` |

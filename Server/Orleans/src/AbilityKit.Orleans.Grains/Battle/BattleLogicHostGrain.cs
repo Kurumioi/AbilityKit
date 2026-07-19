@@ -6,7 +6,9 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Battle.Gameplay;
 using AbilityKit.Orleans.Grains.Gameplay;
+using AbilityKit.Protocol.Shooter;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace AbilityKit.Orleans.Grains.Battle;
 
@@ -21,13 +23,18 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private readonly BattleRuntimeRegistry _runtimeRegistry;
     private readonly BattleHostState _battleHostState = new();
     private readonly IBattleInputBuffer<BattleInputItem> _inputBuffer = new BattleInputBuffer<BattleInputItem>();
+    private readonly BattleInputSecurityOptions _inputSecurityOptions;
+    private readonly BattleInputAdmissionGuard _inputAdmissionGuard;
     private readonly IBattleTickDriver<BattleInputItem> _tickDriver;
     private readonly BattleObserverRegistry<IStateSyncObserverGrain> _observerRegistry = new();
     private readonly Dictionary<IStateSyncObserverGrain, BattleStateSyncObserverContext> _observerContexts = new();
     private readonly BattleSnapshotSyncPolicy _snapshotSyncPolicy = new();
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
+    private readonly List<Task> _pendingSnapshotDeliveries = new();
+    private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
 
     private IDisposable? _timer;
+    private ReliableBattleEventRetention? _reliableEvents;
     private IBattleRuntimeSession? _runtimeSession;
     private int _tickRate = 30;
     private ulong _worldId;
@@ -38,12 +45,16 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private int _inputDelayFrames;
     private ServerBattleSyncProfile? _syncProfile;
     private string _syncTemplateId = string.Empty;
+    private string? _initSpecHash;
 
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
-        ServerBattleWorldManager worldManager)
+        ServerBattleWorldManager worldManager,
+        IOptions<BattleInputSecurityOptions> inputSecurityOptions)
     {
         _logger = logger;
+        _inputSecurityOptions = inputSecurityOptions.Value.Snapshot();
+        _inputAdmissionGuard = new BattleInputAdmissionGuard(_inputSecurityOptions);
         _gameplayModules = ServerGameplayModuleCatalog.Default;
         _runtimeRegistry = new BattleRuntimeRegistry(
             _gameplayModules.CreateBattleRuntimeAdapters(worldManager),
@@ -76,12 +87,43 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             throw new ArgumentNullException(nameof(initParams));
         }
 
-        if (_initialized)
+        // 旧 void 入口委托新结构化方法，忽略结果以保持兼容。
+        _ = InitializeBattleWithResultAsync(initParams, initSpecHash: null);
+        return Task.CompletedTask;
+    }
+
+    public Task<BattleInitResult> InitializeBattleWithResultAsync(BattleInitParams initParams, string? initSpecHash)
+    {
+        if (initParams is null)
         {
-            _logger.LogWarning("[BattleLogicHost] Already initialized, ignoring duplicate init request");
-            return Task.CompletedTask;
+            throw new ArgumentNullException(nameof(initParams));
         }
 
+        // 幂等 create-or-get：已初始化时返回当前状态，并做 hash 冲突检测。
+        if (_initialized)
+        {
+            if (initSpecHash is not null
+                && _initSpecHash is not null
+                && !string.Equals(initSpecHash, _initSpecHash, StringComparison.Ordinal))
+            {
+                _logger.LogWarning(
+                    "[BattleLogicHost] Init spec hash mismatch on already-initialized battle. BattleId: {BattleId}, Stored: {Stored}, Requested: {Requested}",
+                    _battleId,
+                    _initSpecHash,
+                    initSpecHash);
+                return Task.FromResult(BattleInitResult.FromHashMismatch(_initSpecHash));
+            }
+
+            _logger.LogDebug("[BattleLogicHost] Already initialized, returning idempotent result. BattleId: {BattleId}", _battleId);
+            return Task.FromResult(BattleInitResult.FromAlreadyInitialized(_initSpecHash, _worldStartAnchor));
+        }
+
+        var result = InitializeBattleCore(initParams, initSpecHash);
+        return Task.FromResult(result);
+    }
+
+    private BattleInitResult InitializeBattleCore(BattleInitParams initParams, string? initSpecHash)
+    {
         _battleId = this.GetPrimaryKeyString();
         var module = _gameplayModules.ResolveModule(initParams.RoomType);
         _syncProfile = module.SyncProfile;
@@ -95,7 +137,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 requestedSyncTemplateId,
                 _syncProfile.DefaultTemplateId);
             StopBattleRuntime();
-            return Task.CompletedTask;
+            return BattleInitResult.FromError("UnsupportedSyncTemplate");
         }
 
         var syncOptions = initParams.SyncOptions;
@@ -119,6 +161,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             1.0 / _tickRate);
         initParams.WorldStartAnchor = _worldStartAnchor;
         _battleHostState.Initialize(_worldId, _battleId, _tickRate);
+        _reliableEvents = new ReliableBattleEventRetention(_battleId, Guid.NewGuid().ToString("N"));
 
         _logger.LogInformation(
             "[BattleLogicHost] Initializing battle - BattleId: {BattleId}, RoomType: {RoomType}, WorldId: {WorldId}, TickRate: {TickRate}, Players: {PlayerCount}, SyncMode: {SyncMode}, SyncTemplate: {SyncTemplate}",
@@ -137,14 +180,15 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         {
             _logger.LogError("[BattleLogicHost] Battle initialization failed. Error: {Error}", startResult.Error);
             StopBattleRuntime();
-            return Task.CompletedTask;
+            return BattleInitResult.FromError(startResult.Error ?? "BattleInitializationFailed");
         }
 
+        _initSpecHash = initSpecHash;
         _initialized = true;
         PublishInitialSnapshot();
         StartBattleTimer();
         _logger.LogInformation("[BattleLogicHost] Battle initialized successfully");
-        return Task.CompletedTask;
+        return BattleInitResult.FromInitialized(_initSpecHash, _worldStartAnchor);
     }
 
     public Task<BattleInputSubmitResult> SubmitInputAsync(ulong worldId, int frame, BattleInputItem input)
@@ -167,6 +211,32 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedNullInput, "Input is required."));
         }
 
+        if (input.PlayerId == 0)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedInvalidPlayer, "Input player id must be positive."));
+        }
+
+        if (input.OpCode <= 0 || input.OpCode > _inputSecurityOptions.MaxOpCode)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedInvalidOpCode, "Input opcode is outside the supported transport range."));
+        }
+
+        if ((input.Payload?.Length ?? 0) > _inputSecurityOptions.MaxPayloadBytes)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedInvalidPayload, "Input payload exceeds the maximum size."));
+        }
+
+        if (_runtimeSession == null)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, BattleResultStatusCodes.RejectedNotInitialized, "Battle runtime is not initialized."));
+        }
+
+        var validation = _runtimeSession.ValidateInput(input);
+        if (!validation.Accepted)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, frame, validation.Status, validation.Message));
+        }
+
         var schedule = BattleInputFrameScheduler.Schedule(
             frame,
             currentFrame,
@@ -183,12 +253,24 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.FromResult(CreateInputSubmitResult(false, frame, schedule.AcceptedFrame, schedule.Status.ToString(), BuildInputSubmitMessage(schedule)));
         }
 
+        var admission = _inputAdmissionGuard.Check(input.PlayerId, input.CommandSequence, DateTime.UtcNow.Ticks);
+        if (admission.Status == BattleInputGuardStatus.RejectedDuplicate)
+        {
+            return Task.FromResult(CreateInputSubmitResult(true, frame, schedule.AcceptedFrame, "Deduplicated", "Command sequence was already accepted."));
+        }
+
+        if (!admission.Accepted)
+        {
+            return Task.FromResult(CreateInputSubmitResult(false, frame, schedule.AcceptedFrame, admission.StatusCode, "Input was rejected by the battle input security policy."));
+        }
+
         if (!_inputBuffer.Enqueue(schedule.AcceptedFrame, input))
         {
             _logger.LogWarning("[BattleLogicHost] Input rejected by host input buffer. Frame: {Frame}, PlayerId: {PlayerId}", schedule.AcceptedFrame, input.PlayerId);
             return Task.FromResult(CreateInputSubmitResult(false, frame, schedule.AcceptedFrame, BattleResultStatusCodes.RejectedByInputBuffer, "Input buffer rejected the scheduled frame."));
         }
 
+        _inputAdmissionGuard.RecordAccepted(input.PlayerId, input.CommandSequence);
         _logger.LogDebug(
             "[BattleLogicHost] Input received - RequestedFrame: {RequestedFrame}, AcceptedFrame: {AcceptedFrame}, CurrentFrame: {CurrentFrame}, PlayerId: {PlayerId}, OpCode: {OpCode}, Status: {Status}",
             frame,
@@ -353,35 +435,75 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.FromResult(_worldStartAnchor);
     }
 
-    public async Task SubscribeAsync(IStateSyncObserverGrain observer)
+    public Task SubscribeAsync(
+        IStateSyncObserverGrain observer,
+        StateSyncObserverInfo observerInfo,
+        ReliableBattleEventSubscribeCursor eventCursor)
     {
         if (observer == null)
         {
             throw new ArgumentNullException(nameof(observer));
         }
 
-        var observerContext = await ResolveObserverContextAsync(observer);
-        if (_observerRegistry.Subscribe(observer))
+        eventCursor ??= new ReliableBattleEventSubscribeCursor();
+        var observerContext = CreateObserverContext(observerInfo);
+        var added = _observerRegistry.Subscribe(observer);
+        _observerContexts[observer] = observerContext;
+        if (added)
         {
-            _observerContexts[observer] = observerContext;
             _logger.LogInformation(
                 "[BattleLogicHost] Observer subscribed. Total observers: {Count}, ObserverKey: {ObserverKey}, AccountId: {AccountId}",
                 _observerRegistry.Count,
                 observerContext.ObserverKey,
                 observerContext.AccountId);
+        }
 
-            if (_initialized)
-            {
-                PushSnapshot(isFullSnapshot: true);
-            }
-        }
-        else
+        if (!_initialized)
         {
-            _observerContexts[observer] = observerContext;
+            return Task.CompletedTask;
         }
+
+        if (_reliableEvents != null)
+        {
+            _reliableEvents.RegisterObserver(
+                observerContext.ObserverKey,
+                eventCursor.Epoch,
+                eventCursor.LastAcknowledgedSequence);
+            var replay = _reliableEvents.CreateReplay(eventCursor.Epoch, eventCursor.LastAcknowledgedSequence);
+            _ = ObserveReliableEventDeliveryAsync(observer, replay);
+        }
+
+        PushSnapshot(isFullSnapshot: true);
+        return Task.CompletedTask;
     }
 
-    public async Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer)
+    public Task<ReliableBattleEventAckResult> AcknowledgeReliableEventsAsync(string observerKey, string epoch, long sequence)
+    {
+        if (_reliableEvents == null)
+        {
+            return Task.FromResult(new ReliableBattleEventAckResult
+            {
+                Accepted = false,
+                Epoch = epoch ?? string.Empty,
+                RequiresResync = true
+            });
+        }
+
+        var epochMatches = string.Equals(epoch, _reliableEvents.Epoch, StringComparison.Ordinal);
+        var accepted = _reliableEvents.Acknowledge(observerKey, epoch, sequence);
+        var observerRegistered = !string.IsNullOrWhiteSpace(observerKey)
+            && _observerContexts.Values.Any(context => string.Equals(context.ObserverKey, observerKey, StringComparison.Ordinal));
+        return Task.FromResult(new ReliableBattleEventAckResult
+        {
+            Accepted = epochMatches && observerRegistered,
+            Epoch = _reliableEvents.Epoch,
+            AcceptedSequence = accepted,
+            Watermark = _reliableEvents.Watermark,
+            RequiresResync = !epochMatches || !observerRegistered
+        });
+    }
+
+    public Task RequestFullSnapshotAsync(IStateSyncObserverGrain observer, StateSyncObserverInfo observerInfo)
     {
         if (observer == null)
         {
@@ -390,13 +512,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         if (!_initialized)
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        var observerContext = await ResolveObserverContextAsync(observer);
-        _observerContexts[observer] = observerContext;
-        var push = BuildStateSyncPush(observer, _battleHostState.Frame, isFullSnapshot: true);
-        await observer.OnSnapshotPushedAsync(push);
+        _observerContexts[observer] = CreateObserverContext(observerInfo);
+        _snapshotPublisher.PublishTo(observer, _battleHostState.Frame, isFullSnapshot: true);
+        return Task.CompletedTask;
     }
 
     public Task UnsubscribeAsync(IStateSyncObserverGrain observer)
@@ -406,7 +527,11 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.CompletedTask;
         }
 
-        _observerContexts.Remove(observer);
+        if (_observerContexts.Remove(observer, out var observerContext))
+        {
+            _reliableEvents?.UnregisterObserver(observerContext.ObserverKey);
+        }
+
         if (_observerRegistry.Unsubscribe(observer))
         {
             _logger.LogInformation("[BattleLogicHost] Observer unsubscribed. Total observers: {Count}", _observerRegistry.Count);
@@ -435,10 +560,17 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 _logger.LogWarning("[BattleLogicHost] Runtime input rejected. Frame: {Frame}", tickResult.Frame);
             }
 
+            if (tickResult.WorldTicked)
+            {
+                await CaptureAndPublishReliableEventsAsync(tickResult.Frame);
+            }
+
             if (_snapshotSyncPolicy.ShouldPublish(_observerRegistry.Count, tickResult.WorldTicked))
             {
                 PushSnapshot(tickResult.Frame, _snapshotSyncPolicy.ShouldCreateFullSnapshot(tickResult.Frame));
             }
+
+            await FlushSnapshotDeliveriesAsync();
 
             _logger.LogDebug(
                 "[BattleLogicHost] Tick - Frame: {Frame}, Inputs: {InputCount}, Commands: {CommandCount}, Observers: {ObserverCount}",
@@ -455,6 +587,39 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         await Task.CompletedTask;
     }
 
+    private async Task CaptureAndPublishReliableEventsAsync(int frame)
+    {
+        if (_runtimeSession is not IReliableBattleEventProducer producer || _reliableEvents == null)
+        {
+            return;
+        }
+
+        var sourceEvents = producer.CaptureReliableEvents(frame);
+        if (sourceEvents.Count == 0)
+        {
+            return;
+        }
+
+        var appended = new List<ReliableBattleEventEnvelope>(sourceEvents.Count);
+        foreach (var source in sourceEvents)
+        {
+            appended.Add(_reliableEvents.Append(source.SourceFrame, source.EventType, source.Payload));
+        }
+
+        var batch = new ReliableBattleEventBatch
+        {
+            BattleId = _reliableEvents.BattleId,
+            Epoch = _reliableEvents.Epoch,
+            FirstAvailableSequence = _reliableEvents.FirstAvailableSequence,
+            Watermark = _reliableEvents.Watermark,
+            Events = appended
+        };
+        foreach (var observer in _observerRegistry.Snapshot())
+        {
+            await observer.OnReliableEventsPushedAsync(batch);
+        }
+    }
+
     private int SubmitRuntimeInputs(int frame, IReadOnlyList<BattleInputItem> inputs)
     {
         if (inputs == null || inputs.Count == 0 || _runtimeSession == null)
@@ -462,7 +627,28 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return 0;
         }
 
-        return _runtimeSession.SubmitInputs(frame, inputs);
+        var submitted = _runtimeSession.SubmitInputs(frame, inputs);
+        if (submitted < inputs.Count)
+        {
+            return submitted;
+        }
+
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            var input = inputs[i];
+            if (input.PlayerId == 0 || input.CommandSequence == 0)
+            {
+                continue;
+            }
+
+            if (!_consumedCommandSequences.TryGetValue(input.PlayerId, out var current)
+                || input.CommandSequence > current)
+            {
+                _consumedCommandSequences[input.PlayerId] = input.CommandSequence;
+            }
+        }
+
+        return submitted;
     }
 
     private bool TickBattleWorld(int frame, int tickRate, float deltaTime)
@@ -538,7 +724,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return NormalizeStateSyncPush(push, frame, isFullSnapshot);
     }
 
-    private static StateSyncPush NormalizeStateSyncPush(StateSyncPush push, int frame, bool isFullSnapshot)
+    private StateSyncPush NormalizeStateSyncPush(StateSyncPush push, int frame, bool isFullSnapshot)
     {
         if (push == null)
         {
@@ -551,17 +737,106 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         var serverTicks = DateTime.UtcNow.Ticks;
         push.ServerTicks = serverTicks;
+        push.EventWatermark = _reliableEvents?.Watermark ?? 0;
         if (push.Timestamp <= 0d)
         {
             push.Timestamp = serverTicks;
         }
 
+        AttachConsumedCommandAcknowledgements(push);
         return push;
     }
 
-    private static void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push)
+    private void AttachConsumedCommandAcknowledgements(StateSyncPush push)
     {
-        _ = observer.OnSnapshotPushedAsync(push);
+        if (_consumedCommandSequences.Count == 0 || push.Payload == null || push.Payload.Length == 0)
+        {
+            return;
+        }
+
+        var acknowledgements = new ShooterCommandAcknowledgement[_consumedCommandSequences.Count];
+        var index = 0;
+        foreach (var pair in _consumedCommandSequences)
+        {
+            acknowledgements[index++] = new ShooterCommandAcknowledgement((int)pair.Key, pair.Value);
+        }
+
+        if (push.PayloadOpCode == ShooterOpCodes.Snapshot.PackedState
+            || push.PayloadOpCode == ShooterOpCodes.Snapshot.PackedStateDelta)
+        {
+            var snapshot = ShooterPackedSnapshotCodec.Deserialize(push.Payload);
+            snapshot.AcknowledgedCommands = acknowledgements;
+            push.Payload = ShooterPackedSnapshotCodec.Serialize(in snapshot);
+            return;
+        }
+
+        if (push.PayloadOpCode == ShooterOpCodes.Snapshot.PureState
+            || push.PayloadOpCode == ShooterOpCodes.Snapshot.PureStateDelta)
+        {
+            var snapshot = ShooterPureStateSyncCodec.Deserialize(push.Payload);
+            snapshot.AcknowledgedCommands = acknowledgements;
+            push.Payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        }
+    }
+
+    private void SendStateSyncPush(IStateSyncObserverGrain observer, StateSyncPush push)
+    {
+        _pendingSnapshotDeliveries.Add(ObserveSnapshotDeliveryAsync(observer, push));
+    }
+
+    private async Task ObserveReliableEventDeliveryAsync(
+        IStateSyncObserverGrain observer,
+        ReliableBattleEventBatch batch)
+    {
+        try
+        {
+            await observer.OnReliableEventsPushedAsync(batch);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "[BattleLogicHost] Error pushing reliable event replay to observer");
+        }
+    }
+
+    private async Task ObserveSnapshotDeliveryAsync(IStateSyncObserverGrain observer, StateSyncPush push)
+    {
+        try
+        {
+            var result = await observer.OnSnapshotPushedAsync(push);
+            HandleSnapshotDeliveryResult(observer, push.Frame, result);
+        }
+        catch (Exception exception)
+        {
+            HandleSnapshotPublishError(observer, exception);
+        }
+    }
+
+    private async Task FlushSnapshotDeliveriesAsync()
+    {
+        if (_pendingSnapshotDeliveries.Count == 0)
+            return;
+
+        var deliveries = _pendingSnapshotDeliveries.ToArray();
+        _pendingSnapshotDeliveries.Clear();
+        await Task.WhenAll(deliveries);
+    }
+
+    private void HandleSnapshotDeliveryResult(
+        IStateSyncObserverGrain observer,
+        int frame,
+        StateSyncDeliveryResult result)
+    {
+        if (result.Status is StateSyncDeliveryStatus.Accepted or StateSyncDeliveryStatus.Queued)
+            return;
+
+        _logger.LogWarning(
+            "[BattleLogicHost] Snapshot delivery was not accepted. Observer: {Observer}, Frame: {Frame}, Status: {Status}, QueueLength: {QueueLength}, DroppedItems: {DroppedItems}, BaselineInvalidated: {BaselineInvalidated}",
+            observer.GetPrimaryKeyString(),
+            frame,
+            result.Status,
+            result.QueueLength,
+            result.DroppedItems,
+            result.BaselineInvalidated);
     }
 
     private void HandleSnapshotPublishError(IStateSyncObserverGrain observer, Exception exception)
@@ -569,9 +844,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _logger.LogError(exception, "[BattleLogicHost] Error pushing snapshot to observer");
     }
 
-    private static async Task<BattleStateSyncObserverContext> ResolveObserverContextAsync(IStateSyncObserverGrain observer)
+    internal static BattleStateSyncObserverContext CreateObserverContext(StateSyncObserverInfo? info)
     {
-        var info = await observer.GetObserverInfoAsync();
         return new BattleStateSyncObserverContext(
             info?.ObserverKey ?? string.Empty,
             info?.AccountId ?? string.Empty,
@@ -580,18 +854,23 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void StopBattleRuntime()
     {
+        _reliableEvents = null;
         _timer?.Dispose();
         _timer = null;
         _runtimeSession?.Dispose();
         _runtimeSession = null;
         _observerContexts.Clear();
+        _pendingSnapshotDeliveries.Clear();
         _battleId = string.Empty;
         _worldId = 0;
         _initialized = false;
         _worldStartAnchor = null;
         _syncProfile = null;
         _syncTemplateId = string.Empty;
+        _initSpecHash = null;
         _inputBuffer.Clear();
+        _inputAdmissionGuard.Clear();
+        _consumedCommandSequences.Clear();
         _battleHostState.Reset();
     }
 }

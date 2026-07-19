@@ -52,12 +52,35 @@ namespace AbilityKit.Demo.Shooter.View
             return ToShooterResult(in result);
         }
 
+        public Task<ShooterRoomGatewayFlowResult> RestoreRoomAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            ShooterRoomLaunchSpec launchSpec,
+            uint playerId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreRoomAsync(
+                sessionToken,
+                region,
+                serverId,
+                launchSpec,
+                playerId,
+                string.Empty,
+                0L,
+                timeout,
+                cancellationToken);
+        }
+
         public async Task<ShooterRoomGatewayFlowResult> RestoreRoomAsync(
             string sessionToken,
             string region,
             string serverId,
             ShooterRoomLaunchSpec launchSpec,
             uint playerId,
+            string eventEpoch,
+            long lastEventAck,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
@@ -67,6 +90,8 @@ namespace AbilityKit.Demo.Shooter.View
                 serverId,
                 ToLaunchSpec(in launchSpec),
                 playerId,
+                eventEpoch,
+                lastEventAck,
                 timeout,
                 cancellationToken).ConfigureAwait(false);
             return ToShooterResult(in result);
@@ -277,7 +302,12 @@ namespace AbilityKit.Demo.Shooter.View
             public async Task<RoomGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(RoomGatewayStateSyncSubscriptionRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
             {
                 var result = await _roomClient.SubscribeStateSyncAsync(
-                    new ShooterGatewayStateSyncSubscriptionRequest(request.SessionToken, request.BattleId, request.RoomId),
+                    new ShooterGatewayStateSyncSubscriptionRequest(
+                        request.SessionToken,
+                        request.BattleId,
+                        request.RoomId,
+                        request.EventEpoch,
+                        request.LastEventAck),
                     timeout,
                     cancellationToken).ConfigureAwait(false);
                 return new RoomGatewayStateSyncSubscriptionResult(result.Success, result.Message);
@@ -305,6 +335,89 @@ namespace AbilityKit.Demo.Shooter.View
                     ToRoomRestoreStatus(result.Status),
                     ToRoomRestoreErrorCode(result.ErrorCode),
                     result.CurrentPlayerId);
+            }
+
+            public Task<RoomGatewayPickHeroResult> PickHeroAsync(RoomGatewayPickHeroRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            {
+                throw new NotSupportedException("Shooter gateway does not support staged hero pick flow.");
+            }
+
+            public async Task<RoomGatewayBeginLoadingResult> BeginLoadingAsync(RoomGatewayBeginLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            {
+                var result = await _roomClient.BeginLoadingAsync(
+                    new ShooterGatewayBeginLoadingRequest(request.SessionToken, request.RoomId, request.ExpectedRevision, request.CommandId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new RoomGatewayBeginLoadingResult(
+                    result.Success,
+                    result.Applied,
+                    result.ErrorCode,
+                    result.Message,
+                    result.RoomRevision,
+                    ToRoomSnapshot(result.Snapshot));
+            }
+
+            public async Task<RoomGatewayReportAssetsLoadedResult> ReportAssetsLoadedAsync(RoomGatewayReportAssetsLoadedRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            {
+                var result = await _roomClient.ReportAssetsLoadedAsync(
+                    new ShooterGatewayReportAssetsLoadedRequest(
+                        request.SessionToken,
+                        request.RoomId,
+                        request.LaunchGeneration,
+                        request.ManifestVersion,
+                        request.ManifestHash,
+                        request.CommandId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new RoomGatewayReportAssetsLoadedResult(
+                    result.Success,
+                    result.Applied,
+                    result.ErrorCode,
+                    result.Message,
+                    result.RoomRevision,
+                    ToRoomSnapshot(result.Snapshot));
+            }
+
+            public async Task<RoomGatewayGetSnapshotResult> GetSnapshotAsync(RoomGatewayGetSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+            {
+                var result = await _roomClient.GetSnapshotAsync(
+                    new ShooterGatewayGetRoomSnapshotRequest(request.SessionToken, request.RoomId),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new RoomGatewayGetSnapshotResult(
+                    result.Success,
+                    result.RoomId,
+                    result.NumericRoomId,
+                    ToRoomSnapshot(result.Snapshot),
+                    result.Message,
+                    result.ServerNowTicks);
+            }
+
+            private static RoomGatewaySnapshot ToRoomSnapshot(ShooterGatewayStagedRoomSnapshot snapshot)
+            {
+                if (snapshot == null)
+                {
+                    return null;
+                }
+
+                var worldStartAnchor = snapshot.WorldStartAnchor;
+                return new RoomGatewaySnapshot
+                {
+                    RoomId = snapshot.RoomId,
+                    Phase = (RoomGatewaySessionPhase)snapshot.Phase,
+                    PhaseReason = snapshot.PhaseReason,
+                    LaunchGeneration = snapshot.LaunchGeneration,
+                    LoadingDeadlineUnixMs = snapshot.LoadingDeadlineUnixMs,
+                    LaunchManifestHash = snapshot.LaunchManifestHash,
+                    LaunchManifestVersion = snapshot.LaunchManifestVersion,
+                    LastStartFailureCode = snapshot.LastStartFailureCode,
+                    RoomRevision = snapshot.RoomRevision,
+                    LastEventSequence = snapshot.LastEventSequence,
+                    CanStart = snapshot.CanStart,
+                    BattleId = snapshot.BattleId,
+                    WorldId = snapshot.WorldId,
+                    WorldStartAnchor = ToRoomAnchor(in worldStartAnchor)
+                };
             }
         }
     }

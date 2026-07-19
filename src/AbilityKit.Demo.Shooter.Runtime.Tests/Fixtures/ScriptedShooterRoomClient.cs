@@ -18,9 +18,16 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
 
     public ShooterGatewayStartBattleRequest LastStartBattleRequest { get; private set; }
 
+    public ShooterGatewayReportAssetsLoadedRequest LastReportAssetsLoadedRequest { get; private set; }
+
     public ShooterGatewayStateSyncSubscriptionRequest LastSubscribeRequest { get; private set; }
 
     public ShooterGatewayFullStateSyncRequest LastFullStateSyncRequest { get; private set; }
+
+    public ShooterGatewayReliableBattleEventAckRequest LastReliableBattleEventAckRequest { get; private set; }
+
+    public ShooterGatewayReliableBattleEventAckResult ReliableBattleEventAckResult { get; set; }
+        = new ShooterGatewayReliableBattleEventAckResult(true, 0L, "acknowledged");
 
     public ShooterGatewayRoomJoinKind JoinKind { get; set; } = ShooterGatewayRoomJoinKind.TeamLobby;
 
@@ -33,6 +40,8 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
     public uint JoinCurrentPlayerId { get; set; } = 121u;
  
     public bool JoinCanStart { get; set; } = true;
+
+    public bool RestoreIsInBattle { get; set; }
 
     public ShooterGatewayWorldStartAnchor JoinWorldStartAnchor { get; set; } = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 12, 1d / 30d);
 
@@ -95,11 +104,61 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
         return Task.FromResult(new ShooterGatewayStartBattleResult(true, "battle-1", 9001ul, started: true, in anchor, 1200000L, "started"));
     }
 
+    public Task<ShooterGatewayRoomOperationResult> BeginLoadingAsync(ShooterGatewayBeginLoadingRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("begin-loading:" + request.RoomId);
+        return Task.FromResult(new ShooterGatewayRoomOperationResult(
+            true,
+            true,
+            0,
+            "loading",
+            3L,
+            CreateStagedSnapshot(request.RoomId, phase: 1, battleId: string.Empty, worldId: 0ul)));
+    }
+
+    public Task<ShooterGatewayRoomOperationResult> ReportAssetsLoadedAsync(ShooterGatewayReportAssetsLoadedRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        LastReportAssetsLoadedRequest = request;
+        Calls.Add("assets-loaded:" + request.RoomId);
+        return Task.FromResult(new ShooterGatewayRoomOperationResult(
+            true,
+            true,
+            0,
+            "loaded",
+            4L,
+            CreateStagedSnapshot(request.RoomId, phase: 3, battleId: "battle-1", worldId: 9001ul)));
+    }
+
+    public Task<ShooterGatewayGetRoomSnapshotResult> GetSnapshotAsync(ShooterGatewayGetRoomSnapshotRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        Calls.Add("get-snapshot:" + request.RoomId);
+        return Task.FromResult(new ShooterGatewayGetRoomSnapshotResult(
+            true,
+            request.RoomId,
+            1001ul,
+            CreateStagedSnapshot(request.RoomId, phase: 3, battleId: "battle-1", worldId: 9001ul),
+            "running",
+            1200000L));
+    }
+
     public Task<ShooterGatewayStateSyncSubscriptionResult> SubscribeStateSyncAsync(ShooterGatewayStateSyncSubscriptionRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         LastSubscribeRequest = request;
         Calls.Add("subscribe:" + request.RoomId + ":" + request.BattleId);
         return Task.FromResult(new ShooterGatewayStateSyncSubscriptionResult(true, "subscribed"));
+    }
+
+    public Task<ShooterGatewayReliableBattleEventAckResult> AcknowledgeReliableBattleEventsAsync(ShooterGatewayReliableBattleEventAckRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        LastReliableBattleEventAckRequest = request;
+        Calls.Add("ack-reliable-events:" + request.RoomId + ":" + request.BattleId + ":" + request.AckSequence);
+        var result = ReliableBattleEventAckResult;
+        if (result.Success && result.AcceptedAckSequence == 0L)
+        {
+            result = new ShooterGatewayReliableBattleEventAckResult(true, request.AckSequence, result.Message);
+        }
+
+        return Task.FromResult(result);
     }
 
     public Task<ShooterGatewayFullStateSyncRequestResult> RequestFullStateSyncAsync(ShooterGatewayFullStateSyncRequest request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
@@ -116,7 +175,7 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
         return Task.FromResult(new ShooterGatewayRestoreRoomResult(
             true,
             true,
-            false,
+            RestoreIsInBattle,
             "room-1",
             1001ul,
             in anchor,
@@ -129,5 +188,25 @@ internal sealed class ScriptedShooterRoomClient : IShooterRoomGatewayRoomClient
             ShooterGatewayRoomRestoreStatus.Restored,
             ShooterGatewayRoomRestoreErrorCode.None,
             JoinCurrentPlayerId));
+    }
+
+    private ShooterGatewayStagedRoomSnapshot CreateStagedSnapshot(string roomId, int phase, string battleId, ulong worldId)
+    {
+        var anchor = new ShooterGatewayWorldStartAnchor(200000L, 10000000L, 30, 1d / 30d);
+        return new ShooterGatewayStagedRoomSnapshot(
+            roomId,
+            phase,
+            string.Empty,
+            7L,
+            0L,
+            "manifest-shooter-v3",
+            3,
+            string.Empty,
+            4L,
+            4L,
+            true,
+            battleId,
+            worldId,
+            in anchor);
     }
 }

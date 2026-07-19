@@ -35,6 +35,19 @@ namespace AbilityKit.Ability.World.DI
             return _map.ContainsKey(serviceType);
         }
 
+        public WorldServiceDescriptor GetDescriptor(Type serviceType)
+        {
+            if (serviceType == typeof(IWorldServiceContainer) || serviceType == typeof(WorldContainer))
+            {
+                return default;
+            }
+            if (_map.TryGetValue(serviceType, out var descriptor))
+            {
+                return descriptor;
+            }
+            return default;
+        }
+
         public WorldScope CreateScope()
         {
             ThrowIfDisposed();
@@ -181,14 +194,26 @@ namespace AbilityKit.Ability.World.DI
             ThrowIfDisposed();
 
             _resolveStack ??= new Stack<Type>(8);
+
+            // 循环依赖检测：在进入前检查
+            // 如果 serviceType 或 implType 已经在栈中，说明存在循环依赖
+            // 需要同时检查 implType，因为循环可能是：
+            //   IScopedA -> ScopedA -> IScopedB -> ScopedB -> IScopedA (栈中没有 implType 会漏检)
+            if (!_map.TryGetValue(serviceType, out var descriptor))
+            {
+                throw new InvalidOperationException($"Service not registered: {serviceType.FullName}. Resolve chain: {FormatResolveChain()}");
+            }
+
+            var implType = descriptor.ImplType;
+            if (_resolveStack.Contains(serviceType) || _resolveStack.Contains(implType))
+            {
+                throw new InvalidOperationException($"Circular dependency detected. Resolve chain: {FormatResolveChain()} -> {serviceType.FullName}");
+            }
+
             _resolveStack.Push(serviceType);
+            _resolveStack.Push(implType);
             try
             {
-                if (!_map.TryGetValue(serviceType, out var descriptor))
-                {
-                    throw new InvalidOperationException($"Service not registered: {serviceType.FullName}. Resolve chain: {FormatResolveChain()}");
-                }
-
                 switch (descriptor.Lifetime)
                 {
                     case WorldLifetime.Singleton:
@@ -210,6 +235,7 @@ namespace AbilityKit.Ability.World.DI
             }
             finally
             {
+                _resolveStack.Pop();
                 _resolveStack.Pop();
             }
         }

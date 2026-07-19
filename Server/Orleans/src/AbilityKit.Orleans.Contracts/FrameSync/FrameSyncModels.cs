@@ -18,6 +18,23 @@ public sealed record FrameInputItem(
     [property: Id(2)] byte[] Payload);
 
 [GenerateSerializer]
+public enum FrameInputSubmitReason
+{
+    None = 0,
+    WorldMismatch = 1,
+    NegativeFrame = 2,
+    FrameAlreadyProcessed = 3,
+    FrameTooFarAhead = 4,
+    RateLimited = 100
+}
+
+[GenerateSerializer]
+public sealed record FrameInputSubmitResult(
+    [property: Id(0)] bool Accepted,
+    [property: Id(1)] int ServerFrame,
+    [property: Id(2)] FrameInputSubmitReason Reason);
+
+[GenerateSerializer]
 public sealed record FramePushedEvent(
     [property: Id(0)] ulong RoomId,
     [property: Id(1)] ulong WorldId,

@@ -8,6 +8,7 @@ using AbilityKit.Game.Battle.Transport;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Protocol.Moba.Generated.GatewayFrameSync;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle
 {
@@ -39,8 +40,18 @@ namespace AbilityKit.Game.Battle
                 TransportFactory = transportFactory,
                 FrameCodec = LengthPrefixedFrameCodec.Instance,
 
-                OpRenewSession = 120,
+                OpRenewSession = RoomGatewayOpCodes.RenewSession,
                 SessionToken = sessionToken,
+                SerializeRenewSession = token =>
+                {
+                    var wire = new WireRenewSessionReq
+                    {
+                        SessionToken = token,
+                        ExtendSeconds = 0,
+                        RotateToken = false
+                    };
+                    return WireRoomGatewayBinary.Serialize(in wire);
+                },
 
                 OpSubmitInput = OpCodes.SubmitFrameInput,
                 OpFramePushed = OpCodes.FramePushed,

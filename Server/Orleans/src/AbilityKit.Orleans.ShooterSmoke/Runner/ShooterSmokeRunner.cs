@@ -265,6 +265,7 @@ internal static class ShooterSmokeRunner
 
         var moved = false;
         var fired = false;
+        ulong commandSequence = 0;
         var deadline = DateTime.UtcNow + timeout;
         BattleSnapshot? finalSnapshot = initialSnapshot;
 
@@ -280,7 +281,8 @@ internal static class ShooterSmokeRunner
                 {
                     PlayerId = 1,
                     OpCode = ShooterOpCodes.Input.PlayerCommand,
-                    Payload = inputPayload
+                    Payload = inputPayload,
+                    CommandSequence = ++commandSequence
                 });
 
             if (!submit.Accepted)

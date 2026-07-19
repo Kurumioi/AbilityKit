@@ -2,6 +2,7 @@ using System;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
 
@@ -78,6 +79,131 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             isFullSnapshot: true,
             actors: Array.Empty<ShooterGatewayActorSnapshot>(),
             packedSnapshot: packed);
+    }
+
+    private static ShooterGatewaySnapshot PackedPlayerSnapshot(
+        int frame,
+        float x,
+        float y = 0f,
+        float aimX = 1f,
+        float aimY = 0f,
+        bool isFull = true,
+        ulong worldId = 9001ul,
+        int hp = 100,
+        int score = 0,
+        bool alive = true,
+        uint flags = 0u)
+    {
+        var entityFlags = alive
+            ? (byte)(ShooterPackedEntityFlags.Alive | ShooterPackedEntityFlags.Player)
+            : ShooterPackedEntityFlags.Player;
+        var chunks = new[]
+        {
+            new ShooterPackedComponentChunk(
+                ShooterPackedComponentKinds.EntityLifecycle,
+                ShooterPackedEntityKinds.Player,
+                1,
+                new[] { 1 },
+                Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(),
+                Array.Empty<int>(), new[] { entityFlags }, Array.Empty<int>(), Array.Empty<int>()),
+            new ShooterPackedComponentChunk(
+                ShooterPackedComponentKinds.Transform,
+                ShooterPackedEntityKinds.Player,
+                1,
+                new[] { 1 },
+                new[] { x }, new[] { y }, new[] { aimX }, new[] { aimY },
+                Array.Empty<int>(), Array.Empty<byte>(), Array.Empty<int>(), Array.Empty<int>()),
+            new ShooterPackedComponentChunk(
+                ShooterPackedComponentKinds.Health,
+                ShooterPackedEntityKinds.Player,
+                1,
+                new[] { 1 },
+                Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(),
+                new[] { hp }, Array.Empty<byte>(), Array.Empty<int>(), Array.Empty<int>()),
+            new ShooterPackedComponentChunk(
+                ShooterPackedComponentKinds.Score,
+                ShooterPackedEntityKinds.Player,
+                1,
+                new[] { 1 },
+                Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(), Array.Empty<float>(),
+                new[] { score }, Array.Empty<byte>(), Array.Empty<int>(), Array.Empty<int>())
+        };
+        var snapshotFlags = flags | (isFull ? ShooterPackedSnapshotFlags.Full : 0u);
+        var packed = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            worldId,
+            frame,
+            frame * 100L,
+            snapshotFlags,
+            123u,
+            1,
+            Array.Empty<byte>(),
+            chunks);
+        return new ShooterGatewaySnapshot(
+            worldId, frame, 0d, frame * 100L, isFull,
+            Array.Empty<ShooterGatewayActorSnapshot>(),
+            packedSnapshot: packed);
+    }
+
+    private static ShooterGatewaySnapshot PureStatePlayerSnapshot(
+        int frame,
+        float x,
+        float y = 0f,
+        float aimX = 1f,
+        float aimY = 0f,
+        bool isFull = true,
+        ulong worldId = 9001ul,
+        int hp = 100,
+        int score = 0,
+        bool alive = true)
+    {
+        var entityFlags = alive
+            ? (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible)
+            : ShooterPureStateEntityFlags.Visible;
+        var pureState = new ShooterPureStateSnapshotPayload(
+            ShooterPureStateSyncCodec.CurrentVersion,
+            worldId,
+            frame,
+            frame * 100L,
+            isFull ? ShooterPureStateSnapshotKinds.FullBaseline : ShooterPureStateSnapshotKinds.Delta,
+            isFull ? 0 : frame - 1,
+            0u,
+            123u,
+            ShooterPureStateSyncSettings.Default,
+            new[]
+            {
+                new ShooterPureStateEntityDelta(
+                    1,
+                    ShooterPackedEntityKinds.Player,
+                    ShooterPureStateEntityLayers.KeyInteraction,
+                    isFull ? ShooterPureStateDeltaKinds.Spawn : ShooterPureStateDeltaKinds.Update,
+                    1,
+                    (int)(x * 1000f),
+                    (int)(y * 1000f),
+                    (int)(aimX * 1000f),
+                    (int)(aimY * 1000f),
+                    hp,
+                    score,
+                    0,
+                    entityFlags)
+            },
+            Array.Empty<ShooterPureStateVisibilityHint>());
+        return new ShooterGatewaySnapshot(
+            worldId, frame, 0d, frame * 100L, isFull,
+            Array.Empty<ShooterGatewayActorSnapshot>(),
+            pureStateSnapshot: pureState);
+    }
+
+    private static ShooterClientAuthoritativeInterpolationSyncController StartedController(
+        ShooterBattleRuntimePort runtime,
+        ShooterPresentationFacade presentation)
+    {
+        presentation.ControlledPlayerId = 1;
+        var controller = new ShooterClientAuthoritativeInterpolationSyncController(
+            runtime, presentation, tickRate: 30, decoder: null, gateway: null);
+        var start = SinglePlayerStart();
+        Assert.True(controller.StartGame(in start));
+        return controller;
     }
 
     [Fact]
@@ -289,6 +415,134 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         // Advance 100ms with no new snapshots: playback runs 100 ticks past newest (> 50ms tolerance).
         controller.Tick(0.1f);
         Assert.True(controller.IsRemotePlaybackStarved);
+    }
+
+    [Fact]
+    public void LocalSmallPositionErrorKeepsPredictionButRestoresAuthoritativeState()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(
+            frame: 1,
+            x: 0.04f,
+            aimX: 0f,
+            aimY: 1f,
+            isFull: false,
+            hp: 73,
+            score: 9));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(0f, player.X, 3);
+        Assert.Equal(0f, player.AimX, 3);
+        Assert.Equal(1f, player.AimY, 3);
+        Assert.Equal(73, player.Hp);
+        Assert.Equal(9, player.Score);
+    }
+
+    [Fact]
+    public void LocalMediumErrorUsesBoundedCorrectionAndLargeErrorSnaps()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0.4f, isFull: false));
+        Assert.True(runtime.TryGetPlayer(1, out var bounded));
+        Assert.Equal(0.25f, bounded.X, 3);
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 1f, isFull: false));
+        Assert.True(runtime.TryGetPlayer(1, out var snapped));
+        Assert.Equal(1f, snapped.X, 3);
+    }
+
+    [Fact]
+    public void LocalReconciliationReplaysUnacknowledgedInputWithoutTickingWorld()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        controller.SubmitLocalInput(1, moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: false);
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0f));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(ShooterBattleTuning.PlayerSpeed / 30f, player.X, 3);
+        IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample> strategy = controller;
+        var report = strategy.GetReconciliationReport();
+        Assert.Equal(SyncReconciliationReason.LocalAuthorityCorrection, report.Reason);
+        Assert.Equal(1, report.ReplayTicks);
+    }
+
+    [Fact]
+    public void StaleSnapshotCannotPullLocalPlayerBack()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 2f));
+        var result = controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 9f));
+
+        Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, result);
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(2f, player.X, 3);
+    }
+
+    [Fact]
+    public void ControlledPlayerIsExcludedFromRemoteInterpolation()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade { ControlledPlayerId = 1 };
+        var config = new InterpolationConfig(1000L, 0L, 16, 0d);
+        var controller = new ShooterClientAuthoritativeInterpolationSyncController(
+            runtime, presentation, tickRate: 30, decoder: null, gateway: null, config);
+        ShooterSnapshotViewBatch? lastBatch = null;
+        presentation.Snapshots.SnapshotApplied += batch => lastBatch = batch;
+
+        controller.BufferRemoteSnapshot(RemoteSnapshot(1, 1000L, Actor(1, 20f), Actor(7, 7f)));
+        controller.Tick(0f);
+
+        Assert.NotNull(lastBatch);
+        Assert.DoesNotContain(lastBatch!.Value.TransformChanges,
+            change => change.Key.Equals(new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1)));
+        Assert.Contains(lastBatch.Value.TransformChanges,
+            change => change.Key.Equals(new ShooterViewEntityKey(ShooterViewEntityKind.Player, 7)));
+    }
+
+    [Fact]
+    public void PackedAndPureStateSnapshotsApplyEquivalentLocalAuthority()
+    {
+        var packedRuntime = new ShooterBattleRuntimePort();
+        var pureRuntime = new ShooterBattleRuntimePort();
+        var packedController = StartedController(packedRuntime, new ShooterPresentationFacade());
+        var pureController = StartedController(pureRuntime, new ShooterPresentationFacade());
+
+        packedController.BufferRemoteSnapshot(PackedPlayerSnapshot(
+            frame: 3, x: 2f, y: -1f, aimX: 0f, aimY: 1f, hp: 81, score: 4));
+        pureController.BufferRemoteSnapshot(PureStatePlayerSnapshot(
+            frame: 3, x: 2f, y: -1f, aimX: 0f, aimY: 1f, hp: 81, score: 4));
+
+        Assert.True(packedRuntime.TryGetPlayer(1, out var packed));
+        Assert.True(pureRuntime.TryGetPlayer(1, out var pure));
+        Assert.Equal(packed.X, pure.X, 3);
+        Assert.Equal(packed.Y, pure.Y, 3);
+        Assert.Equal(packed.AimX, pure.AimX, 3);
+        Assert.Equal(packed.AimY, pure.AimY, 3);
+        Assert.Equal(packed.Hp, pure.Hp);
+        Assert.Equal(packed.Score, pure.Score);
+        Assert.Equal(packed.Alive, pure.Alive);
+    }
+
+    [Fact]
+    public void WorldChangeForcesDeltaSnapshotToSnapAndResetsFrameWatermark()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 10, x: 1f, worldId: 9001ul));
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(
+            frame: 1, x: 3f, isFull: false, worldId: 9002ul));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(3f, player.X, 3);
     }
 
     private static float TransformX(in ShooterSnapshotViewBatch batch, ShooterViewEntityKey key)
